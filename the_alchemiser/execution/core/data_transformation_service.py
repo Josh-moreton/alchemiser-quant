@@ -38,7 +38,7 @@ from the_alchemiser.strategy.data.market_data_service import MarketDataService
 
 class DataTransformationService:
     """Service responsible for data transformations and DTO mappings.
-    
+
     Handles market data operations, position data transformations, and complex DTO mappings.
     """
 
@@ -47,6 +47,7 @@ class DataTransformationService:
 
         Args:
             alpaca_manager: The Alpaca manager for broker operations
+
         """
         self.logger = logging.getLogger(__name__)
         self.alpaca_manager = alpaca_manager
@@ -187,7 +188,9 @@ class DataTransformationService:
         try:
             positions = self.alpaca_manager.get_all_positions()
             # Calculate metrics
-            total_value = sum(float(pos.market_value) for pos in positions if hasattr(pos, "market_value"))
+            total_value = sum(
+                float(pos.market_value) for pos in positions if hasattr(pos, "market_value")
+            )
             largest_positions = sorted(
                 positions,
                 key=lambda p: float(getattr(p, "market_value", 0)),

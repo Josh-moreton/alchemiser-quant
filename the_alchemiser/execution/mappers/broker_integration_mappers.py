@@ -30,12 +30,13 @@ from the_alchemiser.shared.types.time_in_force import TimeInForce
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:
-    from the_alchemiser.execution.orders.schemas import RawOrderEnvelope
+    pass
 
 logger = logging.getLogger(__name__)
 
 
 # Alpaca DTO Mapping Section
+
 
 def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
     """Convert raw Alpaca order object to AlpacaOrderDTO.
@@ -50,7 +51,9 @@ def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
 
     Raises:
         ValueError: If required fields are missing or invalid
+
     """
+
     # Extract helper function to handle both attribute access and dict access
     def get_attr(name: str, default: Any = None) -> Any:
         if isinstance(order, dict):
@@ -92,7 +95,7 @@ def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
     # Handle price fields
     limit_price = None
     avg_fill_price = None
-    
+
     raw_limit = get_attr("limit_price")
     if raw_limit is not None:
         try:
@@ -133,36 +136,43 @@ def alpaca_order_to_execution_result(order: Any) -> OrderExecutionResultDTO:
 
     Returns:
         OrderExecutionResultDTO with proper success flag and error handling
+
     """
     try:
         alpaca_dto = alpaca_order_to_dto(order)
-        
+
         # Determine success based on status
         success = alpaca_dto.status not in ["rejected", "canceled", "expired"]
-        
+
         # Convert timestamps
         submitted_at = datetime.now(UTC)
         completed_at = None
-        
+
         if alpaca_dto.submitted_at:
             with contextlib.suppress(Exception):
                 if isinstance(alpaca_dto.submitted_at, str):
-                    submitted_at = datetime.fromisoformat(alpaca_dto.submitted_at.replace('Z', '+00:00'))
-                elif hasattr(alpaca_dto.submitted_at, 'isoformat'):
+                    submitted_at = datetime.fromisoformat(
+                        alpaca_dto.submitted_at.replace("Z", "+00:00")
+                    )
+                elif hasattr(alpaca_dto.submitted_at, "isoformat"):
                     submitted_at = alpaca_dto.submitted_at
-        
+
         if alpaca_dto.updated_at and alpaca_dto.status in ["filled", "canceled", "rejected"]:
             with contextlib.suppress(Exception):
                 if isinstance(alpaca_dto.updated_at, str):
-                    completed_at = datetime.fromisoformat(alpaca_dto.updated_at.replace('Z', '+00:00'))
-                elif hasattr(alpaca_dto.updated_at, 'isoformat'):
+                    completed_at = datetime.fromisoformat(
+                        alpaca_dto.updated_at.replace("Z", "+00:00")
+                    )
+                elif hasattr(alpaca_dto.updated_at, "isoformat"):
                     completed_at = alpaca_dto.updated_at
 
         return OrderExecutionResultDTO(
             success=success,
             order_id=alpaca_dto.id,
-            status=cast(Literal["accepted", "filled", "partially_filled", "rejected", "canceled"], 
-                      alpaca_dto.status),
+            status=cast(
+                Literal["accepted", "filled", "partially_filled", "rejected", "canceled"],
+                alpaca_dto.status,
+            ),
             filled_qty=alpaca_dto.filled_qty,
             avg_fill_price=alpaca_dto.avg_fill_price,
             submitted_at=submitted_at,
@@ -192,7 +202,9 @@ def alpaca_error_to_dto(error: Any) -> AlpacaErrorDTO:
 
     Returns:
         AlpacaErrorDTO with normalized error information
+
     """
+
     def get_attr(name: str, default: Any = None) -> Any:
         if isinstance(error, dict):
             return error.get(name, default)
@@ -206,6 +218,7 @@ def alpaca_error_to_dto(error: Any) -> AlpacaErrorDTO:
 
 
 # Order Domain Mapping Section
+
 
 class OrderSummary(TypedDict, total=False):
     """Lightweight order summary for UI/reporting when needed."""
@@ -233,19 +246,19 @@ def _coerce_datetime(value: Any) -> datetime | None:
     """Safely coerce value to datetime."""
     if value is None:
         return None
-    
+
     if isinstance(value, datetime):
         return value
-    
+
     if isinstance(value, str):
         try:
             # Handle various ISO format variations
-            if value.endswith('Z'):
-                value = value[:-1] + '+00:00'
+            if value.endswith("Z"):
+                value = value[:-1] + "+00:00"
             return datetime.fromisoformat(value)
         except ValueError:
             return None
-    
+
     return None
 
 
@@ -263,7 +276,9 @@ def alpaca_order_to_domain(alpaca_order: Any) -> Order:
 
     Raises:
         ValueError: If required fields are missing or invalid
+
     """
+
     # Handle both dict and object access patterns
     def get_attr(name: str, default: Any = None) -> Any:
         if isinstance(alpaca_order, dict):
@@ -283,23 +298,27 @@ def alpaca_order_to_domain(alpaca_order: Any) -> Order:
     try:
         order_id = OrderId.from_string(str(order_id_str))
         symbol = Symbol(str(symbol_str))
-        
+
         # Quantity handling
         qty_value = get_attr("qty")
         quantity = Quantity(_coerce_decimal(qty_value) or Decimal("0"))
-        
+
         # Order type
         order_type_str = get_attr("order_type") or get_attr("type", "market")
-        order_type = OrderType(value=order_type_str if order_type_str in ["market", "limit"] else "market")
-        
+        order_type = OrderType(
+            value=order_type_str if order_type_str in ["market", "limit"] else "market"
+        )
+
         # Time in force
         tif_str = get_attr("time_in_force", "day")
-        time_in_force = TimeInForce(value=tif_str if tif_str in ["day", "gtc", "ioc", "fok"] else "day")
-        
+        time_in_force = TimeInForce(
+            value=tif_str if tif_str in ["day", "gtc", "ioc", "fok"] else "day"
+        )
+
         # Status
         status_str = normalize_order_status(get_attr("status", "NEW"))
         status = OrderStatus(status_str)
-        
+
         # Optional fields
         limit_price = None
         limit_price_value = get_attr("limit_price")
@@ -307,11 +326,11 @@ def alpaca_order_to_domain(alpaca_order: Any) -> Order:
             limit_price_decimal = _coerce_decimal(limit_price_value)
             if limit_price_decimal:
                 limit_price = Money(amount=limit_price_decimal, currency="USD")
-        
+
         # Timestamps
         created_at = _coerce_datetime(get_attr("created_at")) or datetime.now(UTC)
         updated_at = _coerce_datetime(get_attr("updated_at"))
-        
+
         # Execution details
         filled_qty = _coerce_decimal(get_attr("filled_qty")) or Decimal("0")
         avg_fill_price = _coerce_decimal(get_attr("filled_avg_price") or get_attr("avg_fill_price"))
@@ -344,6 +363,7 @@ def summarize_order(order: Order) -> OrderSummary:
 
     Returns:
         OrderSummary dict with key fields
+
     """
     return OrderSummary(
         id=str(order.id),
@@ -364,9 +384,10 @@ def order_to_dict(order: Order) -> dict[str, Any]:
 
     Returns:
         Dictionary representation suitable for serialization
+
     """
     order_dict = asdict(order)
-    
+
     # Convert complex types to serializable formats
     order_dict["id"] = str(order.id)
     order_dict["symbol"] = str(order.symbol)
@@ -374,26 +395,26 @@ def order_to_dict(order: Order) -> dict[str, Any]:
     order_dict["order_type"] = order.order_type.value
     order_dict["time_in_force"] = order.time_in_force.value
     order_dict["status"] = order.status.value
-    
+
     if order.limit_price:
         order_dict["limit_price"] = float(order.limit_price.amount)
         order_dict["currency"] = order.limit_price.currency
     else:
         order_dict["limit_price"] = None
         order_dict["currency"] = None
-    
+
     if order.created_at:
         order_dict["created_at"] = order.created_at.isoformat()
-    
+
     if order.updated_at:
         order_dict["updated_at"] = order.updated_at.isoformat()
-    
+
     if order.filled_qty:
         order_dict["filled_qty"] = float(order.filled_qty)
-    
+
     if order.avg_fill_price:
         order_dict["avg_fill_price"] = float(order.avg_fill_price)
-    
+
     return order_dict
 
 
@@ -402,7 +423,7 @@ __all__ = [
     "alpaca_order_to_dto",
     "alpaca_order_to_execution_result",
     "alpaca_error_to_dto",
-    # Order domain mapping  
+    # Order domain mapping
     "alpaca_order_to_domain",
     "summarize_order",
     "order_to_dict",

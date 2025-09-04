@@ -16,12 +16,10 @@ from the_alchemiser.execution.core.data_transformation_service import DataTransf
 from the_alchemiser.execution.core.lifecycle_coordinator import LifecycleCoordinator
 from the_alchemiser.execution.core.order_execution_service import OrderExecutionService
 from the_alchemiser.execution.lifecycle import OrderLifecycleState
-from the_alchemiser.execution.mappers.orders import dict_to_order_request_dto
 from the_alchemiser.execution.orders.order_id import OrderId
 from the_alchemiser.execution.orders.order_schemas import OrderRequestDTO
 from the_alchemiser.execution.orders.validation import OrderValidator
 from the_alchemiser.execution.schemas.smart_trading import (
-    OrderValidationMetadataDTO,
     SmartOrderExecutionDTO,
     TradingDashboardDTO,
 )
@@ -75,6 +73,7 @@ class RefactoredTradingServiceManager:
             api_key: Alpaca API key
             secret_key: Alpaca secret key
             paper: Whether to use paper trading environment
+
         """
         self.logger = logging.getLogger(__name__)
 
@@ -129,7 +128,9 @@ class RefactoredTradingServiceManager:
         self, symbol: str, quantity: int, side: str, estimated_cost: float | None = None
     ) -> TradeEligibilityDTO:
         """Validate if a trade can be executed."""
-        return self.account_management.validate_trade_eligibility(symbol, quantity, side, estimated_cost)
+        return self.account_management.validate_trade_eligibility(
+            symbol, quantity, side, estimated_cost
+        )
 
     def get_portfolio_allocation(self) -> PortfolioAllocationDTO:
         """Get portfolio allocation and diversification metrics."""
@@ -217,14 +218,13 @@ class RefactoredTradingServiceManager:
                     symbol=symbol,
                     error=f"Position not found for {symbol}",
                 )
-            else:
-                # Get portfolio summary
-                positions_dict = self.positions.get_positions_with_analysis()
-                return PortfolioSummaryDTO(
-                    success=True,
-                    total_positions=len(positions_dict),
-                    positions=positions_dict,
-                )
+            # Get portfolio summary
+            positions_dict = self.positions.get_positions_with_analysis()
+            return PortfolioSummaryDTO(
+                success=True,
+                total_positions=len(positions_dict),
+                positions=positions_dict,
+            )
         except Exception as e:
             if symbol:
                 return PositionSummaryDTO(success=False, symbol=symbol, error=str(e))
@@ -374,11 +374,19 @@ class RefactoredTradingServiceManager:
             return TradingDashboardDTO(
                 success=True,
                 account=account_summary.summary,
-                risk_metrics=risk_metrics.model_dump() if hasattr(risk_metrics, "model_dump") else {},
-                portfolio_allocation=portfolio_allocation.model_dump() if hasattr(portfolio_allocation, "model_dump") else {},
-                position_summary=pos_summary.model_dump() if hasattr(pos_summary, "model_dump") else {},
+                risk_metrics=risk_metrics.model_dump()
+                if hasattr(risk_metrics, "model_dump")
+                else {},
+                portfolio_allocation=portfolio_allocation.model_dump()
+                if hasattr(portfolio_allocation, "model_dump")
+                else {},
+                position_summary=pos_summary.model_dump()
+                if hasattr(pos_summary, "model_dump")
+                else {},
                 open_orders=open_orders.orders,
-                market_status=market_status.model_dump() if hasattr(market_status, "model_dump") else {},
+                market_status=market_status.model_dump()
+                if hasattr(market_status, "model_dump")
+                else {},
                 timestamp=datetime.now(UTC),
             )
 

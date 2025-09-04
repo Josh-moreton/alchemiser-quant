@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 _STATUS_SYNONYMS: dict[str, OrderStatusLiteral] = {
     "placed": "new",
-    "submitted": "new", 
+    "submitted": "new",
     "simulated": "new",
     "new": "new",
     "accepted": "new",
@@ -75,24 +75,26 @@ def normalize_order_status(status: Any) -> OrderStatusLiteral:
         "partially_filled"
         >>> normalize_order_status("cancelled")
         "canceled"
+
     """
     if status is None:
         return "new"
-    
+
     # Convert to lowercase string
     status_str = str(status).lower().strip()
-    
+
     # Look up in synonyms mapping
     normalized = _STATUS_SYNONYMS.get(status_str)
     if normalized:
         return normalized
-    
+
     # Fallback for unknown statuses
     logger.warning(f"Unknown order status: {status}, defaulting to 'new'")
     return "new"
 
 
 # Order Domain Models
+
 
 @dataclass(frozen=True)
 class OrderModel:
@@ -126,7 +128,7 @@ class OrderModel:
         # Map lowercase literal status to domain enum (uppercase member names)
         status_literal = data["status"]
         normalized_status = normalize_order_status(status_literal)
-        
+
         # Convert to OrderStatus enum
         status_enum_mapping = {
             "new": OrderStatus.NEW,
@@ -166,6 +168,7 @@ class OrderModel:
 
 # DTO Mapping Utilities
 
+
 def dict_to_order_request_dto(order_dict: dict[str, Any]) -> OrderRequestDTO:
     """Convert dictionary to OrderRequestDTO.
 
@@ -177,6 +180,7 @@ def dict_to_order_request_dto(order_dict: dict[str, Any]) -> OrderRequestDTO:
 
     Raises:
         ValueError: If required fields are missing or invalid
+
     """
     try:
         return OrderRequestDTO(
@@ -185,7 +189,9 @@ def dict_to_order_request_dto(order_dict: dict[str, Any]) -> OrderRequestDTO:
             quantity=Decimal(str(order_dict["quantity"])),
             order_type=order_dict["order_type"],
             time_in_force=order_dict.get("time_in_force", "day"),
-            limit_price=Decimal(str(order_dict["limit_price"])) if order_dict.get("limit_price") else None,
+            limit_price=Decimal(str(order_dict["limit_price"]))
+            if order_dict.get("limit_price")
+            else None,
             client_order_id=order_dict.get("client_order_id"),
         )
     except Exception as e:
@@ -201,6 +207,7 @@ def order_request_to_validated_dto(order_request: OrderRequestDTO) -> ValidatedO
 
     Returns:
         ValidatedOrderDTO with derived fields
+
     """
     # Calculate estimated value if limit price is available
     estimated_value = None
@@ -235,26 +242,31 @@ def domain_order_to_execution_result(order: Order, success: bool = True) -> Orde
 
     Returns:
         OrderExecutionResultDTO with proper status mapping
+
     """
     # Map domain status to DTO status
     status_mapping = {
         OrderStatus.NEW: "accepted",
-        OrderStatus.PARTIALLY_FILLED: "partially_filled", 
+        OrderStatus.PARTIALLY_FILLED: "partially_filled",
         OrderStatus.FILLED: "filled",
         OrderStatus.CANCELLED: "canceled",
         OrderStatus.REJECTED: "rejected",
     }
-    
+
     dto_status = status_mapping.get(order.status, "accepted")
-    
+
     return OrderExecutionResultDTO(
         success=success,
         order_id=str(order.id),
-        status=cast(Literal["accepted", "filled", "partially_filled", "rejected", "canceled"], dto_status),
+        status=cast(
+            Literal["accepted", "filled", "partially_filled", "rejected", "canceled"], dto_status
+        ),
         filled_qty=order.filled_qty or Decimal("0"),
         avg_fill_price=order.avg_fill_price,
         submitted_at=order.created_at or datetime.now(UTC),
-        completed_at=order.updated_at if order.status in {OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED} else None,
+        completed_at=order.updated_at
+        if order.status in {OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED}
+        else None,
         error=None if success else f"Order {dto_status}",
     )
 
@@ -268,6 +280,7 @@ def create_order_from_request(order_request: OrderRequestDTO, order_id: str | No
 
     Returns:
         Domain Order entity
+
     """
     from the_alchemiser.execution.orders.order_types import OrderType, Side
     from the_alchemiser.shared.types.time_in_force import TimeInForce
@@ -279,7 +292,7 @@ def create_order_from_request(order_request: OrderRequestDTO, order_id: str | No
     order_type = OrderType(value=order_request.order_type)
     side = Side(value=order_request.side)
     time_in_force = TimeInForce(value=order_request.time_in_force)
-    
+
     # Handle limit price
     limit_price = None
     if order_request.limit_price:
@@ -310,7 +323,7 @@ __all__ = [
     "OrderModel",
     # DTO mapping
     "dict_to_order_request_dto",
-    "order_request_to_validated_dto", 
+    "order_request_to_validated_dto",
     "domain_order_to_execution_result",
     "create_order_from_request",
 ]

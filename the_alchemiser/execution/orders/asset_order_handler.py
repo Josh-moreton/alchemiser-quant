@@ -159,8 +159,6 @@ class AssetOrderHandler:
 
         return market_order_data, None
 
-
-
     def prepare_limit_order_quantity(
         self, symbol: str, qty: float, limit_price: float
     ) -> tuple[float, bool]:
@@ -202,5 +200,3 @@ class AssetOrderHandler:
             qty = float(Decimal(str(qty)).quantize(Decimal("0.000001"), rounding=ROUND_DOWN))
 
         return qty, was_converted
-
-

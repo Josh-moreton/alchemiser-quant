@@ -4,13 +4,13 @@
 Alpaca Client for Direct API Access.
 
 ⚠️ DEPRECATION NOTICE ⚠️
-This client is a legacy wrapper around AlpacaManager and will be deprecated in favor of 
-using AlpacaManager directly. The AlpacaManager implements the same domain interfaces 
+This client is a legacy wrapper around AlpacaManager and will be deprecated in favor of
+using AlpacaManager directly. The AlpacaManager implements the same domain interfaces
 more efficiently and with better separation of concerns.
 
 Future migration plan:
 1. Extend AlpacaManager to implement OrderExecutor protocol
-2. Update SmartExecution to use AlpacaManager directly  
+2. Update SmartExecution to use AlpacaManager directly
 3. Remove this wrapper class
 
 A streamlined, robust wrapper around Alpaca's trading APIs that provides direct access
@@ -83,12 +83,13 @@ from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 from the_alchemiser.execution.monitoring.websocket_order_monitor import (
     OrderCompletionMonitor,
 )
-from the_alchemiser.portfolio.policies.policy_factory import PolicyFactory
 from the_alchemiser.execution.pricing.smart_pricing_handler import (
     SmartPricingHandler,
 )
+
 # Position validation now handled by PolicyOrchestrator (validation methods deprecated)
 from the_alchemiser.portfolio.holdings.position_manager import PositionManager
+from the_alchemiser.portfolio.policies.policy_factory import PolicyFactory
 
 # DEPRECATED: LimitOrderHandler import removed - use CanonicalOrderExecutor instead
 # (Legacy order validation utilities removed with legacy paths)
