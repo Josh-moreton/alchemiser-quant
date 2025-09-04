@@ -436,14 +436,12 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Get current price for a symbol.
 
         Returns the mid price between bid and ask, or None if not available.
+        Uses centralized price discovery utility for consistent calculation.
         """
+        from the_alchemiser.shared.utils.price_discovery_utils import get_current_price_from_quote
+        
         try:
-            quote = self.get_latest_quote(symbol)
-            if quote is not None:
-                bid, ask = quote
-                if bid and ask:
-                    return float((bid + ask) / 2)
-            return None
+            return get_current_price_from_quote(self, symbol)
         except Exception as e:
             logger.error(f"Failed to get current price for {symbol}: {e}")
             raise
