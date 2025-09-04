@@ -1,13 +1,18 @@
 """Business Unit: execution | Status: current
 
 Data mapping utilities for execution module.
+
+Consolidated from 8 mapper files to 4 focused mappers:
+- broker_integration_mappers.py (Alpaca API mappings)
+- order_domain_mappers.py (Order domain objects and utilities)
+- service_dto_mappers.py (Service layer DTO transformations)
+- core_execution_mappers.py (Core execution and account mappings)
 """
 
-from .account_mapping import *
-from .execution import *
-from .order_mapping import *
-from .orders import *
-from .trading_service_dto_mapping import *
+from .broker_integration_mappers import *
+from .core_execution_mappers import *
+from .order_domain_mappers import *
+from .service_dto_mappers import *
 
 __all__ = [
     # Order mappers
