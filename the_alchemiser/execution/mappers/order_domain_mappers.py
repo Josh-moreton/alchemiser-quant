@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal, cast
 
-from the_alchemiser.execution.entities.order import Order
+from the_alchemiser.execution.orders.order import Order
 from the_alchemiser.execution.orders.order_types import OrderId, OrderStatus
 from the_alchemiser.execution.orders.schemas import (
     OrderExecutionResultDTO,

@@ -20,7 +20,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
-from the_alchemiser.execution.entities.order import Order
+from the_alchemiser.execution.orders.order import Order
 
 # Re-export canonical MarketDataPort (reuse; no duplication)
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
