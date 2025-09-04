@@ -12,6 +12,7 @@ from enum import Enum
 from typing import Any
 
 from the_alchemiser.execution.orders.order_id import OrderId
+from the_alchemiser.shared.utils.timezone_utils import ensure_timezone_aware
 
 from .states import OrderLifecycleState
 
@@ -62,9 +63,8 @@ class OrderLifecycleEvent:
     def __post_init__(self) -> None:
         """Validate event data after initialization."""
         # Ensure timestamp is timezone-aware (UTC)
-        if self.timestamp.tzinfo is None:
-            # Replace with UTC timezone if naive
-            object.__setattr__(self, "timestamp", self.timestamp.replace(tzinfo=UTC))
+        timezone_aware_timestamp = ensure_timezone_aware(self.timestamp)
+        object.__setattr__(self, "timestamp", timezone_aware_timestamp)
 
         # Validate state transition logic
         if self.previous_state is not None:
