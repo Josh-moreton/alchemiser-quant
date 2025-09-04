@@ -4,21 +4,7 @@
 Smart Execution Engine with Professional Order Strategy.
 
 This module provides sophisticated order execution using the Better Orders strategy:
-- Aggressive marketable limits (ask+1¢ for buys, bid-            # Get alpaca manager from order executor for canonical executor
-            alpaca_manager = getattr(self._order_executor, "alpaca_manager", None)
-            if not alpaca_manager:
-                # If not available, get underlying trading repository
-                alpaca_manager = getattr(self._order_executor, "_trading", self._order_executor)
-
-            order_request = OrderRequest(
-                symbol=DomainSymbol(symbol),
-                side=DomainSide("buy" if side.value.lower() == "buy" else "sell"),
-                quantity=DomainQuantity(Decimal(str(qty))),
-                order_type=DomainOrderType("limit"),
-                time_in_force=DomainTimeInForce("day"),
-                limit_price=DomainMoney(amount=Decimal(str(limit_price)), currency="USD"),
-            )
-            executor = CanonicalOrderExecutor(alpaca_manager)lls)
+- Aggressive marketable limits (ask+1¢ for buys, bid-1¢ for sells)
 - Market timing logic for 9:30-9:35 ET execution
 - Fast 2-3 second timeouts with re-pegging
 - Designed for leveraged ETFs and high-volume trading
