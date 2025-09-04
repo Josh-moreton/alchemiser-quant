@@ -36,7 +36,7 @@ from the_alchemiser.shared.utils.decorators import translate_trading_errors
 
 class AccountManagementService:
     """Service responsible for account management operations.
-    
+
     Handles account summaries, risk metrics, buying power, and trade eligibility.
     """
 
@@ -45,6 +45,7 @@ class AccountManagementService:
 
         Args:
             alpaca_manager: The Alpaca manager for broker operations
+
         """
         self.logger = logging.getLogger(__name__)
         self.alpaca_manager = alpaca_manager

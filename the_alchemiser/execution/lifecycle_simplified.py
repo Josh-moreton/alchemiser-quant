@@ -24,22 +24,22 @@ logger = logging.getLogger(__name__)
 
 class OrderState(str, Enum):
     """Simplified order lifecycle states focused on essential transitions."""
-    
+
     # Core workflow states
-    NEW = "NEW"                    # Order created
-    VALIDATED = "VALIDATED"        # Order passed validation
-    SUBMITTED = "SUBMITTED"        # Order sent to broker
+    NEW = "NEW"  # Order created
+    VALIDATED = "VALIDATED"  # Order passed validation
+    SUBMITTED = "SUBMITTED"  # Order sent to broker
     ACKNOWLEDGED = "ACKNOWLEDGED"  # Broker confirmed receipt
-    
+
     # Execution states
     PARTIALLY_FILLED = "PARTIALLY_FILLED"  # Order partially executed
-    FILLED = "FILLED"                      # Order completely executed
-    
+    FILLED = "FILLED"  # Order completely executed
+
     # Terminal states
-    CANCELLED = "CANCELLED"        # Order cancelled
-    REJECTED = "REJECTED"          # Order rejected by broker
-    EXPIRED = "EXPIRED"            # Order expired
-    ERROR = "ERROR"                # Unrecoverable error
+    CANCELLED = "CANCELLED"  # Order cancelled
+    REJECTED = "REJECTED"  # Order rejected by broker
+    EXPIRED = "EXPIRED"  # Order expired
+    ERROR = "ERROR"  # Unrecoverable error
 
     @classmethod
     def is_terminal(cls, state: OrderState) -> bool:
@@ -55,7 +55,7 @@ class OrderState(str, Enum):
 @dataclass(frozen=True)
 class StateTransition:
     """Immutable record of an order state transition."""
-    
+
     order_id: OrderId
     from_state: OrderState | None
     to_state: OrderState
@@ -71,7 +71,7 @@ class StateTransition:
 
 class OrderStateError(Exception):
     """Exception for invalid order state operations."""
-    
+
     def __init__(self, message: str, order_id: OrderId | None = None) -> None:
         """Initialize exception with message and optional order ID."""
         super().__init__(message)
@@ -80,22 +80,20 @@ class OrderStateError(Exception):
 
 class SimplifiedLifecycleManager:
     """Simplified, thread-safe order lifecycle state manager.
-    
+
     This replaces the complex 9-file lifecycle system with essential
     functionality: state tracking, transition validation, and basic logging.
     Removes unnecessary observer patterns and event dispatching overhead.
     """
-    
+
     # Valid state transitions (simplified from complex transition matrix)
     VALID_TRANSITIONS: ClassVar[dict[tuple[OrderState, OrderState], str]] = {
         # From NEW
         (OrderState.NEW, OrderState.VALIDATED): "validation_passed",
         (OrderState.NEW, OrderState.REJECTED): "validation_failed",
-        
-        # From VALIDATED  
+        # From VALIDATED
         (OrderState.VALIDATED, OrderState.SUBMITTED): "submitted_to_broker",
         (OrderState.VALIDATED, OrderState.REJECTED): "pre_submission_rejection",
-        
         # From SUBMITTED
         (OrderState.SUBMITTED, OrderState.ACKNOWLEDGED): "broker_acknowledged",
         (OrderState.SUBMITTED, OrderState.FILLED): "immediate_fill",
@@ -103,19 +101,16 @@ class SimplifiedLifecycleManager:
         (OrderState.SUBMITTED, OrderState.REJECTED): "broker_rejected",
         (OrderState.SUBMITTED, OrderState.CANCELLED): "cancelled_before_ack",
         (OrderState.SUBMITTED, OrderState.ERROR): "submission_error",
-        
         # From ACKNOWLEDGED
         (OrderState.ACKNOWLEDGED, OrderState.PARTIALLY_FILLED): "partial_execution",
         (OrderState.ACKNOWLEDGED, OrderState.FILLED): "full_execution",
         (OrderState.ACKNOWLEDGED, OrderState.CANCELLED): "cancelled_after_ack",
         (OrderState.ACKNOWLEDGED, OrderState.EXPIRED): "order_expired",
         (OrderState.ACKNOWLEDGED, OrderState.ERROR): "execution_error",
-        
         # From PARTIALLY_FILLED
         (OrderState.PARTIALLY_FILLED, OrderState.FILLED): "completion_fill",
         (OrderState.PARTIALLY_FILLED, OrderState.CANCELLED): "cancelled_partial",
         (OrderState.PARTIALLY_FILLED, OrderState.ERROR): "partial_fill_error",
-        
         # Terminal state idempotent transitions
         (OrderState.FILLED, OrderState.FILLED): "idempotent",
         (OrderState.CANCELLED, OrderState.CANCELLED): "idempotent",
@@ -148,30 +143,30 @@ class SimplifiedLifecycleManager:
         metadata: dict[str, Any] | None = None,
     ) -> StateTransition:
         """Transition an order to a new state with validation.
-        
+
         Args:
             order_id: Order identifier
             new_state: Target state
             reason: Optional reason for transition
             metadata: Optional additional context
-            
+
         Returns:
             StateTransition record
-            
+
         Raises:
             OrderStateError: If transition is invalid
 
         """
         with self._lock:
             current_state = self._order_states.get(order_id)
-            
+
             # Validate transition
             if not self._is_valid_transition(current_state, new_state):
                 raise OrderStateError(
                     f"Invalid transition from {current_state} to {new_state} for order {order_id}",
-                    order_id=order_id
+                    order_id=order_id,
                 )
-            
+
             # Create transition record
             transition = StateTransition(
                 order_id=order_id,
@@ -181,11 +176,11 @@ class SimplifiedLifecycleManager:
                 reason=reason,
                 metadata=metadata,
             )
-            
+
             # Update state and record transition
             self._order_states[order_id] = new_state
             self._order_transitions[order_id].append(transition)
-            
+
             # Simple logging (replaces complex observer system)
             logger.info(
                 "Order %s transitioned %s -> %s%s",
@@ -199,9 +194,9 @@ class SimplifiedLifecycleManager:
                     "to_state": new_state.value,
                     "reason": reason,
                     "metadata": metadata,
-                }
+                },
             )
-            
+
             return transition
 
     def initialize_order(self, order_id: OrderId) -> StateTransition:
@@ -216,15 +211,18 @@ class SimplifiedLifecycleManager:
     def get_orders_in_state(self, state: OrderState) -> list[OrderId]:
         """Get all orders currently in the specified state."""
         with self._lock:
-            return [order_id for order_id, order_state in self._order_states.items()
-                   if order_state == state]
+            return [
+                order_id
+                for order_id, order_state in self._order_states.items()
+                if order_state == state
+            ]
 
     def _is_valid_transition(self, from_state: OrderState | None, to_state: OrderState) -> bool:
         """Check if a state transition is valid."""
         # Initial state (None -> any state) is always valid for NEW
         if from_state is None:
             return to_state == OrderState.NEW
-            
+
         # Check against transition matrix
         return (from_state, to_state) in self.VALID_TRANSITIONS
 
@@ -236,10 +234,10 @@ InvalidOrderStateTransitionError = OrderStateError
 
 __all__ = [
     "InvalidOrderStateTransitionError",
-    "OrderLifecycleManager", 
+    "OrderLifecycleManager",
     "OrderLifecycleState",
     "OrderState",
     "OrderStateError",
     "SimplifiedLifecycleManager",
-    "StateTransition", 
+    "StateTransition",
 ]

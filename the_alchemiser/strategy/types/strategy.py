@@ -11,11 +11,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, Literal, cast
+from typing import Literal, cast
 
 from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.shared.value_objects.core_types import (
     StrategyPositionData as StrategyPositionDTO,
+)
+from the_alchemiser.shared.value_objects.core_types import (
     StrategySignal as StrategySignalDTO,
 )
 from the_alchemiser.shared.value_objects.symbol import Symbol
@@ -29,7 +31,7 @@ Action = Literal["BUY", "SELL", "HOLD"]
 @dataclass(frozen=True)
 class StrategySignal:
     """Canonical trading signal from a strategy.
-    
+
     This consolidates signal logic that was previously duplicated across:
     - strategy/engines/models/strategy_signal_model.py
     - strategy/engines/value_objects/strategy_signal.py
@@ -137,7 +139,7 @@ class StrategySignal:
 @dataclass(frozen=True)
 class StrategyPosition:
     """Canonical strategy position model.
-    
+
     This consolidates position logic that was previously duplicated in:
     - strategy/engines/models/strategy_position_model.py
     """

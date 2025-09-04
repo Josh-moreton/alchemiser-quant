@@ -1,6 +1,17 @@
 """Business Unit: execution | Status: current
 
 Trading service facade aggregating order, position, market data, and account operations.
+
+⚠️ COMPLEXITY WARNING ⚠️
+This file is 1185 lines and implements the god class antipattern. A refactored version
+is available in refactored_execution_manager.py (432 lines) with better separation of concerns.
+
+Future migration plan:
+1. Gradually migrate dependent services to use RefactoredTradingServiceManager
+2. Split this class into focused service components
+3. Maintain backward compatibility during transition
+
+For new integrations, prefer RefactoredTradingServiceManager when possible.
 """
 
 from __future__ import annotations

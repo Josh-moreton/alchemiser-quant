@@ -21,7 +21,7 @@ from the_alchemiser.shared.value_objects.identifier import Identifier
 
 if TYPE_CHECKING:  # Only for static typing; avoids runtime circular import
     # Import the Order entity for precise typing during type checking only
-    from the_alchemiser.execution.entities.order import Order
+    from the_alchemiser.execution.orders.order import Order
 
     OrderIdBase = Identifier[Order]
 else:
@@ -69,7 +69,7 @@ class Side:
 
 __all__ = [
     "OrderId",
-    "OrderStatus", 
+    "OrderStatus",
     "OrderStatusLiteral",
     "OrderType",
     "Side",

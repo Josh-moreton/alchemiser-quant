@@ -22,7 +22,7 @@ from the_alchemiser.execution.orders.order_id import OrderId
 
 class LifecycleCoordinator:
     """Simplified service for order lifecycle management.
-    
+
     Phase 3 redesign focusing on essential lifecycle tracking without
     over-engineered observer patterns and event dispatching complexity.
     """
@@ -30,7 +30,7 @@ class LifecycleCoordinator:
     def __init__(self) -> None:
         """Initialize the simplified lifecycle coordinator."""
         self.logger = logging.getLogger(__name__)
-        
+
         # Use simplified lifecycle management (replaces complex 9-file system)
         self.lifecycle_manager = SimplifiedLifecycleManager()
 

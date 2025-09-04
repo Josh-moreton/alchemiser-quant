@@ -26,8 +26,8 @@ from the_alchemiser.shared.types.quantity import Quantity
 from the_alchemiser.shared.types.time_in_force import TimeInForce
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
-
 # Domain Value Objects
+
 
 @dataclass(frozen=True)
 class OrderRequest:
@@ -77,6 +77,7 @@ class OrderRequest:
 
 
 # Pydantic DTOs
+
 
 class OrderValidationMixin:
     """Mixin providing common validation methods for order DTOs.
@@ -311,7 +312,7 @@ __all__ = [
     "OrderRequest",
     # DTOs
     "OrderRequestDTO",
-    "ValidatedOrderDTO", 
+    "ValidatedOrderDTO",
     "OrderExecutionResultDTO",
     "LimitOrderResultDTO",
     "PolicyWarningDTO",
@@ -321,7 +322,7 @@ __all__ = [
     "OrderValidationMixin",
     # Aliases for compatibility
     "ValidatedOrder",
-    "OrderExecutionResult", 
+    "OrderExecutionResult",
     "LimitOrderResult",
     "AdjustedOrderRequest",
     "PolicyWarning",

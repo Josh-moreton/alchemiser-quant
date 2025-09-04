@@ -4,7 +4,7 @@ Consolidated order validation utilities and type safety module.
 
 This module consolidates order validation functionality including:
 - Order parameter validation utilities
-- DTO-based validation with Pydantic models  
+- DTO-based validation with Pydantic models
 - Pre-trade validation and risk checks
 - Error handling and reporting
 """
@@ -26,8 +26,8 @@ from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.types.exceptions import ValidationError
 from the_alchemiser.shared.types.trading_errors import OrderError
 
-
 # Validation Utilities
+
 
 def validate_quantity(qty: Any, symbol: str) -> float | None:
     """Validate and normalize quantity parameter.
@@ -39,6 +39,7 @@ def validate_quantity(qty: Any, symbol: str) -> float | None:
 
     Returns:
         Validated float quantity or None if invalid
+
     """
     if qty is None:
         return None
@@ -73,6 +74,7 @@ def validate_price(price: Any, symbol: str, price_type: str = "price") -> float 
 
     Returns:
         Validated float price or None if invalid
+
     """
     if price is None:
         return None
@@ -104,6 +106,7 @@ def normalize_symbol(symbol: Any) -> str | None:
 
     Returns:
         Normalized symbol string or None if invalid
+
     """
     if symbol is None:
         return None
@@ -128,6 +131,7 @@ def validate_side(side: Any) -> str | None:
 
     Returns:
         Validated side string or None if invalid
+
     """
     if side is None:
         return None
@@ -153,13 +157,15 @@ def truncate_to_precision(value: float, precision: int) -> Decimal:
 
     Returns:
         Truncated Decimal value
+
     """
     decimal_value = Decimal(str(value))
-    quantize_exp = Decimal('0.1') ** precision
+    quantize_exp = Decimal("0.1") ** precision
     return decimal_value.quantize(quantize_exp, rounding=ROUND_DOWN)
 
 
 # DTO-based Validation Classes
+
 
 @dataclass
 class ValidationConfig:
@@ -216,6 +222,7 @@ class OrderValidator:
         Args:
             config: Validation configuration, uses defaults if None
             error_handler: Error handler for reporting validation failures
+
         """
         self.config = config or ValidationConfig()
         self.error_handler = error_handler or TradingSystemErrorHandler()
@@ -232,6 +239,7 @@ class OrderValidator:
 
         Raises:
             ValidationError: If validation fails
+
         """
         try:
             # Convert to validated DTO using mapper
@@ -243,8 +251,7 @@ class OrderValidator:
             if not validation_result.is_valid:
                 error_msg = f"Order validation failed: {'; '.join(validation_result.errors)}"
                 self.error_handler.handle_error(
-                    OrderError(error_msg),
-                    context={"order_request": order_request.model_dump()}
+                    OrderError(error_msg), context={"order_request": order_request.model_dump()}
                 )
                 raise ValidationError(error_msg)
 
@@ -254,7 +261,7 @@ class OrderValidator:
             self.logger.error(f"Order validation failed: {e}")
             self.error_handler.handle_error(
                 OrderError(f"Validation error: {e}"),
-                context={"order_request": order_request.model_dump()}
+                context={"order_request": order_request.model_dump()},
             )
             raise
 
@@ -269,6 +276,7 @@ class OrderValidator:
 
         Raises:
             ValidationError: If validation fails
+
         """
         try:
             # Convert dict to DTO
@@ -278,8 +286,7 @@ class OrderValidator:
         except Exception as e:
             self.logger.error(f"Dict to DTO validation failed: {e}")
             self.error_handler.handle_error(
-                OrderError(f"Dict validation error: {e}"),
-                context={"order_dict": order_dict}
+                OrderError(f"Dict validation error: {e}"), context={"order_dict": order_dict}
             )
             raise
 
@@ -291,6 +298,7 @@ class OrderValidator:
 
         Returns:
             Validation result with any errors or warnings
+
         """
         errors = []
         warnings = []
@@ -299,14 +307,20 @@ class OrderValidator:
         if self.config.enable_risk_checks:
             # Validate order value limits
             if order.estimated_value and order.estimated_value > self.config.max_order_value:
-                errors.append(f"Order value {order.estimated_value} exceeds maximum {self.config.max_order_value}")
+                errors.append(
+                    f"Order value {order.estimated_value} exceeds maximum {self.config.max_order_value}"
+                )
 
             if order.estimated_value and order.estimated_value < self.config.min_order_value:
-                errors.append(f"Order value {order.estimated_value} below minimum {self.config.min_order_value}")
+                errors.append(
+                    f"Order value {order.estimated_value} below minimum {self.config.min_order_value}"
+                )
 
             # Validate quantity limits
             if order.quantity > self.config.max_quantity:
-                errors.append(f"Quantity {order.quantity} exceeds maximum {self.config.max_quantity}")
+                errors.append(
+                    f"Quantity {order.quantity} exceeds maximum {self.config.max_quantity}"
+                )
 
             if order.quantity < self.config.min_quantity:
                 errors.append(f"Quantity {order.quantity} below minimum {self.config.min_quantity}")
@@ -316,9 +330,11 @@ class OrderValidator:
                 risk_score = order.estimated_value / self.config.max_order_value
 
         # Validate limit price requirements
-        if (self.config.require_limit_price_for_limit_orders and 
-            order.order_type == "limit" and 
-            order.limit_price is None):
+        if (
+            self.config.require_limit_price_for_limit_orders
+            and order.order_type == "limit"
+            and order.limit_price is None
+        ):
             errors.append("Limit price required for limit orders")
 
         return ValidationResult(
@@ -333,7 +349,7 @@ class OrderValidator:
 __all__ = [
     # Utility functions
     "validate_quantity",
-    "validate_price", 
+    "validate_price",
     "normalize_symbol",
     "validate_side",
     "truncate_to_precision",

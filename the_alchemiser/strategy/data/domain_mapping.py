@@ -16,12 +16,13 @@ from the_alchemiser.shared.value_objects.core_types import (
 from the_alchemiser.shared.value_objects.core_types import (
     StrategySignal as StrategySignalDTO,
 )
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType
+
 # Updated to use canonical types
 from the_alchemiser.strategy.types.strategy import (
     StrategyPosition,
     StrategySignal,
 )
-from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 
 
 def dto_to_strategy_signal_model(dto: StrategySignalDTO) -> StrategySignal:
