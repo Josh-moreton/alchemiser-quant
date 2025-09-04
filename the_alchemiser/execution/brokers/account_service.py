@@ -1,6 +1,16 @@
 """Business Unit: execution | Status: current
 
 Account management and broker account services for execution module.
+
+⚠️ COMPLEXITY WARNING ⚠️
+This file is 523 lines and handles too many responsibilities in a single class.
+Consider splitting into multiple focused services:
+- AccountSummaryService (account metrics and status)
+- AccountValidationService (trade eligibility, buying power checks)
+- PortfolioAnalyticsService (portfolio allocation, risk metrics)
+- AccountRepositoryAdapter (account data access)
+
+Future refactoring should implement single responsibility principle.
 """
 
 from __future__ import annotations
