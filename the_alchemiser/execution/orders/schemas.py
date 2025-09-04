@@ -1,20 +1,17 @@
-"""Business Unit: order execution/placement; Status: current.
+"""Business Unit: execution | Status: current
 
-Order DTOs for application layer and interface boundaries.
+Consolidated order schemas and DTOs for application layer boundaries.
 
-This module provides Pydantic v2 DTOs for order handling, replacing loose dicts
-and Any usages with strongly typed, validated structures. These DTOs are used
-at system boundaries for serialization, validation, and type safety.
-
-Key Features:
-- Pydantic v2 BaseModel with strict validation
-- Decimal precision for financial values
-- Comprehensive field validation and normalization
-- Type safety for order lifecycle management
+This module consolidates order request domain objects and Pydantic DTOs:
+- OrderRequest (domain value object)
+- Order DTOs (Pydantic models for API boundaries)
+- Validation mixins and result types
+- Policy and execution result DTOs
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
@@ -22,8 +19,64 @@ from typing import Any, Literal
 from alpaca.trading.requests import LimitOrderRequest
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from the_alchemiser.execution.orders.order_types import OrderType, Side
 from the_alchemiser.shared.schemas.base import Result
+from the_alchemiser.shared.types.money import Money
+from the_alchemiser.shared.types.quantity import Quantity
+from the_alchemiser.shared.types.time_in_force import TimeInForce
+from the_alchemiser.shared.value_objects.symbol import Symbol
 
+
+# Domain Value Objects
+
+@dataclass(frozen=True)
+class OrderRequest:
+    """Domain value object for order requests.
+
+    Immutable value object representing an order request with all required
+    fields for trading. Uses strongly-typed domain value objects for
+    validation and type safety.
+    """
+
+    symbol: Symbol
+    side: Side
+    quantity: Quantity
+    order_type: OrderType
+    time_in_force: TimeInForce
+    limit_price: Money | None = None
+    client_order_id: str | None = None
+
+    def __post_init__(self) -> None:  # pragma: no cover - validation logic
+        # Validate limit price is provided for limit orders
+        if self.order_type.value == "limit" and self.limit_price is None:
+            raise ValueError("Limit price is required for limit orders")
+
+        # Validate limit price is not provided for market orders (optional constraint)
+        if self.order_type.value == "market" and self.limit_price is not None:
+            raise ValueError("Limit price should not be provided for market orders")
+
+    @property
+    def is_buy(self) -> bool:
+        """Check if this is a buy order."""
+        return self.side.value == "buy"
+
+    @property
+    def is_sell(self) -> bool:
+        """Check if this is a sell order."""
+        return self.side.value == "sell"
+
+    @property
+    def is_market_order(self) -> bool:
+        """Check if this is a market order."""
+        return self.order_type.value == "market"
+
+    @property
+    def is_limit_order(self) -> bool:
+        """Check if this is a limit order."""
+        return self.order_type.value == "limit"
+
+
+# Pydantic DTOs
 
 class OrderValidationMixin:
     """Mixin providing common validation methods for order DTOs.
@@ -68,7 +121,7 @@ class OrderValidationMixin:
         return self
 
 
-class OrderRequest(BaseModel, OrderValidationMixin):
+class OrderRequestDTO(BaseModel, OrderValidationMixin):
     """DTO for incoming order requests.
 
     Used when creating new orders from user input or API requests.
@@ -91,7 +144,7 @@ class OrderRequest(BaseModel, OrderValidationMixin):
     client_order_id: str | None = None
 
 
-class ValidatedOrder(BaseModel, OrderValidationMixin):
+class ValidatedOrderDTO(BaseModel, OrderValidationMixin):
     """DTO for validated orders with derived and normalized fields.
 
     Contains all OrderRequest fields plus additional metadata
@@ -122,7 +175,7 @@ class ValidatedOrder(BaseModel, OrderValidationMixin):
     validation_timestamp: datetime
 
 
-class OrderExecutionResult(Result):
+class OrderExecutionResultDTO(Result):
     """DTO for order execution results.
 
     Adds uniform success/error fields to align with prior facade contract
@@ -157,15 +210,12 @@ class OrderExecutionResult(Result):
             raise ValueError("Average fill price must be greater than 0")
         return v
 
-    # is_success inherited from Result
 
-
-class LimitOrderResult(BaseModel):
+class LimitOrderResultDTO(BaseModel):
     """DTO for limit order preparation results.
 
     Contains the result of limit order preparation including the order request data,
-    conversion information, and success/failure status. Used to replace tuple returns
-    with strongly typed results.
+    conversion information, and success/failure status.
     """
 
     model_config = ConfigDict(
@@ -200,36 +250,7 @@ class LimitOrderResult(BaseModel):
         return self.success
 
 
-class RawOrderEnvelope(BaseModel):
-    """Raw order envelope containing both the original order and execution result."""
-
-    model_config = ConfigDict(
-        strict=True,
-        frozen=True,
-        validate_assignment=True,
-    )
-
-    raw_order: Any | None = None
-    original_request: Any | None = None
-    request_timestamp: datetime
-    response_timestamp: datetime
-    success: bool
-    error_message: str | None = None
-
-
-class AdjustedOrderRequest(OrderRequest):
-    """DTO for order requests that have been adjusted by policies."""
-
-    adjustment_reason: str | None = None
-    original_quantity: Decimal | None = None
-    warnings: list[PolicyWarning] = Field(default_factory=list)
-    is_approved: bool = True
-    rejection_reason: str | None = None
-    policy_metadata: dict[str, Any] | None = None
-    total_risk_score: Decimal | None = None
-
-
-class PolicyWarning(BaseModel):
+class PolicyWarningDTO(BaseModel):
     """DTO for policy warnings during order validation."""
 
     model_config = ConfigDict(
@@ -247,10 +268,61 @@ class PolicyWarning(BaseModel):
     risk_level: str | None = None
 
 
-# Backward compatibility aliases - will be removed in future version
-OrderRequestDTO = OrderRequest
-ValidatedOrderDTO = ValidatedOrder
-OrderExecutionResultDTO = OrderExecutionResult
-LimitOrderResultDTO = LimitOrderResult
-AdjustedOrderRequestDTO = AdjustedOrderRequest
-PolicyWarningDTO = PolicyWarning
+class AdjustedOrderRequestDTO(OrderRequestDTO):
+    """DTO for order requests that have been adjusted by policies."""
+
+    adjustment_reason: str | None = None
+    original_quantity: Decimal | None = None
+    warnings: list[PolicyWarningDTO] = Field(default_factory=list)
+    is_approved: bool = True
+    rejection_reason: str | None = None
+    policy_metadata: dict[str, Any] | None = None
+    total_risk_score: Decimal | None = None
+
+
+class RawOrderEnvelope(BaseModel):
+    """Raw order envelope containing both the original order and execution result."""
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    raw_order: Any | None = None
+    original_request: Any | None = None
+    request_timestamp: datetime
+    response_timestamp: datetime
+    success: bool
+    error_message: str | None = None
+
+
+# Backward compatibility aliases
+OrderRequest = OrderRequestDTO  # Pydantic version for API boundaries
+ValidatedOrder = ValidatedOrderDTO
+OrderExecutionResult = OrderExecutionResultDTO
+LimitOrderResult = LimitOrderResultDTO
+AdjustedOrderRequest = AdjustedOrderRequestDTO
+PolicyWarning = PolicyWarningDTO
+
+
+__all__ = [
+    # Domain objects
+    "OrderRequest",
+    # DTOs
+    "OrderRequestDTO",
+    "ValidatedOrderDTO", 
+    "OrderExecutionResultDTO",
+    "LimitOrderResultDTO",
+    "PolicyWarningDTO",
+    "AdjustedOrderRequestDTO",
+    "RawOrderEnvelope",
+    # Mixins
+    "OrderValidationMixin",
+    # Aliases for compatibility
+    "ValidatedOrder",
+    "OrderExecutionResult", 
+    "LimitOrderResult",
+    "AdjustedOrderRequest",
+    "PolicyWarning",
+]
