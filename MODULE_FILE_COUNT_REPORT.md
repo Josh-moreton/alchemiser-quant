@@ -2,24 +2,25 @@
 
 **Generated**: January 2025  
 **Repository**: alchemiser-quant  
-**Total Modules Analyzed**: 3
+**Total Modules Analyzed**: 4
 
 ## Executive Summary
 
-This report provides a comprehensive overview of all Python files within the three core modules of `the_alchemiser`: **strategy**, **portfolio**, and **execution**. Each module follows the modular architecture with clear separation of concerns and well-defined responsibilities.
+This report provides a comprehensive overview of all Python files within the four core modules of `the_alchemiser`: **strategy**, **portfolio**, **execution**, and **shared**. Each module follows the modular architecture with clear separation of concerns and well-defined responsibilities.
 
 ### Module Overview
 
 | Module | File Count | Primary Responsibility |
 |--------|------------|----------------------|
-| **strategy** | 95 files | Signal generation, indicator calculation, ML models, regime detection |
-| **portfolio** | 69 files | Portfolio state management, sizing, rebalancing logic, risk management |
-| **execution** | 75 files | Broker API integrations, order placement, smart execution, error handling |
-| **Total** | **239 files** | Complete trading system implementation |
+| **strategy** | 69 files | Signal generation, indicator calculation, ML models, regime detection |
+| **portfolio** | 52 files | Portfolio state management, sizing, rebalancing logic, risk management |
+| **execution** | 67 files | Broker API integrations, order placement, smart execution, error handling |
+| **shared** | 114 files | DTOs, utilities, logging, cross-cutting concerns, common value objects |
+| **Total** | **305 files** | Complete trading system implementation |
 
 ---
 
-## Strategy Module (95 files)
+## Strategy Module (69 files)
 
 **Business Unit**: strategy  
 **Status**: current  
@@ -54,7 +55,7 @@ Market data services and utilities:
 - `strategy_market_data_service.py` - Strategy-specific market data service
 - `streaming_service.py` - Real-time market data streaming
 
-#### dsl/ (10 files)
+#### dsl/ (9 files)
 Domain Specific Language for strategy evaluation:
 - `__init__.py` - DSL module initialization
 - `ast.py` - Abstract Syntax Tree node definitions
@@ -62,48 +63,30 @@ Domain Specific Language for strategy evaluation:
 - `evaluator.py` - DSL expression evaluator
 - `evaluator_cache.py` - Caching for DSL evaluations
 - `interning.py` - String interning utilities for performance
-- `legacy_init.py` - Backward compatibility layer
 - `optimization_config.py` - DSL optimization configuration
 - `parser.py` - DSL parser implementation
 - `strategy_loader.py` - Strategy file loader and validator
 
-#### engines/ (39 files)
+#### engines/ (29 files)
 Strategy implementations and execution engines:
 
 **Core (2 files)**:
 - `__init__.py` - Core engine exports
 - `trading_engine.py` - Base trading engine implementation
 
-**Main Engines (11 files)**:
+**Main Engines (7 files)**:
 - `__init__.py` - Engine module exports
 - `engine.py` - Base strategy engine
-- `klm_ensemble_engine.py` - KLM ensemble strategy engine
 - `nuclear_logic.py` - Nuclear strategy logic implementation  
-- `nuclear_typed_backup.py` - Backup of typed nuclear engine
 - `nuclear_typed_engine.py` - Typed nuclear strategy engine
 - `strategy_manager.py` - Strategy management and orchestration
-- `tecl_strategy_backup.py` - Backup of TECL strategy
 - `tecl_strategy_engine.py` - TECL strategy engine implementation
 - `typed_klm_ensemble_engine.py` - Typed KLM ensemble engine
-- `typed_strategy_manager.py` - Typed strategy manager
-
-**Archived/Backup (3 files)**:
-- `archived/backup/klm_workers/variant_1200_28.py` - Archived KLM variant
-- `archived/backup/models/strategy_position_model.py` - Archived position model
-- `archived/backup/models/strategy_signal_model.py` - Archived signal model
-- `archived/backup/value_objects/alert.py` - Archived alert value object
-- `archived/backup/value_objects/confidence.py` - Archived confidence value object
-- `archived/backup/value_objects/strategy_signal.py` - Archived strategy signal
-- `archived/nuclear_logic.py` - Archived nuclear logic
 
 **Entities (1 file)**:
 - `entities/__init__.py` - Strategy entity exports
 
-**Errors (2 files)**:
-- `errors/__init__.py` - Strategy error exports
-- `errors/strategy_errors.py` - Strategy-specific error definitions
-
-**KLM Workers (9 files)**:
+**KLM Workers (10 files)**:
 - `klm_workers/__init__.py` - KLM workers module exports
 - `klm_workers/base_klm_variant.py` - Base class for KLM variants
 - `klm_workers/variant_1200_28.py` - KLM variant 1200/28
@@ -114,10 +97,6 @@ Strategy implementations and execution engines:
 - `klm_workers/variant_530_18.py` - KLM variant 530/18
 - `klm_workers/variant_830_21.py` - KLM variant 830/21
 - `klm_workers/variant_nova.py` - KLM Nova variant
-
-**Legacy (2 files)**:
-- `legacy/backup_engine.py` - Legacy backup engine
-- `legacy/nuclear_logic.py` - Legacy nuclear logic
 
 **Models (3 files)**:
 - `models/__init__.py` - Strategy model exports
@@ -137,17 +116,15 @@ Strategy implementations and execution engines:
 Strategy-specific error handling:
 - `strategy_errors.py` - Strategy error definitions and handling
 
-#### indicators/ (5 files)
+#### indicators/ (3 files)
 Technical indicators and market signals:
 - `__init__.py` - Indicators module exports
 - `indicator_utils.py` - Indicator utility functions
 - `indicators.py` - Core technical indicators implementation
-- `math_indicators.py` - Mathematical indicator calculations
-- `utils.py` - Additional indicator utilities
 
 #### managers/ (2 files)
 Strategy management and orchestration:
-- `legacy_strategy_manager.py` - Legacy strategy manager
+- `__init__.py` - Managers module exports
 - `typed_strategy_manager.py` - Typed strategy manager implementation
 
 #### mappers/ (4 files)
@@ -175,17 +152,17 @@ Strategy data schemas:
 - `__init__.py` - Schema module exports
 - `strategies.py` - Strategy configuration schemas
 
-#### signals/ (2 files)
+#### signals/ (1 file)
 Signal processing and generation:
 - `__init__.py` - Signals module exports
-- `strategy_signal.py` - Strategy signal implementation
 
 #### timing/ (1 file)
 Market timing utilities:
 - `market_timing_utils.py` - Market timing and scheduling utilities
 
-#### types/ (1 file)
+#### types/ (2 files)
 Strategy type definitions:
+- `__init__.py` - Types module exports
 - `strategy.py` - Strategy type definitions
 
 #### validation/ (1 file)
@@ -194,7 +171,7 @@ Strategy validation:
 
 ---
 
-## Portfolio Module (69 files)
+## Portfolio Module (52 files)
 
 **Business Unit**: portfolio  
 **Status**: current  
@@ -205,14 +182,13 @@ Strategy validation:
 #### Root Level
 - `__init__.py` - Main portfolio module initialization
 
-#### allocation/ (6 files)
+#### allocation/ (5 files)
 Portfolio allocation and rebalancing:
-- `__init__.py` - Allocation module exports
-- `portfolio_rebalancing_mapping.py` - Rebalancing data mapping
-- `portfolio_rebalancing_service.py` - Portfolio rebalancing service
 - `rebalance_calculator.py` - Pure rebalancing calculation logic
 - `rebalance_execution_service.py` - Rebalance execution orchestration
 - `rebalance_plan.py` - Rebalancing plan data structures
+- `rebalancing_service.py` - Portfolio rebalancing service
+- `rebalancing_service_facade.py` - Rebalancing service facade
 
 #### analytics/ (4 files)
 Portfolio analytics and analysis:
@@ -237,9 +213,8 @@ Core portfolio management:
 Portfolio execution services:
 - `execution_service.py` - Portfolio execution coordination
 
-#### holdings/ (7 files)
+#### holdings/ (6 files)
 Position and holdings management:
-- `__init__.py` - Holdings module exports
 - `position_analyzer.py` - Position analysis utilities
 - `position_delta.py` - Position change tracking
 - `position_manager.py` - Position management service
@@ -264,7 +239,7 @@ Profit and loss tracking:
 - `portfolio_pnl_utils.py` - P&L calculation utilities
 - `strategy_order_tracker.py` - Strategy order tracking for P&L
 
-#### policies/ (12 files)
+#### policies/ (9 files)
 Portfolio policy framework:
 - `base_policy.py` - Base policy implementation
 - `buying_power_policy.py` - Buying power policy interface
@@ -272,27 +247,17 @@ Portfolio policy framework:
 - `fractionability_policy.py` - Fractionability policy interface
 - `fractionability_policy_impl.py` - Fractionability policy implementation
 - `policy_factory.py` - Policy factory for creation
-- `policy_orchestrator.py` - Policy orchestration service
-- `position_policy.py` - Position policy interface
 - `position_policy_impl.py` - Position policy implementation
-- `protocols.py` - Policy interface definitions
 - `rebalancing_policy.py` - Rebalancing policy definitions
-- `risk_policy.py` - Risk policy interface
 - `risk_policy_impl.py` - Risk policy implementation
 
-#### positions/ (3 files)
+#### positions/ (1 file)
 Position management:
-- `__init__.py` - Positions module exports
-- `legacy_position_manager.py` - Legacy position manager
 - `position_service.py` - Position service implementation
 
-#### rebalancing/ (5 files)
+#### rebalancing/ (1 file)
 Rebalancing algorithms and logic:
-- `__init__.py` - Rebalancing module exports
 - `orchestrator.py` - Rebalancing orchestration
-- `orchestrator_facade.py` - Rebalancing facade
-- `rebalance_plan.py` - Rebalancing plan implementation
-- `rebalancing_service.py` - Rebalancing service
 
 #### risk/ (1 file)
 Risk management and constraints:
@@ -319,9 +284,10 @@ Portfolio state management:
 Portfolio tracking integration:
 - `integration.py` - Portfolio tracking integration
 
-#### utils/ (1 file)
+#### utils/ (2 files)
 Portfolio utilities:
 - `portfolio_pnl_utils.py` - P&L utility functions
+- `valuation_utils.py` - Portfolio valuation utilities
 
 #### valuation/ (1 file)
 Portfolio valuation and metrics:
@@ -329,7 +295,7 @@ Portfolio valuation and metrics:
 
 ---
 
-## Execution Module (75 files)
+## Execution Module (67 files)
 
 **Business Unit**: execution  
 **Status**: current  
@@ -339,11 +305,8 @@ Portfolio valuation and metrics:
 
 #### Root Level
 - `__init__.py` - Main execution module initialization
-
-#### adapters/ (2 files)
-Execution adapters and integration:
-- `execution_context_adapter.py` - Execution context adaptation
-- `order_lifecycle_adapter.py` - Order lifecycle integration adapter
+- `infrastructure.py` - Execution infrastructure setup
+- `lifecycle_simplified.py` - Simplified lifecycle management
 
 #### analytics/ (1 file)
 Execution analytics:
@@ -356,29 +319,31 @@ Broker API integrations:
 - `alpaca/__init__.py` - Alpaca broker module exports
 - `alpaca/adapter.py` - Alpaca broker adapter
 - `alpaca_client.py` - Alpaca API client implementation
-- `alpaca_manager.py` - Alpaca broker management
 
 #### config/ (1 file)
 Execution configuration:
 - `execution_config.py` - Execution system configuration
 
-#### core/ (9 files)
+#### core/ (11 files)
 Core execution services:
 - `__init__.py` - Core module exports
 - `account_facade.py` - Account management facade
-- `canonical_executor.py` - Main execution engine (legacy shim)
-- `canonical_integration_example.py` - Integration example
+- `account_management_service.py` - Account management service
+- `data_transformation_service.py` - Data transformation service
 - `execution_manager.py` - Execution management service
-- `execution_manager_legacy.py` - Legacy execution manager
 - `execution_schemas.py` - Execution data schemas
+- `executor.py` - Main execution engine
+- `lifecycle_coordinator.py` - Lifecycle coordination
 - `manager.py` - Core execution manager
+- `order_execution_service.py` - Order execution service
+- `refactored_execution_manager.py` - Refactored execution manager
 
 #### entities/ (2 files)
 Execution entities:
 - `__init__.py` - Entities module exports
 - `order.py` - Order entity and lifecycle management
 
-#### errors/ (5 files)
+#### errors/ (4 files)
 Error handling and classification:
 - `classifier.py` - Error classification system
 - `error_categories.py` - Error category definitions
@@ -389,8 +354,9 @@ Error handling and classification:
 Integration examples:
 - `canonical_integration.py` - Canonical integration example
 
-#### lifecycle/ (8 files)
+#### lifecycle/ (9 files)
 Order lifecycle management:
+- `__init__.py` - Lifecycle module exports
 - `dispatcher.py` - Event dispatcher for order lifecycle
 - `events.py` - Lifecycle event definitions
 - `exceptions.py` - Lifecycle exception handling
@@ -400,41 +366,28 @@ Order lifecycle management:
 - `states.py` - Order state definitions
 - `transitions.py` - State transition logic
 
-#### mappers/ (7 files)
+#### mappers/ (5 files)
 Data transformation and mapping:
 - `__init__.py` - Mapper module exports
-- `account_mapping.py` - Account data mapping
-- `alpaca_dto_mapping.py` - Alpaca DTO mapping
-- `execution.py` - Execution data mapping
-- `order.py` - Order data mapping utilities
-- `order_mapping.py` - Order mapping implementation
-- `orders.py` - Order collection mapping
-- `trading_service_dto_mapping.py` - Trading service DTO mapping
+- `broker_integration_mappers.py` - Broker integration mapping
+- `core_execution_mappers.py` - Core execution mapping
+- `order_domain_mappers.py` - Order domain mapping
+- `service_dto_mappers.py` - Service DTO mapping
 
 #### monitoring/ (1 file)
 Execution monitoring:
 - `websocket_order_monitor.py` - WebSocket order monitoring
 
-#### orders/ (20 files)
+#### orders/ (8 files)
 Order management and handling:
-- `__init__.py` - Orders module exports
 - `asset_order_handler.py` - Asset-specific order handling
-- `lifecycle_adapter.py` - Order lifecycle adapter
-- `order_id.py` - Order ID value object
-- `order_request.py` - Order request data structure
-- `order_request_builder.py` - Order request builder
-- `order_schemas.py` - Order schema definitions
-- `order_status.py` - Order status management
-- `order_status_literal.py` - Order status literals
-- `order_type.py` - Order type definitions
-- `order_validation.py` - Order validation logic
-- `order_validation_utils.py` - Order validation utilities
-- `order_validation_utils_legacy.py` - Legacy validation utilities
+- `consolidated_validation.py` - Consolidated order validation
+- `order_types.py` - Order type definitions
 - `progressive_order_utils.py` - Progressive order utilities
 - `request_builder.py` - Generic request builder
 - `service.py` - Order service implementation
-- `side.py` - Order side (buy/sell) definitions
-- `validation.py` - Order validation framework
+- `status_manager.py` - Order status management
+- `validation_service.py` - Order validation service
 
 #### pricing/ (3 files)
 Smart pricing and execution:
@@ -451,8 +404,9 @@ Interface definitions:
 Order routing and placement:
 - `__init__.py` - Routing module exports
 
-#### schemas/ (1 file)
+#### schemas/ (2 files)
 Execution schemas:
+- `__init__.py` - Schemas module exports
 - `alpaca.py` - Alpaca-specific schemas
 
 #### services/ (1 file)
@@ -468,17 +422,200 @@ Smart execution strategies:
 - `repeg_strategy.py` - Re-pegging strategy implementation
 - `smart_execution.py` - Smart execution orchestration
 
+#### types/ (1 file)
+Execution type definitions:
+- `__init__.py` - Types module exports
+
+---
+
+## Shared Module (114 files)
+
+**Business Unit**: shared  
+**Status**: current  
+**Purpose**: DTOs, utilities, logging, cross-cutting concerns, common value objects
+
+### Directory Structure
+
+#### Root Level
+- `__init__.py` - Main shared module initialization
+- `dto_communication_demo.py` - DTO communication demonstration
+- `simple_dto_test.py` - Simple DTO testing utilities
+
+#### adapters/ (5 files)
+Cross-module integration adapters:
+- `__init__.py` - Adapters module exports
+- `execution_adapters.py` - Execution module adapters
+- `integration_helpers.py` - Integration helper utilities
+- `portfolio_adapters.py` - Portfolio module adapters
+- `strategy_adapters.py` - Strategy module adapters
+
+#### cli/ (8 files)
+Command-line interface utilities:
+- `cli.py` - Main CLI interface
+- `cli_formatter.py` - CLI output formatting
+- `dashboard_utils.py` - Dashboard utility functions
+- `error_display_utils.py` - Error display utilities
+- `portfolio_calculations.py` - Portfolio calculation CLI utilities
+- `signal_analyzer.py` - Signal analysis CLI tools
+- `signal_display_utils.py` - Signal display utilities
+- `trading_executor.py` - Trading execution CLI
+
+#### config/ (10 files)
+Configuration management:
+- `__init__.py` - Config module exports
+- `bootstrap.py` - Application bootstrap configuration
+- `config.py` - Core configuration management
+- `config_providers.py` - Configuration providers
+- `config_service.py` - Configuration service
+- `container.py` - Dependency injection container
+- `infrastructure_providers.py` - Infrastructure providers
+- `secrets_manager.py` - Secrets management
+- `secrets_service.py` - Secrets service
+- `service_providers.py` - Service providers
+
+#### dto/ (6 files)
+Data transfer objects for inter-module communication:
+- `__init__.py` - DTO module exports
+- `execution_report_dto.py` - Execution report DTOs
+- `order_request_dto.py` - Order request DTOs
+- `portfolio_state_dto.py` - Portfolio state DTOs
+- `rebalance_plan_dto.py` - Rebalancing plan DTOs
+- `signal_dto.py` - Strategy signal DTOs
+
+#### errors/ (3 files)
+Error handling and context:
+- `__init__.py` - Errors module exports
+- `context.py` - Error context management
+- `error_handler.py` - Central error handling
+
+#### log/ (1 file)
+Legacy logging utilities:
+- `__init__.py` - Log module exports
+
+#### logging/ (3 files)
+Modern logging infrastructure:
+- `__init__.py` - Logging module exports
+- `logging.py` - Core logging implementation
+- `logging_utils.py` - Logging utility functions
+
+#### mappers/ (3 files)
+Data mapping and transformation:
+- `execution_summary_mapping.py` - Execution summary mapping
+- `market_data_mappers.py` - Market data mapping utilities
+- `pandas_time_series.py` - Pandas time series mapping
+
+#### math/ (5 files)
+Mathematical utilities and calculations:
+- `__init__.py` - Math module exports
+- `asset_info.py` - Asset information and fractionability
+- `math_utils.py` - General mathematical utilities
+- `num.py` - Numeric type utilities
+- `trading_math.py` - Trading-specific mathematical functions
+
+#### notifications/ (10 files)
+Notification and alerting system:
+- `client.py` - Notification client
+- `config.py` - Notification configuration
+- `email_utils.py` - Email utility functions
+- `templates/base.py` - Base notification template
+- `templates/error_report.py` - Error report template
+- `templates/multi_strategy.py` - Multi-strategy notification template
+- `templates/order_confirmation.py` - Order confirmation template
+- `templates/portfolio_summary.py` - Portfolio summary template
+- `templates/rebalance_notification.py` - Rebalancing notification template
+- `templates/signal_alert.py` - Signal alert template
+
+#### protocols/ (6 files)
+Interface definitions and protocols:
+- `broker_protocol.py` - Broker interface protocol
+- `execution_protocol.py` - Execution protocol definitions
+- `logger_protocol.py` - Logger interface protocol
+- `market_data_protocol.py` - Market data protocol
+- `notification_protocol.py` - Notification protocol
+- `trading_ports.py` - Trading ports and interfaces
+
+#### reporting/ (1 file)
+Reporting utilities:
+- `reporting.py` - Report generation utilities
+
+#### schemas/ (11 files)
+Data schema definitions:
+- `__init__.py` - Schemas module exports
+- `accounts.py` - Account schema definitions
+- `base.py` - Base schema utilities
+- `cli.py` - CLI schema definitions
+- `common.py` - Common schema utilities
+- `enriched_data.py` - Enriched data schemas
+- `errors.py` - Error schema definitions
+- `execution_summary.py` - Execution summary schemas
+- `market_data.py` - Market data schemas
+- `operations.py` - Operations schema definitions
+- `reporting.py` - Reporting schema definitions
+
+#### services/ (5 files)
+Shared services:
+- `__init__.py` - Services module exports
+- `alert_service.py` - Alert service implementation
+- `real_time_pricing.py` - Real-time pricing service
+- `tick_size_service.py` - Tick size service
+- `websocket_connection_manager.py` - WebSocket connection management
+
+#### types/ (15 files)
+Common value objects and type definitions:
+- `__init__.py` - Types module exports
+- `account.py` - Account type definitions
+- `bar.py` - Market data bar types
+- `exceptions.py` - Exception type definitions
+- `market_data.py` - Market data types
+- `market_data_port.py` - Market data port types
+- `money.py` - Money value object
+- `order_status.py` - Order status types
+- `percentage.py` - Percentage value object
+- `quantity.py` - Quantity value object
+- `quote.py` - Quote type definitions
+- `shared_kernel_types.py` - Shared kernel types
+- `strategy_type.py` - Strategy type definitions
+- `time_in_force.py` - Time in force types
+- `trading_errors.py` - Trading error types
+
+#### utils/ (15 files)
+Utility functions and helpers:
+- `__init__.py` - Utils module exports
+- `account_utils.py` - Account utility functions
+- `cache_manager.py` - Cache management utilities
+- `common.py` - Common utility functions
+- `config.py` - Configuration utilities
+- `context.py` - Context management utilities
+- `decorators.py` - Utility decorators
+- `error_monitoring.py` - Error monitoring utilities
+- `error_recovery.py` - Error recovery utilities
+- `error_reporter.py` - Error reporting utilities
+- `error_scope.py` - Error scope management
+- `retry_decorator.py` - Retry mechanism decorator
+- `s3_utils.py` - AWS S3 utility functions
+- `serialization.py` - Data serialization utilities
+- `service_factory.py` - Service factory utilities
+
+#### value_objects/ (4 files)
+Domain value objects:
+- `__init__.py` - Value objects module exports
+- `core_types.py` - Core value object types
+- `identifier.py` - Identifier value objects
+- `symbol.py` - Trading symbol value objects
+
 ---
 
 ## Summary
 
-The three modules represent a comprehensive trading system implementation with clear separation of concerns:
+The four modules represent a comprehensive trading system implementation with clear separation of concerns:
 
-- **Strategy Module (95 files)**: Comprehensive signal generation system with multiple strategy engines (Nuclear, TECL, KLM), technical indicators, DSL evaluation, and market data services.
+- **Strategy Module (69 files)**: Signal generation system with multiple strategy engines (Nuclear, TECL, KLM), technical indicators, DSL evaluation, and market data services.
 
-- **Portfolio Module (69 files)**: Complete portfolio management system including position tracking, rebalancing algorithms, risk policies, P&L tracking, and portfolio analytics.
+- **Portfolio Module (52 files)**: Portfolio management system including position tracking, rebalancing algorithms, risk policies, P&L tracking, and portfolio analytics.
 
-- **Execution Module (75 files)**: Full-featured execution system with broker integrations (Alpaca), smart execution strategies, order lifecycle management, and comprehensive error handling.
+- **Execution Module (67 files)**: Execution system with broker integrations (Alpaca), smart execution strategies, order lifecycle management, and comprehensive error handling.
+
+- **Shared Module (114 files)**: Cross-cutting concerns including DTOs for inter-module communication, common value objects (Money, Symbol), utilities, configuration management, logging infrastructure, and notification systems.
 
 ### Architecture Compliance
 
@@ -489,4 +626,4 @@ All modules follow the established architectural principles:
 - Type safety with full mypy compliance
 - Clean interfaces and protocol definitions
 
-**Total System**: 239 Python files implementing a complete quantitative trading platform.
+**Total System**: 305 Python files implementing a complete quantitative trading platform.

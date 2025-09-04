@@ -18,6 +18,7 @@ from __future__ import annotations
 # Keep existing specialized modules
 from .asset_order_handler import *
 from .consolidated_validation import *
+from .order import Order
 
 # Import from consolidated modules
 from .order_types import *
