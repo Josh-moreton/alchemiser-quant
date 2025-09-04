@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from decimal import ROUND_DOWN, Decimal
 from typing import Any
 
-from the_alchemiser.execution.mappers.orders import (
+from the_alchemiser.execution.mappers.order_domain_mappers import (
     dict_to_order_request_dto,
     order_request_to_validated_dto,
 )
