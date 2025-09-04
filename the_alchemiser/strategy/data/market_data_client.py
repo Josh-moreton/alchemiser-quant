@@ -191,9 +191,12 @@ class MarketDataClient:
             Current price or None if unavailable
 
         Uses centralized price discovery utility for consistent calculation.
+
         """
-        from the_alchemiser.shared.utils.price_discovery_utils import get_current_price_from_quote as centralized_price_discovery
-        
+        from the_alchemiser.shared.utils.price_discovery_utils import (
+            get_current_price_from_quote as centralized_price_discovery,
+        )
+
         try:
             return centralized_price_discovery(self, symbol)
         except Exception as e:

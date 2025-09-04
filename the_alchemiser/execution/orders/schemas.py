@@ -47,13 +47,9 @@ class OrderRequest:
     client_order_id: str | None = None
 
     def __post_init__(self) -> None:  # pragma: no cover - validation logic
-        # Validate limit price is provided for limit orders
-        if self.order_type.value == "limit" and self.limit_price is None:
-            raise ValueError("Limit price is required for limit orders")
+        from the_alchemiser.shared.utils.validation_utils import validate_order_limit_price
 
-        # Validate limit price is not provided for market orders (optional constraint)
-        if self.order_type.value == "market" and self.limit_price is not None:
-            raise ValueError("Limit price should not be provided for market orders")
+        validate_order_limit_price(self.order_type.value, self.limit_price)
 
     @property
     def is_buy(self) -> bool:

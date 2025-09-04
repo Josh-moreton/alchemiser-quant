@@ -439,7 +439,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         Uses centralized price discovery utility for consistent calculation.
         """
         from the_alchemiser.shared.utils.price_discovery_utils import get_current_price_from_quote
-        
+
         try:
             return get_current_price_from_quote(self, symbol)
         except Exception as e:

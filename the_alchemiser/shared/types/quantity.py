@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from the_alchemiser.shared.utils.validation_utils import validate_non_negative_integer
+
 
 @dataclass(frozen=True)
 class Quantity:
@@ -13,7 +15,4 @@ class Quantity:
     value: Decimal
 
     def __post_init__(self) -> None:  # pragma: no cover - trivial validation
-        if self.value < 0:
-            raise ValueError("Quantity must be non-negative")
-        if self.value != self.value.to_integral_value():
-            raise ValueError("Quantity must be whole number")
+        validate_non_negative_integer(self.value, "Quantity")

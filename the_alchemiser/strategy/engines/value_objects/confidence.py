@@ -5,6 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from the_alchemiser.shared.utils.validation_utils import (
+    CONFIDENCE_RANGE,
+    validate_decimal_range,
+)
+
 
 @dataclass(frozen=True)
 class Confidence:
@@ -13,8 +18,12 @@ class Confidence:
     value: Decimal
 
     def __post_init__(self) -> None:  # pragma: no cover - trivial validation
-        if not (Decimal("0") <= self.value <= Decimal("1")):
-            raise ValueError("Confidence must be between 0.0 and 1.0")
+        validate_decimal_range(
+            self.value,
+            CONFIDENCE_RANGE[0],
+            CONFIDENCE_RANGE[1],
+            "Confidence",
+        )
 
     @property
     def is_high(self) -> bool:

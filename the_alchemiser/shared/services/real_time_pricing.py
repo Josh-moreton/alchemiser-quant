@@ -660,21 +660,32 @@ class RealTimePricingManager:
             Current price from real-time data or fallback provider
 
         Uses centralized price discovery utility for consistent fallback logic.
+
         """
-        from the_alchemiser.shared.utils.price_discovery_utils import get_current_price_with_fallback
-        
+        from the_alchemiser.shared.utils.price_discovery_utils import (
+            get_current_price_with_fallback,
+        )
+
         # Create a wrapper for the pricing service to match PriceProvider interface
-        primary_provider = type('PriceProvider', (), {
-            'get_current_price': lambda _, sym: self.pricing_service.get_real_time_price(sym)
-        })()
-        
+        primary_provider = type(
+            "PriceProvider",
+            (),
+            {"get_current_price": lambda _, sym: self.pricing_service.get_real_time_price(sym)},
+        )()
+
         # Create fallback provider wrapper if available
         fallback_provider = None
         if self._fallback_provider:
-            fallback_provider = type('FallbackProvider', (), {
-                'get_current_price': lambda _, sym: self._fallback_provider(sym) if self._fallback_provider else None
-            })()
-        
+            fallback_provider = type(
+                "FallbackProvider",
+                (),
+                {
+                    "get_current_price": lambda _, sym: self._fallback_provider(sym)
+                    if self._fallback_provider
+                    else None
+                },
+            )()
+
         return get_current_price_with_fallback(primary_provider, fallback_provider, symbol)
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:

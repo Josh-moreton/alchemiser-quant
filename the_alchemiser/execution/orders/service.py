@@ -293,7 +293,6 @@ class OrderService:
     # _delegate_to_canonical_executor removed.
 
 
-
 class TradingClientProtocol(Protocol):  # pragma: no cover - structural typing
     """Minimal protocol for the Alpaca trading client used by the websocket monitor."""
 
@@ -326,10 +325,11 @@ class WebSocketOrderLifecycleAdapter(OrderLifecycleMonitor):  # pragma: no cover
     ) -> WebSocketResultDTO:
         """Delegate to centralized order completion utility."""
         from the_alchemiser.shared.utils.order_completion_utils import wait_for_order_completion
+
         return wait_for_order_completion(
             trading_client=self._trading_client,
             order_ids=order_ids,
             max_wait_seconds=max_wait_seconds,
             api_key=self._api_key,
-            secret_key=self._secret_key
+            secret_key=self._secret_key,
         )

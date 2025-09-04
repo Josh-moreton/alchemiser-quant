@@ -112,23 +112,21 @@ class ExecutionContextAdapter:
     ) -> Any:  # WebSocketResultDTO
         """Wait for order completion using centralized utility."""
         from the_alchemiser.shared.utils.order_completion_utils import wait_for_order_completion
-        
+
         # Get alpaca manager from order executor
         alpaca_manager = getattr(self._order_executor, "alpaca_manager", None)
         if not alpaca_manager:
             # If not available, get underlying trading repository
             alpaca_manager = getattr(self._order_executor, "_trading", self._order_executor)
-        
+
         # Get trading client from alpaca manager
         trading_client = getattr(alpaca_manager, "trading_client", None)
         if not trading_client:
             # Fallback to original implementation if trading client not available
             return self._order_executor.wait_for_order_completion(order_ids, max_wait_seconds)
-            
+
         return wait_for_order_completion(
-            trading_client=trading_client,
-            order_ids=order_ids,
-            max_wait_seconds=max_wait_seconds
+            trading_client=trading_client, order_ids=order_ids, max_wait_seconds=max_wait_seconds
         )
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
