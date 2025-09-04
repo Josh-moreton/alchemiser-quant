@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
-"""Business Unit: execution | Status: current
+"""Business Unit: execution | Status: legacy
 
 Alpaca Client for Direct API Access.
+
+⚠️ DEPRECATION NOTICE ⚠️
+This client is a legacy wrapper around AlpacaManager and will be deprecated in favor of 
+using AlpacaManager directly. The AlpacaManager implements the same domain interfaces 
+more efficiently and with better separation of concerns.
+
+Future migration plan:
+1. Extend AlpacaManager to implement OrderExecutor protocol
+2. Update SmartExecution to use AlpacaManager directly  
+3. Remove this wrapper class
 
 A streamlined, robust wrapper around Alpaca's trading APIs that provides direct access
 to core trading functions. This client has been refactored to use helper modules for
