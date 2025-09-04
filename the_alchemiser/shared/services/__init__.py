@@ -17,7 +17,7 @@ to prevent import-time side effects and circular import issues. Import directly
 from the relevant subpackage, for example:
 
     from the_alchemiser.execution.brokers.account_service import AccountService
-    from the_alchemiser.execution.core.execution_manager import TradingServiceManager
+    from the_alchemiser.execution.core.refactored_execution_manager import RefactoredTradingServiceManager as TradingServiceManager
 """
 
 from __future__ import annotations

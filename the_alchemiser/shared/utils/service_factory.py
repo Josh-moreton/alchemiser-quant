@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from the_alchemiser.execution.core.execution_manager import TradingServiceManager
+from the_alchemiser.execution.core.refactored_execution_manager import RefactoredTradingServiceManager as TradingServiceManager
 from the_alchemiser.shared.config.container import (
     ApplicationContainer,
 )
