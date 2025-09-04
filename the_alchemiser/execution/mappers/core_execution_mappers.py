@@ -20,6 +20,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from the_alchemiser.shared.types.money import Money
+from the_alchemiser.shared.utils.timezone_utils import normalize_timestamp_to_utc, to_iso_string
 
 # Account Mapping Section
 
@@ -176,30 +177,12 @@ def normalize_timestamp_str(timestamp: Any) -> str:
     if timestamp is None:
         return datetime.now(UTC).isoformat()
 
-    if isinstance(timestamp, datetime):
-        # Ensure timezone awareness
-        if timestamp.tzinfo is None:
-            timestamp = timestamp.replace(tzinfo=UTC)
-        return timestamp.isoformat()
-
-    if isinstance(timestamp, str):
-        try:
-            # Parse and ensure timezone
-            if timestamp.endswith("Z"):
-                timestamp = timestamp[:-1] + "+00:00"
-            parsed = datetime.fromisoformat(timestamp)
-            if parsed.tzinfo is None:
-                parsed = parsed.replace(tzinfo=UTC)
-            return parsed.isoformat()
-        except ValueError:
-            # Fallback to current time
-            return datetime.now(UTC).isoformat()
-
-    # Try to convert other types
+    # Use centralized timezone normalization
     try:
-        dt = datetime.fromtimestamp(float(timestamp), tz=UTC)
-        return dt.isoformat()
-    except (ValueError, TypeError):
+        normalized_dt = normalize_timestamp_to_utc(timestamp)
+        return to_iso_string(normalized_dt)
+    except Exception:
+        # Ultimate fallback to current time
         return datetime.now(UTC).isoformat()
 
 

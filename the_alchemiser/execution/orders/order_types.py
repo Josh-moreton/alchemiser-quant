@@ -50,9 +50,12 @@ class OrderType:
     value: Literal["market", "limit"]
 
     def __post_init__(self) -> None:  # pragma: no cover - trivial validation
-        valid_values = {"market", "limit"}
-        if self.value not in valid_values:
-            raise ValueError(f"OrderType must be one of {valid_values}")
+        from the_alchemiser.shared.utils.validation_utils import (
+            ORDER_TYPES,
+            validate_enum_value,
+        )
+
+        validate_enum_value(self.value, ORDER_TYPES, "OrderType")
 
 
 @dataclass(frozen=True)
@@ -62,9 +65,12 @@ class Side:
     value: Literal["buy", "sell"]
 
     def __post_init__(self) -> None:  # pragma: no cover - trivial validation
-        valid_values = {"buy", "sell"}
-        if self.value not in valid_values:
-            raise ValueError(f"Side must be one of {valid_values}")
+        from the_alchemiser.shared.utils.validation_utils import (
+            ORDER_SIDES,
+            validate_enum_value,
+        )
+
+        validate_enum_value(self.value, ORDER_SIDES, "Side")
 
 
 __all__ = [

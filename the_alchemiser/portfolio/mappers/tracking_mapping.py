@@ -25,9 +25,9 @@ from the_alchemiser.portfolio.schemas.tracking import (
     StrategyPnLDTO,
     StrategyPositionDTO,
 )
+from the_alchemiser.shared.utils.timezone_utils import normalize_timestamp_to_utc
 
 # Constants to avoid duplication
-UTC_OFFSET_STRING = "+00:00"
 DECIMAL_QUANTIZE_PRECISION = "0.000001"
 
 
@@ -156,20 +156,7 @@ def dict_to_strategy_pnl_dict(data: dict[str, Any]) -> dict[str, Any]:
 
 def normalize_timestamp(ts: str | datetime) -> datetime:
     """Normalize timestamp to timezone-aware datetime."""
-    if isinstance(ts, str):
-        # Handle ISO format strings
-        try:
-            dt = datetime.fromisoformat(ts.replace("Z", UTC_OFFSET_STRING))
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=UTC)
-            return dt
-        except ValueError:
-            # Fallback to current time if parsing fails
-            return datetime.now(UTC)
-    else:  # isinstance(ts, datetime)
-        if ts.tzinfo is None:
-            return ts.replace(tzinfo=UTC)
-        return ts
+    return normalize_timestamp_to_utc(ts)
 
 
 def ensure_decimal_precision(value: float | str | Decimal) -> Decimal:

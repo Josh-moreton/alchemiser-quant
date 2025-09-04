@@ -45,8 +45,12 @@ class StrategySignal:
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:  # pragma: no cover - trivial validation
-        if self.action not in ("BUY", "SELL", "HOLD"):
-            raise ValueError("Invalid signal action")
+        from the_alchemiser.shared.utils.validation_utils import (
+            SIGNAL_ACTIONS,
+            validate_enum_value,
+        )
+
+        validate_enum_value(self.action, SIGNAL_ACTIONS, "Signal action")
 
     @classmethod
     def from_dto(cls, data: StrategySignalDTO) -> StrategySignal:

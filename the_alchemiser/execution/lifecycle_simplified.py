@@ -18,6 +18,7 @@ from enum import Enum
 from typing import Any, ClassVar
 
 from the_alchemiser.execution.orders.order_id import OrderId
+from the_alchemiser.shared.utils.timezone_utils import ensure_timezone_aware
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +66,8 @@ class StateTransition:
 
     def __post_init__(self) -> None:
         """Ensure timestamp is UTC."""
-        if self.timestamp.tzinfo is None:
-            object.__setattr__(self, "timestamp", self.timestamp.replace(tzinfo=UTC))
+        timezone_aware_timestamp = ensure_timezone_aware(self.timestamp)
+        object.__setattr__(self, "timestamp", timezone_aware_timestamp)
 
 
 class OrderStateError(Exception):

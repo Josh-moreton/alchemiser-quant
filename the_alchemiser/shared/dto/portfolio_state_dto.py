@@ -9,11 +9,13 @@ serialization helpers for communication between portfolio and other modules.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from ..utils.timezone_utils import ensure_timezone_aware
 
 
 class PositionDTO(BaseModel):
@@ -47,13 +49,9 @@ class PositionDTO(BaseModel):
 
     @field_validator("last_updated")
     @classmethod
-    def ensure_timezone_aware(cls, v: datetime | None) -> datetime | None:
+    def ensure_timezone_aware_last_updated(cls, v: datetime | None) -> datetime | None:
         """Ensure timestamp is timezone-aware."""
-        if v is None:
-            return v
-        if v.tzinfo is None:
-            return v.replace(tzinfo=UTC)
-        return v
+        return ensure_timezone_aware(v)
 
 
 class PortfolioMetricsDTO(BaseModel):
@@ -136,13 +134,9 @@ class PortfolioStateDTO(BaseModel):
 
     @field_validator("timestamp", "last_rebalance_time")
     @classmethod
-    def ensure_timezone_aware(cls, v: datetime | None) -> datetime | None:
+    def ensure_timezone_aware_timestamps(cls, v: datetime | None) -> datetime | None:
         """Ensure timestamp is timezone-aware."""
-        if v is None:
-            return v
-        if v.tzinfo is None:
-            return v.replace(tzinfo=UTC)
-        return v
+        return ensure_timezone_aware(v)
 
     @field_validator("strategy_allocations")
     @classmethod

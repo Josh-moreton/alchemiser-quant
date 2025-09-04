@@ -5,6 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from the_alchemiser.shared.utils.validation_utils import (
+    PERCENTAGE_RANGE,
+    validate_decimal_range,
+)
+
 
 @dataclass(frozen=True)
 class Percentage:
@@ -16,8 +21,12 @@ class Percentage:
     value: Decimal
 
     def __post_init__(self) -> None:  # pragma: no cover - trivial validation
-        if not (Decimal("0") <= self.value <= Decimal("1")):
-            raise ValueError("Percentage must be between 0.0 and 1.0")
+        validate_decimal_range(
+            self.value,
+            PERCENTAGE_RANGE[0],
+            PERCENTAGE_RANGE[1],
+            "Percentage",
+        )
 
     @classmethod
     def from_percent(cls, percent: float) -> Percentage:

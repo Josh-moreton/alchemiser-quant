@@ -306,7 +306,15 @@ class AlpacaClient:
         max_wait_seconds: int = 60,
     ) -> WebSocketResultDTO:
         """Wait for orders to reach a final state."""
-        return self.order_monitor.wait_for_order_completion(order_ids, max_wait_seconds)
+        from the_alchemiser.shared.utils.order_completion_utils import wait_for_order_completion
+
+        return wait_for_order_completion(
+            trading_client=self.trading_client,
+            order_ids=order_ids,
+            max_wait_seconds=max_wait_seconds,
+            api_key=self.api_key,
+            secret_key=self.secret_key,
+        )
 
     def _prepare_websocket_connection(self) -> bool:
         """Pre-initialize WebSocket connection and wait for it to be ready.

@@ -19,9 +19,14 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 from enum import Enum
+from typing import Any, Protocol
 
 from alpaca.trading.enums import TimeInForce
 
+from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
+from the_alchemiser.execution.protocols.order_lifecycle import (
+    OrderLifecycleMonitor,
+)
 from the_alchemiser.shared.math.num import floats_equal
 from the_alchemiser.shared.protocols.repository import (
     MarketDataRepository,
@@ -288,19 +293,6 @@ class OrderService:
     # _delegate_to_canonical_executor removed.
 
 
-# Lifecycle Adapter Integration
-
-from typing import Protocol
-
-from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
-from the_alchemiser.execution.monitoring.websocket_order_monitor import (
-    OrderCompletionMonitor,
-)
-from the_alchemiser.execution.protocols.order_lifecycle import (
-    OrderLifecycleMonitor,
-)
-
-
 class TradingClientProtocol(Protocol):  # pragma: no cover - structural typing
     """Minimal protocol for the Alpaca trading client used by the websocket monitor."""
 
@@ -310,11 +302,11 @@ class TradingClientProtocol(Protocol):  # pragma: no cover - structural typing
 
 
 class WebSocketOrderLifecycleAdapter(OrderLifecycleMonitor):  # pragma: no cover - thin adapter
-    """Concrete adapter implementing the lifecycle Protocol via websocket-based monitor.
+    """Concrete adapter implementing the lifecycle Protocol via centralized utility.
 
     Adapter bridging infrastructure websocket monitor to OrderLifecycleMonitor Protocol.
     Keeps application layer decoupled from infrastructure implementation while
-    reusing the existing OrderCompletionMonitor.
+    using the centralized order completion utility.
     """
 
     def __init__(
@@ -324,12 +316,20 @@ class WebSocketOrderLifecycleAdapter(OrderLifecycleMonitor):  # pragma: no cover
         secret_key: str | None = None,
     ) -> None:
         """Create adapter with provided trading client and optional explicit credentials."""
-        self._monitor = OrderCompletionMonitor(
-            trading_client, api_key=api_key, secret_key=secret_key
-        )
+        self._trading_client = trading_client
+        self._api_key = api_key
+        self._secret_key = secret_key
 
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 60
     ) -> WebSocketResultDTO:
-        """Delegate to underlying websocket monitor to await terminal order states."""
-        return self._monitor.wait_for_order_completion(order_ids, max_wait_seconds=max_wait_seconds)
+        """Delegate to centralized order completion utility."""
+        from the_alchemiser.shared.utils.order_completion_utils import wait_for_order_completion
+
+        return wait_for_order_completion(
+            trading_client=self._trading_client,
+            order_ids=order_ids,
+            max_wait_seconds=max_wait_seconds,
+            api_key=self._api_key,
+            secret_key=self._secret_key,
+        )

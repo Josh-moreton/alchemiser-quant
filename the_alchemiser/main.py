@@ -31,6 +31,7 @@ from the_alchemiser.shared.types.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
 from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 
 # DI imports (optional)
@@ -79,11 +80,7 @@ class TradingSystem:
 
     def _get_strategy_allocations(self) -> dict[StrategyType, float]:
         """Extract strategy allocations from configuration."""
-        return {
-            StrategyType.NUCLEAR: self.settings.strategy.default_strategy_allocations["nuclear"],
-            StrategyType.TECL: self.settings.strategy.default_strategy_allocations["tecl"],
-            StrategyType.KLM: self.settings.strategy.default_strategy_allocations["klm"],
-        }
+        return get_strategy_allocations(self.settings)
 
     def analyze_signals(self, show_tracking: bool = False) -> bool:
         """Generate and display strategy signals without trading.

@@ -9,11 +9,13 @@ serialization helpers for communication between portfolio and execution modules.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from ..utils.timezone_utils import ensure_timezone_aware
 
 
 class OrderRequestDTO(BaseModel):
@@ -91,11 +93,9 @@ class OrderRequestDTO(BaseModel):
 
     @field_validator("timestamp")
     @classmethod
-    def ensure_timezone_aware(cls, v: datetime) -> datetime:
+    def ensure_timezone_aware_order_timestamp(cls, v: datetime) -> datetime:
         """Ensure timestamp is timezone-aware."""
-        if v.tzinfo is None:
-            return v.replace(tzinfo=UTC)
-        return v
+        return ensure_timezone_aware(v)
 
     @field_validator("side")
     @classmethod
@@ -241,11 +241,9 @@ class MarketDataDTO(BaseModel):
 
     @field_validator("timestamp")
     @classmethod
-    def ensure_timezone_aware(cls, v: datetime) -> datetime:
+    def ensure_timezone_aware_market_timestamp(cls, v: datetime) -> datetime:
         """Ensure timestamp is timezone-aware."""
-        if v.tzinfo is None:
-            return v.replace(tzinfo=UTC)
-        return v
+        return ensure_timezone_aware(v)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert DTO to dictionary for serialization."""

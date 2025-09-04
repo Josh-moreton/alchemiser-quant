@@ -9,11 +9,13 @@ serialization helpers for communication between execution and other modules.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from ..utils.timezone_utils import ensure_timezone_aware
 
 
 class ExecutedOrderDTO(BaseModel):
@@ -69,11 +71,9 @@ class ExecutedOrderDTO(BaseModel):
 
     @field_validator("execution_timestamp")
     @classmethod
-    def ensure_timezone_aware(cls, v: datetime) -> datetime:
+    def ensure_timezone_aware_execution_timestamp(cls, v: datetime) -> datetime:
         """Ensure timestamp is timezone-aware."""
-        if v.tzinfo is None:
-            return v.replace(tzinfo=UTC)
-        return v
+        return ensure_timezone_aware(v)
 
 
 class ExecutionReportDTO(BaseModel):
@@ -140,11 +140,9 @@ class ExecutionReportDTO(BaseModel):
 
     @field_validator("timestamp", "execution_start_time", "execution_end_time")
     @classmethod
-    def ensure_timezone_aware(cls, v: datetime) -> datetime:
+    def ensure_timezone_aware_timestamps(cls, v: datetime) -> datetime:
         """Ensure timestamp is timezone-aware."""
-        if v.tzinfo is None:
-            return v.replace(tzinfo=UTC)
-        return v
+        return ensure_timezone_aware(v)
 
     @field_validator("success_rate")
     @classmethod
