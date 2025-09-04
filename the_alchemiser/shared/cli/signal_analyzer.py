@@ -39,10 +39,6 @@ class SignalAnalyzer:
         self.container = container
         self.logger = get_logger(__name__)
 
-    def _get_strategy_allocations(self) -> dict[StrategyType, float]:
-        """Extract strategy allocations from configuration."""
-        return get_strategy_allocations(self.settings)
-
     def _generate_signals(
         self,
     ) -> tuple[dict[StrategyType, StrategySignalDisplayDTO], dict[str, float]]:
@@ -51,7 +47,7 @@ class SignalAnalyzer:
         market_data_port = self.container.infrastructure.market_data_service()
 
         # Create strategy manager with proper allocations
-        strategy_allocations = self._get_strategy_allocations()
+        strategy_allocations = get_strategy_allocations(self.settings)
 
         # Generate typed signals directly
         from datetime import UTC, datetime
