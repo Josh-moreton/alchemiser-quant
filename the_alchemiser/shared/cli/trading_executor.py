@@ -34,6 +34,7 @@ from the_alchemiser.shared.types.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
 from the_alchemiser.strategy.engines.core.trading_engine import TradingEngine
 from the_alchemiser.strategy.engines.value_objects.strategy_signal import (
     StrategySignal as TypedStrategySignal,
@@ -70,13 +71,7 @@ class TradingExecutor:
 
     def _get_strategy_allocations(self) -> dict[StrategyType, float]:
         """Extract strategy allocations from configuration."""
-        return {
-            StrategyType.NUCLEAR: self.settings.strategy.default_strategy_allocations.get(
-                "nuclear", 0.3
-            ),
-            StrategyType.TECL: self.settings.strategy.default_strategy_allocations.get("tecl", 0.5),
-            StrategyType.KLM: self.settings.strategy.default_strategy_allocations.get("klm", 0.2),
-        }
+        return get_strategy_allocations(self.settings)
 
     def _create_trading_engine(self) -> TradingEngine:
         """Create and configure the trading engine using modern bootstrap approach."""

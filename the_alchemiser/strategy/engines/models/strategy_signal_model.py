@@ -2,7 +2,7 @@
 
 DEPRECATED: Strategy signal model using domain value objects.
 
-This file is deprecated. Use the canonical StrategySignal from 
+This file is deprecated. Use the canonical StrategySignal from
 strategy.types.strategy instead. All functionality has been moved there.
 """
 

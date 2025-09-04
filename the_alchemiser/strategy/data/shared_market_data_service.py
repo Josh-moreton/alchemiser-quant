@@ -2,7 +2,7 @@
 
 Market data services package exports.
 
-StrategyMarketDataService is DEPRECATED and has been removed. Use MarketDataService 
+StrategyMarketDataService is DEPRECATED and has been removed. Use MarketDataService
 as the canonical typed service for all market data operations.
 """
 

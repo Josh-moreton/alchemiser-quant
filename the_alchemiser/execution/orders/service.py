@@ -304,14 +304,14 @@ from the_alchemiser.execution.protocols.order_lifecycle import (
 class TradingClientProtocol(Protocol):  # pragma: no cover - structural typing
     """Minimal protocol for the Alpaca trading client used by the websocket monitor."""
 
-    def get_order_by_id(self, order_id: str) -> Any:  # noqa: ANN401 - runtime library object
+    def get_order_by_id(self, order_id: str) -> Any:
         """Retrieve order by ID (runtime return type from alpaca-py)."""
         ...
 
 
 class WebSocketOrderLifecycleAdapter(OrderLifecycleMonitor):  # pragma: no cover - thin adapter
     """Concrete adapter implementing the lifecycle Protocol via websocket-based monitor.
-    
+
     Adapter bridging infrastructure websocket monitor to OrderLifecycleMonitor Protocol.
     Keeps application layer decoupled from infrastructure implementation while
     reusing the existing OrderCompletionMonitor.

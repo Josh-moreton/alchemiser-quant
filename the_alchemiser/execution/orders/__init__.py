@@ -15,13 +15,13 @@ Consolidated from 15 files to 8 files for better maintainability:
 
 from __future__ import annotations
 
-# Import from consolidated modules
-from .order_types import *
-from .schemas import *
-from .consolidated_validation import *
-from .service import *
-
 # Keep existing specialized modules
 from .asset_order_handler import *
+from .consolidated_validation import *
+
+# Import from consolidated modules
+from .order_types import *
 from .progressive_order_utils import *
 from .request_builder import *
+from .schemas import *
+from .service import *

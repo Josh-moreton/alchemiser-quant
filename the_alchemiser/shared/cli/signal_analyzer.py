@@ -25,6 +25,7 @@ from the_alchemiser.shared.cli.cli_formatter import (
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types.exceptions import DataProviderError
+from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
 from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
 from the_alchemiser.strategy.managers.typed_strategy_manager import TypedStrategyManager
 from the_alchemiser.strategy.registry.strategy_registry import StrategyType
@@ -40,11 +41,7 @@ class SignalAnalyzer:
 
     def _get_strategy_allocations(self) -> dict[StrategyType, float]:
         """Extract strategy allocations from configuration."""
-        return {
-            StrategyType.NUCLEAR: self.settings.strategy.default_strategy_allocations["nuclear"],
-            StrategyType.TECL: self.settings.strategy.default_strategy_allocations["tecl"],
-            StrategyType.KLM: self.settings.strategy.default_strategy_allocations["klm"],
-        }
+        return get_strategy_allocations(self.settings)
 
     def _generate_signals(
         self,

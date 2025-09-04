@@ -39,13 +39,13 @@ from the_alchemiser.shared.types.exceptions import (
     PositionValidationError,
     TradingClientError,
 )
-from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
 
 # Order error classification system
 from the_alchemiser.shared.types.trading_errors import (
     OrderError,
     classify_exception,
 )
+from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
 
 from .context import ErrorContextData
 

@@ -13,7 +13,7 @@ Consolidates execution.py and account_mapping.py for better maintainability.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
@@ -21,8 +21,8 @@ from typing import Any
 
 from the_alchemiser.shared.types.money import Money
 
-
 # Account Mapping Section
+
 
 def to_money_usd(value: str | float | int | Decimal | None) -> Money | None:
     """Map raw numeric portfolio value to Money(USD).
@@ -41,6 +41,7 @@ def to_money_usd(value: str | float | int | Decimal | None) -> Money | None:
 @dataclass(frozen=True)
 class AccountMetrics:
     """Calculated account metrics for risk analysis."""
+
     cash_ratio: Decimal
     market_exposure: Decimal
     leverage_ratio: Decimal | None
@@ -50,6 +51,7 @@ class AccountMetrics:
 @dataclass(frozen=True)
 class AccountSummaryTyped:
     """Typed account summary with strongly typed fields."""
+
     account_id: str
     equity: Money
     cash: Money
@@ -72,6 +74,7 @@ def account_summary_to_typed(account_data: dict[str, Any]) -> AccountSummaryType
 
     Returns:
         AccountSummaryTyped with Money objects and calculated metrics
+
     """
     # Extract basic account fields
     account_id = str(account_data.get("account_id", "unknown"))
@@ -98,7 +101,7 @@ def account_summary_to_typed(account_data: dict[str, Any]) -> AccountSummaryType
         cash_ratio = cash.amount / equity.amount
         market_exposure = market_value.amount / equity.amount
         available_buying_power_ratio = buying_power.amount / equity.amount
-        
+
         # Calculate leverage if market value > 0
         if market_value.amount > 0:
             leverage_ratio = market_value.amount / cash.amount if cash.amount > 0 else None
@@ -134,6 +137,7 @@ def account_typed_to_serializable(account: AccountSummaryTyped) -> dict[str, Any
 
     Returns:
         Dictionary with Money objects converted to Decimal values
+
     """
     return {
         "account_id": account.account_id,
@@ -158,6 +162,7 @@ def account_typed_to_serializable(account: AccountSummaryTyped) -> dict[str, Any
 
 # Execution Mapping Section
 
+
 def normalize_timestamp_str(timestamp: Any) -> str:
     """Normalize timestamp to ISO 8601 string with timezone awareness.
 
@@ -166,21 +171,22 @@ def normalize_timestamp_str(timestamp: Any) -> str:
 
     Returns:
         ISO 8601 formatted timestamp string
+
     """
     if timestamp is None:
         return datetime.now(UTC).isoformat()
-    
+
     if isinstance(timestamp, datetime):
         # Ensure timezone awareness
         if timestamp.tzinfo is None:
             timestamp = timestamp.replace(tzinfo=UTC)
         return timestamp.isoformat()
-    
+
     if isinstance(timestamp, str):
         try:
             # Parse and ensure timezone
-            if timestamp.endswith('Z'):
-                timestamp = timestamp[:-1] + '+00:00'
+            if timestamp.endswith("Z"):
+                timestamp = timestamp[:-1] + "+00:00"
             parsed = datetime.fromisoformat(timestamp)
             if parsed.tzinfo is None:
                 parsed = parsed.replace(tzinfo=UTC)
@@ -188,7 +194,7 @@ def normalize_timestamp_str(timestamp: Any) -> str:
         except ValueError:
             # Fallback to current time
             return datetime.now(UTC).isoformat()
-    
+
     # Try to convert other types
     try:
         dt = datetime.fromtimestamp(float(timestamp), tz=UTC)
@@ -197,7 +203,9 @@ def normalize_timestamp_str(timestamp: Any) -> str:
         return datetime.now(UTC).isoformat()
 
 
-def normalize_decimal_precision(value: Any, precision: int = 2, rounding: str = ROUND_HALF_UP) -> Decimal:
+def normalize_decimal_precision(
+    value: Any, precision: int = 2, rounding: str = ROUND_HALF_UP
+) -> Decimal:
     """Normalize value to Decimal with specified precision.
 
     Args:
@@ -207,13 +215,14 @@ def normalize_decimal_precision(value: Any, precision: int = 2, rounding: str = 
 
     Returns:
         Decimal with specified precision
+
     """
     if value is None:
         return Decimal("0")
-    
+
     try:
         decimal_value = Decimal(str(value))
-        quantize_exp = Decimal('0.1') ** precision
+        quantize_exp = Decimal("0.1") ** precision
         return decimal_value.quantize(quantize_exp, rounding=rounding)
     except (ValueError, TypeError):
         return Decimal("0")
@@ -227,6 +236,7 @@ def normalize_monetary_precision(value: Any) -> Decimal:
 
     Returns:
         Decimal with 2 decimal places
+
     """
     return normalize_decimal_precision(value, precision=2)
 
@@ -239,6 +249,7 @@ def normalize_quantity_precision(value: Any) -> Decimal:
 
     Returns:
         Decimal with 4 decimal places
+
     """
     return normalize_decimal_precision(value, precision=4)
 
@@ -252,10 +263,11 @@ def safe_decimal_conversion(value: Any, default: Decimal = Decimal("0")) -> Deci
 
     Returns:
         Decimal value or default
+
     """
     if value is None:
         return default
-    
+
     try:
         return Decimal(str(value))
     except (ValueError, TypeError):
@@ -272,43 +284,48 @@ def normalize_order_details(order: Any) -> dict[str, Any]:
 
     Returns:
         Normalized order dictionary
+
     """
     if isinstance(order, dict):
         # Already a dict, just normalize values
         normalized = order.copy()
     else:
         # Convert domain entity to dict
-        if hasattr(order, '__dict__'):
+        if hasattr(order, "__dict__"):
             normalized = order.__dict__.copy()
         else:
             # Fallback for complex objects
             normalized = {}
-            for attr in ['id', 'symbol', 'qty', 'side', 'order_type', 'status', 'filled_qty']:
+            for attr in ["id", "symbol", "qty", "side", "order_type", "status", "filled_qty"]:
                 if hasattr(order, attr):
                     normalized[attr] = getattr(order, attr)
 
     # Normalize key fields
-    if 'qty' in normalized:
-        normalized['qty'] = float(safe_decimal_conversion(normalized['qty']))
-    
-    if 'filled_qty' in normalized:
-        normalized['filled_qty'] = float(safe_decimal_conversion(normalized['filled_qty']))
-    
-    if 'limit_price' in normalized and normalized['limit_price'] is not None:
-        normalized['limit_price'] = float(normalize_monetary_precision(normalized['limit_price']))
-    
-    if 'avg_fill_price' in normalized and normalized['avg_fill_price'] is not None:
-        normalized['avg_fill_price'] = float(normalize_monetary_precision(normalized['avg_fill_price']))
+    if "qty" in normalized:
+        normalized["qty"] = float(safe_decimal_conversion(normalized["qty"]))
+
+    if "filled_qty" in normalized:
+        normalized["filled_qty"] = float(safe_decimal_conversion(normalized["filled_qty"]))
+
+    if "limit_price" in normalized and normalized["limit_price"] is not None:
+        normalized["limit_price"] = float(normalize_monetary_precision(normalized["limit_price"]))
+
+    if "avg_fill_price" in normalized and normalized["avg_fill_price"] is not None:
+        normalized["avg_fill_price"] = float(
+            normalize_monetary_precision(normalized["avg_fill_price"])
+        )
 
     # Normalize timestamps
-    for timestamp_field in ['created_at', 'updated_at', 'submitted_at']:
+    for timestamp_field in ["created_at", "updated_at", "submitted_at"]:
         if timestamp_field in normalized:
             normalized[timestamp_field] = normalize_timestamp_str(normalized[timestamp_field])
 
     return normalized
 
 
-def create_execution_summary(orders: Iterable[Any], metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+def create_execution_summary(
+    orders: Iterable[Any], metadata: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Create execution summary from collection of orders.
 
     Args:
@@ -317,16 +334,17 @@ def create_execution_summary(orders: Iterable[Any], metadata: dict[str, Any] | N
 
     Returns:
         Execution summary dictionary
+
     """
     normalized_orders = [normalize_order_details(order) for order in orders]
-    
+
     # Calculate summary statistics
     total_orders = len(normalized_orders)
-    filled_orders = sum(1 for order in normalized_orders if order.get('status') == 'filled')
+    filled_orders = sum(1 for order in normalized_orders if order.get("status") == "filled")
     total_value = sum(
-        order.get('qty', 0) * order.get('avg_fill_price', 0)
+        order.get("qty", 0) * order.get("avg_fill_price", 0)
         for order in normalized_orders
-        if order.get('avg_fill_price')
+        if order.get("avg_fill_price")
     )
 
     summary = {
@@ -354,7 +372,7 @@ __all__ = [
     # Execution mapping
     "normalize_timestamp_str",
     "normalize_decimal_precision",
-    "normalize_monetary_precision", 
+    "normalize_monetary_precision",
     "normalize_quantity_precision",
     "safe_decimal_conversion",
     "normalize_order_details",

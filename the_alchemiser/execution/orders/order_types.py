@@ -69,7 +69,7 @@ class Side:
 
 __all__ = [
     "OrderId",
-    "OrderStatus", 
+    "OrderStatus",
     "OrderStatusLiteral",
     "OrderType",
     "Side",

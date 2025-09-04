@@ -14,10 +14,10 @@ from .order_execution_service import OrderExecutionService
 from .refactored_execution_manager import RefactoredTradingServiceManager
 
 __all__ = [
-    "TradingServiceManager",
-    "RefactoredTradingServiceManager",
-    "OrderExecutionService",
-    "AccountManagementService", 
-    "LifecycleCoordinator",
+    "AccountManagementService",
     "DataTransformationService",
+    "LifecycleCoordinator",
+    "OrderExecutionService",
+    "RefactoredTradingServiceManager",
+    "TradingServiceManager",
 ]

@@ -34,7 +34,7 @@ from the_alchemiser.shared.utils.decorators import translate_trading_errors
 
 class OrderExecutionService:
     """Service responsible for order execution operations.
-    
+
     Handles order placement, cancellation, status queries, and order management.
     """
 
@@ -43,6 +43,7 @@ class OrderExecutionService:
 
         Args:
             alpaca_manager: The Alpaca manager for broker operations
+
         """
         self.logger = logging.getLogger(__name__)
         self.alpaca_manager = alpaca_manager
