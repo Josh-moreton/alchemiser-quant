@@ -14,8 +14,9 @@ RECOMMENDED USAGE:
 - SmartExecution: Execution strategies with re-pegging logic
 
 ARCHITECTURE NOTES:
-- 65 Python files across 18 directories (simplified from original 67 files)
+- 64 Python files across 17 directories (simplified from original 67 files, 20+ directories)
 - Core complexity concentrated in execution_manager.py (1185 lines) - use refactored version when possible
+- Legacy alpaca_client.py (336 lines) marked for deprecation - migrate to AlpacaManager
 - Focus on thin-wrapper design around alpaca-py APIs
 """
 

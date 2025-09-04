@@ -8,10 +8,14 @@ This client is a legacy wrapper around AlpacaManager and will be deprecated in f
 using AlpacaManager directly. The AlpacaManager implements the same domain interfaces
 more efficiently and with better separation of concerns.
 
+⚠️ FOR NEW INTEGRATIONS: Use AlpacaManager from execution.brokers.alpaca instead ⚠️
+
 Future migration plan:
 1. Extend AlpacaManager to implement OrderExecutor protocol
-2. Update SmartExecution to use AlpacaManager directly
-3. Remove this wrapper class
+2. Update SmartExecution to use AlpacaManager directly  
+3. Remove this wrapper class entirely
+
+MIGRATION TARGET: the_alchemiser.execution.brokers.alpaca.AlpacaManager
 
 A streamlined, robust wrapper around Alpaca's trading APIs that provides direct access
 to core trading functions. This client has been refactored to use helper modules for
