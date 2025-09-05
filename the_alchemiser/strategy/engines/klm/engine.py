@@ -31,7 +31,7 @@ from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionErro
 from the_alchemiser.strategy.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
 
-from ..protocols.strategy_engine import StrategyEngine
+from the_alchemiser.strategy.engines.engine import StrategyEngine
 
 from .base_variant import BaseKLMVariant
 from .variants import (
