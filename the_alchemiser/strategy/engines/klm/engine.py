@@ -31,15 +31,14 @@ from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionErro
 from the_alchemiser.strategy.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
 
-from .engine import StrategyEngine
+from ..protocols.strategy_engine import StrategyEngine
 
-# Import all KLM strategy variants from modular workers package
-from .klm_workers import (
-    BaseKLMVariant,
+from .base_variant import BaseKLMVariant
+from .variants import (
+    KLMVariant520_22 as KlmVariant52022,
+    KLMVariant530_18 as KlmVariant53018,
     KlmVariant41038,
     KlmVariant50638,
-    KlmVariant52022,
-    KlmVariant53018,
     KlmVariant83021,
     KlmVariant120028,
     KlmVariant128026,
