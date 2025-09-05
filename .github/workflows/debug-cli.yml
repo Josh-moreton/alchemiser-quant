@@ -65,12 +65,13 @@ jobs:
       - name: Prepare issue content
         if: steps.run_cli.outputs.exit_code != '0'
         run: |
-          cat > issue_content.md << 'EOF'
+          timestamp="$(date -u)"
+          cat > issue_content.md << EOF
           # CLI Debug Failure
 
           **Workflow Run ID**: ${{ github.run_id }}
           **Exit Code**: ${{ steps.run_cli.outputs.exit_code }}
-          **Timestamp**: $(date -u)
+          **Timestamp**: $timestamp
           **Repository**: ${{ github.repository }}
           **Branch**: ${{ github.ref_name }}
           **Commit**: ${{ github.sha }}
