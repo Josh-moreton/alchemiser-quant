@@ -306,6 +306,7 @@ class AccountFacade:
 
         Coordinates between MarketDataService (preferred) and AccountService (fallback)
         for price retrieval with proper validation.
+        Uses centralized price discovery utility for consistent fallback behavior.
 
         Args:
             symbol: Stock symbol to get price for
@@ -314,6 +315,10 @@ class AccountFacade:
             Current price as float, or 0.0 if price unavailable
 
         """
+        from the_alchemiser.shared.utils.price_discovery_utils import (
+            get_current_price_with_fallback,
+        )
+        
         if not symbol or not isinstance(symbol, str):
             self.logger.warning(f"Invalid symbol provided to get_current_price: {symbol}")
             return 0.0
@@ -321,21 +326,29 @@ class AccountFacade:
         symbol = symbol.upper()
 
         try:
-            # Prefer MarketDataService if available for better validation and caching
+            # Create provider wrappers for centralized utility
+            primary_provider = None
             if self._market_data_service is not None:
-                price = self._market_data_service.get_validated_price(symbol)
-                if price is not None and price > 0:
-                    self.logger.debug(
-                        f"Retrieved price from MarketDataService for {symbol}: ${price:.2f}"
-                    )
-                    return price
+                def get_validated_price(sym: str) -> float | None:
+                    if self._market_data_service:
+                        return self._market_data_service.get_validated_price(sym)
+                    return None
+                    
+                primary_provider = type("MarketDataProvider", (), {
+                    "get_current_price": lambda _, sym: get_validated_price(sym)
+                })()
 
-            # Fallback to AccountService price method
-            price = self._account_service.get_current_price(symbol)
+            # Create fallback provider wrapper
+            fallback_provider = type("AccountServiceProvider", (), {
+                "get_current_price": lambda _, sym: self._account_service.get_current_price(sym)
+            })()
 
+            # Use centralized price discovery with fallback
+            price = get_current_price_with_fallback(primary_provider, fallback_provider, symbol)
+            
             # Facade-level validation
             if price and price > 0:
-                self.logger.debug(f"Retrieved price from AccountService for {symbol}: ${price:.2f}")
+                self.logger.debug(f"Retrieved price for {symbol}: ${price:.2f}")
                 return price
             self.logger.warning(f"Invalid price received for {symbol}: {price}")
             return 0.0

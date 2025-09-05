@@ -64,9 +64,19 @@ class StrategyMarketDataAdapter:
         return df
 
     def get_current_price(self, symbol: str) -> float | None:
-        """Get current price using canonical port's mid_price method."""
-        symbol_obj = Symbol(symbol)
-        return self._canonical_port.get_mid_price(symbol_obj)
+        """Get current price using canonical port's mid_price method.
+        
+        Uses centralized price discovery utility for consistent error handling.
+        """
+        from the_alchemiser.shared.value_objects.symbol import Symbol
+        from the_alchemiser.shared.utils.price_discovery_utils import _get_price_from_provider
+        
+        # Create provider wrapper for canonical port
+        canonical_provider = type("CanonicalProvider", (), {
+            "get_current_price": lambda _, sym: self._canonical_port.get_mid_price(Symbol(sym))
+        })()
+        
+        return _get_price_from_provider(canonical_provider, symbol)
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
         """Get latest quote returning (bid, ask) or None.

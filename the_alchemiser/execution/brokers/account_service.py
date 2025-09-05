@@ -506,13 +506,22 @@ class AccountService:
         """Protocol-compliant price method for TradingEngine DI mode.
 
         Returns current price as expected by PriceProvider protocol.
+        Uses centralized price discovery utility for consistent behavior.
         """
+        from the_alchemiser.shared.utils.price_discovery_utils import _get_price_from_provider
+        
         try:
             # AccountRepository does not expose pricing; delegate if underlying repo supports MarketDataRepository
             if hasattr(self.account_repository, "get_current_price"):
-                # runtime duck-typing; cast repository to Any and call method directly
-                price_func = cast(Any, self.account_repository).get_current_price
-                return cast(float, price_func(symbol))
+                # Create a provider wrapper for the repository
+                repo_provider = type("RepoProvider", (), {
+                    "get_current_price": lambda _, sym: cast(float, cast(Any, self.account_repository).get_current_price(sym))
+                })()
+                
+                price = _get_price_from_provider(repo_provider, symbol)
+                if price is not None:
+                    return price
+                    
             raise NotImplementedError("Current price not available from AccountRepository")
         except Exception as e:
             self.logger.error(f"Failed to get current price for {symbol}: {e}")
