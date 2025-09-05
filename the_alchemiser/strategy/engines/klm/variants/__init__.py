@@ -7,8 +7,8 @@ Collection of KLM strategy variants for ensemble evaluation.
 
 from __future__ import annotations
 
-from .original import KLMVariant520_22
-from .scale_in import KLMVariant530_18
+from .variant_520_22 import KLMVariant520_22
+from .variant_530_18 import KLMVariant530_18
 from .variant_410_38 import KlmVariant41038
 from .variant_506_38 import KlmVariant50638
 from .variant_830_21 import KlmVariant83021
