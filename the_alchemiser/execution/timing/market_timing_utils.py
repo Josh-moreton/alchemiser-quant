@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
+"""Business Unit: execution; Status: current.
 
 Market Open Timing Utilities.
 
