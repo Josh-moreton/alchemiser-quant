@@ -20,8 +20,8 @@ from typing import Any
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy.engines.engine import StrategyEngine
-from the_alchemiser.strategy.engines.nuclear_typed_engine import NuclearTypedEngine
-from the_alchemiser.strategy.engines.typed_klm_ensemble_engine import TypedKLMStrategyEngine
+from the_alchemiser.strategy.engines.klm import KLMEngine
+from the_alchemiser.strategy.engines.nuclear import NuclearEngine
 from the_alchemiser.strategy.engines.value_objects.confidence import Confidence
 from the_alchemiser.strategy.engines.value_objects.strategy_signal import StrategySignal
 from the_alchemiser.strategy.registry.strategy_registry import StrategyRegistry, StrategyType
@@ -118,13 +118,13 @@ class TypedStrategyManager:
     def _create_typed_engine(self, strategy_type: StrategyType) -> StrategyEngine:
         """Create typed strategy engine instance."""
         if strategy_type == StrategyType.NUCLEAR:
-            return NuclearTypedEngine(self.market_data_port)
+            return NuclearEngine(self.market_data_port)
         if strategy_type == StrategyType.KLM:
-            return TypedKLMStrategyEngine(self.market_data_port)
+            return KLMEngine(self.market_data_port)
         if strategy_type == StrategyType.TECL:
-            from the_alchemiser.strategy.engines.tecl_strategy_engine import TECLStrategyEngine
+            from the_alchemiser.strategy.engines.tecl import TECLEngine
 
-            return TECLStrategyEngine(self.market_data_port)
+            return TECLEngine(self.market_data_port)
         raise ValueError(f"Unknown strategy type: {strategy_type}")
 
     def generate_all_signals(self, timestamp: datetime | None = None) -> AggregatedSignals:

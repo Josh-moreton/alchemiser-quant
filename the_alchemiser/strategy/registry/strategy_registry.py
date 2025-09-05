@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: strategy & signal generation; Status: current.
+"""Business Unit: strategy | Status: current
 
 Strategy Registry for The Alchemiser Quantitative Trading System.
 
@@ -16,11 +16,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from the_alchemiser.shared.types.strategy_type import StrategyType
-from the_alchemiser.strategy.engines.nuclear_typed_engine import NuclearTypedEngine
-from the_alchemiser.strategy.engines.tecl_strategy_engine import TECLStrategyEngine
-from the_alchemiser.strategy.engines.typed_klm_ensemble_engine import (
-    TypedKLMStrategyEngine,
-)
+from the_alchemiser.strategy.engines.klm import KLMEngine
+from the_alchemiser.strategy.engines.nuclear import NuclearEngine
+from the_alchemiser.strategy.engines.tecl import TECLEngine
 
 # Remove the local StrategyType definition since it's now in shared
 # class StrategyType(Enum):
@@ -52,21 +50,21 @@ class StrategyRegistry:
     _strategies: dict[StrategyType, StrategyConfig] = {
         StrategyType.NUCLEAR: StrategyConfig(
             strategy_type=StrategyType.NUCLEAR,
-            engine_class=NuclearTypedEngine,
+            engine_class=NuclearEngine,
             default_allocation=0.4,
             description="Nuclear energy and volatility hedge strategy",
             enabled=True,
         ),
         StrategyType.TECL: StrategyConfig(
             strategy_type=StrategyType.TECL,
-            engine_class=TECLStrategyEngine,
+            engine_class=TECLEngine,
             default_allocation=0.6,
             description="Technology leverage and momentum strategy",
             enabled=True,
         ),
         StrategyType.KLM: StrategyConfig(
             strategy_type=StrategyType.KLM,
-            engine_class=TypedKLMStrategyEngine,
+            engine_class=KLMEngine,
             default_allocation=0.2,
             description="Ensemble strategy with multiple variants",
             enabled=True,  # Enable to use the KLM strategy

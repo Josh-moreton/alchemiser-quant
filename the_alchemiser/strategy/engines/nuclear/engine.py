@@ -1,6 +1,6 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: strategy | Status: current
 
-Typed Nuclear Strategy Engine.
+Nuclear Strategy Engine.
 
 Typed implementation of the Nuclear energy trading strategy that inherits from
 StrategyEngine and uses MarketDataPort for data access. Produces StrategySignal
@@ -22,13 +22,13 @@ from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionErro
 from the_alchemiser.strategy.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
 
-from .engine import StrategyEngine
-from .nuclear_logic import evaluate_nuclear_strategy
+from the_alchemiser.strategy.protocols.engine import StrategyEngine
+from .logic import evaluate_nuclear_strategy
 from .value_objects.confidence import Confidence
 from .value_objects.strategy_signal import StrategySignal
 
 
-class NuclearTypedEngine(StrategyEngine):
+class NuclearEngine(StrategyEngine):
     """Typed Nuclear Strategy Engine using MarketDataPort and producing StrategySignal objects."""
 
     def __init__(self, market_data_port: MarketDataPort) -> None:

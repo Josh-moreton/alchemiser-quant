@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: strategy & signal generation; Status: current.
+"""Business Unit: strategy | Status: current
 
 TECL Strategy Engine.
 
@@ -47,7 +47,7 @@ from .value_objects.strategy_signal import StrategySignal
 warnings.filterwarnings("ignore")
 
 
-class TECLStrategyEngine(StrategyEngine):
+class TECLEngine(StrategyEngine):
     """TECL Strategy Engine - Long-term technology leverage with volatility protection."""
 
     def __init__(self, data_provider: MarketDataPort) -> None:

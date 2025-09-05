@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: strategy | Status: current
 
 Pure evaluation logic for the Nuclear strategy (typed, framework-free).
 
