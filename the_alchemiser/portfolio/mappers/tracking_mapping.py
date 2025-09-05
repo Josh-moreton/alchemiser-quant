@@ -10,7 +10,7 @@ and internal dataclasses. Updated to support new Pydantic DTOs for strategy trac
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal
 from typing import Any, cast
 
