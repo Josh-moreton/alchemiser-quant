@@ -1,9 +1,10 @@
+---
 name: Debug CLI
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
   contents: read
@@ -82,7 +83,8 @@ jobs:
 
           ## Debugging Information
 
-          This issue was automatically created because the CLI command `poetry run alchemiser signal` failed with exit code ${{ steps.run_cli.outputs.exit_code }}.
+          This issue was automatically created because the CLI command 
+          `poetry run alchemiser signal` failed with exit code ${{ steps.run_cli.outputs.exit_code }}.
 
           ### Actions
 
