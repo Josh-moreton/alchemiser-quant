@@ -73,14 +73,16 @@ jobs:
 
           ## CLI Output Log
 
-          ```
-          $(cat cli_output.log)
-          ```
+          \`\`\`
+          EOF
+          cat cli_output.log >> issue_content.md
+          cat >> issue_content.md << EOF
+          \`\`\`
 
           ## Debugging Information
 
           This issue was automatically created because the CLI command 
-          `poetry run alchemiser signal` failed with exit code ${{ steps.run_cli.outputs.exit_code }}.
+          \`poetry run alchemiser signal\` failed with exit code ${{ steps.run_cli.outputs.exit_code }}.
 
           ### Actions
 
