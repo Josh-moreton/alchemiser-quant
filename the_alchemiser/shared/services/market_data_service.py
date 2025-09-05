@@ -40,7 +40,6 @@ import pandas as pd
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 
-from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 from the_alchemiser.shared.types.exceptions import MarketDataError
 
 logger = logging.getLogger(__name__)
@@ -78,12 +77,20 @@ class SharedMarketDataService:
         self._cache_ttl = cache_ttl_seconds
         self._enable_validation = enable_validation
         
-        # Use AlpacaManager as the underlying client for consistency
-        self._alpaca_manager = AlpacaManager(api_key, secret_key, paper=paper)
+        # Lazy import to avoid circular dependencies
+        self._alpaca_manager = None
         
         # Caching for performance
         self._price_cache: dict[str, tuple[float, datetime]] = {}
         self._quote_cache: dict[str, tuple[tuple[float, float], datetime]] = {}
+
+    def _get_alpaca_manager(self) -> Any:  # noqa: ANN401
+        """Get or create AlpacaManager instance with lazy loading."""
+        if self._alpaca_manager is None:
+            # Import here to avoid circular dependency issues
+            from the_alchemiser.execution.brokers.alpaca import AlpacaManager
+            self._alpaca_manager = AlpacaManager(self.api_key, self.secret_key, paper=self._paper)
+        return self._alpaca_manager
 
     def get_historical_bars(
         self, symbol: str, period: str = "1y", interval: str = "1d"
@@ -131,7 +138,8 @@ class SharedMarketDataService:
             )
 
             # Fetch data using AlpacaManager's data client
-            bars = self._alpaca_manager.data_client.get_stock_bars(request)
+            alpaca_manager = self._get_alpaca_manager()
+            bars = alpaca_manager.data_client.get_stock_bars(request)
 
             if not bars:
                 logger.warning(f"No historical data received for {symbol}")
@@ -197,7 +205,8 @@ class SharedMarketDataService:
             )
 
             # Fetch data using AlpacaManager's data client
-            bars = self._alpaca_manager.data_client.get_stock_bars(request)
+            alpaca_manager = self._get_alpaca_manager()
+            bars = alpaca_manager.data_client.get_stock_bars(request)
 
             # Extract bars for the symbol safely
             bar_data = self._extract_bar_data(bars, symbol)
@@ -230,7 +239,8 @@ class SharedMarketDataService:
                 return cached_quote
 
         try:
-            quote = self._alpaca_manager.get_latest_quote(symbol)
+            alpaca_manager = self._get_alpaca_manager()
+            quote = alpaca_manager.get_latest_quote(symbol)
 
             if quote:
                 bid = float(getattr(quote, "bid_price", 0) or 0)

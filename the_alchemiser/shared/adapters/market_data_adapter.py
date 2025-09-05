@@ -72,7 +72,7 @@ class MarketDataServiceAdapter:
     @property
     def _alpaca_manager(self) -> Any:  # noqa: ANN401
         """Backward compatibility property."""
-        return self._shared_service._alpaca_manager
+        return self._shared_service._get_alpaca_manager()
 
 
 def create_market_data_adapter(api_key: str, secret_key: str) -> MarketDataServiceAdapter:
