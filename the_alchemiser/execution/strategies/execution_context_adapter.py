@@ -131,4 +131,4 @@ class ExecutionContextAdapter:
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
         # Boundary returns floats; strategy layer converts to Decimal precisely
-        return self._order_executor.data_provider.get_latest_quote(symbol)
+        return self._order_executor.data_provider.get_validated_quote(symbol)

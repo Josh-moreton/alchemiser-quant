@@ -91,12 +91,17 @@ class MarketDataService:
         return bars_to_domain(rows)
 
     @translate_market_data_errors(default_return=None)
-    def get_latest_quote(self, symbol: Symbol) -> QuoteModel | None:
+    def get_latest_quote(self, symbol: Symbol | str) -> QuoteModel | None:
         """Fetch latest quote and map to domain QuoteModel.
 
         Note: Repository interface returns a (bid, ask) tuple; timestamp may be unavailable.
+        
+        Args:
+            symbol: Symbol object or string ticker symbol
+            
         """
-        quote = self._market_data.get_latest_quote(str(symbol))
+        symbol_str = str(symbol) if isinstance(symbol, Symbol) else symbol
+        quote = self._market_data.get_latest_quote(symbol_str)
         if quote is None:
             return None
         bid, ask = quote
@@ -337,6 +342,15 @@ class MarketDataService:
         except Exception as e:  # pragma: no cover - best-effort compatibility
             logger.warning(f"get_data failed for {symbol}: {e}")
             return pd.DataFrame()
+
+    # --- Compatibility methods for StrategyMarketDataAdapter interface ---
+    def get_current_price(self, symbol: str) -> float | None:
+        """Get current price - compatibility alias for get_validated_price.
+        
+        This method provides compatibility with the StrategyMarketDataAdapter interface
+        that was used before migrating to direct MarketDataService usage.
+        """
+        return self.get_validated_price(symbol)
 
     def _is_valid_price(self, price: float, symbol: str) -> bool:
         """Validate a price value.

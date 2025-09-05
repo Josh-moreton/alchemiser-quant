@@ -1,2 +1,3 @@
 # Strategy data mapping utilities
-from .market_data_adapter import StrategyMarketDataAdapter
+# Note: StrategyMarketDataAdapter has been removed as it was temporary.
+# Use MarketDataService directly for DataFrame compatibility.

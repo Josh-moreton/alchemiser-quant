@@ -429,7 +429,7 @@ class SmartExecution:
 
         # Get current bid/ask
         try:
-            quote = self._order_executor.data_provider.get_latest_quote(symbol)
+            quote = self._order_executor.data_provider.get_validated_quote(symbol)
             if not quote or len(quote) < 2:
                 self.logger.warning(
                     "no_valid_quote_using_market_order",
@@ -480,7 +480,7 @@ class SmartExecution:
                 time.sleep(wait_time)
 
                 # Re-get quote after waiting
-                quote = self._order_executor.data_provider.get_latest_quote(symbol)
+                quote = self._order_executor.data_provider.get_validated_quote(symbol)
                 if not quote or len(quote) < 2:
                     self.logger.warning(
                         "no_valid_quote_after_wait_using_market_order",

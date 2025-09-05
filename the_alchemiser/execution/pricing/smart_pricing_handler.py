@@ -40,7 +40,7 @@ class SmartPricingHandler:
 
         """
         try:
-            bid, ask = self.data_provider.get_latest_quote(symbol)
+            bid, ask = self.data_provider.get_validated_quote(symbol)
 
             if bid <= 0 or ask <= 0 or bid >= ask:
                 logging.warning(f"Invalid bid/ask for {symbol}: bid={bid}, ask={ask}")
@@ -101,7 +101,7 @@ class SmartPricingHandler:
 
         """
         try:
-            bid, ask = self.data_provider.get_latest_quote(symbol)
+            bid, ask = self.data_provider.get_validated_quote(symbol)
 
             if bid <= 0 or ask <= 0 or bid >= ask:
                 logging.warning(f"Invalid bid/ask for {symbol}: bid={bid}, ask={ask}")

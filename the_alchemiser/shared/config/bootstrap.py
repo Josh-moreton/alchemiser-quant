@@ -26,9 +26,7 @@ from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.types.exceptions import ConfigurationError
 from the_alchemiser.shared.utils.context import create_error_context
 from the_alchemiser.strategy.data.market_data_service import MarketDataService
-from the_alchemiser.strategy.mappers.market_data_adapter import (
-    StrategyMarketDataAdapter,
-)
+
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +41,7 @@ class TradingBootstrapContext(TypedDict):
 
     account_service: TypedAccountService
     market_data_port: MarketDataService
-    data_provider: StrategyMarketDataAdapter  # DataFrame-compatible adapter
+    data_provider: MarketDataService  # DataFrame-compatible service
     alpaca_manager: AlpacaManager
     trading_client: Any  # Alpaca TradingClient
     trading_service_manager: TradingServiceManager | None
@@ -74,8 +72,8 @@ def bootstrap_from_container(
         alpaca_manager = container.infrastructure.alpaca_manager()
         market_data_port = container.infrastructure.market_data_service()
 
-        # Create DataFrame-compatible adapter for legacy code
-        data_provider = StrategyMarketDataAdapter(market_data_port)
+        # Use market data service directly (provides DataFrame compatibility)
+        data_provider = market_data_port
 
         # Optional TradingServiceManager
         try:
@@ -142,8 +140,8 @@ def bootstrap_from_service_manager(
         # Create market data service
         market_data_port = MarketDataService(alpaca_manager)
 
-        # Create DataFrame-compatible adapter for legacy code
-        data_provider = StrategyMarketDataAdapter(market_data_port)
+        # Use market data service directly (provides DataFrame compatibility)
+        data_provider = market_data_port
 
         # Create account service using the same AlpacaManager
         account_service = TypedAccountService(alpaca_manager)
@@ -225,8 +223,8 @@ def bootstrap_traditional(
         # Market data service
         market_data_port = MarketDataService(alpaca_manager)
 
-        # Create DataFrame-compatible adapter for legacy code
-        data_provider = StrategyMarketDataAdapter(market_data_port)
+        # Use market data service directly (provides DataFrame compatibility)
+        data_provider = market_data_port
 
         # Account service
         account_service = TypedAccountService(alpaca_manager)
