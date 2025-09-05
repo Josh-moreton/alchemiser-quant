@@ -24,6 +24,11 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich.text import Text
 
+# Delayed import to avoid complex dependency chains during module loading
+# from the_alchemiser.strategy.data.market_data_service import MarketDataService
+from the_alchemiser.execution.core.refactored_execution_manager import (
+    RefactoredTradingServiceManager as TradingServiceManager,
+)
 from the_alchemiser.shared.cli.cli_formatter import render_account_info
 from the_alchemiser.shared.config.secrets_manager import secrets_manager
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
@@ -47,10 +52,6 @@ from the_alchemiser.shared.types.exceptions import (
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.quote import QuoteModel
 from the_alchemiser.shared.value_objects.symbol import Symbol
-
-# Delayed import to avoid complex dependency chains during module loading
-# from the_alchemiser.strategy.data.market_data_service import MarketDataService
-from the_alchemiser.execution.core.refactored_execution_manager import RefactoredTradingServiceManager as TradingServiceManager
 
 # Constants to avoid duplication
 STYLE_BOLD_CYAN = "bold cyan"

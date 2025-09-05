@@ -40,7 +40,6 @@ from the_alchemiser.execution.brokers.account_service import (
 from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 from the_alchemiser.execution.brokers.alpaca_client import AlpacaClient
 from the_alchemiser.execution.core.account_facade import AccountFacade
-from the_alchemiser.execution.core.refactored_execution_manager import RefactoredTradingServiceManager as TradingServiceManager
 from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
 from the_alchemiser.execution.mappers.execution import (
     safe_dict_to_execution_summary_dto,

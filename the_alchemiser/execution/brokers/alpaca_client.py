@@ -12,7 +12,7 @@ more efficiently and with better separation of concerns.
 
 Future migration plan:
 1. Extend AlpacaManager to implement OrderExecutor protocol
-2. Update SmartExecution to use AlpacaManager directly  
+2. Update SmartExecution to use AlpacaManager directly
 3. Remove this wrapper class entirely
 
 MIGRATION TARGET: the_alchemiser.execution.brokers.alpaca.AlpacaManager
