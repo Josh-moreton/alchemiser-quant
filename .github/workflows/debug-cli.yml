@@ -26,22 +26,17 @@ jobs:
           pip install -U pip
           pip install poetry
 
-      - name: Create requirements.txt from dependencies
-        run: |
-          # Use the existing dependencies requirements.txt or create from poetry
-          if [ -f "dependencies/requirements.txt" ]; then
-            cp dependencies/requirements.txt requirements.txt
-          else
-            # Fallback: install poetry dependencies directly
-            poetry install --only=main
-          fi
-
       - name: Install dependencies
         run: |
+          # If dependencies/requirements.txt exists, use it
+          if [ -f "dependencies/requirements.txt" ]; then
+            cp dependencies/requirements.txt requirements.txt
+          fi
+          # If requirements.txt exists, install with pip
           if [ -f "requirements.txt" ]; then
             pip install -r requirements.txt
           else
-            # If no requirements.txt, ensure poetry dependencies are installed
+            # Otherwise, install poetry dependencies directly
             poetry install --only=main
           fi
 
