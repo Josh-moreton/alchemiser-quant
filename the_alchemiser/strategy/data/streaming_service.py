@@ -92,8 +92,6 @@ class StreamingService:
 
     def get_current_price(self, symbol: str) -> float | None:
         """Get current market price for a symbol.
-        
-        Uses centralized price discovery utility for consistent fallback behavior.
 
         Args:
             symbol: Stock symbol
@@ -102,43 +100,26 @@ class StreamingService:
             Current price or None if unavailable
 
         """
-        from the_alchemiser.shared.utils.price_discovery_utils import (
-            get_current_price_with_fallback,
-        )
-        
-        # Create provider wrappers for centralized utility
-        primary_provider = None
         if self._real_time_pricing and self.is_connected():
             # Just-in-time subscription: subscribe only when we need pricing
             self.subscribe_for_trading(symbol)
 
             # Give a moment for real-time data to flow
             import time
+
             time.sleep(0.5)  # Brief wait for subscription to activate
-            
-            # Create real-time provider wrapper with proper null checks
-            def get_rt_price(sym: str) -> float | None:
-                if self._real_time_pricing:
-                    return self._real_time_pricing.get_current_price(sym)
-                return None
-                
-            primary_provider = type("RealTimeProvider", (), {
-                "get_current_price": lambda _, sym: get_rt_price(sym)
-            })()
 
-        # Create fallback provider wrapper with proper null checks
-        fallback_provider = None
+            # Get real-time price
+            price = self._real_time_pricing.get_current_price(symbol)
+            if price is not None:
+                logging.debug(f"Real-time price for {symbol}: ${price:.2f}")
+                return price
+
+        # Fallback to REST API if available
         if self._fallback_provider:
-            def get_fallback_price(sym: str) -> float | None:
-                if self._fallback_provider:
-                    return self._fallback_provider(sym)
-                return None
-                
-            fallback_provider = type("FallbackProvider", (), {
-                "get_current_price": lambda _, sym: get_fallback_price(sym)
-            })()
+            return self._fallback_provider(symbol)
 
-        return get_current_price_with_fallback(primary_provider, fallback_provider, symbol)
+        return None
 
     def get_current_price_for_order(self, symbol: str) -> tuple[float | None, Callable[[], None]]:
         """Get current price specifically for order placement with optimized subscription management.
