@@ -317,7 +317,7 @@ class SmartExecution:
         from the_alchemiser.execution.pricing.spread_assessment import (
             SpreadAssessment,
         )
-        from the_alchemiser.strategy.timing.market_timing_utils import (
+        from the_alchemiser.execution.timing.market_timing_utils import (
             MarketOpenTimingEngine,
         )
 
