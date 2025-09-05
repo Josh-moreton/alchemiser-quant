@@ -1,7 +1,20 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
+"""Business Unit: utilities; Status: legacy.
+
+⚠️ DEPRECATED: Use SharedMarketDataService from shared.services instead ⚠️
 
 Market Data Client.
+
+MIGRATION NOTICE: This client is deprecated in favor of the consolidated
+SharedMarketDataService in the shared module. The shared service provides
+the same functionality with better caching, validation, and consistency
+across all modules.
+
+Use instead:
+    from the_alchemiser.shared.services import SharedMarketDataService
+    service = SharedMarketDataService(api_key="...", secret_key="...")
+
+This file will be removed in a future version.
 
 Handles market data REST API calls to Alpaca.
 Focused on data retrieval without trading operations.
@@ -25,7 +38,13 @@ from the_alchemiser.shared.types.exceptions import MarketDataError
 
 
 class MarketDataClient:
-    """Client for market data operations via Alpaca API."""
+    """Client for market data operations via Alpaca API.
+    
+    ⚠️ DEPRECATED: Use SharedMarketDataService from shared.services instead ⚠️
+    
+    This class is deprecated in favor of SharedMarketDataService which provides
+    better caching, validation, and consistency across all modules.
+    """
 
     def __init__(self, api_key: str, secret_key: str) -> None:
         """Initialize market data client.
@@ -35,6 +54,14 @@ class MarketDataClient:
             secret_key: Alpaca secret key
 
         """
+        import warnings
+        warnings.warn(
+            "MarketDataClient is deprecated. Use SharedMarketDataService from "
+            "the_alchemiser.shared.services instead for better performance and consistency.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        
         self.api_key = api_key
         self.secret_key = secret_key
         self._alpaca_manager = AlpacaManager(api_key, secret_key)

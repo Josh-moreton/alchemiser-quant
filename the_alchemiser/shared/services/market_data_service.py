@@ -102,10 +102,10 @@ class SharedMarketDataService:
             MarketDataError: If data retrieval fails
 
         Example:
-
             >>> service = SharedMarketDataService(api_key="...", secret_key="...")
             >>> df = service.get_historical_bars("AAPL", period="6mo", interval="1d")
             >>> print(df.head())
+
         """
         try:
             # Convert period to start/end dates

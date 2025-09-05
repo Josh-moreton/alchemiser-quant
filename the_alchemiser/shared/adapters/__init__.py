@@ -30,6 +30,9 @@ from the_alchemiser.shared.adapters.strategy_adapters import (
     validate_signal_conversion,
 )
 
+# Market data adapters
+from .market_data_adapter import MarketDataServiceAdapter, create_market_data_adapter
+
 __all__ = [
     # Strategy adapters
     "batch_strategy_signals_to_dtos",
@@ -47,4 +50,7 @@ __all__ = [
     "order_request_to_context",
     "order_result_to_executed_order_dto",
     "rebalance_plan_to_order_requests",
+    # Market data adapters
+    "MarketDataServiceAdapter",
+    "create_market_data_adapter",
 ]
