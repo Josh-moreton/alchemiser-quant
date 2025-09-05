@@ -69,13 +69,9 @@ class TradingExecutor:
         self.export_tracking_json = export_tracking_json
         self.logger = get_logger(__name__)
 
-    def _get_strategy_allocations(self) -> dict[StrategyType, float]:
-        """Extract strategy allocations from configuration."""
-        return get_strategy_allocations(self.settings)
-
     def _create_trading_engine(self) -> TradingEngine:
         """Create and configure the trading engine using modern bootstrap approach."""
-        strategy_allocations = self._get_strategy_allocations()
+        strategy_allocations = get_strategy_allocations(self.settings)
 
         # Ensure DI container respects requested trading mode before instantiation
         try:

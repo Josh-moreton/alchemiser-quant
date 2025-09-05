@@ -31,8 +31,6 @@ from the_alchemiser.shared.types.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
-from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
-from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 
 # DI imports (optional)
 try:
@@ -77,10 +75,6 @@ class TradingSystem:
         else:
             self.logger.error("DI not available - system requires dependency injection")
             raise ConfigurationError("Dependency injection system is required but not available")
-
-    def _get_strategy_allocations(self) -> dict[StrategyType, float]:
-        """Extract strategy allocations from configuration."""
-        return get_strategy_allocations(self.settings)
 
     def analyze_signals(self, show_tracking: bool = False) -> bool:
         """Generate and display strategy signals without trading.
