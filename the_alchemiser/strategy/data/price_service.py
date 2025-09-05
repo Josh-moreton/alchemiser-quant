@@ -13,7 +13,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from the_alchemiser.strategy.data.market_data_client import MarketDataClient
+from the_alchemiser.shared.services.market_data_service import SharedMarketDataService
 from the_alchemiser.strategy.data.streaming_service import StreamingService
 
 
@@ -22,13 +22,13 @@ class ModernPriceFetchingService:
 
     def __init__(
         self,
-        market_data_client: MarketDataClient,
+        market_data_client: SharedMarketDataService,
         streaming_service: StreamingService | None,
     ) -> None:
         """Initialize modern price fetching service.
 
         Args:
-            market_data_client: Market data client for REST API calls
+            market_data_client: Shared market data service for REST API calls
             streaming_service: Streaming service for real-time data
 
         """
@@ -60,7 +60,7 @@ class ModernPriceFetchingService:
 
             # Fallback to REST API
             return await asyncio.get_event_loop().run_in_executor(
-                None, self._market_data_client.get_current_price_from_quote, symbol
+                None, self._market_data_client.get_current_price, symbol
             )
 
         except TimeoutError:
@@ -82,6 +82,7 @@ class ModernPriceFetchingService:
         self,
         symbol: str,
         callback: Callable[[str, float | None], None],
+        *,
         fallback_to_rest: bool = True,
     ) -> None:
         """Get current price and call callback when available.
@@ -102,7 +103,7 @@ class ModernPriceFetchingService:
 
             # Fallback to REST API if enabled
             if fallback_to_rest:
-                price = self._market_data_client.get_current_price_from_quote(symbol)
+                price = self._market_data_client.get_current_price(symbol)
                 callback(symbol, price)
             else:
                 callback(symbol, None)
@@ -179,7 +180,7 @@ class ModernPriceFetchingService:
     async def _fetch_multiple_prices(
         self, symbols: list[str], timeout_seconds: float
     ) -> dict[str, float | None]:
-        """Internal method to fetch multiple prices concurrently."""
+        """Fetch multiple prices concurrently."""
         tasks = [
             self.get_current_price_async(symbol, timeout_seconds / max(len(symbols), 1))
             for symbol in symbols
@@ -234,7 +235,7 @@ class ModernPriceFetchingService:
                         return price
 
                 elif method == "quote":
-                    price = self._market_data_client.get_current_price_from_quote(symbol)
+                    price = self._market_data_client.get_current_price(symbol)
                     if price is not None:
                         logging.debug(f"Got price for {symbol} via quote: ${price:.2f}")
                         return price
@@ -272,7 +273,7 @@ class ModernPriceFetchingService:
 
         # Test REST API availability
         try:
-            test_price = self._market_data_client.get_current_price_from_quote("AAPL")
+            test_price = self._market_data_client.get_current_price("AAPL")
             status["rest_api_available"] = test_price is not None
         except Exception as e:
             status["rest_api_available"] = False
