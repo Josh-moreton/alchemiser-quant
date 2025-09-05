@@ -39,11 +39,11 @@ from the_alchemiser.strategy.engines.core.trading_engine import TradingEngine
 from the_alchemiser.strategy.engines.value_objects.strategy_signal import (
     StrategySignal as TypedStrategySignal,
 )
-from the_alchemiser.strategy.mappers.strategy_signal_mapping import (
+from the_alchemiser.strategy.mappers.mappers import (
     convert_signals_dict_to_domain,
     typed_strategy_signal_to_validated_order,
 )
-from the_alchemiser.strategy.mappers.strategy_signal_mapping import (
+from the_alchemiser.strategy.mappers.mappers import (
     map_signals_dict as _map_signals_to_typed,
 )
 from the_alchemiser.strategy.registry.strategy_registry import StrategyType

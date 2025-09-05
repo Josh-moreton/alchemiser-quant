@@ -89,7 +89,7 @@ def normalize_legacy_signal_dict(legacy_signal: dict[str, Any]) -> StrategySigna
     This function provides the same normalization as the existing
     strategy_signal_mapping module for backward compatibility.
     """
-    from the_alchemiser.strategy.mappers.strategy_signal_mapping import (
+    from the_alchemiser.strategy.mappers.mappers import (
         legacy_signal_to_typed,
     )
 
