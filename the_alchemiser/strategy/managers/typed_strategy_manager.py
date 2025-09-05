@@ -118,13 +118,13 @@ class TypedStrategyManager:
     def _create_typed_engine(self, strategy_type: StrategyType) -> StrategyEngine:
         """Create typed strategy engine instance."""
         if strategy_type == StrategyType.NUCLEAR:
-            return NuclearTypedEngine(self.market_data_port)
+            return NuclearEngine(self.market_data_port)
         if strategy_type == StrategyType.KLM:
-            return TypedKLMStrategyEngine(self.market_data_port)
+            return KLMEngine(self.market_data_port)
         if strategy_type == StrategyType.TECL:
-            from the_alchemiser.strategy.engines.tecl_strategy_engine import TECLStrategyEngine
+            from the_alchemiser.strategy.engines.tecl import TECLEngine
 
-            return TECLStrategyEngine(self.market_data_port)
+            return TECLEngine(self.market_data_port)
         raise ValueError(f"Unknown strategy type: {strategy_type}")
 
     def generate_all_signals(self, timestamp: datetime | None = None) -> AggregatedSignals:
