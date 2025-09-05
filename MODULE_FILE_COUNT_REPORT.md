@@ -1,6 +1,6 @@
 # Module File Count Report
 
-**Generated**: January 2025  
+**Generated**: January 2025 (Updated)  
 **Repository**: alchemiser-quant  
 **Total Modules Analyzed**: 4
 
@@ -14,9 +14,9 @@ This report provides a comprehensive overview of all Python files within the fou
 |--------|------------|----------------------|
 | **strategy** | 69 files | Signal generation, indicator calculation, ML models, regime detection |
 | **portfolio** | 52 files | Portfolio state management, sizing, rebalancing logic, risk management |
-| **execution** | 67 files | Broker API integrations, order placement, smart execution, error handling |
-| **shared** | 114 files | DTOs, utilities, logging, cross-cutting concerns, common value objects |
-| **Total** | **305 files** | Complete trading system implementation |
+| **execution** | 63 files | Broker API integrations, order placement, smart execution, error handling |
+| **shared** | 119 files | DTOs, utilities, logging, cross-cutting concerns, common value objects |
+| **Total** | **303 files** | Complete trading system implementation |
 
 ---
 
@@ -31,16 +31,7 @@ This report provides a comprehensive overview of all Python files within the fou
 #### Root Level
 - `__init__.py` - Main module initialization and exports
 
-#### archived/ (8 files)
-Legacy KLM strategy variants and historical implementations:
-- `klm/base_variant.py` - Base class for KLM strategy variants
-- `klm/variant_1280_26.py` - KLM variant with 1280/26 parameters
-- `klm/variant_410_38.py` - KLM variant with 410/38 parameters  
-- `klm/variant_506_38.py` - KLM variant with 506/38 parameters
-- `klm/variant_520_22.py` - KLM variant with 520/22 parameters
-- `klm/variant_530_18.py` - KLM variant with 530/18 parameters
-- `klm/variant_830_21.py` - KLM variant with 830/21 parameters
-- `klm/variant_nova.py` - KLM Nova variant implementation
+
 
 #### data/ (10 files)
 Market data services and utilities:
@@ -190,13 +181,6 @@ Portfolio allocation and rebalancing:
 - `rebalancing_service.py` - Portfolio rebalancing service
 - `rebalancing_service_facade.py` - Rebalancing service facade
 
-#### analytics/ (4 files)
-Portfolio analytics and analysis:
-- `analysis_service.py` - Portfolio analysis service
-- `attribution_engine.py` - Strategy attribution analysis
-- `position_analyzer.py` - Position analysis tools
-- `position_delta.py` - Position change calculations
-
 #### calculations/ (1 file)
 Portfolio mathematical calculations:
 - `portfolio_calculations.py` - Core portfolio calculation functions
@@ -208,10 +192,6 @@ Core portfolio management:
 - `portfolio_management_facade.py` - Unified portfolio management interface
 - `rebalancing_orchestrator.py` - Rebalancing orchestration logic
 - `rebalancing_orchestrator_facade.py` - Rebalancing facade interface
-
-#### execution/ (1 file)
-Portfolio execution services:
-- `execution_service.py` - Portfolio execution coordination
 
 #### holdings/ (6 files)
 Position and holdings management:
@@ -295,7 +275,7 @@ Portfolio valuation and metrics:
 
 ---
 
-## Execution Module (67 files)
+## Execution Module (63 files)
 
 **Business Unit**: execution  
 **Status**: current  
@@ -316,21 +296,20 @@ Execution analytics:
 Broker API integrations:
 - `__init__.py` - Brokers module exports
 - `account_service.py` - Broker account service
+- `alpaca_client.py` - Alpaca API client implementation
 - `alpaca/__init__.py` - Alpaca broker module exports
 - `alpaca/adapter.py` - Alpaca broker adapter
-- `alpaca_client.py` - Alpaca API client implementation
 
 #### config/ (1 file)
 Execution configuration:
 - `execution_config.py` - Execution system configuration
 
-#### core/ (11 files)
+#### core/ (10 files)
 Core execution services:
 - `__init__.py` - Core module exports
 - `account_facade.py` - Account management facade
 - `account_management_service.py` - Account management service
 - `data_transformation_service.py` - Data transformation service
-- `execution_manager.py` - Execution management service
 - `execution_schemas.py` - Execution data schemas
 - `executor.py` - Main execution engine
 - `lifecycle_coordinator.py` - Lifecycle coordination
@@ -338,9 +317,8 @@ Core execution services:
 - `order_execution_service.py` - Order execution service
 - `refactored_execution_manager.py` - Refactored execution manager
 
-#### entities/ (2 files)
+#### entities/ (1 file)
 Execution entities:
-- `__init__.py` - Entities module exports
 - `order.py` - Order entity and lifecycle management
 
 #### errors/ (4 files)
@@ -378,16 +356,17 @@ Data transformation and mapping:
 Execution monitoring:
 - `websocket_order_monitor.py` - WebSocket order monitoring
 
-#### orders/ (8 files)
+#### orders/ (9 files)
 Order management and handling:
+- `__init__.py` - Orders module exports
 - `asset_order_handler.py` - Asset-specific order handling
 - `consolidated_validation.py` - Consolidated order validation
+- `order.py` - Order entity and data structures
 - `order_types.py` - Order type definitions
 - `progressive_order_utils.py` - Progressive order utilities
 - `request_builder.py` - Generic request builder
+- `schemas.py` - Order schema definitions
 - `service.py` - Order service implementation
-- `status_manager.py` - Order status management
-- `validation_service.py` - Order validation service
 
 #### pricing/ (3 files)
 Smart pricing and execution:
@@ -400,18 +379,10 @@ Interface definitions:
 - `order_lifecycle.py` - Order lifecycle protocol
 - `trading_repository.py` - Trading repository interface
 
-#### routing/ (1 file)
-Order routing and placement:
-- `__init__.py` - Routing module exports
-
 #### schemas/ (2 files)
 Execution schemas:
-- `__init__.py` - Schemas module exports
 - `alpaca.py` - Alpaca-specific schemas
-
-#### services/ (1 file)
-Execution services:
-- `__init__.py` - Services module exports
+- `smart_trading.py` - Smart trading schema definitions
 
 #### strategies/ (6 files)
 Smart execution strategies:
@@ -424,11 +395,11 @@ Smart execution strategies:
 
 #### types/ (1 file)
 Execution type definitions:
-- `__init__.py` - Types module exports
+- `policy_result.py` - Policy result type definitions
 
 ---
 
-## Shared Module (114 files)
+## Shared Module (119 files)
 
 **Business Unit**: shared  
 **Status**: current  
@@ -578,7 +549,7 @@ Common value objects and type definitions:
 - `time_in_force.py` - Time in force types
 - `trading_errors.py` - Trading error types
 
-#### utils/ (15 files)
+#### utils/ (20 files)
 Utility functions and helpers:
 - `__init__.py` - Utils module exports
 - `account_utils.py` - Account utility functions
@@ -591,10 +562,15 @@ Utility functions and helpers:
 - `error_recovery.py` - Error recovery utilities
 - `error_reporter.py` - Error reporting utilities
 - `error_scope.py` - Error scope management
+- `order_completion_utils.py` - Order completion utilities
+- `price_discovery_utils.py` - Price discovery utilities
 - `retry_decorator.py` - Retry mechanism decorator
 - `s3_utils.py` - AWS S3 utility functions
 - `serialization.py` - Data serialization utilities
 - `service_factory.py` - Service factory utilities
+- `strategy_utils.py` - Strategy utility functions
+- `timezone_utils.py` - Timezone handling utilities
+- `validation_utils.py` - Validation utility functions
 
 #### value_objects/ (4 files)
 Domain value objects:
@@ -613,9 +589,9 @@ The four modules represent a comprehensive trading system implementation with cl
 
 - **Portfolio Module (52 files)**: Portfolio management system including position tracking, rebalancing algorithms, risk policies, P&L tracking, and portfolio analytics.
 
-- **Execution Module (67 files)**: Execution system with broker integrations (Alpaca), smart execution strategies, order lifecycle management, and comprehensive error handling.
+- **Execution Module (63 files)**: Execution system with broker integrations (Alpaca), smart execution strategies, order lifecycle management, and comprehensive error handling.
 
-- **Shared Module (114 files)**: Cross-cutting concerns including DTOs for inter-module communication, common value objects (Money, Symbol), utilities, configuration management, logging infrastructure, and notification systems.
+- **Shared Module (119 files)**: Cross-cutting concerns including DTOs for inter-module communication, common value objects (Money, Symbol), utilities, configuration management, logging infrastructure, and notification systems.
 
 ### Architecture Compliance
 
@@ -626,4 +602,4 @@ All modules follow the established architectural principles:
 - Type safety with full mypy compliance
 - Clean interfaces and protocol definitions
 
-**Total System**: 305 Python files implementing a complete quantitative trading platform.
+**Total System**: 303 Python files implementing a complete quantitative trading platform.
