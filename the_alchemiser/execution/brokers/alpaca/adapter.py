@@ -532,13 +532,13 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def get_quote(self, symbol: str) -> dict[str, Any] | None:
         """Get quote information for a symbol (MarketDataRepository interface).
-        
+
         Args:
             symbol: Symbol to get quote for
-            
+
         Returns:
             Dictionary with quote information or None if failed
-            
+
         """
         try:
             quote = self.get_latest_quote_raw(symbol)
@@ -870,17 +870,17 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             return []
 
     # OrderExecutor protocol implementation methods
-    
+
     def place_smart_sell_order(self, symbol: str, qty: float) -> str | None:
         """Place a smart sell order using canonical executor.
-        
+
         Args:
             symbol: Symbol to sell
             qty: Quantity to sell
-            
+
         Returns:
             Order ID if successful, None if failed
-            
+
         """
         from decimal import Decimal
 
@@ -910,12 +910,12 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def get_current_positions(self) -> dict[str, float]:
         """Get all current positions as dict mapping symbol to quantity.
-        
+
         This is an alias for get_positions_dict() to satisfy OrderExecutor protocol.
-        
+
         Returns:
             Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
-            
+
         """
         return self.get_positions_dict()
 
@@ -923,14 +923,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self, order_ids: list[str], max_wait_seconds: int = 30
     ) -> WebSocketResultDTO:
         """Wait for orders to reach a final state.
-        
+
         Args:
             order_ids: List of order IDs to monitor
             max_wait_seconds: Maximum time to wait for completion
-            
+
         Returns:
             WebSocketResultDTO with completion status and completed order IDs
-            
+
         """
         from the_alchemiser.shared.utils.order_completion_utils import wait_for_order_completion
 
@@ -945,7 +945,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     @property
     def data_provider(self) -> DataProvider:
         """Get data provider interface for OrderExecutor protocol compatibility.
-        
+
         Returns self since AlpacaManager implements DataProvider methods.
         """
         return self
