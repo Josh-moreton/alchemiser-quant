@@ -10,10 +10,25 @@ more efficiently and with better separation of concerns.
 
 ⚠️ FOR NEW INTEGRATIONS: Use AlpacaManager from execution.brokers.alpaca instead ⚠️
 
-Future migration plan:
-1. Extend AlpacaManager to implement OrderExecutor protocol
-2. Update SmartExecution to use AlpacaManager directly  
-3. Remove this wrapper class entirely
+CONSOLIDATION STATUS (per ALPACA_INTEGRATION_CONSOLIDATION_PLAN.md):
+✅ Phase 1: Foundation & Documentation - COMPLETED 
+   - Deprecation notices added to AlpacaClient
+   - Consolidation plan documented
+   - Migration dependencies identified
+
+🔄 Phase 2: Interface Alignment - IN PROGRESS
+   - AlpacaManager partially implements OrderExecutor protocol (liquidate_position ✅)
+   - Missing methods: place_smart_sell_order, get_current_positions, wait_for_order_completion
+   - SmartExecution and TradingEngine still use AlpacaClient wrapper
+
+📋 Phase 3: Migration & Testing - PENDING
+   - Update SmartExecution to use AlpacaManager directly
+   - Update TradingEngine to eliminate AlpacaClient wrapper
+   - Comprehensive testing of all affected components
+
+🗑️ Phase 4: Cleanup - PENDING
+   - Remove this wrapper class entirely
+   - Update remaining imports and documentation
 
 MIGRATION TARGET: the_alchemiser.execution.brokers.alpaca.AlpacaManager
 
