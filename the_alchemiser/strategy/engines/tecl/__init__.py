@@ -2,13 +2,11 @@
 
 TECL Strategy Module.
 
-Technology leverage and momentum strategy implementation.
+Technology-focused leverage strategy with volatility protection.
 """
 
 from __future__ import annotations
 
 from .engine import TECLEngine
 
-__all__ = [
-    "TECLEngine",
-]
+__all__ = ["TECLEngine"]

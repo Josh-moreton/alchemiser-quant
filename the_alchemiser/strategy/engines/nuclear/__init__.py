@@ -2,13 +2,11 @@
 
 Nuclear Strategy Module.
 
-Nuclear energy and volatility hedge strategy implementation.
+High-frequency nuclear energy trading strategy focused on uranium and nuclear energy ETFs.
 """
 
 from __future__ import annotations
 
 from .engine import NuclearEngine
 
-__all__ = [
-    "NuclearEngine",
-]
+__all__ = ["NuclearEngine"]

@@ -9,6 +9,4 @@ from __future__ import annotations
 
 from .engine import KLMEngine
 
-__all__ = [
-    "KLMEngine",
-]
+__all__ = ["KLMEngine"]

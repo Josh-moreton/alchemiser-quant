@@ -1,6 +1,6 @@
-"""Business Unit: strategy | Status: current.
+"""Business Unit: strategy | Status: current
 
-KLM Strategy Variant - Original Baseline.
+KLM Strategy Variant 520/22 - "KMLM (23) - Original".
 
 This variant is similar to 506/38 and 1200/28 except:
 - KMLM Switcher uses select-bottom 1 from TECL/SVIX only (no SOXL, no FNGU)
@@ -16,7 +16,7 @@ import pandas as pd
 
 from the_alchemiser.shared.utils.common import ActionType
 
-from ..base_variant import BaseKLMVariant
+from .base_klm_variant import BaseKLMVariant
 
 
 class KlmVariant52022(BaseKLMVariant):

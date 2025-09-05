@@ -20,8 +20,8 @@ from typing import Any
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy.engines.engine import StrategyEngine
-from the_alchemiser.strategy.engines.nuclear import NuclearEngine
 from the_alchemiser.strategy.engines.klm import KLMEngine
+from the_alchemiser.strategy.engines.nuclear import NuclearEngine
 from the_alchemiser.strategy.engines.value_objects.confidence import Confidence
 from the_alchemiser.strategy.engines.value_objects.strategy_signal import StrategySignal
 from the_alchemiser.strategy.registry.strategy_registry import StrategyRegistry, StrategyType

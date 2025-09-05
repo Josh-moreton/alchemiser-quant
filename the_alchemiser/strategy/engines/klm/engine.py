@@ -1,4 +1,4 @@
-"""Business Unit: strategy | Status: current.
+"""Business Unit: strategy | Status: current
 
 KLM Strategy Ensemble Engine.
 
@@ -31,10 +31,10 @@ from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionErro
 from the_alchemiser.strategy.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
 
-from ..engine import StrategyEngine
+from .engine import StrategyEngine
 
 # Import all KLM strategy variants from modular workers package
-from .variants import (
+from .klm_workers import (
     BaseKLMVariant,
     KlmVariant41038,
     KlmVariant50638,
@@ -45,8 +45,8 @@ from .variants import (
     KlmVariant128026,
     KLMVariantNova,
 )
-from ..value_objects.confidence import Confidence
-from ..value_objects.strategy_signal import StrategySignal
+from .value_objects.confidence import Confidence
+from .value_objects.strategy_signal import StrategySignal
 
 
 class KLMEngine(StrategyEngine):

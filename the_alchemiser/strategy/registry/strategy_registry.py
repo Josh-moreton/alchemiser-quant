@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: strategy & signal generation; Status: current.
+"""Business Unit: strategy | Status: current
 
 Strategy Registry for The Alchemiser Quantitative Trading System.
 
@@ -16,9 +16,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from the_alchemiser.shared.types.strategy_type import StrategyType
+from the_alchemiser.strategy.engines.klm import KLMEngine
 from the_alchemiser.strategy.engines.nuclear import NuclearEngine
 from the_alchemiser.strategy.engines.tecl import TECLEngine
-from the_alchemiser.strategy.engines.klm import KLMEngine
 
 # Remove the local StrategyType definition since it's now in shared
 # class StrategyType(Enum):

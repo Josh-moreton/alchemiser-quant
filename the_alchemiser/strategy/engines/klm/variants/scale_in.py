@@ -1,4 +1,4 @@
-"""Business Unit: strategy | Status: current.
+"""Business Unit: strategy | Status: current
 
 KLM Strategy Variant 530/18 - "KMLM Switcher | Anansi Mods".
 
@@ -26,7 +26,7 @@ from the_alchemiser.shared.value_objects.core_types import (
     KLMDecision,
 )  # TODO: Phase 9 - Added for gradual migration
 
-from ..base_variant import BaseKLMVariant
+from .base_klm_variant import BaseKLMVariant
 
 
 class KlmVariant53018(BaseKLMVariant):
@@ -463,29 +463,29 @@ class KlmVariant53018(BaseKLMVariant):
                     # 50/50 allocation between FNGU and best candidate
                     if best_candidate[0] != "FNGU":
                         allocation = {"FNGU": 0.5, best_candidate[0]: 0.5}
-                        result = KLMDecision(
-                            symbol_allocation=allocation,
-                            action=ActionType.BUY.value,
-                            reason=f"KMLM Switcher: 50% FNGU / 50% {best_candidate[0]} (best MA return)",
+                        result = (
+                            allocation,
+                            ActionType.BUY.value,
+                            f"KMLM Switcher: 50% FNGU / 50% {best_candidate[0]} (best MA return)",
                         )
                     else:
-                        result = KLMDecision(
-                            symbol_allocation={"FNGU": 1.0},
-                            action=ActionType.BUY.value,
-                            reason="KMLM Switcher: 100% FNGU (best MA return)",
+                        result = (  # type: ignore[assignment] # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
+                            "FNGU",
+                            ActionType.BUY.value,
+                            "KMLM Switcher: 100% FNGU (best MA return)",
                         )
                 else:
-                    result = KLMDecision(
-                        symbol_allocation={"FNGU": 1.0},
-                        action=ActionType.BUY.value,
-                        reason="KMLM Switcher: FNGU fallback",
-                    )
+                    result = (  # type: ignore[assignment]
+                        "FNGU",
+                        ActionType.BUY.value,
+                        "KMLM Switcher: FNGU fallback",
+                    )  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
             else:
                 # Simple tech selection
-                result = KLMDecision(
-                    symbol_allocation={candidates[0][0]: 1.0},
-                    action=ActionType.BUY.value,
-                    reason=f"KMLM Switcher: {candidates[0][0]} (lowest RSI: {candidates[0][1]:.1f})",
+                result = (  # type: ignore[assignment] # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
+                    candidates[0][0],
+                    ActionType.BUY.value,
+                    f"KMLM Switcher: {candidates[0][0]} (lowest RSI: {candidates[0][1]:.1f})",
                 )
         else:
             # Long/Short Rotator with stdev filtering (select bottom 3)
