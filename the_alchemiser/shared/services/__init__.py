@@ -1,32 +1,13 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared | Status: current.
 
-Service layer package.
+Shared services module - Common services used across modules.
 
-Lightweight package initializer for the restructured service layer. The
-concrete services now live in dedicated subpackages:
-
-- account: Account and position management services
-- market_data: Market data retrieval and streaming services
-- trading: Order execution and position services/facade
-- repository: External provider implementations (e.g., AlpacaManager)
-- shared: Cross-cutting concerns (config, secrets, cache, retry)
-- errors: Error handling, reporting and exceptions
-
-Note: We intentionally avoid re-exporting concrete classes at the package root
-to prevent import-time side effects and circular import issues. Import directly
-from the relevant subpackage, for example:
-
-    from the_alchemiser.execution.brokers.account_service import AccountService
-    from the_alchemiser.execution.core.refactored_execution_manager import RefactoredTradingServiceManager as TradingServiceManager
+This module provides canonical implementations of shared services that can be
+used by strategy, portfolio, and execution modules following the modular
+architecture guidelines.
 """
 
-from __future__ import annotations
+# Import only the new market data service to avoid dependency issues
+from .market_data_service import SharedMarketDataService, create_shared_market_data_service
 
-__all__ = [
-    "account",
-    "errors",
-    "market_data",
-    "repository",
-    "shared",
-    "trading",
-]
+__all__ = ["SharedMarketDataService", "create_shared_market_data_service"]
