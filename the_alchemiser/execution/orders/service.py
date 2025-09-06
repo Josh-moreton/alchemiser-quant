@@ -315,7 +315,9 @@ class WebSocketOrderLifecycleAdapter(OrderLifecycleMonitor):  # pragma: no cover
         self, order_ids: list[str], max_wait_seconds: int = 60
     ) -> WebSocketResultDTO:
         """Wait for orders to reach a final state using WebSocket monitoring."""
-        from the_alchemiser.execution.monitoring.websocket_order_monitor import OrderCompletionMonitor
+        from the_alchemiser.execution.monitoring.websocket_order_monitor import (
+            OrderCompletionMonitor,
+        )
 
         monitor = OrderCompletionMonitor(
             trading_client=self._trading_client,

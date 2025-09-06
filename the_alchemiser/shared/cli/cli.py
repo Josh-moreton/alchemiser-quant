@@ -43,7 +43,7 @@ from the_alchemiser.shared.logging.logging_utils import (
 # from the_alchemiser.strategy.dsl.parser import DSLParser
 # from the_alchemiser.strategy.dsl.strategy_loader import StrategyLoader
 # Import domain models for type annotations
-from the_alchemiser.shared.types.bar import BarModel
+from the_alchemiser.strategy.types.bar import BarModel
 from the_alchemiser.shared.types.exceptions import (
     AlchemiserError,
     StrategyExecutionError,
@@ -205,7 +205,7 @@ def signal(
                         from datetime import datetime
                         from decimal import Decimal
 
-                        from the_alchemiser.shared.types.bar import BarModel
+                        from the_alchemiser.strategy.types.bar import BarModel
 
                         # Handle both Symbol objects and strings
                         symbol_str = str(symbol.value) if hasattr(symbol, "value") else str(symbol)

@@ -78,7 +78,7 @@ def save_dashboard_data(
             extract_recent_trades_data,
             extract_strategies_data,
         )
-        from the_alchemiser.shared.utils.s3_utils import get_s3_handler
+        from the_alchemiser.portfolio.utils.s3_utils import get_s3_handler
 
         s3_handler = get_s3_handler()
         dashboard_data = build_basic_dashboard_structure(engine.paper_trading)
@@ -134,7 +134,7 @@ def build_portfolio_state_data(
     target_values = {
         symbol: weight * portfolio_value for symbol, weight in target_portfolio.items()
     }
-    
+
     # Extract current position values inline
     current_values: dict[str, float] = {}
     for symbol, pos in current_positions.items():

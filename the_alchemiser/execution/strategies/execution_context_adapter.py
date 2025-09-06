@@ -108,7 +108,9 @@ class ExecutionContextAdapter:
         self, order_ids: list[str], max_wait_seconds: int = 30
     ) -> Any:  # WebSocketResultDTO
         """Wait for order completion using direct monitoring."""
-        from the_alchemiser.execution.monitoring.websocket_order_monitor import OrderCompletionMonitor
+        from the_alchemiser.execution.monitoring.websocket_order_monitor import (
+            OrderCompletionMonitor,
+        )
 
         # Get alpaca manager from order executor
         alpaca_manager = getattr(self._order_executor, "alpaca_manager", None)

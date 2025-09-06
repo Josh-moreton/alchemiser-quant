@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from typing import NamedTuple, TypedDict
 
-from the_alchemiser.shared.services.tick_size_service import (
+from the_alchemiser.execution.services.tick_size_service import (
     DynamicTickSizeService,
     resolve_tick_size,
 )

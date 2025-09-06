@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
+"""Business Unit: portfolio | Status: current.
 
 S3 Utilities for Quantitative Trading System
 Handles reading and writing files to S3 storage.

@@ -10,7 +10,7 @@ allocations from configuration, eliminating duplication across the codebase.
 from __future__ import annotations
 
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.types.strategy_type import StrategyType
+from the_alchemiser.strategy.types.strategy_type import StrategyType
 
 
 def get_strategy_allocations(settings: Settings) -> dict[StrategyType, float]:
