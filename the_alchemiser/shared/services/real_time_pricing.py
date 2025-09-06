@@ -35,8 +35,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from alpaca.data.enums import DataFeed
-from alpaca.data.live import StockDataStream
 from alpaca.data.models import Quote, Trade
 
 from the_alchemiser.shared.brokers.alpaca_utils import (
@@ -102,7 +100,7 @@ class RealTimePricingService:
         self._max_symbols = 5  # Stay under Alpaca's subscription limits
 
         # Connection management
-        self._stream: StockDataStream | None = None
+        self._stream: Any = None  # StockDataStream from alpaca_utils
         self._stream_thread: threading.Thread | None = None
         self._connected = False
         self._should_reconnect = True

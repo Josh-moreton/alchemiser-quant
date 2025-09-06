@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from alpaca.trading.enums import OrderSide
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
 
 from the_alchemiser.shared.logging.logging_utils import get_logger, log_error_with_context
 from the_alchemiser.shared.types.exceptions import DataProviderError
@@ -26,13 +26,13 @@ class SmartPricingHandler:
         self.data_provider = data_provider
 
     def get_smart_limit_price(
-        self, symbol: str, side: OrderSide, aggressiveness: float = 0.5
+        self, symbol: str, side: BrokerOrderSide, aggressiveness: float = 0.5
     ) -> float | None:
         """Get a smart limit price based on current bid/ask.
 
         Args:
             symbol: Stock symbol
-            side: OrderSide.BUY or OrderSide.SELL
+            side: BrokerOrderSide.BUY or BrokerOrderSide.SELL
             aggressiveness: 0.0 = most conservative, 1.0 = most aggressive (market price)
 
         Returns:
@@ -46,7 +46,7 @@ class SmartPricingHandler:
                 logging.warning(f"Invalid bid/ask for {symbol}: bid={bid}, ask={ask}")
                 return None
 
-            if side == OrderSide.BUY:
+            if side == BrokerOrderSide.BUY:
                 # For buying: bid = conservative, ask = aggressive
                 price = bid + (ask - bid) * aggressiveness
             else:
@@ -86,13 +86,13 @@ class SmartPricingHandler:
             return None
 
     def get_progressive_pricing(
-        self, symbol: str, side: OrderSide, step: int = 1, total_steps: int = 4
+        self, symbol: str, side: BrokerOrderSide, step: int = 1, total_steps: int = 4
     ) -> float | None:
         """Get progressive pricing for multi-step limit order strategies.
 
         Args:
             symbol: Stock symbol
-            side: OrderSide.BUY or OrderSide.SELL
+            side: BrokerOrderSide.BUY or BrokerOrderSide.SELL
             step: Current step (1-based)
             total_steps: Total number of steps
 
@@ -113,7 +113,7 @@ class SmartPricingHandler:
             # Calculate step percentage (0% to 30% through spread)
             step_percentage = min((step - 1) / max(total_steps - 1, 1) * 0.3, 0.3)
 
-            if side == OrderSide.BUY:
+            if side == BrokerOrderSide.BUY:
                 # Step from midpoint toward ask
                 price = midpoint + (spread / 2 * step_percentage)
             else:
@@ -137,7 +137,7 @@ class SmartPricingHandler:
             Calculated aggressive sell price, or None if data unavailable
 
         """
-        return self.get_smart_limit_price(symbol, OrderSide.SELL, aggressiveness)
+        return self.get_smart_limit_price(symbol, BrokerOrderSide.SELL, aggressiveness)
 
     def get_conservative_buy_price(self, symbol: str, aggressiveness: float = 0.75) -> float | None:
         """Get conservative buy pricing for better fill prices (favors price over speed).
@@ -150,10 +150,10 @@ class SmartPricingHandler:
             Calculated conservative buy price, or None if data unavailable
 
         """
-        return self.get_smart_limit_price(symbol, OrderSide.BUY, aggressiveness)
+        return self.get_smart_limit_price(symbol, BrokerOrderSide.BUY, aggressiveness)
 
     def get_aggressive_marketable_limit(
-        self, symbol: str, side: OrderSide, bid: float, ask: float
+        self, symbol: str, side: BrokerOrderSide, bid: float, ask: float
     ) -> float:
         """Calculate aggressive marketable limit prices per better orders spec.
 
@@ -171,14 +171,14 @@ class SmartPricingHandler:
             Aggressive limit price that should execute quickly
 
         """
-        if side == OrderSide.BUY:
+        if side == BrokerOrderSide.BUY:
             # Buy at ask + 1 cent (aggressive but protected)
             return round(ask + 0.01, 2)
         # Sell at bid - 1 cent (aggressive but protected)
         return round(max(bid - 0.01, 0.01), 2)  # Ensure positive price
 
     def validate_aggressive_limit(
-        self, limit_price: float, market_price: float, side: OrderSide, max_slippage_bps: float = 20
+        self, limit_price: float, market_price: float, side: BrokerOrderSide, max_slippage_bps: float = 20
     ) -> bool:
         """Validate that aggressive limit price is within acceptable slippage bounds.
 

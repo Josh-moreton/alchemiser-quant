@@ -259,10 +259,10 @@ class OrderCompletionMonitor:
         logging.info("Creating new WebSocket connection")
 
         try:
-            from alpaca.trading.stream import TradingStream
+            from the_alchemiser.shared.brokers.alpaca_utils import create_trading_stream
 
             logging.info("🚀 Starting new WebSocket stream...")
-            stream = TradingStream(str(api_key), str(secret_key), paper=paper)
+            stream = create_trading_stream(str(api_key), str(secret_key), paper=paper)
             stream.subscribe_trade_updates(on_update)
 
             thread = threading.Thread(target=stream.run, daemon=True)
@@ -314,7 +314,7 @@ class OrderCompletionMonitor:
         paper = getattr(self.trading_client, "_sandbox", True)
 
         try:
-            from alpaca.trading.stream import TradingStream
+            from the_alchemiser.shared.brokers.alpaca_utils import create_trading_stream
 
             # Clean up any existing connection first
             self.cleanup_websocket_connection()
@@ -322,7 +322,7 @@ class OrderCompletionMonitor:
             self.console.print("[blue]🔌 Initializing WebSocket for trade monitoring...[/blue]")
 
             # Create the stream
-            stream = TradingStream(str(api_key), str(secret_key), paper=paper)
+            stream = create_trading_stream(str(api_key), str(secret_key), paper=paper)
 
             # Dummy handler for trade updates
             async def dummy_handler(data: Any) -> None:
