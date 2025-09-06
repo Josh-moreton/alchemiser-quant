@@ -540,18 +540,22 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             Dictionary with quote information or None if failed
 
         """
+        from the_alchemiser.shared.mappers.market_data_mappers import quote_to_domain
+
         try:
             quote = self.get_latest_quote_raw(symbol)
             if quote:
-                # Convert Alpaca quote object to dictionary format
-                return {
-                    "symbol": symbol,
-                    "bid_price": float(getattr(quote, "bid_price", 0)),
-                    "ask_price": float(getattr(quote, "ask_price", 0)),
-                    "bid_size": int(getattr(quote, "bid_size", 0)),
-                    "ask_size": int(getattr(quote, "ask_size", 0)),
-                    "timestamp": getattr(quote, "timestamp", None),
-                }
+                # Use shared quote mapping functionality
+                quote_model = quote_to_domain(quote)
+                if quote_model:
+                    return {
+                        "symbol": symbol,
+                        "bid_price": float(quote_model.bid),
+                        "ask_price": float(quote_model.ask),
+                        "bid_size": int(getattr(quote, "bid_size", 0)),
+                        "ask_size": int(getattr(quote, "ask_size", 0)),
+                        "timestamp": quote_model.ts,
+                    }
             return None
         except Exception as e:
             logger.error(f"Failed to get quote for {symbol}: {e}")
