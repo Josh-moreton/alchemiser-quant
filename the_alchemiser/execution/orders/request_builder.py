@@ -1,10 +1,11 @@
 """Business Unit: execution | Status: current.
 
-Centralized order request builder for Alpaca API requests.
+Centralized order request builder for broker-agnostic order requests.
 
-This module provides a single construction site for MarketOrderRequest and
-LimitOrderRequest objects, eliminating duplication across services and
-ensuring consistent request building logic.
+This module provides a single construction site for order requests using
+broker-agnostic types, eliminating duplication across services and
+ensuring consistent request building logic. It uses shared broker
+abstractions to reduce coupling to specific broker APIs.
 
 This module is the unified implementation after duplicate removal on 2025-01-03.
 Duplicate file orders/order_request_builder.py was removed to eliminate redundancy.
@@ -13,13 +14,18 @@ Duplicate file orders/order_request_builder.py was removed to eliminate redundan
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Any
 
-from alpaca.trading.enums import OrderSide, TimeInForce
-from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide, BrokerTimeInForce
+from the_alchemiser.shared.types.broker_requests import (
+    AlpacaRequestConverter,
+    BrokerLimitOrderRequest,
+    BrokerMarketOrderRequest,
+)
 
 
 class OrderRequestBuilder:
-    """Centralized builder for Alpaca order requests."""
+    """Centralized builder for broker-agnostic order requests."""
 
     @staticmethod
     def build_market_order_request(
@@ -29,7 +35,7 @@ class OrderRequestBuilder:
         notional: float | Decimal | None = None,
         time_in_force: str = "day",
         client_order_id: str | None = None,
-    ) -> MarketOrderRequest:
+    ) -> Any:  # Returns broker-specific request
         """Build a MarketOrderRequest with validation.
 
         Args:
@@ -41,58 +47,32 @@ class OrderRequestBuilder:
             client_order_id: Optional client order ID
 
         Returns:
-            MarketOrderRequest object
+            Broker-specific MarketOrderRequest object
 
         Raises:
             ValueError: If parameters are invalid
 
         """
-        # Validation
-        if not symbol or not symbol.strip():
-            raise ValueError("Symbol cannot be empty")
+        # Convert string parameters to broker-agnostic types
+        broker_side = BrokerOrderSide.from_string(side)
+        broker_tif = BrokerTimeInForce.from_string(time_in_force)
+        
+        # Convert quantities to Decimal
+        qty_decimal = Decimal(str(qty)) if qty is not None else None
+        notional_decimal = Decimal(str(notional)) if notional is not None else None
 
-        if qty is None and notional is None:
-            raise ValueError("Either qty or notional must be specified")
-
-        if qty is not None and notional is not None:
-            raise ValueError("Cannot specify both qty and notional")
-
-        if qty is not None and qty <= 0:
-            raise ValueError("Quantity must be positive")
-
-        if notional is not None and notional <= 0:
-            raise ValueError("Notional amount must be positive")
-
-        side_normalized = side.lower().strip()
-        if side_normalized not in ["buy", "sell"]:
-            raise ValueError("Side must be 'buy' or 'sell'")
-
-        # Convert side to Alpaca enum
-        alpaca_side = OrderSide.BUY if side_normalized == "buy" else OrderSide.SELL
-
-        # Convert time in force to Alpaca enum
-        tif_mapping = {
-            "day": TimeInForce.DAY,
-            "gtc": TimeInForce.GTC,
-            "ioc": TimeInForce.IOC,
-            "fok": TimeInForce.FOK,
-        }
-
-        tif_normalized = time_in_force.lower().strip()
-        if tif_normalized not in tif_mapping:
-            raise ValueError(f"Invalid time_in_force: {time_in_force}")
-
-        alpaca_tif = tif_mapping[tif_normalized]
-
-        # Build request (ensure Decimal conversion at boundary)
-        return MarketOrderRequest(
+        # Build broker-agnostic request (validates parameters)
+        broker_request = BrokerMarketOrderRequest(
             symbol=symbol.upper(),
-            qty=float(qty) if qty is not None else None,
-            notional=float(notional) if notional is not None else None,
-            side=alpaca_side,
-            time_in_force=alpaca_tif,
+            side=broker_side,
+            time_in_force=broker_tif,
+            qty=qty_decimal,
+            notional=notional_decimal,
             client_order_id=client_order_id,
         )
+
+        # Convert to Alpaca-specific request
+        return AlpacaRequestConverter.to_market_order(broker_request)
 
     @staticmethod
     def build_limit_order_request(
@@ -102,7 +82,7 @@ class OrderRequestBuilder:
         limit_price: float | Decimal,
         time_in_force: str = "day",
         client_order_id: str | None = None,
-    ) -> LimitOrderRequest:
+    ) -> Any:  # Returns broker-specific request
         """Build a LimitOrderRequest with validation.
 
         Args:
@@ -114,49 +94,29 @@ class OrderRequestBuilder:
             client_order_id: Optional client order ID
 
         Returns:
-            LimitOrderRequest object
+            Broker-specific LimitOrderRequest object
 
         Raises:
             ValueError: If parameters are invalid
 
         """
-        # Validation
-        if not symbol or not symbol.strip():
-            raise ValueError("Symbol cannot be empty")
+        # Convert string parameters to broker-agnostic types
+        broker_side = BrokerOrderSide.from_string(side)
+        broker_tif = BrokerTimeInForce.from_string(time_in_force)
+        
+        # Convert quantities to Decimal
+        qty_decimal = Decimal(str(quantity))
+        price_decimal = Decimal(str(limit_price))
 
-        if quantity <= 0:
-            raise ValueError("Quantity must be positive")
-
-        if limit_price <= 0:
-            raise ValueError("Limit price must be positive")
-
-        side_normalized = side.lower().strip()
-        if side_normalized not in ["buy", "sell"]:
-            raise ValueError("Side must be 'buy' or 'sell'")
-
-        # Convert side to Alpaca enum
-        alpaca_side = OrderSide.BUY if side_normalized == "buy" else OrderSide.SELL
-
-        # Convert time in force to Alpaca enum
-        tif_mapping = {
-            "day": TimeInForce.DAY,
-            "gtc": TimeInForce.GTC,
-            "ioc": TimeInForce.IOC,
-            "fok": TimeInForce.FOK,
-        }
-
-        tif_normalized = time_in_force.lower().strip()
-        if tif_normalized not in tif_mapping:
-            raise ValueError(f"Invalid time_in_force: {time_in_force}")
-
-        alpaca_tif = tif_mapping[tif_normalized]
-
-        # Build request (ensure Decimal conversion at boundary)
-        return LimitOrderRequest(
+        # Build broker-agnostic request (validates parameters)
+        broker_request = BrokerLimitOrderRequest(
             symbol=symbol.upper(),
-            qty=float(quantity),
-            side=alpaca_side,
-            time_in_force=alpaca_tif,
-            limit_price=float(limit_price),
+            side=broker_side,
+            time_in_force=broker_tif,
+            qty=qty_decimal,
+            limit_price=price_decimal,
             client_order_id=client_order_id,
         )
+
+        # Convert to Alpaca-specific request
+        return AlpacaRequestConverter.to_limit_order(broker_request)

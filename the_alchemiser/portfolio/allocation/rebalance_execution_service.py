@@ -1,6 +1,7 @@
 """Business Unit: portfolio assessment & management; Status: current.
 
 Rebalance execution service - handles trade execution for rebalancing.
+Updated to use shared broker abstractions for reduced coupling.
 """
 
 from __future__ import annotations
@@ -8,13 +9,12 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from alpaca.trading.enums import OrderSide
-
 from the_alchemiser.execution.core.refactored_execution_manager import (
     RefactoredTradingServiceManager as TradingServiceManager,
 )
 from the_alchemiser.execution.strategies.smart_execution import SmartExecution
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
 from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
 
 from .rebalance_plan import RebalancePlan
@@ -377,7 +377,7 @@ class RebalanceExecutionService:
             shares_to_sell = amount / price
 
             order_result = self.smart_execution.place_order(
-                symbol=symbol, qty=float(shares_to_sell), side=OrderSide.SELL
+                symbol=symbol, qty=float(shares_to_sell), side=BrokerOrderSide.SELL.to_alpaca()
             )
 
             return {
@@ -427,7 +427,7 @@ class RebalanceExecutionService:
             shares_to_buy = amount / price
 
             order_result = self.smart_execution.place_order(
-                symbol=symbol, qty=float(shares_to_buy), side=OrderSide.BUY
+                symbol=symbol, qty=float(shares_to_buy), side=BrokerOrderSide.BUY.to_alpaca()
             )
 
             return {

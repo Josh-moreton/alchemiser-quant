@@ -5,6 +5,7 @@ Price Fetching Utilities.
 
 This module provides helper functions for price fetching operations,
 breaking down verbose price fetching logic into reusable components.
+Updated to use shared broker abstractions for reduced coupling.
 """
 
 from __future__ import annotations
@@ -15,8 +16,8 @@ from collections.abc import Callable
 from typing import Any
 
 import pandas as pd
-from alpaca.data.requests import StockLatestQuoteRequest
 
+from the_alchemiser.shared.brokers.alpaca_utils import create_stock_latest_quote_request
 from the_alchemiser.shared.logging.logging_utils import get_logger, log_error_with_context
 from the_alchemiser.shared.types.exceptions import DataProviderError
 
@@ -126,7 +127,7 @@ def get_price_from_quote_api(data_client: Any, symbol: str) -> float | None:
 
     """
     try:
-        request = StockLatestQuoteRequest(symbol_or_symbols=symbol)
+        request = create_stock_latest_quote_request(symbol_or_symbols=symbol)
         latest_quote = data_client.get_stock_latest_quote(request)
 
         if latest_quote and symbol in latest_quote:
