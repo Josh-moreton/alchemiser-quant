@@ -16,7 +16,6 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from alpaca.trading.requests import LimitOrderRequest
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from the_alchemiser.execution.orders.order_types import OrderType, Side
@@ -222,7 +221,7 @@ class LimitOrderResultDTO(BaseModel):
     )
 
     success: bool
-    order_request: LimitOrderRequest | None = None  # Prepared LimitOrderRequest
+    order_request: Any | None = None  # Prepared broker order request
     conversion_info: str | None = None
     error_message: str | None = None
 

@@ -15,7 +15,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from alpaca.trading.enums import OrderSide
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
 
 
 @dataclass
@@ -122,7 +122,7 @@ class ProgressiveOrderCalculator:
         symbol: str,
         bid: float,
         ask: float,
-        side: OrderSide,
+        side: Any,  # BrokerOrderSide or compatible
         urgency_level: str = "normal",
         recent_high: float | None = None,
         recent_low: float | None = None,
@@ -238,7 +238,7 @@ class ProgressiveOrderCalculator:
         self,
         bid: float,
         ask: float,
-        side: OrderSide,
+        side: Any,  # BrokerOrderSide or compatible
         step_percentage: float,
         tick_aggressiveness: float = 1.0,
     ) -> float:
@@ -258,7 +258,14 @@ class ProgressiveOrderCalculator:
         midpoint = (bid + ask) / 2.0
         spread = ask - bid
 
-        if side == OrderSide.BUY:
+        # Handle side comparison - support both BrokerOrderSide and alpaca OrderSide
+        is_buy_side = False
+        if hasattr(side, 'value'):  # BrokerOrderSide enum
+            is_buy_side = side.value == 'buy' or str(side).endswith('BUY')
+        else:  # Alpaca OrderSide or string
+            is_buy_side = str(side).endswith('BUY') or str(side).lower() == 'buy'
+
+        if is_buy_side:
             # For BUY: 0% = midpoint, 100% = ask (less favorable)
             base_price = midpoint + (spread / 2 * step_percentage)
             # Add aggressiveness (move further toward ask)

@@ -21,7 +21,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any, Protocol
 
-from alpaca.trading.enums import TimeInForce
+from the_alchemiser.shared.types.broker_enums import BrokerTimeInForce
 
 from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 from the_alchemiser.execution.protocols.order_lifecycle import (
@@ -215,23 +215,15 @@ class OrderService:
 
         return price
 
-    def _validate_time_in_force(self, tif: str) -> TimeInForce:
+    def _validate_time_in_force(self, tif: str) -> BrokerTimeInForce:
         """Validate and convert time in force."""
         if not tif or not isinstance(tif, str):
             raise OrderValidationError("Time in force must be a string")
 
-        tif_map = {
-            "day": TimeInForce.DAY,
-            "gtc": TimeInForce.GTC,
-            "ioc": TimeInForce.IOC,
-            "fok": TimeInForce.FOK,
-        }
-
-        tif_lower = tif.lower()
-        if tif_lower not in tif_map:
-            raise OrderValidationError(f"Invalid time in force: {tif}")
-
-        return tif_map[tif_lower]
+        try:
+            return BrokerTimeInForce.from_string(tif)
+        except ValueError as e:
+            raise OrderValidationError(f"Invalid time in force: {tif}") from e
 
     def _validate_market_price(self, symbol: str) -> None:
         """Validate that we can get current market price."""

@@ -35,9 +35,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from alpaca.data.enums import DataFeed
-from alpaca.data.live import StockDataStream
-from alpaca.data.models import Quote, Trade
+from the_alchemiser.shared.brokers.alpaca_utils import (
+    create_stock_data_stream,
+    get_alpaca_quote_type,
+    get_alpaca_trade_type,
+)
 
 # TODO: Phase 11 - Types available for future migration to structured pricing data
 # from the_alchemiser.shared.value_objects.core_types import PriceData, QuoteData
@@ -96,7 +98,7 @@ class RealTimePricingService:
         self._max_symbols = 5  # Stay under Alpaca's subscription limits
 
         # Connection management
-        self._stream: StockDataStream | None = None
+        self._stream: Any = None  # StockDataStream from alpaca_utils
         self._stream_thread: threading.Thread | None = None
         self._connected = False
         self._should_reconnect = True
@@ -134,11 +136,11 @@ class RealTimePricingService:
             # Initialize the data stream
             # NOTE: Using IEX feed for both paper and live trading until SIP subscription is available
             # SIP feed requires a paid subscription, IEX is free but has some limitations
-            self._stream = StockDataStream(
+            self._stream = create_stock_data_stream(
                 api_key=self.api_key,
                 secret_key=self.secret_key,
-                feed=DataFeed.IEX,  # Use IEX feed for both paper and live (free tier)
-                # feed=DataFeed.SIP if not self.paper_trading else DataFeed.IEX  # Uncomment when SIP subscription is active
+                feed="iex",  # Use IEX feed for both paper and live (free tier)
+                # feed="sip" if not self.paper_trading else "iex"  # Uncomment when SIP subscription is active
             )
 
             # NOTE: Do NOT subscribe to wildcard "*" - it hits subscription limits immediately
@@ -233,10 +235,11 @@ class RealTimePricingService:
                     jitter = secrets.randbelow(500) / 1000.0  # 0.0 to 0.5 seconds
                     reconnect_delay += jitter
 
-    async def _on_quote(self, quote: Quote | dict[str, Any]) -> None:
-        """Handle incoming quote updates."""
+    async def _on_quote(self, quote: Any) -> None:
+        """Handle incoming quote updates from Alpaca stream."""
         try:
             # Handle both Quote objects and dictionary format
+            quote_type = get_alpaca_quote_type()
             if isinstance(quote, dict):
                 symbol = quote.get("symbol")
                 bid_price = quote.get("bid_price", 0)
@@ -281,10 +284,11 @@ class RealTimePricingService:
             )
             logging.error(f"Error processing quote for {symbol_str}: {e}")
 
-    async def _on_trade(self, trade: Trade | dict[str, Any]) -> None:
-        """Handle incoming trade updates."""
+    async def _on_trade(self, trade: Any) -> None:
+        """Handle incoming trade updates from Alpaca stream."""
         try:
             # Handle both Trade objects and dictionary format
+            trade_type = get_alpaca_trade_type()
             if isinstance(trade, dict):
                 symbol = trade.get("symbol")
                 price = trade.get("price", 0)

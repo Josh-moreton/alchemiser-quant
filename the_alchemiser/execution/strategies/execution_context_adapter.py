@@ -15,7 +15,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from alpaca.trading.enums import OrderSide
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
 
 from the_alchemiser.execution.core.executor import (
     CanonicalOrderExecutor,
@@ -39,7 +39,7 @@ class ExecutionContextAdapter:
         self._order_executor = order_executor
 
     def place_limit_order(
-        self, symbol: str, qty: float, side: OrderSide, limit_price: float
+        self, symbol: str, qty: float, side: BrokerOrderSide, limit_price: float
     ) -> str | None:
         """Place limit order through canonical executor."""
         try:
@@ -55,9 +55,7 @@ class ExecutionContextAdapter:
             if not isinstance(alpaca_manager, AlpacaManager):
                 raise ValueError("Unable to get AlpacaManager instance for canonical executor")
 
-            side_value = "buy" if side.value.lower() == "buy" else "sell"
-            # Type assertion is safe since we control the values above
-            side_literal = side_value if side_value in ("buy", "sell") else "buy"
+            side_literal = side.value if side.value in ("buy", "sell") else "buy"
             order_request = OrderRequest(
                 symbol=Symbol(symbol),
                 side=Side(side_literal),  # type: ignore[arg-type]
@@ -73,7 +71,7 @@ class ExecutionContextAdapter:
             return None
 
     def place_market_order(
-        self, symbol: str, side: OrderSide, qty: float | None = None
+        self, symbol: str, side: BrokerOrderSide, qty: float | None = None
     ) -> str | None:
         """Place market order through canonical executor."""
         if qty is None or qty <= 0:
@@ -91,7 +89,7 @@ class ExecutionContextAdapter:
             if not isinstance(alpaca_manager, AlpacaManager):
                 raise ValueError("Unable to get AlpacaManager instance for canonical executor")
 
-            side_value = "buy" if side.value.lower() == "buy" else "sell"
+            side_value = side.value
             # Type assertion is safe since we control the values above
             side_literal = side_value if side_value in ("buy", "sell") else "buy"
             order_request = OrderRequest(

@@ -14,13 +14,12 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from typing import Any
 
 import pandas as pd
-from alpaca.data.requests import StockBarsRequest
-from alpaca.data.timeframe import TimeFrame
 
 from the_alchemiser.execution.brokers.alpaca import AlpacaManager
+from the_alchemiser.shared.brokers.alpaca_utils import create_stock_bars_request, create_timeframe
 from the_alchemiser.shared.types.exceptions import MarketDataError
 
 
@@ -65,16 +64,17 @@ class MarketDataClient:
 
             # Convert interval to TimeFrame
             interval_mapping = {
-                "1d": TimeFrame.Day,
-                "1h": TimeFrame.Hour,
-                "1m": TimeFrame.Minute,
+                "1d": ("day", 1),
+                "1h": ("hour", 1),
+                "1m": ("minute", 1),
             }
-            timeframe = interval_mapping.get(interval, TimeFrame.Day)
+            unit, amount = interval_mapping.get(interval, ("day", 1))
+            timeframe = create_timeframe(amount, unit)
 
             # Create request
-            request = StockBarsRequest(
+            request = create_stock_bars_request(
                 symbol_or_symbols=symbol,
-                timeframe=cast(TimeFrame, timeframe),
+                timeframe=timeframe,
                 start=start_date,
                 # Don't set end - let it default to 15 minutes ago for free tier
             )
@@ -101,7 +101,7 @@ class MarketDataClient:
         symbol: str,
         start: datetime,
         end: datetime,
-        timeframe: TimeFrame | str | None = None,
+        timeframe: Any | str | None = None,  # Changed from TimeFrame to Any
     ) -> list[Any]:
         """Get historical data for a specific date range.
 
@@ -121,23 +121,24 @@ class MarketDataClient:
         try:
             # Handle timeframe parameter
             if timeframe is None:
-                timeframe = TimeFrame.Day
+                timeframe = create_timeframe(1, "day")
             elif isinstance(timeframe, str):
-                # Convert string to TimeFrame enum
+                # Convert string to timeframe
                 timeframe_mapping = {
-                    "Day": TimeFrame.Day,
-                    "Hour": TimeFrame.Hour,
-                    "Minute": TimeFrame.Minute,
-                    "1d": TimeFrame.Day,
-                    "1h": TimeFrame.Hour,
-                    "1m": TimeFrame.Minute,
+                    "Day": ("day", 1),
+                    "Hour": ("hour", 1),
+                    "Minute": ("minute", 1),
+                    "1d": ("day", 1),
+                    "1h": ("hour", 1),
+                    "1m": ("minute", 1),
                 }
-                timeframe = timeframe_mapping.get(timeframe, TimeFrame.Day)
+                unit, amount = timeframe_mapping.get(timeframe, ("day", 1))
+                timeframe = create_timeframe(amount, unit)
 
             # Create request
-            request = StockBarsRequest(
+            request = create_stock_bars_request(
                 symbol_or_symbols=symbol,
-                timeframe=cast(TimeFrame, timeframe),
+                timeframe=timeframe,
                 start=start,
                 end=end,
             )

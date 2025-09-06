@@ -56,7 +56,7 @@ class WebSocketConnectionManager:
         paper = getattr(self.trading_client, "_sandbox", True)
 
         try:
-            from alpaca.trading.stream import TradingStream
+            from the_alchemiser.shared.brokers.alpaca_utils import create_trading_stream
 
             # Clean up any existing connection first
             self.cleanup_websocket_connection()
@@ -64,7 +64,7 @@ class WebSocketConnectionManager:
             self.console.print("[blue]🔌 Initializing WebSocket for trade monitoring...[/blue]")
 
             # Create the stream
-            stream = TradingStream(str(api_key), str(secret_key), paper=paper)
+            stream = create_trading_stream(str(api_key), str(secret_key), paper=paper)
 
             # Dummy handler for trade updates (we'll replace this later)
             async def dummy_handler(data: Any) -> None:
