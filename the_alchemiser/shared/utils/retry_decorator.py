@@ -30,7 +30,24 @@ def retry_with_backoff(
     backoff_factor: float = 2.0,
     jitter: bool = True,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """Retry decorator with exponential backoff and jitter."""
+    """Retry decorator with exponential backoff and jitter.
+    
+    Args:
+        exceptions: Tuple of exception types to catch and retry on
+        max_retries: Maximum number of retry attempts (default: 3)
+        base_delay: Initial delay in seconds between retries (default: 1.0)
+        max_delay: Maximum delay cap in seconds (default: 60.0) 
+        backoff_factor: Exponential backoff multiplier (default: 2.0)
+        jitter: Whether to add random jitter to delays (default: True)
+        
+    Returns:
+        Decorator function that wraps the target function with retry logic
+        
+    Example:
+        @retry_with_backoff(exceptions=(ConnectionError,), max_retries=5)
+        def unreliable_api_call():
+            return requests.get("https://api.example.com/data")
+    """
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @wraps(func)

@@ -12,6 +12,17 @@ from typing import Any
 
 @dataclass(frozen=True)
 class PositionSummary:
+    """Summary of a portfolio position with financial metrics.
+    
+    Attributes:
+        symbol: Trading symbol for the position
+        qty: Quantity held
+        avg_entry_price: Average entry price per share
+        current_price: Current market price per share
+        market_value: Total market value of position
+        unrealized_pl: Unrealized profit/loss in absolute terms
+        unrealized_plpc: Unrealized profit/loss as percentage
+    """
     symbol: str
     qty: Decimal
     avg_entry_price: Decimal
