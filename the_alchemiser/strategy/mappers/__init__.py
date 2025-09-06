@@ -1,5 +1,4 @@
 # Strategy data mapping utilities
-from .market_data_adapter import StrategyMarketDataAdapter
 
 # Consolidated mapping functions - exposing both market data and signal mapping
 from .mappers import (
