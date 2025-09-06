@@ -10,6 +10,6 @@ from .strategy_type import StrategyType
 __all__ = [
     "BarModel",
     "StrategyPosition",
-    "StrategySignal", 
+    "StrategySignal",
     "StrategyType",
 ]
