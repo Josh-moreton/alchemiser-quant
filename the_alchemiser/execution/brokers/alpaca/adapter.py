@@ -26,6 +26,7 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
+from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 from the_alchemiser.execution.mappers.alpaca_dto_mapping import (
     alpaca_order_to_execution_result,
     create_error_execution_result,
@@ -39,6 +40,7 @@ from the_alchemiser.shared.protocols.repository import (
 
 if TYPE_CHECKING:
     from the_alchemiser.execution.orders.order_schemas import RawOrderEnvelope
+    from the_alchemiser.execution.strategies.smart_execution import DataProvider
 
 logger = logging.getLogger(__name__)
 
@@ -528,6 +530,37 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get latest quote for {symbol}: {e}")
             return None
 
+    def get_quote(self, symbol: str) -> dict[str, Any] | None:
+        """Get quote information for a symbol (MarketDataRepository interface).
+
+        Args:
+            symbol: Symbol to get quote for
+
+        Returns:
+            Dictionary with quote information or None if failed
+
+        """
+        from the_alchemiser.shared.mappers.market_data_mappers import quote_to_domain
+
+        try:
+            quote = self.get_latest_quote_raw(symbol)
+            if quote:
+                # Use shared quote mapping functionality
+                quote_model = quote_to_domain(quote)
+                if quote_model:
+                    return {
+                        "symbol": symbol,
+                        "bid_price": float(quote_model.bid),
+                        "ask_price": float(quote_model.ask),
+                        "bid_size": int(getattr(quote, "bid_size", 0)),
+                        "ask_size": int(getattr(quote, "ask_size", 0)),
+                        "timestamp": quote_model.ts,
+                    }
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get quote for {symbol}: {e}")
+            return None
+
     def get_historical_bars(
         self, symbol: str, start_date: str, end_date: str, timeframe: str = "1Day"
     ) -> list[dict[str, Any]]:
@@ -839,6 +872,87 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         except Exception as e:
             logger.error(f"Failed to get activities: {e}")
             return []
+
+    # OrderExecutor protocol implementation methods
+
+    def place_smart_sell_order(self, symbol: str, qty: float) -> str | None:
+        """Place a smart sell order using canonical executor.
+
+        Args:
+            symbol: Symbol to sell
+            qty: Quantity to sell
+
+        Returns:
+            Order ID if successful, None if failed
+
+        """
+        from decimal import Decimal
+
+        from the_alchemiser.execution.core.executor import CanonicalOrderExecutor
+        from the_alchemiser.execution.orders.order_request import OrderRequest
+        from the_alchemiser.execution.orders.order_type import OrderType
+        from the_alchemiser.execution.orders.side import Side
+        from the_alchemiser.shared.types.quantity import Quantity
+        from the_alchemiser.shared.types.time_in_force import TimeInForce
+        from the_alchemiser.shared.value_objects.symbol import Symbol
+
+        try:
+            order_request = OrderRequest(
+                symbol=Symbol(symbol),
+                side=Side("sell"),
+                quantity=Quantity(Decimal(str(qty))),
+                order_type=OrderType("market"),
+                time_in_force=TimeInForce("day"),
+                limit_price=None,
+            )
+            executor = CanonicalOrderExecutor(self)
+            result = executor.execute(order_request)
+            return result.order_id if result.success else None
+        except Exception as e:
+            logger.error(f"Smart sell order failed for {symbol}: {e}")
+            return None
+
+    def get_current_positions(self) -> dict[str, float]:
+        """Get all current positions as dict mapping symbol to quantity.
+
+        This is an alias for get_positions_dict() to satisfy OrderExecutor protocol.
+
+        Returns:
+            Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
+
+        """
+        return self.get_positions_dict()
+
+    def wait_for_order_completion(
+        self, order_ids: list[str], max_wait_seconds: int = 30
+    ) -> WebSocketResultDTO:
+        """Wait for orders to reach a final state.
+
+        Args:
+            order_ids: List of order IDs to monitor
+            max_wait_seconds: Maximum time to wait for completion
+
+        Returns:
+            WebSocketResultDTO with completion status and completed order IDs
+
+        """
+        from the_alchemiser.shared.utils.order_completion_utils import wait_for_order_completion
+
+        return wait_for_order_completion(
+            trading_client=self._trading_client,
+            order_ids=order_ids,
+            max_wait_seconds=max_wait_seconds,
+            api_key=self._api_key,
+            secret_key=self._secret_key,
+        )
+
+    @property
+    def data_provider(self) -> DataProvider:
+        """Get data provider interface for OrderExecutor protocol compatibility.
+
+        Returns self since AlpacaManager implements DataProvider methods.
+        """
+        return self
 
     def __repr__(self) -> str:
         """String representation."""
