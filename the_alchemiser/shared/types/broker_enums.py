@@ -43,9 +43,9 @@ class BrokerOrderSide(Enum):
         from alpaca.trading.enums import OrderSide as AlpacaOrderSide
         
         if self == BrokerOrderSide.BUY:
-            return AlpacaOrderSide.BUY
+            return AlpacaOrderSide.BUY.value
         elif self == BrokerOrderSide.SELL:
-            return AlpacaOrderSide.SELL
+            return AlpacaOrderSide.SELL.value
         else:
             raise ValueError(f"Unknown order side: {self}")
 
