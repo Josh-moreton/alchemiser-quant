@@ -7,11 +7,12 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from the_alchemiser.execution.brokers.alpaca import AlpacaManager
-from the_alchemiser.execution.mappers.account_mapping import to_money_usd
-from the_alchemiser.execution.mappers.trading_service_dto_mapping import (
+if TYPE_CHECKING:
+    from the_alchemiser.execution.brokers.alpaca import AlpacaManager
+from the_alchemiser.execution.mappers.core_execution_mappers import to_money_usd
+from the_alchemiser.execution.mappers.service_dto_mappers import (
     dict_to_market_status_dto,
     dict_to_multi_symbol_quotes_dto,
     dict_to_position_metrics_dto,
@@ -42,7 +43,7 @@ class DataTransformationService:
     Handles market data operations, position data transformations, and complex DTO mappings.
     """
 
-    def __init__(self, alpaca_manager: AlpacaManager) -> None:
+    def __init__(self, alpaca_manager: "AlpacaManager") -> None:
         """Initialize the data transformation service.
 
         Args:

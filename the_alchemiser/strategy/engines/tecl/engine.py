@@ -39,10 +39,10 @@ from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
 
-from .engine import StrategyEngine
-from .value_objects.alert import Alert
-from .value_objects.confidence import Confidence
-from .value_objects.strategy_signal import StrategySignal
+from the_alchemiser.strategy.engines.engine import StrategyEngine
+from the_alchemiser.strategy.engines.value_objects.alert import Alert
+from the_alchemiser.strategy.engines.value_objects.confidence import Confidence
+from the_alchemiser.strategy.engines.value_objects.strategy_signal import StrategySignal
 
 warnings.filterwarnings("ignore")
 

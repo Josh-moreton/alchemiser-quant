@@ -17,7 +17,7 @@ from the_alchemiser.execution.lifecycle_simplified import (
     SimplifiedLifecycleManager,
     StateTransition,
 )
-from the_alchemiser.execution.orders.order_id import OrderId
+from the_alchemiser.execution.orders.order_types import OrderId
 
 
 class LifecycleCoordinator:

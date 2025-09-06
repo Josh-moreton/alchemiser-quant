@@ -46,9 +46,9 @@ from the_alchemiser.shared.logging.logging_utils import (
 from the_alchemiser.strategy.types.bar import BarModel
 from the_alchemiser.shared.types.exceptions import (
     AlchemiserError,
-    StrategyExecutionError,
     TradingClientError,
 )
+from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.quote import QuoteModel
 from the_alchemiser.shared.value_objects.symbol import Symbol

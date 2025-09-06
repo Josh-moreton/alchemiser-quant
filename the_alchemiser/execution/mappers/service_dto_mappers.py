@@ -14,7 +14,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.execution.mappers.account_mapping import (
+from the_alchemiser.execution.mappers.core_execution_mappers import (
     AccountSummaryTyped,
 )
 from the_alchemiser.portfolio.mappers.position_mapping import PositionSummary

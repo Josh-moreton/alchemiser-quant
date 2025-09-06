@@ -21,7 +21,7 @@ from the_alchemiser.shared.value_objects.core_types import (
     KLMDecision,
 )  # TODO: Phase 9 - Added for gradual migration
 
-from .base_klm_variant import BaseKLMVariant
+from ..base_variant import BaseKLMVariant
 
 
 class KlmVariant128026(BaseKLMVariant):

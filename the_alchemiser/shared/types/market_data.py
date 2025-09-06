@@ -10,7 +10,7 @@ from datetime import datetime
 
 import pandas as pd
 
-from the_alchemiser.shared.value_objects.core_types import MarketDataPoint, PriceData, QuoteData
+from the_alchemiser.shared.types.market_data_types import DataProviderResult, MarketDataPoint, PriceData, QuoteData
 
 
 @dataclass(frozen=True)

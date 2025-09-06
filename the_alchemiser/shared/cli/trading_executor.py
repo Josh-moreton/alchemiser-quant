@@ -15,7 +15,7 @@ if TYPE_CHECKING:
         ApplicationContainer,
     )
 
-from the_alchemiser.execution.orders.order_schemas import ValidatedOrderDTO
+from the_alchemiser.execution.orders.schemas import ValidatedOrderDTO
 from the_alchemiser.execution.strategies.smart_execution import is_market_open
 from the_alchemiser.shared.cli.cli_formatter import (
     render_enriched_order_summaries,

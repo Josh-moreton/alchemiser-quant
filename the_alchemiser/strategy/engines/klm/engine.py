@@ -33,8 +33,8 @@ from the_alchemiser.strategy.indicators.indicator_utils import safe_get_indicato
 from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
 
 from .base_variant import BaseKLMVariant
-from .value_objects.confidence import Confidence
-from .value_objects.strategy_signal import StrategySignal
+from the_alchemiser.strategy.engines.value_objects.confidence import Confidence
+from the_alchemiser.strategy.engines.value_objects.strategy_signal import StrategySignal
 from .variants import (
     KLMVariant520_22 as KlmVariant52022,
 )

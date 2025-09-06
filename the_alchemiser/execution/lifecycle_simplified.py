@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, ClassVar
 
-from the_alchemiser.execution.orders.order_id import OrderId
+from the_alchemiser.execution.orders.order_types import OrderId
 from the_alchemiser.shared.utils.timezone_utils import ensure_timezone_aware
 
 logger = logging.getLogger(__name__)

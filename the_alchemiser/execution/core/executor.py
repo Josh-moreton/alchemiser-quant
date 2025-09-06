@@ -8,12 +8,12 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from the_alchemiser.execution.mappers.alpaca_dto_mapping import (
+from the_alchemiser.execution.mappers.broker_integration_mappers import (
     alpaca_order_to_execution_result,
     create_error_execution_result,
 )
 from the_alchemiser.execution.orders.order_request import OrderRequest
-from the_alchemiser.execution.orders.order_schemas import OrderExecutionResult
+from the_alchemiser.execution.orders.schemas import OrderExecutionResult
 from the_alchemiser.shared.types.broker_enums import BrokerOrderSide, BrokerTimeInForce
 from the_alchemiser.execution.types.broker_requests import (
     AlpacaRequestConverter,

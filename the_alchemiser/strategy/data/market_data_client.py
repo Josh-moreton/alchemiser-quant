@@ -17,8 +17,11 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pandas as pd
+from typing import TYPE_CHECKING
 
-from the_alchemiser.execution.brokers.alpaca import AlpacaManager
+if TYPE_CHECKING:
+    from the_alchemiser.execution.brokers.alpaca import AlpacaManager
+
 from the_alchemiser.shared.brokers.alpaca_utils import create_stock_bars_request, create_timeframe
 from the_alchemiser.shared.types.exceptions import MarketDataError
 
@@ -36,6 +39,7 @@ class MarketDataClient:
         """
         self.api_key = api_key
         self.secret_key = secret_key
+        from the_alchemiser.execution.brokers.alpaca import AlpacaManager
         self._alpaca_manager = AlpacaManager(api_key, secret_key)
 
     def get_historical_bars(

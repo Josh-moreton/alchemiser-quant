@@ -12,7 +12,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from the_alchemiser.execution.orders.order_request import OrderRequest
-from the_alchemiser.execution.orders.order_schemas import (
+from the_alchemiser.execution.orders.schemas import (
     AdjustedOrderRequestDTO,
     OrderRequestDTO,
     PolicyWarningDTO,
