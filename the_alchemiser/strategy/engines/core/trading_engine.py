@@ -539,7 +539,7 @@ class TradingEngine:
         self,
         symbol: str,
         qty: float,
-        side: Any,  # BrokerOrderSide or compatible alpaca OrderSide
+        side: BrokerOrderSide,  # BrokerOrderSide only; enforce broker abstraction
         max_retries: int = 3,
         poll_timeout: int = 30,
         poll_interval: float = 2.0,
