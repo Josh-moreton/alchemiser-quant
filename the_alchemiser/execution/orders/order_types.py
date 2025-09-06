@@ -43,7 +43,6 @@ class OrderStatus(str, Enum):
     REJECTED = "REJECTED"
 
 
-from the_alchemiser.shared.types.order_status import OrderStatusLiteral
 
 
 @dataclass(frozen=True)
