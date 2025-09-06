@@ -437,47 +437,47 @@ class PortfolioBuilder:
 
         # Try multiple sources for positions and account data
         account_after = data.get("account_info_after", {})
-            final_portfolio_state = data.get("final_portfolio_state")
+        final_portfolio_state = data.get("final_portfolio_state")
 
-            # Try different methods to get current positions data
-            current_positions: dict[str, Any] = {}
+        # Try different methods to get current positions data
+        current_positions: dict[str, Any] = {}
 
-            # Method 1: Fresh positions data
-            if final_portfolio_state and final_portfolio_state.get("current_positions"):
-                current_positions = final_portfolio_state["current_positions"]
+        # Method 1: Fresh positions data
+        if final_portfolio_state and final_portfolio_state.get("current_positions"):
+            current_positions = final_portfolio_state["current_positions"]
 
-            # Method 2: account_after open_positions
-            elif isinstance(account_after, dict) and account_after.get("open_positions"):
-                open_positions = account_after.get("open_positions", [])
-                current_positions = {}
-                if isinstance(open_positions, list):
-                    for pos in open_positions:
-                        if isinstance(pos, dict) and pos.get("symbol"):
-                            current_positions[pos["symbol"]] = pos
+        # Method 2: account_after open_positions
+        elif isinstance(account_after, dict) and account_after.get("open_positions"):
+            open_positions = account_after.get("open_positions", [])
+            current_positions = {}
+            if isinstance(open_positions, list):
+                for pos in open_positions:
+                    if isinstance(pos, dict) and pos.get("symbol"):
+                        current_positions[pos["symbol"]] = pos
 
-            # Method 3: final_positions attribute
-            elif data.get("final_positions"):
-                current_positions = data["final_positions"]
+        # Method 3: final_positions attribute
+        elif data.get("final_positions"):
+            current_positions = data["final_positions"]
 
-            # Method 4: positions attribute
-            elif data.get("positions"):
-                current_positions = data["positions"]
+        # Method 4: positions attribute
+        elif data.get("positions"):
+            current_positions = data["positions"]
 
-            # Method 5: execution_summary positions
-            elif execution_summary and "positions" in execution_summary:
-                current_positions = execution_summary["positions"]
+        # Method 5: execution_summary positions
+        elif execution_summary and "positions" in execution_summary:
+            current_positions = execution_summary["positions"]
 
-            portfolio_value = 0.0
-            if isinstance(account_after, dict):
-                try:
-                    portfolio_value = float(account_after.get("portfolio_value", 0)) or float(
-                        account_after.get("equity", 0)
-                    )
-                except (TypeError, ValueError):
-                    portfolio_value = 0.0
+        portfolio_value = 0.0
+        if isinstance(account_after, dict):
+            try:
+                portfolio_value = float(account_after.get("portfolio_value", 0)) or float(
+                    account_after.get("equity", 0)
+                )
+            except (TypeError, ValueError):
+                portfolio_value = 0.0
 
-            # If we have positions, extract current values
-            current_values: dict[str, float] = {}
+        # If we have positions, extract current values
+        current_values: dict[str, float] = {}
             if current_positions:
                 # Manual extraction of position values
                 for symbol, pos in current_positions.items():
