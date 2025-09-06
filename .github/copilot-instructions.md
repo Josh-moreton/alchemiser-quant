@@ -63,7 +63,7 @@ CODE PLACEMENT EXAMPLES:
  - Portfolio rebalancing logic → portfolio/rebalancing/
  - New position tracker → portfolio/positions/
  - Order execution strategy → execution/strategies/
- - Common DTO classes → shared/dtos/
+ - Common DTO classes → shared/dto/
  - Utility functions → shared/utils/
  - Logging setup → shared/logging/
  - Configuration types → shared/config/
@@ -72,8 +72,8 @@ TARGET MODULE STRUCTURE:
 strategy/
 ├── indicators/              # Technical indicators, market signals
 ├── engines/                 # Strategy implementations (Nuclear, TECL, etc.)
-├── signals/                 # Signal processing and generation
-└── models/                  # ML models and data processing
+├── dsl/                     # Domain-specific language for strategy definition
+└── data/                    # Data access and management
 
 portfolio/  
 ├── positions/               # Position tracking and management
@@ -85,10 +85,10 @@ execution/
 ├── brokers/                 # Broker API integrations (Alpaca, etc.)
 ├── orders/                  # Order management and lifecycle
 ├── strategies/              # Smart execution strategies  
-└── routing/                 # Order routing and placement
+└── core/                    # Core execution logic and account management
 
 shared/
-├── dtos/                    # Data transfer objects
+├── dto/                     # Data transfer objects
 ├── types/                   # Common value objects (Money, Symbol, etc.)
 ├── utils/                   # Utility functions and helpers
 ├── config/                  # Configuration management

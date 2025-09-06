@@ -89,8 +89,8 @@ shared/                 # DTOs, utilities, cross-cutting concerns
 Signal generation, indicator calculation, ML models, regime detection:
 - **Indicators**: Technical indicators, market signals (`strategy/indicators/`)
 - **Engines**: Strategy implementations - Nuclear, TECL, KLM (`strategy/engines/`)
-- **Signals**: Signal processing and generation (`strategy/signals/`)
-- **Models**: ML models and data processing (`strategy/models/`)
+- **DSL**: Domain-specific language for strategy definition (`strategy/dsl/`)
+- **Data**: Data access and management (`strategy/data/`)
 
 #### **Portfolio Module** (`portfolio/`)
 Portfolio state management, sizing, rebalancing logic, risk management:
@@ -104,11 +104,11 @@ Broker API integrations, order placement, smart execution, error handling:
 - **Brokers**: Broker API integrations - Alpaca integration (`execution/brokers/`)
 - **Orders**: Order management and lifecycle (`execution/orders/`)
 - **Strategies**: Smart execution strategies (`execution/strategies/`)
-- **Routing**: Order routing and placement (`execution/routing/`)
+- **Core**: Core execution logic and account management (`execution/core/`)
 
 #### **Shared Module** (`shared/`)
 DTOs, utilities, logging, cross-cutting concerns, common value objects:
-- **DTOs**: Data transfer objects (`shared/dtos/`)
+- **DTOs**: Data transfer objects (`shared/dto/`)
 - **Types**: Common value objects - Money, Symbol classes (`shared/types/`)
 - **Utils**: Utility functions and helpers (`shared/utils/`)
 - **Config**: Configuration management (`shared/config/`)
@@ -137,9 +137,9 @@ Modules communicate via well-defined DTOs and interfaces:
 - All communication through explicit contracts, not shared state
 - Use correlation IDs for traceability across module boundaries
 
-### Current Implementation Status
+### Implementation Status
 
-> **Note**: The codebase is currently migrating to this four-module architecture. New development should follow the modular structure above. The current implementation uses a DDD layered architecture that is being refactored into these modules.
+✅ **Migration Complete**: The codebase has fully migrated to the four-module architecture. All legacy DDD directories have been eliminated and the system now follows pure modular architecture with proper business unit separation.
 
 ## 🧠 Trading Strategies
 
@@ -244,7 +244,7 @@ EXECUTION__MAX_SLIPPAGE_BPS=20.0
 The system uses hierarchical configuration with environment variable overrides:
 
 ```python
-from the_alchemiser.infrastructure.config import load_settings
+from the_alchemiser.shared.config import load_settings
 
 settings = load_settings()
 # Access nested settings: settings.alpaca.paper_trading
@@ -353,7 +353,7 @@ error_details = error_handler.handle_error(
 ### Entry Points
 - `main.py`: Local execution entry point
 - `lambda_handler.py`: AWS Lambda entry point
-- `interfaces/cli/cli.py`: Command-line interface
+- `shared/cli/cli.py`: Command-line interface
 
 ### Core Configuration
 - `shared/config/`: Application settings and configuration management
@@ -399,7 +399,7 @@ from portfolio import rebalance_portfolio  # Cross-module import
 - **Portfolio rebalancing logic** → `portfolio/rebalancing/`
 - **New position tracker** → `portfolio/positions/`
 - **Order execution strategy** → `execution/strategies/`
-- **Common DTO classes** → `shared/dtos/`
+- **Common DTO classes** → `shared/dto/`
 - **Utility functions** → `shared/utils/`
 - **Configuration types** → `shared/config/`
 
