@@ -134,7 +134,7 @@ def build_portfolio_state_data(
     target_values = {
         symbol: weight * portfolio_value for symbol, weight in target_portfolio.items()
     }
-    
+
     # Extract current position values inline
     current_values: dict[str, float] = {}
     for symbol, pos in current_positions.items():

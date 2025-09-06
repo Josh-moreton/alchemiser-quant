@@ -30,10 +30,10 @@ def _to_decimal(value: Any, default: str = "0") -> Decimal:
 
 def _extract_current_position_values(current_positions: dict[str, Any]) -> dict[str, float]:
     """Extract current market values from position objects.
-    
+
     Args:
         current_positions: Dictionary mapping symbols to position objects
-        
+
     Returns:
         Dictionary mapping symbols to current market values
     """

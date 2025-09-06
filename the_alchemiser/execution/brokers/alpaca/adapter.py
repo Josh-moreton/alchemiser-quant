@@ -936,7 +936,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             WebSocketResultDTO with completion status and completed order IDs
 
         """
-        from the_alchemiser.execution.monitoring.websocket_order_monitor import OrderCompletionMonitor
+        from the_alchemiser.execution.monitoring.websocket_order_monitor import (
+            OrderCompletionMonitor,
+        )
 
         monitor = OrderCompletionMonitor(
             trading_client=self._trading_client,

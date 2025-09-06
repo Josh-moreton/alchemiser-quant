@@ -44,7 +44,7 @@ class OrderStatus(str, Enum):
 
 OrderStatusLiteral = Literal[
     "new",
-    "partially_filled", 
+    "partially_filled",
     "filled",
     "canceled",
     "expired",
