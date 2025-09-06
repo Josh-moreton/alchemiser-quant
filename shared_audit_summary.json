@@ -1,0 +1,118 @@
+{
+  "audit_summary": {
+    "total_files_analyzed": 123,
+    "total_import_statements": 248,
+    "files_importing_from_shared": 95,
+    "zero_usage_files": 59,
+    "zero_usage_percentage": 48.0,
+    "single_module_usage_files": 27,
+    "single_module_percentage": 22.0,
+    "all_modules_usage_files": 19,
+    "all_modules_percentage": 15.4
+  },
+  "recommendations": {
+    "remove": {
+      "count": 13,
+      "percentage": 10.6,
+      "effort_estimate": "2-4 hours",
+      "risk": "Low"
+    },
+    "enhance": {
+      "count": 45,
+      "percentage": 36.6,
+      "effort_estimate": "1-2 weeks",
+      "risk": "Medium"
+    },
+    "keep": {
+      "count": 65,
+      "percentage": 52.8,
+      "effort_estimate": "Ongoing maintenance",
+      "risk": "Low"
+    }
+  },
+  "high_usage_modules": [
+    {
+      "module": "shared.types.money",
+      "import_count": 9,
+      "status": "Essential - Core financial type"
+    },
+    {
+      "module": "shared.types.exceptions", 
+      "import_count": 14,
+      "status": "Essential - Error handling"
+    },
+    {
+      "module": "shared.types.quantity",
+      "import_count": 11,
+      "status": "Essential - Trading quantities"
+    },
+    {
+      "module": "shared.utils.validation_utils",
+      "import_count": 7,
+      "status": "Moderate - Validation patterns"
+    }
+  ],
+  "files_to_remove": [
+    "shared/dto_communication_demo.py",
+    "shared/simple_dto_test.py",
+    "shared/protocols/account_like.py",
+    "shared/protocols/asset_metadata.py", 
+    "shared/protocols/order_like.py",
+    "shared/protocols/position_like.py",
+    "shared/protocols/trading.py",
+    "shared/notifications/templates/performance.py",
+    "shared/types/account.py",
+    "shared/types/market_data.py",
+    "shared/mappers/pandas_time_series.py",
+    "shared/config/service_providers.py",
+    "shared/utils/service_factory.py"
+  ],
+  "single_module_candidates": [
+    {
+      "file": "shared/types/bar.py",
+      "module": "strategy",
+      "action": "Consider moving to strategy module"
+    },
+    {
+      "file": "shared/types/strategy_type.py", 
+      "module": "strategy",
+      "action": "Consider moving to strategy module"
+    },
+    {
+      "file": "shared/utils/order_completion_utils.py",
+      "module": "execution",
+      "action": "Consider moving to execution module"
+    },
+    {
+      "file": "shared/types/order_status.py",
+      "module": "execution", 
+      "action": "Consider moving to execution module"
+    },
+    {
+      "file": "shared/utils/account_utils.py",
+      "module": "portfolio",
+      "action": "Consider moving to portfolio module"
+    }
+  ],
+  "underutilized_high_value": [
+    "shared/utils/retry_decorator.py",
+    "shared/utils/cache_manager.py",
+    "shared/utils/error_monitoring.py",
+    "shared/services/real_time_pricing.py",
+    "shared/services/alert_service.py",
+    "shared/config/config_service.py"
+  ],
+  "metrics_targets": {
+    "file_reduction_target": "15% (remove ~18 files)",
+    "utilization_target": "80% of utilities used by 2+ modules",
+    "single_module_target": "<10% single-module usage",
+    "duplicate_reduction_target": "25% reduction in duplicate code"
+  },
+  "audit_metadata": {
+    "generated_date": "2024-12-19",
+    "analysis_method": "Automated grep analysis with manual validation",
+    "repository": "Josh-moreton/alchemiser-quant", 
+    "shared_directory": "the_alchemiser/shared/",
+    "target_modules": ["strategy", "portfolio", "execution"]
+  }
+}
