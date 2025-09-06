@@ -8,6 +8,6 @@ from __future__ import annotations
 from .market_timing_utils import ExecutionStrategy, MarketOpenTimingEngine
 
 __all__ = [
-    "ExecutionStrategy", 
+    "ExecutionStrategy",
     "MarketOpenTimingEngine",
 ]
