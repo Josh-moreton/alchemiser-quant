@@ -6,9 +6,14 @@ Order execution core functionality.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
+from the_alchemiser.shared.types.broker_requests import (
+    AlpacaRequestConverter,
+    BrokerLimitOrderRequest,
+    BrokerMarketOrderRequest,
+)
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide, BrokerTimeInForce
 
 from the_alchemiser.execution.mappers.alpaca_dto_mapping import (
     alpaca_order_to_execution_result,
@@ -80,7 +85,7 @@ class CanonicalOrderExecutor:
 
     def _convert_to_alpaca_request(
         self, order_request: OrderRequest
-    ) -> MarketOrderRequest | LimitOrderRequest:
+    ) -> Any:
         """Convert domain order request to Alpaca request format.
 
         Args:
@@ -90,28 +95,29 @@ class CanonicalOrderExecutor:
             Alpaca order request (MarketOrderRequest or LimitOrderRequest)
 
         """
-        from alpaca.trading.enums import OrderSide, TimeInForce
-
-        # Convert domain types to Alpaca types
-        alpaca_side = OrderSide.BUY if order_request.side.value == "buy" else OrderSide.SELL
-        alpaca_tif = TimeInForce.DAY  # Default to DAY for now
-
-        common_params = {
-            "symbol": order_request.symbol.value,
-            "qty": float(order_request.quantity.value),
-            "side": alpaca_side,
-            "time_in_force": alpaca_tif,
-        }
+        # Convert domain types to broker abstractions
+        broker_side = BrokerOrderSide.BUY if order_request.side.value == "buy" else BrokerOrderSide.SELL
+        broker_tif = BrokerTimeInForce.DAY  # Default to DAY for now
 
         if order_request.order_type.value == "market":
-            return MarketOrderRequest(**common_params)
+            market_request = BrokerMarketOrderRequest(
+                symbol=order_request.symbol.value,
+                side=broker_side,
+                time_in_force=broker_tif,
+                qty=order_request.quantity.value,
+            )
+            return AlpacaRequestConverter.to_market_order(market_request)
         if order_request.order_type.value == "limit":
             if order_request.limit_price is None:
                 raise ValueError("Limit price required for limit orders")
-            return LimitOrderRequest(
-                **common_params,
-                limit_price=float(order_request.limit_price.amount),
+            limit_request = BrokerLimitOrderRequest(
+                symbol=order_request.symbol.value,
+                side=broker_side,
+                time_in_force=broker_tif,
+                qty=order_request.quantity.value,
+                limit_price=order_request.limit_price.amount,
             )
+            return AlpacaRequestConverter.to_limit_order(limit_request)
         raise ValueError(f"Unsupported order type: {order_request.order_type.value}")
 
     def execute_order(self, order: OrderRequest) -> OrderExecutionResult:

@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from typing import NamedTuple, TypedDict
 
-from alpaca.trading.enums import OrderSide
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
 
 from the_alchemiser.shared.services.tick_size_service import (
     DynamicTickSizeService,
@@ -48,7 +48,7 @@ class AttemptState:
     ask: Decimal
     original_spread_cents: Decimal
     last_attempt_time: float
-    side: OrderSide
+    side: BrokerOrderSide
     symbol: str  # Phase 7 Enhancement: Add symbol for dynamic tick size resolution
 
 
@@ -136,7 +136,7 @@ class RepegStrategy:
         if not self.config.enable_adaptive_pricing:
             base_price = (
                 state.ask + dynamic_tick
-                if state.side == OrderSide.BUY
+                if state.side == BrokerOrderSide.BUY
                 else state.bid - dynamic_tick
             )
             return self._quantize(base_price, state.symbol)
@@ -144,7 +144,7 @@ class RepegStrategy:
         price_improvement = (
             Decimal(self.config.price_improvement_ticks) * dynamic_tick * Decimal(attempt_index)
         )
-        if state.side == OrderSide.BUY:
+        if state.side == BrokerOrderSide.BUY:
             base_price = state.ask + dynamic_tick + price_improvement
         else:
             base_price = state.bid - dynamic_tick - price_improvement

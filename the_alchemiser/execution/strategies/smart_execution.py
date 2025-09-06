@@ -21,7 +21,7 @@ import time
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Protocol
 
-from alpaca.trading.enums import OrderSide
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
 
 from the_alchemiser.execution.config.execution_config import (
     ExecutionConfig,
@@ -140,7 +140,7 @@ class SmartExecution:
     def _submit_canonical_market_order(
         self,
         symbol: str,
-        side: OrderSide,
+        side: BrokerOrderSide,
         qty: float | None = None,
         notional: float | None = None,
     ) -> str | None:
@@ -213,7 +213,7 @@ class SmartExecution:
     def _submit_canonical_limit_order(
         self,
         symbol: str,
-        side: OrderSide,
+        side: BrokerOrderSide,
         qty: float,
         limit_price: float,
     ) -> str | None:
@@ -275,7 +275,7 @@ class SmartExecution:
         self,
         symbol: str,
         qty: float,
-        side: OrderSide,
+        side: BrokerOrderSide,
         max_retries: int = 3,
         poll_timeout: int = 30,
         poll_interval: float = 2.0,
@@ -316,7 +316,7 @@ class SmartExecution:
         spread_assessor = SpreadAssessment(self._data_provider)
 
         # Handle notional orders for BUY by converting to quantity
-        if side == OrderSide.BUY and notional is not None:
+        if side == BrokerOrderSide.BUY and notional is not None:
             try:
                 current_price = self._data_provider.get_current_price(symbol)
                 if current_price and current_price > 0:
@@ -325,7 +325,7 @@ class SmartExecution:
                     rounded_qty = int(raw_qty * 1e6) / 1e6  # Round down to 6 decimals
 
                     # Check buying power if we have account info provider
-                    if self._account_info_provider and side.lower() == "buy":
+                    if self._account_info_provider and side == BrokerOrderSide.BUY:
                         try:
                             account_info = self._account_info_provider.get_account_info()
                             available_cash = float(account_info.get("cash", 0))
@@ -837,7 +837,7 @@ class SmartExecution:
 
     def calculate_dynamic_limit_price(
         self,
-        side: OrderSide,
+        side: BrokerOrderSide,
         bid: float,
         ask: float,
         step: int = 1,
@@ -851,7 +851,7 @@ class SmartExecution:
         - SELL: bid=99.0, ask=101.0, step=2, tick_size=0.5, max_steps=3 -> 99.0
 
         Args:
-            side: OrderSide.BUY or OrderSide.SELL
+            side: BrokerOrderSide.BUY or BrokerOrderSide.SELL
             bid: Current bid price
             ask: Current ask price
             step: Step number (1-based)
@@ -864,7 +864,7 @@ class SmartExecution:
         """
         mid_price = (bid + ask) / 2.0
 
-        if side == OrderSide.BUY:
+        if side == BrokerOrderSide.BUY:
             # For buy orders, step toward ask from mid
             price = mid_price + (step * tick_size)
         else:
@@ -878,7 +878,7 @@ class SmartExecution:
         self,
         symbol: str,
         qty: float,
-        side: OrderSide,
+        side: BrokerOrderSide,
         bid: float,
         ask: float,
         strategy: Any,

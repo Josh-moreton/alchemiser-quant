@@ -14,7 +14,7 @@ import time
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Protocol
 
-from alpaca.trading.enums import OrderSide
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
 
 from the_alchemiser.shared.types.exceptions import (
     OrderPlacementError,
@@ -36,13 +36,13 @@ class ExecutionContext(Protocol):
     """Protocol for execution context dependencies."""
 
     def place_limit_order(
-        self, symbol: str, qty: float, side: OrderSide, limit_price: float
+        self, symbol: str, qty: float, side: BrokerOrderSide, limit_price: float
     ) -> str | None:  # Boundary still uses float; internal strategy uses Decimal
         """Place a limit order."""
         ...
 
     def place_market_order(
-        self, symbol: str, side: OrderSide, qty: float | None = None
+        self, symbol: str, side: BrokerOrderSide, qty: float | None = None
     ) -> str | None:
         """Place a market order."""
         ...
@@ -103,7 +103,7 @@ class AggressiveLimitStrategy:
         context: ExecutionContext,
         symbol: str,
         qty: float,
-        side: OrderSide,
+        side: BrokerOrderSide,
         bid: Decimal,
         ask: Decimal,
     ) -> str | None:
