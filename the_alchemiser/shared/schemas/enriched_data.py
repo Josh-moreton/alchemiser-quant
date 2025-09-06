@@ -1,17 +1,13 @@
-from __future__ import annotations
-
-"""Business Unit: shared | Status: current
-
-Enriched Data - migrated from legacy location.
-"""
-
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared | Status: current.
+
 Order listing DTOs for The Alchemiser Trading System.
 
 This module contains DTOs for order listing operations, including
 open orders retrieval and order history.
 """
+
+from __future__ import annotations
 
 
 from typing import Any

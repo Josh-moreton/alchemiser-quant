@@ -1,4 +1,4 @@
-"""Business Unit: strategy | Status: legacy
+"""Business Unit: strategy | Status: legacy.
 
 Market data services package exports.
 

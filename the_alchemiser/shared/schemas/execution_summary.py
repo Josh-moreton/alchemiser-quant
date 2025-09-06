@@ -1,12 +1,6 @@
-from __future__ import annotations
-
-"""Business Unit: shared | Status: current
-
-Execution Summary - migrated from legacy location.
-"""
-
 #!/usr/bin/env python3
-"""Business Unit: order execution/placement; Status: current.
+"""Business Unit: shared | Status: current.
+
 Execution Summary DTOs for The Alchemiser Trading System.
 
 This module provides structured DTOs for execution summaries, replacing
@@ -20,6 +14,8 @@ Key Features:
 
 Part of the Pydantic v2 migration to eliminate dict/Any boundaries.
 """
+
+from __future__ import annotations
 
 
 from decimal import Decimal

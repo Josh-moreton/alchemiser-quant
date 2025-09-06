@@ -424,19 +424,20 @@ class PortfolioBuilder:
     @staticmethod
     def build_portfolio_rebalancing_table(result: ExecutionLike) -> str:
         """Build a portfolio rebalancing summary (percentages only)."""
-        data = _normalise_result(result)
-        execution_summary = data.get("execution_summary", {})
-        target_portfolio = (
-            data.get("consolidated_portfolio")
-            or execution_summary.get("consolidated_portfolio", {})
-            or {}
-        )
+        try:
+            data = _normalise_result(result)
+            execution_summary = data.get("execution_summary", {})
+            target_portfolio = (
+                data.get("consolidated_portfolio")
+                or execution_summary.get("consolidated_portfolio", {})
+                or {}
+            )
 
-        if not target_portfolio:
-            return "<p>No target portfolio data available</p>"
+            if not target_portfolio:
+                return "<p>No target portfolio data available</p>"
 
-        # Try multiple sources for positions and account data
-        account_after = data.get("account_info_after", {})
+            # Try multiple sources for positions and account data
+            account_after = data.get("account_info_after", {})
             final_portfolio_state = data.get("final_portfolio_state")
 
             # Try different methods to get current positions data
