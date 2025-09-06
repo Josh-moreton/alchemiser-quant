@@ -78,6 +78,17 @@ class TradingPlan(BaseModel):
     @field_validator("symbol")
     @classmethod
     def validate_symbol(cls, v: str) -> str:
+        """Validate symbol format and normalization.
+        
+        Args:
+            v: Symbol string to validate
+            
+        Returns:
+            Normalized symbol (uppercase, alphanumeric)
+            
+        Raises:
+            ValueError: If symbol is empty or contains non-alphanumeric characters
+        """
         if not v or not v.strip():  # pragma: no cover - defensive
             raise ValueError("Symbol cannot be empty")
         symbol = v.strip().upper()
@@ -88,6 +99,17 @@ class TradingPlan(BaseModel):
     @field_validator("quantity")
     @classmethod
     def validate_quantity(cls, v: Decimal) -> Decimal:
+        """Validate quantity is positive.
+        
+        Args:
+            v: Quantity to validate
+            
+        Returns:
+            Validated quantity
+            
+        Raises:
+            ValueError: If quantity is not positive
+        """
         if v <= 0:
             raise ValueError("Quantity must be greater than 0")
         return v
@@ -95,6 +117,17 @@ class TradingPlan(BaseModel):
     @field_validator("estimated_price")
     @classmethod
     def validate_estimated_price(cls, v: Decimal) -> Decimal:
+        """Validate estimated price is positive.
+        
+        Args:
+            v: Estimated price to validate
+            
+        Returns:
+            Validated estimated price
+            
+        Raises:
+            ValueError: If estimated price is not positive
+        """
         if v <= 0:
             raise ValueError("Estimated price must be greater than 0")
         return v
@@ -140,6 +173,17 @@ class Quote(BaseModel):
     @field_validator("bid_price", "ask_price")
     @classmethod
     def validate_prices(cls, v: Decimal) -> Decimal:
+        """Validate bid and ask prices are positive.
+        
+        Args:
+            v: Price to validate
+            
+        Returns:
+            Validated price
+            
+        Raises:
+            ValueError: If price is not positive
+        """
         if v <= 0:
             raise ValueError("Price must be greater than 0")
         return v
@@ -147,6 +191,17 @@ class Quote(BaseModel):
     @field_validator("bid_size", "ask_size")
     @classmethod
     def validate_sizes(cls, v: Decimal) -> Decimal:
+        """Validate bid and ask sizes are positive.
+        
+        Args:
+            v: Size to validate
+            
+        Returns:
+            Validated size
+            
+        Raises:
+            ValueError: If size is not positive
+        """
         if v <= 0:
             raise ValueError("Size must be greater than 0")
         return v

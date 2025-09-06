@@ -1,4 +1,4 @@
-"""Business Unit: portfolio | Status: current
+"""Business Unit: portfolio | Status: current.
 
 Shared utilities for portfolio module.
 """

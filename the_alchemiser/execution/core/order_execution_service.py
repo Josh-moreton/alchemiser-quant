@@ -1,4 +1,4 @@
-"""Business Unit: execution | Status: current
+"""Business Unit: execution | Status: current.
 
 Order execution service handling order placement, cancellation, and status operations.
 """

@@ -1,4 +1,4 @@
-"""Business Unit: shared | Status: current
+"""Business Unit: shared | Status: current.
 
 Centralized validation utilities for eliminating duplicate __post_init__() methods.
 

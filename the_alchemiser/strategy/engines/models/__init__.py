@@ -1,4 +1,4 @@
-"""Business Unit: strategy | Status: legacy
+"""Business Unit: strategy | Status: legacy.
 
 Legacy strategy domain models package - DEPRECATED.
 

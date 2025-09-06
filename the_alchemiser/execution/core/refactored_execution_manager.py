@@ -1,4 +1,4 @@
-"""Business Unit: execution | Status: current
+"""Business Unit: execution | Status: current.
 
 Refactored trading service manager using decomposed services for better separation of concerns.
 """

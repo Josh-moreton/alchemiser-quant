@@ -1,4 +1,4 @@
-"""Business Unit: execution | Status: current
+"""Business Unit: execution | Status: current.
 
 Consolidated order schemas and DTOs for application layer boundaries.
 
