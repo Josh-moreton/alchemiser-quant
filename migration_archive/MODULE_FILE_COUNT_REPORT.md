@@ -1,6 +1,6 @@
 # Module File Count Report
 
-**Generated**: January 2025 (Updated)  
+**Generated**: September 2025 (Updated)  
 **Repository**: alchemiser-quant  
 **Total Modules Analyzed**: 4
 
@@ -12,15 +12,16 @@ This report provides a comprehensive overview of all Python files within the fou
 
 | Module | File Count | Primary Responsibility |
 |--------|------------|----------------------|
-| **strategy** | 69 files | Signal generation, indicator calculation, ML models, regime detection |
-| **portfolio** | 52 files | Portfolio state management, sizing, rebalancing logic, risk management |
-| **execution** | 63 files | Broker API integrations, order placement, smart execution, error handling |
-| **shared** | 119 files | DTOs, utilities, logging, cross-cutting concerns, common value objects |
-| **Total** | **303 files** | Complete trading system implementation |
+| **strategy** | 68 files | Signal generation, indicator calculation, ML models, regime detection |
+| **portfolio** | 53 files | Portfolio state management, sizing, rebalancing logic, risk management |
+| **execution** | 68 files | Broker API integrations, order placement, smart execution, error handling |
+| **shared** | 91 files | DTOs, utilities, logging, cross-cutting concerns, common value objects |
+| **Root level** | 3 files | Main entry points and module initialization |
+| **Total** | **283 files** | Complete trading system implementation |
 
 ---
 
-## Strategy Module (69 files)
+## Strategy Module (68 files)
 
 **Business Unit**: strategy  
 **Status**: current  
@@ -162,7 +163,7 @@ Strategy validation:
 
 ---
 
-## Portfolio Module (52 files)
+## Portfolio Module (53 files)
 
 **Business Unit**: portfolio  
 **Status**: current  
@@ -275,7 +276,7 @@ Portfolio valuation and metrics:
 
 ---
 
-## Execution Module (63 files)
+## Execution Module (68 files)
 
 **Business Unit**: execution  
 **Status**: current  
@@ -399,7 +400,7 @@ Execution type definitions:
 
 ---
 
-## Shared Module (119 files)
+## Shared Module (91 files)
 
 **Business Unit**: shared  
 **Status**: current  
@@ -585,13 +586,13 @@ Domain value objects:
 
 The four modules represent a comprehensive trading system implementation with clear separation of concerns:
 
-- **Strategy Module (69 files)**: Signal generation system with multiple strategy engines (Nuclear, TECL, KLM), technical indicators, DSL evaluation, and market data services.
+- **Strategy Module (68 files)**: Signal generation system with multiple strategy engines (Nuclear, TECL, KLM), technical indicators, DSL evaluation, and market data services.
 
-- **Portfolio Module (52 files)**: Portfolio management system including position tracking, rebalancing algorithms, risk policies, P&L tracking, and portfolio analytics.
+- **Portfolio Module (53 files)**: Portfolio management system including position tracking, rebalancing algorithms, risk policies, P&L tracking, and portfolio analytics.
 
-- **Execution Module (63 files)**: Execution system with broker integrations (Alpaca), smart execution strategies, order lifecycle management, and comprehensive error handling.
+- **Execution Module (68 files)**: Execution system with broker integrations (Alpaca), smart execution strategies, order lifecycle management, and comprehensive error handling.
 
-- **Shared Module (119 files)**: Cross-cutting concerns including DTOs for inter-module communication, common value objects (Money, Symbol), utilities, configuration management, logging infrastructure, and notification systems.
+- **Shared Module (91 files)**: Cross-cutting concerns including DTOs for inter-module communication, common value objects (Money, Symbol), utilities, configuration management, logging infrastructure, and notification systems.
 
 ### Architecture Compliance
 
@@ -602,4 +603,4 @@ All modules follow the established architectural principles:
 - Type safety with full mypy compliance
 - Clean interfaces and protocol definitions
 
-**Total System**: 303 Python files implementing a complete quantitative trading platform.
+**Total System**: 283 Python files implementing a complete quantitative trading platform.
