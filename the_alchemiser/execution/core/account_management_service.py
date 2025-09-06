@@ -7,9 +7,12 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 
 from the_alchemiser.execution.brokers.account_service import AccountService
-from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 from the_alchemiser.execution.mappers.account_mapping import (
     account_summary_to_typed,
     account_typed_to_serializable,

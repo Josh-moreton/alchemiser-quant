@@ -31,11 +31,11 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
     from the_alchemiser.strategy.schemas.strategies import StrategySignalDisplayDTO
+    from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 
 from the_alchemiser.execution.brokers.account_service import (
     AccountService as TypedAccountService,
 )
-from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 from the_alchemiser.execution.core.account_facade import AccountFacade
 from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
 from the_alchemiser.execution.mappers.execution import (
@@ -248,7 +248,7 @@ class TradingEngine:
 
         try:
             # Use AlpacaManager directly with SmartExecution (Phase 3: consolidation completed)
-            alpaca_manager: AlpacaManager
+            alpaca_manager: "AlpacaManager"
             if (
                 hasattr(self, "_trading_service_manager")
                 and self._trading_service_manager is not None

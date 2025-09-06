@@ -46,7 +46,7 @@ from the_alchemiser.shared.types.exceptions import (
     DataProviderError,
     StrategyExecutionError,
 )
-from the_alchemiser.portfolio.utils.s3_utils import get_s3_handler
+from the_alchemiser.shared.utils.s3_utils import get_s3_handler
 from the_alchemiser.strategy.registry.strategy_registry import StrategyType
 
 # TODO: Import order history and email summary types once implementation aligns

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, Protocol, TypedDict
 
-from the_alchemiser.execution.orders.order_types import OrderStatusLiteral
+from the_alchemiser.shared.types.order_status import OrderStatusLiteral
 
 
 # Account Information Types
@@ -149,47 +149,8 @@ class KLMDecision(TypedDict):
 # Import for backward compatibility
 
 
-# Phase 11: Data Layer Types
-class MarketDataPoint(TypedDict):
-    timestamp: str
-    open: float
-    high: float
-    low: float
-    close: float
-    volume: int
-    symbol: str
-
-
-class IndicatorData(TypedDict):
-    symbol: str
-    indicator_name: str
-    value: float
-    timestamp: str
-    parameters: dict[str, Any]
-
-
-class PriceData(TypedDict):
-    symbol: str
-    price: float
-    timestamp: str
-    bid: float | None
-    ask: float | None
-    volume: int | None
-
-
-class QuoteData(TypedDict):
-    bid_price: float
-    ask_price: float
-    bid_size: float
-    ask_size: float
-    timestamp: str
-
-
-class DataProviderResult(TypedDict):
-    success: bool
-    data: dict[str, Any] | None
-    error_message: str | None
-    timestamp: str
+# Phase 11: Data Layer Types (moved to shared/types/market_data_types.py)
+# Import for backward compatibility
 
 
 # Phase 12: Backtest/Performance Types (moved to interfaces/schemas/reporting.py)

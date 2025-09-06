@@ -16,9 +16,11 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
-from the_alchemiser.execution.orders.order import Order
+if TYPE_CHECKING:
+    from the_alchemiser.execution.orders.order import Order
+
 from the_alchemiser.execution.orders.order_types import OrderId, OrderStatus
 from the_alchemiser.execution.orders.schemas import (
     OrderExecutionResultDTO,
@@ -27,7 +29,7 @@ from the_alchemiser.execution.orders.schemas import (
 )
 from the_alchemiser.shared.math.num import floats_equal
 from the_alchemiser.shared.types.money import Money
-from the_alchemiser.execution.orders.order_types import OrderStatusLiteral
+from the_alchemiser.shared.types.order_status import OrderStatusLiteral
 from the_alchemiser.shared.types.quantity import Quantity
 from the_alchemiser.shared.value_objects.core_types import OrderDetails
 from the_alchemiser.shared.value_objects.symbol import Symbol
@@ -233,7 +235,7 @@ def order_request_to_validated_dto(order_request: OrderRequestDTO) -> ValidatedO
     )
 
 
-def domain_order_to_execution_result(order: Order, success: bool = True) -> OrderExecutionResultDTO:
+def domain_order_to_execution_result(order: "Order", success: bool = True) -> OrderExecutionResultDTO:
     """Convert domain Order to OrderExecutionResultDTO.
 
     Args:
@@ -271,7 +273,7 @@ def domain_order_to_execution_result(order: Order, success: bool = True) -> Orde
     )
 
 
-def create_order_from_request(order_request: OrderRequestDTO, order_id: str | None = None) -> Order:
+def create_order_from_request(order_request: OrderRequestDTO, order_id: str | None = None) -> "Order":
     """Create domain Order entity from OrderRequestDTO.
 
     Args:
@@ -282,6 +284,7 @@ def create_order_from_request(order_request: OrderRequestDTO, order_id: str | No
         Domain Order entity
 
     """
+    from the_alchemiser.execution.orders.order import Order
     from the_alchemiser.execution.orders.order_types import OrderType, Side
     from the_alchemiser.shared.types.time_in_force import TimeInForce
 
