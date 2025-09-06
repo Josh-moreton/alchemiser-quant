@@ -55,9 +55,7 @@ class ExecutionContextAdapter:
             if not isinstance(alpaca_manager, AlpacaManager):
                 raise ValueError("Unable to get AlpacaManager instance for canonical executor")
 
-            side_value = "buy" if side == BrokerOrderSide.BUY else "sell"
-            # Type assertion is safe since we control the values above
-            side_literal = side_value if side_value in ("buy", "sell") else "buy"
+            side_literal = side.value if side.value in ("buy", "sell") else "buy"
             order_request = OrderRequest(
                 symbol=Symbol(symbol),
                 side=Side(side_literal),  # type: ignore[arg-type]
