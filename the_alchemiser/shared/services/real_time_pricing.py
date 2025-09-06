@@ -39,6 +39,12 @@ from alpaca.data.enums import DataFeed
 from alpaca.data.live import StockDataStream
 from alpaca.data.models import Quote, Trade
 
+from the_alchemiser.shared.brokers.alpaca_utils import (
+    create_stock_data_stream,
+    get_alpaca_quote_type,
+    get_alpaca_trade_type,
+)
+
 # TODO: Phase 11 - Types available for future migration to structured pricing data
 # from the_alchemiser.shared.value_objects.core_types import PriceData, QuoteData
 
@@ -134,11 +140,11 @@ class RealTimePricingService:
             # Initialize the data stream
             # NOTE: Using IEX feed for both paper and live trading until SIP subscription is available
             # SIP feed requires a paid subscription, IEX is free but has some limitations
-            self._stream = StockDataStream(
+            self._stream = create_stock_data_stream(
                 api_key=self.api_key,
                 secret_key=self.secret_key,
-                feed=DataFeed.IEX,  # Use IEX feed for both paper and live (free tier)
-                # feed=DataFeed.SIP if not self.paper_trading else DataFeed.IEX  # Uncomment when SIP subscription is active
+                feed="iex",  # Use IEX feed for both paper and live (free tier)
+                # feed="sip" if not self.paper_trading else "iex"  # Uncomment when SIP subscription is active
             )
 
             # NOTE: Do NOT subscribe to wildcard "*" - it hits subscription limits immediately

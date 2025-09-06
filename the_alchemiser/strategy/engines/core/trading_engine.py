@@ -32,12 +32,11 @@ from typing import TYPE_CHECKING, Any, Protocol
 if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
     from the_alchemiser.strategy.schemas.strategies import StrategySignalDisplayDTO
 
-from alpaca.trading.enums import OrderSide
-
 from the_alchemiser.execution.brokers.account_service import (
     AccountService as TypedAccountService,
 )
 from the_alchemiser.execution.brokers.alpaca import AlpacaManager
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
 from the_alchemiser.execution.core.account_facade import AccountFacade
 from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
 from the_alchemiser.execution.mappers.execution import (
@@ -540,7 +539,7 @@ class TradingEngine:
         self,
         symbol: str,
         qty: float,
-        side: OrderSide,
+        side: Any,  # BrokerOrderSide or compatible alpaca OrderSide
         max_retries: int = 3,
         poll_timeout: int = 30,
         poll_interval: float = 2.0,
