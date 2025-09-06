@@ -1,0 +1,105 @@
+---
+name: Debug CLI
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  run-cli:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: |
+          pip install -U pip
+          pip install poetry
+
+      - name: Install dependencies
+        run: |
+          # If dependencies/requirements.txt exists, use it
+          if [ -f "dependencies/requirements.txt" ]; then
+            cp dependencies/requirements.txt requirements.txt
+          fi
+          # If requirements.txt exists, install with pip
+          if [ -f "requirements.txt" ]; then
+            pip install -r requirements.txt
+          else
+            # Otherwise, install poetry dependencies directly
+            poetry install --only=main
+          fi
+
+      - name: Run CLI command
+        id: run_cli
+        run: |
+          set +e
+          poetry run alchemiser signal > cli_output.log 2>&1
+          exit_code=$?
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          echo "=== CLI Output ==="
+          cat cli_output.log
+          echo "=== Exit Code: $exit_code ==="
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-debug-logs
+          path: cli_output.log
+
+      - name: Prepare issue content
+        if: steps.run_cli.outputs.exit_code != '0'
+        run: |
+          timestamp="$(date -u)"
+          cat > issue_content.md << EOF
+          # CLI Debug Failure
+
+          **Workflow Run ID**: ${{ github.run_id }}
+          **Exit Code**: ${{ steps.run_cli.outputs.exit_code }}
+          **Timestamp**: $timestamp
+          **Repository**: ${{ github.repository }}
+          **Branch**: ${{ github.ref_name }}
+          **Commit**: ${{ github.sha }}
+
+          ## CLI Output Log
+
+          \`\`\`
+          EOF
+          cat cli_output.log >> issue_content.md
+          cat >> issue_content.md << EOF
+          \`\`\`
+
+          ## Debugging Information
+
+          This issue was automatically created because the CLI command 
+          \`poetry run alchemiser signal\` failed with exit code ${{ steps.run_cli.outputs.exit_code }}.
+
+          ### Actions
+
+          - 📥 [Download full logs artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - 🔍 [View workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+          ### Next Steps
+
+          1. Review the error output above
+          2. Check the imported modules and dependencies
+          3. Fix any import or configuration issues
+          4. Re-run the workflow to verify the fix
+          EOF
+
+      - name: Create issue on failure
+        if: steps.run_cli.outputs.exit_code != '0'
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: CLI Debug Failure – Run ${{ github.run_id }}
+          content-filepath: ./issue_content.md
+          labels: debug
+          token: ${{ secrets.GITHUB_TOKEN }}
