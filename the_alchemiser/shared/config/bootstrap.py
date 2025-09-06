@@ -16,7 +16,7 @@ import logging
 from typing import Any, TypedDict
 
 from the_alchemiser.execution.brokers.account_service import AccountService as TypedAccountService
-from the_alchemiser.execution.brokers.alpaca import AlpacaManager
+from the_alchemiser.shared.brokers import AlpacaManager
 from the_alchemiser.execution.core.refactored_execution_manager import (
     RefactoredTradingServiceManager as TradingServiceManager,
 )
