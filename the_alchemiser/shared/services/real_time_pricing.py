@@ -35,8 +35,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from alpaca.data.models import Quote, Trade
-
 from the_alchemiser.shared.brokers.alpaca_utils import (
     create_stock_data_stream,
     get_alpaca_quote_type,
@@ -237,10 +235,11 @@ class RealTimePricingService:
                     jitter = secrets.randbelow(500) / 1000.0  # 0.0 to 0.5 seconds
                     reconnect_delay += jitter
 
-    async def _on_quote(self, quote: Quote | dict[str, Any]) -> None:
-        """Handle incoming quote updates."""
+    async def _on_quote(self, quote: Any) -> None:
+        """Handle incoming quote updates from Alpaca stream."""
         try:
             # Handle both Quote objects and dictionary format
+            quote_type = get_alpaca_quote_type()
             if isinstance(quote, dict):
                 symbol = quote.get("symbol")
                 bid_price = quote.get("bid_price", 0)
@@ -285,10 +284,11 @@ class RealTimePricingService:
             )
             logging.error(f"Error processing quote for {symbol_str}: {e}")
 
-    async def _on_trade(self, trade: Trade | dict[str, Any]) -> None:
-        """Handle incoming trade updates."""
+    async def _on_trade(self, trade: Any) -> None:
+        """Handle incoming trade updates from Alpaca stream."""
         try:
             # Handle both Trade objects and dictionary format
+            trade_type = get_alpaca_trade_type()
             if isinstance(trade, dict):
                 symbol = trade.get("symbol")
                 price = trade.get("price", 0)
