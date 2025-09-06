@@ -10,7 +10,6 @@ from typing import Any
 
 from alpaca.trading.enums import OrderSide
 
-from the_alchemiser.execution.brokers.alpaca_client import AlpacaClient
 from the_alchemiser.execution.core.refactored_execution_manager import (
     RefactoredTradingServiceManager as TradingServiceManager,
 )
@@ -43,16 +42,15 @@ class RebalanceExecutionService:
 
         """
         self.trading_manager = trading_manager
-        # Build a single AlpacaClient using the authenticated AlpacaManager and use it for execution
+        # Use AlpacaManager directly instead of AlpacaClient wrapper (Phase 3: consolidation completed)
         if smart_execution is not None:
             self.smart_execution = smart_execution
         else:
-            # Use AlpacaManager as the price/quote provider; it implements the minimal methods
-            price_quote_provider = trading_manager.alpaca_manager
-            alpaca_client = AlpacaClient(trading_manager.alpaca_manager, price_quote_provider)
+            # Use AlpacaManager as both the order executor and data provider
+            alpaca_manager = trading_manager.alpaca_manager
             self.smart_execution = SmartExecution(
-                order_executor=alpaca_client,
-                data_provider=price_quote_provider,
+                order_executor=alpaca_manager,
+                data_provider=alpaca_manager,
             )
         self.error_handler = error_handler or TradingSystemErrorHandler()
 

@@ -178,17 +178,11 @@ class SmartExecution:
                 )
                 return None
 
-            # Get alpaca manager from order executor for canonical executor
-            alpaca_manager = getattr(self._order_executor, "alpaca_manager", None)
-            if not alpaca_manager:
-                # If not available, get underlying trading repository
-                alpaca_manager = getattr(self._order_executor, "_trading", self._order_executor)
-
-            # Ensure we have a proper AlpacaManager instance, type cast as needed
+            # Use order executor directly (now AlpacaManager after Phase 3 consolidation)
             from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 
-            if not isinstance(alpaca_manager, AlpacaManager):
-                raise ValueError("Unable to get AlpacaManager instance for canonical executor")
+            if not isinstance(self._order_executor, AlpacaManager):
+                raise ValueError("Order executor must be AlpacaManager for canonical executor")
 
             side_value = "buy" if side.value.lower() == "buy" else "sell"
             # Type assertion is safe since we control the values above
@@ -200,7 +194,7 @@ class SmartExecution:
                 order_type=DomainOrderType("market"),
                 time_in_force=DomainTimeInForce("day"),
             )
-            executor = CanonicalOrderExecutor(alpaca_manager)
+            executor = CanonicalOrderExecutor(self._order_executor)
             result = executor.execute(order_request)
             if result.success:
                 return result.order_id
@@ -244,16 +238,13 @@ class SmartExecution:
                 limit_price=Money(amount=Decimal(str(limit_price)), currency="USD"),
             )
 
-            # Get alpaca manager for canonical executor (same as market order)
+            # Use order executor directly (now AlpacaManager after Phase 3 consolidation)
             from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 
-            alpaca_manager = getattr(self._order_executor, "alpaca_manager", None)
-            if not alpaca_manager:
-                alpaca_manager = getattr(self._order_executor, "_trading", self._order_executor)
-            if not isinstance(alpaca_manager, AlpacaManager):
-                raise ValueError("Unable to get AlpacaManager instance for canonical executor")
+            if not isinstance(self._order_executor, AlpacaManager):
+                raise ValueError("Order executor must be AlpacaManager for canonical executor")
 
-            executor = CanonicalOrderExecutor(alpaca_manager)
+            executor = CanonicalOrderExecutor(self._order_executor)
             result = executor.execute(order_request)
             if result.success:
                 return result.order_id
