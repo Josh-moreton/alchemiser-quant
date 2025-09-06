@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
-from the_alchemiser.execution.mappers.orders import normalize_order_status
+from the_alchemiser.execution.mappers.order_domain_mappers import normalize_order_status
 from the_alchemiser.execution.orders.order import Order
 from the_alchemiser.execution.orders.order_types import OrderId, OrderStatus, OrderType
 from the_alchemiser.execution.orders.schemas import OrderExecutionResultDTO

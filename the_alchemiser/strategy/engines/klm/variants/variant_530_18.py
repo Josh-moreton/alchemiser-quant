@@ -19,14 +19,16 @@ This captures the COMPLETE CLJ implementation - the most sophisticated variant.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pandas as pd
 
 from the_alchemiser.shared.utils.common import ActionType
-from the_alchemiser.shared.value_objects.core_types import (
-    KLMDecision,
-)  # TODO: Phase 9 - Added for gradual migration
 
-from .base_klm_variant import BaseKLMVariant
+if TYPE_CHECKING:
+    from the_alchemiser.shared.value_objects.core_types import KLMDecision
+
+from ..base_variant import BaseKLMVariant
 
 
 class KlmVariant53018(BaseKLMVariant):

@@ -16,7 +16,7 @@ import pandas as pd
 
 from the_alchemiser.shared.utils.common import ActionType
 
-from .base_klm_variant import BaseKLMVariant
+from ..base_variant import BaseKLMVariant
 
 
 class KlmVariant120028(BaseKLMVariant):
