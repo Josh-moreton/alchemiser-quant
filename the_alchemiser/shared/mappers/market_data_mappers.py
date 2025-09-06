@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.shared.types.bar import BarModel
+from the_alchemiser.strategy.types.bar import BarModel
 from the_alchemiser.shared.types.quote import QuoteModel
 
 

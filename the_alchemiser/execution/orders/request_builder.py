@@ -17,7 +17,7 @@ from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.shared.types.broker_enums import BrokerOrderSide, BrokerTimeInForce
-from the_alchemiser.shared.types.broker_requests import (
+from the_alchemiser.execution.types.broker_requests import (
     AlpacaRequestConverter,
     BrokerLimitOrderRequest,
     BrokerMarketOrderRequest,

@@ -1,4 +1,4 @@
-"""Business Unit: shared | Status: current.
+"""Business Unit: execution | Status: current.
 
 Broker-agnostic request types for trading operations.
 

@@ -168,7 +168,7 @@ def calculate_dynamic_limit_price_with_symbol(
     """
     from decimal import Decimal
 
-    from the_alchemiser.shared.services.tick_size_service import (
+    from the_alchemiser.execution.services.tick_size_service import (
         DynamicTickSizeService,
     )
 
