@@ -21,7 +21,7 @@ from the_alchemiser.shared.types.exceptions import (
     TradingClientError,
 )
 from the_alchemiser.shared.value_objects.core_types import AccountInfo
-from the_alchemiser.strategy.mappers.strategy_signal_mapping import (
+from the_alchemiser.strategy.mappers.mappers import (
     map_signals_dict as _map_signals_to_typed,
 )
 
