@@ -1,4 +1,4 @@
-"""Business Unit: execution | Status: current
+"""Business Unit: execution | Status: current.
 
 Order management and handling layer.
 

@@ -1,4 +1,4 @@
-"""Business Unit: execution | Status: current
+"""Business Unit: execution | Status: current.
 
 Account management service handling account operations, risk metrics, and buying power.
 """

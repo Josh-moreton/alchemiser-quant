@@ -1,5 +1,7 @@
 """Alpaca broker integration.
 
+Business Unit: execution | Status: legacy.
+
 NOTE: AlpacaManager has been moved to shared.brokers for architectural compliance.
 This module now re-exports for backward compatibility.
 """

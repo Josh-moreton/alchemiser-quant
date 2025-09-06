@@ -1,4 +1,4 @@
-"""Business Unit: portfolio | Status: current
+"""Business Unit: portfolio | Status: current.
 
 Base Policy Protocol and Implementation
 

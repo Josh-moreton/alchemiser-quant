@@ -1,18 +1,14 @@
-from __future__ import annotations
-
-"""Business Unit: shared | Status: current
-
-Dashboard Utils - migrated from legacy location.
-"""
-
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared | Status: current.
+
 Dashboard Data Utilities.
 
 This module provides helper functions for building structured data
 for dashboard consumption, including portfolio metrics, positions,
 and performance data.
 """
+
+from __future__ import annotations
 
 
 import logging
