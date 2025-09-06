@@ -33,7 +33,7 @@ from the_alchemiser.shared.types.time_in_force import TimeInForce
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:
-    from the_alchemiser.execution.brokers.alpaca import AlpacaManager
+    from the_alchemiser.shared.brokers import AlpacaManager
 
 logger = logging.getLogger(__name__)
 

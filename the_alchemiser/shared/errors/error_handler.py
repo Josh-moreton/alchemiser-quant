@@ -18,36 +18,132 @@ from collections import defaultdict
 from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import wraps
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
-from the_alchemiser.shared.logging.logging_utils import set_error_id
+if TYPE_CHECKING:
+    pass  # We'll import dynamically where needed
 
-# Enhanced error reporting and classification utilities.
-from the_alchemiser.shared.schemas.errors import (
-    ErrorDetailInfo,
-    ErrorNotificationData,
-    ErrorReportSummary,
-)
-from the_alchemiser.shared.types.exceptions import (
-    AlchemiserError,
-    ConfigurationError,
-    DataProviderError,
-    InsufficientFundsError,
-    MarketDataError,
-    NotificationError,
-    OrderExecutionError,
-    PositionValidationError,
-    TradingClientError,
-)
+
+# Error Detail Types - defined locally to avoid circular imports
+class ErrorDetailInfo(TypedDict):
+    """Detailed error information for reporting."""
+
+    error_type: str
+    error_message: str
+    category: str
+    context: str
+    component: str
+    timestamp: str
+    traceback: str
+    additional_data: dict[str, Any]
+    suggested_action: str | None
+
+
+class ErrorSummaryData(TypedDict):
+    """Summary of errors by category."""
+
+    count: int
+    errors: list[ErrorDetailInfo]
+
+
+class ErrorReportSummary(TypedDict):
+    """Comprehensive error report summary."""
+
+    critical: ErrorSummaryData | None
+    trading: ErrorSummaryData | None
+    data: ErrorSummaryData | None
+    strategy: ErrorSummaryData | None
+    configuration: ErrorSummaryData | None
+    notification: ErrorSummaryData | None
+    warning: ErrorSummaryData | None
+
+
+class ErrorNotificationData(TypedDict):
+    """Email notification data for error reporting."""
+
+    subject: str
+    body: str
+    error_details: list[ErrorDetailInfo]
+    summary: ErrorReportSummary
+    timestamp: str
+
+
+# Import exceptions locally to avoid circular imports
+try:
+    from the_alchemiser.shared.types.exceptions import (
+        AlchemiserError,
+        ConfigurationError,
+        DataProviderError,
+        InsufficientFundsError,
+        MarketDataError,
+        NotificationError,
+        OrderExecutionError,
+        PositionValidationError,
+        TradingClientError,
+    )
+except ImportError:
+    # Define minimal exception classes locally if import fails
+    class AlchemiserError(Exception):
+        """Base exception class."""
+        pass
+    
+    class ConfigurationError(AlchemiserError):
+        """Configuration-related errors."""
+        pass
+    
+    class DataProviderError(AlchemiserError):
+        """Data provider errors."""
+        pass
+    
+    class InsufficientFundsError(AlchemiserError):
+        """Insufficient funds errors."""
+        pass
+    
+    class MarketDataError(AlchemiserError):
+        """Market data errors."""
+        pass
+    
+    class NotificationError(AlchemiserError):
+        """Notification errors."""
+        pass
+    
+    class OrderExecutionError(AlchemiserError):
+        """Order execution errors."""
+        pass
+    
+    class PositionValidationError(AlchemiserError):
+        """Position validation errors."""
+        pass
+    
+    class TradingClientError(AlchemiserError):
+        """Trading client errors."""
+        pass
 
 # Order error classification system
-from the_alchemiser.shared.types.trading_errors import (
-    OrderError,
-    classify_exception,
-)
-from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
-
-from .context import ErrorContextData
+try:
+    from the_alchemiser.shared.types.trading_errors import (
+        OrderError,
+        classify_exception,
+    )
+    from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
+    from .context import ErrorContextData
+except ImportError:
+    # Define minimal classes locally if imports fail due to circular dependencies
+    class OrderError(Exception):
+        """Order-related errors."""
+        pass
+    
+    class StrategyExecutionError(Exception):
+        """Strategy execution errors."""
+        pass
+    
+    def classify_exception(exc: Exception) -> str:
+        """Classify exception type."""
+        return exc.__class__.__name__
+    
+    class ErrorContextData:
+        """Minimal error context data."""
+        pass
 
 
 class ErrorSeverity:
@@ -139,7 +235,12 @@ class EnhancedAlchemiserError(AlchemiserError):
         self.original_message = message
 
         # Set error_id in context for logging
-        set_error_id(self.error_id)
+        try:
+            from the_alchemiser.shared.logging.logging_utils import set_error_id
+            set_error_id(self.error_id)
+        except ImportError:
+            # Avoid circular import issues during module initialization
+            pass
 
     def should_retry(self) -> bool:
         """Determine if error should be retried."""

@@ -3,11 +3,12 @@
 Contains adapters for various broker APIs including Alpaca.
 
 NOTE: AlpacaManager has been moved to shared.brokers for architectural compliance.
-This module now re-exports for backward compatibility.
+Import directly from shared.brokers instead of this legacy location.
 """
 
 from __future__ import annotations
 
-from .alpaca import AlpacaManager, create_alpaca_manager
+# DEPRECATED: Import from the_alchemiser.shared.brokers instead
+# Re-exports have been removed to resolve circular import issues
 
-__all__ = ["AlpacaManager", "create_alpaca_manager"]
+__all__: list[str] = []

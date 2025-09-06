@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.execution.brokers.alpaca import AlpacaManager
+from the_alchemiser.shared.brokers import AlpacaManager
 from the_alchemiser.execution.mappers.order_mapping import (
     alpaca_order_to_domain,
     summarize_order,

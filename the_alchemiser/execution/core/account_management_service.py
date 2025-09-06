@@ -9,7 +9,7 @@ import logging
 from decimal import Decimal
 
 from the_alchemiser.execution.brokers.account_service import AccountService
-from the_alchemiser.execution.brokers.alpaca import AlpacaManager
+from the_alchemiser.shared.brokers import AlpacaManager
 from the_alchemiser.execution.mappers.account_mapping import (
     account_summary_to_typed,
     account_typed_to_serializable,

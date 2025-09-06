@@ -178,7 +178,7 @@ class SmartExecution:
                 return None
 
             # Use order executor directly (now AlpacaManager after Phase 3 consolidation)
-            from the_alchemiser.execution.brokers.alpaca import AlpacaManager
+            from the_alchemiser.shared.brokers import AlpacaManager
 
             if not isinstance(self._order_executor, AlpacaManager):
                 raise ValueError("Order executor must be AlpacaManager for canonical executor")
@@ -238,7 +238,7 @@ class SmartExecution:
             )
 
             # Use order executor directly (now AlpacaManager after Phase 3 consolidation)
-            from the_alchemiser.execution.brokers.alpaca import AlpacaManager
+            from the_alchemiser.shared.brokers import AlpacaManager
 
             if not isinstance(self._order_executor, AlpacaManager):
                 raise ValueError("Order executor must be AlpacaManager for canonical executor")

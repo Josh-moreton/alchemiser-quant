@@ -9,7 +9,7 @@ import logging
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.execution.brokers.alpaca import AlpacaManager
+from the_alchemiser.shared.brokers import AlpacaManager
 from the_alchemiser.execution.mappers.account_mapping import to_money_usd
 from the_alchemiser.execution.mappers.trading_service_dto_mapping import (
     dict_to_market_status_dto,

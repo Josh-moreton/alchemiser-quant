@@ -22,7 +22,7 @@ from the_alchemiser.execution.types.broker_requests import (
 )
 
 if TYPE_CHECKING:
-    from the_alchemiser.execution.brokers.alpaca.adapter import AlpacaManager
+    from the_alchemiser.shared.brokers import AlpacaManager
 
 logger = logging.getLogger(__name__)
 

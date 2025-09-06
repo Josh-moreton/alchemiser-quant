@@ -16,6 +16,12 @@ Phase 3 Update: Moved to shared module to resolve architectural boundary violati
 from __future__ import annotations
 
 import logging
+from datetime import datetime
+from decimal import Decimal
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Type checking imports to avoid circular dependencies
 from typing import TYPE_CHECKING, Any
@@ -27,12 +33,6 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
-from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
-from the_alchemiser.execution.mappers.alpaca_dto_mapping import (
-    alpaca_order_to_execution_result,
-    create_error_execution_result,
-)
-from the_alchemiser.execution.orders.order_schemas import OrderExecutionResultDTO
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
     MarketDataRepository,
@@ -44,6 +44,79 @@ if TYPE_CHECKING:
     from the_alchemiser.execution.strategies.smart_execution import DataProvider
 
 logger = logging.getLogger(__name__)
+
+
+# Simple DTOs to avoid circular dependencies - defined locally to avoid imports
+class Result(BaseModel):
+    """Common base for DTOs that expose success/error outcome fields."""
+
+    model_config = ConfigDict(strict=True, frozen=True, validate_assignment=True)
+
+    success: bool
+    error: str | None = None
+class WebSocketStatus(str, Enum):
+    """WebSocket operation status enumeration."""
+
+    COMPLETED = "completed"
+    TIMEOUT = "timeout"
+    ERROR = "error"
+
+
+class WebSocketResult(BaseModel):
+    """Outcome of WebSocket operations (status, message, completed orders)."""
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    status: WebSocketStatus = Field(description="WebSocket operation status")
+    message: str = Field(description="Status message")
+    completed_order_ids: list[str] = Field(
+        default_factory=list, description="Order IDs that completed during operation"
+    )
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional metadata"
+    )
+
+
+class OrderExecutionResult(Result):
+    """DTO for order execution results."""
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    # Core execution data
+    order_id: str
+    status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"]
+    filled_qty: Decimal
+    avg_fill_price: Decimal | None = None
+    submitted_at: datetime
+    completed_at: datetime | None = None
+
+    @field_validator("filled_qty")
+    @classmethod
+    def validate_filled_qty(cls, v: Decimal) -> Decimal:
+        if v < 0:
+            raise ValueError("Filled quantity cannot be negative")
+        return v
+
+    @field_validator("avg_fill_price")
+    @classmethod
+    def validate_avg_fill_price(cls, v: Decimal | None) -> Decimal | None:
+        if v is not None and v <= 0:
+            raise ValueError("Average fill price must be greater than 0")
+        return v
+
+
+# Backward compatibility aliases
+WebSocketResultDTO = WebSocketResult
+OrderExecutionResultDTO = OrderExecutionResult
 
 
 class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
@@ -125,6 +198,81 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def paper(self) -> bool:
         """Public accessor indicating paper/live mode."""
         return self._paper
+
+    # Helper methods for DTO mapping
+    def _alpaca_order_to_execution_result(self, order: Any) -> OrderExecutionResultDTO:
+        """Convert Alpaca order object to OrderExecutionResultDTO.
+        
+        Simple implementation that avoids circular imports.
+        """
+        try:
+            # Extract basic fields from order object
+            order_id = getattr(order, 'id', 'unknown')
+            status = getattr(order, 'status', 'unknown')
+            filled_qty = Decimal(str(getattr(order, 'filled_qty', 0)))
+            avg_fill_price = getattr(order, 'avg_fill_price', None)
+            if avg_fill_price is not None:
+                avg_fill_price = Decimal(str(avg_fill_price))
+            
+            # Simple timestamp handling
+            from datetime import UTC, datetime
+            submitted_at = getattr(order, 'submitted_at', None) or datetime.now(UTC)
+            if isinstance(submitted_at, str):
+                # Handle ISO format strings
+                submitted_at = datetime.fromisoformat(submitted_at.replace('Z', '+00:00'))
+            
+            completed_at = getattr(order, 'updated_at', None)
+            if completed_at and isinstance(completed_at, str):
+                completed_at = datetime.fromisoformat(completed_at.replace('Z', '+00:00'))
+            
+            # Map status to our expected values  
+            status_mapping = {
+                'new': 'accepted',
+                'accepted': 'accepted', 
+                'filled': 'filled',
+                'partially_filled': 'partially_filled',
+                'rejected': 'rejected',
+                'canceled': 'canceled',
+                'cancelled': 'canceled',
+                'expired': 'rejected'
+            }
+            mapped_status = status_mapping.get(status, 'accepted')
+            
+            success = mapped_status not in ['rejected', 'canceled']
+            
+            return OrderExecutionResultDTO(
+                success=success,
+                order_id=order_id,
+                status=mapped_status,  # type: ignore[arg-type]
+                filled_qty=filled_qty,
+                avg_fill_price=avg_fill_price,
+                submitted_at=submitted_at,
+                completed_at=completed_at,
+                error=None if success else f"Order {status}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to convert order to execution result: {e}")
+            return self._create_error_execution_result(e, "Order conversion")
+
+    def _create_error_execution_result(
+        self, 
+        error: Exception, 
+        context: str = "Operation", 
+        order_id: str = "unknown"
+    ) -> OrderExecutionResultDTO:
+        """Create an error OrderExecutionResultDTO."""
+        from datetime import UTC, datetime
+        
+        return OrderExecutionResultDTO(
+            success=False,
+            order_id=order_id,
+            status='rejected',  # type: ignore[arg-type]
+            filled_qty=Decimal('0'),
+            avg_fill_price=None,
+            submitted_at=datetime.now(UTC),
+            completed_at=datetime.now(UTC),
+            error=f"{context} failed: {str(error)}"
+        )
 
     # Trading Operations
     def get_account(self) -> Any:
@@ -252,10 +400,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         try:
             order = self._trading_client.get_order_by_id(order_id)
-            return alpaca_order_to_execution_result(order)
+            return self._alpaca_order_to_execution_result(order)
         except Exception as e:
             logger.error(f"Failed to refresh order {order_id}: {e}")
-            return create_error_execution_result(e, context="Order refresh", order_id=order_id)
+            return self._create_error_execution_result(e, context="Order refresh", order_id=order_id)
 
     def place_market_order(
         self,
@@ -402,10 +550,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         except ValueError as e:
             logger.error(f"Invalid limit order parameters: {e}")
-            return create_error_execution_result(e, "Limit order validation")
+            return self._create_error_execution_result(e, "Limit order validation")
         except Exception as e:
             logger.error(f"Failed to place limit order for {symbol}: {e}")
-            return create_error_execution_result(e, f"Limit order for {symbol}")
+            return self._create_error_execution_result(e, f"Limit order for {symbol}")
 
     def cancel_order(self, order_id: str) -> bool:
         """Cancel an order by ID."""
