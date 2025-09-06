@@ -194,6 +194,33 @@ def alpaca_order_to_execution_result(order: Any) -> OrderExecutionResultDTO:
         )
 
 
+def create_error_execution_result(
+    error: Exception, 
+    context: str = "Unknown error", 
+    order_id: str = "unknown"
+) -> OrderExecutionResultDTO:
+    """Create an error OrderExecutionResultDTO.
+    
+    Args:
+        error: The exception that occurred
+        context: Context where the error happened
+        order_id: Order ID if available
+        
+    Returns:
+        OrderExecutionResultDTO with success=False and error details
+    """
+    return OrderExecutionResultDTO(
+        success=False,
+        order_id=order_id,
+        status="rejected",
+        filled_qty=Decimal("0"),
+        avg_fill_price=None,
+        submitted_at=datetime.now(UTC),
+        completed_at=None,
+        error=f"{context}: {str(error)}",
+    )
+
+
 def alpaca_error_to_dto(error: Any) -> AlpacaErrorDTO:
     """Convert Alpaca error response to AlpacaErrorDTO.
 
@@ -421,7 +448,8 @@ def order_to_dict(order: Order) -> dict[str, Any]:
 __all__ = [
     # Alpaca DTO mapping
     "alpaca_order_to_dto",
-    "alpaca_order_to_execution_result",
+    "alpaca_order_to_execution_result", 
+    "create_error_execution_result",
     "alpaca_error_to_dto",
     # Order domain mapping
     "alpaca_order_to_domain",

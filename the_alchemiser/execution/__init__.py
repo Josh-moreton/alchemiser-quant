@@ -25,8 +25,8 @@ from __future__ import annotations
 # Expose key broker adapters
 from .brokers.alpaca import AlpacaManager, create_alpaca_manager
 
-# Expose preferred service managers
-from .core import RefactoredTradingServiceManager
+# Expose preferred service managers  
+from .core.refactored_execution_manager import RefactoredTradingServiceManager
 
 __all__ = [
     "AlpacaManager",

@@ -20,7 +20,7 @@ from the_alchemiser.execution.core.executor import (
     CanonicalOrderExecutor,
 )
 from the_alchemiser.execution.orders.order_request import OrderRequest
-from the_alchemiser.execution.orders.order_schemas import (
+from the_alchemiser.execution.orders.schemas import (
     OrderExecutionResultDTO,
     OrderRequestDTO,
 )

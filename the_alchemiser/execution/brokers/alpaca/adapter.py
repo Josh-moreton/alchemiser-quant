@@ -27,11 +27,11 @@ from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
 from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
-from the_alchemiser.execution.mappers.alpaca_dto_mapping import (
+from the_alchemiser.execution.mappers.broker_integration_mappers import (
     alpaca_order_to_execution_result,
     create_error_execution_result,
 )
-from the_alchemiser.execution.orders.order_schemas import OrderExecutionResultDTO
+from the_alchemiser.execution.orders.schemas import OrderExecutionResultDTO
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
     MarketDataRepository,
@@ -39,7 +39,7 @@ from the_alchemiser.shared.protocols.repository import (
 )
 
 if TYPE_CHECKING:
-    from the_alchemiser.execution.orders.order_schemas import RawOrderEnvelope
+    from the_alchemiser.execution.orders.schemas import RawOrderEnvelope
     from the_alchemiser.execution.strategies.smart_execution import DataProvider
 
 logger = logging.getLogger(__name__)
@@ -204,7 +204,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Place an order and return raw envelope with metadata."""
         from datetime import UTC, datetime
 
-        from the_alchemiser.execution.orders.order_schemas import RawOrderEnvelope
+        from the_alchemiser.execution.orders.schemas import RawOrderEnvelope
 
         request_timestamp = datetime.now(UTC)
 
@@ -314,7 +314,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             # Return error envelope for consistency
             from datetime import datetime
 
-            from the_alchemiser.execution.orders.order_schemas import RawOrderEnvelope
+            from the_alchemiser.execution.orders.schemas import RawOrderEnvelope
 
             now = datetime.now()
             return RawOrderEnvelope(
@@ -330,7 +330,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             # Return error envelope for consistency
             from datetime import datetime
 
-            from the_alchemiser.execution.orders.order_schemas import RawOrderEnvelope
+            from the_alchemiser.execution.orders.schemas import RawOrderEnvelope
 
             now = datetime.now()
             return RawOrderEnvelope(

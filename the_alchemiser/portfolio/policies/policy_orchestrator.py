@@ -13,7 +13,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from the_alchemiser.execution.orders.order_request import OrderRequest
-from the_alchemiser.execution.orders.order_schemas import (
+from the_alchemiser.execution.orders.schemas import (
     AdjustedOrderRequestDTO,
     OrderRequestDTO,
 )
