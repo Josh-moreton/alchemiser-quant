@@ -27,16 +27,21 @@ from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.shared.utils.common import ActionType
 from the_alchemiser.shared.value_objects.symbol import Symbol
+from the_alchemiser.strategy.engines.engine import StrategyEngine
 from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
 from the_alchemiser.strategy.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
 
-from the_alchemiser.strategy.engines.engine import StrategyEngine
-
 from .base_variant import BaseKLMVariant
+from .value_objects.confidence import Confidence
+from .value_objects.strategy_signal import StrategySignal
 from .variants import (
     KLMVariant520_22 as KlmVariant52022,
+)
+from .variants import (
     KLMVariant530_18 as KlmVariant53018,
+)
+from .variants import (
     KlmVariant41038,
     KlmVariant50638,
     KlmVariant83021,
@@ -44,8 +49,6 @@ from .variants import (
     KlmVariant128026,
     KLMVariantNova,
 )
-from .value_objects.confidence import Confidence
-from .value_objects.strategy_signal import StrategySignal
 
 
 class KLMEngine(StrategyEngine):

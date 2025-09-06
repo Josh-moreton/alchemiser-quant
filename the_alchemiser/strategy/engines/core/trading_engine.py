@@ -38,7 +38,6 @@ from the_alchemiser.execution.brokers.account_service import (
     AccountService as TypedAccountService,
 )
 from the_alchemiser.execution.brokers.alpaca import AlpacaManager
-from the_alchemiser.execution.brokers.alpaca_client import AlpacaClient
 from the_alchemiser.execution.core.account_facade import AccountFacade
 from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
 from the_alchemiser.execution.mappers.execution import (
@@ -249,7 +248,7 @@ class TradingEngine:
         # Order manager setup
 
         try:
-            # Build an AlpacaClient once using the same authenticated trading client
+            # Use AlpacaManager directly with SmartExecution (Phase 3: consolidation completed)
             alpaca_manager: AlpacaManager
             if (
                 hasattr(self, "_trading_service_manager")
@@ -264,9 +263,9 @@ class TradingEngine:
                     "TradingEngine missing AlpacaManager; initialize with DI or credentials"
                 )
 
-            alpaca_client = AlpacaClient(alpaca_manager, self.data_provider)
+            # Use AlpacaManager directly instead of AlpacaClient wrapper
             self.order_manager = SmartExecution(
-                order_executor=alpaca_client,
+                order_executor=alpaca_manager,
                 data_provider=self.data_provider,
                 ignore_market_hours=self.ignore_market_hours,
                 config=config_dict,

@@ -21,8 +21,8 @@ from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
 from the_alchemiser.strategy.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
-
 from the_alchemiser.strategy.protocols.engine import StrategyEngine
+
 from .logic import evaluate_nuclear_strategy
 from .value_objects.confidence import Confidence
 from .value_objects.strategy_signal import StrategySignal

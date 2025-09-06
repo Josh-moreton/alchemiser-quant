@@ -19,7 +19,7 @@ from rich.console import Console
 
 
 class WebSocketConnectionManager:
-    """Manages WebSocket connections for the AlpacaClient.
+    """Manages WebSocket connections for the Alpaca trading client.
 
     Provides connection setup, cleanup, and lifecycle management for both
     trading streams and data streams.
