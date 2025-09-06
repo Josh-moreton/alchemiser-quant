@@ -12,9 +12,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
-
 from the_alchemiser.shared.logging.logging_utils import get_logger, log_error_with_context
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
 from the_alchemiser.shared.types.exceptions import DataProviderError
 
 
@@ -178,7 +177,11 @@ class SmartPricingHandler:
         return round(max(bid - 0.01, 0.01), 2)  # Ensure positive price
 
     def validate_aggressive_limit(
-        self, limit_price: float, market_price: float, side: BrokerOrderSide, max_slippage_bps: float = 20
+        self,
+        limit_price: float,
+        market_price: float,
+        side: BrokerOrderSide,
+        max_slippage_bps: float = 20,
     ) -> bool:
         """Validate that aggressive limit price is within acceptable slippage bounds.
 

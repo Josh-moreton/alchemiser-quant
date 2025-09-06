@@ -27,7 +27,7 @@ from the_alchemiser.execution.orders.schemas import (
 )
 from the_alchemiser.shared.math.num import floats_equal
 from the_alchemiser.shared.types.money import Money
-from the_alchemiser.shared.types.order_status import OrderStatusLiteral
+from the_alchemiser.execution.orders.order_types import OrderStatusLiteral
 from the_alchemiser.shared.types.quantity import Quantity
 from the_alchemiser.shared.value_objects.core_types import OrderDetails
 from the_alchemiser.shared.value_objects.symbol import Symbol

@@ -21,8 +21,6 @@ import time
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Protocol
 
-from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
-
 from the_alchemiser.execution.config.execution_config import (
     ExecutionConfig,
     get_execution_config,
@@ -36,6 +34,7 @@ from the_alchemiser.execution.orders.order_type import (
     OrderType as DomainOrderType,
 )
 from the_alchemiser.execution.orders.side import Side as DomainSide
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
 from the_alchemiser.shared.types.money import Money
 from the_alchemiser.shared.types.quantity import (
     Quantity as DomainQuantity,

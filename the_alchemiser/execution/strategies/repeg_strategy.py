@@ -14,12 +14,11 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from typing import NamedTuple, TypedDict
 
-from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
-
 from the_alchemiser.shared.services.tick_size_service import (
     DynamicTickSizeService,
     resolve_tick_size,
 )
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
 
 from .config import StrategyConfig
 

@@ -8,19 +8,18 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from the_alchemiser.shared.types.broker_requests import (
-    AlpacaRequestConverter,
-    BrokerLimitOrderRequest,
-    BrokerMarketOrderRequest,
-)
-from the_alchemiser.shared.types.broker_enums import BrokerOrderSide, BrokerTimeInForce
-
 from the_alchemiser.execution.mappers.alpaca_dto_mapping import (
     alpaca_order_to_execution_result,
     create_error_execution_result,
 )
 from the_alchemiser.execution.orders.order_request import OrderRequest
 from the_alchemiser.execution.orders.order_schemas import OrderExecutionResult
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide, BrokerTimeInForce
+from the_alchemiser.shared.types.broker_requests import (
+    AlpacaRequestConverter,
+    BrokerLimitOrderRequest,
+    BrokerMarketOrderRequest,
+)
 
 if TYPE_CHECKING:
     from the_alchemiser.execution.brokers.alpaca.adapter import AlpacaManager
@@ -83,9 +82,7 @@ class CanonicalOrderExecutor:
                 symbol=order_request.symbol.value,
             )
 
-    def _convert_to_alpaca_request(
-        self, order_request: OrderRequest
-    ) -> Any:
+    def _convert_to_alpaca_request(self, order_request: OrderRequest) -> Any:
         """Convert domain order request to Alpaca request format.
 
         Args:
@@ -96,7 +93,9 @@ class CanonicalOrderExecutor:
 
         """
         # Convert domain types to broker abstractions
-        broker_side = BrokerOrderSide.BUY if order_request.side.value == "buy" else BrokerOrderSide.SELL
+        broker_side = (
+            BrokerOrderSide.BUY if order_request.side.value == "buy" else BrokerOrderSide.SELL
+        )
         broker_tif = BrokerTimeInForce.DAY  # Default to DAY for now
 
         if order_request.order_type.value == "market":

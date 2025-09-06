@@ -15,8 +15,6 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
-
 
 @dataclass
 class OrderExecutionParams:
@@ -260,10 +258,10 @@ class ProgressiveOrderCalculator:
 
         # Handle side comparison - support both BrokerOrderSide and alpaca OrderSide
         is_buy_side = False
-        if hasattr(side, 'value'):  # BrokerOrderSide enum
-            is_buy_side = side.value == 'buy' or str(side).endswith('BUY')
+        if hasattr(side, "value"):  # BrokerOrderSide enum
+            is_buy_side = side.value == "buy" or str(side).endswith("BUY")
         else:  # Alpaca OrderSide or string
-            is_buy_side = str(side).endswith('BUY') or str(side).lower() == 'buy'
+            is_buy_side = str(side).endswith("BUY") or str(side).lower() == "buy"
 
         if is_buy_side:
             # For BUY: 0% = midpoint, 100% = ask (less favorable)
