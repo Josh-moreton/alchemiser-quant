@@ -17,11 +17,10 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.execution.orders.order_schemas import ValidatedOrderDTO
 
-from alpaca.trading.enums import OrderSide, TimeInForce
-from alpaca.trading.requests import MarketOrderRequest
-
+from the_alchemiser.execution.orders.request_builder import OrderRequestBuilder
 from the_alchemiser.shared.logging.logging_utils import get_logger, log_error_with_context
 from the_alchemiser.shared.math.asset_info import fractionability_detector
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide, BrokerTimeInForce
 from the_alchemiser.shared.types.exceptions import DataProviderError
 
 
@@ -35,10 +34,10 @@ class AssetOrderHandler:
     def prepare_market_order(
         self,
         symbol: str,
-        side: OrderSide,
+        side: Any,  # BrokerOrderSide or compatible
         qty: float | None = None,
         notional: float | None = None,
-    ) -> tuple[MarketOrderRequest | None, str | None]:
+    ) -> tuple[Any | None, str | None]:  # Returns broker request
         """Prepare a market order request with smart asset handling.
 
         Args:

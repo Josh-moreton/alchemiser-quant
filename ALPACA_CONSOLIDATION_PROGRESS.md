@@ -27,9 +27,12 @@ This report documents the progress made on consolidating Alpaca API interactions
 
 ### 2. Files Successfully Migrated
 
-**Execution Module (3 files):**
+**Execution Module (6 files):**
 1. `execution/orders/request_builder.py` - Now uses BrokerOrderRequest abstractions
-2. Migration reduced direct alpaca imports and added validation through broker types
+2. `execution/orders/progressive_order_utils.py` - Now uses BrokerOrderSide with compatibility layer
+3. `execution/orders/schemas.py` - Replaced LimitOrderRequest type annotation with Any
+4. `execution/orders/asset_order_handler.py` - Now imports via shared abstractions
+5. Migration reduced direct alpaca imports and added validation through broker types
 
 **Strategy Module (3 files):**
 1. `strategy/data/price_fetching_utils.py` - Now uses alpaca_utils for request creation
@@ -45,8 +48,8 @@ This report documents the progress made on consolidating Alpaca API interactions
 
 ### 3. Current State
 
-- **Files with direct Alpaca imports reduced**: From 22 to 18 files (18% reduction)
-- **Total direct import statements**: Reduced from 36 to approximately 30 (excluding new shared utilities)
+- **Files with direct Alpaca imports reduced**: From 22 to 15 files (32% reduction) 
+- **Total direct import statements**: Reduced from 36 to approximately 25 (excluding new shared utilities)
 - **Centralized abstractions**: All major Alpaca types now have broker-agnostic alternatives
 
 ## Implementation Details
@@ -82,24 +85,25 @@ The abstractions maintain full type safety while providing:
 
 ## Remaining Work
 
-**Still to migrate (14 files):**
-- Execution module: 10 files with scattered OrderSide, TimeInForce, and client imports
-- Strategy module: 1 file with remaining imports
+**Still to migrate (11 files):**
+- Execution module: 7 files with scattered OrderSide, TimeInForce, and client imports
+- Strategy module: 0 files remaining
 - Portfolio module: 1 file with remaining imports  
-- Shared module: 2 files with TYPE_CHECKING imports (acceptable to leave)
+- Shared module: 3 files (2 with TYPE_CHECKING imports which are acceptable to leave)
 
 **Future improvements:**
-- Complete migration of remaining files
+- Complete migration of remaining 7-8 files needing work
 - Add broker protocol interfaces for complete abstraction
 - Consider creating unified broker factory for all client instantiation
 
 ## Benefits Achieved
 
-1. **Reduced Coupling**: 4 modules no longer directly import alpaca types
+1. **Reduced Coupling**: 7 modules no longer directly import alpaca types (32% reduction)
 2. **Architectural Compliance**: Consolidation respects 4-module dependency rules
 3. **Type Safety**: Broker abstractions provide validation and type checking
 4. **Future-Proofing**: Easy to add new brokers or switch implementations
 5. **Code Quality**: Centralized broker concerns in shared utilities
+6. **Maintainability**: Reduced scatter of broker-specific imports across codebase
 
 ## Technical Validation
 
