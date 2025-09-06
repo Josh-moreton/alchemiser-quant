@@ -18,7 +18,7 @@ from typing import Any
 
 import pandas as pd
 
-from the_alchemiser.shared.brokers import AlpacaManager
+from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 from the_alchemiser.shared.brokers.alpaca_utils import create_stock_bars_request, create_timeframe
 from the_alchemiser.shared.types.exceptions import MarketDataError
 

@@ -9,24 +9,21 @@ DESIGN INTENT: Thin wrapper around alpaca-py with institutional-grade business l
 for limit order placement, re-pegging, and WebSocket monitoring.
 
 RECOMMENDED USAGE:
-- AlpacaManager: Primary broker integration (now re-exported from shared.brokers)
+- AlpacaManager: Primary broker integration (recommended for new code)
 - RefactoredTradingServiceManager: Simplified service manager (when available)
 - SmartExecution: Execution strategies with re-pegging logic
 
 ARCHITECTURE NOTES:
 - 64 Python files across 17 directories (simplified from original 67 files, 20+ directories)
 - RefactoredTradingServiceManager: Main service manager (recommended)
-- AlpacaManager: Primary broker integration (moved to shared.brokers for architectural compliance)
+- AlpacaManager: Primary broker integration (consolidation completed in Phase 3)
 - Focus on thin-wrapper design around alpaca-py APIs
-
-NOTE: AlpacaManager has been moved to shared.brokers to resolve architectural boundary
-violations. It is re-exported here for backward compatibility.
 """
 
 from __future__ import annotations
 
-# Re-export key broker adapters from shared for backward compatibility
-from the_alchemiser.shared.brokers import AlpacaManager, create_alpaca_manager
+# Expose key broker adapters
+from .brokers.alpaca import AlpacaManager, create_alpaca_manager
 
 # Expose preferred service managers
 from .core import RefactoredTradingServiceManager

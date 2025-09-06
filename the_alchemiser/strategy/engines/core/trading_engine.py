@@ -35,7 +35,7 @@ if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
 from the_alchemiser.execution.brokers.account_service import (
     AccountService as TypedAccountService,
 )
-from the_alchemiser.shared.brokers import AlpacaManager
+from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 from the_alchemiser.execution.core.account_facade import AccountFacade
 from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
 from the_alchemiser.execution.mappers.execution import (
