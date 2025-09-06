@@ -435,14 +435,8 @@ class PortfolioBuilder:
         if not target_portfolio:
             return "<p>No target portfolio data available</p>"
 
-        # Use the same logic as CLI - import the utility functions
-        try:
-            from the_alchemiser.shared.utils.account_utils import (
-                extract_current_position_values,
-            )
-
-            # Try multiple sources for positions and account data
-            account_after = data.get("account_info_after", {})
+        # Try multiple sources for positions and account data
+        account_after = data.get("account_info_after", {})
             final_portfolio_state = data.get("final_portfolio_state")
 
             # Try different methods to get current positions data
@@ -485,16 +479,13 @@ class PortfolioBuilder:
             # If we have positions, extract current values
             current_values: dict[str, float] = {}
             if current_positions:
-                try:
-                    current_values = extract_current_position_values(current_positions)
-                except Exception:
-                    # Try manual extraction if utility function fails
-                    for symbol, pos in current_positions.items():
-                        if isinstance(pos, dict):
-                            try:
-                                current_values[symbol] = float(pos.get("market_value", 0))
-                            except (ValueError, TypeError):
-                                current_values[symbol] = 0.0
+                # Manual extraction of position values
+                for symbol, pos in current_positions.items():
+                    if isinstance(pos, dict):
+                        try:
+                            current_values[symbol] = float(pos.get("market_value", 0))
+                        except (ValueError, TypeError):
+                            current_values[symbol] = 0.0
 
             # Calculate total portfolio value from positions if not available
             # Avoid direct float equality; treat very small portfolio_value as zero

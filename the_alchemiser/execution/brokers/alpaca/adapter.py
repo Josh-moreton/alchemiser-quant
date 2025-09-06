@@ -936,15 +936,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             WebSocketResultDTO with completion status and completed order IDs
 
         """
-        from the_alchemiser.shared.utils.order_completion_utils import wait_for_order_completion
+        from the_alchemiser.execution.monitoring.websocket_order_monitor import OrderCompletionMonitor
 
-        return wait_for_order_completion(
+        monitor = OrderCompletionMonitor(
             trading_client=self._trading_client,
-            order_ids=order_ids,
-            max_wait_seconds=max_wait_seconds,
             api_key=self._api_key,
             secret_key=self._secret_key,
         )
+        return monitor.wait_for_order_completion(order_ids, max_wait_seconds)
 
     @property
     def data_provider(self) -> DataProvider:

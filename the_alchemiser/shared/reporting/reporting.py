@@ -127,9 +127,6 @@ def build_portfolio_state_data(
 ) -> dict[str, Any]:
     """Build portfolio state data for reporting purposes."""
     from the_alchemiser.shared.math.trading_math import calculate_allocation_discrepancy
-    from the_alchemiser.shared.utils.account_utils import (
-        extract_current_position_values,
-    )
 
     portfolio_value = float(account_info.get("portfolio_value", 0.0))
 
@@ -137,7 +134,14 @@ def build_portfolio_state_data(
     target_values = {
         symbol: weight * portfolio_value for symbol, weight in target_portfolio.items()
     }
-    current_values = extract_current_position_values(current_positions)
+    
+    # Extract current position values inline
+    current_values: dict[str, float] = {}
+    for symbol, pos in current_positions.items():
+        try:
+            current_values[symbol] = float(pos["market_value"])
+        except (ValueError, TypeError, KeyError):
+            current_values[symbol] = 0.0
 
     allocations = {}
     all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())

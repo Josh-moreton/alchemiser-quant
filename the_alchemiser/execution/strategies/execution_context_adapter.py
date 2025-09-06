@@ -107,8 +107,8 @@ class ExecutionContextAdapter:
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 30
     ) -> Any:  # WebSocketResultDTO
-        """Wait for order completion using centralized utility."""
-        from the_alchemiser.shared.utils.order_completion_utils import wait_for_order_completion
+        """Wait for order completion using direct monitoring."""
+        from the_alchemiser.execution.monitoring.websocket_order_monitor import OrderCompletionMonitor
 
         # Get alpaca manager from order executor
         alpaca_manager = getattr(self._order_executor, "alpaca_manager", None)
@@ -122,9 +122,8 @@ class ExecutionContextAdapter:
             # Fallback to original implementation if trading client not available
             return self._order_executor.wait_for_order_completion(order_ids, max_wait_seconds)
 
-        return wait_for_order_completion(
-            trading_client=trading_client, order_ids=order_ids, max_wait_seconds=max_wait_seconds
-        )
+        monitor = OrderCompletionMonitor(trading_client=trading_client)
+        return monitor.wait_for_order_completion(order_ids, max_wait_seconds)
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
         # Boundary returns floats; strategy layer converts to Decimal precisely

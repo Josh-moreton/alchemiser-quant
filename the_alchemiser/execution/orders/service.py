@@ -314,13 +314,12 @@ class WebSocketOrderLifecycleAdapter(OrderLifecycleMonitor):  # pragma: no cover
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 60
     ) -> WebSocketResultDTO:
-        """Delegate to centralized order completion utility."""
-        from the_alchemiser.shared.utils.order_completion_utils import wait_for_order_completion
+        """Wait for orders to reach a final state using WebSocket monitoring."""
+        from the_alchemiser.execution.monitoring.websocket_order_monitor import OrderCompletionMonitor
 
-        return wait_for_order_completion(
+        monitor = OrderCompletionMonitor(
             trading_client=self._trading_client,
-            order_ids=order_ids,
-            max_wait_seconds=max_wait_seconds,
             api_key=self._api_key,
             secret_key=self._secret_key,
         )
+        return monitor.wait_for_order_completion(order_ids, max_wait_seconds)
