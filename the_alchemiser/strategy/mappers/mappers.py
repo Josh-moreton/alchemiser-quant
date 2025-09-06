@@ -146,7 +146,7 @@ def dataframe_to_bars(df: pd.DataFrame, symbol: Symbol) -> list[BarModel]:
 
 def _normalize_action(value: Any) -> ActionLiteral:
     """Normalize action value to ActionLiteral.
-    
+
     Private helper function for signal conversion.
     """
     try:

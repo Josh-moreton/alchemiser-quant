@@ -21,8 +21,6 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any, Protocol
 
-from the_alchemiser.shared.types.broker_enums import BrokerTimeInForce
-
 from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 from the_alchemiser.execution.protocols.order_lifecycle import (
     OrderLifecycleMonitor,
@@ -32,6 +30,7 @@ from the_alchemiser.shared.protocols.repository import (
     MarketDataRepository,
     TradingRepository,
 )
+from the_alchemiser.shared.types.broker_enums import BrokerTimeInForce
 from the_alchemiser.shared.utils.decorators import translate_trading_errors
 
 logger = logging.getLogger(__name__)

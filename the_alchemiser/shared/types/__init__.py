@@ -12,15 +12,15 @@ from .quantity import Quantity
 from .time_in_force import *
 
 __all__ = [
-    "MarketDataPort", 
+    "MarketDataPort",
     "Quantity",
     # Broker enums
     "OrderSideType",
-    "TimeInForceType", 
+    "TimeInForceType",
     "BrokerOrderSide",
     "BrokerTimeInForce",
     # Broker requests
-    "BrokerMarketOrderRequest", 
+    "BrokerMarketOrderRequest",
     "BrokerLimitOrderRequest",
     "BrokerRequestConverter",
     "AlpacaRequestConverter",

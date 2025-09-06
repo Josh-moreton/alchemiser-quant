@@ -56,7 +56,7 @@ class OrderRequestBuilder:
         # Convert string parameters to broker-agnostic types
         broker_side = BrokerOrderSide.from_string(side)
         broker_tif = BrokerTimeInForce.from_string(time_in_force)
-        
+
         # Convert quantities to Decimal
         qty_decimal = Decimal(str(qty)) if qty is not None else None
         notional_decimal = Decimal(str(notional)) if notional is not None else None
@@ -103,7 +103,7 @@ class OrderRequestBuilder:
         # Convert string parameters to broker-agnostic types
         broker_side = BrokerOrderSide.from_string(side)
         broker_tif = BrokerTimeInForce.from_string(time_in_force)
-        
+
         # Convert quantities to Decimal
         qty_decimal = Decimal(str(quantity))
         price_decimal = Decimal(str(limit_price))

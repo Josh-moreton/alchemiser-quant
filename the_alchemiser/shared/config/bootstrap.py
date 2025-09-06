@@ -27,7 +27,6 @@ from the_alchemiser.shared.types.exceptions import ConfigurationError
 from the_alchemiser.shared.utils.context import create_error_context
 from the_alchemiser.strategy.data.market_data_service import MarketDataService
 
-
 logger = logging.getLogger(__name__)
 
 

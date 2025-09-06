@@ -36,7 +36,6 @@ from the_alchemiser.execution.brokers.account_service import (
     AccountService as TypedAccountService,
 )
 from the_alchemiser.execution.brokers.alpaca import AlpacaManager
-from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
 from the_alchemiser.execution.core.account_facade import AccountFacade
 from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
 from the_alchemiser.execution.mappers.execution import (
@@ -61,6 +60,7 @@ from the_alchemiser.shared.logging.logging_utils import (
 )
 from the_alchemiser.shared.reporting.reporting import build_portfolio_state_data
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
 from the_alchemiser.shared.types.exceptions import (
     ConfigurationError,
     DataProviderError,

@@ -15,7 +15,6 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Protocol
 
 from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
-
 from the_alchemiser.shared.types.exceptions import (
     OrderPlacementError,
     OrderTimeoutError,
