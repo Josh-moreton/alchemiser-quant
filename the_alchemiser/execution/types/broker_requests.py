@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Protocol
 
-from .broker_enums import BrokerOrderSide, BrokerTimeInForce
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide, BrokerTimeInForce
 
 
 @dataclass(frozen=True)

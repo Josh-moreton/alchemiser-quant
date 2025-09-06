@@ -105,7 +105,7 @@ class StrategyValidationMixin:
             valid_strategies = [s.value for s in StrategyType]
             raise ValueError(f"Strategy must be one of {valid_strategies}, got: {v}")
 
-    @field_validator("symbol")
+    @field_validator("symbol", check_fields=False)
     @classmethod
     def normalize_symbol(cls, v: str) -> str:
         """Normalize symbol to uppercase and validate format."""

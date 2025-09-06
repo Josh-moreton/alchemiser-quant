@@ -8,14 +8,15 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from the_alchemiser.execution.brokers.alpaca import AlpacaManager
-from the_alchemiser.execution.mappers.order_mapping import (
+if TYPE_CHECKING:
+    from the_alchemiser.execution.brokers.alpaca import AlpacaManager
+from the_alchemiser.execution.mappers.broker_integration_mappers import (
     alpaca_order_to_domain,
     summarize_order,
 )
-from the_alchemiser.execution.mappers.trading_service_dto_mapping import (
+from the_alchemiser.execution.mappers.service_dto_mappers import (
     list_to_open_orders_dto,
 )
 from the_alchemiser.execution.orders.order_schemas import (
@@ -38,7 +39,7 @@ class OrderExecutionService:
     Handles order placement, cancellation, status queries, and order management.
     """
 
-    def __init__(self, alpaca_manager: AlpacaManager) -> None:
+    def __init__(self, alpaca_manager: "AlpacaManager") -> None:
         """Initialize the order execution service.
 
         Args:
