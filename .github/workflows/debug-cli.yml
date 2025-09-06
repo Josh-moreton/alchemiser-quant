@@ -26,17 +26,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # If dependencies/requirements.txt exists, use it
-          if [ -f "dependencies/requirements.txt" ]; then
-            cp dependencies/requirements.txt requirements.txt
-          fi
-          # If requirements.txt exists, install with pip
-          if [ -f "requirements.txt" ]; then
-            pip install -r requirements.txt
-          else
-            # Otherwise, install poetry dependencies directly
-            poetry install --only=main
-          fi
+          # Always use Poetry for dependency installation to ensure 
+          # the project is installed with proper CLI entry points
+          poetry install --only=main
 
       - name: Run CLI command
         id: run_cli
