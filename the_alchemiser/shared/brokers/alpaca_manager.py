@@ -1,6 +1,6 @@
-"""Business Unit: execution; Status: current.
+"""Business Unit: shared | Status: current
 
-Alpaca broker adapter for execution module.
+Alpaca broker adapter (moved from execution module for architectural compliance).
 
 This module consolidates scattered Alpaca client usage into a single, well-managed class.
 It provides a transitional approach that:
@@ -10,6 +10,7 @@ It provides a transitional approach that:
 4. Sets up for future improvements
 
 Phase 2 Update: Now implements domain interfaces for type safety and future migration.
+Phase 3 Update: Moved to shared module to resolve architectural boundary violations.
 """
 
 from __future__ import annotations
