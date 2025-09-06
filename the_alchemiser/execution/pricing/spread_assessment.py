@@ -18,9 +18,9 @@ from typing import Any
 class SpreadQuality(Enum):
     """Qualitative classification of bid/ask spreads."""
 
-    TIGHT = "tight"  # ≤ 3¢
-    NORMAL = "normal"  # 3-5¢
-    WIDE = "wide"  # > 5¢
+    TIGHT = "tight"  # ≤ 3¢ or ≤ 10 bps
+    NORMAL = "normal"  # 3-5¢ or 10-50 bps
+    WIDE = "wide"  # > 5¢ or > 50 bps
 
 
 @dataclass
@@ -65,7 +65,8 @@ class SpreadAssessment:
                 return None
 
             spread_cents = (ask - bid) * 100  # Convert to cents
-            spread_quality = self._classify_spread(spread_cents)
+            spread_bps = ((ask - bid) / ((bid + ask) / 2)) * 10000 if (bid + ask) > 0 else 0
+            spread_quality = self._classify_spread(spread_cents, spread_bps)
 
             # Determine wait time and slippage tolerance
             if spread_quality == SpreadQuality.WIDE:
@@ -92,9 +93,9 @@ class SpreadAssessment:
     def analyze_current_spread(self, symbol: str, bid: float, ask: float) -> SpreadAnalysis:
         """Analyze current spread quality for execution decisions."""
         spread_cents = (ask - bid) * 100
-        spread_quality = self._classify_spread(spread_cents)
         midpoint = (bid + ask) / 2
         spread_bps = ((ask - bid) / midpoint) * 10000 if midpoint > 0 else 0
+        spread_quality = self._classify_spread(spread_cents, spread_bps)
 
         return SpreadAnalysis(
             spread_cents=spread_cents,
@@ -103,10 +104,69 @@ class SpreadAssessment:
             midpoint=midpoint,
         )
 
-    def _classify_spread(self, spread_cents: float) -> SpreadQuality:
-        """Classify spread quality based on cents."""
+    def _classify_spread(self, spread_cents: float, spread_bps: float | None = None) -> SpreadQuality:
+        """Classify spread quality based on cents and basis points.
+        
+        Uses both absolute (cents) and relative (bps) measures for better classification.
+        """
+        # Primary classification by cents
         if spread_cents <= 3.0:
-            return SpreadQuality.TIGHT
-        if spread_cents <= 5.0:
-            return SpreadQuality.NORMAL
-        return SpreadQuality.WIDE
+            primary_quality = SpreadQuality.TIGHT
+        elif spread_cents <= 5.0:
+            primary_quality = SpreadQuality.NORMAL
+        else:
+            primary_quality = SpreadQuality.WIDE
+            
+        # Secondary validation by basis points if available
+        if spread_bps is not None:
+            if spread_bps <= 10:
+                bps_quality = SpreadQuality.TIGHT
+            elif spread_bps <= 50:
+                bps_quality = SpreadQuality.NORMAL
+            else:
+                bps_quality = SpreadQuality.WIDE
+                
+            # Use the more conservative (wider) classification
+            if primary_quality == SpreadQuality.TIGHT and bps_quality != SpreadQuality.TIGHT:
+                return bps_quality
+            elif primary_quality == SpreadQuality.NORMAL and bps_quality == SpreadQuality.WIDE:
+                return SpreadQuality.WIDE
+                
+        return primary_quality
+
+    def get_execution_recommendations(self, spread_analysis: SpreadAnalysis) -> dict[str, str | float]:
+        """Get execution recommendations based on spread analysis.
+        
+        Returns recommended pricing strategy and urgency level for liquidity-anchored execution.
+        """
+        recommendations: dict[str, str | float] = {
+            "pricing_strategy": "liquidity_anchored",
+            "urgency": "normal",
+            "inside_factor": 0.3,  # How far inside spread to place order
+            "timeout_multiplier": 1.0,
+        }
+        
+        if spread_analysis.spread_quality == SpreadQuality.TIGHT:
+            # Tight spreads: need to be more aggressive to get fills
+            recommendations.update({
+                "urgency": "high",
+                "inside_factor": 0.6,
+                "timeout_multiplier": 0.8,  # Faster execution
+            })
+        elif spread_analysis.spread_quality == SpreadQuality.WIDE:
+            # Wide spreads: can be more patient
+            recommendations.update({
+                "urgency": "low", 
+                "inside_factor": 0.1,
+                "timeout_multiplier": 1.4,  # More patient
+            })
+            
+        # Special handling for very tight spreads (< 1¢)
+        if spread_analysis.spread_cents < 1.0:
+            recommendations.update({
+                "urgency": "urgent",
+                "inside_factor": 0.8,
+                "timeout_multiplier": 0.5,
+            })
+            
+        return recommendations
