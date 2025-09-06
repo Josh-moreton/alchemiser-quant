@@ -200,3 +200,109 @@ class SmartPricingHandler:
             return False
 
         return True
+
+    def get_liquidity_anchored_price(
+        self, 
+        symbol: str, 
+        side: BrokerOrderSide, 
+        spread_quality: str = "normal",
+        urgency: str = "normal"
+    ) -> float | None:
+        """Get liquidity-anchored price that places orders at or just inside bid/ask.
+        
+        This implements the core principle: "Anchor to Liquidity, Not Hope"
+        Orders are placed at or just inside the best bid/ask, not arbitrarily far from market.
+        
+        Args:
+            symbol: Stock symbol
+            side: BrokerOrderSide.BUY or BrokerOrderSide.SELL
+            spread_quality: "tight", "normal", or "wide" 
+            urgency: "low", "normal", "high", or "urgent"
+            
+        Returns:
+            Price anchored to current liquidity, or None if data unavailable
+        """
+        try:
+            bid, ask = self.data_provider.get_latest_quote(symbol)
+
+            if bid <= 0 or ask <= 0 or bid >= ask:
+                logging.warning(f"Invalid bid/ask for {symbol}: bid={bid}, ask={ask}")
+                return None
+                
+            # Calculate spread metrics
+            spread = ask - bid
+            midpoint = (bid + ask) / 2.0
+            spread_bps = (spread / midpoint) * 10000 if midpoint > 0 else 0
+            
+            # Determine how far inside the spread to place order based on spread quality
+            if spread_quality == "tight":  # ≤ 3¢ or ≤ 10 bps
+                # Tight spreads: be more aggressive to ensure fills
+                inside_factor = 0.8 if urgency in ["high", "urgent"] else 0.6
+            elif spread_quality == "wide":  # > 5¢ or > 100 bps  
+                # Wide spreads: can be more patient, place closer to midpoint
+                inside_factor = 0.2 if urgency in ["high", "urgent"] else 0.1
+            else:  # "normal" spreads
+                # Normal spreads: balanced approach
+                inside_factor = 0.5 if urgency in ["high", "urgent"] else 0.3
+                
+            if side == BrokerOrderSide.BUY:
+                # BUY: Start from ask and move inside toward bid
+                # Example: Bid £10.00 / Ask £10.20 -> place around £10.11-£10.12 (inside spread)
+                price = ask - (spread * inside_factor)
+                # Ensure we don't go below bid
+                price = max(price, bid + 0.01)
+            else:
+                # SELL: Start from bid and move inside toward ask  
+                # Example: Bid £10.00 / Ask £10.20 -> place around £10.08-£10.09 (inside spread)
+                price = bid + (spread * inside_factor)
+                # Ensure we don't go above ask
+                price = min(price, ask - 0.01)
+                
+            # Additional urgency adjustments
+            if urgency == "urgent":
+                if side == BrokerOrderSide.BUY:
+                    # Be even more aggressive for urgent buys
+                    price = min(price + 0.01, ask)
+                else:
+                    # Be even more aggressive for urgent sells
+                    price = max(price - 0.01, bid)
+                    
+            logging.info(
+                f"Liquidity-anchored price for {symbol} {side.value}: "
+                f"bid={bid:.2f}, ask={ask:.2f}, spread={spread:.2f}¢, "
+                f"quality={spread_quality}, urgency={urgency}, price={price:.2f}"
+            )
+            
+            return round(float(price), 2)
+
+        except (AttributeError, ValueError, TypeError) as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                DataProviderError(f"Failed to get liquidity-anchored price for {symbol}: {e}"),
+                "liquidity_anchored_pricing",
+                function="get_liquidity_anchored_price",
+                symbol=symbol,
+                side=side.name,
+                spread_quality=spread_quality,
+                urgency=urgency,
+                error_type=type(e).__name__,
+            )
+            logging.error(f"Error getting liquidity-anchored price for {symbol}: {e}")
+            return None
+        except Exception as e:
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                DataProviderError(f"Unexpected error getting liquidity-anchored price for {symbol}: {e}"),
+                "liquidity_anchored_pricing",
+                function="get_liquidity_anchored_price",
+                symbol=symbol,
+                side=side.name,
+                spread_quality=spread_quality,
+                urgency=urgency,
+                error_type="unexpected_error",
+                original_error=type(e).__name__,
+            )
+            logging.error(f"Unexpected error getting liquidity-anchored price for {symbol}: {e}")
+            return None

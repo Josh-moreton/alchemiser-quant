@@ -444,13 +444,16 @@ class SmartExecution:
                 )
                 return self._submit_canonical_market_order(symbol, side, qty=qty)
             spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
+            execution_recommendations = spread_assessor.get_execution_recommendations(spread_analysis)
 
             self.logger.debug(
-                "spread_assessed",
+                "spread_assessed_with_recommendations",
                 extra={
                     "symbol": symbol,
                     "spread_cents": spread_analysis.spread_cents,
                     "spread_quality": spread_analysis.spread_quality.value,
+                    "spread_bps": spread_analysis.spread_bps,
+                    "recommendations": execution_recommendations,
                 },
             )
 
@@ -491,8 +494,10 @@ class SmartExecution:
                     },
                 )
 
-            # Step 2 & 3: Aggressive Marketable Limit with Re-pegging
-            return self._execute_aggressive_limit_sequence(symbol, qty, side, bid, ask, strategy)
+            # Step 2 & 3: Liquidity-Anchored Execution with Re-pegging
+            return self._execute_liquidity_anchored_sequence(
+                symbol, qty, side, bid, ask, strategy, spread_analysis, execution_recommendations
+            )
 
         except OrderExecutionError as e:
             self.logger.error(
@@ -933,6 +938,109 @@ class SmartExecution:
                 },
             )
             raise
+
+    def _execute_liquidity_anchored_sequence(
+        self,
+        symbol: str,
+        qty: float,
+        side: BrokerOrderSide,
+        bid: float,
+        ask: float,
+        strategy: Any,
+        spread_analysis: Any,
+        execution_recommendations: dict[str, str | float],
+    ) -> str | None:
+        """Execute liquidity-anchored order sequence.
+        
+        Implements the core principle: "Anchor to Liquidity, Not Hope"
+        Places orders at or just inside the best bid/ask based on spread analysis.
+        """
+        from the_alchemiser.execution.pricing.smart_pricing_handler import SmartPricingHandler
+        
+        # Initialize pricing handler
+        pricing_handler = SmartPricingHandler(self._data_provider)
+        
+        # Get liquidity-anchored price based on spread quality and urgency
+        urgency = str(execution_recommendations.get("urgency", "normal"))
+        spread_quality = spread_analysis.spread_quality.value
+        
+        anchored_price = pricing_handler.get_liquidity_anchored_price(
+            symbol=symbol,
+            side=side,
+            spread_quality=spread_quality,
+            urgency=urgency,
+        )
+        
+        if anchored_price is None:
+            self.logger.warning(
+                "liquidity_anchored_price_unavailable_fallback_to_aggressive",
+                extra={
+                    "symbol": symbol,
+                    "side": side.value,
+                    "spread_quality": spread_quality,
+                    "urgency": urgency,
+                },
+            )
+            # Fallback to existing aggressive strategy
+            return self._execute_aggressive_limit_sequence(symbol, qty, side, bid, ask, strategy)
+        
+        self.logger.info(
+            "liquidity_anchored_execution_starting",
+            extra={
+                "symbol": symbol,
+                "side": side.value,
+                "quantity": qty,
+                "anchored_price": anchored_price,
+                "bid": bid,
+                "ask": ask,
+                "spread_quality": spread_quality,
+                "urgency": urgency,
+                "spread_cents": spread_analysis.spread_cents,
+                "spread_bps": spread_analysis.spread_bps,
+            },
+        )
+        
+        # Execute the limit order with liquidity-anchored price
+        try:
+            order_id = self._submit_canonical_limit_order(symbol, side, qty, anchored_price)
+            
+            if order_id:
+                self.logger.info(
+                    "liquidity_anchored_order_placed",
+                    extra={
+                        "symbol": symbol,
+                        "order_id": order_id,
+                        "price": anchored_price,
+                        "side": side.value,
+                        "quantity": qty,
+                    },
+                )
+                return order_id
+            else:
+                self.logger.warning(
+                    "liquidity_anchored_order_failed_fallback_to_aggressive",
+                    extra={
+                        "symbol": symbol,
+                        "price": anchored_price,
+                        "side": side.value,
+                        "quantity": qty,
+                    },
+                )
+                # Fallback to existing aggressive strategy
+                return self._execute_aggressive_limit_sequence(symbol, qty, side, bid, ask, strategy)
+                
+        except Exception as e:
+            self.logger.error(
+                "liquidity_anchored_execution_failed",
+                extra={
+                    "symbol": symbol,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "anchored_price": anchored_price,
+                },
+            )
+            # Fallback to existing aggressive strategy
+            return self._execute_aggressive_limit_sequence(symbol, qty, side, bid, ask, strategy)
 
     def get_order_by_id(self, order_id: str) -> Any:
         """Get order details by order ID from the trading client."""
