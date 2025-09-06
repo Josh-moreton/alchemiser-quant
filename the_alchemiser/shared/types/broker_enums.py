@@ -87,7 +87,7 @@ class BrokerTimeInForce(Enum):
         }
         
         if self in mapping:
-            return mapping[self]
+            return mapping[self].value
         else:
             raise ValueError(f"Unknown time in force: {self}")
 
