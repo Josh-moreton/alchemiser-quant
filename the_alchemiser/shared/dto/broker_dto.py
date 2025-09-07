@@ -27,7 +27,11 @@ class WebSocketStatus(str, Enum):
 
 
 class WebSocketResult(BaseModel):
-    """Outcome of WebSocket operations (status, message, completed orders)."""
+    """Outcome of WebSocket operations (status, message, completed orders).
+
+    Consolidated DTO used by both execution and shared modules to avoid duplication.
+    Replaces duplicate definitions in execution.core.execution_schemas.
+    """
 
     model_config = ConfigDict(
         strict=True,
@@ -41,14 +45,13 @@ class WebSocketResult(BaseModel):
     completed_order_ids: list[str] = Field(
         default_factory=list, description="Order IDs that completed during operation"
     )
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Additional metadata"
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
 
 class OrderExecutionResult(Result):
     """DTO for order execution results.
 
+    Consolidated DTO used by both execution and shared modules to avoid duplication.
     Adds uniform success/error fields to align with prior facade contract
     (which exposed a 'success' flag) while preserving structured status.
     """

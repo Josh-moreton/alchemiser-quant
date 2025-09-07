@@ -16,6 +16,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+# Import consolidated DTOs from shared module to avoid duplication
+from the_alchemiser.shared.dto.broker_dto import WebSocketResult
 from the_alchemiser.shared.dto.execution_report_dto import ExecutionReportDTO
 from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails
@@ -26,14 +28,6 @@ class TradingAction(str, Enum):
 
     BUY = "BUY"
     SELL = "SELL"
-
-
-class WebSocketStatus(str, Enum):
-    """WebSocket operation status enumeration."""
-
-    COMPLETED = "completed"
-    TIMEOUT = "timeout"
-    ERROR = "error"
 
 
 class ExecutionResult(BaseModel):
@@ -79,15 +73,16 @@ class TradingPlan(BaseModel):
     @classmethod
     def validate_symbol(cls, v: str) -> str:
         """Validate symbol format and normalization.
-        
+
         Args:
             v: Symbol string to validate
-            
+
         Returns:
             Normalized symbol (uppercase, alphanumeric)
-            
+
         Raises:
             ValueError: If symbol is empty or contains non-alphanumeric characters
+
         """
         if not v or not v.strip():  # pragma: no cover - defensive
             raise ValueError("Symbol cannot be empty")
@@ -100,15 +95,16 @@ class TradingPlan(BaseModel):
     @classmethod
     def validate_quantity(cls, v: Decimal) -> Decimal:
         """Validate quantity is positive.
-        
+
         Args:
             v: Quantity to validate
-            
+
         Returns:
             Validated quantity
-            
+
         Raises:
             ValueError: If quantity is not positive
+
         """
         if v <= 0:
             raise ValueError("Quantity must be greater than 0")
@@ -118,15 +114,16 @@ class TradingPlan(BaseModel):
     @classmethod
     def validate_estimated_price(cls, v: Decimal) -> Decimal:
         """Validate estimated price is positive.
-        
+
         Args:
             v: Estimated price to validate
-            
+
         Returns:
             Validated estimated price
-            
+
         Raises:
             ValueError: If estimated price is not positive
+
         """
         if v <= 0:
             raise ValueError("Estimated price must be greater than 0")
@@ -136,22 +133,8 @@ class TradingPlan(BaseModel):
     # definitions and provide richer success/failure semantics. This placeholder comment
     # preserves historical context for the refactor.
 
-
-class WebSocketResult(BaseModel):
-    """Outcome of WebSocket operations (status, message, completed orders)."""
-
-    model_config = ConfigDict(
-        strict=True,
-        frozen=True,
-        validate_assignment=True,
-        str_strip_whitespace=True,
-    )
-
-    status: WebSocketStatus = Field(description="WebSocket operation status")
-    message: str = Field(description="Status or error message")
-    orders_completed: list[str] = Field(
-        default_factory=list, description="List of completed order IDs"
-    )
+    # NOTE: WebSocketResult moved to shared/dto/broker_dto.py to avoid duplicate
+    # definitions and enable use by shared components without circular imports.
 
 
 class Quote(BaseModel):
@@ -174,15 +157,16 @@ class Quote(BaseModel):
     @classmethod
     def validate_prices(cls, v: Decimal) -> Decimal:
         """Validate bid and ask prices are positive.
-        
+
         Args:
             v: Price to validate
-            
+
         Returns:
             Validated price
-            
+
         Raises:
             ValueError: If price is not positive
+
         """
         if v <= 0:
             raise ValueError("Price must be greater than 0")
@@ -192,15 +176,16 @@ class Quote(BaseModel):
     @classmethod
     def validate_sizes(cls, v: Decimal) -> Decimal:
         """Validate bid and ask sizes are positive.
-        
+
         Args:
             v: Size to validate
-            
+
         Returns:
             Validated size
-            
+
         Raises:
             ValueError: If size is not positive
+
         """
         if v <= 0:
             raise ValueError("Size must be greater than 0")
