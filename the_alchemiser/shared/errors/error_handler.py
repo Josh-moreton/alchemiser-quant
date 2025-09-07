@@ -25,61 +25,12 @@ if TYPE_CHECKING:
 
 
 # Import error types from shared schemas to avoid duplication
-try:
-    # Import directly from errors.py to avoid pydantic dependency in __init__.py
-    import importlib.util
-    import sys
-    from pathlib import Path
-    
-    # Get path to errors.py
-    current_dir = Path(__file__).parent.parent
-    errors_path = current_dir / "schemas" / "errors.py"
-    
-    spec = importlib.util.spec_from_file_location("errors", errors_path)
-    errors_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(errors_module)
-    
-    ErrorDetailInfo = errors_module.ErrorDetailInfo
-    ErrorSummaryData = errors_module.ErrorSummaryData
-    ErrorReportSummary = errors_module.ErrorReportSummary
-    ErrorNotificationData = errors_module.ErrorNotificationData
-    
-except (ImportError, AttributeError, FileNotFoundError):
-    # Minimal fallback definitions if direct import fails
-    from typing import Any, TypedDict
-
-    class ErrorDetailInfo(TypedDict):
-        error_type: str
-        error_message: str
-        category: str
-        context: str
-        component: str
-        timestamp: str
-        traceback: str
-        additional_data: dict[str, Any]
-        suggested_action: str | None
-
-    class ErrorSummaryData(TypedDict):
-        count: int
-        errors: list[ErrorDetailInfo]
-
-    class ErrorReportSummary(TypedDict):
-        critical: ErrorSummaryData | None
-        trading: ErrorSummaryData | None
-        data: ErrorSummaryData | None
-        strategy: ErrorSummaryData | None
-        configuration: ErrorSummaryData | None
-        notification: ErrorSummaryData | None
-        warning: ErrorSummaryData | None
-
-    class ErrorNotificationData(TypedDict):
-        severity: str
-        priority: str
-        title: str
-        error_report: str
-        html_content: str
-
-
+from the_alchemiser.shared.schemas.errors import (
+    ErrorDetailInfo,
+    ErrorSummaryData,
+    ErrorReportSummary,
+    ErrorNotificationData,
+)
 # Import exceptions 
 try:
     from the_alchemiser.shared.types.exceptions import (
