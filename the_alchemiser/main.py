@@ -15,7 +15,6 @@ import os
 import sys
 
 from the_alchemiser.shared.cli.signal_analyzer import SignalAnalyzer
-from the_alchemiser.shared.cli.trading_executor import TradingExecutor
 from the_alchemiser.shared.config.config import Settings, load_settings
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.logging.logging_utils import (
@@ -107,6 +106,8 @@ class TradingSystem:
     ) -> bool:
         """Execute multi-strategy trading."""
         try:
+            from the_alchemiser.shared.cli.trading_executor import TradingExecutor
+            
             if self.container is None:
                 raise RuntimeError("DI container not initialized")
             executor = TradingExecutor(

@@ -15,12 +15,16 @@ Key Features:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel, ConfigDict
 
 from the_alchemiser.shared.dto.execution_report_dto import ExecutionReportDTO
 from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, StrategySignal
-from the_alchemiser.strategy.types.strategy_type import StrategyType
+
+if TYPE_CHECKING:
+    from the_alchemiser.strategy.types.strategy_type import StrategyType
 
 
 class MultiStrategyExecutionResultDTO(BaseModel):
@@ -42,7 +46,7 @@ class MultiStrategyExecutionResultDTO(BaseModel):
     success: bool
 
     # Strategy data
-    strategy_signals: dict[StrategyType, StrategySignal]
+    strategy_signals: dict["StrategyType", StrategySignal]
     consolidated_portfolio: dict[str, float]
 
     # Order execution results

@@ -26,9 +26,6 @@ from rich.text import Text
 
 # Delayed import to avoid complex dependency chains during module loading
 # from the_alchemiser.strategy.data.market_data_service import MarketDataService
-from the_alchemiser.execution.core.refactored_execution_manager import (
-    RefactoredTradingServiceManager as TradingServiceManager,
-)
 from the_alchemiser.shared.cli.cli_formatter import render_account_info
 from the_alchemiser.shared.config.secrets_manager import secrets_manager
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
@@ -181,6 +178,9 @@ def signal(
                     )
                     raise typer.Exit(1)
 
+                from the_alchemiser.execution.core.refactored_execution_manager import (
+                    RefactoredTradingServiceManager as TradingServiceManager,
+                )
                 tsm = TradingServiceManager(api_key, secret_key, paper=True)
 
                 # Adapter implementing MarketDataPort
@@ -483,22 +483,6 @@ def trade(
             console.print(f"\n[bold red]{mode_display} trading failed![/bold red]")
             raise typer.Exit(1)
 
-    except AlchemiserError as e:
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "cli_trading_application_error",
-            function="trade",
-            command="trade",
-            live_trading=live,
-            ignore_market_hours=ignore_market_hours,
-            error_type=type(e).__name__,
-        )
-        console.print(f"\n[bold red]Application error: {e}[/bold red]")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
     except TradingClientError as e:
         logger = get_logger(__name__)
         log_error_with_context(
@@ -600,6 +584,9 @@ def status(
         account_info: dict[str, Any] = dict(trader.get_account_info())
 
         # Always use enriched typed account summary (using typed domain)
+        from the_alchemiser.execution.core.refactored_execution_manager import (
+            RefactoredTradingServiceManager as TradingServiceManager,
+        )
         tsm: TradingServiceManager | None = None
         try:
             api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not live)
