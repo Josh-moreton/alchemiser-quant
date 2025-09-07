@@ -26,16 +26,29 @@ if TYPE_CHECKING:
 
 # Import error types from shared schemas to avoid duplication
 try:
-    from the_alchemiser.shared.schemas.errors import (
-        ErrorDetailInfo,
-        ErrorNotificationData,
-        ErrorReportSummary,
-        ErrorSummaryData,
-    )
-except ImportError:
-    # Fallback definitions if import fails (for bootstrap scenarios)
+    # Import directly from errors.py to avoid pydantic dependency in __init__.py
+    import importlib.util
+    import sys
+    from pathlib import Path
+    
+    # Get path to errors.py
+    current_dir = Path(__file__).parent.parent
+    errors_path = current_dir / "schemas" / "errors.py"
+    
+    spec = importlib.util.spec_from_file_location("errors", errors_path)
+    errors_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(errors_module)
+    
+    ErrorDetailInfo = errors_module.ErrorDetailInfo
+    ErrorSummaryData = errors_module.ErrorSummaryData
+    ErrorReportSummary = errors_module.ErrorReportSummary
+    ErrorNotificationData = errors_module.ErrorNotificationData
+    
+except (ImportError, AttributeError, FileNotFoundError):
+    # Minimal fallback definitions if direct import fails
+    from typing import Any, TypedDict
+
     class ErrorDetailInfo(TypedDict):
-        """Detailed error information for reporting."""
         error_type: str
         error_message: str
         category: str
@@ -47,12 +60,10 @@ except ImportError:
         suggested_action: str | None
 
     class ErrorSummaryData(TypedDict):
-        """Summary of errors by category."""
         count: int
         errors: list[ErrorDetailInfo]
 
     class ErrorReportSummary(TypedDict):
-        """Comprehensive error report summary."""
         critical: ErrorSummaryData | None
         trading: ErrorSummaryData | None
         data: ErrorSummaryData | None
@@ -62,7 +73,6 @@ except ImportError:
         warning: ErrorSummaryData | None
 
     class ErrorNotificationData(TypedDict):
-        """Email notification data for error reporting."""
         severity: str
         priority: str
         title: str
@@ -70,7 +80,7 @@ except ImportError:
         html_content: str
 
 
-# Import exceptions with consolidated fallback definitions
+# Import exceptions 
 try:
     from the_alchemiser.shared.types.exceptions import (
         AlchemiserError,
@@ -84,55 +94,45 @@ try:
         TradingClientError,
     )
 except ImportError:
-    # Define minimal exception classes locally if import fails
+    # Minimal exception classes if import fails (to avoid circular imports)
     class AlchemiserError(Exception):
         """Base exception class."""
-
 
     class ConfigurationError(AlchemiserError):
         """Configuration-related errors."""
 
-
     class DataProviderError(AlchemiserError):
         """Data provider errors."""
-
 
     class InsufficientFundsError(AlchemiserError):
         """Insufficient funds errors."""
 
-
     class MarketDataError(AlchemiserError):
         """Market data errors."""
-
 
     class NotificationError(AlchemiserError):
         """Notification errors."""
 
-
     class OrderExecutionError(AlchemiserError):
         """Order execution errors."""
 
-
     class PositionValidationError(AlchemiserError):
         """Position validation errors."""
-
 
     class TradingClientError(AlchemiserError):
         """Trading client errors."""
 
 
 
-# Import additional error types with fallback definitions
+# Import additional error types
 try:
     from the_alchemiser.shared.types.trading_errors import (
         OrderError,
         classify_exception,
     )
 except ImportError:
-
     class OrderError(Exception):
         """Order-related errors."""
-
 
     def classify_exception(exc: Exception) -> str:
         """Classify exception type."""
@@ -142,7 +142,6 @@ except ImportError:
 try:
     from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
 except ImportError:
-
     class StrategyExecutionError(Exception):
         """Strategy execution errors."""
 
@@ -151,7 +150,6 @@ except ImportError:
 try:
     from .context import ErrorContextData
 except ImportError:
-
     class ErrorContextData:
         """Minimal error context data."""
 
