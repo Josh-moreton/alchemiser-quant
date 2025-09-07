@@ -35,15 +35,16 @@ export PYTHONPATH="${PWD}:${PWD}/the_alchemiser:${PYTHONPATH}"
 # Generate trading signals (analysis mode)
 make run-signals
 
-# Execute paper trading
+# Execute trading (mode automatically determined by deployment stage)
 make run-trade
 
 # Check account status
 make status
-
-# Execute live trading (⚠️ real money)
-make run-trade-live
 ```
+
+**📋 Note:** Trading mode (paper vs live) is now automatically determined by deployment stage:
+- **Local/dev environments**: Paper trading only
+- **Production deployment**: Live trading with production credentials
 
 ### CLI Commands
 
@@ -214,22 +215,51 @@ DTOs, utilities, and cross-cutting concerns.
 
 ## ⚙️ Configuration
 
+### 🔐 Secrets Management (Stage-Aware)
+
+The system now uses **stage-aware secrets management** for enhanced security:
+
+#### Local Development
+Create a `.env` file from the example:
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your paper trading credentials:
+```bash
+# Stage configuration - controls secrets source and trading mode
+STAGE=local
+
+# Alpaca Paper Trading API Keys (for local development)
+ALPACA_PAPER_KEY=your_paper_api_key_here
+ALPACA_PAPER_SECRET=your_paper_secret_key_here
+
+# TwelveData API Key (optional)
+TWELVEDATA_KEY=your_twelvedata_api_key_here
+```
+
+#### Deployed Environments
+Credentials are loaded from AWS Secrets Manager with stage isolation:
+- **Dev stage**: `alchemiser/dev/alpaca` (paper trading only)
+- **Prod stage**: `alchemiser/prod/alpaca` (live trading)
+
+**Security Features:**
+- ✅ Stage isolation: dev environments cannot access prod secrets
+- ✅ Runtime guardrails: non-prod stages must use paper trading
+- ✅ No `--live` flag: trading mode determined by credentials available
+
 ### Environment Variables
 
 ```bash
-# Alpaca Trading API
-ALPACA_API_KEY=your_api_key
-ALPACA_SECRET_KEY=your_secret_key
-ALPACA__PAPER_TRADING=true  # false for live trading
+# Stage configuration (determines secrets source and trading mode)
+STAGE=local  # local | dev | prod
 
-# Email Notifications
+# Email Notifications  
 EMAIL__FROM_EMAIL=your_email@domain.com
 EMAIL__TO_EMAIL=recipient@domain.com
 
 # AWS Configuration (for deployment)
 AWS__REGION=eu-west-2
-AWS__ACCOUNT_ID=your_account_id
-SECRETS_MANAGER__SECRET_NAME=nuclear-secrets
 
 # Strategy Configuration
 STRATEGY__DEFAULT_STRATEGY_ALLOCATIONS='{"nuclear": 0.3, "tecl": 0.5, "klm": 0.2}'
@@ -237,6 +267,18 @@ STRATEGY__DEFAULT_STRATEGY_ALLOCATIONS='{"nuclear": 0.3, "tecl": 0.5, "klm": 0.2
 # Execution Settings
 EXECUTION__USE_CANONICAL_EXECUTOR=true
 EXECUTION__MAX_SLIPPAGE_BPS=20.0
+```
+
+### Deployment Configurations
+
+Stage-based deployments with isolated credentials:
+
+```bash
+# Deploy to dev environment (paper trading)
+sam deploy --config-env dev
+
+# Deploy to production environment (live trading)
+sam deploy --config-env prod
 ```
 
 ### Configuration Structure
