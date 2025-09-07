@@ -15,7 +15,7 @@ if TYPE_CHECKING:
         ApplicationContainer,
     )
 
-from the_alchemiser.execution.orders.order_schemas import ValidatedOrderDTO
+from the_alchemiser.execution.orders.schemas import ValidatedOrderDTO
 from the_alchemiser.execution.strategies.smart_execution import is_market_open
 from the_alchemiser.shared.cli.cli_formatter import (
     render_enriched_order_summaries,
@@ -31,7 +31,6 @@ from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.shared.types.exceptions import (
     NotificationError,
-    StrategyExecutionError,
     TradingClientError,
 )
 from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
@@ -435,7 +434,7 @@ class TradingExecutor:
 
             return result.success
 
-        except (TradingClientError, StrategyExecutionError) as e:
+        except TradingClientError as e:
             self._handle_trading_error(e, mode_str)
             return False
 

@@ -16,7 +16,7 @@ from the_alchemiser.execution.lifecycle.events import LifecycleEventType, OrderL
 from the_alchemiser.execution.lifecycle.exceptions import InvalidOrderStateTransitionError
 from the_alchemiser.execution.lifecycle.states import OrderLifecycleState
 from the_alchemiser.execution.lifecycle.transitions import VALID_TRANSITIONS
-from the_alchemiser.execution.orders.order_id import OrderId
+from the_alchemiser.execution.orders.order_types import OrderId
 
 logger = logging.getLogger(__name__)
 

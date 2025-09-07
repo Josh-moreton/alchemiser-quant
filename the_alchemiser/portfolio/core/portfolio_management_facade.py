@@ -12,7 +12,7 @@ from typing import Any
 from the_alchemiser.execution.core.refactored_execution_manager import (
     RefactoredTradingServiceManager as TradingServiceManager,
 )
-from the_alchemiser.execution.mappers.orders import normalize_order_status
+from the_alchemiser.execution.mappers.order_domain_mappers import normalize_order_status
 from the_alchemiser.portfolio.allocation.rebalance_calculator import (
     RebalanceCalculator,
 )

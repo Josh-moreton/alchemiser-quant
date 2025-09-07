@@ -38,7 +38,6 @@ from the_alchemiser.shared.logging.logging_utils import (
 )
 from the_alchemiser.shared.types.exceptions import (
     AlchemiserError,
-    StrategyExecutionError,
     TradingClientError,
 )
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
@@ -389,7 +388,7 @@ def signal(
         else:
             console.print("\n[bold red]Signal analysis failed![/bold red]")
             raise typer.Exit(1)
-    except StrategyExecutionError as e:
+    except AlchemiserError as e:
         error_handler.handle_error(
             error=e,
             context="CLI signal command - strategy execution",
@@ -495,7 +494,7 @@ def trade(
             console.print(f"\n[bold red]{mode_display} trading failed![/bold red]")
             raise typer.Exit(1)
 
-    except StrategyExecutionError as e:
+    except AlchemiserError as e:
         logger = get_logger(__name__)
         log_error_with_context(
             logger,

@@ -15,9 +15,9 @@ from the_alchemiser.execution.core.data_transformation_service import DataTransf
 from the_alchemiser.execution.core.lifecycle_coordinator import LifecycleCoordinator
 from the_alchemiser.execution.core.order_execution_service import OrderExecutionService
 from the_alchemiser.execution.lifecycle import OrderLifecycleState
-from the_alchemiser.execution.orders.order_id import OrderId
-from the_alchemiser.execution.orders.order_schemas import OrderRequestDTO
-from the_alchemiser.execution.orders.validation import OrderValidator
+from the_alchemiser.execution.orders.order_types import OrderId
+from the_alchemiser.execution.orders.schemas import OrderRequestDTO
+from the_alchemiser.execution.orders.consolidated_validation import OrderValidator
 from the_alchemiser.execution.schemas.smart_trading import (
     SmartOrderExecutionDTO,
     TradingDashboardDTO,
