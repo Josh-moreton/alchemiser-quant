@@ -494,6 +494,27 @@ class SmartExecution:
             # Step 2 & 3: Aggressive Marketable Limit with Re-pegging
             return self._execute_aggressive_limit_sequence(symbol, qty, side, bid, ask, strategy)
 
+        except BuyingPowerError as e:
+            self.logger.error(
+                "buying_power_error",
+                extra={
+                    "symbol": symbol,
+                    "error": str(e),
+                    "phase": "better_orders_main",
+                    "required_amount": getattr(e, "required_amount", None),
+                    "available_amount": getattr(e, "available_amount", None),
+                    "shortfall": getattr(e, "shortfall", None),
+                },
+            )
+            # Buying power errors should never fallback to market orders
+            self.logger.error(
+                "insufficient_buying_power_no_fallback",
+                extra={
+                    "symbol": symbol,
+                    "error": str(e),
+                },
+            )
+            raise e
         except OrderExecutionError as e:
             self.logger.error(
                 "order_execution_error",
@@ -571,27 +592,6 @@ class SmartExecution:
                     "symbol": symbol,
                     "error": str(e),
                     "fallback_enabled": False,
-                },
-            )
-            raise e
-        except BuyingPowerError as e:
-            self.logger.error(
-                "buying_power_error",
-                extra={
-                    "symbol": symbol,
-                    "error": str(e),
-                    "phase": "better_orders_main",
-                    "required_amount": getattr(e, "required_amount", None),
-                    "available_amount": getattr(e, "available_amount", None),
-                    "shortfall": getattr(e, "shortfall", None),
-                },
-            )
-            # Buying power errors should never fallback to market orders
-            self.logger.error(
-                "insufficient_buying_power_no_fallback",
-                extra={
-                    "symbol": symbol,
-                    "error": str(e),
                 },
             )
             raise e
