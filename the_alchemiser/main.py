@@ -99,12 +99,14 @@ class TradingSystem:
 
     def execute_trading(
         self,
-        live_trading: bool = False,
         ignore_market_hours: bool = False,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
     ) -> bool:
-        """Execute multi-strategy trading."""
+        """Execute multi-strategy trading.
+        
+        Note: Trading mode (live/paper) is now determined by deployment stage.
+        """
         try:
             from the_alchemiser.shared.cli.trading_executor import TradingExecutor
 
@@ -113,7 +115,6 @@ class TradingSystem:
             executor = TradingExecutor(
                 settings=self.settings,
                 container=self.container,
-                live_trading=live_trading,
                 ignore_market_hours=ignore_market_hours,
                 show_tracking=show_tracking,
                 export_tracking_json=export_tracking_json,
@@ -125,7 +126,6 @@ class TradingSystem:
                 context="multi-strategy trading execution",
                 component="TradingSystem.execute_trading",
                 additional_data={
-                    "live_trading": live_trading,
                     "ignore_market_hours": ignore_market_hours,
                     "show_tracking": show_tracking,
                     "export_tracking_json": export_tracking_json,
@@ -194,8 +194,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
         epilog="""
 Examples:
   alchemiser signal                    # Analyze signals
-  alchemiser trade                     # Paper trading
-  alchemiser trade --live              # Live trading
+  alchemiser trade                     # Execute trading (mode determined by stage)
         """,
     )
 
@@ -205,11 +204,12 @@ Examples:
         help="Operation mode: signal (analyze only) or trade (execute)",
     )
 
-    parser.add_argument(
-        "--live",
-        action="store_true",
-        help="Execute live trading (default: paper trading)",
-    )
+    # Remove --live flag - trading mode now determined by deployment stage
+    # parser.add_argument(
+    #     "--live",
+    #     action="store_true", 
+    #     help="Execute live trading (default: paper trading)",
+    # )
 
     parser.add_argument(
         "--ignore-market-hours", action="store_true", help="Override market hours check"
@@ -261,15 +261,20 @@ def main(argv: list[str] | None = None) -> bool:
         # Initialize system
         system = TradingSystem()
 
-        # Display header
-        mode_label = "LIVE TRADING ⚠️" if args.mode == "trade" and args.live else "Paper Trading"
-        render_header("The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}")
+        # Display header with stage-aware trading mode
+        from the_alchemiser.shared.config.secrets_adapter import secrets_adapter
+        
+        if args.mode == "trade":
+            mode_label = "LIVE TRADING ⚠️" if not secrets_adapter.is_paper_trading else "Paper Trading"
+            stage_info = f"Stage: {secrets_adapter.stage.upper()}"
+            render_header("The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label} | {stage_info}")
+        else:
+            render_header("The Alchemiser Trading System", f"{args.mode.upper()}")
 
         if args.mode == "signal":
             success = system.analyze_signals(show_tracking=getattr(args, "tracking", False))
         elif args.mode == "trade":
             success = system.execute_trading(
-                live_trading=args.live,
                 ignore_market_hours=args.ignore_market_hours,
                 show_tracking=getattr(args, "show_tracking", False),
                 export_tracking_json=getattr(args, "export_tracking_json", None),
@@ -294,7 +299,6 @@ def main(argv: list[str] | None = None) -> bool:
             component="main",
             additional_data={
                 "mode": args.mode,
-                "live_trading": getattr(args, "live", False),
                 "ignore_market_hours": getattr(args, "ignore_market_hours", False),
             },
         )

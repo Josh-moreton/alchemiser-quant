@@ -5,10 +5,11 @@ version = 0.1
 beta_features = true
 use_container = false
 
-[default.deploy.parameters]
-stack_name = "the-alchemiser"
+# Development stage deployment
+[dev.deploy.parameters]
+stack_name = "the-alchemiser-dev"
 s3_bucket = "the-alchemiser-s3"
-s3_prefix = "the-alchemiser"
+s3_prefix = "the-alchemiser/dev"
 region = "eu-west-2"
 capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
 disable_rollback = false
@@ -16,3 +17,41 @@ confirm_changeset = false
 fail_on_empty_changeset = false
 resolve_s3 = false
 image_repositories = []
+parameter_overrides = [
+  "Stage=dev",
+  "AlpacaSecretName=alchemiser/dev/alpaca"
+]
+
+# Production stage deployment  
+[prod.deploy.parameters]
+stack_name = "the-alchemiser-prod"
+s3_bucket = "the-alchemiser-s3"
+s3_prefix = "the-alchemiser/prod"
+region = "eu-west-2"
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+disable_rollback = false
+confirm_changeset = true  # Require confirmation for prod
+fail_on_empty_changeset = false
+resolve_s3 = false
+image_repositories = []
+parameter_overrides = [
+  "Stage=prod",
+  "AlpacaSecretName=alchemiser/prod/alpaca"
+]
+
+# Legacy default configuration (points to dev)
+[default.deploy.parameters]
+stack_name = "the-alchemiser-dev"
+s3_bucket = "the-alchemiser-s3"
+s3_prefix = "the-alchemiser/dev"
+region = "eu-west-2"
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+disable_rollback = false
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = false
+image_repositories = []
+parameter_overrides = [
+  "Stage=dev",
+  "AlpacaSecretName=alchemiser/dev/alpaca"
+]

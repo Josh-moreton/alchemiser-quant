@@ -55,14 +55,24 @@ class TradingExecutor:
         self,
         settings: Settings,
         container: ApplicationContainer,
-        live_trading: bool = False,
+        live_trading: bool = False,  # DEPRECATED - determined by stage
         ignore_market_hours: bool = False,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
     ) -> None:
         self.settings = settings
         self.container = container
-        self.live_trading = live_trading
+        # Get trading mode from secrets adapter (ignore parameter)
+        from the_alchemiser.shared.config.secrets_adapter import secrets_adapter
+        self.live_trading = not secrets_adapter.is_paper_trading
+        self.stage = secrets_adapter.stage
+        
+        if live_trading != self.live_trading:
+            self.logger.warning(
+                f"live_trading parameter ({live_trading}) ignored. "
+                f"Using stage-determined mode: {'live' if self.live_trading else 'paper'} (stage: {self.stage})"
+            )
+        
         self.ignore_market_hours = ignore_market_hours
         self.show_tracking = show_tracking
         self.export_tracking_json = export_tracking_json

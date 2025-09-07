@@ -419,7 +419,7 @@ def signal(
 
 @app.command()
 def trade(
-    live: bool = typer.Option(False, "--live", help="🚨 Enable LIVE trading (real money)"),
+    # Remove --live flag - trading mode now determined by deployment stage
     ignore_market_hours: bool = typer.Option(
         False, "--ignore-market-hours", help="Trade outside market hours (testing only)"
     ),
@@ -436,20 +436,31 @@ def trade(
     """💰 [bold green]Execute multi-strategy trading[/bold green].
 
     Runs Nuclear, TECL, and KLM strategies with automatic portfolio allocation.
-    Default mode is paper trading for safety.
+    Trading mode (live/paper) is automatically determined by deployment stage.
 
-    [bold red]⚠️  Use --live flag for real money trading![/bold red]
+    [bold blue]🔐 Stage-aware security:[/bold blue]
+    - Local/dev: Paper trading only
+    - Production: Live trading with production credentials
     """
     if not no_header:
         show_welcome()
 
-    # Live mode proceeds without interactive confirmations
-    if live:
+    # Determine trading mode from deployment stage
+    from the_alchemiser.shared.config.secrets_adapter import secrets_adapter
+    
+    is_live = not secrets_adapter.is_paper_trading
+    stage = secrets_adapter.stage
+
+    if is_live:
         console.print(
-            "[dim yellow]LIVE trading mode active. Proceeding without confirmation.[/dim yellow]"
+            f"[bold red]LIVE trading mode active (stage: {stage.upper()}). Proceeding without confirmation.[/bold red]"
+        )
+    else:
+        console.print(
+            f"[bold blue]PAPER trading mode active (stage: {stage.upper()}).[/bold blue]"
         )
 
-    mode_display = "[bold red]LIVE[/bold red]" if live else "[bold blue]PAPER[/bold blue]"
+    mode_display = "[bold red]LIVE[/bold red]" if is_live else "[bold blue]PAPER[/bold blue]"
     console.print(f"[bold yellow]Starting {mode_display} trading...[/bold yellow]")
 
     try:
@@ -461,10 +472,8 @@ def trade(
 
         console.print("[dim]⚡ Generating strategy signals...[/dim]")
 
-        # Build argv for main function
+        # Build argv for main function (no --live flag)
         argv = ["trade"]
-        if live:
-            argv.append("--live")
         if ignore_market_hours:
             argv.append("--ignore-market-hours")
         if show_tracking:
@@ -492,7 +501,6 @@ def trade(
             "cli_trading_client_error",
             function="trade",
             command="trade",
-            live_trading=live,
             ignore_market_hours=ignore_market_hours,
             error_type=type(e).__name__,
         )
@@ -508,7 +516,6 @@ def trade(
             "cli_trading_execution",
             function="trade",
             command="trade",
-            live_trading=live,
             ignore_market_hours=ignore_market_hours,
             error_type="unexpected_error",
             original_error=type(e).__name__,

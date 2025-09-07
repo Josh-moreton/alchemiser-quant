@@ -21,7 +21,7 @@ from the_alchemiser.execution.core.refactored_execution_manager import (
 )
 from the_alchemiser.shared.brokers import AlpacaManager
 from the_alchemiser.shared.config.config import Settings, load_settings
-from the_alchemiser.shared.config.secrets_manager import SecretsManager
+from the_alchemiser.shared.config.secrets_adapter import secrets_adapter
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.types.exceptions import ConfigurationError
 from the_alchemiser.shared.utils.context import create_error_context
@@ -182,16 +182,16 @@ def bootstrap_from_service_manager(
 
 
 def bootstrap_traditional(
-    paper_trading: bool = True,
+    paper_trading: bool | None = None,  # Now optional - determined by secrets adapter
     config: Settings | None = None,
 ) -> TradingBootstrapContext:
     """Bootstrap TradingEngine dependencies using traditional method.
 
-    This method creates dependencies directly using SecretsManager
-    and AlpacaManager for backward compatibility.
+    This method creates dependencies directly using SecretsAdapter
+    and AlpacaManager. Trading mode is now determined by deployment stage.
 
     Args:
-        paper_trading: Whether to use paper trading
+        paper_trading: DEPRECATED - trading mode now determined by stage (ignored if provided)
         config: Configuration settings
 
     Returns:
@@ -202,6 +202,12 @@ def bootstrap_traditional(
 
     """
     logger.info("Bootstrapping TradingEngine using traditional method")
+    
+    # Warn about deprecated parameter
+    if paper_trading is not None:
+        logger.warning(
+            "paper_trading parameter is deprecated. Trading mode is now determined by deployment stage."
+        )
 
     # Load configuration
     try:
@@ -210,13 +216,16 @@ def bootstrap_traditional(
         logger.error(f"Failed to load configuration: {e}")
         raise ConfigurationError(f"Configuration error: {e}") from e
 
-    # Load credentials
+    # Load credentials using new secrets adapter
     try:
-        secrets_manager = SecretsManager()
-        api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=paper_trading)
+        api_key, secret_key = secrets_adapter.get_alpaca_keys()
 
         if not api_key or not secret_key:
             raise ConfigurationError("Missing Alpaca credentials for traditional initialization")
+        
+        # Get paper trading mode from secrets adapter (stage-aware)
+        paper_trading = secrets_adapter.is_paper_trading
+        logger.info(f"Using stage-aware trading mode: {'paper' if paper_trading else 'live'}")
 
     except Exception as e:
         logger.error(f"Failed to load credentials: {e}")

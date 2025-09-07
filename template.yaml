@@ -5,6 +5,19 @@ Description: >
 
   Multi-strategy algorithmic trading engine deployed as an AWS Lambda Function
 
+# Parameters for stage-aware deployment
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, prod]
+    Description: Deployment stage (dev or prod)
+  
+  AlpacaSecretName:
+    Type: String
+    Description: Name of the Alpaca secrets in AWS Secrets Manager
+    Default: !Sub "alchemiser/${Stage}/alpaca"
+
 # Global configuration
 Globals:
   Function:
@@ -33,9 +46,12 @@ Globals:
         ALERTS__ALERT_CONFIG_S3: s3://the-alchemiser-s3/alert_config.json
         ALERTS__COOLDOWN_MINUTES: 30
 
-        # Secrets Manager
+        # Stage and secrets configuration
+        STAGE: !Ref Stage
+        
+        # Secrets Manager (stage-aware)
         SECRETS_MANAGER__REGION_NAME: eu-west-2
-        SECRETS_MANAGER__SECRET_NAME: nuclear-secrets
+        SECRETS_MANAGER__SECRET_NAME: !Ref AlpacaSecretName
 
         # Strategy Configuration
         STRATEGY__DEFAULT_STRATEGY_ALLOCATIONS: '{"nuclear": 0.3, "tecl": 0.5, "klm": 0.2}'
@@ -80,7 +96,7 @@ Resources:
   TradingSystemFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: the-alchemiser-v2-lambda
+      FunctionName: !Sub "the-alchemiser-${Stage}-lambda"
       PackageType: Zip
       Runtime: python3.12
       CodeUri: .
@@ -94,7 +110,7 @@ Resources:
   TradingSystemDLQ:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: the-alchemiser-dlq
+      QueueName: !Sub "the-alchemiser-${Stage}-dlq"
       MessageRetentionPeriod: 1209600 # 14 days
       VisibilityTimeout: 60
 
@@ -102,8 +118,8 @@ Resources:
   TradingSystemSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
-      Name: the-alchemiser-daily-trading
-      Description: "Execute quantitative trading system daily at 9:30 AM New York time (with DST support)"
+      Name: !Sub "the-alchemiser-${Stage}-daily-trading"
+      Description: !Sub "Execute quantitative trading system daily at 9:30 AM New York time (${Stage} stage)"
       ScheduleExpression: "cron(30 9 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow:
@@ -111,10 +127,10 @@ Resources:
       Target:
         Arn: !GetAtt TradingSystemFunction.Arn
         RoleArn: !GetAtt SchedulerExecutionRole.Arn
-        Input: |
+        Input: !Sub |
           {
             "mode": "trade",
-            "trading_mode": "live"
+            "stage": "${Stage}"
           }
         RetryPolicy:
           MaximumRetryAttempts: 1 # Reduced from default (185) to prevent excessive retries
@@ -147,11 +163,11 @@ Resources:
                   - sqs:SendMessage
                 Resource: !GetAtt TradingSystemDLQ.Arn
 
-  # IAM Role for Lambda execution
+  # IAM Role for Lambda execution (stage-aware permissions)
   TradingSystemExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: the-alchemiser-lambda-execution-role
+      RoleName: !Sub "the-alchemiser-${Stage}-lambda-execution-role"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -162,19 +178,20 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
-        - PolicyName: TradingSystemPolicy
+        - PolicyName: !Sub "TradingSystemPolicy-${Stage}"
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
-              # Secrets Manager access for API keys
+              # Stage-isolated Secrets Manager access
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
                   - secretsmanager:DescribeSecret
                 Resource:
-                  - arn:aws:secretsmanager:eu-west-2:211125653762:secret:nuclear-secrets-*
-                  - arn:aws:secretsmanager:eu-west-2:211125653762:secret:alpaca-api-keys-*
-                  - arn:aws:secretsmanager:eu-west-2:211125653762:secret:alpaca-paper-api-keys-*
+                  - !Sub "arn:aws:secretsmanager:eu-west-2:211125653762:secret:alchemiser/${Stage}/*"
+                Condition:
+                  StringEquals:
+                    "secretsmanager:ResourceTag/Stage": !Ref Stage
 
               # S3 access for alerts and data storage
               - Effect: Allow
@@ -196,7 +213,7 @@ Resources:
                   - logs:DescribeLogGroups
                 Resource: "*"
 
-  # CloudWatch Log Group with retention
+  # CloudWatch Log Group with retention (stage-aware)
   TradingSystemLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -207,7 +224,17 @@ Outputs:
   TradingSystemFunction:
     Description: "Quantitative Trading System Lambda Function ARN"
     Value: !GetAtt TradingSystemFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-function-arn"
 
   TradingSystemLogGroup:
     Description: "CloudWatch Log Group for monitoring"
     Value: !Ref TradingSystemLogGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-log-group"
+  
+  Stage:
+    Description: "Deployment stage"
+    Value: !Ref Stage
+    Export:
+      Name: !Sub "${AWS::StackName}-stage"
