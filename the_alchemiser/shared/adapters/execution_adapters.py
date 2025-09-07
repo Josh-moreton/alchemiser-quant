@@ -24,6 +24,7 @@ def batch_order_requests_to_contexts(
         
     Returns:
         List of execution context dictionaries
+
     """
     contexts = []
     for request in order_requests:
@@ -52,6 +53,7 @@ def create_execution_report_dto(
         
     Returns:
         Execution report DTO as dictionary
+
     """
     return {
         "correlation_id": correlation_id,
@@ -70,6 +72,7 @@ def order_request_to_context(order_request: OrderRequestDTO) -> dict[str, Any]:
         
     Returns:
         Execution context dictionary
+
     """
     context = {
         "symbol": order_request.symbol,
@@ -95,6 +98,7 @@ def order_result_to_executed_order_dto(
         
     Returns:
         Executed order DTO as dictionary
+
     """
     return {
         "order_id": order_result.get("order_id"),
@@ -124,6 +128,7 @@ def rebalance_plan_to_order_requests(
         
     Returns:
         List of OrderRequestDTO objects
+
     """
     order_requests = []
     

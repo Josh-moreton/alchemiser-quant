@@ -24,6 +24,7 @@ def batch_strategy_signals_to_dtos(
         
     Returns:
         List of StrategySignalDTO objects
+
     """
     return [strategy_signal_to_dto(signal) for signal in signals]
 
@@ -38,6 +39,7 @@ def dto_to_strategy_signal_context(
         
     Returns:
         Strategy signal context as dictionary
+
     """
     return {
         "symbol": signal_dto.symbol,
@@ -64,9 +66,10 @@ def strategy_signal_to_dto(
         
     Returns:
         StrategySignalDTO object
+
     """
+    from datetime import UTC, datetime
     from decimal import Decimal
-    from datetime import datetime, UTC
     
     return StrategySignalDTO(
         symbol=signal.get("symbol", ""),
@@ -93,6 +96,7 @@ def validate_signal_conversion(
         
     Returns:
         True if conversion is valid, False otherwise
+
     """
     try:
         # Check required fields match
@@ -111,9 +115,6 @@ def validate_signal_conversion(
             
         original_confidence = float(original_signal.get("confidence", 0.0))
         converted_confidence = float(converted_dto.confidence)
-        if abs(original_confidence - converted_confidence) > 1e-6:
-            return False
-            
-        return True
+        return abs(original_confidence - converted_confidence) <= 1e-6
     except (ValueError, TypeError, AttributeError):
         return False

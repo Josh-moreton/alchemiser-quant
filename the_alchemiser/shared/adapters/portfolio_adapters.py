@@ -11,95 +11,58 @@ from __future__ import annotations
 
 from typing import Any
 
-from the_alchemiser.shared.dto import PortfolioStateDTO, PositionDTO
-
-
-def batch_positions_to_dtos(
-    positions: list[dict[str, Any]],
-) -> list[PositionDTO]:
-    """Convert batch of position dictionaries to PositionDTO objects.
-    
-    Args:
-        positions: List of position dictionaries
-        
-    Returns:
-        List of PositionDTO objects
-    """
-    return [position_to_dto(position) for position in positions]
-
-
-def dto_to_portfolio_context(
-    portfolio_dto: PortfolioStateDTO,
-) -> dict[str, Any]:
-    """Convert PortfolioStateDTO to portfolio context dictionary.
-    
-    Args:
-        portfolio_dto: PortfolioStateDTO object
-        
-    Returns:
-        Portfolio context as dictionary
-    """
-    return {
-        "total_portfolio_value": portfolio_dto.total_portfolio_value,
-        "target_allocations": portfolio_dto.target_allocations,
-        "current_allocations": portfolio_dto.current_allocations,
-        "target_values": portfolio_dto.target_values,
-        "current_values": portfolio_dto.current_values,
-        "allocation_discrepancies": portfolio_dto.allocation_discrepancies,
-        "largest_discrepancy": portfolio_dto.largest_discrepancy,
-        "total_symbols": portfolio_dto.total_symbols,
-        "correlation_id": portfolio_dto.correlation_id,
-        "created_at": portfolio_dto.created_at,
-        "positions": [
-            {
-                "symbol": pos.symbol,
-                "quantity": pos.quantity,
-                "market_value": pos.market_value,
-                "cost_basis": pos.cost_basis,
-                "unrealized_pnl": pos.unrealized_pnl,
-            }
-            for pos in portfolio_dto.positions
-        ],
-    }
+from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO, PositionDTO
 
 
 def portfolio_state_to_dto(
-    portfolio_state: dict[str, Any],
+    portfolio_data: dict[str, Any],
+    positions: list[dict[str, Any]],
     correlation_id: str | None = None,
+    portfolio_id: str = "main_portfolio",
 ) -> PortfolioStateDTO:
-    """Convert portfolio state dictionary to PortfolioStateDTO.
+    """Convert portfolio data and positions to PortfolioStateDTO.
     
     Args:
-        portfolio_state: Portfolio state as dictionary
+        portfolio_data: Portfolio data as dictionary
+        positions: List of position dictionaries
         correlation_id: Optional correlation ID for tracking
+        portfolio_id: Portfolio identifier
         
     Returns:
         PortfolioStateDTO object
+
     """
+    import uuid
+    from datetime import UTC, datetime
     from decimal import Decimal
-    from datetime import datetime, UTC
-    
-    # Helper function to convert to Decimal
-    def to_decimal_dict(source: dict[str, Any]) -> dict[str, Decimal]:
-        return {k: Decimal(str(v)) for k, v in source.items()}
     
     # Convert position dictionaries to PositionDTO objects
-    positions = []
-    if "positions" in portfolio_state:
-        positions = [position_to_dto(pos) for pos in portfolio_state["positions"]]
+    position_dtos = [position_to_dto(pos) for pos in positions]
+    
+    # Create portfolio metrics from the portfolio data
+    from the_alchemiser.shared.dto import PortfolioMetricsDTO
+    
+    metrics = PortfolioMetricsDTO(
+        total_value=Decimal(str(portfolio_data.get("total_value", portfolio_data.get("portfolio_value", 0)))),
+        cash_value=Decimal(str(portfolio_data.get("cash_value", 0))),
+        equity_value=Decimal(str(portfolio_data.get("equity_value", 0))),
+        buying_power=Decimal(str(portfolio_data.get("buying_power", 0))),
+        day_pnl=Decimal(str(portfolio_data.get("day_pnl", 0))),
+        day_pnl_percent=Decimal(str(portfolio_data.get("day_pnl_percent", 0))),
+        total_pnl=Decimal(str(portfolio_data.get("total_pnl", 0))),
+        total_pnl_percent=Decimal(str(portfolio_data.get("total_pnl_percent", 0))),
+    )
+    
+    correlation_id = correlation_id or f"portfolio_{uuid.uuid4().hex[:12]}"
     
     return PortfolioStateDTO(
-        total_portfolio_value=Decimal(str(portfolio_state.get("total_portfolio_value", 0.0))),
-        target_allocations=to_decimal_dict(portfolio_state.get("target_allocations", {})),
-        current_allocations=to_decimal_dict(portfolio_state.get("current_allocations", {})),
-        target_values=to_decimal_dict(portfolio_state.get("target_values", {})),
-        current_values=to_decimal_dict(portfolio_state.get("current_values", {})),
-        allocation_discrepancies=to_decimal_dict(portfolio_state.get("allocation_discrepancies", {})),
-        largest_discrepancy=Decimal(str(portfolio_state["largest_discrepancy"])) if portfolio_state.get("largest_discrepancy") is not None else None,
-        total_symbols=portfolio_state.get("total_symbols", 0),
-        positions=positions,
-        correlation_id=correlation_id or portfolio_state.get("correlation_id"),
-        created_at=portfolio_state.get("created_at") or datetime.now(UTC),
+        correlation_id=correlation_id,
+        causation_id=correlation_id,
+        timestamp=datetime.now(UTC),
+        portfolio_id=portfolio_id,
+        positions=position_dtos,
+        metrics=metrics,
+        metadata=portfolio_data.get("metadata", {}),
     )
 
 
@@ -111,16 +74,22 @@ def position_to_dto(position: dict[str, Any]) -> PositionDTO:
         
     Returns:
         PositionDTO object
+
     """
     from decimal import Decimal
-    from datetime import datetime, UTC
+
+    # Import the PositionDTO from the correct location
+    from the_alchemiser.shared.dto.portfolio_state_dto import PositionDTO
     
     return PositionDTO(
         symbol=position.get("symbol", ""),
-        quantity=Decimal(str(position.get("quantity", 0))),
+        quantity=Decimal(str(position.get("qty", position.get("quantity", 0)))),
+        average_cost=Decimal(str(position.get("avg_entry_price", position.get("average_cost", 0)))),
+        current_price=Decimal(str(position.get("current_price", 0))),
         market_value=Decimal(str(position.get("market_value", 0))),
-        cost_basis=Decimal(str(position.get("cost_basis", 0))),
-        unrealized_pnl=Decimal(str(position.get("unrealized_pnl", 0))),
-        correlation_id=position.get("correlation_id"),
-        created_at=position.get("created_at") or datetime.now(UTC),
+        unrealized_pnl=Decimal(str(position.get("unrealized_pl", position.get("unrealized_pnl", 0)))),
+        unrealized_pnl_percent=Decimal(str(position.get("unrealized_plpc", position.get("unrealized_pnl_percent", 0)))),
+        last_updated=position.get("last_updated"),
+        side=position.get("side"),
+        cost_basis=Decimal(str(position.get("cost_basis", 0))) if position.get("cost_basis") is not None else None,
     )
