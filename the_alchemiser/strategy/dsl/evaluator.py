@@ -39,10 +39,10 @@ from the_alchemiser.strategy.dsl.ast import (
     WeightSpecified,
 )
 from the_alchemiser.strategy.dsl.errors import EvaluationError, IndicatorError, PortfolioError
-from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
 
 # Import NodeEvaluationCache unconditionally since it's used in type annotations
 from the_alchemiser.strategy.dsl.evaluator_cache import NodeEvaluationCache
+from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
 
 # Type imports for annotations only
 if TYPE_CHECKING:
