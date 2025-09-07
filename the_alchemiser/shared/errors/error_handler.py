@@ -18,9 +18,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import wraps
-from typing import TYPE_CHECKING, Any
-
-from typing_extensions import TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
     pass  # We'll import dynamically where needed
@@ -50,7 +48,7 @@ except (ImportError, AttributeError, FileNotFoundError):
     # Minimal fallback definitions if direct import fails
     from typing import Any
 
-    from typing_extensions import TypedDict
+    from typing import Any, TypedDict
 
     class ErrorDetailInfo(TypedDict):
         error_type: str

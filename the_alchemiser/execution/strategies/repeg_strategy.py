@@ -12,9 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
-from typing import NamedTuple
-
-from typing_extensions import TypedDict
+from typing import NamedTuple, TypedDict
 
 from the_alchemiser.execution.services.tick_size_service import (
     DynamicTickSizeService,
