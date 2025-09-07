@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal
 
-from the_alchemiser.execution.orders.order_request import OrderRequest
+from the_alchemiser.execution.orders.schemas import OrderRequest
 
 
 @dataclass(frozen=True)

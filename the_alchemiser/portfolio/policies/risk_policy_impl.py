@@ -12,7 +12,7 @@ import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.execution.orders.order_request import OrderRequest
+from the_alchemiser.execution.orders.schemas import OrderRequest
 from the_alchemiser.execution.types.policy_result import (
     PolicyResult,
     PolicyWarning,

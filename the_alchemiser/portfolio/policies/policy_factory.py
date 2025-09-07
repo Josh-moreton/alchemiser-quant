@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from the_alchemiser.execution.orders.order_request import OrderRequest
+from the_alchemiser.execution.orders.schemas import OrderRequest
 from the_alchemiser.execution.types.policy_result import PolicyResult, create_approved_result
 from the_alchemiser.portfolio.policies.base_policy import BasePolicyImpl
 from the_alchemiser.portfolio.policies.buying_power_policy_impl import BuyingPowerPolicyImpl

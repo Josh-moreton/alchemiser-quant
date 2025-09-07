@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from the_alchemiser.execution.orders.order_request import OrderRequest
+from the_alchemiser.execution.orders.schemas import OrderRequest
 from the_alchemiser.execution.orders.order_schemas import (
     AdjustedOrderRequestDTO,
     OrderRequestDTO,

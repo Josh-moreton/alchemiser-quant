@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from the_alchemiser.execution.orders.order_request import OrderRequest
+from the_alchemiser.execution.orders.schemas import OrderRequest
 from the_alchemiser.execution.types.policy_result import PolicyResult
 
 
