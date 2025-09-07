@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: strategy | Status: current
 
 Pure DSL evaluator for the S-expression Strategy Engine.
 Evaluates parsed AST nodes into portfolio weights using whitelisted functions
@@ -39,11 +39,14 @@ from the_alchemiser.strategy.dsl.ast import (
     WeightSpecified,
 )
 from the_alchemiser.strategy.dsl.errors import EvaluationError, IndicatorError, PortfolioError
+
+# Import NodeEvaluationCache unconditionally since it's used in type annotations
+from the_alchemiser.strategy.dsl.evaluator_cache import NodeEvaluationCache
 from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
 
-# Type imports for annotations
+# Type imports for annotations only
 if TYPE_CHECKING:
-    from the_alchemiser.strategy.dsl.evaluator_cache import EvalContext, NodeEvaluationCache
+    from the_alchemiser.strategy.dsl.evaluator_cache import EvalContext
 
 # Type for evaluation results
 Portfolio = dict[str, Decimal]
@@ -82,8 +85,6 @@ class DSLEvaluator:
         self._enable_memoisation = enable_memoisation
         self._node_cache: NodeEvaluationCache | None = None
         if enable_memoisation:
-            from the_alchemiser.strategy.dsl.evaluator_cache import NodeEvaluationCache
-
             self._node_cache = NodeEvaluationCache(maxsize=cache_maxsize)
 
         # Parallel evaluation support
