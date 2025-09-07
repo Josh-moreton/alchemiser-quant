@@ -10,6 +10,7 @@ interfaces/schemas modules as part of the Pydantic migration.
 from __future__ import annotations
 
 from typing import Any, Literal, Protocol
+
 from typing_extensions import TypedDict
 
 # Order Status Literals - moved here to break circular dependency

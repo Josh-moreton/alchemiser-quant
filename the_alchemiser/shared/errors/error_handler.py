@@ -19,6 +19,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import wraps
 from typing import TYPE_CHECKING, Any
+
 from typing_extensions import TypedDict
 
 if TYPE_CHECKING:
@@ -48,6 +49,7 @@ try:
 except (ImportError, AttributeError, FileNotFoundError):
     # Minimal fallback definitions if direct import fails
     from typing import Any
+
     from typing_extensions import TypedDict
 
     class ErrorDetailInfo(TypedDict):

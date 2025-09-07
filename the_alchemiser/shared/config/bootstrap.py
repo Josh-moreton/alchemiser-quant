@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+
 from typing_extensions import TypedDict
 
 from the_alchemiser.execution.brokers.account_service import AccountService as TypedAccountService

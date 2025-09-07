@@ -18,6 +18,7 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Literal, cast
+
 from typing_extensions import TypedDict
 
 from the_alchemiser.execution.mappers.order_domain_mappers import normalize_order_status
