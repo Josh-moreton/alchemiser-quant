@@ -312,3 +312,28 @@ class EnvironmentError(ConfigurationError):
         """Raise when an environment variable configuration is invalid."""
         super().__init__(message)
         self.env_var = env_var
+
+
+class StrategyExecutionError(AlchemiserError):
+    """Raised when strategy execution fails."""
+
+    def __init__(
+        self,
+        message: str,
+        strategy_name: str | None = None,
+        symbol: str | None = None,
+        operation: str | None = None,
+    ) -> None:
+        """Raise when strategy execution encounters an error."""
+        context: dict[str, Any] = {}
+        if strategy_name:
+            context["strategy_name"] = strategy_name
+        if symbol:
+            context["symbol"] = symbol
+        if operation:
+            context["operation"] = operation
+
+        super().__init__(message, context)
+        self.strategy_name = strategy_name
+        self.symbol = symbol
+        self.operation = operation
