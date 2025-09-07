@@ -393,8 +393,6 @@ class StrategyPnLDTO(BaseModel):
             valid_strategies = [s.value for s in StrategyType]
             raise ValueError(f"Strategy must be one of {valid_strategies}, got: {v}")
 
-    # Remove duplicate validate_strategy method as it's inherited from StrategyValidationMixin
-
     @field_validator("positions")
     @classmethod
     def validate_positions_format(cls, v: dict[str, Decimal]) -> dict[str, Decimal]:
