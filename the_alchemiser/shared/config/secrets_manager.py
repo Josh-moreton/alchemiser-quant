@@ -248,7 +248,10 @@ class SecretsManager:
         except Exception as e:
             # In development, fallback to demo credentials on any error
             if not self.is_production:
-                logging.warning(f"Error getting Alpaca keys in development: {e} - using demo credentials for signal analysis")
+                logging.warning(
+                    f"Error getting Alpaca keys in development: {e} - "
+                    "using demo credentials for signal analysis"
+                )
                 return self._get_demo_credentials(paper_trading=paper_trading)
             
             logging.error(f"Error getting Alpaca keys: {e}")
