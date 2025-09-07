@@ -391,17 +391,6 @@ def signal(
     except AlchemiserError as e:
         error_handler.handle_error(
             error=e,
-            context="CLI signal command - strategy execution",
-            component="cli.signal",
-            additional_data={"verbose": verbose, "error_type": type(e).__name__},
-        )
-        console.print(f"\n[bold red]Strategy execution error: {e}[/bold red]")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
-    except AlchemiserError as e:
-        error_handler.handle_error(
-            error=e,
             context="CLI signal command - application error",
             component="cli.signal",
             additional_data={"verbose": verbose, "error_type": type(e).__name__},
@@ -499,14 +488,14 @@ def trade(
         log_error_with_context(
             logger,
             e,
-            "cli_trading_execution",
+            "cli_trading_application_error",
             function="trade",
             command="trade",
             live_trading=live,
             ignore_market_hours=ignore_market_hours,
             error_type=type(e).__name__,
         )
-        console.print(f"\n[bold red]Strategy execution error: {e}[/bold red]")
+        console.print(f"\n[bold red]Application error: {e}[/bold red]")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
@@ -523,22 +512,6 @@ def trade(
             error_type=type(e).__name__,
         )
         console.print(f"\n[bold red]Trading client error: {e}[/bold red]")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
-    except AlchemiserError as e:
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "cli_trading_application_error",
-            function="trade",
-            command="trade",
-            live_trading=live,
-            ignore_market_hours=ignore_market_hours,
-            error_type=type(e).__name__,
-        )
-        console.print(f"\n[bold red]Application error: {e}[/bold red]")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
