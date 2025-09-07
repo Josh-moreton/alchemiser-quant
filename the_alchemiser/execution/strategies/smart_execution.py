@@ -599,27 +599,6 @@ class SmartExecution:
             # Classify unknown errors more specifically
             error_message = str(e).lower()
 
-            if "buying power" in error_message or "insufficient funds" in error_message:
-                buying_power_error = BuyingPowerError(
-                    f"Classified buying power error: {e!s}",
-                    symbol=symbol,
-                )
-                self.logger.error(
-                    "classified_buying_power_error",
-                    extra={
-                        "symbol": symbol,
-                        "original_error": str(e),
-                        "phase": "better_orders_main",
-                    },
-                )
-                self.logger.error(
-                    "insufficient_buying_power_detected_before_order",
-                    extra={
-                        "symbol": symbol,
-                        "error": str(e),
-                    },
-                )
-                raise buying_power_error
             if "order" in error_message and (
                 "failed" in error_message or "reject" in error_message
             ):
