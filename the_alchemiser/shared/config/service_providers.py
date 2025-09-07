@@ -12,9 +12,9 @@ from the_alchemiser.execution.core.refactored_execution_manager import (
     RefactoredTradingServiceManager as TradingServiceManager,
 )
 from the_alchemiser.execution.orders.service import OrderService
-from the_alchemiser.portfolio.services.position_service import PositionService
+from the_alchemiser.portfolio.holdings.position_service import PositionService
 from the_alchemiser.strategy.data.market_data_service import MarketDataService
-from the_alchemiser.strategy.engines.typed_klm_ensemble_engine import TypedKLMStrategyEngine
+from the_alchemiser.strategy.engines.klm.engine import KLMEngine
 
 
 class ServiceProviders(containers.DeclarativeContainer):
@@ -48,7 +48,8 @@ class ServiceProviders(containers.DeclarativeContainer):
     )
 
     # Typed strategy engines
-    typed_klm_strategy_engine = providers.Factory(
-        TypedKLMStrategyEngine,
+    klm_strategy_engine = providers.Factory(
+        KLMEngine,
+        market_data_port=infrastructure.market_data_service,
         strategy_name="KLM_Ensemble",
     )
