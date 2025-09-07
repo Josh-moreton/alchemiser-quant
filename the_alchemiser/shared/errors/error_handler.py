@@ -46,8 +46,6 @@ try:
 
 except (ImportError, AttributeError, FileNotFoundError):
     # Minimal fallback definitions if direct import fails
-    from typing import Any
-
     from typing import Any, TypedDict
 
     class ErrorDetailInfo(TypedDict):

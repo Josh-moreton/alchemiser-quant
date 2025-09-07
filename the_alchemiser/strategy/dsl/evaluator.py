@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: strategy | Status: current
 
 Pure DSL evaluator for the S-expression Strategy Engine.
 Evaluates parsed AST nodes into portfolio weights using whitelisted functions

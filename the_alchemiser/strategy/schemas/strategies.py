@@ -42,7 +42,6 @@ Design Principles:
 from __future__ import annotations
 
 from collections import defaultdict
-
 from typing import TypedDict
 
 from the_alchemiser.strategy.engines.value_objects.strategy_signal import (
