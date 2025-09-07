@@ -475,9 +475,16 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             envelope = self.place_order(order_request)
 
             # Convert envelope to OrderExecutionResultDTO for backward compatibility
-            from the_alchemiser.execution.mappers.order_mapping import (
-                raw_order_envelope_to_execution_result_dto,
-            )
+            def raw_order_envelope_to_execution_result_dto(envelope):
+                """Convert RawOrderEnvelope to OrderExecutionResultDTO."""
+                from the_alchemiser.execution.orders.schemas import OrderExecutionResultDTO
+                return OrderExecutionResultDTO(
+                    success=envelope.success,
+                    order_id=getattr(envelope.raw_order, 'id', None) if envelope.raw_order else None,
+                    error_message=envelope.error_message,
+                    raw_order=envelope.raw_order,
+                    timestamp=envelope.response_timestamp,
+                )
 
             return raw_order_envelope_to_execution_result_dto(envelope)
 

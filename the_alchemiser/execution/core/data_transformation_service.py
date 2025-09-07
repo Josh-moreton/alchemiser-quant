@@ -33,7 +33,6 @@ from the_alchemiser.shared.schemas.market_data import (
     SpreadAnalysisDTO,
 )
 from the_alchemiser.shared.utils.decorators import translate_trading_errors
-from the_alchemiser.strategy.data.market_data_service import MarketDataService
 
 
 class DataTransformationService:
@@ -51,7 +50,16 @@ class DataTransformationService:
         """
         self.logger = logging.getLogger(__name__)
         self.alpaca_manager = alpaca_manager
-        self.market_data = MarketDataService(alpaca_manager)
+        self._market_data = None
+
+    @property
+    def market_data(self):
+        """Lazy initialization of MarketDataService to avoid circular imports."""
+        if self._market_data is None:
+            # Import here to avoid circular import at module level
+            from the_alchemiser.strategy.data.market_data_service import MarketDataService
+            self._market_data = MarketDataService(self.alpaca_manager)
+        return self._market_data
 
     def get_latest_price(self, symbol: str, validate: bool = True) -> PriceDTO:
         """Get latest price with validation and caching."""

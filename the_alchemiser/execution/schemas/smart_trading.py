@@ -21,7 +21,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from the_alchemiser.execution.orders.order_schemas import OrderExecutionResultDTO
+from the_alchemiser.execution.orders.schemas import OrderExecutionResultDTO
 from the_alchemiser.shared.schemas.accounts import AccountSummaryDTO, TradeEligibilityDTO
 from the_alchemiser.shared.schemas.base import ResultDTO
 

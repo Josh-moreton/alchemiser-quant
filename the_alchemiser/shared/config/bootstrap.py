@@ -25,7 +25,12 @@ from the_alchemiser.shared.config.secrets_manager import SecretsManager
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.types.exceptions import ConfigurationError
 from the_alchemiser.shared.utils.context import create_error_context
-from the_alchemiser.strategy.data.market_data_service import MarketDataService
+
+
+def _get_market_data_service():
+    """Lazy import MarketDataService to avoid circular imports."""
+    from the_alchemiser.strategy.data.market_data_service import MarketDataService
+    return MarketDataService
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +44,8 @@ class TradingBootstrapContext(TypedDict):
     """
 
     account_service: TypedAccountService
-    market_data_port: MarketDataService
-    data_provider: MarketDataService  # Market data service with DataFrame compatibility
+    market_data_port: Any  # MarketDataService
+    data_provider: Any  # Market data service with DataFrame compatibility
     alpaca_manager: AlpacaManager
     trading_client: Any  # Alpaca TradingClient
     trading_service_manager: TradingServiceManager | None
@@ -137,6 +142,7 @@ def bootstrap_from_service_manager(
             raise ConfigurationError("AlpacaManager missing trading client")
 
         # Create market data service
+        MarketDataService = _get_market_data_service()
         market_data_port = MarketDataService(alpaca_manager)
 
         # Market data service has DataFrame compatibility built-in
@@ -220,6 +226,7 @@ def bootstrap_traditional(
         alpaca_manager = AlpacaManager(str(api_key), str(secret_key), paper_trading)
 
         # Market data service
+        MarketDataService = _get_market_data_service()
         market_data_port = MarketDataService(alpaca_manager)
 
         # Market data service has DataFrame compatibility built-in
