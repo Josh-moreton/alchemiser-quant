@@ -499,22 +499,6 @@ def trade(
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
-    except AlchemiserError as e:
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "cli_trading_application_error",
-            function="trade",
-            command="trade",
-            live_trading=live,
-            ignore_market_hours=ignore_market_hours,
-            error_type=type(e).__name__,
-        )
-        console.print(f"\n[bold red]Application error: {e}[/bold red]")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
     except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
         logger = get_logger(__name__)
         log_error_with_context(
