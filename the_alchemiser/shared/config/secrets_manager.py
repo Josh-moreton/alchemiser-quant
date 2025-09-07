@@ -176,7 +176,30 @@ class SecretsManager:
 
         return secrets if secrets else None
 
-    def get_alpaca_keys(self, paper_trading: bool = True) -> tuple[str, str] | tuple[None, None]:
+    def _get_demo_credentials(self, *, paper_trading: bool = True) -> tuple[str, str]:
+        """Get demo credentials for development environment.
+        
+        These are placeholder credentials that allow the application to run
+        in development mode without requiring real Alpaca API access.
+        
+        Args:
+            paper_trading: Whether to get paper trading keys or live keys
+            
+        Returns:
+            Tuple of demo (api_key, secret_key)
+
+        """
+        if paper_trading:
+            return (
+                "demo_paper_api_key_for_development", 
+                "demo_paper_secret_key_for_development"
+            )
+        return (
+            "demo_live_api_key_for_development", 
+            "demo_live_secret_key_for_development"
+        )
+
+    def get_alpaca_keys(self, *, paper_trading: bool = True) -> tuple[str, str] | tuple[None, None]:
         """Get Alpaca API keys for trading.
 
         Args:
@@ -193,6 +216,11 @@ class SecretsManager:
             secret_name = config.secrets_manager.secret_name
             secrets = self.get_secret(secret_name)
             if not secrets:
+                # In development, provide fallback demo credentials for signal analysis
+                if not self.is_production:
+                    logging.warning("No secrets found in development environment - using demo credentials for signal analysis")
+                    return self._get_demo_credentials(paper_trading=paper_trading)
+                
                 logging.error("No secrets found")
                 return None, None
 
@@ -206,6 +234,11 @@ class SecretsManager:
                 mode = "live"
 
             if not api_key or not secret_key:
+                # In development, fallback to demo credentials if keys are missing
+                if not self.is_production:
+                    logging.warning(f"Missing Alpaca {mode} trading keys in development - using demo credentials for signal analysis")
+                    return self._get_demo_credentials(paper_trading=paper_trading)
+                
                 logging.error(f"Missing Alpaca {mode} trading keys in secrets")
                 return None, None
 
@@ -213,6 +246,11 @@ class SecretsManager:
             return api_key, secret_key
 
         except Exception as e:
+            # In development, fallback to demo credentials on any error
+            if not self.is_production:
+                logging.warning(f"Error getting Alpaca keys in development: {e} - using demo credentials for signal analysis")
+                return self._get_demo_credentials(paper_trading=paper_trading)
+            
             logging.error(f"Error getting Alpaca keys: {e}")
             return None, None
 

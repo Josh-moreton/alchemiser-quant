@@ -35,7 +35,7 @@ from the_alchemiser.shared.protocols.repository import (
 )
 
 if TYPE_CHECKING:
-    from the_alchemiser.execution.orders.order_schemas import RawOrderEnvelope
+    from the_alchemiser.execution.orders.schemas import RawOrderEnvelope
     from the_alchemiser.execution.strategies.smart_execution import DataProvider
 
 logger = logging.getLogger(__name__)
@@ -284,7 +284,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Place an order and return raw envelope with metadata."""
         from datetime import UTC
 
-        from the_alchemiser.execution.orders.order_schemas import RawOrderEnvelope
+        from the_alchemiser.execution.orders.schemas import RawOrderEnvelope
 
         request_timestamp = datetime.now(UTC)
 
@@ -396,7 +396,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             # Return error envelope for consistency
             from datetime import datetime
 
-            from the_alchemiser.execution.orders.order_schemas import RawOrderEnvelope
+            from the_alchemiser.execution.orders.schemas import RawOrderEnvelope
 
             now = datetime.now()
             return RawOrderEnvelope(
@@ -412,7 +412,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             # Return error envelope for consistency
             from datetime import datetime
 
-            from the_alchemiser.execution.orders.order_schemas import RawOrderEnvelope
+            from the_alchemiser.execution.orders.schemas import RawOrderEnvelope
 
             now = datetime.now()
             return RawOrderEnvelope(
