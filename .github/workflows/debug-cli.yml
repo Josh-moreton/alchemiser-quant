@@ -94,4 +94,5 @@ jobs:
           title: CLI Debug Failure – Run ${{ github.run_id }}
           content-filepath: ./issue_content.md
           labels: debug
+          assignees: ${{ github.triggering_actor }}
           token: ${{ secrets.GITHUB_TOKEN }}
