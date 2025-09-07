@@ -9,7 +9,8 @@ application may not import interface/cli. Provides pure allocation calculations.
 from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
-from typing import Any, TypedDict
+from typing import Any
+from typing_extensions import TypedDict
 
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, PositionInfo, PositionsDict
 

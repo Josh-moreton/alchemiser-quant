@@ -13,7 +13,8 @@ to improve separation of concerns and testability.
 from __future__ import annotations
 
 import logging
-from typing import Any, TypedDict
+from typing import Any
+from typing_extensions import TypedDict
 
 from the_alchemiser.execution.brokers.account_service import AccountService as TypedAccountService
 from the_alchemiser.execution.core.refactored_execution_manager import (

@@ -17,7 +17,8 @@ import logging
 from dataclasses import asdict
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
+from typing_extensions import TypedDict
 
 from the_alchemiser.execution.mappers.order_domain_mappers import normalize_order_status
 from the_alchemiser.execution.orders.order import Order

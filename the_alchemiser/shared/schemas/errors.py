@@ -9,7 +9,8 @@ systems, moved from domain/types.py as part of the Pydantic migration.
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Any
+from typing_extensions import TypedDict
 
 
 # Error Detail Types
