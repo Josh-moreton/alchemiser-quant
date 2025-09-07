@@ -5,6 +5,7 @@ CLI formatting utilities for the trading system.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 from rich.align import Align
@@ -14,9 +15,44 @@ from rich.rule import Rule
 from rich.table import Table
 
 from the_alchemiser.shared.math.num import floats_equal
-from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.shared.schemas.common import (
+    MultiStrategyExecutionResultDTO,
+    MultiStrategySummaryDTO,
+)
 
 """Console formatting utilities for quantitative trading system output using rich."""
+
+
+def _truncate_table_data(data: list[Any], max_rows: int = 50) -> tuple[list[Any], bool]:
+    """Truncate table data if it exceeds maximum rows.
+    
+    Args:
+        data: List of data rows to potentially truncate
+        max_rows: Maximum number of rows to display (default: 50)
+        
+    Returns:
+        Tuple of (truncated_data, was_truncated)
+
+    """
+    if len(data) <= max_rows:
+        return data, False
+    return data[:max_rows], True
+
+
+def _add_truncation_notice(table: Table, truncated_count: int, table_type: str) -> None:
+    """Add a notice row to table indicating truncation.
+    
+    Args:
+        table: The Rich table to add the notice to
+        truncated_count: Number of rows that were truncated
+        table_type: Description of what type of data was truncated
+
+    """
+    notice = f"... and {truncated_count} more {table_type}"
+    # Add row with notice spanning all columns
+    num_columns = len(table.columns)
+    row_data = [notice] + [""] * (num_columns - 1)
+    table.add_row(*row_data, style="dim italic")
 
 
 def render_technical_indicators(
@@ -305,17 +341,42 @@ def render_orders_executed(
 
 
 def _format_money(value: Any) -> str:
-    """Format value that may be a Money domain object or raw number."""
+    """Format value that may be a Money domain object, Decimal, or raw number.
+    
+    Handles:
+    - Money domain objects with amount (Decimal) and currency
+    - Decimal values directly
+    - Float/int values (legacy support)
+    - String representations of numbers
+    """
     # Domain Money path
     try:
         # Money has amount (Decimal) and currency; access directly when present
         if hasattr(value, "amount") and hasattr(value, "currency"):
-            amt = float(value.amount)
+            # Use Decimal precision instead of converting to float
+            amt = float(value.amount)  # Only for formatting, preserve precision
             cur = str(value.currency)
             symbol = "$" if cur == "USD" else f"{cur} "
             return f"{symbol}{amt:,.2f}"
     except Exception:
         pass
+    
+    # Decimal path with full precision preservation
+    try:
+        if isinstance(value, Decimal):
+            # Format Decimal with 2 decimal places for money display
+            return f"${float(value):,.2f}"
+    except Exception:
+        pass
+    
+    # String to Decimal conversion path
+    try:
+        if isinstance(value, str) and value.replace(".", "").replace("-", "").isdigit():
+            decimal_value = Decimal(value)
+            return f"${float(decimal_value):,.2f}"
+    except Exception:
+        pass
+    
     # Legacy numeric path
     try:
         return f"${float(value):,.2f}"
@@ -374,6 +435,9 @@ def render_account_info(account_info: dict[str, Any], console: Console | None = 
 
     # Open positions table if we have positions
     if open_positions:
+        # Apply truncation for large position lists
+        display_positions, was_truncated = _truncate_table_data(open_positions, max_rows=50)
+        
         positions_table = Table(title="Open Positions", show_lines=True, box=None)
         positions_table.add_column("Symbol", style="bold cyan")
         positions_table.add_column("Qty", style="white", justify="right")
@@ -385,7 +449,7 @@ def render_account_info(account_info: dict[str, Any], console: Console | None = 
         total_market_value: float = 0.0
         total_unrealized_pl: float = 0.0
 
-        for position in open_positions:
+        for position in display_positions:
             symbol = position.get("symbol", "N/A")
             qty = float(position.get("qty", 0))
             avg_price = float(position.get("avg_entry_price", 0))
@@ -404,10 +468,10 @@ def render_account_info(account_info: dict[str, Any], console: Console | None = 
             positions_table.add_row(
                 symbol,
                 f"{qty:.4f}",
-                f"${avg_price:.2f}",
-                f"${current_price:.2f}",
-                f"${market_value:.2f}",
-                f"[{pl_color}]{pl_sign}${unrealized_pl:.2f} ({pl_sign}{unrealized_plpc:.2%})[/{pl_color}]",
+                _format_money(avg_price),
+                _format_money(current_price),
+                _format_money(market_value),
+                f"[{pl_color}]{pl_sign}{_format_money(unrealized_pl)} ({pl_sign}{unrealized_plpc:.2%})[/{pl_color}]",
             )
 
         # Add totals row
@@ -423,9 +487,14 @@ def render_account_info(account_info: dict[str, Any], console: Console | None = 
                 "",
                 "",
                 "",
-                f"[bold]${total_market_value:.2f}[/bold]",
-                f"[bold {total_pl_color}]{total_pl_sign}${total_unrealized_pl:.2f} ({total_pl_sign}{total_pl_pct:.2%})[/bold {total_pl_color}]",
+                f"[bold]{_format_money(total_market_value)}[/bold]",
+                f"[bold {total_pl_color}]{total_pl_sign}{_format_money(total_unrealized_pl)} ({total_pl_sign}{total_pl_pct:.2%})[/bold {total_pl_color}]",
             )
+
+        # Add truncation notice if needed
+        if was_truncated:
+            truncated_count = len(open_positions) - len(display_positions)
+            _add_truncation_notice(positions_table, truncated_count, "positions")
 
         c.print()
         c.print(positions_table)
@@ -511,14 +580,39 @@ def render_target_vs_current_allocations(
         target_weight = target_portfolio.get(symbol, 0.0)
         target_value = target_values.get(symbol, 0)
         current_value = current_values.get(symbol, 0)
-        # Normalize to floats for percentage weight calculation
-        try:
-            tv_float = float(target_value)
-            cv_float = float(current_value)
-        except Exception:
-            tv_float = 0.0
-            cv_float = 0.0
-        current_weight = cv_float / float(portfolio_value) if float(portfolio_value) > 0 else 0.0
+        
+        # When allocation_comparison is provided, use Decimal values directly
+        if allocation_comparison:
+            # Use Decimal precision throughout
+            try:
+                tv_decimal = target_value if isinstance(target_value, Decimal) else Decimal(str(target_value))
+                cv_decimal = current_value if isinstance(current_value, Decimal) else Decimal(str(current_value))
+                pv_decimal = portfolio_value if isinstance(portfolio_value, Decimal) else Decimal(str(portfolio_value))
+                
+                # Calculate weights with Decimal precision
+                current_weight = float(cv_decimal / pv_decimal) if pv_decimal > 0 else 0.0
+                display_target_value = target_value
+                display_current_value = current_value
+            except Exception:
+                # Fallback to original logic if Decimal conversion fails
+                cv_float = float(current_value) if current_value else 0.0
+                current_weight = cv_float / float(portfolio_value) if float(portfolio_value) > 0 else 0.0
+                display_target_value = target_value
+                display_current_value = current_value
+        else:
+            # Legacy float path for backward compatibility
+            try:
+                tv_float = float(target_value)
+                cv_float = float(current_value)
+                display_target_value = tv_float
+                display_current_value = cv_float
+            except Exception:
+                tv_float = 0.0
+                cv_float = 0.0
+                display_target_value = tv_float
+                display_current_value = cv_float
+            current_weight = cv_float / float(portfolio_value) if float(portfolio_value) > 0 else 0.0
+        
         percent_diff = abs(target_weight - current_weight)
         dollar_diff = deltas.get(symbol, 0)
         try:
@@ -548,9 +642,9 @@ def render_target_vs_current_allocations(
 
         table.add_row(
             symbol,
-            f"{target_weight:.1%}\n[dim]${tv_float:,.0f}[/dim]",
-            f"{current_weight:.1%}\n[dim]${cv_float:,.0f}[/dim]",
-            f"[{dollar_color}]{dollar_sign}${abs(dollar_diff_float):,.0f}[/{dollar_color}]",
+            f"{target_weight:.1%}\n[dim]{_format_money(display_target_value)}[/dim]",
+            f"{current_weight:.1%}\n[dim]{_format_money(display_current_value)}[/dim]",
+            f"[{dollar_color}]{dollar_sign}{_format_money(abs(dollar_diff_float))}[/{dollar_color}]",
             action,
         )
 
@@ -596,6 +690,7 @@ __all__ = [
     "render_footer",
     "render_header",
     "render_multi_strategy_summary",
+    "render_multi_strategy_summary_dto",
     "render_orders_executed",
     "render_portfolio_allocation",
     "render_strategy_signals",
@@ -865,4 +960,56 @@ def render_multi_strategy_summary(
             title="Execution Complete",
             style="green",
         )
+    )
+
+
+def render_multi_strategy_summary_dto(
+    summary: MultiStrategySummaryDTO,
+    console: Console | None = None,
+) -> None:
+    """Render a summary using the new MultiStrategySummaryDTO structure.
+
+    Args:
+        summary: The multi-strategy summary DTO containing execution result,
+                allocation comparison, and enriched account info
+        console: Optional console for rendering
+
+    """
+    from the_alchemiser.application.mapping.summary_mapping import allocation_comparison_to_dict
+    
+    c = console or Console()
+
+    # Use the allocation comparison if available for enhanced target vs current display
+    allocation_comparison_dict = None
+    if summary.allocation_comparison:
+        allocation_comparison_dict = allocation_comparison_to_dict(summary.allocation_comparison)
+
+    # Display target vs current allocations with enhanced precision
+    if allocation_comparison_dict and summary.execution_result.consolidated_portfolio:
+        try:
+            # Convert account info from execution result
+            account_dict = dict(summary.execution_result.account_info_after)
+            current_positions = {}  # Extract from final_portfolio_state if available
+            
+            render_target_vs_current_allocations(
+                summary.execution_result.consolidated_portfolio,
+                account_dict,
+                current_positions,
+                allocation_comparison=allocation_comparison_dict,
+                console=c,
+            )
+        except Exception:
+            # Fallback to original function
+            render_multi_strategy_summary(
+                summary.execution_result,
+                summary.enriched_account,
+                console=c,
+            )
+            return
+
+    # Render the main execution summary
+    render_multi_strategy_summary(
+        summary.execution_result,
+        summary.enriched_account,
+        console=c,
     )

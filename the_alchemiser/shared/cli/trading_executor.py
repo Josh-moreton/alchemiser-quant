@@ -163,12 +163,29 @@ class TradingExecutor:
             account_info = trader.get_account_info()
             current_positions = trader.get_positions_dict()
             if account_info and consolidated_portfolio:
+                # Build allocation comparison using Decimal precision
+                from the_alchemiser.portfolio.calculations.portfolio_calculations import (
+                    build_allocation_comparison,
+                )
+                
+                allocation_comparison = build_allocation_comparison(
+                    consolidated_portfolio, account_info, current_positions
+                )
+                
                 # Convert TypedDict to regular dict for the renderer
                 from typing import cast
-
+                
                 account_dict = cast(dict[str, Any], account_info)
+                # Convert AllocationComparison to dict for renderer compatibility
+                allocation_comparison_dict = {
+                    "target_values": allocation_comparison["target_values"],
+                    "current_values": allocation_comparison["current_values"],
+                    "deltas": allocation_comparison["deltas"],
+                }
+                
                 render_target_vs_current_allocations(
-                    consolidated_portfolio, account_dict, current_positions
+                    consolidated_portfolio, account_dict, current_positions,
+                    allocation_comparison=allocation_comparison_dict
                 )
         except Exception as e:
             self.logger.warning(f"Could not display portfolio summary: {e}")
