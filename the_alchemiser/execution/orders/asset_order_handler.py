@@ -20,10 +20,11 @@ if TYPE_CHECKING:
 from the_alchemiser.shared.logging.logging_utils import get_logger, log_error_with_context
 from the_alchemiser.shared.math.asset_info import fractionability_detector
 
+
 # Define DataProviderError locally to avoid circular import
 class DataProviderError(Exception):
     """Data provider error exception."""
-    pass
+
 
 
 class AssetOrderHandler:

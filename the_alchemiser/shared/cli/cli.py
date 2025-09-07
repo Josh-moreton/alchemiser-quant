@@ -36,14 +36,6 @@ from the_alchemiser.shared.logging.logging_utils import (
     get_logger,
     log_error_with_context,
 )
-
-# Delayed imports to avoid circular dependency issues during module loading
-# from the_alchemiser.strategy.engines.core.trading_engine import TradingEngine
-# from the_alchemiser.strategy.dsl.errors import DSLError
-# from the_alchemiser.strategy.dsl.parser import DSLParser
-# from the_alchemiser.strategy.dsl.strategy_loader import StrategyLoader
-# Import domain models for type annotations
-from the_alchemiser.strategy.types.bar import BarModel
 from the_alchemiser.shared.types.exceptions import (
     AlchemiserError,
     StrategyExecutionError,
@@ -52,6 +44,14 @@ from the_alchemiser.shared.types.exceptions import (
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.quote import QuoteModel
 from the_alchemiser.shared.value_objects.symbol import Symbol
+
+# Delayed imports to avoid circular dependency issues during module loading
+# from the_alchemiser.strategy.engines.core.trading_engine import TradingEngine
+# from the_alchemiser.strategy.dsl.errors import DSLError
+# from the_alchemiser.strategy.dsl.parser import DSLParser
+# from the_alchemiser.strategy.dsl.strategy_loader import StrategyLoader
+# Import domain models for type annotations
+from the_alchemiser.strategy.types.bar import BarModel
 
 # Constants to avoid duplication
 STYLE_BOLD_CYAN = "bold cyan"

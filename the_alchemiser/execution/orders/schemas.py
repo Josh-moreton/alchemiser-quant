@@ -19,6 +19,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from the_alchemiser.execution.orders.order_types import OrderType, Side
+
 # Import consolidated DTOs from shared to avoid duplication
 from the_alchemiser.shared.dto.broker_dto import OrderExecutionResult as OrderExecutionResultDTO
 from the_alchemiser.shared.types.money import Money
@@ -170,7 +171,6 @@ class ValidatedOrderDTO(BaseModel, OrderValidationMixin):
     normalized_quantity: Decimal | None = None
     risk_score: Decimal | None = None
     validation_timestamp: datetime
-
 
 
 class LimitOrderResultDTO(BaseModel):

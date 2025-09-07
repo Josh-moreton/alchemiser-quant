@@ -9,7 +9,6 @@ import logging
 from decimal import Decimal
 
 from the_alchemiser.execution.brokers.account_service import AccountService
-from the_alchemiser.shared.brokers import AlpacaManager
 from the_alchemiser.execution.mappers.account_mapping import (
     account_summary_to_typed,
     account_typed_to_serializable,
@@ -22,6 +21,7 @@ from the_alchemiser.execution.mappers.trading_service_dto_mapping import (
     dict_to_risk_metrics_dto,
     dict_to_trade_eligibility_dto,
 )
+from the_alchemiser.shared.brokers import AlpacaManager
 from the_alchemiser.shared.schemas.accounts import (
     AccountMetricsDTO,
     AccountSummaryDTO,

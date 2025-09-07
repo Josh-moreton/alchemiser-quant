@@ -19,8 +19,8 @@ from pydantic import BaseModel, ConfigDict
 
 from the_alchemiser.shared.dto.execution_report_dto import ExecutionReportDTO
 from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
-from the_alchemiser.strategy.types.strategy_type import StrategyType
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, StrategySignal
+from the_alchemiser.strategy.types.strategy_type import StrategyType
 
 
 class MultiStrategyExecutionResultDTO(BaseModel):

@@ -25,13 +25,47 @@ if TYPE_CHECKING:
 
 
 # Import error types from shared schemas to avoid duplication
-from the_alchemiser.shared.schemas.errors import (
-    ErrorDetailInfo,
-    ErrorSummaryData,
-    ErrorReportSummary,
-    ErrorNotificationData,
-)
-# Import exceptions 
+try:
+    # Import directly from errors.py to avoid pydantic dependency in __init__.py
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    # Get path to errors.py
+    current_dir = Path(__file__).parent.parent
+    errors_path = current_dir / "schemas" / "errors.py"
+
+    spec = importlib.util.spec_from_file_location("errors", errors_path)
+    errors_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(errors_module)
+
+    ErrorDetailInfo = errors_module.ErrorDetailInfo
+    ErrorSummaryData = errors_module.ErrorSummaryData
+    ErrorReportSummary = errors_module.ErrorReportSummary
+    ErrorNotificationData = errors_module.ErrorNotificationData
+
+except (ImportError, AttributeError, FileNotFoundError):
+    # Minimal fallback definitions if direct import fails
+    from typing import Any, TypedDict
+
+    class ErrorDetailInfo(TypedDict):
+        error_type: str
+        error_message: str
+
+    class ErrorSummaryData(TypedDict):
+        count: int
+        errors: list[ErrorDetailInfo]
+
+    class ErrorReportSummary(TypedDict):
+        critical: ErrorSummaryData | None
+        trading: ErrorSummaryData | None
+
+    class ErrorNotificationData(TypedDict):
+        severity: str
+        priority: str
+
+
+# Import exceptions
 try:
     from the_alchemiser.shared.types.exceptions import (
         AlchemiserError,
@@ -45,34 +79,33 @@ try:
         TradingClientError,
     )
 except ImportError:
-    # Minimal exception classes if import fails (to avoid circular imports)
+    # Minimal fallback stubs (to avoid circular imports)
     class AlchemiserError(Exception):
-        """Base exception class."""
+        pass
 
     class ConfigurationError(AlchemiserError):
-        """Configuration-related errors."""
+        pass
 
     class DataProviderError(AlchemiserError):
-        """Data provider errors."""
+        pass
 
     class InsufficientFundsError(AlchemiserError):
-        """Insufficient funds errors."""
+        pass
 
     class MarketDataError(AlchemiserError):
-        """Market data errors."""
+        pass
 
     class NotificationError(AlchemiserError):
-        """Notification errors."""
+        pass
 
     class OrderExecutionError(AlchemiserError):
-        """Order execution errors."""
+        pass
 
     class PositionValidationError(AlchemiserError):
-        """Position validation errors."""
+        pass
 
     class TradingClientError(AlchemiserError):
-        """Trading client errors."""
-
+        pass
 
 
 # Import additional error types
@@ -82,28 +115,28 @@ try:
         classify_exception,
     )
 except ImportError:
+
     class OrderError(Exception):
-        """Order-related errors."""
+        pass
 
     def classify_exception(exc: Exception) -> str:
-        """Classify exception type."""
         return exc.__class__.__name__
 
 
 try:
     from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
 except ImportError:
-    class StrategyExecutionError(Exception):
-        """Strategy execution errors."""
 
+    class StrategyExecutionError(Exception):
+        pass
 
 
 try:
     from .context import ErrorContextData
 except ImportError:
-    class ErrorContextData:
-        """Minimal error context data."""
 
+    class ErrorContextData:
+        pass
 
 
 class ErrorSeverity:

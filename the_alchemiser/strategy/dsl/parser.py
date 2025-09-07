@@ -43,10 +43,12 @@ from the_alchemiser.strategy.dsl.errors import ParseError, SchemaError
 @dataclass(frozen=True)
 class Vector:
     """Immutable vector container for DSL elements.
-    
+
     Attributes:
         elements: List of elements contained in this vector
+
     """
+
     elements: list[Any]
 
 

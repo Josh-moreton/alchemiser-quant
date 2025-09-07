@@ -36,6 +36,7 @@ def _extract_current_position_values(current_positions: dict[str, Any]) -> dict[
 
     Returns:
         Dictionary mapping symbols to current market values
+
     """
     current_values: dict[str, float] = {}
     for symbol, pos in current_positions.items():

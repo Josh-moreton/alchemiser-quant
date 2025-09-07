@@ -10,8 +10,8 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.strategy.types.bar import BarModel
 from the_alchemiser.shared.types.quote import QuoteModel
+from the_alchemiser.strategy.types.bar import BarModel
 
 
 def _parse_ts(value: Any) -> datetime | None:
@@ -43,17 +43,18 @@ def _parse_ts(value: Any) -> datetime | None:
 
 def bars_to_domain(rows: Iterable[dict[str, Any]]) -> list[BarModel]:
     """Convert raw bar data dictionaries to domain BarModel objects.
-    
+
     Args:
         rows: Iterable of dictionaries containing bar data with keys like
-              't'/'timestamp'/'time', 'o'/'open', 'h'/'high', 'l'/'low', 
+              't'/'timestamp'/'time', 'o'/'open', 'h'/'high', 'l'/'low',
               'c'/'close', 'v'/'volume'
-              
+
     Returns:
         List of BarModel objects with valid timestamps and decimal prices
-        
+
     Note:
         Skips rows with invalid timestamps or conversion errors using best-effort mapping
+
     """
     out: list[BarModel] = []
     for r in rows:
@@ -81,15 +82,16 @@ def bars_to_domain(rows: Iterable[dict[str, Any]]) -> list[BarModel]:
 
 def quote_to_domain(raw: Any) -> QuoteModel | None:
     """Convert raw quote data object to domain QuoteModel.
-    
+
     Args:
         raw: Raw quote object with attributes like timestamp, bid_price, ask_price
-        
+
     Returns:
         QuoteModel with parsed data, or None if conversion fails or data is invalid
-        
+
     Note:
         Uses defensive attribute access with getattr() for robust parsing
+
     """
     try:
         if raw is None:

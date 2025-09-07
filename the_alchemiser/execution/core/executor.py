@@ -13,13 +13,13 @@ from the_alchemiser.execution.mappers.alpaca_dto_mapping import (
     create_error_execution_result,
 )
 from the_alchemiser.execution.orders.order_request import OrderRequest
-from the_alchemiser.shared.dto.broker_dto import OrderExecutionResult
-from the_alchemiser.shared.types.broker_enums import BrokerOrderSide, BrokerTimeInForce
 from the_alchemiser.execution.types.broker_requests import (
     AlpacaRequestConverter,
     BrokerLimitOrderRequest,
     BrokerMarketOrderRequest,
 )
+from the_alchemiser.shared.dto.broker_dto import OrderExecutionResult
+from the_alchemiser.shared.types.broker_enums import BrokerOrderSide, BrokerTimeInForce
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.brokers import AlpacaManager

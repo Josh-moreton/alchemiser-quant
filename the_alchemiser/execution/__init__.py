@@ -27,7 +27,6 @@ from __future__ import annotations
 
 # DEPRECATED: Import AlpacaManager from the_alchemiser.shared.brokers instead
 # Re-exports have been removed to resolve circular import issues
-
 # Expose preferred service managers
 from .core import RefactoredTradingServiceManager
 

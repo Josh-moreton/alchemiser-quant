@@ -9,7 +9,6 @@ import logging
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.shared.brokers import AlpacaManager
 from the_alchemiser.execution.mappers.account_mapping import to_money_usd
 from the_alchemiser.execution.mappers.trading_service_dto_mapping import (
     dict_to_market_status_dto,
@@ -24,6 +23,7 @@ from the_alchemiser.portfolio.schemas.positions import (
     PortfolioValueDTO,
     PositionMetricsDTO,
 )
+from the_alchemiser.shared.brokers import AlpacaManager
 from the_alchemiser.shared.schemas.enriched_data import EnrichedPositionsDTO
 from the_alchemiser.shared.schemas.market_data import (
     MarketStatusDTO,

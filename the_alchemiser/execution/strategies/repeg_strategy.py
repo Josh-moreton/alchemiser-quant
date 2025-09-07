@@ -25,13 +25,15 @@ from .config import StrategyConfig
 
 class AttemptPlan(TypedDict):
     """Plan for a single repeg attempt with timing and pricing parameters.
-    
+
     Attributes:
         attempt_index: Zero-based index of this attempt
         timeout_seconds: Time to wait before next attempt
         price_improvement_ticks: Number of ticks to improve price by
         reason: Human-readable explanation for this attempt
+
     """
+
     attempt_index: int
     timeout_seconds: float
     price_improvement_ticks: int

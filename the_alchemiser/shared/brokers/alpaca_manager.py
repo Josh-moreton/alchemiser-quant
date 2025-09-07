@@ -18,13 +18,9 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
-from typing import TYPE_CHECKING, Any, Literal
-
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import TYPE_CHECKING, Any
 
 # Type checking imports to avoid circular dependencies
-
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
@@ -47,11 +43,10 @@ logger = logging.getLogger(__name__)
 
 # Import DTOs from shared module to maintain a single source of truth
 from the_alchemiser.shared.dto.broker_dto import (
-    Result,
-    WebSocketStatus,
-    WebSocketResult,
     OrderExecutionResult,
+    WebSocketResult,
 )
+
 # Backward compatibility aliases
 WebSocketResultDTO = WebSocketResult
 OrderExecutionResultDTO = OrderExecutionResult
@@ -140,44 +135,45 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     # Helper methods for DTO mapping
     def _alpaca_order_to_execution_result(self, order: Any) -> OrderExecutionResultDTO:
         """Convert Alpaca order object to OrderExecutionResultDTO.
-        
+
         Simple implementation that avoids circular imports.
         """
         try:
             # Extract basic fields from order object
-            order_id = getattr(order, 'id', 'unknown')
-            status = getattr(order, 'status', 'unknown')
-            filled_qty = Decimal(str(getattr(order, 'filled_qty', 0)))
-            avg_fill_price = getattr(order, 'avg_fill_price', None)
+            order_id = getattr(order, "id", "unknown")
+            status = getattr(order, "status", "unknown")
+            filled_qty = Decimal(str(getattr(order, "filled_qty", 0)))
+            avg_fill_price = getattr(order, "avg_fill_price", None)
             if avg_fill_price is not None:
                 avg_fill_price = Decimal(str(avg_fill_price))
-            
+
             # Simple timestamp handling
             from datetime import UTC, datetime
-            submitted_at = getattr(order, 'submitted_at', None) or datetime.now(UTC)
+
+            submitted_at = getattr(order, "submitted_at", None) or datetime.now(UTC)
             if isinstance(submitted_at, str):
                 # Handle ISO format strings
-                submitted_at = datetime.fromisoformat(submitted_at.replace('Z', '+00:00'))
-            
-            completed_at = getattr(order, 'updated_at', None)
+                submitted_at = datetime.fromisoformat(submitted_at.replace("Z", "+00:00"))
+
+            completed_at = getattr(order, "updated_at", None)
             if completed_at and isinstance(completed_at, str):
-                completed_at = datetime.fromisoformat(completed_at.replace('Z', '+00:00'))
-            
-            # Map status to our expected values  
+                completed_at = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
+
+            # Map status to our expected values
             status_mapping = {
-                'new': 'accepted',
-                'accepted': 'accepted', 
-                'filled': 'filled',
-                'partially_filled': 'partially_filled',
-                'rejected': 'rejected',
-                'canceled': 'canceled',
-                'cancelled': 'canceled',
-                'expired': 'rejected'
+                "new": "accepted",
+                "accepted": "accepted",
+                "filled": "filled",
+                "partially_filled": "partially_filled",
+                "rejected": "rejected",
+                "canceled": "canceled",
+                "cancelled": "canceled",
+                "expired": "rejected",
             }
-            mapped_status = status_mapping.get(status, 'accepted')
-            
-            success = mapped_status not in ['rejected', 'canceled']
-            
+            mapped_status = status_mapping.get(status, "accepted")
+
+            success = mapped_status not in ["rejected", "canceled"]
+
             return OrderExecutionResultDTO(
                 success=success,
                 order_id=order_id,
@@ -186,30 +182,27 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 avg_fill_price=avg_fill_price,
                 submitted_at=submitted_at,
                 completed_at=completed_at,
-                error=None if success else f"Order {status}"
+                error=None if success else f"Order {status}",
             )
         except Exception as e:
             logger.error(f"Failed to convert order to execution result: {e}")
             return self._create_error_execution_result(e, "Order conversion")
 
     def _create_error_execution_result(
-        self, 
-        error: Exception, 
-        context: str = "Operation", 
-        order_id: str = "unknown"
+        self, error: Exception, context: str = "Operation", order_id: str = "unknown"
     ) -> OrderExecutionResultDTO:
         """Create an error OrderExecutionResultDTO."""
-        from datetime import UTC, datetime
-        
+        from datetime import UTC
+
         return OrderExecutionResultDTO(
             success=False,
             order_id=order_id,
-            status='rejected',  # type: ignore[arg-type]
-            filled_qty=Decimal('0'),
+            status="rejected",  # type: ignore[arg-type]
+            filled_qty=Decimal("0"),
             avg_fill_price=None,
             submitted_at=datetime.now(UTC),
             completed_at=datetime.now(UTC),
-            error=f"{context} failed: {str(error)}"
+            error=f"{context} failed: {error!s}",
         )
 
     # Trading Operations
@@ -289,7 +282,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def place_order(self, order_request: Any) -> RawOrderEnvelope:
         """Place an order and return raw envelope with metadata."""
-        from datetime import UTC, datetime
+        from datetime import UTC
 
         from the_alchemiser.execution.orders.order_schemas import RawOrderEnvelope
 
@@ -341,7 +334,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             return self._alpaca_order_to_execution_result(order)
         except Exception as e:
             logger.error(f"Failed to refresh order {order_id}: {e}")
-            return self._create_error_execution_result(e, context="Order refresh", order_id=order_id)
+            return self._create_error_execution_result(
+                e, context="Order refresh", order_id=order_id
+            )
 
     def place_market_order(
         self,
