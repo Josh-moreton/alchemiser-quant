@@ -19,6 +19,7 @@ from the_alchemiser.portfolio.schemas.rebalancing import (
     RebalancingImpactDTO,
     RebalancingSummaryDTO,
 )
+
 # Removed adapter imports - functionality implemented directly in service
 from the_alchemiser.shared.dto import (
     OrderRequestDTO,
@@ -415,32 +416,51 @@ class PortfolioRebalancingService:
             # Convert portfolio data to DTO directly using existing DTO structure
             import uuid
             from datetime import UTC, datetime
+
             from the_alchemiser.shared.dto.portfolio_state_dto import PositionDTO
-            
+
             correlation_id = correlation_id or f"portfolio_{uuid.uuid4().hex[:12]}"
-            
+
             # Convert position dictionaries to PositionDTO objects
             positions_list = positions_data.get("positions", []) if positions_data else []
             position_dtos = []
-            
+
             for position in positions_list:
                 position_dto = PositionDTO(
                     symbol=position.get("symbol", ""),
                     quantity=Decimal(str(position.get("qty", position.get("quantity", 0)))),
-                    average_cost=Decimal(str(position.get("avg_entry_price", position.get("average_cost", 0)))),
+                    average_cost=Decimal(
+                        str(position.get("avg_entry_price", position.get("average_cost", 0)))
+                    ),
                     current_price=Decimal(str(position.get("current_price", 0))),
                     market_value=Decimal(str(position.get("market_value", 0))),
-                    unrealized_pnl=Decimal(str(position.get("unrealized_pl", position.get("unrealized_pnl", 0)))),
-                    unrealized_pnl_percent=Decimal(str(position.get("unrealized_plpc", position.get("unrealized_pnl_percent", 0)))),
+                    unrealized_pnl=Decimal(
+                        str(position.get("unrealized_pl", position.get("unrealized_pnl", 0)))
+                    ),
+                    unrealized_pnl_percent=Decimal(
+                        str(
+                            position.get(
+                                "unrealized_plpc", position.get("unrealized_pnl_percent", 0)
+                            )
+                        )
+                    ),
                     last_updated=position.get("last_updated"),
                     side=position.get("side"),
-                    cost_basis=Decimal(str(position.get("cost_basis", 0))) if position.get("cost_basis") is not None else None,
+                    cost_basis=Decimal(str(position.get("cost_basis", 0)))
+                    if position.get("cost_basis") is not None
+                    else None,
                 )
                 position_dtos.append(position_dto)
-            
+
             # Create portfolio metrics from the portfolio data
             metrics = PortfolioMetricsDTO(
-                total_value=Decimal(str(portfolio_context.get("total_value", portfolio_context.get("portfolio_value", 0)))),
+                total_value=Decimal(
+                    str(
+                        portfolio_context.get(
+                            "total_value", portfolio_context.get("portfolio_value", 0)
+                        )
+                    )
+                ),
                 cash_value=Decimal(str(portfolio_context.get("cash_value", 0))),
                 equity_value=Decimal(str(portfolio_context.get("equity_value", 0))),
                 buying_power=Decimal(str(portfolio_context.get("buying_power", 0))),
@@ -449,7 +469,7 @@ class PortfolioRebalancingService:
                 total_pnl=Decimal(str(portfolio_context.get("total_pnl", 0))),
                 total_pnl_percent=Decimal(str(portfolio_context.get("total_pnl_percent", 0))),
             )
-            
+
             return PortfolioStateDTO(
                 correlation_id=correlation_id,
                 causation_id=correlation_id,
@@ -655,36 +675,30 @@ class PortfolioRebalancingService:
         """
         # Convert rebalance plan DTO to list of order request DTOs directly
         order_requests = []
-        
+
         # Default values for execution configuration
         portfolio_id = "main_portfolio"
         execution_priority = (
-            execution_config.get("execution_priority", "BALANCE")
-            if execution_config
-            else "BALANCE"
+            execution_config.get("execution_priority", "BALANCE") if execution_config else "BALANCE"
         )
-        time_in_force = (
-            execution_config.get("time_in_force", "DAY")
-            if execution_config
-            else "DAY"
-        )
-        
+        time_in_force = execution_config.get("time_in_force", "DAY") if execution_config else "DAY"
+
         # Generate correlation ID for this rebalance operation
         correlation_id = f"rebalance_{portfolio_id}_{rebalance_plan.correlation_id or 'unknown'}"
-        
+
         for item in rebalance_plan.items:
             # Skip if no trade needed or action is HOLD
             if item.action == "HOLD" or item.trade_amount == 0:
                 continue
-                
+
             # Determine order side and quantity based on trade amount
             if item.trade_amount > 0:
                 side = "buy"
                 quantity = item.trade_amount
             else:
-                side = "sell"  
+                side = "sell"
                 quantity = abs(item.trade_amount)
-                
+
             # Create order request
             order_request = OrderRequestDTO(
                 symbol=item.symbol,
@@ -698,14 +712,13 @@ class PortfolioRebalancingService:
                 created_at=rebalance_plan.timestamp,
             )
             order_requests.append(order_request)
-        
-        
+
     def _get_current_position_values(self) -> dict[str, Decimal]:
         """Get current position values using trading manager."""
         try:
             positions_data = self.trading_manager.get_positions()
             position_values = {}
-            
+
             if positions_data and positions_data.get("success"):
                 positions = positions_data.get("positions", [])
                 for position in positions:
@@ -713,11 +726,11 @@ class PortfolioRebalancingService:
                     market_value = position.get("market_value", 0)
                     if symbol:
                         position_values[symbol] = Decimal(str(market_value))
-            
+
             return position_values
         except Exception:
             return {}
-    
+
     def _get_portfolio_value(self) -> Decimal:
         """Get total portfolio value using trading manager."""
         try:

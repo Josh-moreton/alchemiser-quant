@@ -79,7 +79,7 @@ class AllocationComparisonDTO(BaseModel):
 
 class MultiStrategySummaryDTO(BaseModel):
     """DTO for multi-strategy summary including allocation comparison & account info.
-    
+
     Provides a unified summary structure that includes execution results,
     allocation comparison, and enriched account information for CLI rendering.
     """
@@ -92,12 +92,12 @@ class MultiStrategySummaryDTO(BaseModel):
 
     # Core execution result
     execution_result: MultiStrategyExecutionResultDTO
-    
+
     # Allocation comparison with Decimal precision
     allocation_comparison: AllocationComparisonDTO | None = None
-    
+
     # Enriched account information
     enriched_account: dict[str, Any] | None = None
-    
+
     # Closed P&L subset for performance display
     closed_pnl_subset: dict[str, Any] | None = None

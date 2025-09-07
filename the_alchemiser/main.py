@@ -107,7 +107,7 @@ class TradingSystem:
         """Execute multi-strategy trading."""
         try:
             from the_alchemiser.shared.cli.trading_executor import TradingExecutor
-            
+
             if self.container is None:
                 raise RuntimeError("DI container not initialized")
             executor = TradingExecutor(
