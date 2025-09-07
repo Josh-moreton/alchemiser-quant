@@ -26,7 +26,6 @@ class DataProviderError(Exception):
     """Data provider error exception."""
 
 
-
 class AssetOrderHandler:
     """Handles asset-specific order logic including fractionability and conversions."""
 

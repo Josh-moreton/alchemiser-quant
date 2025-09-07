@@ -11,13 +11,13 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from the_alchemiser.execution.orders.schemas import OrderRequest
 from the_alchemiser.execution.orders.order_schemas import (
     AdjustedOrderRequestDTO,
     OrderRequestDTO,
     PolicyWarningDTO,
 )
 from the_alchemiser.execution.orders.order_types import OrderType
+from the_alchemiser.execution.orders.schemas import OrderRequest
 from the_alchemiser.execution.orders.side import Side
 from the_alchemiser.execution.types.policy_result import PolicyResult, PolicyWarning
 from the_alchemiser.shared.types.money import Money

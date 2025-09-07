@@ -16,8 +16,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal
 
-from the_alchemiser.shared.value_objects.identifier import Identifier
 from the_alchemiser.shared.value_objects.core_types import OrderStatusLiteral
+from the_alchemiser.shared.value_objects.identifier import Identifier
 
 if TYPE_CHECKING:  # Only for static typing; avoids runtime circular import
     # Import the Order entity for precise typing during type checking only
@@ -41,7 +41,6 @@ class OrderStatus(str, Enum):
     FILLED = "FILLED"
     CANCELLED = "CANCELLED"
     REJECTED = "REJECTED"
-
 
 
 @dataclass(frozen=True)

@@ -29,11 +29,11 @@ from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 from the_alchemiser.execution.core.executor import (
     CanonicalOrderExecutor,
 )
-from the_alchemiser.execution.orders.schemas import OrderRequest
 from the_alchemiser.execution.orders.order_types import (
     OrderType as DomainOrderType,
 )
 from the_alchemiser.execution.orders.order_types import Side as DomainSide
+from the_alchemiser.execution.orders.schemas import OrderRequest
 from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
 from the_alchemiser.shared.types.money import Money
 from the_alchemiser.shared.types.quantity import (

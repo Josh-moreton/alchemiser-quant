@@ -1,4 +1,7 @@
-"""Business Unit: utilities; Status: current."""
+"""Business Unit: shared | Status: current
+
+Typed identifier base class for domain entities.
+"""
 
 from __future__ import annotations
 

@@ -971,9 +971,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         from decimal import Decimal
 
         from the_alchemiser.execution.core.executor import CanonicalOrderExecutor
+        from the_alchemiser.execution.orders.order_types import OrderType, Side
         from the_alchemiser.execution.orders.schemas import OrderRequest
-        from the_alchemiser.execution.orders.order_types import OrderType
-        from the_alchemiser.execution.orders.order_types import Side
         from the_alchemiser.shared.types.quantity import Quantity
         from the_alchemiser.shared.types.time_in_force import TimeInForce
         from the_alchemiser.shared.value_objects.symbol import Symbol
