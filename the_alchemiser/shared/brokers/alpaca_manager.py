@@ -46,74 +46,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# Simple DTOs to avoid circular dependencies - defined locally to avoid imports
-class Result(BaseModel):
-    """Common base for DTOs that expose success/error outcome fields."""
-
-    model_config = ConfigDict(strict=True, frozen=True, validate_assignment=True)
-
-    success: bool
-    error: str | None = None
-class WebSocketStatus(str, Enum):
-    """WebSocket operation status enumeration."""
-
-    COMPLETED = "completed"
-    TIMEOUT = "timeout"
-    ERROR = "error"
-
-
-class WebSocketResult(BaseModel):
-    """Outcome of WebSocket operations (status, message, completed orders)."""
-
-    model_config = ConfigDict(
-        strict=True,
-        frozen=True,
-        validate_assignment=True,
-        str_strip_whitespace=True,
-    )
-
-    status: WebSocketStatus = Field(description="WebSocket operation status")
-    message: str = Field(description="Status message")
-    completed_order_ids: list[str] = Field(
-        default_factory=list, description="Order IDs that completed during operation"
-    )
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Additional metadata"
-    )
-
-
-class OrderExecutionResult(Result):
-    """DTO for order execution results."""
-
-    model_config = ConfigDict(
-        strict=True,
-        frozen=True,
-        validate_assignment=True,
-    )
-
-    # Core execution data
-    order_id: str
-    status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"]
-    filled_qty: Decimal
-    avg_fill_price: Decimal | None = None
-    submitted_at: datetime
-    completed_at: datetime | None = None
-
-    @field_validator("filled_qty")
-    @classmethod
-    def validate_filled_qty(cls, v: Decimal) -> Decimal:
-        if v < 0:
-            raise ValueError("Filled quantity cannot be negative")
-        return v
-
-    @field_validator("avg_fill_price")
-    @classmethod
-    def validate_avg_fill_price(cls, v: Decimal | None) -> Decimal | None:
-        if v is not None and v <= 0:
-            raise ValueError("Average fill price must be greater than 0")
-        return v
-
-
+# Import DTOs from shared module to maintain a single source of truth
+from the_alchemiser.shared.dto.broker_dto import (
+    Result,
+    WebSocketStatus,
+    WebSocketResult,
+    OrderExecutionResult,
+)
 # Backward compatibility aliases
 WebSocketResultDTO = WebSocketResult
 OrderExecutionResultDTO = OrderExecutionResult
