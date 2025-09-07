@@ -24,48 +24,50 @@ if TYPE_CHECKING:
     pass  # We'll import dynamically where needed
 
 
-# Error Detail Types - defined locally to avoid circular imports
-class ErrorDetailInfo(TypedDict):
-    """Detailed error information for reporting."""
+# Import error types from shared schemas to avoid duplication
+try:
+    from the_alchemiser.shared.schemas.errors import (
+        ErrorDetailInfo,
+        ErrorNotificationData,
+        ErrorReportSummary,
+        ErrorSummaryData,
+    )
+except ImportError:
+    # Fallback definitions if import fails (for bootstrap scenarios)
+    class ErrorDetailInfo(TypedDict):
+        """Detailed error information for reporting."""
+        error_type: str
+        error_message: str
+        category: str
+        context: str
+        component: str
+        timestamp: str
+        traceback: str
+        additional_data: dict[str, Any]
+        suggested_action: str | None
 
-    error_type: str
-    error_message: str
-    category: str
-    context: str
-    component: str
-    timestamp: str
-    traceback: str
-    additional_data: dict[str, Any]
-    suggested_action: str | None
+    class ErrorSummaryData(TypedDict):
+        """Summary of errors by category."""
+        count: int
+        errors: list[ErrorDetailInfo]
 
+    class ErrorReportSummary(TypedDict):
+        """Comprehensive error report summary."""
+        critical: ErrorSummaryData | None
+        trading: ErrorSummaryData | None
+        data: ErrorSummaryData | None
+        strategy: ErrorSummaryData | None
+        configuration: ErrorSummaryData | None
+        notification: ErrorSummaryData | None
+        warning: ErrorSummaryData | None
 
-class ErrorSummaryData(TypedDict):
-    """Summary of errors by category."""
-
-    count: int
-    errors: list[ErrorDetailInfo]
-
-
-class ErrorReportSummary(TypedDict):
-    """Comprehensive error report summary."""
-
-    critical: ErrorSummaryData | None
-    trading: ErrorSummaryData | None
-    data: ErrorSummaryData | None
-    strategy: ErrorSummaryData | None
-    configuration: ErrorSummaryData | None
-    notification: ErrorSummaryData | None
-    warning: ErrorSummaryData | None
-
-
-class ErrorNotificationData(TypedDict):
-    """Email notification data for error reporting."""
-
-    subject: str
-    body: str
-    error_details: list[ErrorDetailInfo]
-    summary: ErrorReportSummary
-    timestamp: str
+    class ErrorNotificationData(TypedDict):
+        """Email notification data for error reporting."""
+        severity: str
+        priority: str
+        title: str
+        error_report: str
+        html_content: str
 
 
 # Import exceptions with consolidated fallback definitions
@@ -739,13 +741,13 @@ def send_error_notification_if_needed() -> ErrorNotificationData | None:
         )
 
         # Create notification data
-        notification_data = ErrorNotificationData(
-            severity=severity,
-            priority=priority,
-            title=f"[{priority}] The Alchemiser - {severity} Error Report",
-            error_report=error_report,
-            html_content=html_content,
-        )
+        notification_data: ErrorNotificationData = {
+            "severity": severity,
+            "priority": priority,
+            "title": f"[{priority}] The Alchemiser - {severity} Error Report",
+            "error_report": error_report,
+            "html_content": html_content,
+        }
 
         if success:
             logging.info("Error notification email sent successfully")
