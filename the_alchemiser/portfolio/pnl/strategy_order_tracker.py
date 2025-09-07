@@ -540,7 +540,7 @@ class StrategyOrderTracker:
         """
         try:
             # Classify the error using the order error classification system
-            from the_alchemiser.shared.types.trading_errors import classify_exception
+            from the_alchemiser.execution.errors.classifier import classify_exception
             from the_alchemiser.shared.value_objects.identifier import (
                 Identifier,
             )

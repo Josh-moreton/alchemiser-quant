@@ -41,9 +41,12 @@ from the_alchemiser.strategy.dsl.ast import (
 from the_alchemiser.strategy.dsl.errors import EvaluationError, IndicatorError, PortfolioError
 from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
 
-# Type imports for annotations
+# Import NodeEvaluationCache unconditionally since it's used in type annotations
+from the_alchemiser.strategy.dsl.evaluator_cache import NodeEvaluationCache
+
+# Type imports for annotations only
 if TYPE_CHECKING:
-    from the_alchemiser.strategy.dsl.evaluator_cache import EvalContext, NodeEvaluationCache
+    from the_alchemiser.strategy.dsl.evaluator_cache import EvalContext
 
 # Type for evaluation results
 Portfolio = dict[str, Decimal]
@@ -82,8 +85,6 @@ class DSLEvaluator:
         self._enable_memoisation = enable_memoisation
         self._node_cache: NodeEvaluationCache | None = None
         if enable_memoisation:
-            from the_alchemiser.strategy.dsl.evaluator_cache import NodeEvaluationCache
-
             self._node_cache = NodeEvaluationCache(maxsize=cache_maxsize)
 
         # Parallel evaluation support

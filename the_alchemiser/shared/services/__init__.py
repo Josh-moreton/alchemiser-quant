@@ -22,11 +22,7 @@ from the relevant subpackage, for example:
 
 from __future__ import annotations
 
-__all__ = [
-    "account",
-    "errors",
-    "market_data",
-    "repository",
-    "shared",
-    "trading",
-]
+# Note: The submodules listed below have been moved to other packages.
+# This __all__ is kept empty to avoid undefined references.
+# Import directly from the appropriate execution/, portfolio/, or strategy/ packages.
+__all__: list[str] = []
