@@ -15,14 +15,14 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.execution.core.execution_schemas_summary import (
-    AllocationSummaryDTO,
-    ExecutionSummaryDTO,
-    PortfolioStateDTO,
-    StrategyPnLSummaryDTO,
-    StrategySummaryDTO,
-    TradingSummaryDTO,
+from the_alchemiser.shared.schemas.execution_summary import (
+    AllocationSummary as AllocationSummaryDTO,
+    ExecutionSummary as ExecutionSummaryDTO,
+    StrategyPnLSummary as StrategyPnLSummaryDTO,
+    StrategySummary as StrategySummaryDTO,
+    TradingSummary as TradingSummaryDTO,
 )
+from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
 
 
 def dict_to_allocation_summary_dto(data: dict[str, Any]) -> AllocationSummaryDTO:

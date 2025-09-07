@@ -37,7 +37,7 @@ from the_alchemiser.execution.brokers.account_service import (
 )
 from the_alchemiser.execution.core.account_facade import AccountFacade
 from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
-from the_alchemiser.execution.mappers.execution import (
+from the_alchemiser.shared.mappers.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
     safe_dict_to_portfolio_state_dto,
 )

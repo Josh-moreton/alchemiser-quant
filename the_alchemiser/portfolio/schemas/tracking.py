@@ -357,7 +357,7 @@ class StrategyPositionDTO(BaseModel, StrategyValidationMixin):
         )
 
 
-class StrategyPnLDTO(StrategyValidationMixin, BaseModel):
+class StrategyPnLDTO(BaseModel):
     """Strategy P&L DTO for serialization consistency and computed metrics.
 
     Replaces StrategyPnL dataclass with validation and computed fields
@@ -380,6 +380,18 @@ class StrategyPnLDTO(StrategyValidationMixin, BaseModel):
         "validate_assignment": True,  # Validate on assignment
         "use_enum_values": True,  # Use enum values in serialization
     }
+
+    @field_validator("strategy")
+    @classmethod
+    def validate_strategy(cls, v: str) -> str:
+        """Validate strategy is a registered strategy type."""
+        try:
+            # Verify it's a valid strategy type
+            StrategyType(v)
+            return v
+        except ValueError:
+            valid_strategies = [s.value for s in StrategyType]
+            raise ValueError(f"Strategy must be one of {valid_strategies}, got: {v}")
 
     # Remove duplicate validate_strategy method as it's inherited from StrategyValidationMixin
 
