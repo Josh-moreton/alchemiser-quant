@@ -19,7 +19,9 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from the_alchemiser.execution.orders.order_types import OrderType, Side
-from the_alchemiser.shared.schemas.base import Result
+
+# Import consolidated DTOs from shared to avoid duplication
+from the_alchemiser.shared.dto.broker_dto import OrderExecutionResult as OrderExecutionResultDTO
 from the_alchemiser.shared.types.money import Money
 from the_alchemiser.shared.types.quantity import Quantity
 from the_alchemiser.shared.types.time_in_force import TimeInForce
@@ -169,42 +171,6 @@ class ValidatedOrderDTO(BaseModel, OrderValidationMixin):
     normalized_quantity: Decimal | None = None
     risk_score: Decimal | None = None
     validation_timestamp: datetime
-
-
-class OrderExecutionResultDTO(Result):
-    """DTO for order execution results.
-
-    Adds uniform success/error fields to align with prior facade contract
-    (which exposed a 'success' flag) while preserving structured status.
-    """
-
-    model_config = ConfigDict(
-        strict=True,
-        frozen=True,
-        validate_assignment=True,
-    )
-
-    # Core execution data
-    order_id: str
-    status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"]
-    filled_qty: Decimal
-    avg_fill_price: Decimal | None = None
-    submitted_at: datetime
-    completed_at: datetime | None = None
-
-    @field_validator("filled_qty")
-    @classmethod
-    def validate_filled_qty(cls, v: Decimal) -> Decimal:
-        if v < 0:
-            raise ValueError("Filled quantity cannot be negative")
-        return v
-
-    @field_validator("avg_fill_price")
-    @classmethod
-    def validate_avg_fill_price(cls, v: Decimal | None) -> Decimal | None:
-        if v is not None and v <= 0:
-            raise ValueError("Average fill price must be greater than 0")
-        return v
 
 
 class LimitOrderResultDTO(BaseModel):

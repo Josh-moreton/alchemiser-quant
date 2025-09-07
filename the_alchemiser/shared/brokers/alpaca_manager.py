@@ -16,10 +16,11 @@ Phase 3 Update: Moved to shared module to resolve architectural boundary violati
 from __future__ import annotations
 
 import logging
-
-# Type checking imports to avoid circular dependencies
+from datetime import datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
+# Type checking imports to avoid circular dependencies
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
@@ -27,12 +28,6 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
-from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
-from the_alchemiser.execution.mappers.alpaca_dto_mapping import (
-    alpaca_order_to_execution_result,
-    create_error_execution_result,
-)
-from the_alchemiser.execution.orders.order_schemas import OrderExecutionResultDTO
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
     MarketDataRepository,
@@ -44,6 +39,17 @@ if TYPE_CHECKING:
     from the_alchemiser.execution.strategies.smart_execution import DataProvider
 
 logger = logging.getLogger(__name__)
+
+
+# Import DTOs from shared module to maintain a single source of truth
+from the_alchemiser.shared.dto.broker_dto import (
+    OrderExecutionResult,
+    WebSocketResult,
+)
+
+# Backward compatibility aliases
+WebSocketResultDTO = WebSocketResult
+OrderExecutionResultDTO = OrderExecutionResult
 
 
 class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
@@ -126,6 +132,79 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Public accessor indicating paper/live mode."""
         return self._paper
 
+    # Helper methods for DTO mapping
+    def _alpaca_order_to_execution_result(self, order: Any) -> OrderExecutionResultDTO:
+        """Convert Alpaca order object to OrderExecutionResultDTO.
+
+        Simple implementation that avoids circular imports.
+        """
+        try:
+            # Extract basic fields from order object
+            order_id = getattr(order, "id", "unknown")
+            status = getattr(order, "status", "unknown")
+            filled_qty = Decimal(str(getattr(order, "filled_qty", 0)))
+            avg_fill_price = getattr(order, "avg_fill_price", None)
+            if avg_fill_price is not None:
+                avg_fill_price = Decimal(str(avg_fill_price))
+
+            # Simple timestamp handling
+            from datetime import UTC, datetime
+
+            submitted_at = getattr(order, "submitted_at", None) or datetime.now(UTC)
+            if isinstance(submitted_at, str):
+                # Handle ISO format strings
+                submitted_at = datetime.fromisoformat(submitted_at.replace("Z", "+00:00"))
+
+            completed_at = getattr(order, "updated_at", None)
+            if completed_at and isinstance(completed_at, str):
+                completed_at = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
+
+            # Map status to our expected values
+            status_mapping = {
+                "new": "accepted",
+                "accepted": "accepted",
+                "filled": "filled",
+                "partially_filled": "partially_filled",
+                "rejected": "rejected",
+                "canceled": "canceled",
+                "cancelled": "canceled",
+                "expired": "rejected",
+            }
+            mapped_status = status_mapping.get(status, "accepted")
+
+            success = mapped_status not in ["rejected", "canceled"]
+
+            return OrderExecutionResultDTO(
+                success=success,
+                order_id=order_id,
+                status=mapped_status,  # type: ignore[arg-type]
+                filled_qty=filled_qty,
+                avg_fill_price=avg_fill_price,
+                submitted_at=submitted_at,
+                completed_at=completed_at,
+                error=None if success else f"Order {status}",
+            )
+        except Exception as e:
+            logger.error(f"Failed to convert order to execution result: {e}")
+            return self._create_error_execution_result(e, "Order conversion")
+
+    def _create_error_execution_result(
+        self, error: Exception, context: str = "Operation", order_id: str = "unknown"
+    ) -> OrderExecutionResultDTO:
+        """Create an error OrderExecutionResultDTO."""
+        from datetime import UTC
+
+        return OrderExecutionResultDTO(
+            success=False,
+            order_id=order_id,
+            status="rejected",  # type: ignore[arg-type]
+            filled_qty=Decimal("0"),
+            avg_fill_price=None,
+            submitted_at=datetime.now(UTC),
+            completed_at=datetime.now(UTC),
+            error=f"{context} failed: {error!s}",
+        )
+
     # Trading Operations
     def get_account(self) -> Any:
         """Get account information with error handling."""
@@ -203,7 +282,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def place_order(self, order_request: Any) -> RawOrderEnvelope:
         """Place an order and return raw envelope with metadata."""
-        from datetime import UTC, datetime
+        from datetime import UTC
 
         from the_alchemiser.execution.orders.order_schemas import RawOrderEnvelope
 
@@ -252,10 +331,12 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         try:
             order = self._trading_client.get_order_by_id(order_id)
-            return alpaca_order_to_execution_result(order)
+            return self._alpaca_order_to_execution_result(order)
         except Exception as e:
             logger.error(f"Failed to refresh order {order_id}: {e}")
-            return create_error_execution_result(e, context="Order refresh", order_id=order_id)
+            return self._create_error_execution_result(
+                e, context="Order refresh", order_id=order_id
+            )
 
     def place_market_order(
         self,
@@ -402,10 +483,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         except ValueError as e:
             logger.error(f"Invalid limit order parameters: {e}")
-            return create_error_execution_result(e, "Limit order validation")
+            return self._create_error_execution_result(e, "Limit order validation")
         except Exception as e:
             logger.error(f"Failed to place limit order for {symbol}: {e}")
-            return create_error_execution_result(e, f"Limit order for {symbol}")
+            return self._create_error_execution_result(e, f"Limit order for {symbol}")
 
     def cancel_order(self, order_id: str) -> bool:
         """Cancel an order by ID."""

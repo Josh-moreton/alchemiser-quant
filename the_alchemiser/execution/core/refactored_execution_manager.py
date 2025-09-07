@@ -10,7 +10,6 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.execution.brokers.alpaca import AlpacaManager
 from the_alchemiser.execution.core.account_management_service import AccountManagementService
 from the_alchemiser.execution.core.data_transformation_service import DataTransformationService
 from the_alchemiser.execution.core.lifecycle_coordinator import LifecycleCoordinator
@@ -32,6 +31,7 @@ from the_alchemiser.portfolio.schemas.positions import (
     PositionMetricsDTO,
     PositionSummaryDTO,
 )
+from the_alchemiser.shared.brokers import AlpacaManager
 from the_alchemiser.shared.schemas.accounts import (
     AccountMetricsDTO,
     AccountSummaryDTO,

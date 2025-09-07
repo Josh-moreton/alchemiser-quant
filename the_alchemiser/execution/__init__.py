@@ -25,14 +25,11 @@ violations. It is re-exported here for backward compatibility.
 
 from __future__ import annotations
 
-# Re-export key broker adapters from shared for backward compatibility
-from the_alchemiser.shared.brokers import AlpacaManager, create_alpaca_manager
-
+# DEPRECATED: Import AlpacaManager from the_alchemiser.shared.brokers instead
+# Re-exports have been removed to resolve circular import issues
 # Expose preferred service managers
 from .core import RefactoredTradingServiceManager
 
 __all__ = [
-    "AlpacaManager",
     "RefactoredTradingServiceManager",
-    "create_alpaca_manager",
 ]

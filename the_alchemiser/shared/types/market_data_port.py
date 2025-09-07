@@ -7,11 +7,13 @@ This port defines the minimal contract strategies need.
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from the_alchemiser.strategy.types.bar import BarModel
 from the_alchemiser.shared.types.quote import QuoteModel
 from the_alchemiser.shared.value_objects.symbol import Symbol
+
+if TYPE_CHECKING:
+    from the_alchemiser.strategy.types.bar import BarModel
 
 
 @runtime_checkable
