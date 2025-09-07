@@ -15,12 +15,11 @@ import logging
 import math
 from dataclasses import dataclass, field
 from decimal import ROUND_DOWN, Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from the_alchemiser.execution.mappers.order_domain_mappers import (
-    dict_to_order_request_dto,
-    order_request_to_validated_dto,
-)
+if TYPE_CHECKING:
+    pass
+
 from the_alchemiser.execution.orders.schemas import OrderRequestDTO, ValidatedOrderDTO
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.types.exceptions import ValidationError
@@ -242,7 +241,11 @@ class OrderValidator:
 
         """
         try:
-            # Convert to validated DTO using mapper
+            # Convert to validated DTO using mapper (runtime import to avoid circular dependency)
+            from the_alchemiser.execution.mappers.order_domain_mappers import (
+                order_request_to_validated_dto,
+            )
+
             validated_order = order_request_to_validated_dto(order_request)
 
             # Perform additional business rule validation
@@ -279,7 +282,11 @@ class OrderValidator:
 
         """
         try:
-            # Convert dict to DTO
+            # Convert dict to DTO (runtime import to avoid circular dependency)
+            from the_alchemiser.execution.mappers.order_domain_mappers import (
+                dict_to_order_request_dto,
+            )
+
             order_request = dict_to_order_request_dto(order_dict)
             return self.validate_order_request(order_request)
 

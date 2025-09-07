@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared | Status: current
 
 Core type definitions for The Alchemiser trading system.
 
@@ -11,7 +11,15 @@ from __future__ import annotations
 
 from typing import Any, Literal, Protocol, TypedDict
 
-from the_alchemiser.execution.orders.order_types import OrderStatusLiteral
+# Order Status Literals - moved here to break circular dependency
+OrderStatusLiteral = Literal[
+    "new",
+    "partially_filled",
+    "filled",
+    "canceled",
+    "expired",
+    "rejected",
+]
 
 
 # Account Information Types

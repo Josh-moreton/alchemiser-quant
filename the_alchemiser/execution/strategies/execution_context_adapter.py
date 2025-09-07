@@ -18,9 +18,8 @@ from typing import TYPE_CHECKING, Any
 from the_alchemiser.execution.core.executor import (
     CanonicalOrderExecutor,
 )
-from the_alchemiser.execution.orders.order_request import OrderRequest
-from the_alchemiser.execution.orders.order_type import OrderType
-from the_alchemiser.execution.orders.side import Side
+from the_alchemiser.execution.orders.order_types import OrderType, Side
+from the_alchemiser.execution.orders.schemas import OrderRequest
 from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
 from the_alchemiser.shared.types.money import Money
 from the_alchemiser.shared.types.quantity import Quantity

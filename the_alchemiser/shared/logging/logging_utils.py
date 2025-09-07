@@ -22,7 +22,7 @@ request_id_context: ContextVar[str | None] = ContextVar("request_id", default=No
 error_id_context: ContextVar[str | None] = ContextVar("error_id", default=None)
 
 
-class AlchemiserLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
+class AlchemiserLoggerAdapter(logging.LoggerAdapter):
     """Custom logger adapter for the Alchemiser quantitative trading system."""
 
     def process(
