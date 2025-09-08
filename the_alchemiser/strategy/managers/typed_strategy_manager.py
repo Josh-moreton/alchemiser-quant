@@ -173,21 +173,32 @@ class TypedStrategyManager:
 
                 # Critical errors that should fail the entire operation
                 error_message = str(e)
-                if any(
-                    critical_error in error_message
-                    for critical_error in [
-                        "No module named",
-                        "ImportError",
-                        "ModuleNotFoundError",
-                        "cannot import name",
-                    ]
-                ):
-                    # System import/module errors indicate fundamental configuration issues
+                error_type = type(e).__name__
+                
+                # System errors that indicate fundamental configuration or code issues
+                critical_patterns = [
+                    "No module named",
+                    "ImportError", 
+                    "ModuleNotFoundError",
+                    "cannot import name",
+                    "object has no attribute",  # AttributeError indicating missing essential attributes
+                    "not defined",
+                    "is not callable",
+                ]
+                
+                critical_error_types = [
+                    "AttributeError",  # Missing attributes on strategy engines
+                    "NameError",       # Undefined variables/functions
+                    "TypeError",       # Incorrect type usage in core functionality
+                ]
+                
+                if any(pattern in error_message for pattern in critical_patterns) or error_type in critical_error_types:
+                    # System errors indicate fundamental configuration/code issues
                     # that should cause the entire signal generation to fail
                     raise StrategyExecutionError(
                         f"Critical system error in {strategy_type.value} strategy: {e}. "
-                        f"This indicates a missing module or import failure that prevents "
-                        f"strategy execution and should be resolved before proceeding."
+                        f"This indicates a fundamental code or configuration issue (error type: {error_type}) "
+                        f"that prevents strategy execution and should be resolved before proceeding."
                     )
 
                 # Non-critical errors: continue with other strategies
