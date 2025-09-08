@@ -512,19 +512,19 @@ class KLMEngine(StrategyEngine):
     def _calculate_confidence(self, action: str, weight: float) -> Confidence:
         """Calculate confidence based on action and allocation weight."""
         config = self.confidence_config.klm
-        
+
         if action == "BUY":
             # Higher weight = higher confidence (configurable formula)
             confidence_value = min(
-                float(config.buy_max), 
-                float(config.buy_base) + (weight * float(config.buy_weight_multiplier))
+                float(config.buy_max),
+                float(config.buy_base) + (weight * float(config.buy_weight_multiplier)),
             )
-            
+
             # Boost for high-weight positions
             if weight >= float(config.high_weight_threshold):
                 confidence_value += float(config.high_weight_boost)
                 confidence_value = min(float(config.buy_max), confidence_value)
-                
+
         elif action == "SELL":
             # Sell signals have moderate confidence (configurable)
             confidence_value = float(config.sell_confidence)

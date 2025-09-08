@@ -229,12 +229,11 @@ class TradingEngine:
         self._container = None
 
         # Initialize common components
-        self._init_common_components(strategy_allocations, context["config_dict"])
+        self._init_common_components(strategy_allocations)
 
     def _init_common_components(
         self,
         strategy_allocations: dict[StrategyType, float] | None,
-        config_dict: dict[str, Any],
     ) -> None:
         """Initialize components common to all initialization modes."""
         # Strategy allocations
@@ -267,7 +266,6 @@ class TradingEngine:
                 order_executor=alpaca_manager,
                 data_provider=self.data_provider,
                 ignore_market_hours=self.ignore_market_hours,
-                config=config_dict,
             )
         except Exception as e:
             raise TradingClientError(

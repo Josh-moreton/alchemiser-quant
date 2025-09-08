@@ -115,16 +115,12 @@ class SmartExecution:
         order_executor: OrderExecutor,
         data_provider: DataProvider,
         ignore_market_hours: bool = False,
-        config: ExecutionConfig | None = None,  # Deprecated parameter, use execution_config instead
         account_info_provider: Any = None,  # noqa: ANN401  # External provider with dynamic interface
         enable_market_order_fallback: bool = False,  # Feature flag for market order fallback
         execution_config: (ExecutionConfig | None) = None,  # Phase 2: Adaptive configuration
         # Phase 5: Lifecycle tracking removed - delegated to canonical executor
     ) -> None:
         """Initialize with dependency injection for execution and data access."""
-        self.config: dict[str, Any] = (
-            config.__dict__ if config else {}
-        )  # Legacy config dict support
         self._order_executor = order_executor
         self._data_provider = data_provider
         self._trading_client = getattr(order_executor, "trading_client", None)
