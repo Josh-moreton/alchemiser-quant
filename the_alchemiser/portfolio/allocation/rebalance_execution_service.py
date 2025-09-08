@@ -9,8 +9,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.execution.core.refactored_execution_manager import (
-    RefactoredTradingServiceManager as TradingServiceManager,
+from the_alchemiser.execution.core.trading_services_facade import (
+    TradingServicesFacade as TradingServiceManager,
 )
 from the_alchemiser.execution.strategies.smart_execution import SmartExecution
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler

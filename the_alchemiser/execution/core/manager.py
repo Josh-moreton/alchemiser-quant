@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from the_alchemiser.execution.protocols import MultiStrategyExecutor
+from the_alchemiser.execution.execution_protocols import MultiStrategyExecutor
 
 from the_alchemiser.execution.mappers.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
@@ -36,7 +36,7 @@ from ..reporting.reporting import (
 )
 
 
-class ExecutionManager:
+class ExecutionManager(MultiStrategyExecutor):
     """Orchestrates multi-strategy execution for the TradingEngine.
     
     Implements the MultiStrategyExecutor protocol for strategy coordination 

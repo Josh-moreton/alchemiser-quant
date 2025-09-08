@@ -126,7 +126,7 @@ class RebalancingService(Protocol):
         ...
 
 
-from the_alchemiser.execution.protocols import MultiStrategyExecutor
+from the_alchemiser.execution.execution_protocols import MultiStrategyExecutor
 
 
 # --- Utility Functions ---

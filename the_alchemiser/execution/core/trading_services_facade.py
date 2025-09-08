@@ -61,11 +61,11 @@ from the_alchemiser.shared.schemas.operations import (
     OrderCancellationDTO,
     OrderStatusDTO,
 )
-from the_alchemiser.execution.protocols import BrokerTradingServices
+from the_alchemiser.execution.execution_protocols import BrokerTradingServices
 from the_alchemiser.shared.utils.decorators import translate_trading_errors
 
 
-class TradingServicesFacade:
+class TradingServicesFacade(BrokerTradingServices):
     """Facade for broker/account/position operations using decomposed services.
 
     This facade coordinates broker-level operations while maintaining clean separation 

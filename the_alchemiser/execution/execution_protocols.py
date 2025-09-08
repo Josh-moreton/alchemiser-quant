@@ -6,7 +6,6 @@ Protocol definitions for execution layer interfaces to clarify boundaries and pr
 from __future__ import annotations
 
 from typing import Protocol
-from decimal import Decimal
 
 from the_alchemiser.execution.orders.order_types import OrderId
 from the_alchemiser.execution.orders.schemas import OrderRequestDTO
