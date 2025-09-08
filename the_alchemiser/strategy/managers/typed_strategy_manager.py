@@ -167,9 +167,28 @@ class TypedStrategyManager:
                 self.logger.info(f"{strategy_type.value} generated {len(signals)} signals")
 
             except Exception as e:
-                # Log error and skip this strategy
+                # Log error and determine if this is a critical failure
                 self.logger.error(f"Error generating signals for {strategy_type.value}: {e}")
-                # Continue with other strategies
+                
+                # Critical errors that should fail the entire operation
+                error_message = str(e)
+                if any(critical_error in error_message for critical_error in [
+                    "No module named",
+                    "ImportError",
+                    "ModuleNotFoundError",
+                    "cannot import name",
+                    "ImportError:",
+                ]):
+                    # System import/module errors indicate fundamental configuration issues
+                    # that should cause the entire signal generation to fail
+                    from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
+                    raise StrategyExecutionError(
+                        f"Critical system error in {strategy_type.value} strategy: {e}. "
+                        f"This indicates a missing module or import failure that prevents "
+                        f"strategy execution and should be resolved before proceeding."
+                    )
+                
+                # Non-critical errors: continue with other strategies
                 aggregated.add_strategy_signals(strategy_type, [])
                 continue
 
