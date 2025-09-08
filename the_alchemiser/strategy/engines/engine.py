@@ -60,14 +60,11 @@ class StrategyEngine(ABC):
         """
         ...
 
-    def validate_signals(self, signals: list[StrategySignal]) -> bool:
+    def validate_signals(self, signals: list[StrategySignal]) -> None:
         """Validate generated signals for correctness.
 
         Args:
             signals: List of signals to validate
-
-        Returns:
-            True if all signals are valid
 
         Raises:
             StrategyValidationError: If any signal is invalid
@@ -75,7 +72,7 @@ class StrategyEngine(ABC):
         """
         if not signals:
             self.logger.warning(f"{self.strategy_name}: No signals generated")
-            return True
+            return
 
         for i, signal in enumerate(signals):
             try:
@@ -86,7 +83,6 @@ class StrategyEngine(ABC):
                 raise StrategyValidationError(error_msg, self.strategy_name) from e
 
         self.logger.info(f"{self.strategy_name}: Validated {len(signals)} signals successfully")
-        return True
 
     def _validate_single_signal(self, signal: StrategySignal) -> None:
         """Validate a single strategy signal.
@@ -164,14 +160,11 @@ class StrategyEngine(ABC):
         """
         return []
 
-    def validate_market_data_availability(self, symbols: list[str] | None = None) -> bool:
+    def validate_market_data_availability(self, symbols: list[str] | None = None) -> None:
         """Validate that required market data is available.
 
         Args:
             symbols: Optional list of symbols to check, defaults to required_symbols
-
-        Returns:
-            True if all required data is available
 
         Raises:
             MarketDataUnavailableError: If required data is unavailable
@@ -181,7 +174,7 @@ class StrategyEngine(ABC):
             symbols = self.get_required_symbols()
 
         if not symbols:
-            return True
+            return
 
         unavailable_symbols = []
         for symbol in symbols:
@@ -197,8 +190,6 @@ class StrategyEngine(ABC):
         if unavailable_symbols:
             error_msg = f"{self.strategy_name}: Required market data unavailable for symbols: {unavailable_symbols}"
             raise MarketDataUnavailableError(error_msg, unavailable_symbols)
-
-        return True
 
     def log_strategy_state(self, additional_info: dict[str, Any] | None = None) -> None:
         """Log current strategy state for debugging.

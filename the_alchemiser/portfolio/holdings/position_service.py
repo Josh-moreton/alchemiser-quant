@@ -198,22 +198,19 @@ class PositionService:
         )
         return summary
 
-    def check_position_limits(self, symbol: str, proposed_quantity: float) -> bool:
+    def check_position_limits(self, symbol: str, proposed_quantity: float) -> None:
         """Check if a proposed position would violate position limits.
 
         Args:
             symbol: Symbol to check
             proposed_quantity: Proposed total position size
 
-        Returns:
-            True if position is within limits
-
         Raises:
             PositionValidationError: If position violates limits
 
         """
         if proposed_quantity <= 0:
-            return True  # No position, no limit violation
+            return  # No position, no limit violation
 
         try:
             # Get current portfolio total
@@ -221,7 +218,7 @@ class PositionService:
             portfolio_total = self._calculate_portfolio_total(positions)
 
             if portfolio_total <= 0:
-                return True  # No portfolio value to check against
+                return  # No portfolio value to check against
 
             # Calculate proposed position value
             if self._market_data:
@@ -237,13 +234,12 @@ class PositionService:
                         )
 
             logger.info(f"✅ Position limits check passed for {symbol}")
-            return True
 
         except PositionValidationError:
             raise
         except Exception as e:
             logger.warning(f"Could not validate position limits for {symbol}: {e}")
-            return True  # Allow if we can't validate
+            # Allow if we can't validate - no exception raised
 
     @translate_trading_errors()
     def get_position_risk_metrics(self, symbol: str) -> dict[str, float | None]:
