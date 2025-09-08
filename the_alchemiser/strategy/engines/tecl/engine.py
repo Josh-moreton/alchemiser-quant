@@ -360,6 +360,7 @@ class TECLEngine(StrategyEngine):
             
         Returns:
             Confidence object with calculated value
+
         """
         config = self.confidence_config.tecl
         confidence = config.base_confidence

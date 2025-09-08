@@ -248,6 +248,7 @@ class NuclearEngine(StrategyEngine):
             
         Returns:
             Confidence object with calculated value
+
         """
         config = self.confidence_config.nuclear
         
