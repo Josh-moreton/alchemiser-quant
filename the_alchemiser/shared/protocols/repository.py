@@ -92,7 +92,7 @@ class TradingRepository(Protocol):
         """
         ...
 
-    def place_order(self, order_request: Any) -> RawOrderEnvelope:
+    def place_order(self, order_request: Any) -> RawOrderEnvelope:  # noqa: ANN401  # External broker SDK order request object
         """Place an order.
 
         Args:
@@ -181,7 +181,7 @@ class TradingRepository(Protocol):
         ...
 
     @property
-    def trading_client(self) -> Any:
+    def trading_client(self) -> Any:  # noqa: ANN401  # External broker SDK trading client object
         """Access to underlying trading client for backward compatibility.
 
         Note: This property is for backward compatibility during migration.
