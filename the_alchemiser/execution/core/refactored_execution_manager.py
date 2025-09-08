@@ -438,25 +438,25 @@ class RefactoredTradingServiceManager:
             self.logger.error(f"Error closing RefactoredTradingServiceManager: {e}")
 
     def execute_multi_strategy(self) -> MultiStrategyExecutionResultDTO:
-        """Execute multi-strategy trading (placeholder implementation).
+        """Execute multi-strategy trading - NOT USED IN CURRENT ARCHITECTURE.
         
-        This RefactoredTradingServiceManager is designed for focused execution tasks
-        rather than full multi-strategy coordination. This method provides a proper
-        interface implementation but returns an error result indicating that
-        multi-strategy execution should be handled by the full TradingEngine.
+        This method exists to satisfy the MultiStrategyExecutor protocol but
+        should not be called directly. The TradingEngine uses a dedicated
+        ExecutionManager for multi-strategy coordination.
         
         Returns:
-            MultiStrategyExecutionResultDTO indicating the operation is not supported
+            MultiStrategyExecutionResultDTO indicating this path is not used
         
         """
         self.logger.warning(
             "execute_multi_strategy called on RefactoredTradingServiceManager - "
-            "this service is not designed for multi-strategy coordination"
+            "this method should not be used in the current architecture. "
+            "Multi-strategy execution is handled by ExecutionManager in TradingEngine."
         )
         
-        # Create empty/error AccountInfo for unsupported operations
+        # Create empty/error AccountInfo for architectural mismatch
         empty_account_info: AccountInfo = {
-            "account_id": "refactored_manager",
+            "account_id": "refactored_manager_not_used",
             "equity": 0.0,
             "cash": 0.0,
             "buying_power": 0.0,
@@ -465,7 +465,7 @@ class RefactoredTradingServiceManager:
             "last_equity": 0.0,
             "daytrading_buying_power": 0.0,
             "regt_buying_power": 0.0,
-            "status": "INACTIVE",
+            "status": "NOT_USED",
         }
         
         return MultiStrategyExecutionResultDTO(
@@ -476,8 +476,11 @@ class RefactoredTradingServiceManager:
             account_info_before=empty_account_info,
             account_info_after=empty_account_info,
             execution_summary=safe_dict_to_execution_summary_dto({
-                "error": "RefactoredTradingServiceManager does not support multi-strategy execution",
-                "mode": "error",
+                "error": (
+                    "RefactoredTradingServiceManager.execute_multi_strategy() is not used in current architecture. "
+                    "Multi-strategy execution is handled by ExecutionManager in TradingEngine."
+                ),
+                "mode": "architectural_bypass",
                 "account_info_before": empty_account_info,
                 "account_info_after": empty_account_info,
             }),
