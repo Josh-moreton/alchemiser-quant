@@ -15,10 +15,7 @@ Globals:
         # Logging
         LOGGING__LEVEL: INFO
 
-        # Alpaca Credentials (populated from AWS Secrets Manager)
-        ALPACA_KEY: "{{resolve:secretsmanager:the-alchemiser-secrets:SecretString:ALPACA_KEY}}"
-        ALPACA_SECRET: "{{resolve:secretsmanager:the-alchemiser-secrets:SecretString:ALPACA_SECRET}}"
-        ALPACA_ENDPOINT: "{{resolve:secretsmanager:the-alchemiser-secrets:SecretString:ALPACA_ENDPOINT}}"
+        # Note: Alpaca credentials loaded from AWS Secrets Manager at runtime
 
         # Alpaca Configuration
         ALPACA__ENDPOINT: https://api.alpaca.markets

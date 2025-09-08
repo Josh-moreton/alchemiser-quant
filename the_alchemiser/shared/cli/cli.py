@@ -598,10 +598,10 @@ def status() -> None:
 
         tsm: TradingServiceManager | None = None
         try:
-            api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not live)
+            api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not is_live)
             if not api_key or not secret_key:
                 raise RuntimeError("Alpaca credentials not available")
-            tsm = TradingServiceManager(api_key, secret_key, paper=not live)
+            tsm = TradingServiceManager(api_key, secret_key, paper=not is_live)
             enriched = tsm.get_account_summary_enriched()
             # Extract the summary from the DTO
             if enriched and enriched.summary:
@@ -617,10 +617,10 @@ def status() -> None:
         try:
             # Reuse TSM if available, otherwise instantiate
             if tsm is None:
-                api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not live)
+                api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not is_live)
                 if not api_key or not secret_key:
                     raise RuntimeError("Alpaca credentials not available")
-                tsm = TradingServiceManager(api_key, secret_key, paper=not live)
+                tsm = TradingServiceManager(api_key, secret_key, paper=not is_live)
 
             enriched_positions = tsm.get_positions_enriched()
             if enriched_positions:
@@ -806,7 +806,7 @@ def status() -> None:
             error=e,
             context="CLI status command - trading client operation",
             component="cli.status",
-            additional_data={"live_trading": live, "error_type": type(e).__name__},
+            additional_data={"live_trading": is_live, "error_type": type(e).__name__},
         )
         console.print(f"[bold red]Trading client error: {e}[/bold red]")
         raise typer.Exit(1)
