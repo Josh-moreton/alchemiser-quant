@@ -215,7 +215,7 @@ class NuclearEngine(StrategyEngine):
         else:
             signal_symbol = symbol
 
-        # Determine confidence based on signal strength  
+        # Determine confidence based on signal strength
         confidence = self._calculate_confidence(symbol, action, reasoning, market_data=market_data)
 
         # Determine target allocation based on signal type, unless overridden
@@ -237,101 +237,98 @@ class NuclearEngine(StrategyEngine):
         self, symbol: str, action: str, reasoning: str, market_data: dict[str, Any] | None = None
     ) -> Confidence:
         """Calculate confidence based on market indicators and signal characteristics.
-        
+
         Replaces string-based heuristics with deterministic indicator-driven rules.
-        
+
         Args:
             symbol: Target symbol for the signal
-            action: Action type (BUY/SELL/HOLD) 
+            action: Action type (BUY/SELL/HOLD)
             reasoning: Signal reasoning for context
             market_data: Market data for indicator calculations (optional)
-            
+
         Returns:
             Confidence object with calculated value
 
         """
         config = self.confidence_config.nuclear
-        
+
         # Start with base confidence
         confidence = config.base_confidence
-        
+
         # HOLD actions get fixed confidence
         if action == "HOLD":
             return Confidence(config.hold_confidence)
-            
+
         # Calculate indicator-based confidence if market data available
         if market_data:
             confidence = self._calculate_indicator_confidence(symbol, action, market_data, config)
         else:
             # Fallback to enhanced reasoning-based calculation
             confidence = self._calculate_reasoning_confidence(action, reasoning, config)
-            
+
         # Clamp to valid range
         confidence = max(config.min_confidence, min(config.max_confidence, confidence))
-        
+
         return Confidence(confidence)
-        
+
     def _calculate_indicator_confidence(
         self, symbol: str, action: str, market_data: dict[str, Any], config: NuclearConfidenceConfig
     ) -> Decimal:
         """Calculate confidence based on actual market indicators."""
         confidence = config.base_confidence
-        
+
         # Check key market symbols for regime and RSI conditions
         key_symbols = (
-            ["SPY", "TQQQ", "QQQ", symbol] 
-            if symbol in market_data 
-            else ["SPY", "TQQQ", "QQQ"]
+            ["SPY", "TQQQ", "QQQ", symbol] if symbol in market_data else ["SPY", "TQQQ", "QQQ"]
         )
-        
+
         for check_symbol in key_symbols:
             if check_symbol not in market_data:
                 continue
-                
+
             df = market_data[check_symbol]
             if df.empty:
                 continue
-                
+
             close = df["Close"]
             current_price = float(close.iloc[-1])
-            
+
             # Calculate RSI for confidence assessment
             rsi_14 = safe_get_indicator(close, self.indicators.rsi, 14)
             if rsi_14 is None:
                 continue
-                
+
             rsi_val = Decimal(str(rsi_14))
-            
+
             # Extreme overbought conditions (RSI > 85)
             if rsi_val > config.rsi_extreme_overbought:
                 confidence = config.extreme_overbought_confidence
                 break
-                
+
             # Oversold BUY conditions (RSI < 25 + BUY action)
             if rsi_val < config.rsi_oversold and action == "BUY":
                 confidence = config.oversold_buy_confidence
                 break
-                
+
             # Check for volatility hedge conditions (VIX-related symbols)
             if check_symbol in ["UVXY", "VIX"] and current_price > 0:
                 # Assume volatility hedge if UVXY price is elevated
                 if current_price > 15:  # UVXY elevated threshold
                     confidence = config.volatility_hedge_confidence
                     break
-                    
+
             # Market regime confidence (moderate overbought/oversold)
-            if (rsi_val > config.rsi_moderate_overbought or 
-                rsi_val < config.rsi_moderate_oversold):
+            if rsi_val > config.rsi_moderate_overbought or rsi_val < config.rsi_moderate_oversold:
                 confidence = max(confidence, config.market_regime_confidence)
-                
+
         return confidence
-        
+
     def _calculate_reasoning_confidence(
         self, action: str, reasoning: str, config: NuclearConfidenceConfig
     ) -> Decimal:
         """Fallback confidence calculation based on reasoning when market data unavailable."""
         reasoning_lower = reasoning.lower()
-        
+
         # Map key reasoning patterns to confidence levels (deterministic)
         if "extremely overbought" in reasoning_lower:
             return config.extreme_overbought_confidence
@@ -341,7 +338,7 @@ class NuclearEngine(StrategyEngine):
             return config.volatility_hedge_confidence
         if "bull market" in reasoning_lower or "bear market" in reasoning_lower:
             return config.market_regime_confidence
-        
+
         return config.base_confidence
 
     def _calculate_target_allocation(self, symbol: str, action: str) -> float:

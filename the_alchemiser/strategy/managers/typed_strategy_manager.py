@@ -274,11 +274,11 @@ class TypedStrategyManager:
 
         # Filter signals that meet minimum confidence thresholds
         valid_signals = self._filter_by_confidence_thresholds(strategy_signals)
-        
+
         if not valid_signals:
             self.logger.warning(f"No signals for {symbol} meet minimum confidence thresholds")
             return None
-            
+
         if len(valid_signals) == 1:
             # Only one signal meets thresholds
             _, signal = valid_signals[0]
@@ -297,14 +297,14 @@ class TypedStrategyManager:
             return self._combine_agreeing_signals(symbol, valid_signals)
         # Strategies disagree - use highest weighted confidence with tie-breaking
         return self._select_highest_confidence_signal(symbol, valid_signals)
-        
+
     def _filter_by_confidence_thresholds(
         self, strategy_signals: list[tuple[StrategyType, StrategySignal]]
     ) -> list[tuple[StrategyType, StrategySignal]]:
         """Filter signals that meet minimum confidence thresholds for their action."""
         thresholds = self.confidence_config.aggregation.thresholds
         valid_signals = []
-        
+
         for strategy_type, signal in strategy_signals:
             min_threshold = thresholds.get_threshold(signal.action)
             if signal.confidence.value >= min_threshold:
@@ -314,7 +314,7 @@ class TypedStrategyManager:
                     f"Signal {strategy_type.value}:{signal.symbol.value}:{signal.action} "
                     f"confidence {signal.confidence.value:.2f} below threshold {min_threshold:.2f}"
                 )
-                
+
         return valid_signals
 
     def _combine_agreeing_signals(
@@ -362,7 +362,7 @@ class TypedStrategyManager:
         self, symbol: str, strategy_signals: list[tuple[StrategyType, StrategySignal]]
     ) -> StrategySignal:
         """Select signal with highest weighted confidence when strategies disagree.
-        
+
         Implements explicit tie-breaking rules for deterministic behavior.
         """
         best_score = Decimal("-1")
@@ -391,8 +391,7 @@ class TypedStrategyManager:
         # Handle ties with explicit tie-breaking rules
         if len(best_signals) > 1:
             reasoning += (
-                f"• Tie detected with {len(best_signals)} signals "
-                f"at score {best_score:.3f}\n"
+                f"• Tie detected with {len(best_signals)} signals at score {best_score:.3f}\n"
             )
             best_strategy, best_signal = self._break_tie(best_signals)
             reasoning += f"• Tie-breaker: {best_strategy.value} (priority order + allocation)\n"
@@ -410,31 +409,32 @@ class TypedStrategyManager:
             reasoning=reasoning,
             timestamp=best_signal.timestamp,
         )
-        
+
     def _break_tie(
         self, tied_signals: list[tuple[StrategyType, StrategySignal]]
     ) -> tuple[StrategyType, StrategySignal]:
         """Break ties using explicit priority rules.
-        
+
         Tie-breaking order:
-        1. Highest strategy allocation 
+        1. Highest strategy allocation
         2. Strategy priority order (NUCLEAR > TECL > KLM)
         3. First encountered (deterministic fallback)
         """
+
         # Sort by allocation (descending), then by priority order
         def tie_break_key(item: tuple[StrategyType, StrategySignal]) -> tuple[float, int]:
             strategy_type, _ = item
             allocation = self.strategy_allocations[strategy_type]
-            
+
             # Get priority index (lower = higher priority)
             priority_order = self.confidence_config.aggregation.strategy_priority
             try:
                 priority_index = priority_order.index(strategy_type.value)
             except ValueError:
                 priority_index = len(priority_order)  # Unknown strategies get lowest priority
-                
+
             return (-allocation, priority_index)  # Negative allocation for descending sort
-            
+
         tied_signals.sort(key=tie_break_key)
         return tied_signals[0]
 
