@@ -181,6 +181,7 @@ def signal(
                 from the_alchemiser.execution.core.refactored_execution_manager import (
                     RefactoredTradingServiceManager as TradingServiceManager,
                 )
+
                 tsm = TradingServiceManager(api_key, secret_key, paper=True)
 
                 # Adapter implementing MarketDataPort
@@ -587,6 +588,7 @@ def status(
         from the_alchemiser.execution.core.refactored_execution_manager import (
             RefactoredTradingServiceManager as TradingServiceManager,
         )
+
         tsm: TradingServiceManager | None = None
         try:
             api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not live)

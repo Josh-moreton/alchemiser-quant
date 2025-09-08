@@ -25,13 +25,13 @@ def create_multi_strategy_summary(
     closed_pnl_subset: dict[str, Any] | None = None,
 ) -> MultiStrategySummaryDTO:
     """Assemble a MultiStrategySummaryDTO from execution results and optional components.
-    
+
     Args:
         execution_result: The core execution result
         allocation_comparison: Optional allocation comparison with Decimal precision
         enriched_account: Optional enriched account information
         closed_pnl_subset: Optional closed P&L subset for performance display
-        
+
     Returns:
         MultiStrategySummaryDTO with all components assembled
 
@@ -43,7 +43,7 @@ def create_multi_strategy_summary(
             current_values=allocation_comparison["current_values"],
             deltas=allocation_comparison["deltas"],
         )
-    
+
     return MultiStrategySummaryDTO(
         execution_result=execution_result,
         allocation_comparison=allocation_comparison_dto,
@@ -54,10 +54,10 @@ def create_multi_strategy_summary(
 
 def allocation_comparison_to_dict(allocation_comparison: AllocationComparisonDTO) -> dict[str, Any]:
     """Convert AllocationComparisonDTO to dict format for renderer compatibility.
-    
+
     Args:
         allocation_comparison: The allocation comparison DTO
-        
+
     Returns:
         Dict with target_values, current_values, and deltas
 

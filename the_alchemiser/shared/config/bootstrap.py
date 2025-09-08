@@ -30,7 +30,9 @@ from the_alchemiser.shared.utils.context import create_error_context
 def _get_market_data_service():
     """Lazy import MarketDataService to avoid circular imports."""
     from the_alchemiser.strategy.data.market_data_service import MarketDataService
+
     return MarketDataService
+
 
 logger = logging.getLogger(__name__)
 

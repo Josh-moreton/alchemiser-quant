@@ -58,6 +58,7 @@ class DataTransformationService:
         if self._market_data is None:
             # Import here to avoid circular import at module level
             from the_alchemiser.strategy.data.market_data_service import MarketDataService
+
             self._market_data = MarketDataService(self.alpaca_manager)
         return self._market_data
 
