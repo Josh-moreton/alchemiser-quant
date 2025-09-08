@@ -261,13 +261,12 @@ def main(argv: list[str] | None = None) -> bool:
         # Initialize system
         system = TradingSystem()
 
-        # Display header with stage-aware trading mode
-        from the_alchemiser.shared.config.secrets_adapter import secrets_adapter
-        
+        # Display header with simple trading mode detection
         if args.mode == "trade":
-            mode_label = "LIVE TRADING ⚠️" if not secrets_adapter.is_paper_trading else "Paper Trading"
-            stage_info = f"Stage: {secrets_adapter.stage.upper()}"
-            render_header("The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label} | {stage_info}")
+            import os
+            is_live = bool(os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+            mode_label = "LIVE TRADING ⚠️" if is_live else "Paper Trading"
+            render_header("The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}")
         else:
             render_header("The Alchemiser Trading System", f"{args.mode.upper()}")
 

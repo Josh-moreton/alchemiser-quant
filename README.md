@@ -42,9 +42,9 @@ make run-trade
 make status
 ```
 
-**📋 Note:** Trading mode (paper vs live) is now automatically determined by deployment stage:
-- **Local/dev environments**: Paper trading only
-- **Production deployment**: Live trading with production credentials
+**📋 Note:** Trading mode (paper vs live) is automatically determined by environment:
+- **Local development**: Paper trading (credentials from `.env` file)
+- **AWS Lambda deployment**: Live trading (credentials from AWS Secrets Manager)
 
 ### CLI Commands
 
@@ -55,7 +55,7 @@ The system provides a rich command-line interface:
 poetry run alchemiser signal
 
 # Multi-strategy trading execution  
-poetry run alchemiser trade [--live]
+poetry run alchemiser trade
 
 # Account status and positions
 poetry run alchemiser status
@@ -215,9 +215,9 @@ DTOs, utilities, and cross-cutting concerns.
 
 ## ⚙️ Configuration
 
-### 🔐 Secrets Management (Stage-Aware)
+### 🔐 Secrets Management (Simple Environment Detection)
 
-The system now uses **stage-aware secrets management** for enhanced security:
+The system uses **simple environment detection** for credential loading:
 
 #### Local Development
 Create a `.env` file from the example:
@@ -227,33 +227,35 @@ cp .env.example .env
 
 Edit `.env` with your paper trading credentials:
 ```bash
-# Stage configuration - controls secrets source and trading mode
-STAGE=local
-
 # Alpaca Paper Trading API Keys (for local development)
-ALPACA_PAPER_KEY=your_paper_api_key_here
-ALPACA_PAPER_SECRET=your_paper_secret_key_here
+ALPACA_KEY=your_paper_api_key_here
+ALPACA_SECRET=your_paper_secret_key_here
+ALPACA_ENDPOINT=https://paper-api.alpaca.markets
 
 # TwelveData API Key (optional)
 TWELVEDATA_KEY=your_twelvedata_api_key_here
 ```
 
-#### Deployed Environments
-Credentials are loaded from AWS Secrets Manager with stage isolation:
-- **Dev stage**: `alchemiser/dev/alpaca` (paper trading only)
-- **Prod stage**: `alchemiser/prod/alpaca` (live trading)
+#### Deployed Environments (AWS Lambda)
+Credentials are loaded from AWS Secrets Manager at `alchemiser/prod/alpaca`:
+
+```json
+{
+  "ALPACA_KEY": "your_live_api_key",
+  "ALPACA_SECRET": "your_live_secret_key", 
+  "ALPACA_ENDPOINT": "https://api.alpaca.markets",
+  "TWELVEDATA_KEY": "your_twelvedata_key"
+}
+```
 
 **Security Features:**
-- ✅ Stage isolation: dev environments cannot access prod secrets
-- ✅ Runtime guardrails: non-prod stages must use paper trading
-- ✅ No `--live` flag: trading mode determined by credentials available
+- ✅ Environment isolation: local development uses .env, production uses AWS Secrets Manager
+- ✅ Simple detection: Trading mode determined by where credentials are stored
+- ✅ No runtime flags: No `--live` flag to accidentally enable live trading in dev
 
 ### Environment Variables
 
 ```bash
-# Stage configuration (determines secrets source and trading mode)
-STAGE=local  # local | dev | prod
-
 # Email Notifications  
 EMAIL__FROM_EMAIL=your_email@domain.com
 EMAIL__TO_EMAIL=recipient@domain.com
@@ -269,17 +271,18 @@ EXECUTION__USE_CANONICAL_EXECUTOR=true
 EXECUTION__MAX_SLIPPAGE_BPS=20.0
 ```
 
-### Deployment Configurations
+### Deployment
 
-Stage-based deployments with isolated credentials:
+Simple deployment with automatic credential detection:
 
 ```bash
-# Deploy to dev environment (paper trading)
-sam deploy --config-env dev
-
-# Deploy to production environment (live trading)
-sam deploy --config-env prod
+# Deploy to AWS Lambda (automatically uses live trading credentials)
+sam deploy
 ```
+
+The system automatically detects the environment:
+- **Local runs**: Use `.env` file credentials (paper trading)
+- **Lambda deployment**: Use AWS Secrets Manager credentials (live trading)
 
 ### Configuration Structure
 

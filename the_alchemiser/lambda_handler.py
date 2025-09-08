@@ -48,26 +48,26 @@ def parse_event_mode(
     Event Structure:
         {
             "mode": "trade" | "bot",           # Required: Operation mode
-            "trading_mode": "paper" | "live",  # Optional: Trading mode (default: paper for empty events, live for events with mode)
             "ignore_market_hours": bool        # Optional: Override market hours (default: false)
         }
 
     Examples:
-        Paper trading: {"mode": "trade", "trading_mode": "paper"}
-        Live trading: {"mode": "trade", "trading_mode": "live"}
+        Trading: {"mode": "trade"}
         Signals only: {"mode": "bot"}
         Testing: {"mode": "trade", "ignore_market_hours": true}
-        Empty event (safe default): {} or None → paper trading with market hours ignored
+        Empty event (safe default): {} or None → trading with market hours ignored
 
+    Note: Trading mode (live/paper) is now determined by deployment environment,
+    not by event parameters.
     """
-    # Default to paper trading with market hours ignored for safety
+    # Default to trading with market hours ignored for safety
     default_args = ["trade", "--ignore-market-hours"]
 
     # Convert dict to DTO if needed
     if isinstance(event, dict):
         if not event:
             logger.info(
-                "Empty event provided, using default paper trading mode with market hours ignored"
+                "Empty event provided, using default trading mode with market hours ignored"
             )
             return default_args
         # Convert dict to DTO for consistent handling
@@ -76,7 +76,7 @@ def parse_event_mode(
     # Handle None or DTO without mode specified
     if not event or not event.mode:
         logger.info(
-            "No event or mode provided, using default paper trading mode with market hours ignored"
+            "No event or mode provided, using default trading mode with market hours ignored"
         )
         return default_args
 
@@ -91,16 +91,6 @@ def parse_event_mode(
 
     # Only add trading-specific flags for trade mode
     if mode == "trade":
-        # Extract trading mode (paper or live)
-        trading_mode = event.trading_mode or "live"  # Default to live when event is provided
-        if trading_mode not in ["paper", "live"]:
-            logger.warning(f"Invalid trading_mode '{trading_mode}', defaulting to 'live'")
-            trading_mode = "live"
-
-        # Add live flag if specified
-        if trading_mode == "live":
-            args.append("--live")
-
         # Add market hours override if specified
         if event.ignore_market_hours:
             args.append("--ignore-market-hours")
@@ -192,11 +182,10 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
         # Extract mode information for response
         mode = command_args[0] if command_args else "unknown"
 
-        # Determine trading mode based on command arguments
-        if "--live" in command_args:
-            trading_mode = "live"
-        elif mode == "trade":
-            trading_mode = "paper"
+        # Determine trading mode based on environment
+        import os
+        if mode == "trade":
+            trading_mode = "live" if os.getenv("AWS_LAMBDA_FUNCTION_NAME") else "paper"
         else:
             trading_mode = "n/a"
 

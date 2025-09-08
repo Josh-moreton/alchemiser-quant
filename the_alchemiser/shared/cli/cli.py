@@ -527,24 +527,24 @@ def trade(
 
 
 @app.command()
-def status(
-    live: bool = typer.Option(False, "--live", help="🚨 Show LIVE account status (real account)"),
-) -> None:
+def status() -> None:
     """📈 [bold blue]Show account status and positions[/bold blue].
 
     Displays current account balance, positions, portfolio performance, and P&L.
-    Use --live flag to view live account instead of paper account.
+    Trading mode (live/paper) determined by environment configuration.
     """
     show_welcome()
 
     # Initialize error handler
     error_handler = TradingSystemErrorHandler()
 
-    # Determine mode and add safety warning for live mode
-    paper_trading = not live
-    mode_display = "[bold red]LIVE[/bold red]" if live else "[bold blue]PAPER[/bold blue]"
+    # Simple environment detection: if in Lambda, assume live; otherwise paper
+    import os
+    is_live = bool(os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+    paper_trading = not is_live
+    mode_display = "[bold red]LIVE[/bold red]" if is_live else "[bold blue]PAPER[/bold blue]"
 
-    if live:
+    if is_live:
         console.print(
             Panel(
                 "[bold red]⚠️  LIVE ACCOUNT STATUS[/bold red]\n\n"

@@ -5,10 +5,12 @@ Configuration providers for dependency injection.
 
 from __future__ import annotations
 
+import os
+
 from dependency_injector import containers, providers
 
 from the_alchemiser.shared.config.config import load_settings
-from the_alchemiser.shared.config.secrets_adapter import secrets_adapter
+from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
 
 
 class ConfigProviders(containers.DeclarativeContainer):
@@ -17,14 +19,15 @@ class ConfigProviders(containers.DeclarativeContainer):
     # Settings configuration
     settings = providers.Singleton(load_settings)
 
-    # Trading mode: now derived from secrets adapter stage detection
-    paper_trading = providers.Factory(lambda: secrets_adapter.is_paper_trading)
+    # Simple paper trading detection: if in Lambda, assume live; otherwise paper
+    paper_trading = providers.Factory(lambda: not bool(os.getenv("AWS_LAMBDA_FUNCTION_NAME")))
 
-    # Credentials from stage-aware secrets adapter
-    _alpaca_credentials = providers.Factory(lambda: secrets_adapter.get_alpaca_keys())
+    # Credentials from simple secrets helper
+    _alpaca_credentials = providers.Factory(get_alpaca_keys)
 
-    alpaca_api_key = providers.Factory(lambda creds: creds[0], creds=_alpaca_credentials)
-    alpaca_secret_key = providers.Factory(lambda creds: creds[1], creds=_alpaca_credentials)
+    alpaca_api_key = providers.Factory(lambda creds: creds[0] if creds[0] else None, creds=_alpaca_credentials)
+    alpaca_secret_key = providers.Factory(lambda creds: creds[1] if creds[1] else None, creds=_alpaca_credentials)
+    alpaca_endpoint = providers.Factory(lambda creds: creds[2] if creds[2] else None, creds=_alpaca_credentials)
 
     # Email configuration
     email_recipient = providers.Factory(lambda settings: settings.email.to_email, settings=settings)

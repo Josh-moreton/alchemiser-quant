@@ -1,73 +1,62 @@
 #!/usr/bin/env python3
 """Business Unit: shared | Status: current.
 
-Legacy Secrets Manager - DEPRECATED
-This module is maintained for backward compatibility but delegates to the new SecretsAdapter.
+Secrets Manager for credential loading.
 
-The new SecretsAdapter provides:
-- Environment-aware credential loading (local .env vs AWS Secrets Manager)
-- Stage-based secret isolation (dev/prod)
-- Runtime guardrails for paper vs live trading
+This module provides simple functions for loading secrets from the appropriate source:
+- Local development: Loads from environment variables (typically .env files)
+- AWS Lambda: Loads from AWS Secrets Manager
 
-New code should use SecretsAdapter directly.
+Trading mode is determined by which credentials you choose to store where.
 """
 
 from __future__ import annotations
 
 import logging
-import warnings
 
-# Issue deprecation warning
-warnings.warn(
-    "secrets_manager module is deprecated. Use secrets_adapter instead.",
-    DeprecationWarning,
-    stacklevel=2
-)
+from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys, get_twelvedata_api_key
 
 logger = logging.getLogger(__name__)
 
 
 class SecretsManager:
-    """Handles retrieving secrets - DEPRECATED.
-    
-    This class is maintained for backward compatibility but delegates to SecretsAdapter.
-    New code should use SecretsAdapter directly.
-    """
+    """Handles retrieving secrets from environment or AWS Secrets Manager."""
 
     def __init__(self, region_name: str | None = None) -> None:
-        """Initialize the Secrets Manager - delegates to SecretsAdapter."""
-        from the_alchemiser.shared.config.secrets_adapter import secrets_adapter
-        
-        self._adapter = secrets_adapter
-        logger.warning("SecretsManager is deprecated. Use SecretsAdapter instead.")
+        """Initialize the Secrets Manager."""
+        # region_name is kept for compatibility but not used in the simple approach
+        logger.info("Initialized SecretsManager with simple environment detection")
 
     def get_secret(self, secret_name: str) -> dict[str, str] | None:
-        """Retrieve a secret - DEPRECATED method."""
-        logger.warning("get_secret() is deprecated. Use SecretsAdapter methods directly.")
-        # Return None to maintain compatibility but don't actually fetch
+        """Retrieve a secret - not implemented in simple approach."""
+        logger.warning("get_secret() is not implemented in the simple approach. Use specific methods like get_alpaca_keys().")
         return None
 
     def get_alpaca_keys(self, paper_trading: bool = True) -> tuple[str, str] | tuple[None, None]:
-        """Get Alpaca API keys - delegates to SecretsAdapter.
+        """Get Alpaca API keys from the appropriate source.
         
-        Note: The paper_trading parameter is ignored as the new system determines
-        trading mode based on environment stage.
+        Note: The paper_trading parameter is ignored as trading mode is determined
+        by which credentials are stored where (local .env vs AWS Secrets Manager).
+        
+        Returns:
+            Tuple of (api_key, secret_key) or (None, None) if not found
         """
         if paper_trading is False:
-            logger.warning(
-                "Live trading mode requested via paper_trading=False is ignored. "
-                "Trading mode is now determined by deployment stage."
+            logger.info(
+                "Live trading mode requested via paper_trading=False. "
+                "Trading mode is determined by credential storage location."
             )
         
-        return self._adapter.get_alpaca_keys()
+        result = get_alpaca_keys()
+        if result[0] is None:
+            return None, None
+        # Return only api_key and secret_key for backward compatibility
+        return result[0], result[1]
 
     def get_twelvedata_api_key(self) -> str | None:
-        """Get TwelveData API key - delegates to SecretsAdapter."""
-        return self._adapter.get_twelvedata_api_key()
+        """Get TwelveData API key from the appropriate source."""
+        return get_twelvedata_api_key()
 
 
 # Global instance for backward compatibility
-# New code should use SecretsAdapter directly
-from the_alchemiser.shared.config.secrets_adapter import secrets_adapter
-
 secrets_manager = SecretsManager()
