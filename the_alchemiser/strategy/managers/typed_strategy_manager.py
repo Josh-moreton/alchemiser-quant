@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.shared.config.confidence_config import ConfidenceConfig
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy.engines.engine import StrategyEngine
@@ -76,6 +77,7 @@ class TypedStrategyManager:
         """
         self.market_data_port = market_data_port
         self.logger = logging.getLogger(__name__)
+        self.confidence_config = ConfidenceConfig.default()
 
         # Use provided allocations or defaults from registry
         if strategy_allocations is None:
@@ -181,7 +183,7 @@ class TypedStrategyManager:
                     "ImportError",
                     "ModuleNotFoundError",
                     "cannot import name",
-                    "object has no attribute",  # AttributeError indicating missing essential attributes
+                    "object has no attribute",  # AttributeError missing attributes
                     "not defined",
                     "is not callable",
                 ]
@@ -200,8 +202,9 @@ class TypedStrategyManager:
                     # that should cause the entire signal generation to fail
                     raise StrategyExecutionError(
                         f"Critical system error in {strategy_type.value} strategy: {e}. "
-                        f"This indicates a fundamental code or configuration issue (error type: {error_type}) "
-                        f"that prevents strategy execution and should be resolved before proceeding."
+                        f"This indicates a fundamental code or configuration issue "
+                        f"(error type: {error_type}) that prevents strategy execution "
+                        f"and should be resolved before proceeding."
                     )
 
                 # Non-critical errors: continue with other strategies
@@ -269,19 +272,50 @@ class TypedStrategyManager:
         """
         self.logger.info(f"Resolving conflict for {symbol} with {len(strategy_signals)} signals")
 
+        # Filter signals that meet minimum confidence thresholds
+        valid_signals = self._filter_by_confidence_thresholds(strategy_signals)
+        
+        if not valid_signals:
+            self.logger.warning(f"No signals for {symbol} meet minimum confidence thresholds")
+            return None
+            
+        if len(valid_signals) == 1:
+            # Only one signal meets thresholds
+            _, signal = valid_signals[0]
+            return signal
+
         # Conflict resolution strategy:
         # 1. If all actions are the same, combine with weighted confidence
-        # 2. If actions differ, use highest confidence signal
+        # 2. If actions differ, use highest confidence signal with explicit tie-breaking
         # 3. Weight by strategy allocation
 
-        actions = [signal.action for _, signal in strategy_signals]
+        actions = [signal.action for _, signal in valid_signals]
         unique_actions = set(actions)
 
         if len(unique_actions) == 1:
             # All strategies agree on action - combine confidences
-            return self._combine_agreeing_signals(symbol, strategy_signals)
-        # Strategies disagree - use highest weighted confidence
-        return self._select_highest_confidence_signal(symbol, strategy_signals)
+            return self._combine_agreeing_signals(symbol, valid_signals)
+        # Strategies disagree - use highest weighted confidence with tie-breaking
+        return self._select_highest_confidence_signal(symbol, valid_signals)
+        
+    def _filter_by_confidence_thresholds(
+        self, strategy_signals: list[tuple[StrategyType, StrategySignal]]
+    ) -> list[tuple[StrategyType, StrategySignal]]:
+        """Filter signals that meet minimum confidence thresholds for their action."""
+        thresholds = self.confidence_config.aggregation.thresholds
+        valid_signals = []
+        
+        for strategy_type, signal in strategy_signals:
+            min_threshold = thresholds.get_threshold(signal.action)
+            if signal.confidence.value >= min_threshold:
+                valid_signals.append((strategy_type, signal))
+            else:
+                self.logger.debug(
+                    f"Signal {strategy_type.value}:{signal.symbol.value}:{signal.action} "
+                    f"confidence {signal.confidence.value:.2f} below threshold {min_threshold:.2f}"
+                )
+                
+        return valid_signals
 
     def _combine_agreeing_signals(
         self, symbol: str, strategy_signals: list[tuple[StrategyType, StrategySignal]]
@@ -303,7 +337,10 @@ class TypedStrategyManager:
             total_weighted_confidence += weighted_confidence
             total_weight += weight
 
-            combined_reasoning += f"• {strategy_type.value}: {signal.action} (confidence: {confidence_value:.2f}, weight: {weight:.1%})\n"
+            combined_reasoning += (
+                f"• {strategy_type.value}: {signal.action} "
+                f"(confidence: {confidence_value:.2f}, weight: {weight:.1%})\n"
+            )
 
         # Average confidence weighted by strategy allocation
         final_confidence = (
@@ -324,29 +361,43 @@ class TypedStrategyManager:
     def _select_highest_confidence_signal(
         self, symbol: str, strategy_signals: list[tuple[StrategyType, StrategySignal]]
     ) -> StrategySignal:
-        """Select signal with highest weighted confidence when strategies disagree."""
+        """Select signal with highest weighted confidence when strategies disagree.
+        
+        Implements explicit tie-breaking rules for deterministic behavior.
+        """
         best_score = Decimal("-1")
-        best_signal = None
-        best_strategy = None
+        best_signals: list[tuple[StrategyType, StrategySignal]] = []
 
         reasoning = f"Conflict resolution for {symbol}:\n"
 
+        # Calculate weighted scores for all signals
         for strategy_type, signal in strategy_signals:
             weight = Decimal(str(self.strategy_allocations[strategy_type]))
             confidence_value = signal.confidence.value
             weighted_score = confidence_value * weight
 
-            reasoning += f"• {strategy_type.value}: {signal.action} (confidence: {confidence_value:.2f}, weight: {weight:.1%}, score: {weighted_score:.3f})\n"
+            reasoning += (
+                f"• {strategy_type.value}: {signal.action} "
+                f"(confidence: {confidence_value:.2f}, weight: {weight:.1%}, "
+                f"score: {weighted_score:.3f})\n"
+            )
 
             if weighted_score > best_score:
                 best_score = weighted_score
-                best_signal = signal
-                best_strategy = strategy_type
+                best_signals = [(strategy_type, signal)]
+            elif weighted_score == best_score:
+                best_signals.append((strategy_type, signal))
 
-        if best_signal is None or best_strategy is None:
-            # Fallback - shouldn't happen but be safe
-            _, best_signal = strategy_signals[0]
-            best_strategy = strategy_signals[0][0]
+        # Handle ties with explicit tie-breaking rules
+        if len(best_signals) > 1:
+            reasoning += (
+                f"• Tie detected with {len(best_signals)} signals "
+                f"at score {best_score:.3f}\n"
+            )
+            best_strategy, best_signal = self._break_tie(best_signals)
+            reasoning += f"• Tie-breaker: {best_strategy.value} (priority order + allocation)\n"
+        else:
+            best_strategy, best_signal = best_signals[0]
 
         reasoning += f"• Winner: {best_strategy.value} with weighted score {best_score:.3f}"
 
@@ -359,6 +410,33 @@ class TypedStrategyManager:
             reasoning=reasoning,
             timestamp=best_signal.timestamp,
         )
+        
+    def _break_tie(
+        self, tied_signals: list[tuple[StrategyType, StrategySignal]]
+    ) -> tuple[StrategyType, StrategySignal]:
+        """Break ties using explicit priority rules.
+        
+        Tie-breaking order:
+        1. Highest strategy allocation 
+        2. Strategy priority order (NUCLEAR > TECL > KLM)
+        3. First encountered (deterministic fallback)
+        """
+        # Sort by allocation (descending), then by priority order
+        def tie_break_key(item: tuple[StrategyType, StrategySignal]) -> tuple[float, int]:
+            strategy_type, _ = item
+            allocation = self.strategy_allocations[strategy_type]
+            
+            # Get priority index (lower = higher priority)
+            priority_order = self.confidence_config.aggregation.strategy_priority
+            try:
+                priority_index = priority_order.index(strategy_type.value)
+            except ValueError:
+                priority_index = len(priority_order)  # Unknown strategies get lowest priority
+                
+            return (-allocation, priority_index)  # Negative allocation for descending sort
+            
+        tied_signals.sort(key=tie_break_key)
+        return tied_signals[0]
 
     def get_strategy_allocations(self) -> dict[StrategyType, float]:
         """Get current strategy allocations."""

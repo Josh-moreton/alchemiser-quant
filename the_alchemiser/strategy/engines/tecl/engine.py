@@ -32,6 +32,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.shared.config.confidence_config import ConfidenceConfig, TECLConfidenceConfig
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.shared.utils.common import ActionType
@@ -59,6 +60,7 @@ class TECLEngine(StrategyEngine):
         super().__init__("TECL", data_provider)
         self.data_provider = data_provider  # Keep for backward compatibility with existing methods
         self.indicators = TechnicalIndicators()
+        self.confidence_config = ConfidenceConfig.default()
 
         # Core symbols used in TECL strategy
         self.market_symbols = ["SPY", "TQQQ", "SPXL"]
@@ -343,6 +345,107 @@ class TECLEngine(StrategyEngine):
 
         return symbol, ActionType.BUY.value, reasoning
 
+    def _calculate_confidence(
+        self, symbol: str, action: str, indicators: dict[str, Any], reasoning: str
+    ) -> Confidence:
+        """Calculate confidence based on market indicators and signal strength.
+        
+        Replaces the fixed 0.8 confidence with indicator-driven calculation.
+        
+        Args:
+            symbol: Target symbol for the signal
+            action: Action type (BUY/SELL/HOLD) 
+            indicators: Dictionary of calculated indicators
+            reasoning: Signal reasoning for additional context
+            
+        Returns:
+            Confidence object with calculated value
+        """
+        config = self.confidence_config.tecl
+        confidence = config.base_confidence
+        
+        # Check for defensive/hold positions (lower confidence)
+        is_defensive = symbol in ["BIL", "BSV"] or "defensive" in reasoning.lower()
+        if is_defensive or action == "HOLD":
+            confidence -= config.defensive_penalty
+            
+        # RSI-based confidence adjustments
+        rsi_boost = self._calculate_rsi_confidence_boost(indicators, config)
+        confidence += rsi_boost
+        
+        # Moving average distance boost
+        ma_boost = self._calculate_ma_confidence_boost(indicators, config)
+        confidence += ma_boost
+        
+        # Clamp to valid range
+        confidence = max(config.min_confidence, min(config.max_confidence, confidence))
+        
+        return Confidence(confidence)
+        
+    def _calculate_rsi_confidence_boost(
+        self, indicators: dict[str, Any], config: TECLConfidenceConfig
+    ) -> Decimal:
+        """Calculate confidence boost based on RSI extremes across key symbols."""
+        max_boost = Decimal("0")
+        
+        # Check RSI for key symbols
+        key_symbols = ["SPY", "TQQQ", "XLK", "TECL"]
+        
+        for symbol in key_symbols:
+            if symbol not in indicators:
+                continue
+                
+            symbol_indicators = indicators[symbol]
+            rsi_10 = symbol_indicators.get("rsi_10")
+            
+            if rsi_10 is None:
+                continue
+                
+            rsi_val = Decimal(str(rsi_10))
+            
+            # Extreme RSI conditions (> 80 or < 20)
+            extreme_low = Decimal("100") - config.rsi_extreme_threshold
+            if rsi_val > config.rsi_extreme_threshold or rsi_val < extreme_low:
+                max_boost = max(max_boost, config.rsi_extreme_boost)
+            else:
+                # Moderate RSI conditions (> 70 or < 30)  
+                moderate_low = Decimal("100") - config.rsi_moderate_threshold
+                if rsi_val > config.rsi_moderate_threshold or rsi_val < moderate_low:
+                    max_boost = max(max_boost, config.rsi_moderate_boost)
+                
+        return max_boost
+        
+    def _calculate_ma_confidence_boost(
+        self, indicators: dict[str, Any], config: TECLConfidenceConfig
+    ) -> Decimal:
+        """Calculate confidence boost based on distance from moving averages."""
+        max_boost = Decimal("0")
+        
+        # Check MA distance for market timing symbols
+        key_symbols = ["SPY", "TQQQ"]
+        
+        for symbol in key_symbols:
+            if symbol not in indicators:
+                continue
+                
+            symbol_indicators = indicators[symbol]
+            current_price = symbol_indicators.get("current_price")
+            ma_200 = symbol_indicators.get("ma_200")
+            
+            if current_price is None or ma_200 is None:
+                continue
+                
+            # Calculate percentage distance from MA
+            price_decimal = Decimal(str(current_price))
+            ma_decimal = Decimal(str(ma_200))
+            
+            if ma_decimal > 0:
+                distance = abs(price_decimal - ma_decimal) / ma_decimal
+                if distance > config.ma_distance_threshold:
+                    max_boost = max(max_boost, config.ma_distance_boost)
+                    
+        return max_boost
+
     def generate_signals(self, now: datetime) -> list[StrategySignal]:
         """Generate typed strategy signals (new typed interface).
 
@@ -382,7 +485,9 @@ class TECLEngine(StrategyEngine):
                 signal = StrategySignal(
                     symbol=Symbol(primary_symbol),
                     action=action,  # type: ignore  # action comes from ActionType.value
-                    confidence=Confidence(Decimal("0.8")),  # High confidence for TECL strategy
+                    confidence=self._calculate_confidence(
+                        primary_symbol, action, indicators, reasoning
+                    ),
                     target_allocation=Percentage(Decimal(str(total_allocation))),
                     reasoning=reasoning,
                 )
@@ -392,7 +497,9 @@ class TECLEngine(StrategyEngine):
                 signal = StrategySignal(
                     symbol=Symbol(symbol_or_allocation),
                     action=action,  # type: ignore  # action comes from ActionType.value
-                    confidence=Confidence(Decimal("0.8")),  # High confidence for TECL strategy
+                    confidence=self._calculate_confidence(
+                        symbol_or_allocation, action, indicators, reasoning
+                    ),
                     target_allocation=Percentage(Decimal("1.0")),  # 100% allocation
                     reasoning=reasoning,
                 )
@@ -415,7 +522,8 @@ class TECLEngine(StrategyEngine):
             alerts = []
             for signal in signals:
                 alert = Alert(
-                    message=f"TECL Strategy: {signal.action} {signal.symbol.value} - {signal.reasoning[:100]}...",
+                    message=f"TECL Strategy: {signal.action} {signal.symbol.value} - "
+                           f"{signal.reasoning[:100]}...",
                     severity="INFO",
                     symbol=signal.symbol,
                 )
