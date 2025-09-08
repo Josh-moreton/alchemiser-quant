@@ -1,12 +1,16 @@
 """Business Unit: execution; Status: current.
 
 Coordinate execution of multiple trading strategies.
+
+This module implements the MultiStrategyExecutor protocol for strategy orchestration.
 """
 
 from __future__ import annotations
 
 import logging
 from typing import Any
+
+from the_alchemiser.execution.protocols import MultiStrategyExecutor
 
 from the_alchemiser.execution.mappers.execution_summary_mapping import (
     safe_dict_to_execution_summary_dto,
@@ -33,7 +37,15 @@ from ..reporting.reporting import (
 
 
 class ExecutionManager:
-    """Orchestrates multi-strategy execution for the TradingEngine."""
+    """Orchestrates multi-strategy execution for the TradingEngine.
+    
+    Implements the MultiStrategyExecutor protocol for strategy coordination 
+    and portfolio rebalancing. This is the proper class to use for running
+    multiple strategies and coordinating portfolio rebalancing.
+    
+    Flow: ExecutionManager → engine.strategy_manager.run_all_strategies() 
+          → engine.rebalance_portfolio() → broker services via facade
+    """
 
     def __init__(self, engine: Any) -> None:
         """Store the trading engine used for order execution."""

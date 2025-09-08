@@ -126,12 +126,7 @@ class RebalancingService(Protocol):
         ...
 
 
-class MultiStrategyExecutor(Protocol):
-    """Protocol for multi-strategy execution."""
-
-    def execute_multi_strategy(self) -> MultiStrategyExecutionResultDTO:
-        """Execute all strategies and rebalance portfolio."""
-        ...
+from the_alchemiser.execution.protocols import MultiStrategyExecutor
 
 
 # --- Utility Functions ---
@@ -348,7 +343,7 @@ class TradingEngine:
             self.execution_manager = self._trading_service_manager
             
             # Create proper ExecutionManager for multi-strategy coordination
-            # The RefactoredTradingServiceManager is for focused execution tasks
+            # The TradingServicesFacade is for focused execution tasks
             # Multi-strategy execution requires the dedicated ExecutionManager
             from the_alchemiser.execution.core.manager import ExecutionManager
             self._execution_manager_for_multi_strategy = ExecutionManager(self)

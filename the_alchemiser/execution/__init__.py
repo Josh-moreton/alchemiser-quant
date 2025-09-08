@@ -10,14 +10,19 @@ for limit order placement, re-pegging, and WebSocket monitoring.
 
 RECOMMENDED USAGE:
 - AlpacaManager: Primary broker integration (now re-exported from shared.brokers)
-- RefactoredTradingServiceManager: Simplified service manager (when available)
+- TradingServicesFacade: Broker/account/position operations facade
+- ExecutionManager: Multi-strategy execution orchestration
 - SmartExecution: Execution strategies with re-pegging logic
 
 ARCHITECTURE NOTES:
-- 64 Python files across 17 directories (simplified from original 67 files, 20+ directories)
-- RefactoredTradingServiceManager: Main service manager (recommended)
+- TradingServicesFacade: Broker operations facade (recommended for account/order/position ops)
+- ExecutionManager: Multi-strategy orchestration (recommended for strategy coordination)
 - AlpacaManager: Primary broker integration (moved to shared.brokers for architectural compliance)
 - Focus on thin-wrapper design around alpaca-py APIs
+
+EXECUTION FLOW:
+- For multi-strategy execution: TradingEngine → ExecutionManager → strategy coordination
+- For broker operations: Services → TradingServicesFacade → broker APIs
 
 NOTE: AlpacaManager has been moved to shared.brokers to resolve architectural boundary
 violations. It is re-exported here for backward compatibility.
@@ -28,8 +33,8 @@ from __future__ import annotations
 # DEPRECATED: Import AlpacaManager from the_alchemiser.shared.brokers instead
 # Re-exports have been removed to resolve circular import issues
 # Expose preferred service managers
-from .core import RefactoredTradingServiceManager
+from .core import TradingServicesFacade
 
 __all__ = [
-    "RefactoredTradingServiceManager",
+    "TradingServicesFacade",
 ]

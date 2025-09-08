@@ -1,6 +1,11 @@
-"""Business Unit: execution | Status: current.
+"""Business Unit: execution | Status: current
 
-Refactored trading service manager using decomposed services for better separation of concerns.
+Trading services facade providing broker/account/position operations.
+
+This facade delegates to decomposed services for better separation of concerns.
+It handles broker-level operations but NOT multi-strategy execution or orchestration.
+
+For multi-strategy execution, use ExecutionManager instead.
 """
 
 from __future__ import annotations
@@ -41,7 +46,6 @@ from the_alchemiser.shared.schemas.accounts import (
     RiskMetricsDTO,
     TradeEligibilityDTO,
 )
-from the_alchemiser.shared.value_objects.core_types import AccountInfo
 from the_alchemiser.shared.schemas.enriched_data import (
     EnrichedPositionsDTO,
     OpenOrdersDTO,
@@ -57,19 +61,27 @@ from the_alchemiser.shared.schemas.operations import (
     OrderCancellationDTO,
     OrderStatusDTO,
 )
-from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.execution.protocols import BrokerTradingServices
 from the_alchemiser.shared.utils.decorators import translate_trading_errors
-from the_alchemiser.shared.mappers.execution_summary_mapping import (
-    safe_dict_to_execution_summary_dto,
-    safe_dict_to_portfolio_state_dto,
-)
 
 
-class RefactoredTradingServiceManager:
-    """Refactored service manager using decomposed services for better maintainability.
+class TradingServicesFacade:
+    """Facade for broker/account/position operations using decomposed services.
 
-    This class acts as a facade, coordinating between focused services while maintaining
-    clean separation of concerns. Each service handles a specific domain of functionality.
+    This facade coordinates broker-level operations while maintaining clean separation 
+    of concerns. It handles account management, order execution, and position tracking
+    but does NOT handle multi-strategy orchestration - use ExecutionManager for that.
+    
+    Responsibilities:
+    - Order placement and management
+    - Account information and risk metrics
+    - Position tracking and analytics
+    - Trading dashboard data
+    
+    Does NOT handle:
+    - Multi-strategy execution (use ExecutionManager)
+    - Strategy coordination (use ExecutionManager)
+    - Portfolio rebalancing orchestration (use ExecutionManager)
     """
 
     def __init__(self, api_key: str, secret_key: str, paper: bool = True) -> None:
@@ -96,7 +108,7 @@ class RefactoredTradingServiceManager:
         self.positions = PositionService(self.alpaca_manager)
         self.order_validator = OrderValidator()
 
-        self.logger.info(f"RefactoredTradingServiceManager initialized with paper={paper}")
+        self.logger.info(f"TradingServicesFacade initialized with paper={paper}")
 
     # Order Execution Operations (delegated to OrderExecutionService)
     def place_stop_loss_order(
@@ -433,56 +445,6 @@ class RefactoredTradingServiceManager:
         try:
             if hasattr(self.alpaca_manager, "close"):
                 self.alpaca_manager.close()
-            self.logger.info("RefactoredTradingServiceManager closed successfully")
+            self.logger.info("TradingServicesFacade closed successfully")
         except Exception as e:
-            self.logger.error(f"Error closing RefactoredTradingServiceManager: {e}")
-
-    def execute_multi_strategy(self) -> MultiStrategyExecutionResultDTO:
-        """Execute multi-strategy trading - NOT USED IN CURRENT ARCHITECTURE.
-        
-        This method exists to satisfy the MultiStrategyExecutor protocol but
-        should not be called directly. The TradingEngine uses a dedicated
-        ExecutionManager for multi-strategy coordination.
-        
-        Returns:
-            MultiStrategyExecutionResultDTO indicating this path is not used
-        
-        """
-        self.logger.warning(
-            "execute_multi_strategy called on RefactoredTradingServiceManager - "
-            "this method should not be used in the current architecture. "
-            "Multi-strategy execution is handled by ExecutionManager in TradingEngine."
-        )
-        
-        # Create empty/error AccountInfo for architectural mismatch
-        empty_account_info: AccountInfo = {
-            "account_id": "refactored_manager_not_used",
-            "equity": 0.0,
-            "cash": 0.0,
-            "buying_power": 0.0,
-            "day_trades_remaining": 0,
-            "portfolio_value": 0.0,
-            "last_equity": 0.0,
-            "daytrading_buying_power": 0.0,
-            "regt_buying_power": 0.0,
-            "status": "NOT_USED",
-        }
-        
-        return MultiStrategyExecutionResultDTO(
-            success=False,
-            strategy_signals={},
-            consolidated_portfolio={"BIL": 1.0},  # Safe fallback to cash
-            orders_executed=[],
-            account_info_before=empty_account_info,
-            account_info_after=empty_account_info,
-            execution_summary=safe_dict_to_execution_summary_dto({
-                "error": (
-                    "RefactoredTradingServiceManager.execute_multi_strategy() is not used in current architecture. "
-                    "Multi-strategy execution is handled by ExecutionManager in TradingEngine."
-                ),
-                "mode": "architectural_bypass",
-                "account_info_before": empty_account_info,
-                "account_info_after": empty_account_info,
-            }),
-            final_portfolio_state=safe_dict_to_portfolio_state_dto({}),
-        )
+            self.logger.error(f"Error closing TradingServicesFacade: {e}")
