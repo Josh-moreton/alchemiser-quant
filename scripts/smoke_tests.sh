@@ -106,6 +106,21 @@ else
     echo "    Output: $signal_output"
 fi
 
+# Test signal command exit code with dummy credentials (should fail with code 1)
+echo -e "${BLUE}[TEST]${NC} Signal command exit code validation"
+TESTS_TOTAL=$((TESTS_TOTAL + 1))
+ALPACA_KEY="dummy_key" ALPACA_SECRET="dummy_secret" ALPACA_ENDPOINT="https://paper-api.alpaca.markets" \
+    timeout 15 poetry run alchemiser signal >/dev/null 2>&1
+signal_exit_code=$?
+if [ $signal_exit_code -eq 1 ]; then
+    echo -e "${GREEN}  ✅ PASSED (correctly exits with code 1 on data failures)${NC}"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    echo -e "${RED}  ❌ FAILED (exit code: $signal_exit_code, expected: 1)${NC}"
+    echo "    Signal command should exit with code 1 when market data fails"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
 # Test portfolio status error handling  
 echo -e "${BLUE}[TEST]${NC} Portfolio status error handling"
 TESTS_TOTAL=$((TESTS_TOTAL + 1))

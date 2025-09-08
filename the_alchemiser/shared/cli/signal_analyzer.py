@@ -64,6 +64,66 @@ class SignalAnalyzer:
 
         return strategy_signals, consolidated_portfolio
 
+    def _validate_signal_quality(
+        self,
+        strategy_signals: dict[StrategyType, StrategySignalDisplayDTO],
+        consolidated_portfolio: dict[str, float],
+    ) -> bool:
+        """Validate that signal analysis produced meaningful results.
+        
+        Returns False if all strategies failed to get market data or if the analysis
+        appears to have failed due to data provider issues.
+        
+        Args:
+            strategy_signals: Generated strategy signals
+            consolidated_portfolio: Consolidated portfolio allocation
+            
+        Returns:
+            True if analysis appears valid, False if it should be considered a failure
+        """
+        if not strategy_signals:
+            return False
+            
+        # Count strategies that failed due to data issues
+        failed_strategies = []
+        fallback_strategies = []  # Strategies using fallback/default signals
+        
+        for strategy_type, signal in strategy_signals.items():
+            allocation = signal.get("allocation_weight", 0.0)
+            reasoning = signal.get("reasoning", "")
+            
+            # Check for explicit failure indicators
+            if reasoning and ("no signal produced" in reasoning.lower()):
+                failed_strategies.append(strategy_type.value)
+            # Check for fallback/default behavior due to data issues
+            elif reasoning and ("no market data available" in reasoning.lower()):
+                fallback_strategies.append(strategy_type.value)
+                
+        # If all strategies either failed completely or are using fallback defaults,
+        # consider this a system failure
+        total_affected = len(failed_strategies) + len(fallback_strategies) 
+        
+        if total_affected == len(strategy_signals):
+            if failed_strategies and not fallback_strategies:
+                # All strategies failed completely
+                self.logger.error(
+                    f"All strategies failed due to market data issues: {failed_strategies}"
+                )
+            elif fallback_strategies and not failed_strategies:
+                # All strategies using fallback due to data issues
+                self.logger.error(
+                    f"All strategies using fallback signals due to market data issues: {fallback_strategies}"
+                )
+            else:
+                # Mixed failure/fallback
+                self.logger.error(
+                    f"All strategies affected by market data issues - "
+                    f"failed: {failed_strategies}, fallback: {fallback_strategies}"
+                )
+            return False
+            
+        return True
+
     def _display_results(
         self,
         strategy_signals: dict[StrategyType, StrategySignalDisplayDTO],
@@ -287,6 +347,11 @@ class SignalAnalyzer:
 
             if not strategy_signals:
                 self.logger.error("Failed to generate strategy signals")
+                return False
+
+            # Check if analysis produced meaningful results
+            if not self._validate_signal_quality(strategy_signals, consolidated_portfolio):
+                self.logger.error("Signal analysis failed validation - no meaningful data available")
                 return False
 
             # Display results (tracking gated by flag)
