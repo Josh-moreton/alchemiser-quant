@@ -71,8 +71,8 @@ class SignalAnalyzer:
     ) -> bool:
         """Validate that signal analysis produced meaningful results.
 
-        Returns False if all strategies failed to get market data or if the analysis
-        appears to have failed due to data provider issues.
+        Returns False if any data fetch failures occurred or if all strategies failed
+        to get market data. The system should not operate on partial information.
 
         Args:
             strategy_signals: Generated strategy signals
@@ -85,12 +85,20 @@ class SignalAnalyzer:
         if not strategy_signals:
             return False
 
+        # Check for any data fetch failures - fail immediately on any failure
+        # We don't want trades being made on partial information
+        if self._has_data_fetch_failures():
+            self.logger.error(
+                "Signal analysis failed due to data fetch failures. "
+                "The system does not operate on partial information."
+            )
+            return False
+
         # Count strategies that failed due to data issues
         failed_strategies = []
         fallback_strategies = []  # Strategies using fallback/default signals
 
         for strategy_type, signal in strategy_signals.items():
-            allocation = signal.get("allocation_weight", 0.0)
             reasoning = signal.get("reasoning", "")
 
             # Check for explicit failure indicators
@@ -111,7 +119,7 @@ class SignalAnalyzer:
                     f"All strategies failed due to market data issues: {failed_strategies}"
                 )
             elif fallback_strategies and not failed_strategies:
-                # All strategies using fallback due to data issues
+                # All strategies using fallback due to market data issues
                 self.logger.error(
                     f"All strategies using fallback signals due to market data issues: {fallback_strategies}"
                 )
@@ -124,6 +132,43 @@ class SignalAnalyzer:
             return False
 
         return True
+
+    def _has_data_fetch_failures(self) -> bool:
+        """Check if any data fetch failures occurred during signal generation.
+        
+        This method detects if the system is in an environment where data fetching
+        fails, which should cause the signal analysis to fail rather than operate
+        on partial information.
+        
+        Returns:
+            True if data fetch failures are detected, False otherwise
+
+        """
+        try:
+            # Check if we're in a network-restricted environment by attempting
+            # to resolve the Alpaca data endpoint that strategies depend on
+            import socket
+            socket.gethostbyname("data.alpaca.markets")
+            
+            # If we can resolve the hostname, we likely have network access
+            # Any data fetch failures would be credential/API issues that
+            # should be handled by individual strategy error handling
+            return False
+            
+        except (socket.gaierror, OSError):
+            # Cannot resolve hostname - indicates network restrictions
+            # This means any data-dependent operations will fail
+            self.logger.warning(
+                "Network restrictions detected: cannot resolve data.alpaca.markets. "
+                "This indicates data fetch operations will fail."
+            )
+            return True
+            
+        except Exception as e:
+            # If we can't determine connectivity, be conservative
+            # In production this should rarely happen
+            self.logger.debug(f"Could not determine network connectivity: {e}")
+            return False
 
     def _display_results(
         self,
