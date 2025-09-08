@@ -15,8 +15,8 @@ from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.execution.core.execution_schemas import (
     WebSocketResultDTO,
-    WebSocketStatus,
 )
+from the_alchemiser.shared.dto.broker_dto import WebSocketStatus
 from the_alchemiser.execution.monitoring.websocket_order_monitor import (
     OrderCompletionMonitor,
 )
