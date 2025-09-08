@@ -446,10 +446,9 @@ def trade(
         show_welcome()
 
     # Determine trading mode from deployment stage
-    from the_alchemiser.shared.config.secrets_adapter import secrets_adapter
-    
-    is_live = not secrets_adapter.is_paper_trading
-    stage = secrets_adapter.stage
+    # Determine trading mode and stage from secrets_manager
+    is_live = not secrets_manager.is_paper_trading
+    stage = secrets_manager.stage
 
     if is_live:
         console.print(
