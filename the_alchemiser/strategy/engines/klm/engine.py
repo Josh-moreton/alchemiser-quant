@@ -19,6 +19,7 @@ from typing import Any
 
 import pandas as pd
 
+from the_alchemiser.shared.config.confidence_config import ConfidenceConfig
 from the_alchemiser.shared.math.math_utils import (
     calculate_moving_average_return,
     calculate_stdev_returns,
@@ -66,6 +67,7 @@ class KLMEngine(StrategyEngine):
     ) -> None:
         super().__init__(strategy_name, market_data_port)
         self.indicators = TechnicalIndicators()
+        self.confidence_config = ConfidenceConfig.default()
 
         # Initialize all strategy variants
         self.strategy_variants: list[BaseKLMVariant] = [
@@ -509,15 +511,26 @@ class KLMEngine(StrategyEngine):
 
     def _calculate_confidence(self, action: str, weight: float) -> Confidence:
         """Calculate confidence based on action and allocation weight."""
+        config = self.confidence_config.klm
+        
         if action == "BUY":
-            # Higher weight = higher confidence
-            confidence_value = min(0.9, 0.5 + (weight * 0.4))
+            # Higher weight = higher confidence (configurable formula)
+            confidence_value = min(
+                float(config.buy_max), 
+                float(config.buy_base) + (weight * float(config.buy_weight_multiplier))
+            )
+            
+            # Boost for high-weight positions
+            if weight >= float(config.high_weight_threshold):
+                confidence_value += float(config.high_weight_boost)
+                confidence_value = min(float(config.buy_max), confidence_value)
+                
         elif action == "SELL":
-            # Sell signals have moderate confidence
-            confidence_value = 0.7
+            # Sell signals have moderate confidence (configurable)
+            confidence_value = float(config.sell_confidence)
         else:  # HOLD
-            # Hold signals have lower confidence
-            confidence_value = 0.3
+            # Hold signals have lower confidence (configurable)
+            confidence_value = float(config.hold_confidence)
 
         return Confidence(Decimal(str(confidence_value)))
 
