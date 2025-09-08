@@ -59,6 +59,7 @@ def parse_event_mode(
 
     Note: Trading mode (live/paper) is now determined by deployment environment,
     not by event parameters.
+
     """
     # Default to trading with market hours ignored for safety
     default_args = ["trade", "--ignore-market-hours"]
@@ -184,6 +185,7 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
 
         # Determine trading mode based on endpoint URL
         from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+
         _, _, endpoint = get_alpaca_keys()
         if mode == "trade":
             trading_mode = "paper" if endpoint and "paper" in endpoint.lower() else "live"

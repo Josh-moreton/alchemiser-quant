@@ -104,7 +104,7 @@ class TradingSystem:
         export_tracking_json: str | None = None,
     ) -> bool:
         """Execute multi-strategy trading.
-        
+
         Note: Trading mode (live/paper) is now determined by deployment stage.
         """
         try:
@@ -160,11 +160,13 @@ def _resolve_log_level(is_production: bool) -> int:
 def configure_application_logging() -> None:
     """Configure application logging with reduced complexity."""
     # Check for Lambda environment via runtime-specific environment variables
-    is_production = any([
-        os.getenv("AWS_EXECUTION_ENV"),
-        os.getenv("AWS_LAMBDA_RUNTIME_API"),
-        os.getenv("LAMBDA_RUNTIME_DIR")
-    ])
+    is_production = any(
+        [
+            os.getenv("AWS_EXECUTION_ENV"),
+            os.getenv("AWS_LAMBDA_RUNTIME_API"),
+            os.getenv("LAMBDA_RUNTIME_DIR"),
+        ]
+    )
     root_logger = logging.getLogger()
     if root_logger.hasHandlers() and not is_production:
         return
@@ -212,7 +214,7 @@ Examples:
     # Remove --live flag - trading mode now determined by deployment stage
     # parser.add_argument(
     #     "--live",
-    #     action="store_true", 
+    #     action="store_true",
     #     help="Execute live trading (default: paper trading)",
     # )
 
@@ -269,6 +271,7 @@ def main(argv: list[str] | None = None) -> bool:
         # Display header with simple trading mode detection
         if args.mode == "trade":
             from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+
             _, _, endpoint = get_alpaca_keys()
             is_live = endpoint and "paper" not in endpoint.lower()
             mode_label = "LIVE TRADING ⚠️" if is_live else "Paper Trading"

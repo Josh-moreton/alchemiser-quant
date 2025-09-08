@@ -201,10 +201,8 @@ def bootstrap_traditional(
         ConfigurationError: If credentials or initialization fails
 
     """
-    import os
-    
     logger.info("Bootstrapping TradingEngine using traditional method")
-    
+
     # Warn about deprecated parameter
     if paper_trading is not None:
         logger.warning(
@@ -223,12 +221,14 @@ def bootstrap_traditional(
         result = get_alpaca_keys()
         if result[0] is None:
             raise ConfigurationError("Missing Alpaca credentials for traditional initialization")
-        
+
         api_key, secret_key, endpoint = result
-        
+
         # Determine trading mode from endpoint URL
         paper_trading = endpoint and "paper" in endpoint.lower()
-        logger.info(f"Using endpoint-determined trading mode: {'paper' if paper_trading else 'live'} (endpoint: {endpoint})")
+        logger.info(
+            f"Using endpoint-determined trading mode: {'paper' if paper_trading else 'live'} (endpoint: {endpoint})"
+        )
 
     except Exception as e:
         logger.error(f"Failed to load credentials: {e}")

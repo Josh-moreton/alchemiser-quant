@@ -188,11 +188,13 @@ def setup_logging(
     root_logger = logging.getLogger()
 
     # Production hygiene: Guard against S3 logging in Lambda environments
-    is_lambda = any([
-        os.environ.get("AWS_EXECUTION_ENV"),
-        os.environ.get("AWS_LAMBDA_RUNTIME_API"),
-        os.environ.get("LAMBDA_RUNTIME_DIR")
-    ])
+    is_lambda = any(
+        [
+            os.environ.get("AWS_EXECUTION_ENV"),
+            os.environ.get("AWS_LAMBDA_RUNTIME_API"),
+            os.environ.get("LAMBDA_RUNTIME_DIR"),
+        ]
+    )
     s3_logging_enabled = os.environ.get("ENABLE_S3_LOGGING", "").lower() in (
         "1",
         "true",
@@ -308,11 +310,13 @@ def configure_production_logging(
     In Lambda environments, defaults to CloudWatch-only logging unless S3 is explicitly enabled.
     """
     # Production hygiene: Only allow S3 logging if explicitly enabled
-    is_lambda = any([
-        os.environ.get("AWS_EXECUTION_ENV"),
-        os.environ.get("AWS_LAMBDA_RUNTIME_API"),
-        os.environ.get("LAMBDA_RUNTIME_DIR")
-    ])
+    is_lambda = any(
+        [
+            os.environ.get("AWS_EXECUTION_ENV"),
+            os.environ.get("AWS_LAMBDA_RUNTIME_API"),
+            os.environ.get("LAMBDA_RUNTIME_DIR"),
+        ]
+    )
     s3_logging_enabled = os.environ.get("ENABLE_S3_LOGGING", "").lower() in (
         "1",
         "true",

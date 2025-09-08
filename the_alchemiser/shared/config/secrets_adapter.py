@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 try:
     import boto3
     from botocore.exceptions import ClientError
+
     BOTO3_AVAILABLE = True
 except ImportError:
     BOTO3_AVAILABLE = False
@@ -29,11 +30,11 @@ except ImportError:
 
 def get_alpaca_keys() -> tuple[str, str, str] | tuple[None, None, None]:
     """Get Alpaca API keys from the appropriate source.
-    
+
     Simple environment detection:
     - If AWS_LAMBDA_FUNCTION_NAME exists: Use AWS Secrets Manager
     - Otherwise: Use environment variables (.env file)
-    
+
     Returns:
         Tuple of (api_key, secret_key, endpoint) or (None, None, None) if not found
 
@@ -53,26 +54,26 @@ def _get_alpaca_keys_from_aws() -> tuple[str, str, str] | tuple[None, None, None
     if not BOTO3_AVAILABLE:
         logger.error("boto3 not available for AWS Secrets Manager access")
         return None, None, None
-    
+
     try:
         # Initialize AWS Secrets Manager client
         client = boto3.client("secretsmanager", region_name="eu-west-2")
-        
+
         # Get the secret
         response = client.get_secret_value(SecretId="the-alchemiser-secrets")
         secret_data = json.loads(response["SecretString"])
-        
+
         api_key = secret_data.get("ALPACA_KEY")
-        secret_key = secret_data.get("ALPACA_SECRET") 
+        secret_key = secret_data.get("ALPACA_SECRET")
         endpoint = secret_data.get("ALPACA_ENDPOINT")
-        
+
         if not api_key or not secret_key or not endpoint:
             logger.error("Missing Alpaca credentials in AWS Secrets Manager")
             return None, None, None
-            
+
         logger.info("Successfully loaded Alpaca credentials from AWS Secrets Manager")
         return api_key, secret_key, endpoint
-        
+
     except ClientError as e:
         logger.error(f"Failed to retrieve secrets from AWS: {e}")
         return None, None, None
@@ -86,11 +87,13 @@ def _get_alpaca_keys_from_env() -> tuple[str, str, str] | tuple[None, None, None
     api_key = os.getenv("ALPACA_KEY")
     secret_key = os.getenv("ALPACA_SECRET")
     endpoint = os.getenv("ALPACA_ENDPOINT")
-    
+
     if not api_key or not secret_key or not endpoint:
-        logger.error("Missing Alpaca credentials in environment variables: ALPACA_KEY, ALPACA_SECRET, ALPACA_ENDPOINT")
+        logger.error(
+            "Missing Alpaca credentials in environment variables: ALPACA_KEY, ALPACA_SECRET, ALPACA_ENDPOINT"
+        )
         return None, None, None
-    
+
     logger.info("Successfully loaded Alpaca credentials from environment variables")
     return api_key, secret_key, endpoint
 
@@ -112,20 +115,20 @@ def _get_twelvedata_key_from_aws() -> str | None:
     if not BOTO3_AVAILABLE:
         logger.error("boto3 not available for AWS Secrets Manager access")
         return None
-    
+
     try:
         client = boto3.client("secretsmanager", region_name="eu-west-2")
         response = client.get_secret_value(SecretId="the-alchemiser-secrets")
         secret_data = json.loads(response["SecretString"])
-        
+
         api_key = secret_data.get("TWELVEDATA_KEY")
         if not api_key:
             logger.warning("TwelveData API key not found in AWS Secrets Manager")
             return None
-            
+
         logger.info("Successfully loaded TwelveData API key from AWS Secrets Manager")
         return api_key
-        
+
     except ClientError as e:
         logger.error(f"Failed to retrieve TwelveData key from AWS: {e}")
         return None
@@ -137,10 +140,10 @@ def _get_twelvedata_key_from_aws() -> str | None:
 def _get_twelvedata_key_from_env() -> str | None:
     """Get TwelveData key from environment variables."""
     api_key = os.getenv("TWELVEDATA_KEY")
-    
+
     if not api_key:
         logger.warning("TwelveData API key not found in environment variables")
         return None
-    
+
     logger.info("Successfully loaded TwelveData API key from environment")
     return api_key

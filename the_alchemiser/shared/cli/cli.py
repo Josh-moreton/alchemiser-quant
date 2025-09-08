@@ -455,9 +455,7 @@ def trade(
             f"[bold red]LIVE trading mode active (stage: {stage.upper()}). Proceeding without confirmation.[/bold red]"
         )
     else:
-        console.print(
-            f"[bold blue]PAPER trading mode active (stage: {stage.upper()}).[/bold blue]"
-        )
+        console.print(f"[bold blue]PAPER trading mode active (stage: {stage.upper()}).[/bold blue]")
 
     mode_display = "[bold red]LIVE[/bold red]" if is_live else "[bold blue]PAPER[/bold blue]"
     console.print(f"[bold yellow]Starting {mode_display} trading...[/bold yellow]")
@@ -539,6 +537,7 @@ def status() -> None:
 
     # Determine trading mode from endpoint URL
     from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+
     _, _, endpoint = get_alpaca_keys()
     is_live = endpoint and "paper" not in endpoint.lower()
     paper_trading = not is_live
