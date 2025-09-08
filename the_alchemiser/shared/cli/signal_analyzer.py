@@ -71,9 +71,8 @@ class SignalAnalyzer:
     ) -> bool:
         """Validate that signal analysis produced meaningful results.
 
-        Returns False if all strategies failed to get market data, if the analysis
-        appears to have failed due to data provider issues, or if there are too many
-        individual data fetch failures indicating poor overall data quality.
+        Returns False if any data fetch failures occurred or if all strategies failed
+        to get market data. The system should not operate on partial information.
 
         Args:
             strategy_signals: Generated strategy signals
@@ -86,12 +85,20 @@ class SignalAnalyzer:
         if not strategy_signals:
             return False
 
+        # Check for any data fetch failures - fail immediately on any failure
+        # We don't want trades being made on partial information
+        if self._has_data_fetch_failures():
+            self.logger.error(
+                "Signal analysis failed due to data fetch failures. "
+                "The system does not operate on partial information."
+            )
+            return False
+
         # Count strategies that failed due to data issues
         failed_strategies = []
         fallback_strategies = []  # Strategies using fallback/default signals
 
         for strategy_type, signal in strategy_signals.items():
-            allocation = signal.get("allocation_weight", 0.0)
             reasoning = signal.get("reasoning", "")
 
             # Check for explicit failure indicators
@@ -112,7 +119,7 @@ class SignalAnalyzer:
                     f"All strategies failed due to market data issues: {failed_strategies}"
                 )
             elif fallback_strategies and not failed_strategies:
-                # All strategies using fallback due to data issues
+                # All strategies using fallback due to market data issues
                 self.logger.error(
                     f"All strategies using fallback signals due to market data issues: {fallback_strategies}"
                 )
@@ -124,76 +131,44 @@ class SignalAnalyzer:
                 )
             return False
 
-        # Additional validation: Check for excessive individual data fetch failures
-        # by examining recent log records for data fetch errors
-        data_fetch_errors = self._count_recent_data_fetch_errors()
-        
-        # If there are many individual symbol fetch failures (indicating poor data quality),
-        # fail even if strategies managed to generate some signals
-        if data_fetch_errors >= 10:  # Threshold: 10+ symbols failing to fetch
-            self.logger.error(
-                f"Signal analysis failed due to excessive data fetch failures: "
-                f"{data_fetch_errors} symbols failed to fetch data, indicating poor overall data quality"
-            )
-            return False
-
         return True
 
-    def _count_recent_data_fetch_errors(self) -> int:
-        """Count recent data fetch errors by examining log records.
+    def _has_data_fetch_failures(self) -> bool:
+        """Check if any data fetch failures occurred during signal generation.
         
-        This is a heuristic approach to detect when there are too many individual
-        symbol data fetch failures, which indicates poor overall data quality.
+        This method detects if the system is in an environment where data fetching
+        fails, which should cause the signal analysis to fail rather than operate
+        on partial information.
         
         Returns:
-            Number of recent data fetch errors detected
+            True if data fetch failures are detected, False otherwise
+
         """
         try:
-            import logging
-            import time
-            from collections import defaultdict
+            # Check if we're in a network-restricted environment by attempting
+            # to resolve the Alpaca data endpoint that strategies depend on
+            import socket
+            socket.gethostbyname("data.alpaca.markets")
             
-            # Get all loggers in the application
-            loggers_to_check = [
-                'the_alchemiser.shared.brokers.alpaca_manager',
-                'the_alchemiser.strategy.engines',
-                'the_alchemiser.shared.brokers',
-            ]
+            # If we can resolve the hostname, we likely have network access
+            # Any data fetch failures would be credential/API issues that
+            # should be handled by individual strategy error handling
+            return False
             
-            error_count = 0
-            current_time = time.time()
+        except (socket.gaierror, OSError):
+            # Cannot resolve hostname - indicates network restrictions
+            # This means any data-dependent operations will fail
+            self.logger.warning(
+                "Network restrictions detected: cannot resolve data.alpaca.markets. "
+                "This indicates data fetch operations will fail."
+            )
+            return True
             
-            # Check for recent error log records (last 60 seconds)
-            for logger_name in loggers_to_check:
-                logger = logging.getLogger(logger_name)
-                
-                # Unfortunately, we can't easily access log records from the logger
-                # without a custom handler. As a simpler approach, we'll check if
-                # this is likely a network-restricted environment by trying to detect
-                # common patterns that indicate widespread data fetch failures.
-                
-                # For now, use a simpler heuristic: if we're in signal analysis and
-                # seeing the patterns that typically accompany mass data failures,
-                # assume high error count
-                pass
-            
-            # Alternative approach: Check if we're in a network-restricted environment
-            # by attempting to resolve the Alpaca data endpoint
-            try:
-                import socket
-                socket.gethostbyname('data.alpaca.markets')
-                # If we can resolve the hostname, we have network access
-                # Any errors are likely credential/API issues, not mass network failures
-                return 0
-            except (socket.gaierror, OSError):
-                # Cannot resolve hostname - likely in network-restricted environment
-                # This typically indicates mass data fetch failures
-                return 15  # Return a value above our threshold
-                
         except Exception as e:
-            # If we can't determine error count, be conservative and don't fail
-            self.logger.debug(f"Could not count data fetch errors: {e}")
-            return 0
+            # If we can't determine connectivity, be conservative
+            # In production this should rarely happen
+            self.logger.debug(f"Could not determine network connectivity: {e}")
+            return False
 
     def _display_results(
         self,
