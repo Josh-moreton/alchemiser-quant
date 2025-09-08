@@ -18,7 +18,7 @@ from typing import Any, Literal
 
 import pandas as pd
 
-from the_alchemiser.execution.orders.order_schemas import ValidatedOrderDTO
+from the_alchemiser.execution.orders.schemas import ValidatedOrderDTO
 from the_alchemiser.shared.types.quote import QuoteModel
 from the_alchemiser.shared.value_objects.core_types import StrategySignal
 from the_alchemiser.shared.value_objects.symbol import Symbol

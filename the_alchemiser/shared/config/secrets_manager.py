@@ -4,7 +4,7 @@
 Secrets Manager for credential loading with simple environment detection.
 
 This module provides simple functions for loading secrets from the appropriate source:
-- Local development: Loads from environment variables (typically .env files)  
+- Local development: Loads from environment variables (typically .env files)
 - AWS Lambda: Loads from AWS Secrets Manager
 
 Trading mode is determined by which credentials you choose to store where.
@@ -24,22 +24,25 @@ class SecretsManager:
 
     def __init__(self, region_name: str | None = None) -> None:
         """Initialize the Secrets Manager."""
-        # region_name is kept for compatibility 
+        # region_name is kept for compatibility
         logger.info("Initialized SecretsManager with simple environment detection")
 
     def get_secret(self, secret_name: str) -> dict[str, str] | None:
         """Retrieve a secret - not implemented in simple approach."""
-        logger.warning("get_secret() is not implemented in the simple approach. Use specific methods like get_alpaca_keys().")
+        logger.warning(
+            "get_secret() is not implemented in the simple approach. Use specific methods like get_alpaca_keys()."
+        )
         return None
 
     def get_alpaca_keys(self, paper_trading: bool = True) -> tuple[str, str] | tuple[None, None]:
         """Get Alpaca API keys from the appropriate source.
-        
+
         Args:
             paper_trading: Ignored - trading mode determined by credential storage location
-        
+
         Returns:
             Tuple of (api_key, secret_key) or (None, None) if not found
+
         """
         result = get_alpaca_keys()
         if result[0] is None:
@@ -59,12 +62,13 @@ class SecretsManager:
             return True  # Default to paper trading if no endpoint
         return "paper" in result[2].lower()
 
-    @property  
+    @property
     def stage(self) -> str:
         """Determine stage based on environment."""
         import os
+
         if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
-            return "prod" 
+            return "prod"
         return "dev"
 
 

@@ -19,12 +19,12 @@ from typing import TYPE_CHECKING
 from the_alchemiser.execution.core.executor import (
     CanonicalOrderExecutor,
 )
-from the_alchemiser.execution.orders.order_schemas import (
+from the_alchemiser.execution.orders.order_types import OrderType, Side
+from the_alchemiser.execution.orders.schemas import (
     OrderExecutionResultDTO,
+    OrderRequest,
     OrderRequestDTO,
 )
-from the_alchemiser.execution.orders.order_types import OrderType, Side
-from the_alchemiser.execution.orders.schemas import OrderRequest
 from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.types.money import Money
 from the_alchemiser.shared.types.quantity import Quantity

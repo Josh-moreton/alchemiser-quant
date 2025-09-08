@@ -64,13 +64,13 @@ class TradingExecutor:
         self.container = container
         # Get trading mode from container (ignore deprecated parameter)
         self.live_trading = not self.container.config.paper_trading()
-        
+
         if live_trading != self.live_trading:
             self.logger.warning(
                 f"live_trading parameter ({live_trading}) ignored. "
                 f"Using endpoint-determined mode: {'live' if self.live_trading else 'paper'}"
             )
-        
+
         self.ignore_market_hours = ignore_market_hours
         self.show_tracking = show_tracking
         self.export_tracking_json = export_tracking_json

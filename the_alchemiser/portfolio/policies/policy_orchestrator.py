@@ -12,11 +12,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from the_alchemiser.execution.orders.order_schemas import (
+from the_alchemiser.execution.orders.schemas import (
     AdjustedOrderRequestDTO,
+    OrderRequest,
     OrderRequestDTO,
 )
-from the_alchemiser.execution.orders.schemas import OrderRequest
 from the_alchemiser.execution.types.policy_result import PolicyResult, PolicyWarning
 from the_alchemiser.portfolio.mappers.policy_mapping import (
     domain_result_to_dto,
