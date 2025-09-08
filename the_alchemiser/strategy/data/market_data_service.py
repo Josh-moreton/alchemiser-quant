@@ -61,7 +61,7 @@ class MarketDataService:
         self._quote_cache: dict[str, tuple[tuple[float, float], datetime]] = {}
 
     # --- Typed Domain V2: MarketDataPort-compatible methods ---
-    @translate_market_data_errors(default_return=[])
+    @translate_market_data_errors()
     def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
         """Fetch historical bars mapped to domain models (BarModel list).
 
