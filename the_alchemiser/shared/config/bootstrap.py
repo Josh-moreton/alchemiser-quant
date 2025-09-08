@@ -21,7 +21,7 @@ from the_alchemiser.execution.core.refactored_execution_manager import (
 )
 from the_alchemiser.shared.brokers import AlpacaManager
 from the_alchemiser.shared.config.config import Settings, load_settings
-from the_alchemiser.shared.config.secrets_manager import SecretsManager
+from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.types.exceptions import ConfigurationError
 from the_alchemiser.shared.utils.context import create_error_context
@@ -30,7 +30,9 @@ from the_alchemiser.shared.utils.context import create_error_context
 def _get_market_data_service():
     """Lazy import MarketDataService to avoid circular imports."""
     from the_alchemiser.strategy.data.market_data_service import MarketDataService
+
     return MarketDataService
+
 
 logger = logging.getLogger(__name__)
 
@@ -180,16 +182,16 @@ def bootstrap_from_service_manager(
 
 
 def bootstrap_traditional(
-    paper_trading: bool = True,
+    paper_trading: bool | None = None,  # Now optional - determined by environment
     config: Settings | None = None,
 ) -> TradingBootstrapContext:
     """Bootstrap TradingEngine dependencies using traditional method.
 
-    This method creates dependencies directly using SecretsManager
-    and AlpacaManager for backward compatibility.
+    This method creates dependencies directly using simple secrets helper
+    and AlpacaManager. Trading mode is determined by environment (local vs AWS Lambda).
 
     Args:
-        paper_trading: Whether to use paper trading
+        paper_trading: DEPRECATED - trading mode now determined by environment (ignored if provided)
         config: Configuration settings
 
     Returns:
@@ -199,7 +201,15 @@ def bootstrap_traditional(
         ConfigurationError: If credentials or initialization fails
 
     """
+    import os
+    
     logger.info("Bootstrapping TradingEngine using traditional method")
+    
+    # Warn about deprecated parameter
+    if paper_trading is not None:
+        logger.warning(
+            "paper_trading parameter is deprecated. Trading mode is now determined by environment."
+        )
 
     # Load configuration
     try:
@@ -208,13 +218,17 @@ def bootstrap_traditional(
         logger.error(f"Failed to load configuration: {e}")
         raise ConfigurationError(f"Configuration error: {e}") from e
 
-    # Load credentials
+    # Load credentials using simple secrets helper
     try:
-        secrets_manager = SecretsManager()
-        api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=paper_trading)
-
-        if not api_key or not secret_key:
+        result = get_alpaca_keys()
+        if result[0] is None:
             raise ConfigurationError("Missing Alpaca credentials for traditional initialization")
+        
+        api_key, secret_key, endpoint = result
+        
+        # Determine trading mode from endpoint URL
+        paper_trading = endpoint and "paper" in endpoint.lower()
+        logger.info(f"Using endpoint-determined trading mode: {'paper' if paper_trading else 'live'} (endpoint: {endpoint})")
 
     except Exception as e:
         logger.error(f"Failed to load credentials: {e}")

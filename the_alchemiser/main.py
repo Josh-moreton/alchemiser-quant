@@ -99,21 +99,22 @@ class TradingSystem:
 
     def execute_trading(
         self,
-        live_trading: bool = False,
         ignore_market_hours: bool = False,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
     ) -> bool:
-        """Execute multi-strategy trading."""
+        """Execute multi-strategy trading.
+        
+        Note: Trading mode (live/paper) is now determined by deployment stage.
+        """
         try:
             from the_alchemiser.shared.cli.trading_executor import TradingExecutor
-            
+
             if self.container is None:
                 raise RuntimeError("DI container not initialized")
             executor = TradingExecutor(
                 settings=self.settings,
                 container=self.container,
-                live_trading=live_trading,
                 ignore_market_hours=ignore_market_hours,
                 show_tracking=show_tracking,
                 export_tracking_json=export_tracking_json,
@@ -125,7 +126,6 @@ class TradingSystem:
                 context="multi-strategy trading execution",
                 component="TradingSystem.execute_trading",
                 additional_data={
-                    "live_trading": live_trading,
                     "ignore_market_hours": ignore_market_hours,
                     "show_tracking": show_tracking,
                     "export_tracking_json": export_tracking_json,
@@ -159,7 +159,12 @@ def _resolve_log_level(is_production: bool) -> int:
 
 def configure_application_logging() -> None:
     """Configure application logging with reduced complexity."""
-    is_production = os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
+    # Check for Lambda environment via runtime-specific environment variables
+    is_production = any([
+        os.getenv("AWS_EXECUTION_ENV"),
+        os.getenv("AWS_LAMBDA_RUNTIME_API"),
+        os.getenv("LAMBDA_RUNTIME_DIR")
+    ])
     root_logger = logging.getLogger()
     if root_logger.hasHandlers() and not is_production:
         return
@@ -194,8 +199,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
         epilog="""
 Examples:
   alchemiser signal                    # Analyze signals
-  alchemiser trade                     # Paper trading
-  alchemiser trade --live              # Live trading
+  alchemiser trade                     # Execute trading (mode determined by stage)
         """,
     )
 
@@ -205,11 +209,12 @@ Examples:
         help="Operation mode: signal (analyze only) or trade (execute)",
     )
 
-    parser.add_argument(
-        "--live",
-        action="store_true",
-        help="Execute live trading (default: paper trading)",
-    )
+    # Remove --live flag - trading mode now determined by deployment stage
+    # parser.add_argument(
+    #     "--live",
+    #     action="store_true", 
+    #     help="Execute live trading (default: paper trading)",
+    # )
 
     parser.add_argument(
         "--ignore-market-hours", action="store_true", help="Override market hours check"
@@ -261,15 +266,20 @@ def main(argv: list[str] | None = None) -> bool:
         # Initialize system
         system = TradingSystem()
 
-        # Display header
-        mode_label = "LIVE TRADING ⚠️" if args.mode == "trade" and args.live else "Paper Trading"
-        render_header("The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}")
+        # Display header with simple trading mode detection
+        if args.mode == "trade":
+            from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+            _, _, endpoint = get_alpaca_keys()
+            is_live = endpoint and "paper" not in endpoint.lower()
+            mode_label = "LIVE TRADING ⚠️" if is_live else "Paper Trading"
+            render_header("The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}")
+        else:
+            render_header("The Alchemiser Trading System", f"{args.mode.upper()}")
 
         if args.mode == "signal":
             success = system.analyze_signals(show_tracking=getattr(args, "tracking", False))
         elif args.mode == "trade":
             success = system.execute_trading(
-                live_trading=args.live,
                 ignore_market_hours=args.ignore_market_hours,
                 show_tracking=getattr(args, "show_tracking", False),
                 export_tracking_json=getattr(args, "export_tracking_json", None),
@@ -294,7 +304,6 @@ def main(argv: list[str] | None = None) -> bool:
             component="main",
             additional_data={
                 "mode": args.mode,
-                "live_trading": getattr(args, "live", False),
                 "ignore_market_hours": getattr(args, "ignore_market_hours", False),
             },
         )

@@ -55,14 +55,22 @@ class TradingExecutor:
         self,
         settings: Settings,
         container: ApplicationContainer,
-        live_trading: bool = False,
+        live_trading: bool = False,  # DEPRECATED - determined by stage
         ignore_market_hours: bool = False,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
     ) -> None:
         self.settings = settings
         self.container = container
-        self.live_trading = live_trading
+        # Get trading mode from container (ignore deprecated parameter)
+        self.live_trading = not self.container.config.paper_trading()
+        
+        if live_trading != self.live_trading:
+            self.logger.warning(
+                f"live_trading parameter ({live_trading}) ignored. "
+                f"Using endpoint-determined mode: {'live' if self.live_trading else 'paper'}"
+            )
+        
         self.ignore_market_hours = ignore_market_hours
         self.show_tracking = show_tracking
         self.export_tracking_json = export_tracking_json
@@ -167,14 +175,14 @@ class TradingExecutor:
                 from the_alchemiser.portfolio.calculations.portfolio_calculations import (
                     build_allocation_comparison,
                 )
-                
+
                 allocation_comparison = build_allocation_comparison(
                     consolidated_portfolio, account_info, current_positions
                 )
-                
+
                 # Convert TypedDict to regular dict for the renderer
                 from typing import cast
-                
+
                 account_dict = cast(dict[str, Any], account_info)
                 # Convert AllocationComparison to dict for renderer compatibility
                 allocation_comparison_dict = {
@@ -182,10 +190,12 @@ class TradingExecutor:
                     "current_values": allocation_comparison["current_values"],
                     "deltas": allocation_comparison["deltas"],
                 }
-                
+
                 render_target_vs_current_allocations(
-                    consolidated_portfolio, account_dict, current_positions,
-                    allocation_comparison=allocation_comparison_dict
+                    consolidated_portfolio,
+                    account_dict,
+                    current_positions,
+                    allocation_comparison=allocation_comparison_dict,
                 )
         except Exception as e:
             self.logger.warning(f"Could not display portfolio summary: {e}")

@@ -15,8 +15,10 @@ Globals:
         # Logging
         LOGGING__LEVEL: INFO
 
+        # Note: Alpaca credentials loaded from AWS Secrets Manager at runtime
+
         # Alpaca Configuration
-        ALPACA__ENDPOINT: https://api.alpaca.markets/v2
+        ALPACA__ENDPOINT: https://api.alpaca.markets
         ALPACA__PAPER_ENDPOINT: https://paper-api.alpaca.markets/v2
         ALPACA__CASH_RESERVE_PCT: 0.05
         ALPACA__SLIPPAGE_BPS: 5
@@ -35,7 +37,7 @@ Globals:
 
         # Secrets Manager
         SECRETS_MANAGER__REGION_NAME: eu-west-2
-        SECRETS_MANAGER__SECRET_NAME: nuclear-secrets
+        SECRETS_MANAGER__SECRET_NAME: the-alchemiser-secrets
 
         # Strategy Configuration
         STRATEGY__DEFAULT_STRATEGY_ALLOCATIONS: '{"nuclear": 0.3, "tecl": 0.5, "klm": 0.2}'
@@ -103,7 +105,7 @@ Resources:
     Type: AWS::Scheduler::Schedule
     Properties:
       Name: the-alchemiser-daily-trading
-      Description: "Execute quantitative trading system daily at 9:30 AM New York time (with DST support)"
+      Description: "Execute quantitative trading system daily at 9:30 AM New York time"
       ScheduleExpression: "cron(30 9 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow:
@@ -113,8 +115,7 @@ Resources:
         RoleArn: !GetAtt SchedulerExecutionRole.Arn
         Input: |
           {
-            "mode": "trade",
-            "trading_mode": "live"
+            "mode": "trade"
           }
         RetryPolicy:
           MaximumRetryAttempts: 1 # Reduced from default (185) to prevent excessive retries
@@ -172,9 +173,7 @@ Resources:
                   - secretsmanager:GetSecretValue
                   - secretsmanager:DescribeSecret
                 Resource:
-                  - arn:aws:secretsmanager:eu-west-2:211125653762:secret:nuclear-secrets-*
-                  - arn:aws:secretsmanager:eu-west-2:211125653762:secret:alpaca-api-keys-*
-                  - arn:aws:secretsmanager:eu-west-2:211125653762:secret:alpaca-paper-api-keys-*
+                  - arn:aws:secretsmanager:eu-west-2:211125653762:secret:the-alchemiser-secrets-*
 
               # S3 access for alerts and data storage
               - Effect: Allow

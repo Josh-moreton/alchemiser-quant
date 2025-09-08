@@ -13,8 +13,7 @@ help:
 	@echo ""
 	@echo "Trading Commands:"
 	@echo "  run-signals     Show strategy signals (no trading)"
-	@echo "  run-trade       Execute paper trading"
-	@echo "  run-trade-live  Execute LIVE trading (⚠️ real money)"
+	@echo "  run-trade       Execute trading (mode determined by stage)"
 	@echo "  status          Show account status"
 	@echo ""
 	@echo "Development:"
@@ -43,12 +42,10 @@ run-signals:
 	poetry run alchemiser signal
 
 run-trade:
-	@echo "💰 Running paper trading..."
+	@echo "💰 Running trading (mode determined by stage)..."
 	poetry run alchemiser trade
 
-run-trade-live:
-	@echo "⚠️  Running LIVE trading (real money)..."
-	poetry run alchemiser trade --live
+# Removed run-trade-live - trading mode now determined by deployment stage
 
 status:
 	@echo "📊 Checking account status..."

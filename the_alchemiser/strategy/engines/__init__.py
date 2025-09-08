@@ -10,9 +10,9 @@ from __future__ import annotations
 
 from . import core
 from .engine import StrategyEngine
+from .klm import KLMEngine
 from .nuclear import NuclearEngine
 from .tecl import TECLEngine
-from .klm import KLMEngine
 
 __all__ = [
     "KLMEngine",

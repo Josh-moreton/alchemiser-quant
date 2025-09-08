@@ -181,6 +181,7 @@ def signal(
                 from the_alchemiser.execution.core.refactored_execution_manager import (
                     RefactoredTradingServiceManager as TradingServiceManager,
                 )
+
                 tsm = TradingServiceManager(api_key, secret_key, paper=True)
 
                 # Adapter implementing MarketDataPort
@@ -418,7 +419,7 @@ def signal(
 
 @app.command()
 def trade(
-    live: bool = typer.Option(False, "--live", help="🚨 Enable LIVE trading (real money)"),
+    # Remove --live flag - trading mode now determined by deployment stage
     ignore_market_hours: bool = typer.Option(
         False, "--ignore-market-hours", help="Trade outside market hours (testing only)"
     ),
@@ -435,20 +436,30 @@ def trade(
     """💰 [bold green]Execute multi-strategy trading[/bold green].
 
     Runs Nuclear, TECL, and KLM strategies with automatic portfolio allocation.
-    Default mode is paper trading for safety.
+    Trading mode (live/paper) is automatically determined by deployment stage.
 
-    [bold red]⚠️  Use --live flag for real money trading![/bold red]
+    [bold blue]🔐 Stage-aware security:[/bold blue]
+    - Local/dev: Paper trading only
+    - Production: Live trading with production credentials
     """
     if not no_header:
         show_welcome()
 
-    # Live mode proceeds without interactive confirmations
-    if live:
+    # Determine trading mode from deployment stage
+    # Determine trading mode and stage from secrets_manager
+    is_live = not secrets_manager.is_paper_trading
+    stage = secrets_manager.stage
+
+    if is_live:
         console.print(
-            "[dim yellow]LIVE trading mode active. Proceeding without confirmation.[/dim yellow]"
+            f"[bold red]LIVE trading mode active (stage: {stage.upper()}). Proceeding without confirmation.[/bold red]"
+        )
+    else:
+        console.print(
+            f"[bold blue]PAPER trading mode active (stage: {stage.upper()}).[/bold blue]"
         )
 
-    mode_display = "[bold red]LIVE[/bold red]" if live else "[bold blue]PAPER[/bold blue]"
+    mode_display = "[bold red]LIVE[/bold red]" if is_live else "[bold blue]PAPER[/bold blue]"
     console.print(f"[bold yellow]Starting {mode_display} trading...[/bold yellow]")
 
     try:
@@ -460,10 +471,8 @@ def trade(
 
         console.print("[dim]⚡ Generating strategy signals...[/dim]")
 
-        # Build argv for main function
+        # Build argv for main function (no --live flag)
         argv = ["trade"]
-        if live:
-            argv.append("--live")
         if ignore_market_hours:
             argv.append("--ignore-market-hours")
         if show_tracking:
@@ -491,7 +500,6 @@ def trade(
             "cli_trading_client_error",
             function="trade",
             command="trade",
-            live_trading=live,
             ignore_market_hours=ignore_market_hours,
             error_type=type(e).__name__,
         )
@@ -507,7 +515,6 @@ def trade(
             "cli_trading_execution",
             function="trade",
             command="trade",
-            live_trading=live,
             ignore_market_hours=ignore_market_hours,
             error_type="unexpected_error",
             original_error=type(e).__name__,
@@ -519,24 +526,25 @@ def trade(
 
 
 @app.command()
-def status(
-    live: bool = typer.Option(False, "--live", help="🚨 Show LIVE account status (real account)"),
-) -> None:
+def status() -> None:
     """📈 [bold blue]Show account status and positions[/bold blue].
 
     Displays current account balance, positions, portfolio performance, and P&L.
-    Use --live flag to view live account instead of paper account.
+    Trading mode (live/paper) determined by environment configuration.
     """
     show_welcome()
 
     # Initialize error handler
     error_handler = TradingSystemErrorHandler()
 
-    # Determine mode and add safety warning for live mode
-    paper_trading = not live
-    mode_display = "[bold red]LIVE[/bold red]" if live else "[bold blue]PAPER[/bold blue]"
+    # Determine trading mode from endpoint URL
+    from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+    _, _, endpoint = get_alpaca_keys()
+    is_live = endpoint and "paper" not in endpoint.lower()
+    paper_trading = not is_live
+    mode_display = "[bold red]LIVE[/bold red]" if is_live else "[bold blue]PAPER[/bold blue]"
 
-    if live:
+    if is_live:
         console.print(
             Panel(
                 "[bold red]⚠️  LIVE ACCOUNT STATUS[/bold red]\n\n"
@@ -587,12 +595,13 @@ def status(
         from the_alchemiser.execution.core.refactored_execution_manager import (
             RefactoredTradingServiceManager as TradingServiceManager,
         )
+
         tsm: TradingServiceManager | None = None
         try:
-            api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not live)
+            api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not is_live)
             if not api_key or not secret_key:
                 raise RuntimeError("Alpaca credentials not available")
-            tsm = TradingServiceManager(api_key, secret_key, paper=not live)
+            tsm = TradingServiceManager(api_key, secret_key, paper=not is_live)
             enriched = tsm.get_account_summary_enriched()
             # Extract the summary from the DTO
             if enriched and enriched.summary:
@@ -608,10 +617,10 @@ def status(
         try:
             # Reuse TSM if available, otherwise instantiate
             if tsm is None:
-                api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not live)
+                api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not is_live)
                 if not api_key or not secret_key:
                     raise RuntimeError("Alpaca credentials not available")
-                tsm = TradingServiceManager(api_key, secret_key, paper=not live)
+                tsm = TradingServiceManager(api_key, secret_key, paper=not is_live)
 
             enriched_positions = tsm.get_positions_enriched()
             if enriched_positions:
@@ -797,7 +806,7 @@ def status(
             error=e,
             context="CLI status command - trading client operation",
             component="cli.status",
-            additional_data={"live_trading": live, "error_type": type(e).__name__},
+            additional_data={"live_trading": is_live, "error_type": type(e).__name__},
         )
         console.print(f"[bold red]Trading client error: {e}[/bold red]")
         raise typer.Exit(1)
@@ -1010,7 +1019,7 @@ def validate_indicators(
 
         if not api_key:
             console.print("[red]Error: TwelveData API key not found in AWS Secrets Manager.[/red]")
-            console.print("Please add TWELVEDATA_KEY to the 'nuclear-secrets' secret.")
+            console.print("Please add TWELVEDATA_KEY to the 'the-alchemiser-secrets' secret.")
             console.print("Get a free API key at: https://twelvedata.com")
             raise typer.Exit(1)
 
