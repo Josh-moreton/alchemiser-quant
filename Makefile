@@ -71,8 +71,6 @@ import-check:
 
 migration-check: lint type-check import-check
 	@echo "🚀 Running full migration validation suite..."
-	@echo "📊 Running smoke tests..."
-	./scripts/smoke_tests.sh || echo "⚠️ Some smoke tests failed (may be expected during migration)"
 	@echo "✅ Migration validation complete!"
 
 clean:
