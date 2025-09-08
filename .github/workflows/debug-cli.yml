@@ -32,6 +32,10 @@ jobs:
 
       - name: Run CLI command
         id: run_cli
+        env:
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
+          ALPACA_ENDPOINT: ${{ secrets.ALPACA_ENDPOINT }}
         run: |
           set +e
           poetry run alchemiser signal > cli_output.log 2>&1
