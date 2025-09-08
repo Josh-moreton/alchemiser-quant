@@ -728,7 +728,7 @@ class SmartExecution:
             try:
                 order_obj: Any = self._order_executor.trading_client.get_order_by_id(
                     order_id
-                )  # TODO: Phase 5 - Migrate to AlpacaOrderObject
+                )  # TODO: Phase 5 - Migrate to AlpacaOrderObject (see shared.protocols.alpaca)
                 status = str(getattr(order_obj, "status", "unknown")).lower()
                 actual_status = status.split(".")[-1] if "orderstatus." in status else status
 

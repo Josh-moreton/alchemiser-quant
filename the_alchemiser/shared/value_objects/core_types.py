@@ -249,29 +249,7 @@ class ErrorContext(TypedDict):
 # Import for backward compatibility
 
 
-# Alpaca Integration Protocols
-class AlpacaOrderProtocol(Protocol):
-    """Protocol for Alpaca order objects."""
-
-    id: str
-    symbol: str
-    qty: str
-    side: str
-    order_type: str
-    time_in_force: str
-    status: str
-    filled_qty: str
-    filled_avg_price: str | None
-    created_at: str
-    updated_at: str
-
-
-class AlpacaOrderObject(Protocol):
-    """Protocol for Alpaca order objects used in monitoring."""
-
-    id: str
-    status: str
-    filled_qty: str
+# Alpaca Integration Protocols moved to shared/protocols/alpaca.py
 
 
 # Tracking and Monitoring Types (moved to interfaces/schemas/execution.py and reporting.py)
