@@ -177,7 +177,6 @@ class TypedStrategyManager:
                     "ImportError",
                     "ModuleNotFoundError",
                     "cannot import name",
-                    "ImportError:",
                 ]):
                     # System import/module errors indicate fundamental configuration issues
                     # that should cause the entire signal generation to fail
