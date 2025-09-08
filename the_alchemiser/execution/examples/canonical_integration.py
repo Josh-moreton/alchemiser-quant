@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 from the_alchemiser.execution.core.executor import (
     CanonicalOrderExecutor,
 )
-from the_alchemiser.execution.orders.order_schemas import (
+from the_alchemiser.execution.orders.schemas import (
     OrderExecutionResultDTO,
     OrderRequestDTO,
 )
