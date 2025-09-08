@@ -17,3 +17,7 @@ class Symbol:
         if len(self.value) > 5:
             raise ValueError("Symbol cannot exceed 5 characters")
         object.__setattr__(self, "value", self.value.upper())
+
+    def __str__(self) -> str:
+        """Return the symbol value as string for API compatibility."""
+        return self.value
