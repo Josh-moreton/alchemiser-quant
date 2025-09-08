@@ -281,16 +281,18 @@ def normalize_order_details(order: OrderLikeProtocol | dict[str, Any]) -> dict[s
         # Use protocol to access order attributes safely
         try:
             normalized = {
-                "id": order.id,
-                "symbol": order.symbol,
-                "qty": order.qty,
-                "side": order.side,
-                "order_type": order.order_type,
-                "status": order.status,
-                "filled_qty": order.filled_qty,
+                k: v
+                for k, v in {
+                    "id": order.id,
+                    "symbol": order.symbol,
+                    "qty": order.qty,
+                    "side": order.side,
+                    "order_type": order.order_type,
+                    "status": order.status,
+                    "filled_qty": order.filled_qty,
+                }.items()
+                if v is not None
             }
-            # Remove None values to avoid overwriting existing dict values
-            normalized = {k: v for k, v in normalized.items() if v is not None}
         except AttributeError:
             # Fallback to hasattr/getattr for objects that don't match protocol
             normalized = {}
