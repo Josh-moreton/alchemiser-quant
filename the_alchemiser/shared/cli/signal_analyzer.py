@@ -135,11 +135,11 @@ class SignalAnalyzer:
 
     def _has_data_fetch_failures(self) -> bool:
         """Check if any data fetch failures occurred during signal generation.
-        
+
         This method detects if the system is in an environment where data fetching
         fails, which should cause the signal analysis to fail rather than operate
         on partial information.
-        
+
         Returns:
             True if data fetch failures are detected, False otherwise
 
@@ -148,13 +148,14 @@ class SignalAnalyzer:
             # Check if we're in a network-restricted environment by attempting
             # to resolve the Alpaca data endpoint that strategies depend on
             import socket
+
             socket.gethostbyname("data.alpaca.markets")
-            
+
             # If we can resolve the hostname, we likely have network access
             # Any data fetch failures would be credential/API issues that
             # should be handled by individual strategy error handling
             return False
-            
+
         except (socket.gaierror, OSError):
             # Cannot resolve hostname - indicates network restrictions
             # This means any data-dependent operations will fail
@@ -163,7 +164,7 @@ class SignalAnalyzer:
                 "This indicates data fetch operations will fail."
             )
             return True
-            
+
         except Exception as e:
             # If we can't determine connectivity, be conservative
             # In production this should rarely happen

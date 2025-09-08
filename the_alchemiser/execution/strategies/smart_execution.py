@@ -122,7 +122,9 @@ class SmartExecution:
         # Phase 5: Lifecycle tracking removed - delegated to canonical executor
     ) -> None:
         """Initialize with dependency injection for execution and data access."""
-        self.config: dict[str, Any] = config.__dict__ if config else {}  # Legacy config dict support
+        self.config: dict[str, Any] = (
+            config.__dict__ if config else {}
+        )  # Legacy config dict support
         self._order_executor = order_executor
         self._data_provider = data_provider
         self._trading_client = getattr(order_executor, "trading_client", None)
