@@ -50,7 +50,7 @@ pydocstyle = ">=6.0.0"  # Docstring style (Ruff D rules)
 pytest = "^8.4.1"
 pip-audit = "^2.7.3"  # Dependency vulnerability scanning
 detect-secrets = "^1.5.0"  # Secret scanning (baseline optional)
-pyright = "^1.1.380"  # Supplemental static type analysis (optional CI/nightly)
+pyright = "^1.1.405"  # Supplemental static type analysis (optional CI/nightly)
 import-linter = "^2.0"  # Module dependency enforcement
 
 [tool.poetry.scripts]
