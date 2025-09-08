@@ -24,6 +24,7 @@ from the_alchemiser.strategy.engines.klm import KLMEngine
 from the_alchemiser.strategy.engines.nuclear import NuclearEngine
 from the_alchemiser.strategy.engines.value_objects.confidence import Confidence
 from the_alchemiser.strategy.engines.value_objects.strategy_signal import StrategySignal
+from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
 from the_alchemiser.strategy.registry.strategy_registry import StrategyRegistry, StrategyType
 
 
@@ -180,7 +181,6 @@ class TypedStrategyManager:
                 ]):
                     # System import/module errors indicate fundamental configuration issues
                     # that should cause the entire signal generation to fail
-                    from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
                     raise StrategyExecutionError(
                         f"Critical system error in {strategy_type.value} strategy: {e}. "
                         f"This indicates a missing module or import failure that prevents "
