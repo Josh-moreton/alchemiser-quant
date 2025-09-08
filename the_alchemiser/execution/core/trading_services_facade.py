@@ -65,8 +65,8 @@ from the_alchemiser.shared.schemas.operations import (
 from the_alchemiser.shared.utils.decorators import translate_trading_errors
 
 
-def _create_default_error_dashboard() -> TradingDashboardDTO:
-    """Create a default error dashboard for decorator use."""
+def _create_error_dashboard(error_message: str = "Failed to generate dashboard") -> TradingDashboardDTO:
+    """Create a standardized error dashboard DTO."""
     return TradingDashboardDTO(
         success=False,
         account=AccountSummaryDTO(
@@ -94,7 +94,7 @@ def _create_default_error_dashboard() -> TradingDashboardDTO:
         open_orders=[],
         market_status={},
         timestamp=datetime.now(UTC),
-        error="Failed to generate dashboard",
+        error=error_message,
     )
 
 
@@ -375,39 +375,7 @@ class TradingServicesFacade(BrokerTradingServices):
             self.logger.error(f"Unexpected error in execute_order_dto: {e}")
             return _create_order_execution_error("DTO order execution failed", str(e))
 
-    def _create_error_dashboard(self, error_message: str) -> TradingDashboardDTO:
-        """Create a standardized error dashboard DTO."""
-        return TradingDashboardDTO(
-            success=False,
-            account=AccountSummaryDTO(
-                account_id="error",
-                equity=Decimal("0"),
-                cash=Decimal("0"),
-                market_value=Decimal("0"),
-                buying_power=Decimal("0"),
-                last_equity=Decimal("0"),
-                day_trade_count=0,
-                pattern_day_trader=False,
-                trading_blocked=False,
-                transfers_blocked=False,
-                account_blocked=False,
-                calculated_metrics=AccountMetricsDTO(
-                    cash_ratio=Decimal("0"),
-                    market_exposure=Decimal("0"),
-                    leverage_ratio=None,
-                    available_buying_power_ratio=Decimal("0"),
-                ),
-            ),
-            risk_metrics={},
-            portfolio_allocation={},
-            position_summary={},
-            open_orders=[],
-            market_status={},
-            timestamp=datetime.now(UTC),
-            error=error_message,
-        )
-
-    @translate_trading_errors(default_return=_create_default_error_dashboard())
+    @translate_trading_errors(default_return=_create_error_dashboard())
     def get_trading_dashboard(self) -> TradingDashboardDTO:
         """Get a comprehensive trading dashboard with all key metrics."""
         try:
@@ -441,7 +409,7 @@ class TradingServicesFacade(BrokerTradingServices):
 
         except Exception as e:
             self.logger.error(f"Failed to generate trading dashboard: {e}")
-            return self._create_error_dashboard(str(e))
+            return _create_error_dashboard(str(e))
 
     def close(self) -> None:
         """Clean up resources."""
