@@ -7,6 +7,7 @@ Handles signal generation and display without trading execution.
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -29,6 +30,9 @@ from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
 from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
 from the_alchemiser.strategy.managers.typed_strategy_manager import TypedStrategyManager
 from the_alchemiser.strategy.registry.strategy_registry import StrategyType
+
+# Nuclear strategy symbol constants
+NUCLEAR_SYMBOLS = ["SMR", "BWXT", "LEU", "EXC", "NLR", "OKLO"]
 
 
 class SignalAnalyzer:
@@ -135,11 +139,11 @@ class SignalAnalyzer:
 
     def _has_data_fetch_failures(self) -> bool:
         """Check if any data fetch failures occurred during signal generation.
-        
+
         This method detects if the system is in an environment where data fetching
         fails, which should cause the signal analysis to fail rather than operate
         on partial information.
-        
+
         Returns:
             True if data fetch failures are detected, False otherwise
 
@@ -148,13 +152,14 @@ class SignalAnalyzer:
             # Check if we're in a network-restricted environment by attempting
             # to resolve the Alpaca data endpoint that strategies depend on
             import socket
+
             socket.gethostbyname("data.alpaca.markets")
-            
+
             # If we can resolve the hostname, we likely have network access
             # Any data fetch failures would be credential/API issues that
             # should be handled by individual strategy error handling
             return False
-            
+
         except (socket.gaierror, OSError):
             # Cannot resolve hostname - indicates network restrictions
             # This means any data-dependent operations will fail
@@ -163,7 +168,7 @@ class SignalAnalyzer:
                 "This indicates data fetch operations will fail."
             )
             return True
-            
+
         except Exception as e:
             # If we can't determine connectivity, be conservative
             # In production this should rarely happen
@@ -340,7 +345,17 @@ class SignalAnalyzer:
                     return 2  # UVXY and BTAL
                 if symbol == "UVXY":
                     return 1  # Just UVXY
-                return 3  # Default nuclear portfolio
+                # For NUCLEAR_PORTFOLIO, count actual symbols in consolidated portfolio
+                if isinstance(symbol, str) and "NUCLEAR_PORTFOLIO" in symbol:
+                    # Extract symbols from format like "NUCLEAR_PORTFOLIO (SMR, BWXT, LEU)"
+                    # Use regex for robust parsing to handle edge cases
+                    match = re.search(r"\(([^)]+)\)", symbol)
+                    if match:
+                        symbols_part = match.group(1)
+                        nuclear_symbols = [s.strip() for s in symbols_part.split(",")]
+                        return len([s for s in nuclear_symbols if s in consolidated_portfolio])
+                    # Fallback: count nuclear symbols in consolidated portfolio
+                    return len([s for s in NUCLEAR_SYMBOLS if s in consolidated_portfolio])
             return 0
         if strategy_name.upper() in ["TECL", "KLM"]:
             # Single position strategies

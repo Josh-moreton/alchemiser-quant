@@ -24,7 +24,6 @@ from the_alchemiser.execution.orders.order import Order
 from the_alchemiser.execution.orders.order_types import OrderId, OrderStatus, OrderType
 from the_alchemiser.execution.orders.schemas import OrderExecutionResultDTO
 from the_alchemiser.execution.schemas.alpaca import AlpacaErrorDTO, AlpacaOrderDTO
-from the_alchemiser.shared.protocols.order_like import OrderLikeProtocol
 from the_alchemiser.shared.types.money import Money
 from the_alchemiser.shared.types.quantity import Quantity
 from the_alchemiser.shared.types.time_in_force import TimeInForce

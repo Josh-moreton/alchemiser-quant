@@ -191,7 +191,9 @@ def normalize_timestamp_str(timestamp: Any) -> str:  # noqa: ANN401  # Handles d
 
 
 def normalize_decimal_precision(
-    value: Any, precision: int = 2, rounding: str = ROUND_HALF_UP  # noqa: ANN401  # Handles diverse numeric types from external sources
+    value: Any,
+    precision: int = 2,
+    rounding: str = ROUND_HALF_UP,  # Handles diverse numeric types from external sources
 ) -> Decimal:
     """Normalize value to Decimal with specified precision.
 
