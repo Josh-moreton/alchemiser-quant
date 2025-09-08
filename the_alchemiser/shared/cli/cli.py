@@ -1020,7 +1020,7 @@ def validate_indicators(
 
         if not api_key:
             console.print("[red]Error: TwelveData API key not found in AWS Secrets Manager.[/red]")
-            console.print("Please add TWELVEDATA_KEY to the 'nuclear-secrets' secret.")
+            console.print("Please add TWELVEDATA_KEY to the 'the-alchemiser-secrets' secret.")
             console.print("Get a free API key at: https://twelvedata.com")
             raise typer.Exit(1)
 

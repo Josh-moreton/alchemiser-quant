@@ -21,7 +21,7 @@ class LoggingSettings(BaseModel):
 class AlpacaSettings(BaseModel):
     """Connection settings for the Alpaca trading API."""
 
-    endpoint: str = "https://api.alpaca.markets/v2"
+    endpoint: str = "https://api.alpaca.markets"
     paper_endpoint: str = "https://paper-api.alpaca.markets/v2"
     paper_trading: bool = True
     cash_reserve_pct: float = 0.05
@@ -50,7 +50,7 @@ class SecretsManagerSettings(BaseModel):
     """Configuration for AWS Secrets Manager access."""
 
     region_name: str = "eu-west-2"
-    secret_name: str = "nuclear-secrets"
+    secret_name: str = "the-alchemiser-secrets"
 
 
 class StrategySettings(BaseModel):

@@ -230,7 +230,7 @@ Edit `.env` with your paper trading credentials:
 # Alpaca Paper Trading API Keys (for local development)
 ALPACA_KEY=your_paper_api_key_here
 ALPACA_SECRET=your_paper_secret_key_here
-ALPACA_ENDPOINT=https://paper-api.alpaca.markets
+ALPACA_ENDPOINT=https://paper-api.alpaca.markets/v2
 
 # TwelveData API Key (optional)
 TWELVEDATA_KEY=your_twelvedata_api_key_here
