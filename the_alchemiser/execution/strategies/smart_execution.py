@@ -859,7 +859,7 @@ class SmartExecution:
         side: BrokerOrderSide,
         bid: float,
         ask: float,
-        strategy: Any,
+        strategy: Any,  # noqa: ANN401  # Strategy execution context with dynamic configuration
     ) -> str | None:
         """Execute the aggressive marketable limit sequence with adaptive re-pegging.
 
@@ -913,7 +913,7 @@ class SmartExecution:
             )
             raise
 
-    def get_order_by_id(self, order_id: str) -> Any:
+    def get_order_by_id(self, order_id: str) -> Any:  # noqa: ANN401  # External SDK order object
         """Get order details by order ID from the trading client."""
         try:
             return self._order_executor.trading_client.get_order_by_id(order_id)
