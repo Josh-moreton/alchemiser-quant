@@ -1,4 +1,4 @@
-"""Business Unit: execution | Status: current
+"""Business Unit: execution | Status: current.
 
 Trading services facade providing broker/account/position operations.
 
@@ -19,6 +19,7 @@ from the_alchemiser.execution.core.account_management_service import AccountMana
 from the_alchemiser.execution.core.data_transformation_service import DataTransformationService
 from the_alchemiser.execution.core.lifecycle_coordinator import LifecycleCoordinator
 from the_alchemiser.execution.core.order_execution_service import OrderExecutionService
+from the_alchemiser.execution.execution_protocols import BrokerTradingServices
 from the_alchemiser.execution.lifecycle import OrderLifecycleState
 from the_alchemiser.execution.orders.consolidated_validation import OrderValidator
 from the_alchemiser.execution.orders.order_types import OrderId
@@ -61,8 +62,49 @@ from the_alchemiser.shared.schemas.operations import (
     OrderCancellationDTO,
     OrderStatusDTO,
 )
-from the_alchemiser.execution.execution_protocols import BrokerTradingServices
 from the_alchemiser.shared.utils.decorators import translate_trading_errors
+
+
+def _create_default_error_dashboard() -> TradingDashboardDTO:
+    """Create a default error dashboard for decorator use."""
+    return TradingDashboardDTO(
+        success=False,
+        account=AccountSummaryDTO(
+            account_id="error",
+            equity=Decimal("0"),
+            cash=Decimal("0"),
+            market_value=Decimal("0"),
+            buying_power=Decimal("0"),
+            last_equity=Decimal("0"),
+            day_trade_count=0,
+            pattern_day_trader=False,
+            trading_blocked=False,
+            transfers_blocked=False,
+            account_blocked=False,
+            calculated_metrics=AccountMetricsDTO(
+                cash_ratio=Decimal("0"),
+                market_exposure=Decimal("0"),
+                leverage_ratio=None,
+                available_buying_power_ratio=Decimal("0"),
+            ),
+        ),
+        risk_metrics={},
+        portfolio_allocation={},
+        position_summary={},
+        open_orders=[],
+        market_status={},
+        timestamp=datetime.now(UTC),
+        error="Failed to generate dashboard",
+    )
+
+
+def _create_order_execution_error(reason: str, error: str) -> SmartOrderExecutionDTO:
+    """Create a standardized order execution error DTO."""
+    return SmartOrderExecutionDTO(
+        success=False,
+        reason=reason,
+        error=error,
+    )
 
 
 class TradingServicesFacade(BrokerTradingServices):
@@ -277,13 +319,7 @@ class TradingServicesFacade(BrokerTradingServices):
             return PositionAnalyticsDTO(success=False, symbol=symbol, error=str(e))
 
     # High-Level Trading Operations
-    @translate_trading_errors(
-        default_return=SmartOrderExecutionDTO(
-            success=False,
-            reason="Order execution failed",
-            error="Service error",
-        )
-    )
+    @translate_trading_errors(default_return=_create_order_execution_error("Order execution failed", "Service error"))
     def execute_smart_order(
         self,
         symbol: str,
@@ -309,18 +345,13 @@ class TradingServicesFacade(BrokerTradingServices):
 
             # Implementation would continue with actual order execution logic
             # For now, return a placeholder response
-            return SmartOrderExecutionDTO(
-                success=False,
-                reason="Smart order execution not yet implemented in refactored manager",
-                error="Implementation needed",
+            return _create_order_execution_error(
+                "Smart order execution not yet implemented in refactored manager",
+                "Implementation needed"
             )
 
         except Exception as e:
-            return SmartOrderExecutionDTO(
-                success=False,
-                reason="Smart order execution failed",
-                error=str(e),
-            )
+            return _create_order_execution_error("Smart order execution failed", str(e))
 
     def execute_order_dto(self, order_request: OrderRequestDTO) -> SmartOrderExecutionDTO:
         """Execute an order using OrderRequestDTO directly."""
@@ -342,12 +373,11 @@ class TradingServicesFacade(BrokerTradingServices):
             )
         except Exception as e:
             self.logger.error(f"Unexpected error in execute_order_dto: {e}")
-            return SmartOrderExecutionDTO(
-                success=False, reason="DTO order execution failed", error=str(e)
-            )
+            return _create_order_execution_error("DTO order execution failed", str(e))
 
-    @translate_trading_errors(
-        default_return=TradingDashboardDTO(
+    def _create_error_dashboard(self, error_message: str) -> TradingDashboardDTO:
+        """Create a standardized error dashboard DTO."""
+        return TradingDashboardDTO(
             success=False,
             account=AccountSummaryDTO(
                 account_id="error",
@@ -374,9 +404,10 @@ class TradingServicesFacade(BrokerTradingServices):
             open_orders=[],
             market_status={},
             timestamp=datetime.now(UTC),
-            error="Failed to generate dashboard",
+            error=error_message,
         )
-    )
+
+    @translate_trading_errors(default_return=_create_default_error_dashboard())
     def get_trading_dashboard(self) -> TradingDashboardDTO:
         """Get a comprehensive trading dashboard with all key metrics."""
         try:
@@ -410,35 +441,7 @@ class TradingServicesFacade(BrokerTradingServices):
 
         except Exception as e:
             self.logger.error(f"Failed to generate trading dashboard: {e}")
-            return TradingDashboardDTO(
-                success=False,
-                account=AccountSummaryDTO(
-                    account_id="error",
-                    equity=Decimal("0"),
-                    cash=Decimal("0"),
-                    market_value=Decimal("0"),
-                    buying_power=Decimal("0"),
-                    last_equity=Decimal("0"),
-                    day_trade_count=0,
-                    pattern_day_trader=False,
-                    trading_blocked=False,
-                    transfers_blocked=False,
-                    account_blocked=False,
-                    calculated_metrics=AccountMetricsDTO(
-                        cash_ratio=Decimal("0"),
-                        market_exposure=Decimal("0"),
-                        leverage_ratio=None,
-                        available_buying_power_ratio=Decimal("0"),
-                    ),
-                ),
-                risk_metrics={},
-                portfolio_allocation={},
-                position_summary={},
-                open_orders=[],
-                market_status={},
-                timestamp=datetime.now(UTC),
-                error=str(e),
-            )
+            return self._create_error_dashboard(str(e))
 
     def close(self) -> None:
         """Clean up resources."""
