@@ -41,6 +41,7 @@ from the_alchemiser.shared.schemas.accounts import (
     RiskMetricsDTO,
     TradeEligibilityDTO,
 )
+from the_alchemiser.shared.value_objects.core_types import AccountInfo
 from the_alchemiser.shared.schemas.enriched_data import (
     EnrichedPositionsDTO,
     OpenOrdersDTO,
@@ -56,7 +57,12 @@ from the_alchemiser.shared.schemas.operations import (
     OrderCancellationDTO,
     OrderStatusDTO,
 )
+from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.shared.utils.decorators import translate_trading_errors
+from the_alchemiser.shared.mappers.execution_summary_mapping import (
+    safe_dict_to_execution_summary_dto,
+    safe_dict_to_portfolio_state_dto,
+)
 
 
 class RefactoredTradingServiceManager:
@@ -430,3 +436,50 @@ class RefactoredTradingServiceManager:
             self.logger.info("RefactoredTradingServiceManager closed successfully")
         except Exception as e:
             self.logger.error(f"Error closing RefactoredTradingServiceManager: {e}")
+
+    def execute_multi_strategy(self) -> MultiStrategyExecutionResultDTO:
+        """Execute multi-strategy trading (placeholder implementation).
+        
+        This RefactoredTradingServiceManager is designed for focused execution tasks
+        rather than full multi-strategy coordination. This method provides a proper
+        interface implementation but returns an error result indicating that
+        multi-strategy execution should be handled by the full TradingEngine.
+        
+        Returns:
+            MultiStrategyExecutionResultDTO indicating the operation is not supported
+        
+        """
+        self.logger.warning(
+            "execute_multi_strategy called on RefactoredTradingServiceManager - "
+            "this service is not designed for multi-strategy coordination"
+        )
+        
+        # Create empty/error AccountInfo for unsupported operations
+        empty_account_info: AccountInfo = {
+            "account_id": "refactored_manager",
+            "equity": 0.0,
+            "cash": 0.0,
+            "buying_power": 0.0,
+            "day_trades_remaining": 0,
+            "portfolio_value": 0.0,
+            "last_equity": 0.0,
+            "daytrading_buying_power": 0.0,
+            "regt_buying_power": 0.0,
+            "status": "INACTIVE",
+        }
+        
+        return MultiStrategyExecutionResultDTO(
+            success=False,
+            strategy_signals={},
+            consolidated_portfolio={"BIL": 1.0},  # Safe fallback to cash
+            orders_executed=[],
+            account_info_before=empty_account_info,
+            account_info_after=empty_account_info,
+            execution_summary=safe_dict_to_execution_summary_dto({
+                "error": "RefactoredTradingServiceManager does not support multi-strategy execution",
+                "mode": "error",
+                "account_info_before": empty_account_info,
+                "account_info_after": empty_account_info,
+            }),
+            final_portfolio_state=safe_dict_to_portfolio_state_dto({}),
+        )
