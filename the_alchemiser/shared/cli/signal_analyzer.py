@@ -341,7 +341,16 @@ class SignalAnalyzer:
                     return 2  # UVXY and BTAL
                 if symbol == "UVXY":
                     return 1  # Just UVXY
-                return 3  # Default nuclear portfolio
+                # For NUCLEAR_PORTFOLIO, count actual symbols in consolidated portfolio
+                if isinstance(symbol, str) and "NUCLEAR_PORTFOLIO" in symbol:
+                    # Extract symbols from format like "NUCLEAR_PORTFOLIO (SMR, BWXT, LEU)"
+                    if "(" in symbol and ")" in symbol:
+                        symbols_part = symbol.split("(")[1].split(")")[0]
+                        nuclear_symbols = [s.strip() for s in symbols_part.split(",")]
+                        return len([s for s in nuclear_symbols if s in consolidated_portfolio])
+                    # Fallback: count nuclear symbols in consolidated portfolio
+                    nuclear_symbol_list = ["SMR", "BWXT", "LEU", "EXC", "NLR", "OKLO"]
+                    return len([s for s in nuclear_symbol_list if s in consolidated_portfolio])
             return 0
         if strategy_name.upper() in ["TECL", "KLM"]:
             # Single position strategies
