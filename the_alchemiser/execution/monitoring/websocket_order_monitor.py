@@ -17,7 +17,8 @@ from typing import Any
 
 from rich.console import Console
 
-from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO, WebSocketStatus
+from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
+from the_alchemiser.shared.dto.broker_dto import WebSocketStatus
 
 
 class OrderCompletionMonitor:
