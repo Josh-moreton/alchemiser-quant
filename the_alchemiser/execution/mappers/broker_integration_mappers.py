@@ -24,6 +24,7 @@ from the_alchemiser.execution.orders.order import Order
 from the_alchemiser.execution.orders.order_types import OrderId, OrderStatus, OrderType
 from the_alchemiser.execution.orders.schemas import OrderExecutionResultDTO
 from the_alchemiser.execution.schemas.alpaca import AlpacaErrorDTO, AlpacaOrderDTO
+from the_alchemiser.shared.protocols.order_like import OrderLikeProtocol
 from the_alchemiser.shared.types.money import Money
 from the_alchemiser.shared.types.quantity import Quantity
 from the_alchemiser.shared.types.time_in_force import TimeInForce
@@ -128,11 +129,11 @@ def alpaca_order_to_dto(order: Any) -> AlpacaOrderDTO:
     )
 
 
-def alpaca_order_to_execution_result(order: Any) -> OrderExecutionResultDTO:
+def alpaca_order_to_execution_result(order: Any) -> OrderExecutionResultDTO:  # noqa: ANN401  # Alpaca SDK order object with dynamic structure
     """Convert Alpaca order object to OrderExecutionResultDTO.
 
     Args:
-        order: Raw Alpaca order object
+        order: Raw Alpaca order object from SDK
 
     Returns:
         OrderExecutionResultDTO with proper success flag and error handling

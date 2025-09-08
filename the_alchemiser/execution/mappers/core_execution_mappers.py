@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
+from the_alchemiser.shared.protocols.order_like import OrderLikeProtocol
 from the_alchemiser.shared.types.money import Money
 from the_alchemiser.shared.utils.timezone_utils import normalize_timestamp_to_utc, to_iso_string
 
@@ -164,7 +165,7 @@ def account_typed_to_serializable(account: AccountSummaryTyped) -> dict[str, Any
 # Execution Mapping Section
 
 
-def normalize_timestamp_str(timestamp: Any) -> str:
+def normalize_timestamp_str(timestamp: Any) -> str:  # noqa: ANN401  # Handles diverse timestamp formats from external sources
     """Normalize timestamp to ISO 8601 string with timezone awareness.
 
     Args:
@@ -180,14 +181,17 @@ def normalize_timestamp_str(timestamp: Any) -> str:
     # Use centralized timezone normalization
     try:
         normalized_dt = normalize_timestamp_to_utc(timestamp)
-        return to_iso_string(normalized_dt)
+        if normalized_dt is not None:
+            iso_string = to_iso_string(normalized_dt)
+            return iso_string if iso_string is not None else datetime.now(UTC).isoformat()
+        return datetime.now(UTC).isoformat()
     except Exception:
         # Ultimate fallback to current time
         return datetime.now(UTC).isoformat()
 
 
 def normalize_decimal_precision(
-    value: Any, precision: int = 2, rounding: str = ROUND_HALF_UP
+    value: Any, precision: int = 2, rounding: str = ROUND_HALF_UP  # noqa: ANN401  # Handles diverse numeric types from external sources
 ) -> Decimal:
     """Normalize value to Decimal with specified precision.
 
@@ -211,7 +215,7 @@ def normalize_decimal_precision(
         return Decimal("0")
 
 
-def normalize_monetary_precision(value: Any) -> Decimal:
+def normalize_monetary_precision(value: Any) -> Decimal:  # noqa: ANN401  # Handles diverse numeric types from external sources
     """Normalize monetary value to 2 decimal places with proper rounding.
 
     Args:
@@ -224,7 +228,7 @@ def normalize_monetary_precision(value: Any) -> Decimal:
     return normalize_decimal_precision(value, precision=2)
 
 
-def normalize_quantity_precision(value: Any) -> Decimal:
+def normalize_quantity_precision(value: Any) -> Decimal:  # noqa: ANN401  # Handles diverse numeric types from external sources
     """Normalize quantity value to 4 decimal places for fractional shares.
 
     Args:
@@ -237,7 +241,7 @@ def normalize_quantity_precision(value: Any) -> Decimal:
     return normalize_decimal_precision(value, precision=4)
 
 
-def safe_decimal_conversion(value: Any, default: Decimal = Decimal("0")) -> Decimal:
+def safe_decimal_conversion(value: Any, default: Decimal = Decimal("0")) -> Decimal:  # noqa: ANN401  # Handles diverse numeric types from external sources
     """Safely convert value to Decimal with fallback.
 
     Args:
@@ -257,13 +261,14 @@ def safe_decimal_conversion(value: Any, default: Decimal = Decimal("0")) -> Deci
         return default
 
 
-def normalize_order_details(order: Any) -> dict[str, Any]:
+def normalize_order_details(order: OrderLikeProtocol | dict[str, Any]) -> dict[str, Any]:
     """Normalize order object to consistent dictionary format.
 
     Handles both domain Order entities and raw dictionaries from various sources.
+    Uses OrderLikeProtocol for type safety when accessing order attributes.
 
     Args:
-        order: Order object (domain entity or dict)
+        order: Order object (domain entity, SDK object via protocol, or dict)
 
     Returns:
         Normalized order dictionary
@@ -273,11 +278,21 @@ def normalize_order_details(order: Any) -> dict[str, Any]:
         # Already a dict, just normalize values
         normalized = order.copy()
     else:
-        # Convert domain entity to dict
-        if hasattr(order, "__dict__"):
-            normalized = order.__dict__.copy()
-        else:
-            # Fallback for complex objects
+        # Use protocol to access order attributes safely
+        try:
+            normalized = {
+                "id": order.id,
+                "symbol": order.symbol,
+                "qty": order.qty,
+                "side": order.side,
+                "order_type": order.order_type,
+                "status": order.status,
+                "filled_qty": order.filled_qty,
+            }
+            # Remove None values to avoid overwriting existing dict values
+            normalized = {k: v for k, v in normalized.items() if v is not None}
+        except AttributeError:
+            # Fallback to hasattr/getattr for objects that don't match protocol
             normalized = {}
             for attr in ["id", "symbol", "qty", "side", "order_type", "status", "filled_qty"]:
                 if hasattr(order, attr):

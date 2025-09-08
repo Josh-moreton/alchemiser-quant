@@ -99,7 +99,7 @@ class StrategyRegistry:
         }
 
     @classmethod
-    def create_strategy_engine(cls, strategy_type: StrategyType, **kwargs: Any) -> Any:
+    def create_strategy_engine(cls, strategy_type: StrategyType, **kwargs: Any) -> Any:  # noqa: ANN401  # Strategy factory with dynamic parameters and return types
         """Create a strategy engine instance.
 
         Args:
