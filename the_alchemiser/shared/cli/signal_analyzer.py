@@ -38,6 +38,8 @@ class SignalAnalyzer:
         self.settings = settings
         self.container = container
         self.logger = get_logger(__name__)
+        self._error_count = 0
+        self._total_symbol_requests = 0
 
     def _generate_signals(
         self,
@@ -46,13 +48,16 @@ class SignalAnalyzer:
         # Use typed adapter for engines (DataFrame compatibility) and typed port for fetching
         market_data_port = self.container.infrastructure.market_data_service()
 
+        # Wrap the market data port to track errors
+        wrapped_port = self._create_error_tracking_port(market_data_port)
+
         # Create strategy manager with proper allocations
         strategy_allocations = get_strategy_allocations(self.settings)
 
         # Generate typed signals directly
         from datetime import UTC, datetime
 
-        typed_manager = TypedStrategyManager(market_data_port, strategy_allocations)
+        typed_manager = TypedStrategyManager(wrapped_port, strategy_allocations)
         aggregated_signals = typed_manager.generate_all_signals(datetime.now(UTC))
 
         # Use centralized mapping function (reuse requirement)
@@ -63,6 +68,61 @@ class SignalAnalyzer:
         )
 
         return strategy_signals, consolidated_portfolio
+
+    def _create_error_tracking_port(self, original_port: Any) -> Any:
+        """Create a wrapper that tracks data fetch errors."""
+        class ErrorTrackingPort:
+            def __init__(self, port: Any, analyzer: SignalAnalyzer) -> None:
+                self._port = port
+                self._analyzer = analyzer
+
+            def __getattr__(self, name: str) -> Any:
+                """Delegate all attributes to the original port."""
+                return getattr(self._port, name)
+
+            def get_bars(self, symbol: Any, period: str, timeframe: str) -> Any:
+                """Track errors when fetching bars."""
+                self._analyzer._total_symbol_requests += 1
+                try:
+                    result = self._port.get_bars(symbol, period, timeframe)
+                    if not result:  # Empty result indicates data fetch failure
+                        self._analyzer._error_count += 1
+                        self._analyzer.logger.debug(f"No data returned for {symbol}")
+                    return result
+                except Exception as e:
+                    self._analyzer._error_count += 1
+                    self._analyzer.logger.error(f"Error tracking: Failed to get bars for {symbol}: {e}")
+                    return []  # Return empty list to maintain compatibility
+
+            def get_latest_quote(self, symbol: Any) -> Any:
+                """Track errors when fetching quotes."""
+                self._analyzer._total_symbol_requests += 1
+                try:
+                    result = self._port.get_latest_quote(symbol)
+                    if result is None:
+                        self._analyzer._error_count += 1
+                        self._analyzer.logger.debug(f"No quote returned for {symbol}")
+                    return result
+                except Exception as e:
+                    self._analyzer._error_count += 1
+                    self._analyzer.logger.error(f"Error tracking: Failed to get quote for {symbol}: {e}")
+                    return None
+
+            def get_mid_price(self, symbol: Any) -> Any:
+                """Track errors when fetching mid price."""
+                self._analyzer._total_symbol_requests += 1
+                try:
+                    result = self._port.get_mid_price(symbol)
+                    if result is None:
+                        self._analyzer._error_count += 1
+                        self._analyzer.logger.debug(f"No mid price returned for {symbol}")
+                    return result
+                except Exception as e:
+                    self._analyzer._error_count += 1
+                    self._analyzer.logger.error(f"Error tracking: Failed to get mid price for {symbol}: {e}")
+                    return None
+
+        return ErrorTrackingPort(original_port, self)
 
     def _display_results(
         self,
@@ -289,8 +349,24 @@ class SignalAnalyzer:
                 self.logger.error("Failed to generate strategy signals")
                 return False
 
+            # Check if we have systemic data issues
+            if self._is_systemic_data_failure():
+                self.logger.error(
+                    f"Systemic data failure detected: {self._error_count}/{self._total_symbol_requests} "
+                    f"data requests failed ({self._get_error_percentage():.1f}%)"
+                )
+                render_footer("Signal analysis failed due to systemic data issues!")
+                return False
+
             # Display results (tracking gated by flag)
             self._display_results(strategy_signals, consolidated_portfolio, show_tracking)
+
+            # Log summary of data fetch issues if any
+            if self._error_count > 0:
+                self.logger.warning(
+                    f"Data fetch issues: {self._error_count}/{self._total_symbol_requests} "
+                    f"requests failed ({self._get_error_percentage():.1f}%), but continuing with available data"
+                )
 
             render_footer("Signal analysis completed successfully!")
             return True
@@ -301,3 +377,27 @@ class SignalAnalyzer:
         except Exception as e:
             self.logger.error(f"Unexpected error in signal analysis: {e}")
             return False
+
+    def _is_systemic_data_failure(self) -> bool:
+        """Determine if data failures indicate a systemic issue."""
+        if self._total_symbol_requests == 0:
+            return False
+        
+        error_percentage = self._get_error_percentage()
+        
+        # Consider it systemic if:
+        # 1. More than 80% of requests failed, or
+        # 2. We attempted many requests (>10) and more than 70% failed
+        if error_percentage > 80:
+            return True
+        
+        if self._total_symbol_requests > 10 and error_percentage > 70:
+            return True
+            
+        return False
+
+    def _get_error_percentage(self) -> float:
+        """Get the percentage of data requests that failed."""
+        if self._total_symbol_requests == 0:
+            return 0.0
+        return (self._error_count / self._total_symbol_requests) * 100
