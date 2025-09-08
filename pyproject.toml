@@ -47,7 +47,7 @@ bandit = ">=1.7.0"  # Legacy direct usage; Ruff "S" rules supplement
 vulture = "^2.14"   # Dead code detection
 psutil = "^7.0.0"
 pydocstyle = ">=6.0.0"  # Docstring style (Ruff D rules)
-pytest = "^8.4.1"
+pytest = "^8.4.2"
 pip-audit = "^2.7.3"  # Dependency vulnerability scanning
 detect-secrets = "^1.5.0"  # Secret scanning (baseline optional)
 pyright = "^1.1.405"  # Supplemental static type analysis (optional CI/nightly)
