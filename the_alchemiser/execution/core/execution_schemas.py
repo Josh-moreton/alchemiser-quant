@@ -17,7 +17,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Import consolidated DTOs from shared module to avoid duplication
-from the_alchemiser.shared.dto.broker_dto import WebSocketResult, WebSocketStatus
+from the_alchemiser.shared.dto.broker_dto import WebSocketResult
 from the_alchemiser.shared.dto.execution_report_dto import ExecutionReportDTO
 from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails
@@ -243,7 +243,6 @@ __all__ = [
     "TradingPlanDTO",
     "WebSocketResult",
     "WebSocketResultDTO",
-    "WebSocketStatus",
 ]
 
 
