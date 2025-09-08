@@ -174,25 +174,28 @@ class TypedStrategyManager:
                 # Critical errors that should fail the entire operation
                 error_message = str(e)
                 error_type = type(e).__name__
-                
+
                 # System errors that indicate fundamental configuration or code issues
                 critical_patterns = [
                     "No module named",
-                    "ImportError", 
+                    "ImportError",
                     "ModuleNotFoundError",
                     "cannot import name",
                     "object has no attribute",  # AttributeError indicating missing essential attributes
                     "not defined",
                     "is not callable",
                 ]
-                
+
                 critical_error_types = [
                     "AttributeError",  # Missing attributes on strategy engines
-                    "NameError",       # Undefined variables/functions
-                    "TypeError",       # Incorrect type usage in core functionality
+                    "NameError",  # Undefined variables/functions
+                    "TypeError",  # Incorrect type usage in core functionality
                 ]
-                
-                if any(pattern in error_message for pattern in critical_patterns) or error_type in critical_error_types:
+
+                if (
+                    any(pattern in error_message for pattern in critical_patterns)
+                    or error_type in critical_error_types
+                ):
                     # System errors indicate fundamental configuration/code issues
                     # that should cause the entire signal generation to fail
                     raise StrategyExecutionError(
