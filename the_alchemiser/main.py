@@ -159,7 +159,12 @@ def _resolve_log_level(is_production: bool) -> int:
 
 def configure_application_logging() -> None:
     """Configure application logging with reduced complexity."""
-    is_production = os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
+    # Check for Lambda environment via runtime-specific environment variables
+    is_production = any([
+        os.getenv("AWS_EXECUTION_ENV"),
+        os.getenv("AWS_LAMBDA_RUNTIME_API"),
+        os.getenv("LAMBDA_RUNTIME_DIR")
+    ])
     root_logger = logging.getLogger()
     if root_logger.hasHandlers() and not is_production:
         return
@@ -263,8 +268,9 @@ def main(argv: list[str] | None = None) -> bool:
 
         # Display header with simple trading mode detection
         if args.mode == "trade":
-            import os
-            is_live = bool(os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+            from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+            _, _, endpoint = get_alpaca_keys()
+            is_live = endpoint and "paper" not in endpoint.lower()
             mode_label = "LIVE TRADING ⚠️" if is_live else "Paper Trading"
             render_header("The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}")
         else:

@@ -538,9 +538,10 @@ def status() -> None:
     # Initialize error handler
     error_handler = TradingSystemErrorHandler()
 
-    # Simple environment detection: if in Lambda, assume live; otherwise paper
-    import os
-    is_live = bool(os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+    # Determine trading mode from endpoint URL
+    from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+    _, _, endpoint = get_alpaca_keys()
+    is_live = endpoint and "paper" not in endpoint.lower()
     paper_trading = not is_live
     mode_display = "[bold red]LIVE[/bold red]" if is_live else "[bold blue]PAPER[/bold blue]"
 

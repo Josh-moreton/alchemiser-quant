@@ -226,9 +226,9 @@ def bootstrap_traditional(
         
         api_key, secret_key, endpoint = result
         
-        # Simple paper trading detection: if in Lambda, assume live; otherwise paper
-        paper_trading = not bool(os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
-        logger.info(f"Using environment-aware trading mode: {'paper' if paper_trading else 'live'}")
+        # Determine trading mode from endpoint URL
+        paper_trading = endpoint and "paper" in endpoint.lower()
+        logger.info(f"Using endpoint-determined trading mode: {'paper' if paper_trading else 'live'} (endpoint: {endpoint})")
 
     except Exception as e:
         logger.error(f"Failed to load credentials: {e}")

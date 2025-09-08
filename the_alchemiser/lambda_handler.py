@@ -182,10 +182,11 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
         # Extract mode information for response
         mode = command_args[0] if command_args else "unknown"
 
-        # Determine trading mode based on environment
-        import os
+        # Determine trading mode based on endpoint URL
+        from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+        _, _, endpoint = get_alpaca_keys()
         if mode == "trade":
-            trading_mode = "live" if os.getenv("AWS_LAMBDA_FUNCTION_NAME") else "paper"
+            trading_mode = "paper" if endpoint and "paper" in endpoint.lower() else "live"
         else:
             trading_mode = "n/a"
 

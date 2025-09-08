@@ -28,6 +28,11 @@ Globals:
         # Logging
         LOGGING__LEVEL: INFO
 
+        # Alpaca Credentials (populated from AWS Secrets Manager)
+        ALPACA_KEY: !Sub "{{resolve:secretsmanager:${AlpacaSecretName}:SecretString:ALPACA_KEY}}"
+        ALPACA_SECRET: !Sub "{{resolve:secretsmanager:${AlpacaSecretName}:SecretString:ALPACA_SECRET}}"
+        ALPACA_ENDPOINT: !Sub "{{resolve:secretsmanager:${AlpacaSecretName}:SecretString:ALPACA_ENDPOINT}}"
+
         # Alpaca Configuration
         ALPACA__ENDPOINT: https://api.alpaca.markets/v2
         ALPACA__PAPER_ENDPOINT: https://paper-api.alpaca.markets/v2
