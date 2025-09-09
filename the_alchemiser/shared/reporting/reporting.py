@@ -46,7 +46,13 @@ def create_execution_summary(
     trading_summary = extract_trading_summary(orders_executed)
 
     # Convert StrategyType keys to strings for build_strategy_summary
-    strategy_signals_str = {k.value: v for k, v in strategy_signals.items()}
+    # Handle both StrategyType enums and already-converted string keys
+    strategy_signals_str = {}
+    for k, v in strategy_signals.items():
+        if hasattr(k, "value"):  # StrategyType enum
+            strategy_signals_str[k.value] = v
+        else:  # Already a string key
+            strategy_signals_str[k] = v
     strategy_summary = build_strategy_summary(
         strategy_signals_str,
         engine.strategy_manager.strategy_allocations,
