@@ -449,24 +449,126 @@ class PortfolioManagementFacade:
                 or order_data.get("amount")
                 or 0
             )
-            qty_float = float(qty_value) if qty_value is not None else 0.0
-            # Normalize status to allowed literal values
-            status_norm = normalize_order_status(str(order_data.get("status", "new")))
-            order_details: OrderDetails = {
-                "id": order_data.get("order_id", "unknown"),
-                "symbol": symbol,
-                "qty": qty_float,
-                "side": side,
-                "order_type": "market",
-                "time_in_force": "day",
-                "status": status_norm,
-                "filled_qty": 0.0,
-                "filled_avg_price": None,
-                "created_at": "",
-                "updated_at": "",
-            }
+            order_status = normalize_order_status(order_data.get("status", "unknown"))
+            order_id = order_data.get("id") or order_data.get("order_id")
+
+            # Build OrderDetails dict
+            order_details = OrderDetails(
+                {
+                    "symbol": symbol,
+                    "qty": qty_value,
+                    "side": side,
+                    "status": order_status,
+                    "id": order_id,
+                    "order_type": order_data.get("order_type", "market"),
+                    "time_in_force": order_data.get("time_in_force", "day"),
+                    "submitted_at": order_data.get("submitted_at"),
+                    "filled_at": order_data.get("filled_at"),
+                    "avg_fill_price": order_data.get("avg_fill_price"),
+                }
+            )
             orders_list.append(order_details)
 
+        return orders_list
+
+    def execute_rebalance_phase_with_plan(
+        self,
+        rebalance_plan: Any,  # RebalancePlanCollectionDTO
+        phase: str,  # "sell" or "buy"
+    ) -> list[OrderDetails]:
+        """Execute only one phase of the rebalancing using a pre-calculated plan.
+
+        This method prevents trade instruction loss by using a pre-calculated plan
+        instead of recalculating, which could show different results after portfolio
+        state changes from sell orders.
+
+        Args:
+            rebalance_plan: Pre-calculated RebalancePlanCollectionDTO
+            phase: "sell" or "buy"
+
+        Returns:
+            List of executed orders as OrderDetails
+        """
+        phase_normalized = phase.lower().strip()
+        if phase_normalized not in {"sell", "buy"}:
+            phase_normalized = "buy"
+
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"🔒 Executing phase '{phase_normalized}' with PRE-CALCULATED plan to preserve trade instructions")
+        logger.info(f"Pre-calculated plan contains {len(rebalance_plan.plans)} symbols")
+        logger.info(f"Symbols needing rebalance: {rebalance_plan.symbols_needing_rebalance}")
+
+        # Filter the pre-calculated plan to the requested phase
+        filtered_plan: dict[str, RebalancePlanDTO] = {
+            symbol: plan
+            for symbol, plan in rebalance_plan.plans.items()
+            if plan.needs_rebalance
+            and (
+                (phase_normalized == "sell" and plan.trade_amount < 0)
+                or (phase_normalized == "buy" and plan.trade_amount > 0)
+            )
+        }
+        
+        logger.info(f"Phase '{phase_normalized}' with pre-calculated plan contains {len(filtered_plan)} symbols")
+        
+        if logger.isEnabledFor(logging.DEBUG):
+            for symbol, plan in rebalance_plan.plans.items():
+                logger.debug(f"Pre-calculated symbol {symbol}: needs_rebalance={plan.needs_rebalance}, "
+                           f"trade_amount={plan.trade_amount}, phase={phase_normalized}")
+            for symbol in filtered_plan:
+                logger.debug(f"Pre-calculated filtered symbol for execution: {symbol}")
+
+        if not filtered_plan:
+            logger.info(f"No {phase_normalized} trades needed from pre-calculated plan")
+            return []
+
+        # Convert filtered DTO plans to domain objects before execution
+        domain_filtered_plan = dto_plans_to_domain(filtered_plan)
+        # Execute only the filtered plan; execution service caps buys to BP
+        execution_results = self.execution_service.execute_rebalancing_plan(
+            domain_filtered_plan, dry_run=False
+        )
+
+        # Map to OrderDetails
+        orders_list: list[OrderDetails] = []
+        orders_placed = (
+            execution_results.get("orders_placed", {})
+            if isinstance(execution_results, dict)
+            else {}
+        )
+        for symbol, order_data in orders_placed.items():
+            if not isinstance(order_data, dict):
+                continue
+            side = order_data.get("side", "buy")
+            qty_value = (
+                order_data.get("shares")
+                or order_data.get("quantity")
+                or order_data.get("amount")
+                or 0
+            )
+            order_status = normalize_order_status(order_data.get("status", "unknown"))
+            order_id = order_data.get("id") or order_data.get("order_id")
+
+            # Build OrderDetails dict
+            order_details = OrderDetails(
+                {
+                    "symbol": symbol,
+                    "qty": qty_value,
+                    "side": side,
+                    "status": order_status,
+                    "id": order_id,
+                    "order_type": order_data.get("order_type", "market"),
+                    "time_in_force": order_data.get("time_in_force", "day"),
+                    "submitted_at": order_data.get("submitted_at"),
+                    "filled_at": order_data.get("filled_at"),
+                    "avg_fill_price": order_data.get("avg_fill_price"),
+                }
+            )
+            orders_list.append(order_details)
+
+        logger.info(f"✅ Executed {len(orders_list)} {phase_normalized} orders from pre-calculated plan")
         return orders_list
 
     # Utility methods

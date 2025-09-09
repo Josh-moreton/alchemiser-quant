@@ -94,6 +94,37 @@ class RebalancingOrchestrator:
 
         return sell_orders
 
+    def execute_sell_phase_with_plan(
+        self,
+        rebalance_plan: Any,  # RebalancePlanCollectionDTO
+        strategy_attribution: dict[str, list[StrategyType]] | None = None,
+    ) -> list[OrderDetails]:
+        """Execute SELL orders using pre-calculated rebalancing plan.
+
+        Args:
+            rebalance_plan: Pre-calculated rebalancing plan
+            strategy_attribution: Dictionary mapping symbols to contributing strategies
+
+        Returns:
+            List of executed SELL orders as OrderDetails
+
+        """
+        logging.info("🔄 Phase 1: Executing SELL orders using pre-calculated plan")
+
+        # Delegate to facade for SELL phase execution with pre-calculated plan
+        sell_orders = self.portfolio_facade.execute_rebalance_phase_with_plan(
+            rebalance_plan, phase="sell"
+        )
+
+        if sell_orders:
+            logging.info(f"Executed {len(sell_orders)} SELL orders from pre-calculated plan")
+            for order in sell_orders:
+                logging.info(f"SELL {order['symbol']}: {order['qty']} shares")
+        else:
+            logging.info("No SELL orders needed from pre-calculated plan")
+
+        return sell_orders
+
     async def wait_for_settlement_and_bp_refresh(self, sell_orders: list[OrderDetails]) -> None:
         """Wait for sell order settlement and buying power refresh via WebSocket monitoring.
 
@@ -190,6 +221,43 @@ class RebalancingOrchestrator:
 
         return buy_orders
 
+    def execute_buy_phase_with_plan(
+        self,
+        rebalance_plan: Any,  # RebalancePlanCollectionDTO
+        strategy_attribution: dict[str, list[StrategyType]] | None = None,
+    ) -> list[OrderDetails]:
+        """Execute BUY orders using pre-calculated rebalancing plan.
+
+        Args:
+            rebalance_plan: Pre-calculated rebalancing plan
+            strategy_attribution: Dictionary mapping symbols to contributing strategies
+
+        Returns:
+            List of executed BUY orders as OrderDetails
+
+        """
+        logging.info("🔄 Phase 3: Executing BUY orders using pre-calculated plan")
+
+        # Get fresh account info to update buying power if provider is available
+        if self.account_info_provider and hasattr(self.account_info_provider, "get_account_info"):
+            account_info = self.account_info_provider.get_account_info()
+            current_buying_power = float(account_info["buying_power"])
+            logging.info(f"Current buying power for pre-calculated plan: ${current_buying_power:,.2f}")
+
+        # Delegate to facade for BUY phase execution with pre-calculated plan
+        buy_orders = self.portfolio_facade.execute_rebalance_phase_with_plan(
+            rebalance_plan, phase="buy"
+        )
+
+        if buy_orders:
+            logging.info(f"Executed {len(buy_orders)} BUY orders from pre-calculated plan")
+            for order in buy_orders:
+                logging.info(f"BUY {order['symbol']}: {order['qty']} shares")
+        else:
+            logging.info("No BUY orders needed from pre-calculated plan")
+
+        return buy_orders
+
     async def execute_full_rebalance_cycle(
         self,
         target_portfolio: dict[str, float],
@@ -222,15 +290,41 @@ class RebalancingOrchestrator:
         try:
             all_orders: list[OrderDetails] = []
 
-            # Phase 1: Execute SELL orders to free buying power
-            sell_orders = self.execute_sell_phase(target_portfolio, strategy_attribution)
+            # CRITICAL FIX: Calculate rebalancing plan ONCE upfront to prevent trade instruction loss
+            from decimal import Decimal
+            target_weights_decimal = {
+                symbol: Decimal(str(weight)) for symbol, weight in target_portfolio.items()
+            }
+            
+            logging.info("📊 Calculating rebalancing plan once to preserve trade instructions across phases")
+            full_rebalance_plan = self.portfolio_facade.rebalancing_service.calculate_rebalancing_plan(
+                target_weights_decimal
+            )
+            
+            if not full_rebalance_plan.success:
+                logging.error(f"Failed to calculate rebalancing plan: {full_rebalance_plan.error}")
+                return []
+            
+            # Log plan details for transparency
+            symbols_needing_rebalance = len([
+                symbol for symbol, plan in full_rebalance_plan.plans.items() 
+                if plan.needs_rebalance
+            ])
+            logging.info(f"📋 Rebalancing plan: {symbols_needing_rebalance}/{len(full_rebalance_plan.plans)} symbols need rebalancing")
+            
+            if symbols_needing_rebalance == 0:
+                logging.info("✅ Portfolio already balanced - no trades needed")
+                return []
+
+            # Phase 1: Execute SELL orders using pre-calculated plan
+            sell_orders = self.execute_sell_phase_with_plan(full_rebalance_plan, strategy_attribution)
             all_orders.extend(sell_orders)
 
             # Phase 2: Wait for sell order settlements and buying power refresh (now async)
             await self.wait_for_settlement_and_bp_refresh(sell_orders)
 
-            # Phase 3: Execute BUY orders with refreshed buying power
-            buy_orders = self.execute_buy_phase(target_portfolio, strategy_attribution)
+            # Phase 3: Execute BUY orders using the SAME pre-calculated plan
+            buy_orders = self.execute_buy_phase_with_plan(full_rebalance_plan, strategy_attribution)
             all_orders.extend(buy_orders)
 
             # Final summary
