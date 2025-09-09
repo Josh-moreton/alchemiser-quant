@@ -1135,7 +1135,7 @@ def main(
 
     if verbose:
         log_level = logging.DEBUG
-        console_level = logging.INFO
+        console_level = logging.DEBUG
         console.print("[dim]Verbose mode enabled[/dim]")
     elif quiet:
         log_level = logging.WARNING
