@@ -114,31 +114,55 @@ def dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummaryDTO:
 
 def dict_to_portfolio_state_dto(data: dict[str, Any]) -> PortfolioStateDTO:
     """Convert portfolio state dict to PortfolioStateDTO."""
-
-    # Convert decimal fields
-    def to_decimal_dict(source: dict[str, Any]) -> dict[str, Decimal]:
-        return {k: Decimal(str(v)) for k, v in source.items()}
-
-    target_allocations = to_decimal_dict(data.get("target_allocations", {}))
-    current_allocations = to_decimal_dict(data.get("current_allocations", {}))
-    target_values = to_decimal_dict(data.get("target_values", {}))
-    current_values = to_decimal_dict(data.get("current_values", {}))
-    allocation_discrepancies = to_decimal_dict(data.get("allocation_discrepancies", {}))
-
-    largest_discrepancy = data.get("largest_discrepancy")
-    if largest_discrepancy is not None:
-        largest_discrepancy = Decimal(str(largest_discrepancy))
-
+    from datetime import UTC, datetime
+    
+    from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioMetricsDTO
+    
+    # Generate required correlation fields if not present
+    correlation_id = data.get("correlation_id", f"portfolio_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}")
+    causation_id = data.get("causation_id", correlation_id)
+    portfolio_id = data.get("portfolio_id", "main_portfolio")
+    
+    # Create timestamp if not present
+    timestamp = data.get("timestamp")
+    if timestamp is None:
+        timestamp = datetime.now(UTC)
+    elif isinstance(timestamp, str):
+        from datetime import datetime as dt
+        timestamp = dt.fromisoformat(timestamp.replace("Z", "+00:00"))
+    
+    # Extract portfolio value from allocations data if present
+    portfolio_value = Decimal("0")
+    allocations_data = data.get("allocations", {})
+    
+    if allocations_data:
+        # Sum up current values from allocations
+        total_current_value = sum(
+            alloc.get("current_value", 0) for alloc in allocations_data.values()
+        )
+        portfolio_value = Decimal(str(total_current_value))
+    
+    # Create minimal portfolio metrics
+    metrics = PortfolioMetricsDTO(
+        total_value=portfolio_value,
+        cash_value=Decimal(str(data.get("cash_value", 0))),
+        equity_value=portfolio_value,
+        buying_power=Decimal(str(data.get("buying_power", portfolio_value))),
+        day_pnl=Decimal("0"),
+        day_pnl_percent=Decimal("0"),
+        total_pnl=Decimal("0"),
+        total_pnl_percent=Decimal("0"),
+    )
+    
     return PortfolioStateDTO(
-        total_portfolio_value=Decimal(str(data.get("total_portfolio_value", 0.0))),
-        target_allocations=target_allocations,
-        current_allocations=current_allocations,
-        target_values=target_values,
-        current_values=current_values,
-        allocation_discrepancies=allocation_discrepancies,
-        largest_discrepancy=largest_discrepancy,
-        total_symbols=data.get("total_symbols", 0),
-        rebalance_needed=data.get("rebalance_needed", False),
+        correlation_id=correlation_id,
+        causation_id=causation_id,
+        timestamp=timestamp,
+        portfolio_id=portfolio_id,
+        account_id=data.get("account_id"),
+        positions=[],  # Empty positions for now, could be enhanced later
+        metrics=metrics,
+        strategy_allocations={},  # Empty strategy allocations for now
     )
 
 
@@ -204,14 +228,23 @@ def safe_dict_to_portfolio_state_dto(data: dict[str, Any] | None) -> PortfolioSt
         return dict_to_portfolio_state_dto(data)
     except (KeyError, ValueError, TypeError):
         # Return minimal empty portfolio state for error cases
+        from datetime import UTC, datetime
+        
+        from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioMetricsDTO
+        
         return PortfolioStateDTO(
-            total_portfolio_value=Decimal("0"),
-            target_allocations={},
-            current_allocations={},
-            target_values={},
-            current_values={},
-            allocation_discrepancies={},
-            largest_discrepancy=None,
-            total_symbols=0,
-            rebalance_needed=False,
+            correlation_id=f"fallback_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
+            causation_id=f"fallback_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
+            timestamp=datetime.now(UTC),
+            portfolio_id="error_portfolio",
+            metrics=PortfolioMetricsDTO(
+                total_value=Decimal("0"),
+                cash_value=Decimal("0"),
+                equity_value=Decimal("0"),
+                buying_power=Decimal("0"),
+                day_pnl=Decimal("0"),
+                day_pnl_percent=Decimal("0"),
+                total_pnl=Decimal("0"),
+                total_pnl_percent=Decimal("0"),
+            ),
         )
