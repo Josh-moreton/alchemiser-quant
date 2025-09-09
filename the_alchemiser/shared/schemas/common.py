@@ -26,8 +26,6 @@ from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDet
 if TYPE_CHECKING:
     from decimal import Decimal
 
-    from the_alchemiser.strategy.types.strategy_type import StrategyType
-
 
 class MultiStrategyExecutionResultDTO(BaseModel):
     """DTO for multi-strategy execution results.
