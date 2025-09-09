@@ -62,9 +62,8 @@ class RebalanceCalculator:
                 target_value=Decimal(str(data["target_value"])),
                 current_value=Decimal(str(data["current_value"])),
                 trade_amount=Decimal(str(data["trade_amount"])),
-                # ROBUST FIX: Calculate needs_rebalance here to ensure it's correct
-                # If the raw plan doesn't have it or it's wrong, recalculate it
-                needs_rebalance=bool(data.get("needs_rebalance", False)) or abs(Decimal(str(data["weight_diff"]))) >= self.min_trade_threshold,
+                # Use Decimal precision for threshold comparison to avoid float precision issues
+                needs_rebalance=abs(Decimal(str(data["weight_diff"]))) >= self.min_trade_threshold,
             )
             for symbol, data in raw_plan.items()
         }
