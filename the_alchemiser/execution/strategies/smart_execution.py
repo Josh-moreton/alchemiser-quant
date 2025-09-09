@@ -331,7 +331,7 @@ class SmartExecution:
                     "invalid_price_using_market_order",
                     extra={"symbol": symbol, "side": side.value, "notional": notional},
                 )
-                self._submit_canonical_market_order(symbol, side, notional=notional)
+                raise DataProviderError(f"Invalid price for {symbol}: {current_price}")
                 
             validated_qty = self._calculate_quantity_from_notional(
                 symbol, notional, current_price, side
@@ -347,7 +347,9 @@ class SmartExecution:
                         "notional": notional,
                     },
                 )
-                self._submit_canonical_market_order(symbol, side, notional=notional)
+                raise DataProviderError(
+                    f"Calculated quantity too small for {symbol}: {validated_qty}"
+                )
                 
             return validated_qty
             
@@ -356,7 +358,7 @@ class SmartExecution:
                 "price_unavailable_using_market_order",
                 extra={"symbol": symbol, "side": side.value, "quantity": qty},
             )
-            self._submit_canonical_market_order(symbol, side, notional=notional)
+            raise DataProviderError(f"Price unavailable for {symbol}")
             
     def _calculate_quantity_from_notional(
         self, symbol: str, notional: float, current_price: float, side: BrokerOrderSide
@@ -463,7 +465,7 @@ class SmartExecution:
                 "no_valid_quote_using_market_order",
                 extra={"symbol": symbol, "side": side.value, "quantity": qty},
             )
-            self._submit_canonical_market_order(symbol, side, qty=qty)
+            raise DataProviderError(f"No valid quote available for {symbol}")
             
         bid, ask = float(quote[0]), float(quote[1])
         
@@ -472,7 +474,7 @@ class SmartExecution:
                 "invalid_quote_using_market_order",
                 extra={"symbol": symbol, "side": side.value, "quantity": qty},
             )
-            self._submit_canonical_market_order(symbol, side, qty=qty)
+            raise DataProviderError(f"Invalid quote for {symbol}: bid={bid}, ask={ask}")
             
         spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
         self.logger.debug(
@@ -515,7 +517,7 @@ class SmartExecution:
                 "no_valid_quote_after_wait_using_market_order",
                 extra={"symbol": symbol, "side": side.value, "quantity": qty},
             )
-            self._submit_canonical_market_order(symbol, side, qty=qty)
+            raise DataProviderError(f"No valid quote available for {symbol} after waiting")
             
         bid, ask = float(quote[0]), float(quote[1])
         spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)

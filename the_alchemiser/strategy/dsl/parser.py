@@ -336,11 +336,13 @@ class DSLParser:
         if len(assets) == 1 and isinstance(assets[0], Group) and assets[0].name == "__vector__":
             assets = assets[0].expressions
         # Rebuild raw args for downstream parse method using original SExpr for indicator semantics
-        args[:] = [
+        # Create new args list to avoid modifying the original list passed as parameter
+        new_args = [
             args[0],
             args[1],
             *[self._ast_to_sexpr_placeholder(a) for a in assets],
         ]
+        args[:] = new_args
         return ast_args
 
     def _preprocess_if_args(self, ast_args: list[ASTNode]) -> list[ASTNode]:
