@@ -401,10 +401,16 @@ class PortfolioManagementFacade:
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.info(
-            f"Rebalance phase '{phase_normalized}': Full plan contains {len(full_plan.plans)} symbols"
-        )
+        logger.info(f"=== PORTFOLIO PHASE FILTERING: {phase_normalized.upper()} ===")
+        logger.info(f"Full plan contains {len(full_plan.plans)} symbols")
         logger.info(f"Symbols needing rebalance: {full_plan.symbols_needing_rebalance}")
+
+        # Log all symbols in the plan for transparency
+        for symbol, plan in full_plan.plans.items():
+            logger.info(f"Symbol {symbol}: needs_rebalance={plan.needs_rebalance}, trade_amount=${plan.trade_amount:.2f}")
+            if plan.needs_rebalance:
+                action = "SELL" if plan.trade_amount < 0 else "BUY"
+                logger.info(f"  → {symbol} would {action} ${abs(plan.trade_amount):.2f}")
 
         filtered_plan: dict[str, RebalancePlanDTO] = {
             symbol: plan
@@ -416,9 +422,19 @@ class PortfolioManagementFacade:
             )
         }
 
-        logger.info(
-            f"Phase '{phase_normalized}' filtered plan contains {len(filtered_plan)} symbols"
-        )
+        logger.info(f"Phase '{phase_normalized}' filtering logic:")
+        logger.info(f"  - Looking for symbols with needs_rebalance=True")
+        if phase_normalized == "sell":
+            logger.info(f"  - AND trade_amount < 0 (SELL orders)")
+        else:
+            logger.info(f"  - AND trade_amount > 0 (BUY orders)")
+        
+        logger.info(f"After filtering: {len(filtered_plan)} symbols match criteria")
+        
+        if filtered_plan:
+            logger.info(f"Symbols to execute in {phase_normalized} phase: {list(filtered_plan.keys())}")
+        else:
+            logger.warning(f"NO SYMBOLS MATCH {phase_normalized.upper()} PHASE CRITERIA - no trades will be executed")
 
         if logger.isEnabledFor(logging.DEBUG):
             for symbol, plan in full_plan.plans.items():
@@ -434,10 +450,19 @@ class PortfolioManagementFacade:
 
         # Convert filtered DTO plans to domain objects before execution
         domain_filtered_plan = dto_plans_to_domain(filtered_plan)
+        
+        # Log before execution
+        logger.info(f"=== EXECUTING {phase_normalized.upper()} PHASE ===")
+        logger.info(f"Sending {len(domain_filtered_plan)} symbols to execution service")
+        
         # Execute only the filtered plan; execution service caps buys to BP
         execution_results = self.execution_service.execute_rebalancing_plan(
             domain_filtered_plan, dry_run=False
         )
+        
+        # Log execution results
+        logger.info(f"Execution service returned: {execution_results}")
+        logger.info(f"Result type: {type(execution_results)}")
 
         # Map to OrderDetails
         orders_list: list[OrderDetails] = []
@@ -446,6 +471,9 @@ class PortfolioManagementFacade:
             if isinstance(execution_results, dict)
             else {}
         )
+        
+        logger.info(f"Orders placed from execution: {orders_placed}")
+        logger.info(f"Number of orders returned: {len(orders_placed) if orders_placed else 0}")
         for symbol, order_data in orders_placed.items():
             if not isinstance(order_data, dict):
                 continue
@@ -473,6 +501,15 @@ class PortfolioManagementFacade:
                 "updated_at": "",
             }
             orders_list.append(order_details)
+
+        # Log final results  
+        logger.info(f"=== {phase_normalized.upper()} PHASE COMPLETE ===")
+        logger.info(f"Final orders list: {len(orders_list)} orders created")
+        for i, order in enumerate(orders_list):
+            logger.info(f"Order {i+1}: {order['side']} {order['qty']} {order['symbol']} (ID: {order['id']})")
+            
+        if not orders_list:
+            logger.warning(f"NO ORDERS CREATED in {phase_normalized} phase - trades may be lost here")
 
         return orders_list
 
