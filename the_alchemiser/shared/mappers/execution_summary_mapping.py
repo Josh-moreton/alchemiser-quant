@@ -113,25 +113,19 @@ def dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummaryDTO:
 
 
 def dict_to_portfolio_state_dto(data: dict[str, Any]) -> PortfolioStateDTO:
-    """Convert portfolio state dict to PortfolioStateDTO."""
+    """Convert portfolio state dict to PortfolioStateDTO.
+    
+    Maps from actual portfolio data structure (from build_portfolio_state_data)
+    to the required PortfolioStateDTO schema.
+    """
     from datetime import UTC, datetime
     
     from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioMetricsDTO
     
-    # Generate required correlation fields if not present
-    correlation_id = data.get("correlation_id", f"portfolio_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}")
-    causation_id = data.get("causation_id", correlation_id)
-    portfolio_id = data.get("portfolio_id", "main_portfolio")
+    # Generate required correlation fields
+    correlation_id = f"portfolio_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
     
-    # Create timestamp if not present
-    timestamp = data.get("timestamp")
-    if timestamp is None:
-        timestamp = datetime.now(UTC)
-    elif isinstance(timestamp, str):
-        from datetime import datetime as dt
-        timestamp = dt.fromisoformat(timestamp.replace("Z", "+00:00"))
-    
-    # Extract portfolio value from allocations data if present
+    # Extract portfolio value from allocations data
     portfolio_value = Decimal("0")
     allocations_data = data.get("allocations", {})
     
@@ -142,13 +136,13 @@ def dict_to_portfolio_state_dto(data: dict[str, Any]) -> PortfolioStateDTO:
         )
         portfolio_value = Decimal(str(total_current_value))
     
-    # Create minimal portfolio metrics
+    # Create portfolio metrics from available data
     metrics = PortfolioMetricsDTO(
         total_value=portfolio_value,
-        cash_value=Decimal(str(data.get("cash_value", 0))),
+        cash_value=Decimal("0"),  # Not available in current data structure
         equity_value=portfolio_value,
-        buying_power=Decimal(str(data.get("buying_power", portfolio_value))),
-        day_pnl=Decimal("0"),
+        buying_power=portfolio_value,  # Assume full value as buying power
+        day_pnl=Decimal("0"),  # Not calculated in current data structure
         day_pnl_percent=Decimal("0"),
         total_pnl=Decimal("0"),
         total_pnl_percent=Decimal("0"),
@@ -156,95 +150,11 @@ def dict_to_portfolio_state_dto(data: dict[str, Any]) -> PortfolioStateDTO:
     
     return PortfolioStateDTO(
         correlation_id=correlation_id,
-        causation_id=causation_id,
-        timestamp=timestamp,
-        portfolio_id=portfolio_id,
-        account_id=data.get("account_id"),
-        positions=[],  # Empty positions for now, could be enhanced later
+        causation_id=correlation_id,
+        timestamp=datetime.now(UTC),
+        portfolio_id="main_portfolio",
         metrics=metrics,
-        strategy_allocations={},  # Empty strategy allocations for now
     )
 
 
-def safe_dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummaryDTO:
-    """Safely convert execution summary dict to DTO with fallbacks.
 
-    Provides backward compatibility for incomplete dict structures.
-    """
-    try:
-        return dict_to_execution_summary_dto(data)
-    except (KeyError, ValueError, TypeError) as e:
-        # Create minimal AccountInfo for fallback
-        default_account_info = {
-            "account_id": "error",
-            "equity": 0.0,
-            "cash": 0.0,
-            "buying_power": 0.0,
-            "day_trades_remaining": 0,
-            "portfolio_value": 0.0,
-            "last_equity": 0.0,
-            "daytrading_buying_power": 0.0,
-            "regt_buying_power": 0.0,
-            "status": "INACTIVE",
-        }
-
-        # Create minimal fallback DTO for error cases
-        return ExecutionSummaryDTO(
-            allocations=AllocationSummaryDTO(
-                total_allocation=Decimal("0"),
-                num_positions=0,
-                largest_position_pct=Decimal("0"),
-            ),
-            strategy_summary={},
-            trading_summary=TradingSummaryDTO(
-                total_orders=0,
-                orders_executed=0,
-                success_rate=Decimal("0"),
-                total_value=Decimal("0"),
-            ),
-            pnl_summary=StrategyPnLSummaryDTO(
-                total_pnl=Decimal("0"),
-                best_performer=None,
-                worst_performer=None,
-                num_profitable=0,
-            ),
-            account_info_before=data.get("account_info_before", default_account_info),
-            account_info_after=data.get("account_info_after", default_account_info),
-            mode=data.get("mode", "error"),
-            engine_mode=data.get("engine_mode"),
-            error=f"Failed to parse execution summary: {e}",
-        )
-
-
-def safe_dict_to_portfolio_state_dto(data: dict[str, Any] | None) -> PortfolioStateDTO | None:
-    """Safely convert portfolio state dict to DTO with fallbacks.
-
-    Returns None if data is None or invalid.
-    """
-    if data is None:
-        return None
-
-    try:
-        return dict_to_portfolio_state_dto(data)
-    except (KeyError, ValueError, TypeError):
-        # Return minimal empty portfolio state for error cases
-        from datetime import UTC, datetime
-        
-        from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioMetricsDTO
-        
-        return PortfolioStateDTO(
-            correlation_id=f"fallback_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
-            causation_id=f"fallback_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
-            timestamp=datetime.now(UTC),
-            portfolio_id="error_portfolio",
-            metrics=PortfolioMetricsDTO(
-                total_value=Decimal("0"),
-                cash_value=Decimal("0"),
-                equity_value=Decimal("0"),
-                buying_power=Decimal("0"),
-                day_pnl=Decimal("0"),
-                day_pnl_percent=Decimal("0"),
-                total_pnl=Decimal("0"),
-                total_pnl_percent=Decimal("0"),
-            ),
-        )
