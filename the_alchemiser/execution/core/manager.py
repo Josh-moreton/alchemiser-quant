@@ -68,6 +68,8 @@ class ExecutionManager(MultiStrategyExecutor):
             # Always migrate strategy signals to typed (using typed domain)
             try:
                 strategy_signals = _map_signals_to_typed(strategy_signals)
+                # Convert StrategyType keys to strings for DTO compatibility
+                strategy_signals = {k.value: v for k, v in strategy_signals.items()}
             except Exception as e:  # pragma: no cover - defensive
                 logging.warning(f"Failed to map strategy signals to typed: {e}")
             if not consolidated_portfolio:
