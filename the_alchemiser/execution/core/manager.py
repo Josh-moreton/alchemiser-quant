@@ -17,7 +17,7 @@ from the_alchemiser.shared.mappers.execution_summary_mapping import (
     safe_dict_to_portfolio_state_dto,
 )
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
-from the_alchemiser.shared.services.errors import handle_errors_with_retry
+from the_alchemiser.shared.errors.error_handler import handle_errors_with_retry
 from the_alchemiser.shared.types.exceptions import (
     ConfigurationError,
     DataProviderError,
