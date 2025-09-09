@@ -69,10 +69,8 @@ class RebalanceExecutionService:
         """
         try:
             # Filter plans that need rebalancing
-            # TEMPORARY FIX: Remove needs_rebalance filtering to test if that's the issue
             plans_to_execute = {
-                symbol: plan for symbol, plan in rebalance_plan.items() 
-                # if plan.needs_rebalance
+                symbol: plan for symbol, plan in rebalance_plan.items() if plan.needs_rebalance
             }
             
             # DEBUG: Log what plans we're executing

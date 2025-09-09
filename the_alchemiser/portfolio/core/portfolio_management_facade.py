@@ -408,10 +408,8 @@ class PortfolioManagementFacade:
         filtered_plan: dict[str, RebalancePlanDTO] = {
             symbol: plan
             for symbol, plan in full_plan.plans.items()
-            # TEMPORARY FIX: Remove needs_rebalance filtering to test if that's the issue
-            # if plan.needs_rebalance
-            # and (
-            if (
+            if plan.needs_rebalance
+            and (
                 (phase_normalized == "sell" and plan.trade_amount < 0)
                 or (phase_normalized == "buy" and plan.trade_amount > 0)
             )
