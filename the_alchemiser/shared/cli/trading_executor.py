@@ -135,7 +135,7 @@ class TradingExecutor:
         """Execute the trading strategy."""
         # Generate and display strategy signals
         render_header("Analyzing market conditions...", "Multi-Strategy Trading")
-        strategy_signals, consolidated_portfolio, _ = trader.strategy_manager.run_all_strategies()
+        strategy_signals, consolidated_portfolio, strategy_attribution = trader.strategy_manager.run_all_strategies()
 
         # Use typed StrategySignal mapping
         try:
@@ -202,7 +202,9 @@ class TradingExecutor:
 
         # Execute trading
         self._show_execution_progress()
-        result: MultiStrategyExecutionResultDTO = trader.execute_multi_strategy()
+        result: MultiStrategyExecutionResultDTO = trader.execute_multi_strategy(
+            strategy_signals, consolidated_portfolio, strategy_attribution
+        )
 
         # Display results
         try:

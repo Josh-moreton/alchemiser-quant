@@ -179,8 +179,19 @@ class ExecutionManager(MultiStrategyExecutor):
         ) from e
 
     @handle_errors_with_retry(operation="multi_strategy_execution", critical=True, max_retries=1)
-    def execute_multi_strategy(self) -> Any:
-        """Run all strategies and rebalance portfolio."""
+    def execute_multi_strategy(
+        self,
+        pre_calculated_signals: Any = None,
+        pre_calculated_portfolio: dict[str, float] | None = None,
+        pre_calculated_attribution: Any = None,
+    ) -> Any:
+        """Run all strategies and rebalance portfolio.
+        
+        Args:
+            pre_calculated_signals: Pre-calculated strategy signals to avoid double calculation
+            pre_calculated_portfolio: Pre-calculated consolidated portfolio 
+            pre_calculated_attribution: Pre-calculated strategy attribution
+        """
         try:
             account_info_before = self.engine.get_account_info()
             if not account_info_before:
@@ -192,9 +203,21 @@ class ExecutionManager(MultiStrategyExecutor):
                     },
                 )
 
-            strategy_signals, consolidated_portfolio, strategy_attribution = (
-                self.engine.strategy_manager.run_all_strategies()
-            )
+            # Use pre-calculated signals if provided to avoid double calculation
+            if (
+                pre_calculated_signals is not None
+                and pre_calculated_portfolio is not None
+                and pre_calculated_attribution is not None
+            ):
+                strategy_signals = pre_calculated_signals
+                consolidated_portfolio = pre_calculated_portfolio
+                strategy_attribution = pre_calculated_attribution
+                logging.info("Using pre-calculated strategy signals to avoid duplicate calculation")
+            else:
+                strategy_signals, consolidated_portfolio, strategy_attribution = (
+                    self.engine.strategy_manager.run_all_strategies()
+                )
+                logging.info("Calculating fresh strategy signals")
 
             strategy_signals = self._process_strategy_signals(strategy_signals)
             consolidated_portfolio = self._validate_portfolio_allocation(consolidated_portfolio)
