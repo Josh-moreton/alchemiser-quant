@@ -38,7 +38,7 @@ jobs:
           ALPACA_ENDPOINT: ${{ secrets.ALPACA_ENDPOINT }}
         run: |
           set +e
-          poetry run alchemiser trade --ignore-market-hours > cli_output.log 2>&1
+          poetry run alchemiser trade --ignore-market-hours --verbose > cli_output.log 2>&1
           exit_code=$?
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
           echo "=== CLI Trade Output ==="
