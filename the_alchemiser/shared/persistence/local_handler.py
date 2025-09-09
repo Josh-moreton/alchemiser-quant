@@ -21,12 +21,14 @@ class LocalFileHandler:
 
     def __init__(self, base_path: str | None = None) -> None:
         """Initialize local file handler.
-        
+
         Args:
             base_path: Base directory for storing files. If None, uses a secure temp directory.
+
         """
         if base_path is None:
             import tempfile
+
             # Create a secure temporary directory
             temp_dir = tempfile.mkdtemp(prefix="alchemiser_paper_")
             self.base_path = Path(temp_dir)
@@ -37,10 +39,10 @@ class LocalFileHandler:
 
     def _uri_to_path(self, uri: str) -> Path:
         """Convert storage URI to local file path.
-        
+
         Args:
             uri: Storage URI (s3://bucket/path or file:///path format)
-            
+
         Returns:
             Local Path object
 
@@ -62,11 +64,11 @@ class LocalFileHandler:
         try:
             file_path = self._uri_to_path(uri)
             file_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             file_path.write_text(content, encoding="utf-8")
             logging.debug(f"Successfully wrote text to {file_path}")
             return True
-            
+
         except Exception as e:
             logging.error(f"Error writing text to {uri}: {e}")
             return False
@@ -75,15 +77,15 @@ class LocalFileHandler:
         """Read text content from local file."""
         try:
             file_path = self._uri_to_path(uri)
-            
+
             if not file_path.exists():
                 logging.debug(f"File not found: {file_path}")
                 return None
-                
+
             content = file_path.read_text(encoding="utf-8")
             logging.debug(f"Successfully read text from {file_path}")
             return content
-            
+
         except Exception as e:
             logging.error(f"Error reading text from {uri}: {e}")
             return None
@@ -103,9 +105,9 @@ class LocalFileHandler:
             content = self.read_text(uri)
             if content is None:
                 return None
-                
+
             return dict(json.loads(content))
-            
+
         except json.JSONDecodeError as e:
             logging.error(f"Error parsing JSON from {uri}: {e}")
             return None
@@ -118,13 +120,13 @@ class LocalFileHandler:
         try:
             # Read existing content
             existing_content = self.read_text(uri) or ""
-            
+
             # Append new content
             new_content = existing_content + content
-            
+
             # Write back
             return self.write_text(uri, new_content)
-            
+
         except Exception as e:
             logging.error(f"Error appending to {uri}: {e}")
             return False

@@ -17,11 +17,11 @@ class PersistenceHandler(Protocol):
 
     def write_text(self, uri: str, content: str) -> bool:
         """Write text content to storage.
-        
+
         Args:
             uri: Storage location URI
             content: Text content to write
-            
+
         Returns:
             True if successful, False otherwise
 
@@ -30,10 +30,10 @@ class PersistenceHandler(Protocol):
 
     def read_text(self, uri: str) -> str | None:
         """Read text content from storage.
-        
+
         Args:
             uri: Storage location URI
-            
+
         Returns:
             Content string if found, None otherwise
 
@@ -42,11 +42,11 @@ class PersistenceHandler(Protocol):
 
     def write_json(self, uri: str, data: dict[str, Any]) -> bool:
         """Write JSON data to storage.
-        
+
         Args:
             uri: Storage location URI
             data: Dictionary to serialize as JSON
-            
+
         Returns:
             True if successful, False otherwise
 
@@ -55,10 +55,10 @@ class PersistenceHandler(Protocol):
 
     def read_json(self, uri: str) -> dict[str, Any] | None:
         """Read JSON data from storage.
-        
+
         Args:
             uri: Storage location URI
-            
+
         Returns:
             Deserialized dictionary if found, None otherwise
 
@@ -67,11 +67,11 @@ class PersistenceHandler(Protocol):
 
     def append_text(self, uri: str, content: str) -> bool:
         """Append text to storage location.
-        
+
         Args:
             uri: Storage location URI
             content: Text content to append
-            
+
         Returns:
             True if successful, False otherwise
 
@@ -80,10 +80,10 @@ class PersistenceHandler(Protocol):
 
     def file_exists(self, uri: str) -> bool:
         """Check if file exists in storage.
-        
+
         Args:
             uri: Storage location URI
-            
+
         Returns:
             True if file exists, False otherwise
 

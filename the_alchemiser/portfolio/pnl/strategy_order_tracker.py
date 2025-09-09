@@ -40,7 +40,6 @@ from the_alchemiser.portfolio.schemas.tracking import (
     StrategyPnLDTO,
     StrategyPositionDTO,
 )
-from the_alchemiser.portfolio.utils.s3_utils import get_s3_handler
 from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.persistence import create_persistence_handler
@@ -164,7 +163,9 @@ class StrategyOrderTracker:
 
         """
         self.config = config or load_settings()
-        self.persistence_handler: PersistenceHandler = create_persistence_handler(paper_trading=paper_trading)
+        self.persistence_handler: PersistenceHandler = create_persistence_handler(
+            paper_trading=paper_trading
+        )
         self.paper_trading = paper_trading
         self.error_handler = TradingSystemErrorHandler()
 
