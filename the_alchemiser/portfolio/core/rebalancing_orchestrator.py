@@ -205,54 +205,111 @@ class RebalancingOrchestrator:
             List of all executed orders (SELLs and BUYs) as OrderDetails
 
         """
+        # === ENHANCED LOGGING: ORCHESTRATOR ENTRY ===
+        logging.info("=== REBALANCING ORCHESTRATOR: EXECUTE_FULL_REBALANCE_CYCLE ===")
+        logging.info(f"ORCHESTRATOR_TYPE: {type(self).__name__}")
+        logging.info(f"RECEIVED_TARGET_PORTFOLIO: {target_portfolio}")
+        logging.info(f"RECEIVED_ATTRIBUTION: {strategy_attribution is not None}")
+        
         if not target_portfolio:
-            logging.warning("Empty target portfolio provided to rebalance_portfolio")
+            logging.error("❌ ORCHESTRATOR: Empty target portfolio provided to rebalance_portfolio")
             return []
+            
         # Validate portfolio allocations
         total_allocation = sum(target_portfolio.values())
         if abs(total_allocation - 1.0) > 0.05:
-            logging.warning(f"Portfolio allocation sums to {total_allocation:.1%}, expected ~100%")
+            logging.warning(f"⚠️ ORCHESTRATOR: Portfolio allocation sums to {total_allocation:.1%}, expected ~100%")
 
-        # Log rebalancing initiation
-        logging.info(
-            f"🚀 Initiating sequential portfolio rebalancing with {len(target_portfolio)} symbols"
-        )
-        logging.debug(f"Target allocations: {target_portfolio}")
+        # Enhanced rebalancing initiation logging
+        logging.info("🚀 ORCHESTRATOR: Initiating sequential portfolio rebalancing")
+        logging.info(f"ORCHESTRATOR: Processing {len(target_portfolio)} symbols")
+        logging.debug(f"ORCHESTRATOR: Target allocations detail: {target_portfolio}")
 
-        # Log each target allocation
+        # Log each target allocation with enhanced detail
+        significant_allocations = {}
         for symbol, allocation in target_portfolio.items():
-            logging.info(f"Target: {symbol} = {allocation:.3f} ({allocation * 100:.1f}%)")
+            logging.info(f"ORCHESTRATOR_TARGET: {symbol} = {allocation:.3f} ({allocation * 100:.1f}%)")
+            if allocation > 0.001:  # Track significant allocations
+                significant_allocations[symbol] = allocation
+                
+        logging.info(f"ORCHESTRATOR: {len(significant_allocations)} significant allocations identified")
 
         try:
             all_orders: list[OrderDetails] = []
+
+            # === DATA TRANSFER CHECKPOINT: BEFORE PHASE 1 ===
+            logging.info("=== ORCHESTRATOR CHECKPOINT: BEFORE PHASE 1 (SELL) ===")
+            logging.info(f"DATA_INTEGRITY_CHECK: {len(target_portfolio)} symbols, total={total_allocation:.4f}")
+            logging.info(f"PORTFOLIO_FACADE_TYPE: {type(self.portfolio_facade).__name__}")
 
             # Phase 1: Execute SELL orders to free buying power
             logging.info("=== REBALANCING PHASE 1: SELL ORDERS ===")
             sell_orders = self.execute_sell_phase(target_portfolio, strategy_attribution)
             all_orders.extend(sell_orders)
-            logging.info(f"Phase 1 completed: {len(sell_orders)} SELL orders executed")
+            
+            # Enhanced phase 1 results logging
+            logging.info(f"PHASE_1_COMPLETE: {len(sell_orders)} SELL orders executed")
+            if sell_orders:
+                for i, order in enumerate(sell_orders):
+                    logging.info(f"  SELL_ORDER_{i+1}: {order}")
+            else:
+                logging.info("PHASE_1: No SELL orders needed")
+
+            # === DATA TRANSFER CHECKPOINT: BEFORE PHASE 2 ===
+            logging.info("=== ORCHESTRATOR CHECKPOINT: BEFORE PHASE 2 (SETTLEMENT) ===")
+            logging.info(f"SELL_ORDERS_FOR_MONITORING: {len(sell_orders)}")
 
             # Phase 2: Wait for sell order settlements and buying power refresh (now async)
             logging.info("=== REBALANCING PHASE 2: SETTLEMENT WAIT ===")
             await self.wait_for_settlement_and_bp_refresh(sell_orders)
-            logging.info("Phase 2 completed: Settlement and BP refresh done")
+            logging.info("PHASE_2_COMPLETE: Settlement and BP refresh done")
+
+            # === DATA TRANSFER CHECKPOINT: BEFORE PHASE 3 ===
+            logging.info("=== ORCHESTRATOR CHECKPOINT: BEFORE PHASE 3 (BUY) ===")
+            logging.info(f"DATA_INTEGRITY_RECHECK: {len(target_portfolio)} symbols still available")
 
             # Phase 3: Execute BUY orders with refreshed buying power
             logging.info("=== REBALANCING PHASE 3: BUY ORDERS ===")
             buy_orders = self.execute_buy_phase(target_portfolio, strategy_attribution)
             all_orders.extend(buy_orders)
-            logging.info(f"Phase 3 completed: {len(buy_orders)} BUY orders executed")
+            
+            # Enhanced phase 3 results logging
+            logging.info(f"PHASE_3_COMPLETE: {len(buy_orders)} BUY orders executed")
+            if buy_orders:
+                for i, order in enumerate(buy_orders):
+                    logging.info(f"  BUY_ORDER_{i+1}: {order}")
+            else:
+                logging.info("PHASE_3: No BUY orders needed")
 
-            # Final summary
+            # === FINAL ORCHESTRATOR SUMMARY ===
             sell_count = len(sell_orders)
             buy_count = len(buy_orders)
-            logging.info(
-                f"✅ Sequential portfolio rebalancing completed: "
-                f"{sell_count} SELLs, {buy_count} BUYs, {len(all_orders)} total orders"
-            )
-
+            total_orders = len(all_orders)
+            
+            logging.info("=== ORCHESTRATOR FINAL SUMMARY ===")
+            logging.info(f"✅ Sequential portfolio rebalancing completed")
+            logging.info(f"PHASE_BREAKDOWN: {sell_count} SELLs, {buy_count} BUYs, {total_orders} total orders")
+            logging.info(f"EXPECTED_SYMBOLS: {list(significant_allocations.keys())}")
+            logging.info(f"ORDERS_CREATED_COUNT: {total_orders}")
+            
+            # Final validation against expectations
+            if len(significant_allocations) > 0 and total_orders == 0:
+                logging.error("🚨 ORCHESTRATOR TRADE LOSS: Expected orders for significant allocations but created 0")
+                for symbol, allocation in significant_allocations.items():
+                    logging.error(f"🚨 MISSING: {symbol} with {allocation:.1%} allocation")
+            
+            # Log final order list in detail
+            if all_orders:
+                logging.info("FINAL_ORDER_LIST:")
+                for i, order in enumerate(all_orders):
+                    logging.info(f"  FINAL_ORDER_{i+1}: {order}")
+            else:
+                logging.warning("❌ FINAL_ORDER_LIST: EMPTY - no orders created")
+                
+            logging.info("=== ORCHESTRATOR EXECUTION COMPLETE ===")
             return all_orders
 
         except Exception as e:
-            logging.error(f"Sequential portfolio rebalancing failed: {e}")
+            logging.error(f"❌ ORCHESTRATOR EXCEPTION: Sequential portfolio rebalancing failed: {e}")
+            logging.exception("Full orchestrator exception details:")
             return []
