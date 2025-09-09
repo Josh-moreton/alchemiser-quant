@@ -402,6 +402,17 @@ class PortfolioManagementFacade:
         logger.info(f"=== PORTFOLIO PHASE FILTERING: {phase_normalized.upper()} ===")
         logger.info(f"Full plan contains {len(full_plan.plans)} symbols")
         logger.info(f"Symbols needing rebalance: {full_plan.symbols_needing_rebalance}")
+        
+        # Log current portfolio state at this exact moment
+        current_positions = self.get_current_positions()
+        current_portfolio_value = self.get_current_portfolio_value()
+        logger.info(f"Current portfolio value: ${current_portfolio_value}")
+        logger.info(f"Current positions: {dict(current_positions)}")
+        
+        # Log target weights being used
+        logger.info(f"Target weights being used:")
+        for symbol, weight in target_weights_decimal.items():
+            logger.info(f"  {symbol}: {weight} ({float(weight)*100:.1f}%)")
 
         # Log all symbols in the plan for transparency
         for symbol, plan in full_plan.plans.items():
@@ -409,6 +420,28 @@ class PortfolioManagementFacade:
             if plan.needs_rebalance:
                 action = "SELL" if plan.trade_amount < 0 else "BUY"
                 logger.info(f"  → {symbol} would {action} ${abs(plan.trade_amount):.2f}")
+
+        # Add detailed filtering debug logging before filtering
+        logger.info(f"=== DETAILED FILTERING DEBUG FOR {phase_normalized.upper()} PHASE ===")
+        symbols_that_should_match = []
+        for symbol, plan in full_plan.plans.items():
+            needs_rebal = plan.needs_rebalance
+            trade_amt = plan.trade_amount
+            logger.info(f"  {symbol}: needs_rebalance={needs_rebal}, trade_amount={trade_amt} (type: {type(trade_amt)})")
+            
+            if needs_rebal:
+                if phase_normalized == "sell" and trade_amt < 0:
+                    symbols_that_should_match.append(f"{symbol} (SELL ${abs(trade_amt):.2f})")
+                    logger.info(f"    ✅ {symbol} SHOULD match SELL criteria (trade_amount={trade_amt} < 0)")
+                elif phase_normalized == "buy" and trade_amt > 0:
+                    symbols_that_should_match.append(f"{symbol} (BUY ${trade_amt:.2f})")
+                    logger.info(f"    ✅ {symbol} SHOULD match BUY criteria (trade_amount={trade_amt} > 0)")
+                else:
+                    logger.info(f"    ❌ {symbol} does NOT match {phase_normalized} criteria (trade_amount={trade_amt})")
+            else:
+                logger.info(f"    ❌ {symbol} needs_rebalance=False, skipping")
+        
+        logger.info(f"Expected symbols to match {phase_normalized} phase: {symbols_that_should_match}")
 
         filtered_plan: dict[str, RebalancePlanDTO] = {
             symbol: plan
@@ -429,10 +462,17 @@ class PortfolioManagementFacade:
         
         logger.info(f"After filtering: {len(filtered_plan)} symbols match criteria")
         
+        # Log the comparison between expected vs actual
+        actual_symbols = list(filtered_plan.keys()) if filtered_plan else []
+        logger.info(f"Expected vs Actual:")
+        logger.info(f"  Expected: {symbols_that_should_match}")
+        logger.info(f"  Actual:   {actual_symbols}")
+        
         if filtered_plan:
-            logger.info(f"Symbols to execute in {phase_normalized} phase: {list(filtered_plan.keys())}")
+            logger.info(f"Symbols to execute in {phase_normalized} phase: {actual_symbols}")
         else:
             logger.warning(f"NO SYMBOLS MATCH {phase_normalized.upper()} PHASE CRITERIA - no trades will be executed")
+            logger.warning(f"*** POTENTIAL BUG: Expected {len(symbols_that_should_match)} symbols but got 0 ***")
 
         if logger.isEnabledFor(logging.DEBUG):
             for symbol, plan in full_plan.plans.items():
