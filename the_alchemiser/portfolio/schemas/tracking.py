@@ -287,7 +287,7 @@ class StrategyPositionDTO(BaseModel, StrategyValidationMixin):
     invariants (e.g., non-negative quantities when position is closed).
     """
 
-    strategy: StrategyLiteral = Field(..., description="Strategy name from registered strategies")
+    strategy: StrategyLiteral = Field(..., description=STRATEGY_FIELD_DESCRIPTION)
     symbol: str = Field(
         ...,
         min_length=1,
@@ -364,7 +364,7 @@ class StrategyPnLDTO(BaseModel):
     for consistent P&L reporting across the system.
     """
 
-    strategy: StrategyLiteral = Field(..., description="Strategy name from registered strategies")
+    strategy: StrategyLiteral = Field(..., description=STRATEGY_FIELD_DESCRIPTION)
     realized_pnl: Decimal = Field(..., description="Realized profit/loss")
     unrealized_pnl: Decimal = Field(..., description="Unrealized profit/loss")
     total_pnl: Decimal = Field(..., description="Total profit/loss")
@@ -474,7 +474,7 @@ class StrategyExecutionSummaryDTO(BaseModel, StrategyValidationMixin):
     """
 
     # Strategy and symbol identification
-    strategy: StrategyLiteral = Field(..., description="Strategy name from registered strategies")
+    strategy: StrategyLiteral = Field(..., description=STRATEGY_FIELD_DESCRIPTION)
     symbol: str = Field(
         ...,
         min_length=1,

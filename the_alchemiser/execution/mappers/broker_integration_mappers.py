@@ -29,6 +29,9 @@ from the_alchemiser.shared.types.quantity import Quantity
 from the_alchemiser.shared.types.time_in_force import TimeInForce
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
+# Constants
+_UTC_TIMEZONE_SUFFIX = "+00:00"
+
 if TYPE_CHECKING:
     pass
 
@@ -152,7 +155,7 @@ def alpaca_order_to_execution_result(order: Any) -> OrderExecutionResultDTO:  # 
             with contextlib.suppress(Exception):
                 if isinstance(alpaca_dto.submitted_at, str):
                     submitted_at = datetime.fromisoformat(
-                        alpaca_dto.submitted_at.replace("Z", "+00:00")
+                        alpaca_dto.submitted_at.replace("Z", _UTC_TIMEZONE_SUFFIX)
                     )
                 elif hasattr(alpaca_dto.submitted_at, "isoformat"):
                     submitted_at = alpaca_dto.submitted_at
@@ -161,7 +164,7 @@ def alpaca_order_to_execution_result(order: Any) -> OrderExecutionResultDTO:  # 
             with contextlib.suppress(Exception):
                 if isinstance(alpaca_dto.updated_at, str):
                     completed_at = datetime.fromisoformat(
-                        alpaca_dto.updated_at.replace("Z", "+00:00")
+                        alpaca_dto.updated_at.replace("Z", _UTC_TIMEZONE_SUFFIX)
                     )
                 elif hasattr(alpaca_dto.updated_at, "isoformat"):
                     completed_at = alpaca_dto.updated_at
@@ -254,7 +257,7 @@ def _coerce_datetime(value: Any) -> datetime | None:
         try:
             # Handle various ISO format variations
             if value.endswith("Z"):
-                value = value[:-1] + "+00:00"
+                value = value[:-1] + _UTC_TIMEZONE_SUFFIX
             return datetime.fromisoformat(value)
         except ValueError:
             return None

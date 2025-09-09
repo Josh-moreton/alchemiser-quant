@@ -20,6 +20,9 @@ from rich.console import Console
 from the_alchemiser.execution.core.execution_schemas import WebSocketResultDTO
 from the_alchemiser.shared.dto.broker_dto import WebSocketStatus
 
+# Constants
+_ORDER_STATUS_PREFIX = "orderstatus."
+
 
 class OrderCompletionMonitor:
     """Monitor order completion using WebSocket streams for real-time detection.
@@ -100,7 +103,7 @@ class OrderCompletionMonitor:
             try:
                 order = self.trading_client.get_order_by_id(order_id)
                 status = str(getattr(order, "status", "")).lower()
-                actual_status = status.split(".")[-1] if "orderstatus." in status else status
+                actual_status = status.split(".")[-1] if _ORDER_STATUS_PREFIX in status else status
 
                 final_states = {"filled", "canceled", "rejected", "expired"}
                 if actual_status in final_states:
@@ -147,7 +150,7 @@ class OrderCompletionMonitor:
 
                 # Handle both string status and enum status
                 status_str = str(status).lower()
-                if "orderstatus." in status_str:
+                if _ORDER_STATUS_PREFIX in status_str:
                     actual_status = status_str.split(".")[-1]
                 else:
                     actual_status = status_str
@@ -210,7 +213,7 @@ class OrderCompletionMonitor:
                     try:
                         final_order = self.trading_client.get_order_by_id(oid)
                         final_status = str(getattr(final_order, "status", "unknown")).lower()
-                        if "orderstatus." in final_status:
+                        if _ORDER_STATUS_PREFIX in final_status:
                             actual_status = final_status.split(".")[-1]
                         else:
                             actual_status = final_status
