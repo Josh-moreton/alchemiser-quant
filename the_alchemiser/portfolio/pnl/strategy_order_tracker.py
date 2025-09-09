@@ -42,7 +42,7 @@ from the_alchemiser.portfolio.schemas.tracking import (
 )
 from the_alchemiser.portfolio.utils.s3_utils import get_s3_handler
 from the_alchemiser.shared.config.config import load_settings
-from the_alchemiser.shared.services.errors import TradingSystemErrorHandler
+from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.types.exceptions import (
     DataProviderError,
     StrategyExecutionError,

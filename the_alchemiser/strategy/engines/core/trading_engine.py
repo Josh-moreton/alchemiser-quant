@@ -722,7 +722,7 @@ class TradingEngine:
             logging.error(f"Multi-strategy execution failed: {e}")
 
             # Enhanced error handling (fail-fast; no legacy import fallback)
-            from the_alchemiser.shared.services.errors import handle_trading_error
+            from the_alchemiser.shared.errors.error_handler import handle_trading_error
 
             handle_trading_error(
                 error=e,
