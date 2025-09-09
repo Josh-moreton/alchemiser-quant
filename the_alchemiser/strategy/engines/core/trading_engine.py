@@ -637,8 +637,18 @@ class TradingEngine:
         )
 
     # --- Multi-Strategy Execution ---
-    def execute_multi_strategy(self) -> MultiStrategyExecutionResultDTO:
+    def execute_multi_strategy(
+        self,
+        pre_calculated_signals: Any = None,
+        pre_calculated_portfolio: dict[str, float] | None = None,
+        pre_calculated_attribution: Any = None,
+    ) -> MultiStrategyExecutionResultDTO:
         """Execute all strategies and rebalance portfolio with engine orchestration.
+
+        Args:
+            pre_calculated_signals: Pre-calculated strategy signals to avoid double calculation
+            pre_calculated_portfolio: Pre-calculated consolidated portfolio 
+            pre_calculated_attribution: Pre-calculated strategy attribution
 
         Returns:
             MultiStrategyExecutionResultDTO with comprehensive execution details.
@@ -686,8 +696,10 @@ class TradingEngine:
             )
 
         try:
-            # Use composed multi-strategy executor
-            result = self._multi_strategy_executor.execute_multi_strategy()
+            # Use composed multi-strategy executor with pre-calculated signals if provided
+            result = self._multi_strategy_executor.execute_multi_strategy(
+                pre_calculated_signals, pre_calculated_portfolio, pre_calculated_attribution
+            )
 
             # Engine-level post-processing
             if result.success:
