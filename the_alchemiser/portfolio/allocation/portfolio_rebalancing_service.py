@@ -718,6 +718,13 @@ class PortfolioRebalancingService:
         try:
             positions_data = self.trading_manager.get_positions()
             position_values = {}
+            
+            # DEBUG: Log what positions we got
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"DEBUG: _get_current_position_values called")
+            logger.info(f"DEBUG: positions_data success: {positions_data.get('success') if positions_data else 'None'}")
+            logger.info(f"DEBUG: positions count: {len(positions_data.get('positions', [])) if positions_data else 0}")
 
             if positions_data and positions_data.get("success"):
                 positions = positions_data.get("positions", [])
@@ -726,7 +733,9 @@ class PortfolioRebalancingService:
                     market_value = position.get("market_value", 0)
                     if symbol:
                         position_values[symbol] = Decimal(str(market_value))
+                        logger.info(f"DEBUG: Position {symbol}: ${market_value}")
 
+            logger.info(f"DEBUG: Total position values: {position_values}")
             return position_values
         except Exception:
             return {}
