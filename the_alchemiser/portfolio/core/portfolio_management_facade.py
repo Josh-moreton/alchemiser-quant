@@ -397,14 +397,6 @@ class PortfolioManagementFacade:
         # Calculate and filter plan to the requested phase
         full_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights_decimal)
         
-        # DEBUG: Log the full plan details
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"DEBUG: Full plan contains {len(full_plan.plans)} symbols")
-        logger.info(f"DEBUG: Collection says {full_plan.symbols_needing_rebalance} symbols need rebalancing")
-        for symbol, plan in full_plan.plans.items():
-            logger.info(f"DEBUG: {symbol}: needs_rebalance={plan.needs_rebalance}, trade_amount={plan.trade_amount}, phase={phase_normalized}")
-        
         filtered_plan: dict[str, RebalancePlanDTO] = {
             symbol: plan
             for symbol, plan in full_plan.plans.items()
@@ -414,11 +406,6 @@ class PortfolioManagementFacade:
                 or (phase_normalized == "buy" and plan.trade_amount > 0)
             )
         }
-        
-        # DEBUG: Log the filtered plan
-        logger.info(f"DEBUG: Filtered plan for phase '{phase_normalized}' contains {len(filtered_plan)} symbols")
-        for symbol in filtered_plan:
-            logger.info(f"DEBUG: Filtered symbol: {symbol}")
 
         if not filtered_plan:
             return []

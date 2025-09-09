@@ -72,14 +72,6 @@ class RebalanceExecutionService:
             plans_to_execute = {
                 symbol: plan for symbol, plan in rebalance_plan.items() if plan.needs_rebalance
             }
-            
-            # DEBUG: Log what plans we're executing
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.info(f"DEBUG: RebalanceExecutionService received {len(rebalance_plan)} plans")
-            logger.info(f"DEBUG: After filtering, {len(plans_to_execute)} plans need execution")
-            for symbol, plan in rebalance_plan.items():
-                logger.info(f"DEBUG: Plan {symbol}: needs_rebalance={plan.needs_rebalance}, trade_amount={plan.trade_amount}")
 
             if not plans_to_execute:
                 return {

@@ -718,13 +718,6 @@ class PortfolioRebalancingService:
         try:
             positions_data = self.trading_manager.get_positions()
             position_values = {}
-            
-            # DEBUG: Log what positions we got
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.info(f"DEBUG: _get_current_position_values called")
-            logger.info(f"DEBUG: positions_data success: {positions_data.get('success') if positions_data else 'None'}")
-            logger.info(f"DEBUG: positions count: {len(positions_data.get('positions', [])) if positions_data else 0}")
 
             if positions_data and positions_data.get("success"):
                 positions = positions_data.get("positions", [])
@@ -733,23 +726,7 @@ class PortfolioRebalancingService:
                     market_value = position.get("market_value", 0)
                     if symbol:
                         position_values[symbol] = Decimal(str(market_value))
-                        logger.info(f"DEBUG: Position {symbol}: ${market_value}")
 
-            # IMPORTANT FIX: If we get no positions or all zero positions, this is likely 
-            # the source of the bug. In paper trading or certain conditions, 
-            # get_positions() might return empty data even when positions exist.
-            # Add validation to ensure we're getting realistic position data.
-            total_position_value = sum(position_values.values())
-            portfolio_value = self._get_portfolio_value()
-            
-            logger.info(f"DEBUG: Total position values: {position_values}")
-            logger.info(f"DEBUG: Sum of positions: ${total_position_value}, Portfolio value: ${portfolio_value}")
-            
-            # If positions sum to much less than portfolio value, we might be missing position data
-            if portfolio_value > Decimal("1000") and total_position_value < portfolio_value * Decimal("0.1"):
-                logger.warning(f"DEBUG: Suspicious position data - positions sum to ${total_position_value} but portfolio is ${portfolio_value}")
-                logger.warning(f"DEBUG: This may be causing the 'no trades needed' issue")
-            
             return position_values
         except Exception:
             return {}
