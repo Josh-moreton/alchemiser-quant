@@ -396,13 +396,16 @@ class PortfolioManagementFacade:
 
         # Calculate and filter plan to the requested phase
         full_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights_decimal)
-        
+
         # Add logging for debugging trade instruction flow
         import logging
+
         logger = logging.getLogger(__name__)
-        logger.info(f"Rebalance phase '{phase_normalized}': Full plan contains {len(full_plan.plans)} symbols")
+        logger.info(
+            f"Rebalance phase '{phase_normalized}': Full plan contains {len(full_plan.plans)} symbols"
+        )
         logger.info(f"Symbols needing rebalance: {full_plan.symbols_needing_rebalance}")
-        
+
         filtered_plan: dict[str, RebalancePlanDTO] = {
             symbol: plan
             for symbol, plan in full_plan.plans.items()
@@ -412,13 +415,17 @@ class PortfolioManagementFacade:
                 or (phase_normalized == "buy" and plan.trade_amount > 0)
             )
         }
-        
-        logger.info(f"Phase '{phase_normalized}' filtered plan contains {len(filtered_plan)} symbols")
-        
+
+        logger.info(
+            f"Phase '{phase_normalized}' filtered plan contains {len(filtered_plan)} symbols"
+        )
+
         if logger.isEnabledFor(logging.DEBUG):
             for symbol, plan in full_plan.plans.items():
-                logger.debug(f"Symbol {symbol}: needs_rebalance={plan.needs_rebalance}, "
-                           f"trade_amount={plan.trade_amount}, phase={phase_normalized}")
+                logger.debug(
+                    f"Symbol {symbol}: needs_rebalance={plan.needs_rebalance}, "
+                    f"trade_amount={plan.trade_amount}, phase={phase_normalized}"
+                )
             for symbol in filtered_plan:
                 logger.debug(f"Filtered symbol for execution: {symbol}")
 

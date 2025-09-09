@@ -647,7 +647,7 @@ class TradingEngine:
 
         Args:
             pre_calculated_signals: Pre-calculated strategy signals to avoid double calculation
-            pre_calculated_portfolio: Pre-calculated consolidated portfolio 
+            pre_calculated_portfolio: Pre-calculated consolidated portfolio
             pre_calculated_attribution: Pre-calculated strategy attribution
 
         Returns:
@@ -696,6 +696,30 @@ class TradingEngine:
             )
 
         try:
+            # === TRADE FLOW DEBUG START ===
+            logging.info("=== TRADE FLOW DEBUG START ===")
+            logging.info(
+                f"Pre-calculated signals received: {len(pre_calculated_signals) if pre_calculated_signals else 'None'}"
+            )
+            logging.info(
+                f"Pre-calculated portfolio received: {len(pre_calculated_portfolio) if pre_calculated_portfolio else 'None'}"
+            )
+
+            if pre_calculated_signals:
+                for strategy, signals in pre_calculated_signals.items():
+                    logging.info(f"Strategy {strategy} signals: {signals}")
+
+            if pre_calculated_portfolio:
+                logging.info(f"Pre-calculated portfolio state: {pre_calculated_portfolio}")
+                # Log any significant allocations
+                for symbol, allocation in pre_calculated_portfolio.items():
+                    if allocation > 0.01:  # Log allocations > 1%
+                        logging.info(
+                            f"ALLOCATION: {symbol}: {allocation:.3f} ({allocation * 100:.1f}%)"
+                        )
+
+            logging.info("Calling _multi_strategy_executor.execute_multi_strategy()...")
+
             # Use composed multi-strategy executor with pre-calculated signals if provided
             result = self._multi_strategy_executor.execute_multi_strategy(
                 pre_calculated_signals, pre_calculated_portfolio, pre_calculated_attribution

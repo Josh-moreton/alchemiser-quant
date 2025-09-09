@@ -219,19 +219,29 @@ class RebalancingOrchestrator:
         )
         logging.debug(f"Target allocations: {target_portfolio}")
 
+        # Log each target allocation
+        for symbol, allocation in target_portfolio.items():
+            logging.info(f"Target: {symbol} = {allocation:.3f} ({allocation * 100:.1f}%)")
+
         try:
             all_orders: list[OrderDetails] = []
 
             # Phase 1: Execute SELL orders to free buying power
+            logging.info("=== REBALANCING PHASE 1: SELL ORDERS ===")
             sell_orders = self.execute_sell_phase(target_portfolio, strategy_attribution)
             all_orders.extend(sell_orders)
+            logging.info(f"Phase 1 completed: {len(sell_orders)} SELL orders executed")
 
             # Phase 2: Wait for sell order settlements and buying power refresh (now async)
+            logging.info("=== REBALANCING PHASE 2: SETTLEMENT WAIT ===")
             await self.wait_for_settlement_and_bp_refresh(sell_orders)
+            logging.info("Phase 2 completed: Settlement and BP refresh done")
 
             # Phase 3: Execute BUY orders with refreshed buying power
+            logging.info("=== REBALANCING PHASE 3: BUY ORDERS ===")
             buy_orders = self.execute_buy_phase(target_portfolio, strategy_attribution)
             all_orders.extend(buy_orders)
+            logging.info(f"Phase 3 completed: {len(buy_orders)} BUY orders executed")
 
             # Final summary
             sell_count = len(sell_orders)

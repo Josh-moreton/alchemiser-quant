@@ -186,11 +186,12 @@ class ExecutionManager(MultiStrategyExecutor):
         pre_calculated_attribution: Any = None,
     ) -> Any:
         """Run all strategies and rebalance portfolio.
-        
+
         Args:
             pre_calculated_signals: Pre-calculated strategy signals to avoid double calculation
-            pre_calculated_portfolio: Pre-calculated consolidated portfolio 
+            pre_calculated_portfolio: Pre-calculated consolidated portfolio
             pre_calculated_attribution: Pre-calculated strategy attribution
+
         """
         try:
             account_info_before = self.engine.get_account_info()
@@ -203,6 +204,16 @@ class ExecutionManager(MultiStrategyExecutor):
                     },
                 )
 
+            # === MULTI-STRATEGY EXECUTOR START ===
+            logging.info("=== MULTI-STRATEGY EXECUTOR START ===")
+            logging.info(f"Received pre_calculated_signals: {pre_calculated_signals is not None}")
+            logging.info(
+                f"Received pre_calculated_portfolio: {pre_calculated_portfolio is not None}"
+            )
+            logging.info(
+                f"Received pre_calculated_attribution: {pre_calculated_attribution is not None}"
+            )
+
             # Use pre-calculated signals if provided to avoid double calculation
             if (
                 pre_calculated_signals is not None
@@ -212,19 +223,53 @@ class ExecutionManager(MultiStrategyExecutor):
                 strategy_signals = pre_calculated_signals
                 consolidated_portfolio = pre_calculated_portfolio
                 strategy_attribution = pre_calculated_attribution
-                logging.info("Using pre-calculated strategy signals to avoid duplicate calculation")
+                logging.info("USING PRE-CALCULATED DATA from rebalancer")
+                logging.info(f"Pre-calculated portfolio has {len(consolidated_portfolio)} symbols")
             else:
+                logging.info("RECALCULATING portfolio balance (potential bug source)")
                 strategy_signals, consolidated_portfolio, strategy_attribution = (
                     self.engine.strategy_manager.run_all_strategies()
                 )
                 logging.info("Calculating fresh strategy signals")
+                logging.info(
+                    f"Fresh calculated portfolio has {len(consolidated_portfolio)} symbols"
+                )
 
             strategy_signals = self._process_strategy_signals(strategy_signals)
             consolidated_portfolio = self._validate_portfolio_allocation(consolidated_portfolio)
 
+            # Log portfolio state before rebalancing
+            logging.info("=== PORTFOLIO REBALANCING START ===")
+            logging.info(f"Portfolio to rebalance: {consolidated_portfolio}")
+            total_allocation = sum(consolidated_portfolio.values())
+            logging.info(
+                f"Total allocation: {total_allocation:.3f} ({total_allocation * 100:.1f}%)"
+            )
+
+            # Log which symbols have allocations
+            for symbol, allocation in consolidated_portfolio.items():
+                if allocation > 0.001:  # Log allocations > 0.1%
+                    logging.info(
+                        f"Target allocation {symbol}: {allocation:.3f} ({allocation * 100:.1f}%)"
+                    )
+
             orders_executed = self.engine.rebalance_portfolio(
                 consolidated_portfolio, strategy_attribution
             )
+
+            # Log rebalancing results
+            logging.info("=== REBALANCING RESULTS ===")
+            logging.info(
+                f"Orders returned from rebalancing: {len(orders_executed) if orders_executed else 0}"
+            )
+            if orders_executed:
+                for i, order in enumerate(orders_executed):
+                    logging.info(f"Order {i + 1}: {order}")
+            else:
+                logging.warning(
+                    "NO ORDERS RETURNED from rebalance_portfolio - investigating why..."
+                )
+
             orders_executed = self._validate_and_filter_orders(orders_executed)
 
             account_info_after = self.engine.get_account_info()

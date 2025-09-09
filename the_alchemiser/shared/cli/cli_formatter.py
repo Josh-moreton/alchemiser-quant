@@ -870,6 +870,37 @@ def render_multi_strategy_summary(
         c.print(orders_table)
         c.print()
     else:
+        # ADD CONTEXT LOGGING before displaying "no trades" message
+        logging.warning("=== CLI: DISPLAYING 'PORTFOLIO ALREADY BALANCED' MESSAGE ===")
+        logging.warning("CLI: Displaying 'Portfolio already balanced' message")
+        logging.warning(f"Execution result success: {execution_result.success}")
+        logging.warning(
+            f"Number of orders in execution result: {len(execution_result.orders_executed) if execution_result.orders_executed else 0}"
+        )
+
+        if hasattr(execution_result, "strategy_signals") and execution_result.strategy_signals:
+            logging.warning(
+                f"Strategy signals received: {len(execution_result.strategy_signals)} strategies"
+            )
+            for strategy, signals in execution_result.strategy_signals.items():
+                logging.warning(f"  Strategy {strategy}: {signals}")
+        else:
+            logging.warning("No strategy signals in execution result")
+
+        if (
+            hasattr(execution_result, "consolidated_portfolio")
+            and execution_result.consolidated_portfolio
+        ):
+            logging.warning(f"Consolidated portfolio: {execution_result.consolidated_portfolio}")
+            total_allocation = sum(execution_result.consolidated_portfolio.values())
+            logging.warning(
+                f"Total portfolio allocation: {total_allocation:.3f} ({total_allocation * 100:.1f}%)"
+            )
+        else:
+            logging.warning("No consolidated portfolio in execution result")
+
+        logging.warning("*** THIS IS WHERE TRADES MAY BE GETTING LOST ***")
+
         no_orders_panel = Panel(
             "[green]Portfolio already balanced - no trades needed[/green]",
             title="Orders Executed",
