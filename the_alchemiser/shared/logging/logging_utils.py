@@ -12,7 +12,7 @@ import sys
 import uuid
 from collections.abc import MutableMapping
 from contextvars import ContextVar
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from the_alchemiser.portfolio.utils.s3_utils import S3FileHandler
@@ -54,7 +54,7 @@ class StructuredFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         """Convert a log record into a JSON string."""
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(UTC).isoformat() + "Z",
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -399,7 +399,7 @@ def log_trade_event(logger: logging.Logger, event_type: str, symbol: str, **deta
     context = {
         "event_type": event_type,
         "symbol": symbol,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(UTC).isoformat() + "Z",
         **details,
     }
     log_with_context(logger, logging.INFO, f"Trading event: {event_type} for {symbol}", **context)
