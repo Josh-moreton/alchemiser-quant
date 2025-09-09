@@ -397,30 +397,30 @@ class PortfolioManagementFacade:
         # Calculate and filter plan to the requested phase
         full_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights_decimal)
         
-        # DEBUG: Log the full plan details
+        # Add logging for debugging trade instruction flow
         import logging
         logger = logging.getLogger(__name__)
-        logger.info(f"DEBUG: Full plan contains {len(full_plan.plans)} symbols")
-        logger.info(f"DEBUG: Collection says {full_plan.symbols_needing_rebalance} symbols need rebalancing")
-        for symbol, plan in full_plan.plans.items():
-            logger.info(f"DEBUG: {symbol}: needs_rebalance={plan.needs_rebalance}, trade_amount={plan.trade_amount}, phase={phase_normalized}")
+        logger.info(f"Rebalance phase '{phase_normalized}': Full plan contains {len(full_plan.plans)} symbols")
+        logger.info(f"Symbols needing rebalance: {full_plan.symbols_needing_rebalance}")
         
         filtered_plan: dict[str, RebalancePlanDTO] = {
             symbol: plan
             for symbol, plan in full_plan.plans.items()
-            # TEMPORARY FIX: Remove needs_rebalance filtering to test if that's the issue
-            # if plan.needs_rebalance
-            # and (
-            if (
+            if plan.needs_rebalance
+            and (
                 (phase_normalized == "sell" and plan.trade_amount < 0)
                 or (phase_normalized == "buy" and plan.trade_amount > 0)
             )
         }
         
-        # DEBUG: Log the filtered plan
-        logger.info(f"DEBUG: Filtered plan for phase '{phase_normalized}' contains {len(filtered_plan)} symbols")
-        for symbol in filtered_plan:
-            logger.info(f"DEBUG: Filtered symbol: {symbol}")
+        logger.info(f"Phase '{phase_normalized}' filtered plan contains {len(filtered_plan)} symbols")
+        
+        if logger.isEnabledFor(logging.DEBUG):
+            for symbol, plan in full_plan.plans.items():
+                logger.debug(f"Symbol {symbol}: needs_rebalance={plan.needs_rebalance}, "
+                           f"trade_amount={plan.trade_amount}, phase={phase_normalized}")
+            for symbol in filtered_plan:
+                logger.debug(f"Filtered symbol for execution: {symbol}")
 
         if not filtered_plan:
             return []

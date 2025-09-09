@@ -69,19 +69,23 @@ class RebalanceExecutionService:
         """
         try:
             # Filter plans that need rebalancing
-            # TEMPORARY FIX: Remove needs_rebalance filtering to test if that's the issue
             plans_to_execute = {
                 symbol: plan for symbol, plan in rebalance_plan.items() 
-                # if plan.needs_rebalance
+                if plan.needs_rebalance
             }
             
-            # DEBUG: Log what plans we're executing
+            # Add logging for debugging trade instruction flow
             import logging
             logger = logging.getLogger(__name__)
-            logger.info(f"DEBUG: RebalanceExecutionService received {len(rebalance_plan)} plans")
-            logger.info(f"DEBUG: After filtering, {len(plans_to_execute)} plans need execution")
-            for symbol, plan in rebalance_plan.items():
-                logger.info(f"DEBUG: Plan {symbol}: needs_rebalance={plan.needs_rebalance}, trade_amount={plan.trade_amount}")
+            logger.info(f"Execution service processing {len(rebalance_plan)} rebalance plans")
+            
+            needs_rebalance_count = sum(1 for plan in rebalance_plan.values() if plan.needs_rebalance)
+            logger.info(f"After filtering, {needs_rebalance_count} plans need execution")
+            
+            if logger.isEnabledFor(logging.DEBUG):
+                for symbol, plan in rebalance_plan.items():
+                    logger.debug(f"Plan {symbol}: needs_rebalance={plan.needs_rebalance}, "
+                               f"trade_amount={plan.trade_amount}, weight_diff={plan.weight_diff}")
 
             if not plans_to_execute:
                 return {

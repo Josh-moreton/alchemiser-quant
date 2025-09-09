@@ -334,10 +334,15 @@ def calculate_rebalance_amounts(
         current_values but not both. Missing positions are treated as 0.0.
 
     """
+    import logging
+    
+    logger = logging.getLogger(__name__)
     rebalance_plan = {}
 
     # Get all symbols from both target and current positions
     all_symbols = set(target_weights.keys()) | set(current_values.keys())
+    
+    symbols_needing_rebalance = 0
 
     for symbol in all_symbols:
         target_weight = target_weights.get(symbol, 0.0)
@@ -356,6 +361,13 @@ def calculate_rebalance_amounts(
         target_value = total_portfolio_value * target_weight
         trade_amount = target_value - current_value
         needs_rebalance = abs(weight_diff) >= min_trade_threshold
+        
+        if needs_rebalance:
+            symbols_needing_rebalance += 1
+            
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"Symbol {symbol}: weight_diff={weight_diff:.4f}, "
+                        f"threshold={min_trade_threshold:.4f}, needs_rebalance={needs_rebalance}")
 
         rebalance_plan[symbol] = {
             "current_weight": current_weight,
@@ -366,5 +378,7 @@ def calculate_rebalance_amounts(
             "trade_amount": trade_amount,
             "needs_rebalance": needs_rebalance,
         }
+    
+    logger.debug(f"Rebalance calculation complete: {symbols_needing_rebalance}/{len(all_symbols)} symbols need rebalancing")
 
     return rebalance_plan
