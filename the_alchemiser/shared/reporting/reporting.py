@@ -68,9 +68,8 @@ def save_dashboard_data(
     engine: Any,
     execution_result: Any,  # TODO: Phase 10 - Add proper types when available
 ) -> None:
-    """Save structured data for dashboard consumption to S3."""
+    """Save structured data for dashboard consumption to storage."""
     try:
-        from the_alchemiser.portfolio.utils.s3_utils import get_s3_handler
         from the_alchemiser.shared.cli.dashboard_utils import (
             build_basic_dashboard_structure,
             build_s3_paths,
@@ -79,8 +78,9 @@ def save_dashboard_data(
             extract_recent_trades_data,
             extract_strategies_data,
         )
+        from the_alchemiser.shared.persistence import create_persistence_handler
 
-        s3_handler = get_s3_handler()
+        persistence_handler = create_persistence_handler(paper_trading=engine.paper_trading)
         dashboard_data = build_basic_dashboard_structure(engine.paper_trading)
         dashboard_data["success"] = execution_result.success
 
@@ -107,11 +107,11 @@ def save_dashboard_data(
             )
 
         latest_path, historical_path = build_s3_paths(engine.paper_trading)
-        success = s3_handler.write_json(latest_path, dashboard_data)
+        success = persistence_handler.write_json(latest_path, dashboard_data)
         if success:
-            s3_handler.write_json(historical_path, dashboard_data)
+            persistence_handler.write_json(historical_path, dashboard_data)
         else:
-            logging.error("Failed to save dashboard data to S3")
+            logging.error("Failed to save dashboard data to storage")
     except OSError as e:
         logging.error(f"File/network error saving dashboard data: {e}")
     except DataProviderError as e:

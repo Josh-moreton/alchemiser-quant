@@ -15,8 +15,10 @@ from urllib.parse import urlparse
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 
+from the_alchemiser.shared.protocols.persistence import PersistenceHandler
 
-class S3Handler:
+
+class S3Handler(PersistenceHandler):
     """Handles S3 operations for the quantitative trading system."""
 
     def __init__(self) -> None:
