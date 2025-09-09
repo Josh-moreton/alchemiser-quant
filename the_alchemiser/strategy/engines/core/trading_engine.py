@@ -126,12 +126,7 @@ class RebalancingService(Protocol):
         ...
 
 
-class MultiStrategyExecutor(Protocol):
-    """Protocol for multi-strategy execution."""
-
-    def execute_multi_strategy(self) -> MultiStrategyExecutionResultDTO:
-        """Execute all strategies and rebalance portfolio."""
-        ...
+from the_alchemiser.execution.execution_protocols import MultiStrategyExecutor
 
 
 # --- Utility Functions ---
@@ -346,6 +341,12 @@ class TradingEngine:
             )
 
             self.execution_manager = self._trading_service_manager
+            
+            # Create proper ExecutionManager for multi-strategy coordination
+            # The TradingServicesFacade is for focused execution tasks
+            # Multi-strategy execution requires the dedicated ExecutionManager
+            from the_alchemiser.execution.core.manager import ExecutionManager
+            self._execution_manager_for_multi_strategy = ExecutionManager(self)
         except Exception as e:
             raise TradingClientError(
                 f"Failed to initialize account service or execution manager: {e}",
@@ -360,7 +361,8 @@ class TradingEngine:
         self._position_provider: PositionProvider = self._account_facade
         self._price_provider: PriceProvider = self._account_facade
         self._rebalancing_service: RebalancingService = self.portfolio_rebalancer
-        self._multi_strategy_executor: MultiStrategyExecutor = self.execution_manager
+        # Use the proper ExecutionManager for multi-strategy execution
+        self._multi_strategy_executor: MultiStrategyExecutor = self._execution_manager_for_multi_strategy
 
         # Logging setup
         logging.info(f"TradingEngine initialized - Paper Trading: {self.paper_trading}")

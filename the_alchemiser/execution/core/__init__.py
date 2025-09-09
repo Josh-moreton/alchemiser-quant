@@ -10,16 +10,16 @@ from .data_transformation_service import DataTransformationService
 from .execution_schemas import *
 from .lifecycle_coordinator import LifecycleCoordinator
 from .order_execution_service import OrderExecutionService
-from .refactored_execution_manager import RefactoredTradingServiceManager
+from .trading_services_facade import TradingServicesFacade
 
 # Provide backward compatibility alias
-TradingServiceManager = RefactoredTradingServiceManager
+TradingServiceManager = TradingServicesFacade
 
 __all__ = [
-    "AccountManagementService",
+    "AccountManagementService", 
     "DataTransformationService",
     "LifecycleCoordinator",
     "OrderExecutionService",
-    "RefactoredTradingServiceManager",
+    "TradingServicesFacade",
     "TradingServiceManager",
 ]

@@ -219,8 +219,8 @@ class TradingExecutor:
             api_key = self.container.config.alpaca_api_key()
             secret_key = self.container.config.alpaca_secret_key()
             paper = self.container.config.paper_trading()
-            from the_alchemiser.execution.core.refactored_execution_manager import (
-                RefactoredTradingServiceManager as TradingServiceManager,
+            from the_alchemiser.execution.core.trading_services_facade import (
+                TradingServicesFacade as TradingServiceManager,
             )
 
             tsm = TradingServiceManager(api_key, secret_key, paper=paper)

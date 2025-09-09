@@ -1,6 +1,11 @@
 """Business Unit: execution | Status: current.
 
-Refactored trading service manager using decomposed services for better separation of concerns.
+Trading services facade providing broker/account/position operations.
+
+This facade delegates to decomposed services for better separation of concerns.
+It handles broker-level operations but NOT multi-strategy execution or orchestration.
+
+For multi-strategy execution, use ExecutionManager instead.
 """
 
 from __future__ import annotations
@@ -14,6 +19,7 @@ from the_alchemiser.execution.core.account_management_service import AccountMana
 from the_alchemiser.execution.core.data_transformation_service import DataTransformationService
 from the_alchemiser.execution.core.lifecycle_coordinator import LifecycleCoordinator
 from the_alchemiser.execution.core.order_execution_service import OrderExecutionService
+from the_alchemiser.execution.execution_protocols import BrokerTradingServices
 from the_alchemiser.execution.lifecycle import OrderLifecycleState
 from the_alchemiser.execution.orders.consolidated_validation import OrderValidator
 from the_alchemiser.execution.orders.order_types import OrderId
@@ -59,11 +65,65 @@ from the_alchemiser.shared.schemas.operations import (
 from the_alchemiser.shared.utils.decorators import translate_trading_errors
 
 
-class RefactoredTradingServiceManager:
-    """Refactored service manager using decomposed services for better maintainability.
+def _create_error_dashboard(error_message: str = "Failed to generate dashboard") -> TradingDashboardDTO:
+    """Create a standardized error dashboard DTO."""
+    return TradingDashboardDTO(
+        success=False,
+        account=AccountSummaryDTO(
+            account_id="error",
+            equity=Decimal("0"),
+            cash=Decimal("0"),
+            market_value=Decimal("0"),
+            buying_power=Decimal("0"),
+            last_equity=Decimal("0"),
+            day_trade_count=0,
+            pattern_day_trader=False,
+            trading_blocked=False,
+            transfers_blocked=False,
+            account_blocked=False,
+            calculated_metrics=AccountMetricsDTO(
+                cash_ratio=Decimal("0"),
+                market_exposure=Decimal("0"),
+                leverage_ratio=None,
+                available_buying_power_ratio=Decimal("0"),
+            ),
+        ),
+        risk_metrics={},
+        portfolio_allocation={},
+        position_summary={},
+        open_orders=[],
+        market_status={},
+        timestamp=datetime.now(UTC),
+        error=error_message,
+    )
 
-    This class acts as a facade, coordinating between focused services while maintaining
-    clean separation of concerns. Each service handles a specific domain of functionality.
+
+def _create_order_execution_error(reason: str, error: str) -> SmartOrderExecutionDTO:
+    """Create a standardized order execution error DTO."""
+    return SmartOrderExecutionDTO(
+        success=False,
+        reason=reason,
+        error=error,
+    )
+
+
+class TradingServicesFacade(BrokerTradingServices):
+    """Facade for broker/account/position operations using decomposed services.
+
+    This facade coordinates broker-level operations while maintaining clean separation 
+    of concerns. It handles account management, order execution, and position tracking
+    but does NOT handle multi-strategy orchestration - use ExecutionManager for that.
+    
+    Responsibilities:
+    - Order placement and management
+    - Account information and risk metrics
+    - Position tracking and analytics
+    - Trading dashboard data
+    
+    Does NOT handle:
+    - Multi-strategy execution (use ExecutionManager)
+    - Strategy coordination (use ExecutionManager)
+    - Portfolio rebalancing orchestration (use ExecutionManager)
     """
 
     def __init__(self, api_key: str, secret_key: str, paper: bool = True) -> None:
@@ -90,7 +150,7 @@ class RefactoredTradingServiceManager:
         self.positions = PositionService(self.alpaca_manager)
         self.order_validator = OrderValidator()
 
-        self.logger.info(f"RefactoredTradingServiceManager initialized with paper={paper}")
+        self.logger.info(f"TradingServicesFacade initialized with paper={paper}")
 
     # Order Execution Operations (delegated to OrderExecutionService)
     def place_stop_loss_order(
@@ -259,13 +319,7 @@ class RefactoredTradingServiceManager:
             return PositionAnalyticsDTO(success=False, symbol=symbol, error=str(e))
 
     # High-Level Trading Operations
-    @translate_trading_errors(
-        default_return=SmartOrderExecutionDTO(
-            success=False,
-            reason="Order execution failed",
-            error="Service error",
-        )
-    )
+    @translate_trading_errors(default_return=_create_order_execution_error("Order execution failed", "Service error"))
     def execute_smart_order(
         self,
         symbol: str,
@@ -291,18 +345,13 @@ class RefactoredTradingServiceManager:
 
             # Implementation would continue with actual order execution logic
             # For now, return a placeholder response
-            return SmartOrderExecutionDTO(
-                success=False,
-                reason="Smart order execution not yet implemented in refactored manager",
-                error="Implementation needed",
+            return _create_order_execution_error(
+                "Smart order execution not yet implemented in refactored manager",
+                "Implementation needed"
             )
 
         except Exception as e:
-            return SmartOrderExecutionDTO(
-                success=False,
-                reason="Smart order execution failed",
-                error=str(e),
-            )
+            return _create_order_execution_error("Smart order execution failed", str(e))
 
     def execute_order_dto(self, order_request: OrderRequestDTO) -> SmartOrderExecutionDTO:
         """Execute an order using OrderRequestDTO directly."""
@@ -324,41 +373,9 @@ class RefactoredTradingServiceManager:
             )
         except Exception as e:
             self.logger.error(f"Unexpected error in execute_order_dto: {e}")
-            return SmartOrderExecutionDTO(
-                success=False, reason="DTO order execution failed", error=str(e)
-            )
+            return _create_order_execution_error("DTO order execution failed", str(e))
 
-    @translate_trading_errors(
-        default_return=TradingDashboardDTO(
-            success=False,
-            account=AccountSummaryDTO(
-                account_id="error",
-                equity=Decimal("0"),
-                cash=Decimal("0"),
-                market_value=Decimal("0"),
-                buying_power=Decimal("0"),
-                last_equity=Decimal("0"),
-                day_trade_count=0,
-                pattern_day_trader=False,
-                trading_blocked=False,
-                transfers_blocked=False,
-                account_blocked=False,
-                calculated_metrics=AccountMetricsDTO(
-                    cash_ratio=Decimal("0"),
-                    market_exposure=Decimal("0"),
-                    leverage_ratio=None,
-                    available_buying_power_ratio=Decimal("0"),
-                ),
-            ),
-            risk_metrics={},
-            portfolio_allocation={},
-            position_summary={},
-            open_orders=[],
-            market_status={},
-            timestamp=datetime.now(UTC),
-            error="Failed to generate dashboard",
-        )
-    )
+    @translate_trading_errors(default_return=_create_error_dashboard())
     def get_trading_dashboard(self) -> TradingDashboardDTO:
         """Get a comprehensive trading dashboard with all key metrics."""
         try:
@@ -392,41 +409,13 @@ class RefactoredTradingServiceManager:
 
         except Exception as e:
             self.logger.error(f"Failed to generate trading dashboard: {e}")
-            return TradingDashboardDTO(
-                success=False,
-                account=AccountSummaryDTO(
-                    account_id="error",
-                    equity=Decimal("0"),
-                    cash=Decimal("0"),
-                    market_value=Decimal("0"),
-                    buying_power=Decimal("0"),
-                    last_equity=Decimal("0"),
-                    day_trade_count=0,
-                    pattern_day_trader=False,
-                    trading_blocked=False,
-                    transfers_blocked=False,
-                    account_blocked=False,
-                    calculated_metrics=AccountMetricsDTO(
-                        cash_ratio=Decimal("0"),
-                        market_exposure=Decimal("0"),
-                        leverage_ratio=None,
-                        available_buying_power_ratio=Decimal("0"),
-                    ),
-                ),
-                risk_metrics={},
-                portfolio_allocation={},
-                position_summary={},
-                open_orders=[],
-                market_status={},
-                timestamp=datetime.now(UTC),
-                error=str(e),
-            )
+            return _create_error_dashboard(str(e))
 
     def close(self) -> None:
         """Clean up resources."""
         try:
             if hasattr(self.alpaca_manager, "close"):
                 self.alpaca_manager.close()
-            self.logger.info("RefactoredTradingServiceManager closed successfully")
+            self.logger.info("TradingServicesFacade closed successfully")
         except Exception as e:
-            self.logger.error(f"Error closing RefactoredTradingServiceManager: {e}")
+            self.logger.error(f"Error closing TradingServicesFacade: {e}")

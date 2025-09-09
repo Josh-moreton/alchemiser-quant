@@ -178,8 +178,8 @@ def signal(
                     )
                     raise typer.Exit(1)
 
-                from the_alchemiser.execution.core.refactored_execution_manager import (
-                    RefactoredTradingServiceManager as TradingServiceManager,
+                from the_alchemiser.execution.core.trading_services_facade import (
+                    TradingServicesFacade as TradingServiceManager,
                 )
 
                 tsm = TradingServiceManager(api_key, secret_key, paper=True)
@@ -591,8 +591,8 @@ def status() -> None:
         account_info: dict[str, Any] = dict(trader.get_account_info())
 
         # Always use enriched typed account summary (using typed domain)
-        from the_alchemiser.execution.core.refactored_execution_manager import (
-            RefactoredTradingServiceManager as TradingServiceManager,
+        from the_alchemiser.execution.core.trading_services_facade import (
+            TradingServicesFacade as TradingServiceManager,
         )
 
         tsm: TradingServiceManager | None = None
