@@ -65,7 +65,9 @@ from the_alchemiser.shared.schemas.operations import (
 from the_alchemiser.shared.utils.decorators import translate_trading_errors
 
 
-def _create_error_dashboard(error_message: str = "Failed to generate dashboard") -> TradingDashboardDTO:
+def _create_error_dashboard(
+    error_message: str = "Failed to generate dashboard",
+) -> TradingDashboardDTO:
     """Create a standardized error dashboard DTO."""
     return TradingDashboardDTO(
         success=False,
@@ -110,16 +112,16 @@ def _create_order_execution_error(reason: str, error: str) -> SmartOrderExecutio
 class TradingServicesFacade(BrokerTradingServices):
     """Facade for broker/account/position operations using decomposed services.
 
-    This facade coordinates broker-level operations while maintaining clean separation 
+    This facade coordinates broker-level operations while maintaining clean separation
     of concerns. It handles account management, order execution, and position tracking
     but does NOT handle multi-strategy orchestration - use ExecutionManager for that.
-    
+
     Responsibilities:
     - Order placement and management
     - Account information and risk metrics
     - Position tracking and analytics
     - Trading dashboard data
-    
+
     Does NOT handle:
     - Multi-strategy execution (use ExecutionManager)
     - Strategy coordination (use ExecutionManager)
@@ -319,7 +321,9 @@ class TradingServicesFacade(BrokerTradingServices):
             return PositionAnalyticsDTO(success=False, symbol=symbol, error=str(e))
 
     # High-Level Trading Operations
-    @translate_trading_errors(default_return=_create_order_execution_error("Order execution failed", "Service error"))
+    @translate_trading_errors(
+        default_return=_create_order_execution_error("Order execution failed", "Service error")
+    )
     def execute_smart_order(
         self,
         symbol: str,
@@ -347,7 +351,7 @@ class TradingServicesFacade(BrokerTradingServices):
             # For now, return a placeholder response
             return _create_order_execution_error(
                 "Smart order execution not yet implemented in refactored manager",
-                "Implementation needed"
+                "Implementation needed",
             )
 
         except Exception as e:

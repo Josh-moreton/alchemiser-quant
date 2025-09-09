@@ -56,6 +56,7 @@ STYLE_BOLD_BLUE = "bold blue"
 STYLE_BOLD_GREEN = "bold green"
 STYLE_BOLD_RED = "bold red"
 STYLE_BOLD_YELLOW = "bold yellow"
+STYLE_BOLD_MAGENTA = "bold magenta"
 PROGRESS_DESCRIPTION_FORMAT = "[progress.description]{task.description}"
 
 # Initialize Typer app and Rich console
@@ -662,7 +663,7 @@ def status() -> None:
                 strategy_table = Table(
                     title="Strategy Positions (Tracked)", show_lines=True, expand=True
                 )
-                strategy_table.add_column("Strategy", style="bold magenta")
+                strategy_table.add_column("Strategy", style=STYLE_BOLD_MAGENTA)
                 strategy_table.add_column("Symbol", style=STYLE_BOLD_CYAN)
                 strategy_table.add_column("Qty", justify="right")
                 strategy_table.add_column("Avg Cost", justify="right")
@@ -689,7 +690,7 @@ def status() -> None:
                 strategy_pnl_table = Table(
                     title="Strategy P&L Summary", show_lines=True, expand=True
                 )
-                strategy_pnl_table.add_column("Strategy", style="bold magenta")
+                strategy_pnl_table.add_column("Strategy", style=STYLE_BOLD_MAGENTA)
                 strategy_pnl_table.add_column("Realized P&L", justify="right")
                 strategy_pnl_table.add_column("Unrealized P&L", justify="right")
                 strategy_pnl_table.add_column("Total P&L", justify="right")
@@ -870,7 +871,9 @@ def dsl_count(
     elapsed = (time.perf_counter() - start_time) * 1000.0
 
     # Produce summary table
-    table = Table(title="DSL Structural Complexity", show_header=True, header_style="bold magenta")
+    table = Table(
+        title="DSL Structural Complexity", show_header=True, header_style=STYLE_BOLD_MAGENTA
+    )
     table.add_column("Metric", style="cyan")
     table.add_column("Value", justify="right")
     table.add_row("Nodes", f"{parser.node_count:,}")

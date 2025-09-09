@@ -14,6 +14,9 @@ from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 
+# Constants
+_COMPONENT_NAME = "PortfolioUtilities.get_portfolio_value"
+
 if TYPE_CHECKING:
     from the_alchemiser.execution.core.trading_services_facade import (
         TradingServicesFacade as TradingServiceManager,
@@ -74,7 +77,7 @@ class PortfolioUtilities:
                 error = ValueError("Portfolio DTO is None - potential upstream schema drift")
                 error_handler.handle_error(
                     error=error,
-                    component="PortfolioUtilities.get_portfolio_value",
+                    component=_COMPONENT_NAME,
                     context="portfolio value retrieval",
                     additional_data={"portfolio_dto": None},
                 )
@@ -89,7 +92,7 @@ class PortfolioUtilities:
                 )
                 error_handler.handle_error(
                     error=error,
-                    component="PortfolioUtilities.get_portfolio_value",
+                    component=_COMPONENT_NAME,
                     context="portfolio value validation",
                     additional_data={
                         "portfolio_dto_type": str(type(portfolio_dto)),
@@ -109,7 +112,7 @@ class PortfolioUtilities:
             error_handler = TradingSystemErrorHandler()
             error_handler.handle_error(
                 error=e,
-                component="PortfolioUtilities.get_portfolio_value",
+                component=_COMPONENT_NAME,
                 context="portfolio value retrieval - unexpected error",
                 additional_data={"error_type": str(type(e))},
             )

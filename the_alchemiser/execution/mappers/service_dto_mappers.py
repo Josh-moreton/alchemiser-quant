@@ -56,6 +56,9 @@ from the_alchemiser.shared.schemas.operations import (
     OrderStatusDTO,
 )
 
+# Constants
+_UNKNOWN_ERROR_MESSAGE = "Unknown error"
+
 
 # Position Mapping Functions
 def position_summary_to_dto(position_summary: PositionSummary) -> PositionDTO:
@@ -74,7 +77,7 @@ def position_summary_to_dto(position_summary: PositionSummary) -> PositionDTO:
 def dict_to_position_summary_dto(data: dict[str, Any]) -> PositionSummaryDTO:
     """Convert position summary dict to PositionSummaryDTO."""
     if not data.get("success", False):
-        return PositionSummaryDTO(success=False, error=data.get("error", "Unknown error"))
+        return PositionSummaryDTO(success=False, error=data.get("error", _UNKNOWN_ERROR_MESSAGE))
 
     position_data = data.get("position")
     if position_data:
@@ -96,7 +99,7 @@ def dict_to_position_summary_dto(data: dict[str, Any]) -> PositionSummaryDTO:
 def dict_to_portfolio_summary_dto(data: dict[str, Any]) -> PortfolioSummaryDTO:
     """Convert portfolio summary dict to PortfolioSummaryDTO."""
     if not data.get("success", False):
-        return PortfolioSummaryDTO(success=False, error=data.get("error", "Unknown error"))
+        return PortfolioSummaryDTO(success=False, error=data.get("error", _UNKNOWN_ERROR_MESSAGE))
 
     portfolio_data = data.get("portfolio")
     if portfolio_data:
@@ -134,7 +137,7 @@ def dict_to_position_analytics_dto(data: dict[str, Any]) -> PositionAnalyticsDTO
 def dict_to_position_metrics_dto(data: dict[str, Any]) -> PositionMetricsDTO:
     """Convert position metrics dict to PositionMetricsDTO."""
     if not data.get("success", False):
-        return PositionMetricsDTO(success=False, error=data.get("error", "Unknown error"))
+        return PositionMetricsDTO(success=False, error=data.get("error", _UNKNOWN_ERROR_MESSAGE))
 
     largest_positions = []
     if data.get("largest_positions"):

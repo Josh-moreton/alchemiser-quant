@@ -22,6 +22,9 @@ from the_alchemiser.shared.math.num import floats_equal
 from the_alchemiser.shared.protocols.repository import AccountRepository
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, PositionsDict
 
+# Constants
+_ACCOUNT_RETRIEVAL_ERROR = "Could not retrieve account information"
+
 
 class AccountService:
     """Enhanced account service providing business logic and validation for account operations."""
@@ -64,7 +67,7 @@ class AccountService:
         try:
             account = self.account_repository.get_account()
             if not account:
-                raise ValueError("Could not retrieve account information")
+                raise ValueError(_ACCOUNT_RETRIEVAL_ERROR)
 
             # Calculate additional metrics
             equity = float(self._get_attr(account, "equity", 0))
@@ -120,7 +123,7 @@ class AccountService:
         try:
             account = self.account_repository.get_account()
             if not account:
-                raise ValueError("Could not retrieve account information")
+                raise ValueError(_ACCOUNT_RETRIEVAL_ERROR)
 
             buying_power = float(self._get_attr(account, "buying_power", 0))
             cash = float(self._get_attr(account, "cash", 0))
@@ -158,7 +161,7 @@ class AccountService:
             positions = self.account_repository.get_positions()
 
             if not account:
-                raise ValueError("Could not retrieve account information")
+                raise ValueError(_ACCOUNT_RETRIEVAL_ERROR)
 
             equity = float(self._get_attr(account, "equity", 0))
             cash = float(self._get_attr(account, "cash", 0))
@@ -248,7 +251,7 @@ class AccountService:
             positions = self.account_repository.get_positions()
 
             if not account:
-                raise ValueError("Could not retrieve account information")
+                raise ValueError(_ACCOUNT_RETRIEVAL_ERROR)
 
             # Basic account checks
             if self._get_attr(account, "trading_blocked", False):
@@ -349,7 +352,7 @@ class AccountService:
             positions = self.account_repository.get_positions()
 
             if not account:
-                raise ValueError("Could not retrieve account information")
+                raise ValueError(_ACCOUNT_RETRIEVAL_ERROR)
 
             equity = float(self._get_attr(account, "equity", 0))
             cash = float(self._get_attr(account, "cash", 0))
