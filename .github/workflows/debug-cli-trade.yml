@@ -41,6 +41,16 @@ jobs:
           poetry run alchemiser trade --ignore-market-hours --verbose > cli_output.log 2>&1
           exit_code=$?
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          
+          # Detect error patterns even if exit code is 0
+          if grep -Eiq '(ERROR|CRITICAL|Traceback|Exception)' cli_output.log; then
+            echo "error_detected=true" >> $GITHUB_OUTPUT
+            echo "=== Detected error patterns in output ==="
+            grep -Ein '(ERROR|CRITICAL|Traceback|Exception)' cli_output.log || true
+          else
+            echo "error_detected=false" >> $GITHUB_OUTPUT
+          fi
+          
           echo "=== CLI Trade Output ==="
           cat cli_output.log
           echo "=== Exit Code: $exit_code ==="
@@ -52,7 +62,7 @@ jobs:
           path: cli_output.log
 
       - name: Prepare issue content
-        if: steps.run_cli.outputs.exit_code != '0'
+        if: always() && (steps.run_cli.outputs.exit_code != '0' || steps.run_cli.outputs.error_detected == 'true')
         run: |
           timestamp="$(date -u)"
           cat > issue_content.md << EOF
@@ -60,10 +70,18 @@ jobs:
 
           **Workflow Run ID**: ${{ github.run_id }}
           **Exit Code**: ${{ steps.run_cli.outputs.exit_code }}
+          **Errors Detected in Log**: ${{ steps.run_cli.outputs.error_detected }}
           **Timestamp**: $timestamp
           **Repository**: ${{ github.repository }}
           **Branch**: ${{ github.ref_name }}
           **Commit**: ${{ github.sha }}
+
+          ## Error Lines
+          \`\`\`
+          EOF
+          grep -nEi '(ERROR|CRITICAL|Traceback|Exception)' cli_output.log >> issue_content.md || true
+          cat >> issue_content.md << EOF
+          \`\`\`
 
           ## CLI Trade Output Log
 
@@ -76,7 +94,7 @@ jobs:
           ## Debugging Information
 
           This issue was automatically created because the CLI command 
-          \`poetry run alchemiser trade\` failed with exit code ${{ steps.run_cli.outputs.exit_code }}.
+          \`poetry run alchemiser trade\` failed with exit code ${{ steps.run_cli.outputs.exit_code }} or error patterns were detected in the output.
 
           ### Actions
 
@@ -92,7 +110,7 @@ jobs:
           EOF
 
       - name: Create issue on failure
-        if: steps.run_cli.outputs.exit_code != '0'
+        if: always() && (steps.run_cli.outputs.exit_code != '0' || steps.run_cli.outputs.error_detected == 'true')
         uses: peter-evans/create-issue-from-file@e8ef132d6df98ed982188e460ebb3b5d4ef3a9cd # v5
         with:
           title: CLI Trade Debug Failure – Run ${{ github.run_id }}
