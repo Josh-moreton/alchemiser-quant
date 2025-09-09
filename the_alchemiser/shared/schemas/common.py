@@ -26,8 +26,6 @@ from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDet
 if TYPE_CHECKING:
     from decimal import Decimal
 
-    from the_alchemiser.strategy.types.strategy_type import StrategyType
-
 
 class MultiStrategyExecutionResultDTO(BaseModel):
     """DTO for multi-strategy execution results.
@@ -48,7 +46,7 @@ class MultiStrategyExecutionResultDTO(BaseModel):
     success: bool
 
     # Strategy data
-    strategy_signals: dict[StrategyType, StrategySignal]
+    strategy_signals: dict[str, StrategySignal]
     consolidated_portfolio: dict[str, float]
 
     # Order execution results

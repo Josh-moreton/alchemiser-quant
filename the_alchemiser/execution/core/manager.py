@@ -49,64 +49,20 @@ class ExecutionManager(MultiStrategyExecutor):
         """Store the trading engine used for order execution."""
         self.engine = engine
 
-    @handle_errors_with_retry(operation="multi_strategy_execution", critical=True, max_retries=1)
-    def execute_multi_strategy(self) -> Any:
-        """Run all strategies and rebalance portfolio."""
-        try:
-            # Get initial account state
-            account_info_before = self._get_initial_account_info()
-
-            # Run strategies and get signals
-            strategy_signals, consolidated_portfolio, strategy_attribution = (
-                self._run_strategies_and_get_signals()
-            )
-
-            # Execute portfolio rebalancing
-            orders_executed = self._execute_portfolio_rebalancing(
-                consolidated_portfolio, strategy_attribution
-            )
-
-            # Validate and filter executed orders
-            valid_orders = self._validate_executed_orders(orders_executed)
-
-            # Get final account state and build result
-            return self._build_execution_result(
-                strategy_signals, consolidated_portfolio, valid_orders, account_info_before
-            )
-
-        except TradingClientError as e:
-            self._handle_trading_client_error(e)
-        except DataProviderError as e:
-            return self._handle_data_provider_error(e)
-        except (ConfigurationError, StrategyExecutionError, ValueError, AttributeError) as e:
-            self._handle_configuration_error(e)
-
-    def _get_initial_account_info(self) -> AccountInfo:
-        """Get and validate initial account information."""
-        account_info_before = self.engine.get_account_info()
-        if not account_info_before:
-            raise TradingClientError(
-                "Unable to get account information",
-                context={
-                    "operation": "get_account_info",
-                    "engine": type(self.engine).__name__,
-                },
-            )
-        return account_info_before
-
-    def _run_strategies_and_get_signals(self) -> tuple[Any, dict[str, float], dict[str, Any]]:
-        """Run all strategies and process signals."""
-        strategy_signals, consolidated_portfolio, strategy_attribution = (
-            self.engine.strategy_manager.run_all_strategies()
-        )
-
-        # Always migrate strategy signals to typed (using typed domain)
+    def _process_strategy_signals(self, strategy_signals: Any) -> dict[str, Any]:
+        """Process and convert strategy signals to string-keyed format."""
         try:
             strategy_signals = _map_signals_to_typed(strategy_signals)
+            # Convert StrategyType keys to strings for DTO compatibility
+            return {k.value: v for k, v in strategy_signals.items()}
         except Exception as e:  # pragma: no cover - defensive
             logging.warning(f"Failed to map strategy signals to typed: {e}")
+            return strategy_signals
 
-        # Validate portfolio allocation
+    def _validate_portfolio_allocation(
+        self, consolidated_portfolio: dict[str, float]
+    ) -> dict[str, float]:
+        """Validate and normalize portfolio allocation."""
         if not consolidated_portfolio:
             consolidated_portfolio = {"BIL": 1.0}
             logging.info("No portfolio signals generated, defaulting to cash (BIL)")
@@ -114,15 +70,10 @@ class ExecutionManager(MultiStrategyExecutor):
         total_allocation = sum(consolidated_portfolio.values())
         if abs(total_allocation - 1.0) > 0.05:
             logging.warning(f"Portfolio allocation sums to {total_allocation:.1%}, expected ~100%")
+        return consolidated_portfolio
 
-        return strategy_signals, consolidated_portfolio, strategy_attribution
-
-    def _execute_portfolio_rebalancing(self, consolidated_portfolio: dict[str, float], strategy_attribution: dict[str, Any]) -> list[Any]:
-        """Execute portfolio rebalancing with the given allocation."""
-        return self.engine.rebalance_portfolio(consolidated_portfolio, strategy_attribution)
-
-    def _validate_executed_orders(self, orders_executed: list[Any]) -> list[Any]:
-        """Validate executed orders and filter out invalid ones."""
+    def _validate_and_filter_orders(self, orders_executed: list[Any]) -> list[Any]:
+        """Validate orders and filter out those with None IDs."""
         orders_with_none_ids = []
         valid_orders = []
 
@@ -141,7 +92,6 @@ class ExecutionManager(MultiStrategyExecutor):
                 )
 
         if orders_with_none_ids:
-            # This should not happen with our upstream fixes - surface as critical error
             error_msg = f"CRITICAL: {len(orders_with_none_ids)} orders executed with None IDs - execution pipeline failure"
             logging.critical(error_msg)
             raise TradingClientError(
@@ -155,63 +105,23 @@ class ExecutionManager(MultiStrategyExecutor):
 
         return valid_orders
 
-    def _build_execution_result(
-        self, strategy_signals: Any, consolidated_portfolio: dict[str, float], orders_executed: list[Any], account_info_before: AccountInfo
-    ) -> MultiStrategyExecutionResultDTO:
-        """Build the final execution result with all necessary data."""
-        account_info_after = self.engine.get_account_info()
-        execution_summary = create_execution_summary(
-            self.engine,
-            strategy_signals,
-            consolidated_portfolio,
-            orders_executed,
-            account_info_before,
-            account_info_after,
-        )
-
-        # Trigger post-trade validation if needed
-        if not self.engine.paper_trading and orders_executed:
-            self.engine._trigger_post_trade_validation(strategy_signals, orders_executed)
-
-        final_positions = self.engine.get_positions()
-        final_portfolio_state = build_portfolio_state_data(
-            consolidated_portfolio, account_info_after, final_positions
-        )
-
-        result = MultiStrategyExecutionResultDTO(
-            success=True,
-            strategy_signals=strategy_signals,
-            consolidated_portfolio=consolidated_portfolio,
-            orders_executed=orders_executed,
-            account_info_before=account_info_before,
-            account_info_after=account_info_after,
-            execution_summary=dict_to_execution_summary_dto(execution_summary),
-            final_portfolio_state=dict_to_portfolio_state_dto(final_portfolio_state),
-        )
-
-        save_dashboard_data(self.engine, result)
-        self.engine._archive_daily_strategy_pnl(execution_summary.get("pnl_summary", {}))
-        return result
-
-    def _handle_trading_client_error(self, e: TradingClientError) -> None:
-        """Handle trading client errors with proper logging."""
-        from the_alchemiser.shared.logging.logging_utils import (
-            get_logger,
-            log_error_with_context,
-        )
-
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "multi_strategy_execution",
-            engine_type=type(self.engine).__name__,
-            error_type="trading_client_error",
-        )
-        raise  # Re-raise to let upper layers handle
+    def _create_error_account_info(self) -> AccountInfo:
+        """Create empty AccountInfo for error cases."""
+        return {
+            "account_id": "error",
+            "equity": 0.0,
+            "cash": 0.0,
+            "buying_power": 0.0,
+            "day_trades_remaining": 0,
+            "portfolio_value": 0.0,
+            "last_equity": 0.0,
+            "daytrading_buying_power": 0.0,
+            "regt_buying_power": 0.0,
+            "status": "INACTIVE",
+        }
 
     def _handle_data_provider_error(self, e: DataProviderError) -> MultiStrategyExecutionResultDTO:
-        """Handle data provider errors with safe fallback result."""
+        """Handle DataProviderError by returning a safe result."""
         from the_alchemiser.shared.logging.logging_utils import (
             get_logger,
             log_error_with_context,
@@ -226,21 +136,7 @@ class ExecutionManager(MultiStrategyExecutor):
             error_type="data_provider_error",
         )
 
-        # For data errors, return a safe result rather than crashing
-        # Create empty/error AccountInfo for error cases
-        empty_account_info: AccountInfo = {
-            "account_id": "error",
-            "equity": 0.0,
-            "cash": 0.0,
-            "buying_power": 0.0,
-            "day_trades_remaining": 0,
-            "portfolio_value": 0.0,
-            "last_equity": 0.0,
-            "daytrading_buying_power": 0.0,
-            "regt_buying_power": 0.0,
-            "status": "INACTIVE",
-        }
-
+        empty_account_info = self._create_error_account_info()
         return MultiStrategyExecutionResultDTO(
             success=False,
             strategy_signals={},
@@ -259,15 +155,14 @@ class ExecutionManager(MultiStrategyExecutor):
             final_portfolio_state=None,
         )
 
-    def _handle_configuration_error(self, e: Exception) -> None:
-        """Handle configuration and strategy errors."""
+    def _handle_configuration_strategy_error(self, e: Exception) -> None:
+        """Handle configuration and strategy errors by logging and re-raising as TradingClientError."""
         from the_alchemiser.shared.logging.logging_utils import (
             get_logger,
             log_error_with_context,
         )
 
         logger = get_logger(__name__)
-        # Configuration and strategy errors are critical
         log_error_with_context(
             logger,
             e,
@@ -275,7 +170,6 @@ class ExecutionManager(MultiStrategyExecutor):
             engine_type=type(self.engine).__name__,
             error_type=type(e).__name__,
         )
-        # Convert to our exception type for better handling
         raise TradingClientError(
             f"Configuration/strategy error in multi-strategy execution: {e!s}",
             context={
@@ -283,3 +177,89 @@ class ExecutionManager(MultiStrategyExecutor):
                 "operation": "multi_strategy_execution",
             },
         ) from e
+
+    @handle_errors_with_retry(operation="multi_strategy_execution", critical=True, max_retries=1)
+    def execute_multi_strategy(self) -> Any:
+        """Run all strategies and rebalance portfolio."""
+        try:
+            account_info_before = self.engine.get_account_info()
+            if not account_info_before:
+                raise TradingClientError(
+                    "Unable to get account information",
+                    context={
+                        "operation": "get_account_info",
+                        "engine": type(self.engine).__name__,
+                    },
+                )
+
+            strategy_signals, consolidated_portfolio, strategy_attribution = (
+                self.engine.strategy_manager.run_all_strategies()
+            )
+
+            strategy_signals = self._process_strategy_signals(strategy_signals)
+            consolidated_portfolio = self._validate_portfolio_allocation(consolidated_portfolio)
+
+            orders_executed = self.engine.rebalance_portfolio(
+                consolidated_portfolio, strategy_attribution
+            )
+            orders_executed = self._validate_and_filter_orders(orders_executed)
+
+            account_info_after = self.engine.get_account_info()
+            execution_summary = create_execution_summary(
+                self.engine,
+                strategy_signals,
+                consolidated_portfolio,
+                orders_executed,
+                account_info_before,
+                account_info_after,
+            )
+
+            if not self.engine.paper_trading and orders_executed:
+                self.engine._trigger_post_trade_validation(strategy_signals, orders_executed)
+
+            final_positions = self.engine.get_positions()
+            final_portfolio_state = build_portfolio_state_data(
+                consolidated_portfolio, account_info_after, final_positions
+            )
+
+            result = MultiStrategyExecutionResultDTO(
+                success=True,
+                strategy_signals=strategy_signals,
+                consolidated_portfolio=consolidated_portfolio,
+                orders_executed=orders_executed,
+                account_info_before=account_info_before,
+                account_info_after=account_info_after,
+                execution_summary=dict_to_execution_summary_dto(execution_summary),
+                final_portfolio_state=dict_to_portfolio_state_dto(final_portfolio_state),
+            )
+
+            save_dashboard_data(self.engine, result)
+            self.engine._archive_daily_strategy_pnl(execution_summary.get("pnl_summary", {}))
+            return result
+
+        except TradingClientError as e:
+            from the_alchemiser.shared.logging.logging_utils import (
+                get_logger,
+                log_error_with_context,
+            )
+
+            logger = get_logger(__name__)
+            log_error_with_context(
+                logger,
+                e,
+                "multi_strategy_execution",
+                engine_type=type(self.engine).__name__,
+                error_type="trading_client_error",
+            )
+            raise  # Re-raise to let upper layers handle
+
+        except DataProviderError as e:
+            return self._handle_data_provider_error(e)
+
+        except (
+            ConfigurationError,
+            StrategyExecutionError,
+            ValueError,
+            AttributeError,
+        ) as e:
+            self._handle_configuration_strategy_error(e)
