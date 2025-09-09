@@ -203,7 +203,7 @@ class PortfolioStateDTO(BaseModel):
         # Convert datetime in position
         if position_dict.get("last_updated"):
             position_dict["last_updated"] = position_dict["last_updated"].isoformat()
-            
+
         # Convert Decimal fields in position
         position_decimal_fields = [
             "quantity",
@@ -255,14 +255,14 @@ class PortfolioStateDTO(BaseModel):
         """
         # Create a copy to avoid modifying the original
         data = data.copy()
-        
+
         # Convert various field types
         cls._convert_datetime_fields(data)
         cls._convert_decimal_fields(data)
         cls._convert_strategy_allocations(data)
         cls._convert_positions(data)
         cls._convert_metrics(data)
-        
+
         return cls(**data)
 
     @classmethod

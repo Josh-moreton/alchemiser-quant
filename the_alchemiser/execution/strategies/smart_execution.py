@@ -305,10 +305,10 @@ class SmartExecution:
         try:
             # Step 1: Handle notional orders and validate parameters
             validated_qty = self._handle_notional_order_conversion(symbol, qty, side, notional)
-            
+
             # Step 2: Market timing and spread assessment
             return self._execute_order_with_timing_strategy(symbol, validated_qty, side)
-            
+
         except (BuyingPowerError, SpreadAnalysisError) as e:
             # These errors should not fallback to market orders
             self._log_non_fallback_error(symbol, e)
@@ -323,7 +323,7 @@ class SmartExecution:
         """Convert notional orders to quantity and validate buying power."""
         if side != BrokerOrderSide.BUY or notional is None:
             return qty
-            
+
         try:
             current_price = self._data_provider.get_current_price(symbol)
             if not current_price or current_price <= 0:
@@ -332,11 +332,11 @@ class SmartExecution:
                     extra={"symbol": symbol, "side": side.value, "notional": notional},
                 )
                 raise DataProviderError(f"Invalid price for {symbol}: {current_price}")
-                
+
             validated_qty = self._calculate_quantity_from_notional(
                 symbol, notional, current_price, side
             )
-            
+
             if validated_qty <= 0:
                 self.logger.warning(
                     "quantity_too_small_using_market_order",
@@ -350,46 +350,46 @@ class SmartExecution:
                 raise DataProviderError(
                     f"Calculated quantity too small for {symbol}: {validated_qty}"
                 )
-                
+
             return validated_qty
-            
+
         except DataProviderError:
             self.logger.warning(
                 "price_unavailable_using_market_order",
                 extra={"symbol": symbol, "side": side.value, "quantity": qty},
             )
             raise DataProviderError(f"Price unavailable for {symbol}")
-            
+
     def _calculate_quantity_from_notional(
         self, symbol: str, notional: float, current_price: float, side: BrokerOrderSide
     ) -> float:
         """Calculate quantity from notional amount with buying power validation."""
         raw_qty = notional / current_price
         rounded_qty = int(raw_qty * 1e6) / 1e6  # Round down to 6 decimals
-        
+
         # Check buying power if available
         if self._account_info_provider and side == BrokerOrderSide.BUY:
             try:
                 account_info = self._account_info_provider.get_account_info()
                 available_cash = float(account_info.get("cash", 0))
                 order_value = rounded_qty * current_price
-                
+
                 if order_value > available_cash:
                     rounded_qty = self._adjust_quantity_for_buying_power(
                         symbol, rounded_qty, current_price, available_cash, order_value
                     )
             except Exception as e:
                 self.logger.warning(f"Could not check buying power: {e}")
-                
+
         return rounded_qty * 0.99  # Scale to 99% to avoid buying power issues
-        
+
     def _adjust_quantity_for_buying_power(
-        self, 
-        symbol: str, 
-        original_qty: float, 
+        self,
+        symbol: str,
+        original_qty: float,
         current_price: float,
         available_cash: float,
-        order_value: float
+        order_value: float,
     ) -> float:
         """Adjust quantity to fit available buying power."""
         max_affordable_qty = (available_cash * 0.95) / current_price
@@ -404,22 +404,21 @@ class SmartExecution:
                 },
             )
             return max_affordable_qty
-        else:
-            self.logger.error(
-                "insufficient_buying_power_order_rejected",
-                extra={
-                    "symbol": symbol,
-                    "requested_value": order_value,
-                    "available_cash": available_cash,
-                },
-            )
-            raise BuyingPowerError(
-                f"Insufficient buying power for {symbol} order: ${order_value:.2f} required, ${available_cash:.2f} available",
-                symbol=symbol,
-                required_amount=order_value,
-                available_amount=available_cash,
-            )
-    
+        self.logger.error(
+            "insufficient_buying_power_order_rejected",
+            extra={
+                "symbol": symbol,
+                "requested_value": order_value,
+                "available_cash": available_cash,
+            },
+        )
+        raise BuyingPowerError(
+            f"Insufficient buying power for {symbol} order: ${order_value:.2f} required, ${available_cash:.2f} available",
+            symbol=symbol,
+            required_amount=order_value,
+            available_amount=available_cash,
+        )
+
     def _execute_order_with_timing_strategy(
         self, symbol: str, qty: float, side: BrokerOrderSide
     ) -> str | None:
@@ -429,7 +428,7 @@ class SmartExecution:
 
         timing_engine = MarketOpenTimingEngine()
         spread_assessor = SpreadAssessment(self._data_provider)
-        
+
         strategy = timing_engine.get_execution_strategy()
         self.logger.info(
             "execution_strategy_selected",
@@ -440,21 +439,21 @@ class SmartExecution:
                 "strategy": getattr(strategy, "value", str(strategy)),
             },
         )
-        
+
         # Get quote and assess spread
         bid, ask, spread_analysis = self._get_quote_and_assess_spread(
             symbol, side, qty, spread_assessor
         )
-        
+
         # Wait for spread normalization if needed
         if not timing_engine.should_execute_immediately(spread_analysis.spread_cents, strategy):
             bid, ask, spread_analysis = self._wait_for_spread_normalization(
                 symbol, side, qty, timing_engine, spread_assessor, strategy, spread_analysis
             )
-        
+
         # Execute aggressive limit sequence
         return self._execute_aggressive_limit_sequence(symbol, qty, side, bid, ask, strategy)
-    
+
     def _get_quote_and_assess_spread(
         self, symbol: str, side: BrokerOrderSide, qty: float, spread_assessor
     ) -> tuple[float, float, Any]:
@@ -466,16 +465,16 @@ class SmartExecution:
                 extra={"symbol": symbol, "side": side.value, "quantity": qty},
             )
             raise DataProviderError(f"No valid quote available for {symbol}")
-            
+
         bid, ask = float(quote[0]), float(quote[1])
-        
+
         if bid <= 0 or ask <= 0:
             self.logger.warning(
                 "invalid_quote_using_market_order",
                 extra={"symbol": symbol, "side": side.value, "quantity": qty},
             )
             raise DataProviderError(f"Invalid quote for {symbol}: bid={bid}, ask={ask}")
-            
+
         spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
         self.logger.debug(
             "spread_assessed",
@@ -485,18 +484,18 @@ class SmartExecution:
                 "spread_quality": spread_analysis.spread_quality.value,
             },
         )
-        
+
         return bid, ask, spread_analysis
-    
+
     def _wait_for_spread_normalization(
-        self, 
-        symbol: str, 
-        side: BrokerOrderSide, 
+        self,
+        symbol: str,
+        side: BrokerOrderSide,
         qty: float,
         timing_engine,
         spread_assessor,
         strategy,
-        spread_analysis
+        spread_analysis,
     ) -> tuple[float, float, Any]:
         """Wait for spread to normalize and reassess."""
         wait_time = timing_engine.get_wait_time_seconds(strategy, spread_analysis.spread_cents)
@@ -509,7 +508,7 @@ class SmartExecution:
             },
         )
         time.sleep(wait_time)
-        
+
         # Re-assess after waiting
         quote = self._order_executor.data_provider.get_latest_quote(symbol)
         if not quote or len(quote) < 2:
@@ -518,16 +517,16 @@ class SmartExecution:
                 extra={"symbol": symbol, "side": side.value, "quantity": qty},
             )
             raise DataProviderError(f"No valid quote available for {symbol} after waiting")
-            
+
         bid, ask = float(quote[0]), float(quote[1])
         spread_analysis = spread_assessor.analyze_current_spread(symbol, bid, ask)
         self.logger.debug(
             "spread_reassessed",
             extra={"symbol": symbol, "updated_spread_cents": spread_analysis.spread_cents},
         )
-        
+
         return bid, ask, spread_analysis
-    
+
     def _log_non_fallback_error(self, symbol: str, error: Exception) -> None:
         """Log errors that should not fallback to market orders."""
         if isinstance(error, BuyingPowerError):
@@ -543,8 +542,8 @@ class SmartExecution:
                 },
             )
             self.logger.error(
-                "insufficient_buying_power_no_fallback", 
-                extra={"symbol": symbol, "error": str(error)}
+                "insufficient_buying_power_no_fallback",
+                extra={"symbol": symbol, "error": str(error)},
             )
         elif isinstance(error, SpreadAnalysisError):
             self.logger.error(
@@ -559,21 +558,19 @@ class SmartExecution:
                 },
             )
             self.logger.error(
-                "spread_analysis_failed_no_fallback",
-                extra={"symbol": symbol, "error": str(error)}
+                "spread_analysis_failed_no_fallback", extra={"symbol": symbol, "error": str(error)}
             )
-    
+
     def _handle_execution_error_with_fallback(
         self, symbol: str, qty: float, side: BrokerOrderSide, error: Exception
     ) -> str | None:
         """Handle execution errors with optional market order fallback."""
         if isinstance(error, OrderExecutionError):
             return self._handle_order_execution_error(symbol, qty, side, error)
-        elif isinstance(error, DataProviderError):
+        if isinstance(error, DataProviderError):
             return self._handle_data_provider_error(symbol, qty, side, error)
-        else:
-            return self._handle_unclassified_error(symbol, qty, side, error)
-    
+        return self._handle_unclassified_error(symbol, qty, side, error)
+
     def _handle_order_execution_error(
         self, symbol: str, qty: float, side: BrokerOrderSide, error: OrderExecutionError
     ) -> str | None:
@@ -587,7 +584,7 @@ class SmartExecution:
                 "phase": "better_orders_main",
             },
         )
-        
+
         if self.enable_market_order_fallback:
             self.logger.info(
                 "market_order_fallback_triggered",
@@ -598,13 +595,13 @@ class SmartExecution:
                 },
             )
             return self._submit_canonical_market_order(symbol, side, qty=qty)
-        
+
         self.logger.error(
             "order_execution_failed_fallback_disabled",
             extra={"symbol": symbol, "error": str(error), "fallback_enabled": False},
         )
         raise error
-    
+
     def _handle_data_provider_error(
         self, symbol: str, qty: float, side: BrokerOrderSide, error: DataProviderError
     ) -> str | None:
@@ -617,7 +614,7 @@ class SmartExecution:
                 "phase": "better_orders_main",
             },
         )
-        
+
         if self.enable_market_order_fallback:
             self.logger.info(
                 "market_order_fallback_triggered",
@@ -628,19 +625,19 @@ class SmartExecution:
                 },
             )
             return self._submit_canonical_market_order(symbol, side, qty=qty)
-        
+
         self.logger.error(
             "data_provider_error_fallback_disabled",
             extra={"symbol": symbol, "error": str(error), "fallback_enabled": False},
         )
         raise error
-    
+
     def _handle_unclassified_error(
         self, symbol: str, qty: float, side: BrokerOrderSide, error: Exception
     ) -> str | None:
         """Handle unclassified errors with classification and fallback logic."""
         error_message = str(error).lower()
-        
+
         if "order" in error_message and ("failed" in error_message or "reject" in error_message):
             placement_error = OrderPlacementError(
                 f"Order placement failed: {error!s}",
@@ -655,7 +652,7 @@ class SmartExecution:
                     "phase": "better_orders_main",
                 },
             )
-            
+
             if self.enable_market_order_fallback:
                 self.logger.info(
                     "market_order_fallback_triggered",
@@ -666,13 +663,13 @@ class SmartExecution:
                     },
                 )
                 return self._submit_canonical_market_order(symbol, side, qty=qty)
-            
+
             self.logger.error(
                 "order_placement_failed_fallback_disabled",
                 extra={"symbol": symbol, "error": str(error), "fallback_enabled": False},
             )
             raise placement_error
-        
+
         # Unknown error - log and decide based on feature flag
         self.logger.error(
             "unclassified_execution_error",
@@ -683,7 +680,7 @@ class SmartExecution:
                 "phase": "better_orders_main",
             },
         )
-        
+
         if self.enable_market_order_fallback:
             self.logger.warning(
                 "market_order_fallback_triggered",
@@ -694,7 +691,7 @@ class SmartExecution:
                 },
             )
             return self._submit_canonical_market_order(symbol, side, qty=qty)
-        
+
         self.logger.error(
             "unexpected_error_fallback_disabled",
             extra={"symbol": symbol, "error": str(error), "fallback_enabled": False},
@@ -738,7 +735,7 @@ class SmartExecution:
 
         # Check which orders are already completed
         already_completed, remaining_order_ids = self._check_pre_completion_status(order_ids)
-        
+
         # If all orders are already completed, no need to wait
         if not remaining_order_ids:
             logging.info(
@@ -750,7 +747,7 @@ class SmartExecution:
         completion_statuses = self._monitor_remaining_orders(
             remaining_order_ids, max_wait_time, already_completed
         )
-        
+
         # Evaluate overall settlement success
         return self._evaluate_settlement_success(order_ids, completion_statuses)
 
@@ -780,16 +777,14 @@ class SmartExecution:
                 else:
                     remaining_order_ids.append(order_id)
             except Exception as e:
-                logging.warning(
-                    f"❌ Error checking order {order_id} pre-settlement status: {e}"
-                )
+                logging.warning(f"❌ Error checking order {order_id} pre-settlement status: {e}")
                 remaining_order_ids.append(order_id)  # Include it in monitoring if we can't check
 
         logging.info(
             f"📊 Settlement check: {len(already_completed)} already completed, "
             f"{len(remaining_order_ids)} need monitoring"
         )
-        
+
         return already_completed, remaining_order_ids
 
     def _get_order_status(self, order_id: str) -> str:
@@ -799,10 +794,7 @@ class SmartExecution:
         return status.split(".")[-1] if "orderstatus." in status else status
 
     def _monitor_remaining_orders(
-        self, 
-        remaining_order_ids: list[str], 
-        max_wait_time: int,
-        already_completed: dict[str, str]
+        self, remaining_order_ids: list[str], max_wait_time: int, already_completed: dict[str, str]
     ) -> dict[str, str]:
         """Monitor remaining orders for completion and return all completion statuses."""
         # Wait for order settlement
@@ -827,10 +819,10 @@ class SmartExecution:
 
         # Combine pre-completed orders with newly completed ones
         all_completion_statuses = {**already_completed, **completion_statuses}
-        
+
         # Log the completion statuses for debugging
         logging.info(f"Order completion statuses: {all_completion_statuses}")
-        
+
         return all_completion_statuses
 
     def _evaluate_settlement_success(
@@ -840,11 +832,16 @@ class SmartExecution:
         # Consider orders settled if they're filled, canceled, or rejected
         # Handle both enum values and string representations
         settled_statuses = {
-            "filled", "canceled", "rejected", "expired",
-            "OrderStatus.FILLED", "OrderStatus.CANCELED", 
-            "OrderStatus.REJECTED", "OrderStatus.EXPIRED"
+            "filled",
+            "canceled",
+            "rejected",
+            "expired",
+            "OrderStatus.FILLED",
+            "OrderStatus.CANCELED",
+            "OrderStatus.REJECTED",
+            "OrderStatus.EXPIRED",
         }
-        
+
         settled_count = sum(
             1
             for status in all_completion_statuses.values()

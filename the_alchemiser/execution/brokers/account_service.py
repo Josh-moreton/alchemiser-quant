@@ -310,17 +310,24 @@ class AccountService:
         return None
 
     def _validate_side_specific_requirements(
-        self, side: str, symbol: str, quantity: int, current_qty: float, estimated_cost: float | None
+        self,
+        side: str,
+        symbol: str,
+        quantity: int,
+        current_qty: float,
+        estimated_cost: float | None,
     ) -> dict[str, Any]:
         """Validate requirements specific to buy or sell orders."""
         if side.lower() == "sell":
             return self._validate_sell_requirements(symbol, quantity, current_qty)
-        elif side.lower() == "buy" and estimated_cost:
+        if side.lower() == "buy" and estimated_cost:
             return self._validate_buy_requirements(estimated_cost)
-        
+
         return {"eligible": True}
 
-    def _validate_sell_requirements(self, symbol: str, quantity: int, current_qty: float) -> dict[str, Any]:
+    def _validate_sell_requirements(
+        self, symbol: str, quantity: int, current_qty: float
+    ) -> dict[str, Any]:
         """Validate sell order requirements."""
         if current_qty <= 0:
             return {
@@ -350,14 +357,14 @@ class AccountService:
                 "reason": "Insufficient buying power",
                 "details": buying_power_check,
             }
-        
+
         return {"eligible": True}
 
     def _check_pattern_day_trader_restrictions(self, account) -> dict[str, Any]:
         """Check pattern day trader restrictions."""
         pattern_day_trader = self._get_attr(account, "pattern_day_trader", False)
         daytrade_count = self._get_attr(account, "daytrade_count", 0)
-        
+
         if pattern_day_trader and daytrade_count >= 3:
             equity = float(self._get_attr(account, "equity", 0))
             if equity < 25000:
@@ -376,7 +383,7 @@ class AccountService:
     def _build_successful_validation_result(self, account, current_qty: float) -> dict[str, Any]:
         """Build successful validation result with account details."""
         daytrade_count = self._get_attr(account, "daytrade_count", 0)
-        
+
         return {
             "eligible": True,
             "reason": "Trade is eligible",

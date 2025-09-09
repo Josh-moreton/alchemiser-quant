@@ -432,9 +432,7 @@ class AccountFacade:
             if price is not None and price > 0:
                 valid_prices[symbol] = price
             else:
-                self.logger.warning(
-                    f"Invalid price from MarketDataService for {symbol}: {price}"
-                )
+                self.logger.warning(f"Invalid price from MarketDataService for {symbol}: {price}")
         return valid_prices
 
     def _validate_and_filter_prices(
@@ -448,9 +446,7 @@ class AccountFacade:
             else:
                 self.logger.warning(f"Invalid price from {source} for {symbol}: {price}")
 
-        self.logger.debug(
-            f"Retrieved {len(valid_prices)} valid prices from {source}"
-        )
+        self.logger.debug(f"Retrieved {len(valid_prices)} valid prices from {source}")
         return valid_prices
 
     # --- Typed Domain Integration Methods ---
