@@ -113,105 +113,48 @@ def dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummaryDTO:
 
 
 def dict_to_portfolio_state_dto(data: dict[str, Any]) -> PortfolioStateDTO:
-    """Convert portfolio state dict to PortfolioStateDTO."""
-
-    # Convert decimal fields
-    def to_decimal_dict(source: dict[str, Any]) -> dict[str, Decimal]:
-        return {k: Decimal(str(v)) for k, v in source.items()}
-
-    target_allocations = to_decimal_dict(data.get("target_allocations", {}))
-    current_allocations = to_decimal_dict(data.get("current_allocations", {}))
-    target_values = to_decimal_dict(data.get("target_values", {}))
-    current_values = to_decimal_dict(data.get("current_values", {}))
-    allocation_discrepancies = to_decimal_dict(data.get("allocation_discrepancies", {}))
-
-    largest_discrepancy = data.get("largest_discrepancy")
-    if largest_discrepancy is not None:
-        largest_discrepancy = Decimal(str(largest_discrepancy))
-
+    """Convert portfolio state dict to PortfolioStateDTO.
+    
+    Maps from actual portfolio data structure (from build_portfolio_state_data)
+    to the required PortfolioStateDTO schema.
+    """
+    from datetime import UTC, datetime
+    
+    from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioMetricsDTO
+    
+    # Generate required correlation fields
+    correlation_id = f"portfolio_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+    
+    # Extract portfolio value from allocations data
+    portfolio_value = Decimal("0")
+    allocations_data = data.get("allocations", {})
+    
+    if allocations_data:
+        # Sum up current values from allocations
+        total_current_value = sum(
+            alloc.get("current_value", 0) for alloc in allocations_data.values()
+        )
+        portfolio_value = Decimal(str(total_current_value))
+    
+    # Create portfolio metrics from available data
+    metrics = PortfolioMetricsDTO(
+        total_value=portfolio_value,
+        cash_value=Decimal("0"),  # Not available in current data structure
+        equity_value=portfolio_value,
+        buying_power=portfolio_value,  # Assume full value as buying power
+        day_pnl=Decimal("0"),  # Not calculated in current data structure
+        day_pnl_percent=Decimal("0"),
+        total_pnl=Decimal("0"),
+        total_pnl_percent=Decimal("0"),
+    )
+    
     return PortfolioStateDTO(
-        total_portfolio_value=Decimal(str(data.get("total_portfolio_value", 0.0))),
-        target_allocations=target_allocations,
-        current_allocations=current_allocations,
-        target_values=target_values,
-        current_values=current_values,
-        allocation_discrepancies=allocation_discrepancies,
-        largest_discrepancy=largest_discrepancy,
-        total_symbols=data.get("total_symbols", 0),
-        rebalance_needed=data.get("rebalance_needed", False),
+        correlation_id=correlation_id,
+        causation_id=correlation_id,
+        timestamp=datetime.now(UTC),
+        portfolio_id="main_portfolio",
+        metrics=metrics,
     )
 
 
-def safe_dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummaryDTO:
-    """Safely convert execution summary dict to DTO with fallbacks.
 
-    Provides backward compatibility for incomplete dict structures.
-    """
-    try:
-        return dict_to_execution_summary_dto(data)
-    except (KeyError, ValueError, TypeError) as e:
-        # Create minimal AccountInfo for fallback
-        default_account_info = {
-            "account_id": "error",
-            "equity": 0.0,
-            "cash": 0.0,
-            "buying_power": 0.0,
-            "day_trades_remaining": 0,
-            "portfolio_value": 0.0,
-            "last_equity": 0.0,
-            "daytrading_buying_power": 0.0,
-            "regt_buying_power": 0.0,
-            "status": "INACTIVE",
-        }
-
-        # Create minimal fallback DTO for error cases
-        return ExecutionSummaryDTO(
-            allocations=AllocationSummaryDTO(
-                total_allocation=Decimal("0"),
-                num_positions=0,
-                largest_position_pct=Decimal("0"),
-            ),
-            strategy_summary={},
-            trading_summary=TradingSummaryDTO(
-                total_orders=0,
-                orders_executed=0,
-                success_rate=Decimal("0"),
-                total_value=Decimal("0"),
-            ),
-            pnl_summary=StrategyPnLSummaryDTO(
-                total_pnl=Decimal("0"),
-                best_performer=None,
-                worst_performer=None,
-                num_profitable=0,
-            ),
-            account_info_before=data.get("account_info_before", default_account_info),
-            account_info_after=data.get("account_info_after", default_account_info),
-            mode=data.get("mode", "error"),
-            engine_mode=data.get("engine_mode"),
-            error=f"Failed to parse execution summary: {e}",
-        )
-
-
-def safe_dict_to_portfolio_state_dto(data: dict[str, Any] | None) -> PortfolioStateDTO | None:
-    """Safely convert portfolio state dict to DTO with fallbacks.
-
-    Returns None if data is None or invalid.
-    """
-    if data is None:
-        return None
-
-    try:
-        return dict_to_portfolio_state_dto(data)
-    except (KeyError, ValueError, TypeError):
-        # Return minimal empty portfolio state for error cases
-        return PortfolioStateDTO(
-            total_portfolio_value=Decimal("0"),
-            target_allocations={},
-            current_allocations={},
-            target_values={},
-            current_values={},
-            allocation_discrepancies={},
-            largest_discrepancy=None,
-            total_symbols=0,
-            rebalance_needed=False,
-        )
