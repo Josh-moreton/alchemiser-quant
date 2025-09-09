@@ -114,28 +114,28 @@ def dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummaryDTO:
 
 def dict_to_portfolio_state_dto(data: dict[str, Any]) -> PortfolioStateDTO:
     """Convert portfolio state dict to PortfolioStateDTO.
-    
+
     Maps from actual portfolio data structure (from build_portfolio_state_data)
     to the required PortfolioStateDTO schema.
     """
     from datetime import UTC, datetime
-    
+
     from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioMetricsDTO
-    
+
     # Generate required correlation fields
     correlation_id = f"portfolio_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
-    
+
     # Extract portfolio value from allocations data
     portfolio_value = Decimal("0")
     allocations_data = data.get("allocations", {})
-    
+
     if allocations_data:
         # Sum up current values from allocations
         total_current_value = sum(
             alloc.get("current_value", 0) for alloc in allocations_data.values()
         )
         portfolio_value = Decimal(str(total_current_value))
-    
+
     # Create portfolio metrics from available data
     metrics = PortfolioMetricsDTO(
         total_value=portfolio_value,
@@ -147,7 +147,7 @@ def dict_to_portfolio_state_dto(data: dict[str, Any]) -> PortfolioStateDTO:
         total_pnl=Decimal("0"),
         total_pnl_percent=Decimal("0"),
     )
-    
+
     return PortfolioStateDTO(
         correlation_id=correlation_id,
         causation_id=correlation_id,
@@ -155,6 +155,3 @@ def dict_to_portfolio_state_dto(data: dict[str, Any]) -> PortfolioStateDTO:
         portfolio_id="main_portfolio",
         metrics=metrics,
     )
-
-
-

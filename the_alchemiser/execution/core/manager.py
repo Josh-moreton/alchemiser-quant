@@ -16,6 +16,11 @@ from the_alchemiser.shared.mappers.execution_summary_mapping import (
     dict_to_execution_summary_dto,
     dict_to_portfolio_state_dto,
 )
+from the_alchemiser.shared.reporting.reporting import (
+    build_portfolio_state_data,
+    create_execution_summary,
+    save_dashboard_data,
+)
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.shared.types.exceptions import (
     ConfigurationError,
@@ -26,12 +31,6 @@ from the_alchemiser.shared.types.exceptions import (
 from the_alchemiser.shared.value_objects.core_types import AccountInfo
 from the_alchemiser.strategy.mappers.mappers import (
     map_signals_dict as _map_signals_to_typed,
-)
-
-from the_alchemiser.shared.reporting.reporting import (
-    build_portfolio_state_data,
-    create_execution_summary,
-    save_dashboard_data,
 )
 
 

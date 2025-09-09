@@ -40,9 +40,10 @@ from the_alchemiser.portfolio.schemas.tracking import (
     StrategyPnLDTO,
     StrategyPositionDTO,
 )
-from the_alchemiser.portfolio.utils.s3_utils import get_s3_handler
 from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
+from the_alchemiser.shared.persistence import create_persistence_handler
+from the_alchemiser.shared.protocols.persistence import PersistenceHandler
 from the_alchemiser.shared.types.exceptions import (
     DataProviderError,
     StrategyExecutionError,
@@ -154,15 +155,17 @@ class StrategyOrderTracker:
     """Dedicated component for tracking orders and P&L by strategy."""
 
     def __init__(self, config: Any = None, paper_trading: bool = True) -> None:
-        """Initialize tracker with S3 configuration.
+        """Initialize tracker with appropriate persistence handler.
 
         Args:
             config: Configuration object
-            paper_trading: Whether this is for paper trading (separates data storage)
+            paper_trading: Whether this is for paper trading (determines storage type)
 
         """
         self.config = config or load_settings()
-        self.s3_handler = get_s3_handler()
+        self.persistence_handler: PersistenceHandler = create_persistence_handler(
+            paper_trading=paper_trading
+        )
         self.paper_trading = paper_trading
         self.error_handler = TradingSystemErrorHandler()
 
@@ -176,12 +179,13 @@ class StrategyOrderTracker:
         ] = {}  # (strategy, symbol) -> position
         self._realized_pnl_cache: dict[str, float] = {}  # strategy -> realized P&L
 
-        # Load existing data from S3
+        # Load existing data from storage
         self._load_data()
 
+        storage_type = "local file storage" if paper_trading else "S3 storage"
         mode_str = "paper" if paper_trading else "live"
         logging.info(
-            f"StrategyOrderTracker initialized with S3 persistence ({mode_str} trading mode)"
+            f"StrategyOrderTracker initialized with {storage_type} ({mode_str} trading mode)"
         )
 
     def _setup_s3_paths(self) -> None:
@@ -461,9 +465,9 @@ class StrategyOrderTracker:
                 },
             }
 
-            # Save to S3
+            # Save to storage
             archive_path = f"{self.pnl_history_s3_path}{today}.json"
-            success = self.s3_handler.write_json(archive_path, archive_data)
+            success = self.persistence_handler.write_json(archive_path, archive_data)
 
             if success:
                 logging.info(f"Archived daily P&L snapshot for {today}")
@@ -623,8 +627,8 @@ class StrategyOrderTracker:
 
             # Load existing error orders
             existing_errors = []
-            if self.s3_handler.file_exists(error_orders_path):
-                existing_data = self.s3_handler.read_json(error_orders_path)
+            if self.persistence_handler.file_exists(error_orders_path):
+                existing_data = self.persistence_handler.read_json(error_orders_path)
                 if existing_data is not None:
                     existing_errors = existing_data.get("error_orders", [])
 
@@ -647,7 +651,7 @@ class StrategyOrderTracker:
                 "total_count": len(existing_errors),
             }
 
-            self.s3_handler.write_json(error_orders_path, error_data)
+            self.persistence_handler.write_json(error_orders_path, error_data)
 
         except Exception as e:
             logging.error(f"Failed to persist error order: {e}")
@@ -853,8 +857,8 @@ class StrategyOrderTracker:
         try:
             orders_path = f"{self.orders_s3_path}recent_orders.json"
 
-            if self.s3_handler.file_exists(orders_path):
-                data = self.s3_handler.read_json(orders_path)
+            if self.persistence_handler.file_exists(orders_path):
+                data = self.persistence_handler.read_json(orders_path)
                 if data and "orders" in data:
                     # Group orders by strategy
                     for order in data["orders"]:
@@ -1020,11 +1024,11 @@ class StrategyOrderTracker:
             # In production, you might want to partition by date
             orders_path = f"{self.orders_s3_path}recent_orders.json"
 
-            if not self.s3_handler.file_exists(orders_path):
+            if not self.persistence_handler.file_exists(orders_path):
                 logging.info("No recent orders file found")
                 return
 
-            data = self.s3_handler.read_json(orders_path)
+            data = self.persistence_handler.read_json(orders_path)
             if not data or "orders" not in data:
                 logging.info("No orders data found in file")
                 return
@@ -1069,11 +1073,11 @@ class StrategyOrderTracker:
         try:
             positions_path = f"{self.positions_s3_path}current_positions.json"
 
-            if not self.s3_handler.file_exists(positions_path):
+            if not self.persistence_handler.file_exists(positions_path):
                 logging.info("No positions file found")
                 return
 
-            data = self.s3_handler.read_json(positions_path)
+            data = self.persistence_handler.read_json(positions_path)
             if not data or "positions" not in data:
                 logging.info("No positions data found in file")
                 return
@@ -1098,11 +1102,11 @@ class StrategyOrderTracker:
         try:
             pnl_path = f"{self.positions_s3_path}realized_pnl.json"
 
-            if not self.s3_handler.file_exists(pnl_path):
+            if not self.persistence_handler.file_exists(pnl_path):
                 logging.info("No realized P&L file found")
                 return
 
-            data = self.s3_handler.read_json(pnl_path)
+            data = self.persistence_handler.read_json(pnl_path)
             if not data:
                 logging.info("No realized P&L data found in file")
                 return
@@ -1123,7 +1127,7 @@ class StrategyOrderTracker:
             orders_path = f"{self.orders_s3_path}recent_orders.json"
 
             # Load existing data or create new data structure
-            existing_data = self.s3_handler.read_json(orders_path) or {"orders": []}
+            existing_data = self.persistence_handler.read_json(orders_path) or {"orders": []}
 
             # Add new order
             existing_data["orders"].append(asdict(order))
@@ -1132,7 +1136,7 @@ class StrategyOrderTracker:
             self._apply_order_history_limit(existing_data)
 
             # Save back to S3
-            success = self.s3_handler.write_json(orders_path, existing_data)
+            success = self.persistence_handler.write_json(orders_path, existing_data)
             if not success:
                 logging.warning(f"Failed to save order {order.order_id} to S3")
 
@@ -1182,14 +1186,14 @@ class StrategyOrderTracker:
         }
 
         positions_path = f"{self.positions_s3_path}current_positions.json"
-        success = self.s3_handler.write_json(positions_path, positions_data)
+        success = self.persistence_handler.write_json(positions_path, positions_data)
         if not success:
             logging.warning("Failed to save positions data to S3")
 
     def _persist_realized_pnl(self) -> None:
         """Save realized P&L data to S3."""
         pnl_path = f"{self.positions_s3_path}realized_pnl.json"
-        success = self.s3_handler.write_json(pnl_path, self._realized_pnl_cache)
+        success = self.persistence_handler.write_json(pnl_path, self._realized_pnl_cache)
         if not success:
             logging.warning("Failed to save realized P&L data to S3")
 
