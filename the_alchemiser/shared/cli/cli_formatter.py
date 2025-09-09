@@ -22,6 +22,11 @@ from the_alchemiser.shared.schemas.common import (
 
 """Console formatting utilities for quantitative trading system output using rich."""
 
+# Style constants to avoid duplication
+STYLE_BOLD_CYAN = "bold cyan"
+STYLE_BOLD_WHITE = "bold white"
+STYLE_BOLD_GREEN = "bold green"
+
 
 def _truncate_table_data(data: list[Any], max_rows: int = 50) -> tuple[list[Any], bool]:
     """Truncate table data if it exceeds maximum rows.
@@ -81,7 +86,7 @@ def render_technical_indicators(
         return
 
     table = Table(title="Technical Indicators", show_lines=True, expand=True, box=None)
-    table.add_column("Symbol", style="bold cyan", justify="right")
+    table.add_column("Symbol", style=STYLE_BOLD_CYAN, justify="right")
     table.add_column("Price", style="bold", justify="right")
     table.add_column("RSI", style="magenta", justify="center")
     table.add_column("MA", style="green", justify="center")
@@ -152,7 +157,7 @@ def render_technical_indicators(
             )
             regime_panel = Panel(
                 f"Market Regime: {regime} (SPY {spy_price:.1f} vs 200MA {spy_ma200:.1f})",
-                style="bold white",
+                style=STYLE_BOLD_WHITE,
                 title="Market Regime",
             )
 
@@ -262,8 +267,8 @@ def render_portfolio_allocation(
         return
 
     table = Table(title=title, show_lines=False, expand=True)
-    table.add_column("Symbol", style="bold cyan", justify="center")
-    table.add_column("Allocation", style="bold green", justify="center")
+    table.add_column("Symbol", style=STYLE_BOLD_CYAN, justify="center")
+    table.add_column("Allocation", style=STYLE_BOLD_GREEN, justify="center")
     table.add_column("Visual", style="white", justify="left")
 
     for symbol, weight in sorted(portfolio.items(), key=lambda x: x[1], reverse=True):
@@ -431,7 +436,7 @@ def render_account_info(account_info: dict[str, Any], console: Console | None = 
             )
 
     content = "\n".join(content_lines)
-    c.print(Panel(content, title="ACCOUNT INFO", style="bold white"))
+    c.print(Panel(content, title="ACCOUNT INFO", style=STYLE_BOLD_WHITE))
 
     # Open positions table if we have positions
     if open_positions:
@@ -439,7 +444,7 @@ def render_account_info(account_info: dict[str, Any], console: Console | None = 
         display_positions, was_truncated = _truncate_table_data(open_positions, max_rows=50)
 
         positions_table = Table(title="Open Positions", show_lines=True, box=None)
-        positions_table.add_column("Symbol", style="bold cyan")
+        positions_table.add_column("Symbol", style=STYLE_BOLD_CYAN)
         positions_table.add_column("Qty", style="white", justify="right")
         positions_table.add_column("Avg Price", style="white", justify="right")
         positions_table.add_column("Current Price", style="white", justify="right")
@@ -515,7 +520,7 @@ def render_footer(message: str, success: bool = True, console: Console | None = 
     """Render a footer message."""
     c = console or Console()
 
-    style = "bold green" if success else "bold red"
+    style = STYLE_BOLD_GREEN if success else "bold red"
     indicator = "SUCCESS" if success else "ERROR"
 
     c.print()
@@ -569,7 +574,7 @@ def render_target_vs_current_allocations(
         }
 
     table = Table(title="Portfolio Rebalancing Summary", show_lines=True, expand=True, box=None)
-    table.add_column("Symbol", style="bold cyan", justify="center", width=8)
+    table.add_column("Symbol", style=STYLE_BOLD_CYAN, justify="center", width=8)
     table.add_column("Target", style="green", justify="right", width=14)
     table.add_column("Current", style="blue", justify="right", width=14)
     table.add_column("Dollar Diff", style="yellow", justify="right", width=12)
@@ -746,7 +751,7 @@ def render_enriched_order_summaries(
 
     table = Table(title="Open Orders (Enriched)", show_lines=False, expand=True)
     table.add_column("ID", style="dim", justify="left")
-    table.add_column("Symbol", style="bold cyan", justify="center")
+    table.add_column("Symbol", style=STYLE_BOLD_CYAN, justify="center")
     table.add_column("Type", style="white", justify="center")
     table.add_column("Qty", style="white", justify="right")
     table.add_column("Limit", style="white", justify="right")
@@ -900,7 +905,7 @@ def render_multi_strategy_summary(
             cash = float(cash_raw)
         except Exception:
             cash = 0.0
-        account_content.append(f"Portfolio Value: ${pv:,.2f}\n", style="bold green")
+        account_content.append(f"Portfolio Value: ${pv:,.2f}\n", style=STYLE_BOLD_GREEN)
         account_content.append(f"Cash Balance: ${cash:,.2f}\n", style="bold blue")
 
         portfolio_history = base_account.get("portfolio_history")
@@ -918,7 +923,7 @@ def render_multi_strategy_summary(
                     style=f"bold {pl_color}",
                 )
 
-        account_panel = Panel(account_content, title="Account Summary", style="bold white")
+        account_panel = Panel(account_content, title="Account Summary", style=STYLE_BOLD_WHITE)
         c.print(account_panel)
         c.print()
 
@@ -929,7 +934,7 @@ def render_multi_strategy_summary(
             closed_pnl_table = Table(
                 title="Recent Closed Positions P&L (Last 7 Days)", show_lines=False
             )
-            closed_pnl_table.add_column("Symbol", style="bold cyan", justify="center")
+            closed_pnl_table.add_column("Symbol", style=STYLE_BOLD_CYAN, justify="center")
             closed_pnl_table.add_column("Realized P&L", style="bold", justify="right")
             closed_pnl_table.add_column("P&L %", style="bold", justify="right")
             closed_pnl_table.add_column("Trades", style="white", justify="center")

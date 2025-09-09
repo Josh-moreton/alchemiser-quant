@@ -16,10 +16,10 @@ from .trading_services_facade import TradingServicesFacade
 TradingServiceManager = TradingServicesFacade
 
 __all__ = [
-    "AccountManagementService", 
+    "AccountManagementService",
     "DataTransformationService",
     "LifecycleCoordinator",
     "OrderExecutionService",
-    "TradingServicesFacade",
     "TradingServiceManager",
+    "TradingServicesFacade",
 ]

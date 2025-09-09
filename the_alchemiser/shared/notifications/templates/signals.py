@@ -12,6 +12,9 @@ from typing import Any
 
 from .base import BaseEmailTemplate
 
+# Constants
+_STRATEGY_TYPE_PREFIX = "StrategyType."
+
 
 class SignalsBuilder:
     """Builds signals-related HTML content for emails."""
@@ -60,7 +63,7 @@ class SignalsBuilder:
             if not technical_indicators:
                 continue
 
-            strategy_name = str(strategy_type).replace("StrategyType.", "")
+            strategy_name = str(strategy_type).replace(_STRATEGY_TYPE_PREFIX, "")
 
             indicators_rows = ""
             for symbol, indicators in technical_indicators.items():
@@ -140,7 +143,7 @@ class SignalsBuilder:
         signals_html = ""
 
         for strategy_type, signal_data in strategy_signals.items():
-            strategy_name = str(strategy_type).replace("StrategyType.", "")
+            strategy_name = str(strategy_type).replace(_STRATEGY_TYPE_PREFIX, "")
 
             # Get strategy summary data if available
             summary_data = strategy_summary.get(strategy_name, {})
@@ -311,7 +314,9 @@ class SignalsBuilder:
                 strategy_display_name = strategy_name.name.upper()
             else:
                 # It's already a string
-                strategy_display_name = str(strategy_name).replace("StrategyType.", "").upper()
+                strategy_display_name = (
+                    str(strategy_name).replace(_STRATEGY_TYPE_PREFIX, "").upper()
+                )
 
             # Color coding for actions
             if action == "BUY":

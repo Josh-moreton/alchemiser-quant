@@ -17,6 +17,9 @@ from typing import Any
 
 from the_alchemiser.portfolio.utils.s3_utils import S3FileHandler
 
+# Constants
+_S3_PROTOCOL_PREFIX = "s3://"
+
 # Context variables for request tracking
 request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
 error_id_context: ContextVar[str | None] = ContextVar("error_id", default=None)
@@ -202,7 +205,12 @@ def setup_logging(
         "on",
     )
 
-    if is_lambda and log_file and log_file.startswith("s3://") and not s3_logging_enabled:
+    if (
+        is_lambda
+        and log_file
+        and log_file.startswith(_S3_PROTOCOL_PREFIX)
+        and not s3_logging_enabled
+    ):
         logger = get_logger(__name__)
         logger.warning(
             "S3 logging requested in Lambda environment but ENABLE_S3_LOGGING not set. "
@@ -234,7 +242,7 @@ def setup_logging(
 
     # File handler if specified
     if log_file:
-        if log_file.startswith("s3://"):
+        if log_file.startswith(_S3_PROTOCOL_PREFIX):
             # Use S3 handler for S3 URIs
             s3_handler = S3FileHandler(log_file)
             s3_handler.setFormatter(formatter)
@@ -326,7 +334,7 @@ def configure_production_logging(
 
     # If in Lambda and S3 logging not explicitly enabled, force log_file to None
     if is_lambda and not s3_logging_enabled:
-        if log_file and log_file.startswith("s3://"):
+        if log_file and log_file.startswith(_S3_PROTOCOL_PREFIX):
             logger = get_logger(__name__)
             logger.info("Lambda production mode: defaulting to CloudWatch-only logging")
         log_file = None

@@ -12,6 +12,9 @@ import pandas as pd
 
 from the_alchemiser.shared.value_objects.core_types import MarketDataPoint, PriceData, QuoteData
 
+# Constants
+_UTC_TIMEZONE_SUFFIX = "+00:00"
+
 
 @dataclass(frozen=True)
 class BarModel:
@@ -29,7 +32,7 @@ class BarModel:
     def from_dict(cls, data: MarketDataPoint) -> BarModel:
         """Create from MarketDataPoint TypedDict."""
         timestamp_raw = data["timestamp"]
-        timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", "+00:00"))
+        timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", _UTC_TIMEZONE_SUFFIX))
 
         return cls(
             symbol=data["symbol"],
@@ -78,7 +81,7 @@ class QuoteModel:
     def from_dict(cls, data: QuoteData, symbol: str) -> QuoteModel:
         """Create from QuoteData TypedDict (domain-pure)."""
         timestamp_raw = data["timestamp"]
-        timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", "+00:00"))
+        timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", _UTC_TIMEZONE_SUFFIX))
 
         return cls(
             symbol=symbol,
@@ -125,7 +128,7 @@ class PriceDataModel:
     def from_dict(cls, data: PriceData) -> PriceDataModel:
         """Create from PriceData TypedDict."""
         timestamp_raw = data["timestamp"]
-        timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", "+00:00"))
+        timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", _UTC_TIMEZONE_SUFFIX))
 
         return cls(
             symbol=data["symbol"],

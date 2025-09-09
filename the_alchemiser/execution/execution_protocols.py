@@ -33,23 +33,24 @@ from the_alchemiser.shared.schemas.enriched_data import (
 
 class MultiStrategyExecutor(Protocol):
     """Protocol for multi-strategy execution orchestration.
-    
+
     Implemented by ExecutionManager for strategy coordination and portfolio rebalancing.
     This is the proper interface for running multiple strategies and rebalancing.
     """
 
     def execute_multi_strategy(self) -> MultiStrategyExecutionResultDTO:
         """Execute all strategies and rebalance portfolio.
-        
+
         Returns:
             Complete multi-strategy execution results including signals, orders, and portfolio state
+
         """
         ...
 
 
 class BrokerTradingServices(Protocol):
     """Protocol for broker and account operations facade.
-    
+
     Implemented by TradingServicesFacade for broker/account/position operations.
     This interface handles broker-level operations, not strategy orchestration.
     """
