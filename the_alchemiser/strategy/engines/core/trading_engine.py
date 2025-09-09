@@ -55,8 +55,8 @@ from the_alchemiser.shared.logging.logging_utils import (
     log_with_context,
 )
 from the_alchemiser.shared.mappers.execution_summary_mapping import (
-    safe_dict_to_execution_summary_dto,
-    safe_dict_to_portfolio_state_dto,
+    dict_to_execution_summary_dto,
+    dict_to_portfolio_state_dto,
 )
 from the_alchemiser.shared.reporting.reporting import build_portfolio_state_data
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
@@ -632,8 +632,8 @@ class TradingEngine:
             orders_executed=orders,
             account_info_before=account_info_before,
             account_info_after=account_info_after,
-            execution_summary=safe_dict_to_execution_summary_dto(execution_summary),
-            final_portfolio_state=safe_dict_to_portfolio_state_dto(final_portfolio_state),
+            execution_summary=dict_to_execution_summary_dto(execution_summary),
+            final_portfolio_state=dict_to_portfolio_state_dto(final_portfolio_state),
         )
 
     # --- Multi-Strategy Execution ---
@@ -674,7 +674,7 @@ class TradingEngine:
                 orders_executed=[],
                 account_info_before=_create_default_account_info("pre_validation_error"),
                 account_info_after=_create_default_account_info("pre_validation_error"),
-                execution_summary=safe_dict_to_execution_summary_dto(
+                execution_summary=dict_to_execution_summary_dto(
                     {
                         "error": f"Pre-execution validation failed: {e}",
                         "mode": "error",
@@ -682,7 +682,7 @@ class TradingEngine:
                         "account_info_after": _create_default_account_info("pre_validation_error"),
                     }
                 ),
-                final_portfolio_state=safe_dict_to_portfolio_state_dto({}),
+                final_portfolio_state=None,
             )
 
         try:
@@ -750,7 +750,7 @@ class TradingEngine:
                 orders_executed=[],
                 account_info_before=_create_default_account_info("execution_error"),
                 account_info_after=_create_default_account_info("execution_error"),
-                execution_summary=safe_dict_to_execution_summary_dto(
+                execution_summary=dict_to_execution_summary_dto(
                     {
                         "error": f"Execution failed: {e}",
                         "mode": "error",
@@ -758,7 +758,7 @@ class TradingEngine:
                         "account_info_after": _create_default_account_info("execution_error"),
                     }
                 ),
-                final_portfolio_state=safe_dict_to_portfolio_state_dto({}),
+                final_portfolio_state=None,
             )
 
     # --- Reporting and Dashboard Methods ---

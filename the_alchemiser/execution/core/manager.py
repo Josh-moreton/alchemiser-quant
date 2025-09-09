@@ -13,8 +13,8 @@ from typing import Any
 from the_alchemiser.execution.execution_protocols import MultiStrategyExecutor
 from the_alchemiser.shared.errors.error_handler import handle_errors_with_retry
 from the_alchemiser.shared.mappers.execution_summary_mapping import (
-    safe_dict_to_execution_summary_dto,
-    safe_dict_to_portfolio_state_dto,
+    dict_to_execution_summary_dto,
+    dict_to_portfolio_state_dto,
 )
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.shared.types.exceptions import (
@@ -139,8 +139,8 @@ class ExecutionManager(MultiStrategyExecutor):
                 orders_executed=orders_executed,
                 account_info_before=account_info_before,
                 account_info_after=account_info_after,
-                execution_summary=safe_dict_to_execution_summary_dto(execution_summary),
-                final_portfolio_state=safe_dict_to_portfolio_state_dto(final_portfolio_state),
+                execution_summary=dict_to_execution_summary_dto(execution_summary),
+                final_portfolio_state=dict_to_portfolio_state_dto(final_portfolio_state),
             )
             save_dashboard_data(self.engine, result)
             self.engine._archive_daily_strategy_pnl(execution_summary.get("pnl_summary", {}))
@@ -196,7 +196,7 @@ class ExecutionManager(MultiStrategyExecutor):
                 orders_executed=[],
                 account_info_before=empty_account_info,
                 account_info_after=empty_account_info,
-                execution_summary=safe_dict_to_execution_summary_dto(
+                execution_summary=dict_to_execution_summary_dto(
                     {
                         "error": str(e),
                         "mode": "error",
@@ -204,7 +204,7 @@ class ExecutionManager(MultiStrategyExecutor):
                         "account_info_after": empty_account_info,
                     }
                 ),
-                final_portfolio_state=safe_dict_to_portfolio_state_dto({}),
+                final_portfolio_state=None,
             )
         except (
             ConfigurationError,
