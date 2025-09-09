@@ -158,49 +158,68 @@ class PortfolioStateDTO(BaseModel):
         """
         data = self.model_dump()
 
-        # Convert datetime fields to ISO strings
+        # Convert various field types for serialization
+        self._serialize_datetime_fields(data)
+        self._serialize_decimal_fields(data)
+        self._serialize_strategy_allocations(data)
+        self._serialize_positions(data)
+        self._serialize_metrics(data)
+
+        return data
+
+    def _serialize_datetime_fields(self, data: dict[str, Any]) -> None:
+        """Convert datetime fields to ISO strings."""
         datetime_fields = ["timestamp", "last_rebalance_time"]
         for field_name in datetime_fields:
             if data.get(field_name):
                 data[field_name] = data[field_name].isoformat()
 
-        # Convert Decimal fields to string for JSON serialization
+    def _serialize_decimal_fields(self, data: dict[str, Any]) -> None:
+        """Convert Decimal fields to strings for JSON serialization."""
         decimal_fields = ["cash_target", "max_position_size", "rebalance_threshold"]
         for field_name in decimal_fields:
             if data.get(field_name) is not None:
                 data[field_name] = str(data[field_name])
 
-        # Convert strategy allocations
+    def _serialize_strategy_allocations(self, data: dict[str, Any]) -> None:
+        """Convert strategy allocations to string representations."""
         if "strategy_allocations" in data:
             data["strategy_allocations"] = {
                 k: str(v) for k, v in data["strategy_allocations"].items()
             }
 
-        # Convert nested positions
+    def _serialize_positions(self, data: dict[str, Any]) -> None:
+        """Convert nested positions data for serialization."""
         if "positions" in data:
             positions_data = []
             for position in data["positions"]:
                 position_dict = dict(position)
-                # Convert datetime in position
-                if position_dict.get("last_updated"):
-                    position_dict["last_updated"] = position_dict["last_updated"].isoformat()
-                # Convert Decimal fields in position
-                position_decimal_fields = [
-                    "quantity",
-                    "average_cost",
-                    "current_price",
-                    "market_value",
-                    "unrealized_pnl",
-                    "unrealized_pnl_percent",
-                    "cost_basis",
-                ]
-                for field_name in position_decimal_fields:
-                    if position_dict.get(field_name) is not None:
-                        position_dict[field_name] = str(position_dict[field_name])
+                self._serialize_position_data(position_dict)
                 positions_data.append(position_dict)
             data["positions"] = positions_data
 
-        # Convert metrics
+    def _serialize_position_data(self, position_dict: dict[str, Any]) -> None:
+        """Serialize individual position data fields."""
+        # Convert datetime in position
+        if position_dict.get("last_updated"):
+            position_dict["last_updated"] = position_dict["last_updated"].isoformat()
+            
+        # Convert Decimal fields in position
+        position_decimal_fields = [
+            "quantity",
+            "average_cost",
+            "current_price",
+            "market_value",
+            "unrealized_pnl",
+            "unrealized_pnl_percent",
+            "cost_basis",
+        ]
+        for field_name in position_decimal_fields:
+            if position_dict.get(field_name) is not None:
+                position_dict[field_name] = str(position_dict[field_name])
+
+    def _serialize_metrics(self, data: dict[str, Any]) -> None:
+        """Convert metrics data for serialization."""
         if "metrics" in data:
             metrics_dict = dict(data["metrics"])
             metrics_decimal_fields = [
@@ -220,8 +239,6 @@ class PortfolioStateDTO(BaseModel):
                     metrics_dict[field_name] = str(metrics_dict[field_name])
             data["metrics"] = metrics_dict
 
-        return data
-
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PortfolioStateDTO:
         """Create DTO from dictionary.
@@ -236,7 +253,21 @@ class PortfolioStateDTO(BaseModel):
             ValueError: If data is invalid or missing required fields
 
         """
-        # Convert string timestamps back to datetime
+        # Create a copy to avoid modifying the original
+        data = data.copy()
+        
+        # Convert various field types
+        cls._convert_datetime_fields(data)
+        cls._convert_decimal_fields(data)
+        cls._convert_strategy_allocations(data)
+        cls._convert_positions(data)
+        cls._convert_metrics(data)
+        
+        return cls(**data)
+
+    @classmethod
+    def _convert_datetime_fields(cls, data: dict[str, Any]) -> None:
+        """Convert string timestamps back to datetime objects."""
         datetime_fields = ["timestamp", "last_rebalance_time"]
         for field_name in datetime_fields:
             if field_name in data and isinstance(data[field_name], str):
@@ -248,7 +279,9 @@ class PortfolioStateDTO(BaseModel):
                 except ValueError as e:
                     raise ValueError(f"Invalid {field_name} format: {data[field_name]}") from e
 
-        # Convert string decimal fields back to Decimal
+    @classmethod
+    def _convert_decimal_fields(cls, data: dict[str, Any]) -> None:
+        """Convert string decimal fields back to Decimal objects."""
         decimal_fields = ["cash_target", "max_position_size", "rebalance_threshold"]
         for field_name in decimal_fields:
             if (
@@ -261,7 +294,9 @@ class PortfolioStateDTO(BaseModel):
                 except (ValueError, TypeError) as e:
                     raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
 
-        # Convert strategy allocations
+    @classmethod
+    def _convert_strategy_allocations(cls, data: dict[str, Any]) -> None:
+        """Convert strategy allocations from strings to Decimal objects."""
         if "strategy_allocations" in data and isinstance(data["strategy_allocations"], dict):
             allocations = {}
             for strategy, weight in data["strategy_allocations"].items():
@@ -276,53 +311,60 @@ class PortfolioStateDTO(BaseModel):
                     allocations[strategy] = weight
             data["strategy_allocations"] = allocations
 
-        # Convert positions if present
+    @classmethod
+    def _convert_positions(cls, data: dict[str, Any]) -> None:
+        """Convert positions data to PositionDTO objects."""
         if "positions" in data and isinstance(data["positions"], list):
             positions_data = []
             for position_data in data["positions"]:
                 if isinstance(position_data, dict):
-                    # Convert last_updated timestamp in position
-                    if "last_updated" in position_data and isinstance(
-                        position_data["last_updated"], str
-                    ):
-                        try:
-                            timestamp_str = position_data["last_updated"]
-                            if timestamp_str.endswith("Z"):
-                                timestamp_str = timestamp_str[:-1] + "+00:00"
-                            position_data["last_updated"] = datetime.fromisoformat(timestamp_str)
-                        except ValueError as e:
-                            raise ValueError(
-                                f"Invalid last_updated format in position: {position_data['last_updated']}"
-                            ) from e
-
-                    # Convert Decimal fields in position
-                    position_decimal_fields = [
-                        "quantity",
-                        "average_cost",
-                        "current_price",
-                        "market_value",
-                        "unrealized_pnl",
-                        "unrealized_pnl_percent",
-                        "cost_basis",
-                    ]
-                    for field_name in position_decimal_fields:
-                        if (
-                            field_name in position_data
-                            and position_data[field_name] is not None
-                            and isinstance(position_data[field_name], str)
-                        ):
-                            try:
-                                position_data[field_name] = Decimal(position_data[field_name])
-                            except (ValueError, TypeError) as e:
-                                raise ValueError(
-                                    f"Invalid {field_name} value in position: {position_data[field_name]}"
-                                ) from e
+                    cls._convert_position_data(position_data)
                     positions_data.append(PositionDTO(**position_data))
                 else:
                     positions_data.append(position_data)  # Assume already a DTO
             data["positions"] = positions_data
 
-        # Convert metrics if present
+    @classmethod
+    def _convert_position_data(cls, position_data: dict[str, Any]) -> None:
+        """Convert individual position data fields."""
+        # Convert last_updated timestamp in position
+        if "last_updated" in position_data and isinstance(position_data["last_updated"], str):
+            try:
+                timestamp_str = position_data["last_updated"]
+                if timestamp_str.endswith("Z"):
+                    timestamp_str = timestamp_str[:-1] + "+00:00"
+                position_data["last_updated"] = datetime.fromisoformat(timestamp_str)
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid last_updated format in position: {position_data['last_updated']}"
+                ) from e
+
+        # Convert Decimal fields in position
+        position_decimal_fields = [
+            "quantity",
+            "average_cost",
+            "current_price",
+            "market_value",
+            "unrealized_pnl",
+            "unrealized_pnl_percent",
+            "cost_basis",
+        ]
+        for field_name in position_decimal_fields:
+            if (
+                field_name in position_data
+                and position_data[field_name] is not None
+                and isinstance(position_data[field_name], str)
+            ):
+                try:
+                    position_data[field_name] = Decimal(position_data[field_name])
+                except (ValueError, TypeError) as e:
+                    raise ValueError(
+                        f"Invalid {field_name} value in position: {position_data[field_name]}"
+                    ) from e
+
+    @classmethod
+    def _convert_metrics(cls, data: dict[str, Any]) -> None:
+        """Convert metrics data to PortfolioMetricsDTO."""
         if "metrics" in data and isinstance(data["metrics"], dict):
             metrics_data = data["metrics"]
             metrics_decimal_fields = [
@@ -350,5 +392,3 @@ class PortfolioStateDTO(BaseModel):
                             f"Invalid {field_name} value in metrics: {metrics_data[field_name]}"
                         ) from e
             data["metrics"] = PortfolioMetricsDTO(**metrics_data)
-
-        return cls(**data)
