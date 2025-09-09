@@ -400,6 +400,8 @@ class PortfolioManagementFacade:
         # Add logging for debugging trade instruction flow
         logger = logging.getLogger(__name__)
         logger.info(f"=== PORTFOLIO PHASE FILTERING: {phase_normalized.upper()} ===")
+        logger.info(f"FACADE_TYPE: {type(self).__name__}")
+        logger.info(f"RECEIVED_TARGET_PORTFOLIO: {target_portfolio}")
         logger.info(f"Full plan contains {len(full_plan.plans)} symbols")
         logger.info(f"Symbols needing rebalance: {full_plan.symbols_needing_rebalance}")
         
