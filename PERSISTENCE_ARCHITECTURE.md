@@ -14,7 +14,7 @@ The Alchemiser trading system now uses different persistence backends based on t
 ### Trading Mode Detection
 Trading mode is automatically detected from the `ALPACA_ENDPOINT` environment variable:
 - Paper trading: endpoints containing "paper" (e.g., `https://paper-api.alpaca.markets/v2`)
-- Live trading: other endpoints (e.g., `https://api.alpaca.markets/v2`)
+- Live trading: other endpoints (e.g., `https://api.alpaca.markets`)
 - Default: Paper trading (for safety when endpoint is not set)
 
 ### Persistence Implementations
@@ -63,7 +63,7 @@ tracker = StrategyOrderTracker(paper_trading=True)
 
 | Variable | Purpose | Paper Trading Value | Live Trading Value |
 |----------|---------|-------------------|------------------|
-| `ALPACA_ENDPOINT` | Trading mode detection | `https://paper-api.alpaca.markets/v2` | `https://api.alpaca.markets/v2` |
+| `ALPACA_ENDPOINT` | Trading mode detection | `https://paper-api.alpaca.markets/v2` | `https://api.alpaca.markets` |
 | `ALPACA_PAPER_TRADING` | Explicit override | `true`/`1`/`yes` | `false`/`0`/`no` |
 
 ## File Storage Paths
