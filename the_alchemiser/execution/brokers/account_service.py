@@ -253,92 +253,147 @@ class AccountService:
             if not account:
                 raise ValueError(_ACCOUNT_RETRIEVAL_ERROR)
 
-            # Basic account checks
-            if self._get_attr(account, "trading_blocked", False):
-                return {
-                    "eligible": False,
-                    "reason": "Trading is blocked on this account",
-                    "details": {"trading_blocked": True},
-                }
+            # Check basic account eligibility
+            account_check = self._check_basic_account_eligibility(account)
+            if not account_check["eligible"]:
+                return account_check
 
-            if self._get_attr(account, "account_blocked", False):
-                return {
-                    "eligible": False,
-                    "reason": "Account is blocked",
-                    "details": {"account_blocked": True},
-                }
-
-            # Check for existing position
-            current_position = None
-            for position in positions:
-                position_symbol = self._get_attr(position, "symbol", "")
-                if position_symbol == symbol:
-                    current_position = position
-                    break
-
+            # Get current position for symbol
+            current_position = self._find_position_for_symbol(positions, symbol)
             current_qty = (
                 float(self._get_attr(current_position, "qty", 0)) if current_position else 0
             )
 
-            # Validate sell orders
-            if side.lower() == "sell":
-                if current_qty <= 0:
-                    return {
-                        "eligible": False,
-                        "reason": f"No long position to sell for {symbol}",
-                        "details": {"current_position": current_qty},
-                    }
+            # Validate side-specific requirements
+            side_check = self._validate_side_specific_requirements(
+                side, symbol, quantity, current_qty, estimated_cost
+            )
+            if not side_check["eligible"]:
+                return side_check
 
-                if abs(quantity) > current_qty:
-                    return {
-                        "eligible": False,
-                        "reason": f"Cannot sell {quantity} shares, only {current_qty} available",
-                        "details": {
-                            "current_position": current_qty,
-                            "requested_quantity": quantity,
-                        },
-                    }
+            # Check pattern day trader restrictions
+            pdt_check = self._check_pattern_day_trader_restrictions(account)
+            if not pdt_check["eligible"]:
+                return pdt_check
 
-            # Validate buy orders
-            elif side.lower() == "buy" and estimated_cost:
-                buying_power_check = self.check_buying_power(estimated_cost)
-                if not buying_power_check["can_trade"]:
-                    return {
-                        "eligible": False,
-                        "reason": "Insufficient buying power",
-                        "details": buying_power_check,
-                    }
-
-            # Pattern day trader checks
-            pattern_day_trader = self._get_attr(account, "pattern_day_trader", False)
-            daytrade_count = self._get_attr(account, "daytrade_count", 0)
-            if pattern_day_trader and daytrade_count >= 3:
-                equity = float(self._get_attr(account, "equity", 0))
-                if equity < 25000:
-                    return {
-                        "eligible": False,
-                        "reason": "Pattern day trader with insufficient equity for day trading",
-                        "details": {
-                            "equity": equity,
-                            "minimum_required": 25000,
-                            "day_trade_count": daytrade_count,
-                        },
-                    }
-
-            return {
-                "eligible": True,
-                "reason": "Trade is eligible",
-                "details": {
-                    "current_position": current_qty,
-                    "account_equity": float(self._get_attr(account, "equity", 0)),
-                    "buying_power": float(self._get_attr(account, "buying_power", 0)),
-                    "day_trade_count": daytrade_count,
-                },
-            }
+            # Return successful validation
+            return self._build_successful_validation_result(account, current_qty)
 
         except Exception as e:
             self.logger.error(f"Failed to validate trade eligibility: {e}")
             raise
+
+    def _check_basic_account_eligibility(self, account) -> dict[str, Any]:
+        """Check basic account status for trading eligibility."""
+        if self._get_attr(account, "trading_blocked", False):
+            return {
+                "eligible": False,
+                "reason": "Trading is blocked on this account",
+                "details": {"trading_blocked": True},
+            }
+
+        if self._get_attr(account, "account_blocked", False):
+            return {
+                "eligible": False,
+                "reason": "Account is blocked",
+                "details": {"account_blocked": True},
+            }
+
+        return {"eligible": True}
+
+    def _find_position_for_symbol(self, positions, symbol):
+        """Find existing position for the given symbol."""
+        for position in positions:
+            position_symbol = self._get_attr(position, "symbol", "")
+            if position_symbol == symbol:
+                return position
+        return None
+
+    def _validate_side_specific_requirements(
+        self,
+        side: str,
+        symbol: str,
+        quantity: int,
+        current_qty: float,
+        estimated_cost: float | None,
+    ) -> dict[str, Any]:
+        """Validate requirements specific to buy or sell orders."""
+        if side.lower() == "sell":
+            return self._validate_sell_requirements(symbol, quantity, current_qty)
+        if side.lower() == "buy" and estimated_cost:
+            return self._validate_buy_requirements(estimated_cost)
+
+        return {"eligible": True}
+
+    def _validate_sell_requirements(
+        self, symbol: str, quantity: int, current_qty: float
+    ) -> dict[str, Any]:
+        """Validate sell order requirements."""
+        if current_qty <= 0:
+            return {
+                "eligible": False,
+                "reason": f"No long position to sell for {symbol}",
+                "details": {"current_position": current_qty},
+            }
+
+        if abs(quantity) > current_qty:
+            return {
+                "eligible": False,
+                "reason": f"Cannot sell {quantity} shares, only {current_qty} available",
+                "details": {
+                    "current_position": current_qty,
+                    "requested_quantity": quantity,
+                },
+            }
+
+        return {"eligible": True}
+
+    def _validate_buy_requirements(self, estimated_cost: float) -> dict[str, Any]:
+        """Validate buy order requirements."""
+        buying_power_check = self.check_buying_power(estimated_cost)
+        if not buying_power_check["can_trade"]:
+            return {
+                "eligible": False,
+                "reason": "Insufficient buying power",
+                "details": buying_power_check,
+            }
+
+        return {"eligible": True}
+
+    def _check_pattern_day_trader_restrictions(self, account) -> dict[str, Any]:
+        """Check pattern day trader restrictions."""
+        pattern_day_trader = self._get_attr(account, "pattern_day_trader", False)
+        daytrade_count = self._get_attr(account, "daytrade_count", 0)
+
+        if pattern_day_trader and daytrade_count >= 3:
+            equity = float(self._get_attr(account, "equity", 0))
+            if equity < 25000:
+                return {
+                    "eligible": False,
+                    "reason": "Pattern day trader with insufficient equity for day trading",
+                    "details": {
+                        "equity": equity,
+                        "minimum_required": 25000,
+                        "day_trade_count": daytrade_count,
+                    },
+                }
+
+        return {"eligible": True}
+
+    def _build_successful_validation_result(self, account, current_qty: float) -> dict[str, Any]:
+        """Build successful validation result with account details."""
+        daytrade_count = self._get_attr(account, "daytrade_count", 0)
+
+        return {
+            "eligible": True,
+            "reason": "Trade is eligible",
+            "details": {
+                "current_position": current_qty,
+                "account_equity": float(self._get_attr(account, "equity", 0)),
+                "buying_power": float(self._get_attr(account, "buying_power", 0)),
+                "day_trade_count": daytrade_count,
+            },
+        }
 
     def get_portfolio_allocation(self) -> dict[str, Any]:
         """Calculate portfolio allocation and diversification metrics.
