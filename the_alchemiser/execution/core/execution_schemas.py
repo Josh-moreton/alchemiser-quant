@@ -18,8 +18,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Import consolidated DTOs from shared module to avoid duplication
 from the_alchemiser.shared.dto.broker_dto import WebSocketResult
-from the_alchemiser.shared.dto.execution_report_dto import ExecutionReportDTO
 from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
+from the_alchemiser.shared.schemas.execution_summary import ExecutionSummary
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails
 
 
@@ -45,7 +45,7 @@ class ExecutionResult(BaseModel):
     )
     account_info_before: AccountInfo = Field(description="Account state before execution")
     account_info_after: AccountInfo = Field(description="Account state after execution")
-    execution_summary: ExecutionReportDTO = Field(
+    execution_summary: ExecutionSummary = Field(
         description="Structured summary of execution results and metrics"
     )
     final_portfolio_state: PortfolioStateDTO | None = Field(
