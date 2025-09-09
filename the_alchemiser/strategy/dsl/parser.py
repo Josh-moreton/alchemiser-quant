@@ -149,39 +149,63 @@ class DSLParser:
         return expr
 
     def _parse_tokens(self, tokens: list[str]) -> tuple[SExprType, list[str]]:
+        """Parse tokens into S-expressions with proper nesting handling."""
         if not tokens:
             raise ParseError("Unexpected end of input")
+
         head, rest = tokens[0], tokens[1:]
-        if head == "(":
-            items: list[SExprType] = []
-            while rest and rest[0] != ")":
-                sub, rest = self._parse_tokens(rest)
-                items.append(sub)
-            if not rest or rest[0] != ")":
-                raise ParseError("Missing closing parenthesis")
-            return items, rest[1:]
-        if head == "[":
-            items_v: list[SExprType] = []
-            while rest and rest[0] != "]":
-                sub, rest = self._parse_tokens(rest)
-                items_v.append(sub)
-            if not rest or rest[0] != "]":
-                raise ParseError("Missing closing bracket")
-            return Vector(items_v), rest[1:]
-        if head == "{":
-            mp: dict[str, SExprType] = {}
-            while rest and rest[0] != "}":
-                k, rest = self._parse_tokens(rest)
-                if not rest:
-                    raise ParseError("Missing value in map")
-                v, rest = self._parse_tokens(rest)
-                mp[str(k)] = v
-            if not rest or rest[0] != "}":
-                raise ParseError("Missing closing brace")
-            return mp, rest[1:]
+
+        # Dispatch parsing based on opening delimiter
+        return self._dispatch_token_parsing(head, rest)
+
+    def _dispatch_token_parsing(self, head: str, rest: list[str]) -> tuple[SExprType, list[str]]:
+        """Dispatch token parsing based on the head token type."""
+        token_parsers = {
+            "(": lambda: self._parse_list_tokens(rest, ")", "Missing closing parenthesis"),
+            "[": lambda: self._parse_vector_tokens(rest),
+            "{": lambda: self._parse_map_tokens(rest),
+        }
+
+        if head in token_parsers:
+            return token_parsers[head]()
         if head in (")", "]", "}"):
             raise ParseError(f"Unexpected closing {head}")
         return self._parse_atom(head), rest
+
+    def _parse_list_tokens(
+        self, rest: list[str], closing_token: str, error_message: str
+    ) -> tuple[list[SExprType], list[str]]:
+        """Parse list tokens until closing delimiter."""
+        items: list[SExprType] = []
+        while rest and rest[0] != closing_token:
+            sub, rest = self._parse_tokens(rest)
+            items.append(sub)
+        if not rest or rest[0] != closing_token:
+            raise ParseError(error_message)
+        return items, rest[1:]
+
+    def _parse_vector_tokens(self, rest: list[str]) -> tuple[Vector, list[str]]:
+        """Parse vector tokens (square brackets)."""
+        items_v: list[SExprType] = []
+        while rest and rest[0] != "]":
+            sub, rest = self._parse_tokens(rest)
+            items_v.append(sub)
+        if not rest or rest[0] != "]":
+            raise ParseError("Missing closing bracket")
+        return Vector(items_v), rest[1:]
+
+    def _parse_map_tokens(self, rest: list[str]) -> tuple[dict[str, SExprType], list[str]]:
+        """Parse map tokens (curly braces)."""
+        mp: dict[str, SExprType] = {}
+        while rest and rest[0] != "}":
+            k, rest = self._parse_tokens(rest)
+            if not rest:
+                raise ParseError("Missing value in map")
+            v, rest = self._parse_tokens(rest)
+            mp[str(k)] = v
+        if not rest or rest[0] != "}":
+            raise ParseError("Missing closing brace")
+        return mp, rest[1:]
 
     def _parse_atom(self, token: str) -> str | int | float:
         if token.startswith('"') and token.endswith('"'):
@@ -197,35 +221,51 @@ class DSLParser:
 
     # ---------------- AST Conversion -----------------
     def _sexpr_to_ast(self, sexpr: SExprType, depth: int) -> ASTNode:
-        # Track depth first
+        """Convert S-expression to AST node with depth tracking and validation."""
+        # Track and validate depth
+        self._track_and_validate_depth(depth)
+
+        # Create the appropriate AST node
+        node = self._create_ast_node_from_sexpr(sexpr, depth)
+
+        # Handle interning and node counting
+        return self._finalize_ast_node(node)
+
+    def _track_and_validate_depth(self, depth: int) -> None:
+        """Track maximum depth and enforce limits."""
         if depth > self._max_depth_seen:
             self._max_depth_seen = depth
         # Enforce depth limit if configured
         if self._configured_max_depth is not None and depth > self._configured_max_depth:
             raise ParseError(f"Maximum AST depth exceeded: {self._configured_max_depth}")
 
-        # Create the node first
-        node: ASTNode
+    def _create_ast_node_from_sexpr(self, sexpr: SExprType, depth: int) -> ASTNode:
+        """Create the appropriate AST node based on S-expression type."""
         if isinstance(sexpr, int | float):
-            node = NumberLiteral(float(sexpr))
-        elif isinstance(sexpr, str):
-            node = Symbol(sexpr)
-        elif isinstance(sexpr, Vector):
+            return NumberLiteral(float(sexpr))
+        if isinstance(sexpr, str):
+            return Symbol(sexpr)
+        if isinstance(sexpr, Vector):
             inner = [self._sexpr_to_ast(e, depth + 1) for e in sexpr.elements]
-            node = Group("__vector__", inner)
-        elif isinstance(sexpr, list):
-            if not sexpr:
-                raise ParseError("Empty list expression")
-            op = sexpr[0]
-            if not isinstance(op, str):
-                raise ParseError(f"Operator must be symbol, got {type(op)}")
-            raw_args = sexpr[1:]
-            node = self._parse_construct(op, raw_args, depth)
-        elif isinstance(sexpr, dict):  # metadata map placeholder
-            node = Symbol("__map__")
-        else:
-            raise ParseError(f"Unexpected S-expression type: {type(sexpr)}")
+            return Group("__vector__", inner)
+        if isinstance(sexpr, list):
+            return self._create_ast_node_from_list(sexpr, depth)
+        if isinstance(sexpr, dict):  # metadata map placeholder
+            return Symbol("__map__")
+        raise ParseError(f"Unexpected S-expression type: {type(sexpr)}")
 
+    def _create_ast_node_from_list(self, sexpr: list, depth: int) -> ASTNode:
+        """Create AST node from list S-expression (function call)."""
+        if not sexpr:
+            raise ParseError("Empty list expression")
+        op = sexpr[0]
+        if not isinstance(op, str):
+            raise ParseError(f"Operator must be symbol, got {type(op)}")
+        raw_args = sexpr[1:]
+        return self._parse_construct(op, raw_args, depth)
+
+    def _finalize_ast_node(self, node: ASTNode) -> ASTNode:
+        """Apply interning and node counting to finalize the AST node."""
         # Apply interning if enabled, which may return an existing instance
         if self._enable_interning:
             from the_alchemiser.strategy.dsl.interning import intern_node
@@ -261,39 +301,67 @@ class DSLParser:
         return flat
 
     def _parse_construct(self, operator: str, args: list[SExprType], depth: int) -> ASTNode:
+        """Parse a construct based on the operator, using dispatch table for efficiency."""
         ast_args = [self._sexpr_to_ast(a, depth + 1) for a in args]
-        if operator in {
-            "weight-equal",
-            "group",
-            "weight-inverse-volatility",
-            "weight-specified",
-        }:
-            ast_args = self._flatten_vector_nodes(ast_args)
-        elif operator == "filter" and len(ast_args) >= 3:
-            _metric_ast, _selector_ast, *assets = ast_args
-            if len(assets) == 1 and isinstance(assets[0], Group) and assets[0].name == "__vector__":
-                assets = assets[0].expressions
-            # Rebuild raw args for downstream parse method using original SExpr for indicator semantics
-            args = [
-                args[0],
-                args[1],
-                *[self._ast_to_sexpr_placeholder(a) for a in assets],
-            ]
-        elif operator == "if":
-            if len(ast_args) >= 2:
-                then_nodes = self._unwrap_vector_group(ast_args[1])
-                ast_args[1] = (
-                    then_nodes[0]
-                    if len(then_nodes) == 1
-                    else Group("__implicit_block__", then_nodes)
-                )
-            if len(ast_args) >= 3:
-                else_nodes = self._unwrap_vector_group(ast_args[2])
-                ast_args[2] = (
-                    else_nodes[0]
-                    if len(else_nodes) == 1
-                    else Group("__implicit_block__", else_nodes)
-                )
+
+        # Handle special preprocessing for certain operators
+        ast_args = self._preprocess_construct_args(operator, ast_args, args)
+
+        # Handle special cases that don't use standard dispatch
+        if special_result := self._handle_special_constructs(operator, ast_args, args, depth):
+            return special_result
+
+        # Use dispatch table for standard constructs
+        return self._dispatch_construct_parsing(operator, args, depth)
+
+    def _preprocess_construct_args(
+        self, operator: str, ast_args: list[ASTNode], args: list[SExprType]
+    ) -> list[ASTNode]:
+        """Preprocess AST arguments for operators that need special handling."""
+        if operator in {"weight-equal", "group", "weight-inverse-volatility", "weight-specified"}:
+            return self._flatten_vector_nodes(ast_args)
+        if operator == "filter" and len(ast_args) >= 3:
+            return self._preprocess_filter_args(ast_args, args)
+        if operator == "if":
+            return self._preprocess_if_args(ast_args)
+        return ast_args
+
+    def _preprocess_filter_args(
+        self, ast_args: list[ASTNode], args: list[SExprType]
+    ) -> list[ASTNode]:
+        """Preprocess filter arguments to handle vector unwrapping."""
+        _metric_ast, _selector_ast, *assets = ast_args
+        if len(assets) == 1 and isinstance(assets[0], Group) and assets[0].name == "__vector__":
+            assets = assets[0].expressions
+        # Rebuild raw args for downstream parse method using original SExpr for indicator semantics
+        # Create new args list to avoid modifying the original list passed as parameter
+        new_args = [
+            args[0],
+            args[1],
+            *[self._ast_to_sexpr_placeholder(a) for a in assets],
+        ]
+        args[:] = new_args
+        return ast_args
+
+    def _preprocess_if_args(self, ast_args: list[ASTNode]) -> list[ASTNode]:
+        """Preprocess if construct arguments."""
+        if len(ast_args) >= 2:
+            then_nodes = self._unwrap_vector_group(ast_args[1])
+            ast_args[1] = (
+                then_nodes[0] if len(then_nodes) == 1 else Group("__implicit_block__", then_nodes)
+            )
+        if len(ast_args) >= 3:
+            else_nodes = self._unwrap_vector_group(ast_args[2])
+            ast_args[2] = (
+                else_nodes[0] if len(else_nodes) == 1 else Group("__implicit_block__", else_nodes)
+            )
+        return ast_args
+
+    def _handle_special_constructs(
+        self, operator: str, ast_args: list[ASTNode], args: list[SExprType], depth: int
+    ) -> ASTNode | None:
+        """Handle special constructs that need custom logic."""
+        if operator == "if":
             if len(ast_args) < 2 or len(ast_args) > 3:
                 raise SchemaError(
                     "if requires 2-3 arguments: condition, then_expr, [else_expr]",
@@ -301,42 +369,37 @@ class DSLParser:
                     actual_arity=len(ast_args),
                 )
             return If(ast_args[0], ast_args[1], ast_args[2] if len(ast_args) == 3 else None)
+        return None
 
-        # Dispatch using original raw args for indicator/construct parse helpers
-        if operator == ">":
-            return self._parse_comparison(GreaterThan, args, depth)
-        if operator == "<":
-            return self._parse_comparison(LessThan, args, depth)
-        if operator == "rsi":
-            return self._parse_rsi(args, depth)
-        if operator == "moving-average-price":
-            return self._parse_moving_average_price(args, depth)
-        if operator == "moving-average-return":
-            return self._parse_moving_average_return(args, depth)
-        if operator == "cumulative-return":
-            return self._parse_cumulative_return(args, depth)
-        if operator == "current-price":
-            return self._parse_current_price(args, depth)
-        if operator == "stdev-return":
-            return self._parse_stdev_return(args, depth)
-        if operator == "asset":
-            return self._parse_asset(args, depth)
-        if operator == "group":
-            return self._parse_group(args, depth)
-        if operator == "weight-equal":
-            return self._parse_weight_equal(args, depth)
-        if operator == "weight-specified":
-            return self._parse_weight_specified(args, depth)
-        if operator == "weight-inverse-volatility":
-            return self._parse_weight_inverse_volatility(args, depth)
-        if operator == "filter":
-            return self._parse_filter(args, depth)
-        if operator == "select-top":
-            return self._parse_select_top(args, depth)
-        if operator == "select-bottom":
-            return self._parse_select_bottom(args, depth)
-        if operator == "defsymphony":
-            return self._parse_strategy(args, depth)
+    def _dispatch_construct_parsing(
+        self, operator: str, args: list[SExprType], depth: int
+    ) -> ASTNode:
+        """Dispatch construct parsing using a lookup table."""
+        # Create dispatch table for construct parsers
+        construct_parsers = {
+            ">": lambda: self._parse_comparison(GreaterThan, args, depth),
+            "<": lambda: self._parse_comparison(LessThan, args, depth),
+            "rsi": lambda: self._parse_rsi(args, depth),
+            "moving-average-price": lambda: self._parse_moving_average_price(args, depth),
+            "moving-average-return": lambda: self._parse_moving_average_return(args, depth),
+            "cumulative-return": lambda: self._parse_cumulative_return(args, depth),
+            "current-price": lambda: self._parse_current_price(args, depth),
+            "stdev-return": lambda: self._parse_stdev_return(args, depth),
+            "asset": lambda: self._parse_asset(args, depth),
+            "group": lambda: self._parse_group(args, depth),
+            "weight-equal": lambda: self._parse_weight_equal(args, depth),
+            "weight-specified": lambda: self._parse_weight_specified(args, depth),
+            "weight-inverse-volatility": lambda: self._parse_weight_inverse_volatility(args, depth),
+            "filter": lambda: self._parse_filter(args, depth),
+            "select-top": lambda: self._parse_select_top(args, depth),
+            "select-bottom": lambda: self._parse_select_bottom(args, depth),
+            "defsymphony": lambda: self._parse_strategy(args, depth),
+        }
+
+        # Use dispatch table or fall back to generic function call
+        if operator in construct_parsers:
+            return construct_parsers[operator]()
+
         return FunctionCall(operator, [self._sexpr_to_ast(a, depth + 1) for a in args])
 
     def _ast_to_sexpr_placeholder(self, node: ASTNode) -> SExprType:

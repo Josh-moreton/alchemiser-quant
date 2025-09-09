@@ -364,68 +364,20 @@ class AccountFacade:
             Dict mapping symbols to current prices, excluding symbols with invalid prices
 
         """
-        if not symbols or not isinstance(symbols, list):
-            self.logger.warning(f"Invalid symbols list provided: {symbols}")
-            return {}
-
-        # Clean and validate symbols
-        valid_symbols = [s.upper() for s in symbols if isinstance(s, str) and s.strip()]
-
+        # Validate and clean input symbols
+        valid_symbols = self._validate_and_clean_symbols(symbols)
         if not valid_symbols:
-            self.logger.warning("No valid symbols provided to get_current_prices")
             return {}
 
         try:
-            # Try MarketDataService batch method if available
-            if self._market_data_service is not None:
-                try:
-                    # MarketDataService may not have batch method, fall back to individual calls
-                    if hasattr(self._market_data_service, "get_current_prices"):
-                        prices = cast(Any, self._market_data_service).get_current_prices(
-                            valid_symbols
-                        )
-                        if prices:
-                            # Validate prices
-                            valid_prices = {}
-                            for symbol, price in prices.items():
-                                if price and price > 0:
-                                    valid_prices[symbol] = price
-                                else:
-                                    self.logger.warning(
-                                        f"Invalid price from MarketDataService for {symbol}: {price}"
-                                    )
-                            return valid_prices
-                    else:
-                        # Fall back to individual calls through MarketDataService
-                        valid_prices = {}
-                        for symbol in valid_symbols:
-                            price = self._market_data_service.get_validated_price(symbol)
-                            if price is not None and price > 0:
-                                valid_prices[symbol] = price
-                            else:
-                                self.logger.warning(
-                                    f"Invalid price from MarketDataService for {symbol}: {price}"
-                                )
-                        return valid_prices
-                except (AttributeError, NotImplementedError):
-                    # Fall through to AccountService
-                    pass
+            # Try primary data source (MarketDataService)
+            prices = self._try_market_data_service_prices(valid_symbols)
+            if prices is not None:
+                return self._validate_and_filter_prices(prices, "MarketDataService")
 
-            # Fallback to AccountService batch method
+            # Fallback to AccountService
             prices = self._account_service.get_current_prices(valid_symbols)
-
-            # Facade-level validation and logging
-            valid_prices = {}
-            for symbol, price in prices.items():
-                if price and price > 0:
-                    valid_prices[symbol] = price
-                else:
-                    self.logger.warning(f"Invalid price from AccountService for {symbol}: {price}")
-
-            self.logger.debug(
-                f"Retrieved {len(valid_prices)} valid prices out of {len(valid_symbols)} requested"
-            )
-            return valid_prices
+            return self._validate_and_filter_prices(prices, "AccountService")
 
         except (
             DataProviderError,
@@ -437,6 +389,65 @@ class AccountFacade:
         ) as e:
             self.logger.error(f"Failed to get current prices: {e}")
             return {}
+
+    def _validate_and_clean_symbols(self, symbols: list[str]) -> list[str]:
+        """Validate and clean the input symbols list."""
+        if not symbols or not isinstance(symbols, list):
+            self.logger.warning(f"Invalid symbols list provided: {symbols}")
+            return []
+
+        # Clean and validate symbols
+        valid_symbols = [s.upper() for s in symbols if isinstance(s, str) and s.strip()]
+
+        if not valid_symbols:
+            self.logger.warning("No valid symbols provided to get_current_prices")
+            return []
+
+        return valid_symbols
+
+    def _try_market_data_service_prices(self, valid_symbols: list[str]) -> dict[str, float] | None:
+        """Try to get prices from MarketDataService, return None if not available."""
+        if self._market_data_service is None:
+            return None
+
+        try:
+            # Try batch method if available
+            if hasattr(self._market_data_service, "get_current_prices"):
+                prices = cast(Any, self._market_data_service).get_current_prices(valid_symbols)
+                if prices:
+                    return prices
+
+            # Fall back to individual calls through MarketDataService
+            return self._get_individual_prices_from_market_data(valid_symbols)
+
+        except (AttributeError, NotImplementedError):
+            # Fall through to AccountService
+            return None
+
+    def _get_individual_prices_from_market_data(self, valid_symbols: list[str]) -> dict[str, float]:
+        """Get prices individually from MarketDataService when batch method unavailable."""
+        valid_prices = {}
+        for symbol in valid_symbols:
+            price = self._market_data_service.get_validated_price(symbol)
+            if price is not None and price > 0:
+                valid_prices[symbol] = price
+            else:
+                self.logger.warning(f"Invalid price from MarketDataService for {symbol}: {price}")
+        return valid_prices
+
+    def _validate_and_filter_prices(
+        self, prices: dict[str, float], source: str
+    ) -> dict[str, float]:
+        """Validate and filter prices, removing invalid ones."""
+        valid_prices = {}
+        for symbol, price in prices.items():
+            if price and price > 0:
+                valid_prices[symbol] = price
+            else:
+                self.logger.warning(f"Invalid price from {source} for {symbol}: {price}")
+
+        self.logger.debug(f"Retrieved {len(valid_prices)} valid prices from {source}")
+        return valid_prices
 
     # --- Typed Domain Integration Methods ---
 
