@@ -587,9 +587,6 @@ class TradingEngine:
             List of executed orders during rebalancing as OrderDetails.
 
         """
-        # Import asyncio for running async method
-        import asyncio
-        
         # === ENHANCED LOGGING: TRADING ENGINE ENTRY POINT ===
         logging.info("=== TRADING ENGINE REBALANCE_PORTFOLIO ENTRY ===")
         logging.info(f"ENGINE TYPE: {type(self).__name__}")
@@ -661,10 +658,10 @@ class TradingEngine:
         
         try:
             # Delegate to the rebalancing orchestrator for sequential execution
-            # The orchestrator method is async, so we need to run it properly
-            orders_result: list[OrderDetails] = asyncio.run(self._rebalancing_orchestrator.execute_full_rebalance_cycle(
+            # The RebalancingOrchestratorFacade provides a synchronous interface
+            orders_result: list[OrderDetails] = self._rebalancing_orchestrator.execute_full_rebalance_cycle(
                 target_portfolio, strategy_attribution
-            ))
+            )
             
             # === EXECUTION RESULTS ANALYSIS ===
             logging.info("=== TRADING ENGINE EXECUTION RESULTS ===")
