@@ -19,8 +19,8 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict
 
-from the_alchemiser.shared.dto.execution_report_dto import ExecutionReportDTO
 from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
+from the_alchemiser.shared.schemas.execution_summary import ExecutionSummary
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, StrategySignal
 
 if TYPE_CHECKING:
@@ -57,7 +57,7 @@ class MultiStrategyExecutionResultDTO(BaseModel):
     account_info_after: AccountInfo
 
     # Structured execution summary and portfolio state
-    execution_summary: ExecutionReportDTO
+    execution_summary: ExecutionSummary
     final_portfolio_state: PortfolioStateDTO | None = None
 
 
