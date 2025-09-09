@@ -398,8 +398,6 @@ class PortfolioManagementFacade:
         full_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights_decimal)
 
         # Add logging for debugging trade instruction flow
-        import logging
-
         logger = logging.getLogger(__name__)
         logger.info(f"=== PORTFOLIO PHASE FILTERING: {phase_normalized.upper()} ===")
         logger.info(f"Full plan contains {len(full_plan.plans)} symbols")
@@ -423,11 +421,11 @@ class PortfolioManagementFacade:
         }
 
         logger.info(f"Phase '{phase_normalized}' filtering logic:")
-        logger.info(f"  - Looking for symbols with needs_rebalance=True")
+        logger.info("  - Looking for symbols with needs_rebalance=True")
         if phase_normalized == "sell":
-            logger.info(f"  - AND trade_amount < 0 (SELL orders)")
+            logger.info("  - AND trade_amount < 0 (SELL orders)")
         else:
-            logger.info(f"  - AND trade_amount > 0 (BUY orders)")
+            logger.info("  - AND trade_amount > 0 (BUY orders)")
         
         logger.info(f"After filtering: {len(filtered_plan)} symbols match criteria")
         

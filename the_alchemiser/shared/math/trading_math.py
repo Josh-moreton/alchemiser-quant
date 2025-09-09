@@ -362,25 +362,25 @@ def calculate_rebalance_amounts(
         trade_amount = target_value - current_value
         needs_rebalance = abs(weight_diff) >= min_trade_threshold
 
-        # Add detailed threshold logging for all symbols
-        logging.info(f"=== THRESHOLD CHECK: {symbol} ===")
-        logging.info(
+        # Add detailed threshold logging for all symbols (using debug level for verbose output)
+        logger.debug(f"=== THRESHOLD CHECK: {symbol} ===")
+        logger.debug(
             f"{symbol}: Current {current_weight:.3f}% ({current_weight * 100:.1f}%), Target {target_weight:.3f}% ({target_weight * 100:.1f}%)"
         )
-        logging.info(f"{symbol}: Weight difference {weight_diff:.3f}% ({weight_diff * 100:.1f}%)")
-        logging.info(
+        logger.debug(f"{symbol}: Weight difference {weight_diff:.3f}% ({weight_diff * 100:.1f}%)")
+        logger.debug(
             f"{symbol}: Threshold {min_trade_threshold:.3f}% ({min_trade_threshold * 100:.1f}%)"
         )
-        logging.info(
+        logger.debug(
             f"{symbol}: Needs rebalance: {needs_rebalance} (diff {abs(weight_diff):.4f} {'≥' if needs_rebalance else '<'} threshold {min_trade_threshold:.4f})"
         )
-        logging.info(f"{symbol}: Trade amount: ${trade_amount:.2f}")
+        logger.debug(f"{symbol}: Trade amount: ${trade_amount:.2f}")
 
         if needs_rebalance:
             symbols_needing_rebalance += 1
-            logging.info(f"{symbol}: ✅ TRADE REQUIRED - will be included in rebalancing plan")
+            logger.info(f"{symbol}: ✅ TRADE REQUIRED - will be included in rebalancing plan")
         else:
-            logging.info(f"{symbol}: ❌ NO TRADE NEEDED - below threshold")
+            logger.debug(f"{symbol}: ❌ NO TRADE NEEDED - below threshold")
 
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(

@@ -5,6 +5,7 @@ Portfolio rebalancing service - main application orchestrator.
 
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
 from typing import Any
 
@@ -36,6 +37,9 @@ from ..state.attribution_engine import (
 )
 from .rebalance_calculator import RebalanceCalculator
 from .rebalance_plan import RebalancePlan
+
+# Module logger for consistent logging
+logger = logging.getLogger(__name__)
 
 
 class PortfolioRebalancingService:
@@ -720,9 +724,6 @@ class PortfolioRebalancingService:
             position_values = {}
 
             # DEBUG: Log what positions we got
-            import logging
-
-            logger = logging.getLogger(__name__)
             logger.info("DEBUG: _get_current_position_values called")
             logger.info(
                 f"DEBUG: positions_data success: {positions_data.get('success') if positions_data else 'None'}"

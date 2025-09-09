@@ -6,6 +6,7 @@ Updated to use shared broker abstractions for reduced coupling.
 
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
 from typing import Any
 
@@ -18,6 +19,9 @@ from the_alchemiser.shared.types.broker_enums import BrokerOrderSide
 from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
 
 from .rebalance_plan import RebalancePlan
+
+# Module logger for consistent logging
+logger = logging.getLogger(__name__)
 
 
 class RebalanceExecutionService:
@@ -74,9 +78,6 @@ class RebalanceExecutionService:
             }
 
             # Add logging for debugging trade instruction flow
-            import logging
-
-            logger = logging.getLogger(__name__)
             logger.info(f"Execution service processing {len(rebalance_plan)} rebalance plans")
 
             needs_rebalance_count = sum(
