@@ -48,7 +48,7 @@ class MultiStrategyExecutionResultDTO(BaseModel):
     success: bool
 
     # Strategy data
-    strategy_signals: dict[StrategyType, StrategySignal]
+    strategy_signals: dict[str, StrategySignal]
     consolidated_portfolio: dict[str, float]
 
     # Order execution results
