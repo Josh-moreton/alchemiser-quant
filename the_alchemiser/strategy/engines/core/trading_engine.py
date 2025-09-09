@@ -587,10 +587,22 @@ class TradingEngine:
             List of executed orders during rebalancing as OrderDetails.
 
         """
+        # Import asyncio for running async method
+        import asyncio
+        
+        # Add logging to trace the issue
+        logging.info("TradingEngine.rebalance_portfolio: Calling async rebalancing orchestrator")
+        
         # Delegate to the rebalancing orchestrator for sequential execution
-        return self._rebalancing_orchestrator.execute_full_rebalance_cycle(
+        # The orchestrator method is async, so we need to run it properly
+        orders_result: list[OrderDetails] = asyncio.run(self._rebalancing_orchestrator.execute_full_rebalance_cycle(
             target_portfolio, strategy_attribution
-        )
+        ))
+        
+        logging.info(f"TradingEngine.rebalance_portfolio: Orchestrator returned {len(orders_result) if orders_result else 0} orders")
+        logging.info(f"TradingEngine.rebalance_portfolio: Orders type: {type(orders_result)}")
+        
+        return orders_result
 
     def execute_rebalancing(
         self, target_allocations: dict[str, float], mode: str = "market"
