@@ -28,7 +28,7 @@ from the_alchemiser.strategy.mappers.mappers import (
     map_signals_dict as _map_signals_to_typed,
 )
 
-from ..reporting.reporting import (
+from the_alchemiser.shared.reporting.reporting import (
     build_portfolio_state_data,
     create_execution_summary,
     save_dashboard_data,
