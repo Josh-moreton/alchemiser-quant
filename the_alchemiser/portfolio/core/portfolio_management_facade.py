@@ -505,6 +505,121 @@ class PortfolioManagementFacade:
             logger.error(f"❌ PLAN_CONTENT: {full_plan}")
             return []
 
+        # === COMPREHENSIVE TRADE TRACKING ANALYSIS ===
+        logger.info("=== COMPREHENSIVE TRADE TRACKING ANALYSIS ===")
+        trade_tracking_summary: dict[str, Any] = {
+            "total_symbols": len(full_plan.plans),
+            "symbols_with_sell_trades": [],
+            "symbols_with_buy_trades": [],
+            "symbols_need_rebalance_true": [],
+            "symbols_need_rebalance_false": [],
+            "total_sell_amount": Decimal("0"),
+            "total_buy_amount": Decimal("0"),
+            "expected_for_current_phase": [],
+        }
+
+        # Enhanced logging for each symbol in the plan with trade flow analysis
+        logger.info("=== DETAILED TRADE FLOW BREAKDOWN ===")
+        for symbol, plan in full_plan.plans.items():
+            logger.info(f"TRADE_FLOW_{symbol}:")
+            logger.info(f"  Plan Type: {type(plan)}")
+            
+            # Extract all key attributes safely
+            needs_rebalance = getattr(plan, "needs_rebalance", None)
+            trade_amount = getattr(plan, "trade_amount", None)
+            current_value = getattr(plan, "current_value", None)
+            target_value = getattr(plan, "target_value", None)
+            current_weight = getattr(plan, "current_weight", None)
+            target_weight = getattr(plan, "target_weight", None)
+            
+            logger.info(f"  needs_rebalance: {needs_rebalance} (type: {type(needs_rebalance)})")
+            logger.info(f"  trade_amount: {trade_amount} (type: {type(trade_amount)})")
+            logger.info(f"  current_value: {current_value}")
+            logger.info(f"  target_value: {target_value}")
+            logger.info(f"  current_weight: {current_weight}")
+            logger.info(f"  target_weight: {target_weight}")
+
+            # Analyze trade direction and potential for execution
+            if trade_amount is not None:
+                try:
+                    trade_amount_float = float(trade_amount)
+                    logger.info(f"  trade_amount_float: {trade_amount_float}")
+                    
+                    if trade_amount_float < 0:
+                        trade_tracking_summary["symbols_with_sell_trades"].append(symbol)
+                        trade_tracking_summary["total_sell_amount"] += Decimal(str(abs(trade_amount_float)))
+                        logger.info(f"  → SELL TRADE DETECTED: ${abs(trade_amount_float):,.2f}")
+                        
+                        # Check if this symbol should match current phase criteria
+                        if phase_normalized == "sell" and needs_rebalance is True:
+                            trade_tracking_summary["expected_for_current_phase"].append(symbol)
+                            logger.info("  🎯 SHOULD_MATCH_SELL_PHASE: YES")
+                        elif phase_normalized == "sell":
+                            logger.info(f"  ❌ SHOULD_MATCH_SELL_PHASE: NO (needs_rebalance={needs_rebalance})")
+                            
+                    elif trade_amount_float > 0:
+                        trade_tracking_summary["symbols_with_buy_trades"].append(symbol)
+                        trade_tracking_summary["total_buy_amount"] += Decimal(str(trade_amount_float))
+                        logger.info(f"  → BUY TRADE DETECTED: ${trade_amount_float:,.2f}")
+                        
+                        # Check if this symbol should match current phase criteria
+                        if phase_normalized == "buy" and needs_rebalance is True:
+                            trade_tracking_summary["expected_for_current_phase"].append(symbol)
+                            logger.info("  🎯 SHOULD_MATCH_BUY_PHASE: YES")
+                        elif phase_normalized == "buy":
+                            logger.info(f"  ❌ SHOULD_MATCH_BUY_PHASE: NO (needs_rebalance={needs_rebalance})")
+                            
+                    else:
+                        logger.info("  → NO TRADE REQUIRED: $0.00")
+                except (ValueError, TypeError) as e:
+                    logger.error(f"  ❌ ERROR converting trade_amount: {e}")
+
+            # Track rebalance flags
+            if needs_rebalance is True:
+                trade_tracking_summary["symbols_need_rebalance_true"].append(symbol)
+                logger.info("  → NEEDS_REBALANCE: TRUE")
+            elif needs_rebalance is False:
+                trade_tracking_summary["symbols_need_rebalance_false"].append(symbol)
+                logger.info("  → NEEDS_REBALANCE: FALSE")
+            else:
+                logger.error(f"  ❌ NEEDS_REBALANCE: INVALID VALUE ({needs_rebalance})")
+
+        # === TRADE SUMMARY ANALYSIS ===
+        logger.info("=== TRADE SUMMARY FROM STRATEGY ===")
+        logger.info(f"TOTAL_SYMBOLS_IN_PLAN: {trade_tracking_summary['total_symbols']}")
+        logger.info(f"SYMBOLS_WITH_SELL_TRADES: {trade_tracking_summary['symbols_with_sell_trades']} (count: {len(trade_tracking_summary['symbols_with_sell_trades'])})")
+        logger.info(f"SYMBOLS_WITH_BUY_TRADES: {trade_tracking_summary['symbols_with_buy_trades']} (count: {len(trade_tracking_summary['symbols_with_buy_trades'])})")
+        logger.info(f"TOTAL_SELL_AMOUNT: ${trade_tracking_summary['total_sell_amount']}")
+        logger.info(f"TOTAL_BUY_AMOUNT: ${trade_tracking_summary['total_buy_amount']}")
+        logger.info(f"SYMBOLS_NEED_REBALANCE_TRUE: {trade_tracking_summary['symbols_need_rebalance_true']} (count: {len(trade_tracking_summary['symbols_need_rebalance_true'])})")
+        logger.info(f"SYMBOLS_NEED_REBALANCE_FALSE: {trade_tracking_summary['symbols_need_rebalance_false']} (count: {len(trade_tracking_summary['symbols_need_rebalance_false'])})")
+
+        # === PHASE-SPECIFIC EXPECTATIONS ===
+        if phase_normalized == "sell":
+            expected_trades = trade_tracking_summary["symbols_with_sell_trades"]
+            expected_amount = trade_tracking_summary["total_sell_amount"]
+            logger.info(f"🎯 SELL_PHASE_EXPECTATIONS: {len(expected_trades)} symbols should produce SELL orders")
+            logger.info(f"🎯 EXPECTED_SELL_SYMBOLS: {expected_trades}")
+            logger.info(f"🎯 EXPECTED_SELL_AMOUNT: ${expected_amount}")
+        else:  # buy phase
+            expected_trades = trade_tracking_summary["symbols_with_buy_trades"]
+            expected_amount = trade_tracking_summary["total_buy_amount"]
+            logger.info(f"🎯 BUY_PHASE_EXPECTATIONS: {len(expected_trades)} symbols should produce BUY orders")
+            logger.info(f"🎯 EXPECTED_BUY_SYMBOLS: {expected_trades}")
+            logger.info(f"🎯 EXPECTED_BUY_AMOUNT: ${expected_amount}")
+
+        # Critical trade loss detection
+        logger.info(f"🎯 SYMBOLS_EXPECTED_TO_MATCH_CURRENT_PHASE: {trade_tracking_summary['expected_for_current_phase']} (count: {len(trade_tracking_summary['expected_for_current_phase'])})")
+        
+        if phase_normalized == "sell" and len(expected_trades) == 0:
+            logger.warning("⚠️ NO_SELL_TRADES_DETECTED: This may indicate strategy misconfiguration")
+        elif phase_normalized == "buy" and len(expected_trades) == 0:
+            logger.warning("⚠️ NO_BUY_TRADES_DETECTED: This may indicate strategy misconfiguration")
+
+        if len(trade_tracking_summary["expected_for_current_phase"]) == 0:
+            logger.error(f"🚨 CRITICAL: NO SYMBOLS EXPECTED TO MATCH {phase_normalized.upper()} PHASE CRITERIA")
+            logger.error(f"🚨 This indicates that even before filtering, we have no valid {phase_normalized} trades")
+
         # Add logging for debugging trade instruction flow
         logger = logging.getLogger(__name__)
         logger.info(f"=== PORTFOLIO PHASE FILTERING: {phase_normalized.upper()} ===")
@@ -906,6 +1021,69 @@ class PortfolioManagementFacade:
         logger.info(f"  Actual:   {actual_symbols}")
 
         if filtered_plan:
+            # === SUCCESSFUL FILTERING ANALYSIS ===
+            logger.info("✅ FILTERING SUCCESS: SYMBOLS MATCHED CRITERIA")
+            logger.info("=== SUCCESSFUL TRADE FLOW ANALYSIS ===")
+            
+            actual_symbols = list(filtered_plan.keys())
+            logger.info(f"POST_FILTER_SUCCESS_COUNT: {len(filtered_plan)}")
+            logger.info(f"POST_FILTER_SUCCESS_SYMBOLS: {actual_symbols}")
+            
+            # Detailed analysis of what trades made it through
+            total_filtered_sell_amount = Decimal("0")
+            total_filtered_buy_amount = Decimal("0")
+            filtered_sell_trades = []
+            filtered_buy_trades = []
+            
+            logger.info("=== TRADES THAT MADE IT THROUGH FILTERING ===")
+            for symbol in actual_symbols:
+                plan = filtered_plan[symbol]
+                trade_amount = getattr(plan, "trade_amount", None)
+                if trade_amount is not None:
+                    try:
+                        trade_float = float(trade_amount)
+                        logger.info(f"FILTERED_TRADE_{symbol}: ${trade_float:,.2f}")
+                        
+                        if trade_float < 0:
+                            filtered_sell_trades.append(symbol)
+                            total_filtered_sell_amount += Decimal(str(abs(trade_float)))
+                            logger.info(f"  → SELL TRADE: ${abs(trade_float):,.2f}")
+                        elif trade_float > 0:
+                            filtered_buy_trades.append(symbol)
+                            total_filtered_buy_amount += Decimal(str(trade_float))
+                            logger.info(f"  → BUY TRADE: ${trade_float:,.2f}")
+                    except (ValueError, TypeError) as e:
+                        logger.error(f"  ❌ ERROR processing trade_amount for {symbol}: {e}")
+            
+            logger.info("=== FILTERED TRADE SUMMARY ===")
+            logger.info(f"FILTERED_SELL_TRADES: {filtered_sell_trades} (count: {len(filtered_sell_trades)})")
+            logger.info(f"FILTERED_BUY_TRADES: {filtered_buy_trades} (count: {len(filtered_buy_trades)})")
+            logger.info(f"FILTERED_TOTAL_SELL_AMOUNT: ${total_filtered_sell_amount}")
+            logger.info(f"FILTERED_TOTAL_BUY_AMOUNT: ${total_filtered_buy_amount}")
+            
+            # Compare filtered trades to original expectations
+            if phase_normalized == "sell":
+                original_expected = trade_tracking_summary["symbols_with_sell_trades"]
+                original_amount = trade_tracking_summary["total_sell_amount"]
+                logger.info("SELL_TRADE_COMPARISON:")
+                logger.info(f"  Original expected: {original_expected} (${original_amount})")
+                logger.info(f"  Filtered result: {filtered_sell_trades} (${total_filtered_sell_amount})")
+                
+                if len(filtered_sell_trades) < len(original_expected):
+                    missing_sells = set(original_expected) - set(filtered_sell_trades)
+                    logger.warning(f"⚠️ MISSING_SELL_TRADES: {list(missing_sells)}")
+                    
+            else:  # buy phase
+                original_expected = trade_tracking_summary["symbols_with_buy_trades"]
+                original_amount = trade_tracking_summary["total_buy_amount"]
+                logger.info("BUY_TRADE_COMPARISON:")
+                logger.info(f"  Original expected: {original_expected} (${original_amount})")
+                logger.info(f"  Filtered result: {filtered_buy_trades} (${total_filtered_buy_amount})")
+                
+                if len(filtered_buy_trades) < len(original_expected):
+                    missing_buys = set(original_expected) - set(filtered_buy_trades)
+                    logger.warning(f"⚠️ MISSING_BUY_TRADES: {list(missing_buys)}")
+
             logger.info(f"Symbols to execute in {phase_normalized} phase: {actual_symbols}")
         else:
             logger.warning(
@@ -925,6 +1103,50 @@ class PortfolioManagementFacade:
                 logger.debug(f"Filtered symbol for execution: {symbol}")
 
         if not filtered_plan:
+            # === COMPREHENSIVE TRADE LOSS ANALYSIS ===
+            logger.error("❌ CRITICAL FILTERING FAILURE: NO SYMBOLS MATCHED CRITERIA")
+            logger.error("=== COMPREHENSIVE TRADE LOSS ANALYSIS ===")
+            
+            # Compare what we expected vs what we got
+            logger.error(f"PRE_FILTER_EXPECTED_COUNT: {len(trade_tracking_summary['expected_for_current_phase'])}")
+            logger.error(f"PRE_FILTER_EXPECTED_SYMBOLS: {trade_tracking_summary['expected_for_current_phase']}")
+            logger.error(f"POST_FILTER_ACTUAL_COUNT: {len(filtered_plan)}")
+            logger.error(f"POST_FILTER_ACTUAL_SYMBOLS: {list(filtered_plan.keys())}")
+            
+            # Detailed analysis of why each expected symbol was excluded
+            logger.error("=== WHY EACH EXPECTED SYMBOL WAS EXCLUDED ===")
+            for symbol in trade_tracking_summary["expected_for_current_phase"]:
+                if symbol in full_plan.plans:
+                    plan = full_plan.plans[symbol]
+                    logger.error(f"EXCLUDED_SYMBOL_{symbol}:")
+                    logger.error(f"  needs_rebalance: {getattr(plan, 'needs_rebalance', 'MISSING')}")
+                    logger.error(f"  trade_amount: {getattr(plan, 'trade_amount', 'MISSING')}")
+                    
+                    # Check each filtering condition
+                    needs_rebal = getattr(plan, "needs_rebalance", None)
+                    trade_amt = getattr(plan, "trade_amount", None)
+                    
+                    if needs_rebal is not True:
+                        logger.error(f"  ❌ FAILED_CONDITION: needs_rebalance is not True ({needs_rebal})")
+                    else:
+                        logger.error("  ✅ PASSED_CONDITION: needs_rebalance=True")
+                    
+                    if trade_amt is not None:
+                        try:
+                            trade_float = float(trade_amt)
+                            if phase_normalized == "sell" and trade_float >= 0:
+                                logger.error(f"  ❌ FAILED_CONDITION: SELL phase but trade_amount >= 0 ({trade_float})")
+                            elif phase_normalized == "buy" and trade_float <= 0:
+                                logger.error(f"  ❌ FAILED_CONDITION: BUY phase but trade_amount <= 0 ({trade_float})")
+                            else:
+                                logger.error(f"  ✅ PASSED_CONDITION: {phase_normalized} phase trade_amount condition met ({trade_float})")
+                        except (ValueError, TypeError) as e:
+                            logger.error(f"  ❌ FAILED_CONDITION: Cannot convert trade_amount to float: {e}")
+                    else:
+                        logger.error("  ❌ FAILED_CONDITION: trade_amount is None")
+                else:
+                    logger.error(f"EXCLUDED_SYMBOL_{symbol}: NOT FOUND IN FULL PLAN")
+
             # Enhanced diagnostic analysis when no symbols match
             logger.error("❌ CRITICAL FILTERING FAILURE: NO SYMBOLS MATCHED CRITERIA")
             logger.error("=== DIAGNOSTIC ANALYSIS ===")
@@ -934,6 +1156,7 @@ class PortfolioManagementFacade:
                 "total_symbols_in_plan": len(full_plan.plans) if hasattr(full_plan, "plans") else 0,
                 "symbols_with_needs_rebalance_true": 0,
                 "symbols_with_trade_amount_negative": 0,
+                "symbols_with_trade_amount_positive": 0,
                 "symbols_with_both_conditions": 0,
                 "filtering_errors_count": len(filtering_errors),
                 "phase": phase_normalized,
@@ -954,18 +1177,22 @@ class PortfolioManagementFacade:
                             if hasattr(plan.trade_amount, "__float__")
                             else plan.trade_amount
                         )
+                        # Phase-aware trade amount counting
                         if phase_normalized == "sell" and trade_amt_val < 0:
                             diagnostic_summary["symbols_with_trade_amount_negative"] += 1
+                        elif phase_normalized == "buy" and trade_amt_val > 0:
+                            diagnostic_summary["symbols_with_trade_amount_positive"] += 1
 
-                        if (
-                            has_needs_rebalance
-                            and plan.needs_rebalance
-                            and phase_normalized == "sell"
-                            and trade_amt_val < 0
-                        ):
+                        # Phase-aware both conditions check
+                        should_match_criteria = (
+                            (phase_normalized == "sell" and trade_amt_val < 0) or
+                            (phase_normalized == "buy" and trade_amt_val > 0)
+                        )
+                        
+                        if has_needs_rebalance and plan.needs_rebalance and should_match_criteria:
                             diagnostic_summary["symbols_with_both_conditions"] += 1
                             logger.error(
-                                f"❌ SYMBOL_SHOULD_MATCH_BUT_DIDNT: {symbol} (needs_rebalance={plan.needs_rebalance}, trade_amount={trade_amt_val})"
+                                f"❌ SYMBOL_SHOULD_MATCH_BUT_DIDNT: {symbol} (needs_rebalance={plan.needs_rebalance}, trade_amount={trade_amt_val}, phase={phase_normalized})"
                             )
 
                 except Exception as e:
@@ -979,8 +1206,10 @@ class PortfolioManagementFacade:
                 )
             elif diagnostic_summary["symbols_with_needs_rebalance_true"] == 0:
                 logger.error("❌ ROOT_CAUSE: No symbols have needs_rebalance=True")
-            elif diagnostic_summary["symbols_with_trade_amount_negative"] == 0:
+            elif phase_normalized == "sell" and diagnostic_summary["symbols_with_trade_amount_negative"] == 0:
                 logger.error("❌ ROOT_CAUSE: No symbols have negative trade_amount for SELL phase")
+            elif phase_normalized == "buy" and diagnostic_summary["symbols_with_trade_amount_positive"] == 0:
+                logger.error("❌ ROOT_CAUSE: No symbols have positive trade_amount for BUY phase")
             else:
                 logger.error("❌ ROOT_CAUSE: Unknown filtering failure")
 
@@ -988,6 +1217,92 @@ class PortfolioManagementFacade:
 
         # Convert filtered DTO plans to domain objects before execution
         domain_filtered_plan = dto_plans_to_domain(filtered_plan)
+
+        # === COMPREHENSIVE PRE-EXECUTION TRADE TRACKING ===
+        logger.info(f"=== PRE-EXECUTION TRADE TRACKING FOR {phase_normalized.upper()} PHASE ===")
+        logger.info(f"DOMAIN_FILTERED_PLAN_TYPE: {type(domain_filtered_plan)}")
+        logger.info(f"DOMAIN_FILTERED_PLAN_COUNT: {len(domain_filtered_plan) if domain_filtered_plan else 0}")
+        
+        if domain_filtered_plan:
+            execution_sell_trades = []
+            execution_buy_trades = []
+            execution_total_sell_amount = Decimal("0")
+            execution_total_buy_amount = Decimal("0")
+            
+            logger.info("=== DOMAIN PLANS BEING SENT TO EXECUTION ===")
+            for symbol, plan in domain_filtered_plan.items():
+                logger.info(f"EXECUTION_PLAN_{symbol}:")
+                logger.info(f"  Type: {type(plan)}")
+                logger.info(f"  needs_rebalance: {getattr(plan, 'needs_rebalance', 'MISSING')}")
+                
+                trade_amount = getattr(plan, "trade_amount", None)
+                logger.info(f"  trade_amount: {trade_amount} (type: {type(trade_amount)})")
+                
+                if trade_amount is not None:
+                    try:
+                        trade_float = float(trade_amount)
+                        logger.info(f"  trade_amount_float: {trade_float}")
+                        
+                        if trade_float < 0:
+                            execution_sell_trades.append(symbol)
+                            execution_total_sell_amount += Decimal(str(abs(trade_float)))
+                            logger.info(f"  → EXECUTION_SELL_TRADE: ${abs(trade_float):,.2f}")
+                        elif trade_float > 0:
+                            execution_buy_trades.append(symbol)
+                            execution_total_buy_amount += Decimal(str(trade_float))
+                            logger.info(f"  → EXECUTION_BUY_TRADE: ${trade_float:,.2f}")
+                        else:
+                            logger.info("  → NO_TRADE: $0.00")
+                    except (ValueError, TypeError) as e:
+                        logger.error(f"  ❌ ERROR processing trade_amount: {e}")
+                
+                # Log all other attributes for debugging
+                for attr in dir(plan):
+                    if not attr.startswith("_") and attr not in ["needs_rebalance", "trade_amount"]:
+                        try:
+                            value = getattr(plan, attr)
+                            logger.info(f"  {attr}: {value}")
+                        except Exception:
+                            logger.info(f"  {attr}: ERROR_ACCESSING")
+            
+            # Summary of what's being sent to execution
+            logger.info("=== EXECUTION TRADE SUMMARY ===")
+            logger.info(f"EXECUTION_SELL_TRADES: {execution_sell_trades} (count: {len(execution_sell_trades)})")
+            logger.info(f"EXECUTION_BUY_TRADES: {execution_buy_trades} (count: {len(execution_buy_trades)})")
+            logger.info(f"EXECUTION_TOTAL_SELL_AMOUNT: ${execution_total_sell_amount}")
+            logger.info(f"EXECUTION_TOTAL_BUY_AMOUNT: ${execution_total_buy_amount}")
+            
+            # Compare to original strategy expectations  
+            if phase_normalized == "sell":
+                original_expected_sells = trade_tracking_summary["symbols_with_sell_trades"]
+                logger.info("=== SELL PHASE EXECUTION vs STRATEGY COMPARISON ===")
+                logger.info(f"STRATEGY_EXPECTED_SELLS: {original_expected_sells}")
+                logger.info(f"EXECUTION_ACTUAL_SELLS: {execution_sell_trades}")
+                
+                if len(execution_sell_trades) == 0 and len(original_expected_sells) > 0:
+                    logger.error(f"🚨 CRITICAL: SELL TRADES LOST - Strategy expected {len(original_expected_sells)} SELL trades but execution is getting 0")
+                elif len(execution_sell_trades) < len(original_expected_sells):
+                    missing_sells = set(original_expected_sells) - set(execution_sell_trades)
+                    logger.warning(f"⚠️ SOME_SELL_TRADES_LOST: {list(missing_sells)}")
+                else:
+                    logger.info("✅ SELL_TRADES_PRESERVED: All expected SELL trades made it to execution")
+                    
+            else:  # buy phase
+                original_expected_buys = trade_tracking_summary["symbols_with_buy_trades"]
+                logger.info("=== BUY PHASE EXECUTION vs STRATEGY COMPARISON ===")
+                logger.info(f"STRATEGY_EXPECTED_BUYS: {original_expected_buys}")
+                logger.info(f"EXECUTION_ACTUAL_BUYS: {execution_buy_trades}")
+                
+                if len(execution_buy_trades) == 0 and len(original_expected_buys) > 0:
+                    logger.error(f"🚨 CRITICAL: BUY TRADES LOST - Strategy expected {len(original_expected_buys)} BUY trades but execution is getting 0")
+                elif len(execution_buy_trades) < len(original_expected_buys):
+                    missing_buys = set(original_expected_buys) - set(execution_buy_trades)
+                    logger.warning(f"⚠️ SOME_BUY_TRADES_LOST: {list(missing_buys)}")
+                else:
+                    logger.info("✅ BUY_TRADES_PRESERVED: All expected BUY trades made it to execution")
+                    
+        else:
+            logger.error("❌ DOMAIN_FILTERED_PLAN_IS_EMPTY - NO TRADES TO SEND TO EXECUTION")
 
         # Log before execution
         logger.info(f"=== EXECUTING {phase_normalized.upper()} PHASE ===")
@@ -1076,10 +1391,74 @@ class PortfolioManagementFacade:
         # Log final results
         logger.info(f"=== {phase_normalized.upper()} PHASE COMPLETE ===")
         logger.info(f"Final orders list: {len(orders_list)} orders created")
-        for i, order in enumerate(orders_list):
-            logger.info(
-                f"Order {i + 1}: {order['side']} {order['qty']} {order['symbol']} (ID: {order['id']})"
-            )
+        
+        if orders_list:
+            final_sell_orders = []
+            final_buy_orders = []
+            final_total_sell_amount = Decimal("0")
+            final_total_buy_amount = Decimal("0")
+            
+            for i, order in enumerate(orders_list):
+                side = order["side"]
+                qty = order["qty"]
+                symbol = order["symbol"]
+                order_id = order["id"]
+                
+                logger.info(f"FINAL_ORDER_{i + 1}: {side} {qty} {symbol} (ID: {order_id})")
+                
+                if side.lower() == "sell":
+                    final_sell_orders.append(symbol)
+                    # Estimate order value (qty * current price estimate)
+                    estimated_value = Decimal(str(qty * 100))  # Rough estimate
+                    final_total_sell_amount += estimated_value
+                elif side.lower() == "buy":
+                    final_buy_orders.append(symbol)
+                    estimated_value = Decimal(str(qty * 100))  # Rough estimate  
+                    final_total_buy_amount += estimated_value
+            
+            # Final comparison with original strategy expectations
+            logger.info("=== FINAL ORDERS vs ORIGINAL STRATEGY EXPECTATIONS ===")
+            if phase_normalized == "sell":
+                original_expected_sells = trade_tracking_summary["symbols_with_sell_trades"]
+                logger.info(f"ORIGINAL_STRATEGY_EXPECTED_SELLS: {original_expected_sells} (count: {len(original_expected_sells)})")
+                logger.info(f"FINAL_ACTUAL_SELL_ORDERS: {final_sell_orders} (count: {len(final_sell_orders)})")
+                
+                if len(final_sell_orders) == 0 and len(original_expected_sells) > 0:
+                    logger.error(f"🚨 CRITICAL SELL TRADE LOSS: Strategy expected {len(original_expected_sells)} SELL orders but 0 were created")
+                    logger.error(f"🚨 MISSING_SELL_SYMBOLS: {original_expected_sells}")
+                elif len(final_sell_orders) < len(original_expected_sells):
+                    missing_sells = set(original_expected_sells) - set(final_sell_orders)
+                    logger.warning(f"⚠️ PARTIAL_SELL_TRADE_LOSS: Missing SELL orders for {list(missing_sells)}")
+                else:
+                    logger.info("✅ SELL_ORDERS_SUCCESS: All expected SELL orders were created")
+                    
+            else:  # buy phase
+                original_expected_buys = trade_tracking_summary["symbols_with_buy_trades"]
+                logger.info(f"ORIGINAL_STRATEGY_EXPECTED_BUYS: {original_expected_buys} (count: {len(original_expected_buys)})")
+                logger.info(f"FINAL_ACTUAL_BUY_ORDERS: {final_buy_orders} (count: {len(final_buy_orders)})")
+                
+                if len(final_buy_orders) == 0 and len(original_expected_buys) > 0:
+                    logger.error(f"🚨 CRITICAL BUY TRADE LOSS: Strategy expected {len(original_expected_buys)} BUY orders but 0 were created")
+                    logger.error(f"🚨 MISSING_BUY_SYMBOLS: {original_expected_buys}")
+                elif len(final_buy_orders) < len(original_expected_buys):
+                    missing_buys = set(original_expected_buys) - set(final_buy_orders)
+                    logger.warning(f"⚠️ PARTIAL_BUY_TRADE_LOSS: Missing BUY orders for {list(missing_buys)}")
+                else:
+                    logger.info("✅ BUY_ORDERS_SUCCESS: All expected BUY orders were created")
+        else:
+            # No orders created - analyze why
+            original_expected = []
+            if phase_normalized == "sell":
+                original_expected = trade_tracking_summary["symbols_with_sell_trades"]
+            else:
+                original_expected = trade_tracking_summary["symbols_with_buy_trades"]
+                
+            if len(original_expected) > 0:
+                logger.error(f"🚨 COMPLETE TRADE LOSS: Strategy expected {len(original_expected)} {phase_normalized.upper()} orders but NONE were created")
+                logger.error(f"🚨 EXPECTED_{phase_normalized.upper()}_SYMBOLS: {original_expected}")
+                logger.error("🚨 This indicates a critical failure in the trade execution pipeline")
+            else:
+                logger.info(f"✅ NO_ORDERS_EXPECTED: Strategy did not expect any {phase_normalized.upper()} orders")
 
         if not orders_list:
             logger.warning(
