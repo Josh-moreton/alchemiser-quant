@@ -705,11 +705,7 @@ class PortfolioManagementFacade:
                 f"Symbol {symbol}: needs_rebalance={plan.needs_rebalance}, trade_amount=${plan.trade_amount:.2f}"
             )
             if plan.needs_rebalance:
-                action = (
-                    plan.trade_direction
-                    if hasattr(plan, "trade_direction")
-                    else ("SELL" if plan.trade_amount < 0 else "BUY")
-                )
+                action = plan.trade_direction
                 logger.info(f"  → {symbol} would {action} ${abs(plan.trade_amount):.2f}")
 
         # === CRITICAL: PRE-FILTERING ANALYSIS ===
@@ -765,7 +761,7 @@ class PortfolioManagementFacade:
                     logger.info(f"  ✅ {symbol} needs_rebalance=True, checking phase criteria...")
 
                     if phase_normalized == "sell":
-                        if hasattr(plan, "trade_direction") and plan.trade_direction == "SELL":
+                        if plan.trade_direction == "SELL":
                             symbols_that_should_match.append(
                                 f"{symbol} (SELL ${abs(trade_amt) if trade_amt is not None else 0:.2f})"
                             )
@@ -773,20 +769,20 @@ class PortfolioManagementFacade:
                                 f"    ✅ {symbol} SHOULD match SELL criteria (trade_direction={plan.trade_direction})"
                             )
                         else:
-                            trade_dir = getattr(plan, "trade_direction", "unknown")
                             logger.info(
-                                f"    ❌ {symbol} does NOT match SELL criteria (trade_direction={trade_dir})"
+                                f"    ❌ {symbol} does NOT match SELL criteria (trade_direction={plan.trade_direction})"
                             )
                     elif phase_normalized == "buy":
-                        if hasattr(plan, "trade_direction") and plan.trade_direction == "BUY":
-                            symbols_that_should_match.append(f"{symbol} (BUY ${trade_amt if trade_amt is not None else 0:.2f})")
+                        if plan.trade_direction == "BUY":
+                            symbols_that_should_match.append(
+                                f"{symbol} (BUY ${trade_amt if trade_amt is not None else 0:.2f})"
+                            )
                             logger.info(
                                 f"    ✅ {symbol} SHOULD match BUY criteria (trade_direction={plan.trade_direction})"
                             )
                         else:
-                            trade_dir = getattr(plan, "trade_direction", "unknown")
                             logger.info(
-                                f"    ❌ {symbol} does NOT match BUY criteria (trade_direction={trade_dir})"
+                                f"    ❌ {symbol} does NOT match BUY criteria (trade_direction={plan.trade_direction})"
                             )
                 else:
                     logger.info(f"  ❌ {symbol} needs_rebalance={needs_rebal}, skipping")
@@ -941,7 +937,6 @@ class PortfolioManagementFacade:
                     # This is a safeguard against threshold calculation issues
                     if (
                         phase_normalized == "sell"
-                        and hasattr(plan, "trade_direction")
                         and plan.trade_direction == "SELL"
                         and trade_amt is not None
                         and abs(trade_amt) > 1000
@@ -954,27 +949,16 @@ class PortfolioManagementFacade:
                         )
                         should_include = True
                         decision_reason = "OVERRIDE: Large SELL trade despite needs_rebalance=False"
-                elif (
-                    phase_normalized == "sell"
-                    and hasattr(plan, "trade_direction")
-                    and plan.trade_direction == "SELL"
-                ):
+                elif phase_normalized == "sell" and plan.trade_direction == "SELL":
                     should_include = True
                     decision_reason = f"SELL phase: trade_direction={plan.trade_direction}"
                     logger.info(f"  ✅ INCLUDING {symbol}: {decision_reason}")
-                elif (
-                    phase_normalized == "buy"
-                    and hasattr(plan, "trade_direction")
-                    and plan.trade_direction == "BUY"
-                ):
+                elif phase_normalized == "buy" and plan.trade_direction == "BUY":
                     should_include = True
                     decision_reason = f"BUY phase: trade_direction={plan.trade_direction}"
                     logger.info(f"  ✅ INCLUDING {symbol}: {decision_reason}")
                 else:
-                    if hasattr(plan, "trade_direction"):
-                        decision_reason = f"{phase_normalized} phase: trade_direction={plan.trade_direction} does not match criteria"
-                    else:
-                        decision_reason = f"{phase_normalized} phase: trade_amount={trade_amt} does not match criteria (no trade_direction available)"
+                    decision_reason = f"{phase_normalized} phase: trade_direction={plan.trade_direction} does not match criteria"
                     logger.info(f"  ❌ EXCLUDING {symbol}: {decision_reason}")
 
                 if should_include:
@@ -1229,27 +1213,18 @@ class PortfolioManagementFacade:
                     if trade_amt is not None:
                         try:
                             trade_float = float(trade_amt)
-                            trade_dir = getattr(plan, "trade_direction", "unknown")
 
-                            if (
-                                phase_normalized == "sell"
-                                and hasattr(plan, "trade_direction")
-                                and plan.trade_direction != "SELL"
-                            ):
+                            if phase_normalized == "sell" and plan.trade_direction != "SELL":
                                 logger.error(
-                                    f"  ❌ FAILED_CONDITION: SELL phase but trade_direction={trade_dir} (not SELL)"
+                                    f"  ❌ FAILED_CONDITION: SELL phase but trade_direction={plan.trade_direction} (not SELL)"
                                 )
-                            elif (
-                                phase_normalized == "buy"
-                                and hasattr(plan, "trade_direction")
-                                and plan.trade_direction != "BUY"
-                            ):
+                            elif phase_normalized == "buy" and plan.trade_direction != "BUY":
                                 logger.error(
-                                    f"  ❌ FAILED_CONDITION: BUY phase but trade_direction={trade_dir} (not BUY)"
+                                    f"  ❌ FAILED_CONDITION: BUY phase but trade_direction={plan.trade_direction} (not BUY)"
                                 )
                             else:
                                 logger.error(
-                                    f"  ✅ PASSED_CONDITION: {phase_normalized} phase trade_direction condition met ({trade_dir})"
+                                    f"  ✅ PASSED_CONDITION: {phase_normalized} phase trade_direction condition met ({plan.trade_direction})"
                                 )
                         except (ValueError, TypeError) as e:
                             logger.error(
