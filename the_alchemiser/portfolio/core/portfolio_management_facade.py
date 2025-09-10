@@ -526,15 +526,43 @@ class PortfolioManagementFacade:
             f"Expected symbols to match {phase_normalized} phase: {symbols_that_should_match}"
         )
 
-        filtered_plan: dict[str, RebalancePlanDTO] = {
-            symbol: plan
-            for symbol, plan in full_plan.plans.items()
-            if plan.needs_rebalance
-            and (
-                (phase_normalized == "sell" and plan.trade_amount < 0)
-                or (phase_normalized == "buy" and plan.trade_amount > 0)
-            )
-        }
+        filtered_plan: dict[str, RebalancePlanDTO] = {}
+        
+        # Enhanced filtering with explicit type checking and comparison validation
+        for symbol, plan in full_plan.plans.items():
+            logger.debug(f"Filtering {symbol}: needs_rebalance={plan.needs_rebalance}, trade_amount={plan.trade_amount} (type: {type(plan.trade_amount)})")
+            
+            # Ensure we have valid data
+            if not hasattr(plan, 'needs_rebalance') or not hasattr(plan, 'trade_amount'):
+                logger.error(f"❌ Plan for {symbol} missing required attributes")
+                continue
+                
+            needs_rebal = plan.needs_rebalance
+            trade_amt = plan.trade_amount
+            
+            # Explicit type conversion to ensure consistent comparison
+            if isinstance(trade_amt, str):
+                try:
+                    trade_amt = float(trade_amt)
+                except (ValueError, TypeError):
+                    logger.error(f"❌ Cannot convert trade_amount to number for {symbol}: {trade_amt}")
+                    continue
+            elif hasattr(trade_amt, '__float__'):  # Handles Decimal and other numeric types
+                trade_amt = float(trade_amt)
+            
+            # Apply filtering logic with explicit conditions
+            should_include = False
+            if needs_rebal and phase_normalized == "sell" and trade_amt < 0:
+                should_include = True
+                logger.debug(f"✅ Including {symbol} in SELL phase: trade_amount={trade_amt}")
+            elif needs_rebal and phase_normalized == "buy" and trade_amt > 0:
+                should_include = True
+                logger.debug(f"✅ Including {symbol} in BUY phase: trade_amount={trade_amt}")
+            else:
+                logger.debug(f"❌ Excluding {symbol}: needs_rebalance={needs_rebal}, phase={phase_normalized}, trade_amount={trade_amt}")
+            
+            if should_include:
+                filtered_plan[symbol] = plan
 
         logger.info(f"Phase '{phase_normalized}' filtering logic:")
         logger.info("  - Looking for symbols with needs_rebalance=True")
