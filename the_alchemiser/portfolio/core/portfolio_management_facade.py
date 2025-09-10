@@ -767,7 +767,7 @@ class PortfolioManagementFacade:
                     if phase_normalized == "sell":
                         if hasattr(plan, "trade_direction") and plan.trade_direction == "SELL":
                             symbols_that_should_match.append(
-                                f"{symbol} (SELL ${abs(trade_amt):.2f})"
+                                f"{symbol} (SELL ${abs(trade_amt) if trade_amt is not None else 0:.2f})"
                             )
                             logger.info(
                                 f"    ✅ {symbol} SHOULD match SELL criteria (trade_direction={plan.trade_direction})"
@@ -779,7 +779,7 @@ class PortfolioManagementFacade:
                             )
                     elif phase_normalized == "buy":
                         if hasattr(plan, "trade_direction") and plan.trade_direction == "BUY":
-                            symbols_that_should_match.append(f"{symbol} (BUY ${trade_amt:.2f})")
+                            symbols_that_should_match.append(f"{symbol} (BUY ${trade_amt if trade_amt is not None else 0:.2f})")
                             logger.info(
                                 f"    ✅ {symbol} SHOULD match BUY criteria (trade_direction={plan.trade_direction})"
                             )
@@ -943,6 +943,7 @@ class PortfolioManagementFacade:
                         phase_normalized == "sell"
                         and hasattr(plan, "trade_direction")
                         and plan.trade_direction == "SELL"
+                        and trade_amt is not None
                         and abs(trade_amt) > 1000
                     ):  # Large sell trades (>$1000)
                         logger.warning(
