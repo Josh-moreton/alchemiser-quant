@@ -1025,19 +1025,6 @@ class PortfolioRebalancingService:
             logger.error("❌ ALL_PORTFOLIO_VALUE_METHODS_FAILED")
             logger.error("🚨 CRITICAL: Cannot proceed with rebalancing without portfolio value")
             logger.error("🚨 This explains why no trades are being generated!")
-            
-            # Check for demo/development mode fallback
-            import os
-            demo_portfolio_value = os.getenv("ALCHEMISER_DEMO_PORTFOLIO_VALUE")
-            if demo_portfolio_value:
-                try:
-                    demo_value = Decimal(demo_portfolio_value)
-                    logger.warning(f"🔧 DEMO_MODE: Using fallback portfolio value ${demo_value} from environment")
-                    logger.warning("🔧 This is for development/testing only - do not use in production")
-                    return demo_value
-                except (ValueError, TypeError) as e:
-                    logger.error(f"❌ Invalid ALCHEMISER_DEMO_PORTFOLIO_VALUE: {demo_portfolio_value} - {e}")
-            
             logger.error("🚨 Returning zero portfolio value for proper error handling")
             return Decimal("0")
 
@@ -1065,33 +1052,7 @@ class PortfolioRebalancingService:
 
                     return result
                 logger.error("❌ EMERGENCY_FALLBACK_FAILED")
-                
-                # Check for demo/development mode fallback
-                import os
-                demo_portfolio_value = os.getenv("ALCHEMISER_DEMO_PORTFOLIO_VALUE")
-                if demo_portfolio_value:
-                    try:
-                        demo_value = Decimal(demo_portfolio_value)
-                        logger.warning(f"🔧 DEMO_MODE_EXCEPTION_FALLBACK: Using portfolio value ${demo_value} from environment")
-                        logger.warning("🔧 This is for development/testing only - do not use in production")
-                        return demo_value
-                    except (ValueError, TypeError) as e:
-                        logger.error(f"❌ Invalid ALCHEMISER_DEMO_PORTFOLIO_VALUE in exception handler: {demo_portfolio_value} - {e}")
-                
                 return Decimal("0")
             except Exception as fallback_e:
                 logger.error(f"❌ EMERGENCY_FALLBACK_EXCEPTION: {fallback_e}")
-                
-                # Check for demo/development mode fallback as last resort
-                import os
-                demo_portfolio_value = os.getenv("ALCHEMISER_DEMO_PORTFOLIO_VALUE")
-                if demo_portfolio_value:
-                    try:
-                        demo_value = Decimal(demo_portfolio_value)
-                        logger.warning(f"🔧 DEMO_MODE_LAST_RESORT: Using portfolio value ${demo_value} from environment")
-                        logger.warning("🔧 This is for development/testing only - do not use in production")
-                        return demo_value
-                    except (ValueError, TypeError) as e:
-                        logger.error(f"❌ Invalid ALCHEMISER_DEMO_PORTFOLIO_VALUE in last resort: {demo_portfolio_value} - {e}")
-                
                 return Decimal("0")
