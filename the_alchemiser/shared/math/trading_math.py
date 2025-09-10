@@ -436,7 +436,7 @@ def calculate_rebalance_amounts(
             logger.error(f"🚨 ZERO_TRADE_AMOUNT_BUG_{symbol}: Target weight {target_weight * 100:.1f}% but trade_amount=0")
             logger.error(f"🚨 This suggests target_value ({target_value}) equals current_value ({current_value})")
             
-        if total_portfolio_value == 0 and any([target_weight > 0 for target_weight in [target_weight]]):
+        if total_portfolio_value == 0 and target_weight > 0:
             logger.error(f"🚨 ZERO_PORTFOLIO_VALUE_BUG: Cannot calculate trades with zero portfolio value")
 
         logger.info(f"CALCULATED_TARGET_VALUE: ${target_value}")
