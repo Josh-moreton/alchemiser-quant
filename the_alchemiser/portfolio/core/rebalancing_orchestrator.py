@@ -79,18 +79,64 @@ class RebalancingOrchestrator:
 
         """
         logging.info("🔄 Phase 1: Executing SELL orders to free buying power")
+        
+        # === ENHANCED SELL PHASE DEBUGGING ===
+        logging.info("=== ORCHESTRATOR SELL PHASE: TARGET PORTFOLIO FLOW ANALYSIS ===")
+        logging.info(f"ORCHESTRATOR_SELL_PHASE_TARGET_TYPE: {type(target_portfolio)}")
+        logging.info(f"ORCHESTRATOR_SELL_PHASE_TARGET_COUNT: {len(target_portfolio) if target_portfolio else 0}")
+        
+        if target_portfolio:
+            total_allocation = sum(target_portfolio.values())
+            logging.info(f"ORCHESTRATOR_SELL_PHASE_TOTAL_ALLOCATION: {total_allocation}")
+            
+            # Analyze what should result in SELL orders (positions that should be reduced/eliminated)
+            zero_allocation_symbols = []
+            reduced_allocation_symbols = []
+            
+            for symbol, allocation in target_portfolio.items():
+                logging.info(f"ORCHESTRATOR_SELL_TARGET: {symbol} = {allocation} ({allocation * 100:.1f}%)")
+                
+                if allocation == 0.0:
+                    zero_allocation_symbols.append(symbol)
+                    logging.info(f"  → {symbol} has 0% target allocation - SHOULD BE SOLD if currently held")
+                elif allocation < 0.5:  # Assume positions with <50% might be reduced
+                    reduced_allocation_symbols.append(symbol)
+                    logging.info(f"  → {symbol} has low target allocation - MIGHT BE REDUCED if overallocated")
+            
+            logging.info(f"ORCHESTRATOR_ZERO_ALLOCATION_SYMBOLS: {zero_allocation_symbols}")
+            logging.info(f"ORCHESTRATOR_REDUCED_ALLOCATION_SYMBOLS: {reduced_allocation_symbols}")
+            
+            if zero_allocation_symbols:
+                logging.info(f"ORCHESTRATOR_EXPECTS_SELLS_FOR: {zero_allocation_symbols} (0% target allocation)")
+            else:
+                logging.info("ORCHESTRATOR_NO_ZERO_ALLOCATIONS_FOUND")
+                
+        else:
+            logging.error("❌ ORCHESTRATOR_SELL_PHASE_RECEIVED_EMPTY_TARGET_PORTFOLIO")
+        
+        # Add data integrity checkpoint before calling facade
+        data_checksum = f"{len(target_portfolio)}:{hash(frozenset(target_portfolio.items()))}:{sum(target_portfolio.values()):.6f}"
+        logging.info(f"ORCHESTRATOR_SELL_DATA_CHECKSUM: {data_checksum}")
+        logging.info(f"ORCHESTRATOR_CALLING_FACADE_SELL_PHASE with target_portfolio={target_portfolio}")
 
         # Delegate to facade for SELL phase execution
+        logging.info("=== ORCHESTRATOR DELEGATING TO FACADE FOR SELL PHASE ===")
         sell_orders = self.portfolio_facade.rebalance_portfolio_phase(
             target_portfolio, phase="sell"
         )
 
+        # === ENHANCED SELL PHASE RESULTS ANALYSIS ===
+        logging.info(f"=== ORCHESTRATOR SELL PHASE RESULTS ===")
+        logging.info(f"ORCHESTRATOR_SELL_ORDERS_TYPE: {type(sell_orders)}")
+        logging.info(f"ORCHESTRATOR_SELL_ORDERS_COUNT: {len(sell_orders) if sell_orders else 0}")
+
         if sell_orders:
-            logging.info(f"Executed {len(sell_orders)} SELL orders")
-            for order in sell_orders:
-                logging.info(f"SELL {order['symbol']}: {order['qty']} shares")
+            logging.info(f"✅ ORCHESTRATOR: Executed {len(sell_orders)} SELL orders")
+            for i, order in enumerate(sell_orders):
+                logging.info(f"ORCHESTRATOR_SELL_ORDER_{i}: {order['symbol']} - {order['qty']} shares (ID: {order['id']})")
         else:
-            logging.info("No SELL orders needed")
+            logging.warning("❌ ORCHESTRATOR: No SELL orders returned from facade")
+            logging.warning("❌ ORCHESTRATOR: This may indicate the filtering issue detected in facade")
 
         return sell_orders
 
@@ -171,6 +217,44 @@ class RebalancingOrchestrator:
 
         """
         logging.info("🔄 Phase 3: Executing BUY orders with refreshed buying power")
+        
+        # === ENHANCED BUY PHASE DEBUGGING ===
+        logging.info("=== ORCHESTRATOR BUY PHASE: TARGET PORTFOLIO FLOW ANALYSIS ===")
+        logging.info(f"ORCHESTRATOR_BUY_PHASE_TARGET_TYPE: {type(target_portfolio)}")
+        logging.info(f"ORCHESTRATOR_BUY_PHASE_TARGET_COUNT: {len(target_portfolio) if target_portfolio else 0}")
+        
+        if target_portfolio:
+            total_allocation = sum(target_portfolio.values())
+            logging.info(f"ORCHESTRATOR_BUY_PHASE_TOTAL_ALLOCATION: {total_allocation}")
+            
+            # Analyze what should result in BUY orders (positions that should be increased/created)
+            positive_allocation_symbols = []
+            significant_allocation_symbols = []
+            
+            for symbol, allocation in target_portfolio.items():
+                logging.info(f"ORCHESTRATOR_BUY_TARGET: {symbol} = {allocation} ({allocation * 100:.1f}%)")
+                
+                if allocation > 0.001:  # Any meaningful positive allocation
+                    positive_allocation_symbols.append(symbol)
+                    if allocation > 0.05:  # Significant allocations (>5%)
+                        significant_allocation_symbols.append(symbol)
+                        logging.info(f"  → {symbol} has {allocation * 100:.1f}% target - SHOULD RESULT IN BUY")
+            
+            logging.info(f"ORCHESTRATOR_POSITIVE_ALLOCATION_SYMBOLS: {positive_allocation_symbols}")
+            logging.info(f"ORCHESTRATOR_SIGNIFICANT_ALLOCATION_SYMBOLS: {significant_allocation_symbols}")
+            
+            if positive_allocation_symbols:
+                logging.info(f"ORCHESTRATOR_EXPECTS_BUYS_FOR: {positive_allocation_symbols}")
+            else:
+                logging.info("ORCHESTRATOR_NO_POSITIVE_ALLOCATIONS_FOUND")
+                
+        else:
+            logging.error("❌ ORCHESTRATOR_BUY_PHASE_RECEIVED_EMPTY_TARGET_PORTFOLIO")
+        
+        # Add data integrity checkpoint before calling facade
+        data_checksum = f"{len(target_portfolio)}:{hash(frozenset(target_portfolio.items()))}:{sum(target_portfolio.values()):.6f}"
+        logging.info(f"ORCHESTRATOR_BUY_DATA_CHECKSUM: {data_checksum}")
+        logging.info(f"ORCHESTRATOR_CALLING_FACADE_BUY_PHASE with target_portfolio={target_portfolio}")
 
         # Get fresh account info to update buying power if provider is available
         if self.account_info_provider and hasattr(self.account_info_provider, "get_account_info"):
@@ -179,14 +263,21 @@ class RebalancingOrchestrator:
             logging.info(f"Current buying power: ${current_buying_power:,.2f}")
 
         # Delegate to facade for BUY phase execution with scaled sizing
+        logging.info("=== ORCHESTRATOR DELEGATING TO FACADE FOR BUY PHASE ===")
         buy_orders = self.portfolio_facade.rebalance_portfolio_phase(target_portfolio, phase="buy")
 
+        # === ENHANCED BUY PHASE RESULTS ANALYSIS ===
+        logging.info(f"=== ORCHESTRATOR BUY PHASE RESULTS ===")
+        logging.info(f"ORCHESTRATOR_BUY_ORDERS_TYPE: {type(buy_orders)}")
+        logging.info(f"ORCHESTRATOR_BUY_ORDERS_COUNT: {len(buy_orders) if buy_orders else 0}")
+
         if buy_orders:
-            logging.info(f"Executed {len(buy_orders)} BUY orders")
-            for order in buy_orders:
-                logging.info(f"BUY {order['symbol']}: {order['qty']} shares")
+            logging.info(f"✅ ORCHESTRATOR: Executed {len(buy_orders)} BUY orders")
+            for i, order in enumerate(buy_orders):
+                logging.info(f"ORCHESTRATOR_BUY_ORDER_{i}: {order['symbol']} - {order['qty']} shares (ID: {order['id']})")
         else:
-            logging.info("No BUY orders needed")
+            logging.warning("❌ ORCHESTRATOR: No BUY orders returned from facade")
+            logging.warning("❌ ORCHESTRATOR: This may indicate the filtering issue detected in facade")
 
         return buy_orders
 
