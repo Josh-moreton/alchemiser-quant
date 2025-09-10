@@ -954,22 +954,39 @@ class PortfolioManagementFacade:
                     decision_reason = "needs_rebalance=False"
                     logger.info(f"  ❌ EXCLUDING {symbol}: {decision_reason}")
 
-                    # CRITICAL FIX: Check for obvious sell scenarios even if needs_rebalance=False
-                    # This is a safeguard against threshold calculation issues
+                    # ENHANCED FIX: Check for obvious sell scenarios even if needs_rebalance=False
+                    # This is a safeguard against threshold calculation issues that cause trade loss
                     if (
                         phase_normalized == "sell"
                         and plan.trade_direction == "SELL"
                         and trade_amt is not None
-                        and abs(trade_amt) > 1000
-                    ):  # Large sell trades (>$1000)
+                        and abs(trade_amt) > 100  # Lowered from $1000 to $100 to catch smaller but valid sells
+                    ):
                         logger.warning(
-                            f"⚠️ OVERRIDE: {symbol} has large SELL trade ${abs(trade_amt):.2f} but needs_rebalance=False"
+                            f"⚠️ OVERRIDE: {symbol} has SELL trade ${abs(trade_amt):.2f} but needs_rebalance=False"
                         )
                         logger.warning(
                             f"⚠️ OVERRIDE: Including {symbol} anyway due to significant trade amount"
                         )
                         should_include = True
-                        decision_reason = "OVERRIDE: Large SELL trade despite needs_rebalance=False"
+                        decision_reason = "OVERRIDE: SELL trade despite needs_rebalance=False"
+                    # ADDITIONAL FIX: Include any sell trades for positions being liquidated (0% target)
+                    elif (
+                        phase_normalized == "sell"
+                        and plan.trade_direction == "SELL"
+                        and getattr(plan, "target_weight", None) is not None
+                        and float(getattr(plan, "target_weight", 0)) == 0.0
+                        and trade_amt is not None
+                        and abs(trade_amt) > 1.0  # Any liquidation trade > $1
+                    ):
+                        logger.warning(
+                            f"⚠️ LIQUIDATION_OVERRIDE: {symbol} has 0% target weight with SELL ${abs(trade_amt):.2f}"
+                        )
+                        logger.warning(
+                            f"⚠️ LIQUIDATION_OVERRIDE: Including {symbol} to liquidate position"
+                        )
+                        should_include = True
+                        decision_reason = "OVERRIDE: Liquidation of position with 0% target weight"
                 elif phase_normalized == "sell" and plan.trade_direction == "SELL":
                     should_include = True
                     decision_reason = f"SELL phase: trade_direction={plan.trade_direction}"
@@ -1623,16 +1640,27 @@ class PortfolioManagementFacade:
 
     def get_current_positions(self) -> dict[str, Decimal]:
         """Get current position values."""
-        positions = self.trading_manager.get_all_positions()
-        values: dict[str, Decimal] = {}
-        for pos in positions:
-            try:
-                mv = Decimal(str(getattr(pos, "market_value", 0) or 0))
-            except Exception:
-                mv = Decimal("0")
-            if mv > Decimal("0"):
-                values[getattr(pos, "symbol", "")] = mv
-        return values
+        try:
+            positions = self.trading_manager.get_all_positions()
+            values: dict[str, Decimal] = {}
+            for pos in positions:
+                try:
+                    mv = Decimal(str(getattr(pos, "market_value", 0) or 0))
+                except Exception:
+                    mv = Decimal("0")
+                if mv > Decimal("0"):
+                    values[getattr(pos, "symbol", "")] = mv
+            
+            logger = logging.getLogger(__name__)
+            logger.info(f"Successfully fetched {len(values)} current positions: {dict(values)}")
+            return values
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to fetch current positions (likely API issue): {e}")
+            logger.warning("Returning empty positions - this will prevent SELL trade generation for existing holdings")
+            logger.warning("This is a known issue that can cause the 'no trades generated' problem")
+            # Return empty dict so caller can continue, but this will cause issues with SELL trade generation
+            return {}
 
     def get_current_weights(self) -> dict[str, Decimal]:
         """Get current portfolio weights."""

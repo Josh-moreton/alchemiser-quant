@@ -55,7 +55,7 @@ class PortfolioRebalancingService:
         rebalance_calculator: RebalanceCalculator | None = None,
         position_analyzer: PositionAnalyzer | None = None,
         attribution_engine: StrategyAttributionEngine | None = None,
-        min_trade_threshold: Decimal = Decimal("0.01"),
+        min_trade_threshold: Decimal = Decimal("0.0005"),  # Lowered from 0.01 to 0.0005 (0.05%) to catch smaller valid trades
     ) -> None:
         """Initialize the portfolio rebalancing service.
 
