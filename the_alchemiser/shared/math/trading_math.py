@@ -399,19 +399,21 @@ def calculate_rebalance_amounts(
         logger.info(f"CALCULATED_TRADE_AMOUNT: ${trade_amount}")
         logger.info(f"WEIGHT_DIFF_ABS: {abs(weight_diff)}")
         logger.info(f"MIN_TRADE_THRESHOLD: {min_trade_threshold}")
-        logger.info(f"THRESHOLD_CHECK_RESULT: {abs(weight_diff)} >= {min_trade_threshold} = {needs_rebalance}")
-        
+        logger.info(
+            f"THRESHOLD_CHECK_RESULT: {abs(weight_diff)} >= {min_trade_threshold} = {needs_rebalance}"
+        )
+
         # Show percentage calculations for clarity
         logger.info(f"CURRENT_WEIGHT_PERCENT: {current_weight * 100:.3f}%")
         logger.info(f"TARGET_WEIGHT_PERCENT: {target_weight * 100:.3f}%")
-        logger.info(f"WEIGHT_DIFF_PERCENT: {weight_diff * 100:.3f}%") 
+        logger.info(f"WEIGHT_DIFF_PERCENT: {weight_diff * 100:.3f}%")
         logger.info(f"THRESHOLD_PERCENT: {min_trade_threshold * 100:.3f}%")
-        
+
         # Calculate what the portfolio value should be based on current holdings
         if current_value > 0 and target_weight > 0:
             implied_portfolio_value = current_value / target_weight
             logger.info(f"IMPLIED_PORTFOLIO_VALUE_FROM_{symbol}: ${implied_portfolio_value:.2f}")
-        
+
         # Flag potential data issues
         if total_portfolio_value <= 0:
             logger.error(f"❌ INVALID_PORTFOLIO_VALUE: {total_portfolio_value}")
@@ -419,25 +421,39 @@ def calculate_rebalance_amounts(
             logger.error(f"❌ NEGATIVE_CURRENT_VALUE_{symbol}: {current_value}")
         if target_weight < 0 or target_weight > 1:
             logger.error(f"❌ INVALID_TARGET_WEIGHT_{symbol}: {target_weight}")
-            
+
         # Additional debug info for threshold failures
         if not needs_rebalance and abs(weight_diff) > 0:
-            logger.warning(f"⚠️ {symbol}_BELOW_THRESHOLD: Need {abs(weight_diff) * 100:.3f}% change but threshold is {min_trade_threshold * 100:.3f}%")
+            logger.warning(
+                f"⚠️ {symbol}_BELOW_THRESHOLD: Need {abs(weight_diff) * 100:.3f}% change but threshold is {min_trade_threshold * 100:.3f}%"
+            )
         elif needs_rebalance:
-            logger.info(f"✅ {symbol}_ABOVE_THRESHOLD: Need {abs(weight_diff) * 100:.3f}% change, threshold is {min_trade_threshold * 100:.3f}%")
+            logger.info(
+                f"✅ {symbol}_ABOVE_THRESHOLD: Need {abs(weight_diff) * 100:.3f}% change, threshold is {min_trade_threshold * 100:.3f}%"
+            )
 
         # === CRITICAL BUG DETECTION ===
         # Detect potential critical bugs that would cause trade loss
         if target_weight > 0.01 and abs(weight_diff) > 0.05 and not needs_rebalance:
-            logger.error(f"🚨 CRITICAL_BUG_DETECTED_{symbol}: Large target weight ({target_weight * 100:.1f}%) with large diff ({abs(weight_diff) * 100:.1f}%) but needs_rebalance=False")
-            logger.error(f"🚨 This indicates a threshold calculation bug that will cause trade loss")
-            
+            logger.error(
+                f"🚨 CRITICAL_BUG_DETECTED_{symbol}: Large target weight ({target_weight * 100:.1f}%) with large diff ({abs(weight_diff) * 100:.1f}%) but needs_rebalance=False"
+            )
+            logger.error(
+                "🚨 This indicates a threshold calculation bug that will cause trade loss"
+            )
+
         if trade_amount == 0.0 and target_weight > 0.01:
-            logger.error(f"🚨 ZERO_TRADE_AMOUNT_BUG_{symbol}: Target weight {target_weight * 100:.1f}% but trade_amount=0")
-            logger.error(f"🚨 This suggests target_value ({target_value}) equals current_value ({current_value})")
-            
+            logger.error(
+                f"🚨 ZERO_TRADE_AMOUNT_BUG_{symbol}: Target weight {target_weight * 100:.1f}% but trade_amount=0"
+            )
+            logger.error(
+                f"🚨 This suggests target_value ({target_value}) equals current_value ({current_value})"
+            )
+
         if total_portfolio_value == 0 and target_weight > 0:
-            logger.error(f"🚨 ZERO_PORTFOLIO_VALUE_BUG: Cannot calculate trades with zero portfolio value")
+            logger.error(
+                "🚨 ZERO_PORTFOLIO_VALUE_BUG: Cannot calculate trades with zero portfolio value"
+            )
 
         logger.info(f"CALCULATED_TARGET_VALUE: ${target_value}")
         logger.info(f"CALCULATED_TRADE_AMOUNT: ${trade_amount}")

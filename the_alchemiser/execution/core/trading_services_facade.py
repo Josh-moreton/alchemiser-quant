@@ -250,6 +250,47 @@ class TradingServicesFacade(BrokerTradingServices):
         """Enriched positions list with typed domain objects."""
         return self.data_transformation.get_positions_enriched()
 
+    def get_positions(self) -> dict[str, Any]:
+        """Get positions in dict format for backward compatibility.
+
+        Returns:
+            Dict with 'success' and 'positions' keys for compatibility with legacy code.
+
+        """
+        try:
+            enriched_positions = self.get_all_positions()
+
+            # Convert EnrichedPositionsDTO to expected dict format
+            positions_list = []
+            for position_view in enriched_positions.positions:
+                # Extract position data from the raw field
+                raw_position = position_view.raw
+                positions_list.append(
+                    {
+                        "symbol": raw_position.get("symbol"),
+                        "market_value": raw_position.get("market_value", 0),
+                        "qty": raw_position.get("qty", 0),
+                        # Include other common fields that might be needed
+                        "avg_entry_price": raw_position.get("avg_entry_price"),
+                        "unrealized_pl": raw_position.get("unrealized_pl"),
+                        "unrealized_plpc": raw_position.get("unrealized_plpc"),
+                        "side": raw_position.get("side"),
+                    }
+                )
+
+            return {
+                "success": enriched_positions.success,
+                "positions": positions_list,
+            }
+
+        except Exception as e:
+            self.logger.error(f"Failed to get positions in dict format: {e}")
+            return {
+                "success": False,
+                "positions": [],
+                "error": str(e),
+            }
+
     def get_portfolio_value(self) -> PortfolioValueDTO:
         """Get total portfolio value with typed domain objects."""
         return self.data_transformation.get_portfolio_value()
