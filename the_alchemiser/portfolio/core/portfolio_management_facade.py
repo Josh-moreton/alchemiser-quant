@@ -1623,16 +1623,23 @@ class PortfolioManagementFacade:
 
     def get_current_positions(self) -> dict[str, Decimal]:
         """Get current position values."""
-        positions = self.trading_manager.get_all_positions()
-        values: dict[str, Decimal] = {}
-        for pos in positions:
-            try:
-                mv = Decimal(str(getattr(pos, "market_value", 0) or 0))
-            except Exception:
-                mv = Decimal("0")
-            if mv > Decimal("0"):
-                values[getattr(pos, "symbol", "")] = mv
-        return values
+        try:
+            positions = self.trading_manager.get_all_positions()
+            values: dict[str, Decimal] = {}
+            for pos in positions:
+                try:
+                    mv = Decimal(str(getattr(pos, "market_value", 0) or 0))
+                except Exception:
+                    mv = Decimal("0")
+                if mv > Decimal("0"):
+                    values[getattr(pos, "symbol", "")] = mv
+            return values
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to fetch current positions (likely no API credentials): {e}")
+            # Return empty dict so caller can continue without positions data
+            # This prevents the SELL trade enhancement from working, but allows basic operation
+            return {}
 
     def get_current_weights(self) -> dict[str, Decimal]:
         """Get current portfolio weights."""
