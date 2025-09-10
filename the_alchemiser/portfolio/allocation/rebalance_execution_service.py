@@ -78,7 +78,7 @@ class RebalanceExecutionService:
             logger.info(f"RECEIVED_REBALANCE_PLAN_TYPE: {type(rebalance_plan)}")
             logger.info(f"RECEIVED_PLAN_COUNT: {len(rebalance_plan) if rebalance_plan else 0}")
             logger.info(f"DRY_RUN_MODE: {dry_run}")
-            
+
             if not rebalance_plan:
                 logger.error("❌ EXECUTION_SERVICE: Empty rebalance plan received")
                 logger.error("❌ This indicates portfolio facade failed to generate plans")
@@ -92,7 +92,7 @@ class RebalanceExecutionService:
                         "failed_orders": 0,
                     },
                 }
-            
+
             # Enhanced plan analysis logging
             logger.info("=== REBALANCE PLAN ANALYSIS ===")
             for symbol, plan in rebalance_plan.items():
@@ -100,8 +100,10 @@ class RebalanceExecutionService:
                 if plan.needs_rebalance:
                     action = "SELL" if plan.trade_amount < 0 else "BUY"
                     logger.info(f"  ACTION: {action} ${abs(plan.trade_amount):.2f}")
-                    logger.info(f"  DETAILS: weight_diff={plan.weight_diff:.4f}, trade_amount={plan.trade_amount:.2f}")
-            
+                    logger.info(
+                        f"  DETAILS: weight_diff={plan.weight_diff:.4f}, trade_amount={plan.trade_amount:.2f}"
+                    )
+
             # Filter plans that need rebalancing
             plans_to_execute = {
                 symbol: plan for symbol, plan in rebalance_plan.items() if plan.needs_rebalance
@@ -109,8 +111,10 @@ class RebalanceExecutionService:
 
             # Enhanced filtering results logging
             needs_rebalance_count = len(plans_to_execute)
-            logger.info(f"FILTERING_RESULTS: {len(rebalance_plan)} total plans → {needs_rebalance_count} need execution")
-            
+            logger.info(
+                f"FILTERING_RESULTS: {len(rebalance_plan)} total plans → {needs_rebalance_count} need execution"
+            )
+
             if needs_rebalance_count > 0:
                 logger.info("PLANS_TO_EXECUTE:")
                 for symbol, plan in plans_to_execute.items():
@@ -127,7 +131,9 @@ class RebalanceExecutionService:
                     )
 
             if not plans_to_execute:
-                logger.info("✅ EXECUTION_SERVICE: No rebalancing required - returning success with 0 orders")
+                logger.info(
+                    "✅ EXECUTION_SERVICE: No rebalancing required - returning success with 0 orders"
+                )
                 return {
                     "status": "success",
                     "message": "No rebalancing required",
@@ -144,7 +150,7 @@ class RebalanceExecutionService:
             # Execute sells first to free up capital
             sell_results = self._execute_sell_orders(plans_to_execute, dry_run)
             logger.info(f"SELL_PHASE_COMPLETE: {len(sell_results)} sell orders processed")
-            
+
             logger.info("=== EXECUTION PHASE 2: BUY ORDERS ===")
             # Execute buys with freed capital
             buy_results = self._execute_buy_orders(plans_to_execute, dry_run)
@@ -152,24 +158,26 @@ class RebalanceExecutionService:
 
             # Combine results
             all_orders = {**sell_results, **buy_results}
-            
+
             # === FINAL EXECUTION RESULTS ===
             logger.info("=== EXECUTION SERVICE FINAL RESULTS ===")
             logger.info(f"TOTAL_ORDERS_CREATED: {len(all_orders)}")
             logger.info(f"SELL_ORDERS: {len(sell_results)}")
             logger.info(f"BUY_ORDERS: {len(buy_results)}")
-            
+
             if all_orders:
                 logger.info("ORDERS_CREATED_DETAILS:")
                 for symbol, order_data in all_orders.items():
                     logger.info(f"  {symbol}: {order_data}")
             else:
                 logger.warning("❌ NO ORDERS CREATED despite having plans to execute")
-                logger.warning(f"❌ This indicates order creation failed for {needs_rebalance_count} planned trades")
+                logger.warning(
+                    f"❌ This indicates order creation failed for {needs_rebalance_count} planned trades"
+                )
 
             execution_summary = self._create_execution_summary(all_orders)
             logger.info(f"EXECUTION_SUMMARY: {execution_summary}")
-            
+
             result = {
                 "status": "success",
                 "message": f"Executed {len(all_orders)} rebalancing orders",
@@ -178,7 +186,7 @@ class RebalanceExecutionService:
                 "sell_orders": sell_results,
                 "buy_orders": buy_results,
             }
-            
+
             logger.info("=== EXECUTION SERVICE COMPLETE ===")
             return result
 
@@ -434,8 +442,10 @@ class RebalanceExecutionService:
 
     def _place_sell_order(self, symbol: str, amount: Decimal, dry_run: bool) -> dict[str, Any]:
         """Place a sell order for the specified amount."""
+        logger.debug(f"_place_sell_order called: symbol={symbol}, amount={amount}, dry_run={dry_run}")
         try:
             if dry_run:
+                logger.debug(f"Placing DRY RUN sell order for {symbol}")
                 return {
                     "symbol": symbol,
                     "side": "sell",
@@ -445,7 +455,8 @@ class RebalanceExecutionService:
                     "message": f"Would sell ${amount} of {symbol}",
                 }
 
-                # Use smart execution for sell order
+            # Use smart execution for sell order
+            logger.debug(f"Placing LIVE sell order for {symbol}")
             price_val = self.trading_manager.alpaca_manager.get_current_price(symbol)
             try:
                 price = Decimal(str(price_val))
@@ -456,12 +467,13 @@ class RebalanceExecutionService:
                 raise ValueError(f"Invalid price for {symbol}: {price_val}")
 
             shares_to_sell = amount / price
+            logger.debug(f"Calculated shares to sell: {shares_to_sell} at price ${price}")
 
             order_result = self.smart_execution.place_order(
                 symbol=symbol, qty=float(shares_to_sell), side=BrokerOrderSide.SELL.to_alpaca()
             )
 
-            return {
+            result = {
                 "symbol": symbol,
                 "side": "sell",
                 "amount": amount,
@@ -470,8 +482,11 @@ class RebalanceExecutionService:
                 "order_id": order_result,
                 "message": f"Placed sell order for {shares_to_sell} shares of {symbol}",
             }
+            logger.debug(f"Sell order result: {result}")
+            return result
 
         except Exception as e:
+            logger.error(f"❌ Failed to place sell order for {symbol}: {e}")
             return {
                 "symbol": symbol,
                 "side": "sell",
@@ -484,8 +499,10 @@ class RebalanceExecutionService:
 
     def _place_buy_order(self, symbol: str, amount: Decimal, dry_run: bool) -> dict[str, Any]:
         """Place a buy order for the specified amount."""
+        logger.debug(f"_place_buy_order called: symbol={symbol}, amount={amount}, dry_run={dry_run}")
         try:
             if dry_run:
+                logger.debug(f"Placing DRY RUN buy order for {symbol}")
                 return {
                     "symbol": symbol,
                     "side": "buy",
@@ -495,7 +512,8 @@ class RebalanceExecutionService:
                     "message": f"Would buy ${amount} of {symbol}",
                 }
 
-                # Use smart execution for buy order
+            # Use smart execution for buy order
+            logger.debug(f"Placing LIVE buy order for {symbol}")
             price_val = self.trading_manager.alpaca_manager.get_current_price(symbol)
             try:
                 price = Decimal(str(price_val))
@@ -506,12 +524,13 @@ class RebalanceExecutionService:
                 raise ValueError(f"Invalid price for {symbol}: {price_val}")
 
             shares_to_buy = amount / price
+            logger.debug(f"Calculated shares to buy: {shares_to_buy} at price ${price}")
 
             order_result = self.smart_execution.place_order(
                 symbol=symbol, qty=float(shares_to_buy), side=BrokerOrderSide.BUY.to_alpaca()
             )
 
-            return {
+            result = {
                 "symbol": symbol,
                 "side": "buy",
                 "amount": amount,
@@ -520,8 +539,11 @@ class RebalanceExecutionService:
                 "order_id": order_result,
                 "message": f"Placed buy order for {shares_to_buy} shares of {symbol}",
             }
+            logger.debug(f"Buy order result: {result}")
+            return result
 
         except Exception as e:
+            logger.error(f"❌ Failed to place buy order for {symbol}: {e}")
             return {
                 "symbol": symbol,
                 "side": "buy",

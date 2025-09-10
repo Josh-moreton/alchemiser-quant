@@ -213,21 +213,29 @@ class ExecutionManager(MultiStrategyExecutor):
             logging.info(f"ENGINE TYPE: {type(self.engine).__name__}")
             logging.info(f"ACCOUNT EQUITY BEFORE: ${account_info_before.get('equity', 0):,.2f}")
             logging.info(f"BUYING POWER BEFORE: ${account_info_before.get('buying_power', 0):,.2f}")
-            
+
             # Enhanced input validation logging
             logging.info("=== INPUT DATA VALIDATION ===")
             logging.info(f"Received pre_calculated_signals: {pre_calculated_signals is not None}")
-            logging.info(f"Received pre_calculated_portfolio: {pre_calculated_portfolio is not None}")
-            logging.info(f"Received pre_calculated_attribution: {pre_calculated_attribution is not None}")
-            
+            logging.info(
+                f"Received pre_calculated_portfolio: {pre_calculated_portfolio is not None}"
+            )
+            logging.info(
+                f"Received pre_calculated_attribution: {pre_calculated_attribution is not None}"
+            )
+
             if pre_calculated_signals is not None:
                 logging.info(f"PRE_CALC_SIGNALS type: {type(pre_calculated_signals)}")
-                logging.info(f"PRE_CALC_SIGNALS keys: {getattr(pre_calculated_signals, 'keys', lambda: 'N/A')()}")
-            
+                logging.info(
+                    f"PRE_CALC_SIGNALS keys: {getattr(pre_calculated_signals, 'keys', lambda: 'N/A')()}"
+                )
+
             if pre_calculated_portfolio is not None:
                 logging.info(f"PRE_CALC_PORTFOLIO type: {type(pre_calculated_portfolio)}")
                 logging.info(f"PRE_CALC_PORTFOLIO content: {pre_calculated_portfolio}")
-                total_pre = sum(pre_calculated_portfolio.values()) if pre_calculated_portfolio else 0
+                total_pre = (
+                    sum(pre_calculated_portfolio.values()) if pre_calculated_portfolio else 0
+                )
                 logging.info(f"PRE_CALC_PORTFOLIO total allocation: {total_pre:.3f}")
 
             # Use pre-calculated signals if provided to avoid double calculation
@@ -241,23 +249,29 @@ class ExecutionManager(MultiStrategyExecutor):
                 strategy_attribution = pre_calculated_attribution
                 logging.info("✅ USING PRE-CALCULATED DATA from rebalancer")
                 logging.info(f"Pre-calculated portfolio has {len(consolidated_portfolio)} symbols")
-                
+
                 # Enhanced pre-calculated data logging
                 logging.info("=== PRE-CALCULATED DATA DETAILS ===")
                 for symbol, allocation in consolidated_portfolio.items():
-                    logging.info(f"  PRE_CALC: {symbol} = {allocation:.4f} ({allocation*100:.2f}%)")
+                    logging.info(
+                        f"  PRE_CALC: {symbol} = {allocation:.4f} ({allocation * 100:.2f}%)"
+                    )
             else:
                 logging.warning("⚠️ RECALCULATING portfolio balance (potential bug source)")
                 strategy_signals, consolidated_portfolio, strategy_attribution = (
                     self.engine.strategy_manager.run_all_strategies()
                 )
                 logging.info("Calculating fresh strategy signals")
-                logging.info(f"Fresh calculated portfolio has {len(consolidated_portfolio)} symbols")
-                
+                logging.info(
+                    f"Fresh calculated portfolio has {len(consolidated_portfolio)} symbols"
+                )
+
                 # Enhanced fresh calculation logging
                 logging.info("=== FRESH CALCULATION DATA DETAILS ===")
                 for symbol, allocation in consolidated_portfolio.items():
-                    logging.info(f"  FRESH_CALC: {symbol} = {allocation:.4f} ({allocation*100:.2f}%)")
+                    logging.info(
+                        f"  FRESH_CALC: {symbol} = {allocation:.4f} ({allocation * 100:.2f}%)"
+                    )
 
             strategy_signals = self._process_strategy_signals(strategy_signals)
             consolidated_portfolio = self._validate_portfolio_allocation(consolidated_portfolio)
@@ -266,44 +280,54 @@ class ExecutionManager(MultiStrategyExecutor):
             logging.info("=== PORTFOLIO ANALYSIS STAGE ===")
             logging.info(f"FINAL portfolio to rebalance: {consolidated_portfolio}")
             total_allocation = sum(consolidated_portfolio.values())
-            logging.info(f"FINAL total allocation: {total_allocation:.3f} ({total_allocation * 100:.1f}%)")
+            logging.info(
+                f"FINAL total allocation: {total_allocation:.3f} ({total_allocation * 100:.1f}%)"
+            )
 
             # Log detailed target vs current allocations
-            current_positions = self.engine.get_positions_dict() if hasattr(self.engine, 'get_positions_dict') else {}
-            current_portfolio_value = float(account_info_before.get('equity', 0))
-            
+            current_positions = (
+                self.engine.get_positions_dict()
+                if hasattr(self.engine, "get_positions_dict")
+                else {}
+            )
+            current_portfolio_value = float(account_info_before.get("equity", 0))
+
             logging.info("=== TARGET VS CURRENT ALLOCATION ANALYSIS ===")
             logging.info(f"Current portfolio value: ${current_portfolio_value:,.2f}")
             logging.info(f"Current positions: {dict(current_positions)}")
-            
+
             trade_calculations = {}
             for symbol, target_allocation in consolidated_portfolio.items():
                 target_value = target_allocation * current_portfolio_value
                 current_value = float(current_positions.get(symbol, 0))
                 trade_amount = target_value - current_value
                 trade_calculations[symbol] = {
-                    'target_allocation': target_allocation,
-                    'target_value': target_value,
-                    'current_value': current_value,
-                    'trade_amount': trade_amount
+                    "target_allocation": target_allocation,
+                    "target_value": target_value,
+                    "current_value": current_value,
+                    "trade_amount": trade_amount,
                 }
                 if abs(trade_amount) > 1.0:  # Only log significant trades
                     action = "BUY" if trade_amount > 0 else "SELL"
-                    logging.info(f"  {symbol}: {action} ${abs(trade_amount):,.2f} (target: ${target_value:,.2f}, current: ${current_value:,.2f})")
+                    logging.info(
+                        f"  {symbol}: {action} ${abs(trade_amount):,.2f} (target: ${target_value:,.2f}, current: ${current_value:,.2f})"
+                    )
 
             # Log which symbols have allocations
             significant_allocations = {}
             for symbol, allocation in consolidated_portfolio.items():
                 if allocation > 0.001:  # Log allocations > 0.1%
                     significant_allocations[symbol] = allocation
-                    logging.info(f"Target allocation {symbol}: {allocation:.3f} ({allocation * 100:.1f}%)")
-            
+                    logging.info(
+                        f"Target allocation {symbol}: {allocation:.3f} ({allocation * 100:.1f}%)"
+                    )
+
             logging.info(f"SIGNIFICANT ALLOCATIONS COUNT: {len(significant_allocations)}")
             logging.info(f"TRADE CALCULATIONS READY: {len(trade_calculations)} symbols analyzed")
 
             # === DATA TRANSFER POINT: ENGINE.REBALANCE_PORTFOLIO ===
             logging.info("=== DATA TRANSFER POINT: PASSING TO ENGINE.REBALANCE_PORTFOLIO ===")
-            
+
             # Use utility function for standardized logging
             log_data_transfer_checkpoint(
                 logging.getLogger(__name__),
@@ -311,9 +335,9 @@ class ExecutionManager(MultiStrategyExecutor):
                 data=consolidated_portfolio,
                 context="Passing consolidated portfolio to engine.rebalance_portfolio()",
                 attribution_provided=strategy_attribution is not None,
-                engine_type=type(self.engine).__name__
+                engine_type=type(self.engine).__name__,
             )
-            
+
             # Call the engine rebalance method
             orders_executed = self.engine.rebalance_portfolio(
                 consolidated_portfolio, strategy_attribution
@@ -323,32 +347,46 @@ class ExecutionManager(MultiStrategyExecutor):
             logging.info("=== EXECUTION PIPELINE RESULTS ===")
             logging.info(f"ORDERS_RETURNED_TYPE: {type(orders_executed)}")
             logging.info(f"ORDERS_RETURNED_COUNT: {len(orders_executed) if orders_executed else 0}")
-            
+
             if orders_executed:
                 logging.info("✅ ORDERS RECEIVED FROM REBALANCING:")
                 for i, order in enumerate(orders_executed):
                     logging.info(f"  Order {i + 1}: {order}")
-                    if hasattr(order, 'symbol') and hasattr(order, 'qty') and hasattr(order, 'side'):
+                    if (
+                        hasattr(order, "symbol")
+                        and hasattr(order, "qty")
+                        and hasattr(order, "side")
+                    ):
                         logging.info(f"    Details: {order.side} {order.qty} {order.symbol}")
             else:
                 logging.error("❌ NO ORDERS RETURNED from rebalance_portfolio")
                 logging.error("*** POTENTIAL BUG: Expected trades but got empty result ***")
-                logging.error(f"Expected trades for symbols: {list(significant_allocations.keys())}")
-                logging.error(f"Trade calculations showed {len([t for t in trade_calculations.values() if abs(t['trade_amount']) > 1.0])} significant trades needed")
-                
+                logging.error(
+                    f"Expected trades for symbols: {list(significant_allocations.keys())}"
+                )
+                logging.error(
+                    f"Trade calculations showed {len([t for t in trade_calculations.values() if abs(t['trade_amount']) > 1.0])} significant trades needed"
+                )
+
             # Data validation checkpoint
-            expected_trades = [t for t in trade_calculations.values() if abs(t['trade_amount']) > 1.0]
-            
+            expected_trades = [
+                t for t in trade_calculations.values() if abs(t["trade_amount"]) > 1.0
+            ]
+
             # Use utility function for expectation vs reality comparison
             log_trade_expectation_vs_reality(
                 logging.getLogger(__name__),
-                expected_trades=[{
-                    'symbol': symbol,
-                    'action': 'BUY' if calc['trade_amount'] > 0 else 'SELL',
-                    'amount': abs(calc['trade_amount'])
-                } for symbol, calc in trade_calculations.items() if abs(calc['trade_amount']) > 1.0],
+                expected_trades=[
+                    {
+                        "symbol": symbol,
+                        "action": "BUY" if calc["trade_amount"] > 0 else "SELL",
+                        "amount": abs(calc["trade_amount"]),
+                    }
+                    for symbol, calc in trade_calculations.items()
+                    if abs(calc["trade_amount"]) > 1.0
+                ],
                 actual_orders=orders_executed,
-                stage="ExecutionManager-PostRebalance"
+                stage="ExecutionManager-PostRebalance",
             )
             logging.info("=== REBALANCING RESULTS ANALYSIS COMPLETE ===")
 
