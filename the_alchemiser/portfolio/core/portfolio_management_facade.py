@@ -79,6 +79,7 @@ class PortfolioManagementFacade:
             self.rebalance_calculator,
             self.position_analyzer,
             self.attribution_engine,
+            min_trade_threshold,  # Pass the threshold to ensure consistency
         )
         self.analysis_service = PortfolioAnalysisService(
             trading_manager, self.position_analyzer, self.attribution_engine

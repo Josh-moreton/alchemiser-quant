@@ -426,6 +426,19 @@ def calculate_rebalance_amounts(
         elif needs_rebalance:
             logger.info(f"✅ {symbol}_ABOVE_THRESHOLD: Need {abs(weight_diff) * 100:.3f}% change, threshold is {min_trade_threshold * 100:.3f}%")
 
+        # === CRITICAL BUG DETECTION ===
+        # Detect potential critical bugs that would cause trade loss
+        if target_weight > 0.01 and abs(weight_diff) > 0.05 and not needs_rebalance:
+            logger.error(f"🚨 CRITICAL_BUG_DETECTED_{symbol}: Large target weight ({target_weight * 100:.1f}%) with large diff ({abs(weight_diff) * 100:.1f}%) but needs_rebalance=False")
+            logger.error(f"🚨 This indicates a threshold calculation bug that will cause trade loss")
+            
+        if trade_amount == 0.0 and target_weight > 0.01:
+            logger.error(f"🚨 ZERO_TRADE_AMOUNT_BUG_{symbol}: Target weight {target_weight * 100:.1f}% but trade_amount=0")
+            logger.error(f"🚨 This suggests target_value ({target_value}) equals current_value ({current_value})")
+            
+        if total_portfolio_value == 0 and any([target_weight > 0 for target_weight in [target_weight]]):
+            logger.error(f"🚨 ZERO_PORTFOLIO_VALUE_BUG: Cannot calculate trades with zero portfolio value")
+
         logger.info(f"CALCULATED_TARGET_VALUE: ${target_value}")
         logger.info(f"CALCULATED_TRADE_AMOUNT: ${trade_amount}")
         logger.info(f"WEIGHT_DIFF_ABS: {abs(weight_diff)}")
