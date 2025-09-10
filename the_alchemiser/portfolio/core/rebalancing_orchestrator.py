@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.execution.core.execution_schemas import (
@@ -67,6 +68,7 @@ class RebalancingOrchestrator:
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
+        portfolio_value: Decimal | None = None,
     ) -> list[OrderDetails]:
         """Execute SELL orders to free buying power.
 
@@ -134,7 +136,7 @@ class RebalancingOrchestrator:
         # Delegate to facade for SELL phase execution
         logging.info("=== ORCHESTRATOR DELEGATING TO FACADE FOR SELL PHASE ===")
         sell_orders = self.portfolio_facade.rebalance_portfolio_phase(
-            target_portfolio, phase="sell"
+            target_portfolio, phase="sell", portfolio_value=portfolio_value
         )
 
         # === ENHANCED SELL PHASE RESULTS ANALYSIS ===
@@ -221,6 +223,7 @@ class RebalancingOrchestrator:
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
+        portfolio_value: Decimal | None = None,
     ) -> list[OrderDetails]:
         """Execute BUY orders with refreshed buying power.
 
@@ -290,7 +293,9 @@ class RebalancingOrchestrator:
 
         # Delegate to facade for BUY phase execution with scaled sizing
         logging.info("=== ORCHESTRATOR DELEGATING TO FACADE FOR BUY PHASE ===")
-        buy_orders = self.portfolio_facade.rebalance_portfolio_phase(target_portfolio, phase="buy")
+        buy_orders = self.portfolio_facade.rebalance_portfolio_phase(
+            target_portfolio, phase="buy", portfolio_value=portfolio_value
+        )
 
         # === ENHANCED BUY PHASE RESULTS ANALYSIS ===
         logging.info("=== ORCHESTRATOR BUY PHASE RESULTS ===")
@@ -315,6 +320,7 @@ class RebalancingOrchestrator:
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
+        portfolio_value: Decimal | None = None,
     ) -> list[OrderDetails]:
         """Execute complete sequential rebalancing: SELL→settle→BUY.
 
@@ -373,7 +379,7 @@ class RebalancingOrchestrator:
 
             # Phase 1: Execute SELL orders to free buying power
             logging.info("=== REBALANCING PHASE 1: SELL ORDERS ===")
-            sell_orders = self.execute_sell_phase(target_portfolio, strategy_attribution)
+            sell_orders = self.execute_sell_phase(target_portfolio, strategy_attribution, portfolio_value)
             all_orders.extend(sell_orders)
 
             # Enhanced phase 1 results logging
@@ -399,7 +405,7 @@ class RebalancingOrchestrator:
 
             # Phase 3: Execute BUY orders with refreshed buying power
             logging.info("=== REBALANCING PHASE 3: BUY ORDERS ===")
-            buy_orders = self.execute_buy_phase(target_portfolio, strategy_attribution)
+            buy_orders = self.execute_buy_phase(target_portfolio, strategy_attribution, portfolio_value)
             all_orders.extend(buy_orders)
 
             # Enhanced phase 3 results logging

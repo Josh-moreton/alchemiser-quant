@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
@@ -76,6 +77,7 @@ class RebalancingOrchestratorFacade:
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
+        portfolio_value: Decimal | None = None,
     ) -> list[OrderDetails]:
         """Execute complete rebalancing cycle with sequential SELL→settle→BUY.
 
@@ -100,7 +102,7 @@ class RebalancingOrchestratorFacade:
             # Run the async orchestrator method using asyncio.run for backward compatibility
             orders = asyncio.run(
                 self._orchestrator.execute_full_rebalance_cycle(
-                    target_portfolio, strategy_attribution
+                    target_portfolio, strategy_attribution, portfolio_value
                 )
             )
 
