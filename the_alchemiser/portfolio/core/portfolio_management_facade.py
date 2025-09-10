@@ -21,10 +21,11 @@ from the_alchemiser.portfolio.mappers.portfolio_rebalancing_mapping import (
     dto_plans_to_domain,
     dto_to_domain_rebalance_plan,
 )
-from the_alchemiser.portfolio.schemas.rebalancing import RebalancePlanDTO
+from the_alchemiser.portfolio.schemas.rebalancing import RebalancePlanDTO as LegacyRebalancePlanDTO
 from the_alchemiser.portfolio.state.attribution_engine import (
     StrategyAttributionEngine,
 )
+from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
 from the_alchemiser.shared.math.num import floats_equal
 from the_alchemiser.shared.utils.serialization import ensure_serialized_dict
 from the_alchemiser.shared.value_objects.core_types import OrderDetails
@@ -836,7 +837,7 @@ class PortfolioManagementFacade:
             f"REBALANCE_THRESHOLD_USED: {self.rebalance_calculator.min_trade_threshold} ({float(self.rebalance_calculator.min_trade_threshold) * 100:.1f}%)"
         )
 
-        filtered_plan: dict[str, RebalancePlanDTO] = {}
+        filtered_plan: dict[str, LegacyRebalancePlanDTO] = {}
         filtering_errors = []
         symbols_processed = 0
         symbols_included = 0
