@@ -442,8 +442,11 @@ class RebalanceExecutionService:
 
     def _place_sell_order(self, symbol: str, amount: Decimal, dry_run: bool) -> dict[str, Any]:
         """Place a sell order for the specified amount."""
+        logger.debug(f"_place_sell_order called: symbol={symbol}, amount={amount}, dry_run={dry_run}")
+        
         try:
             if dry_run:
+                logger.debug(f"Placing DRY RUN sell order for {symbol}")
                 return {
                     "symbol": symbol,
                     "side": "sell",
@@ -453,7 +456,8 @@ class RebalanceExecutionService:
                     "message": f"Would sell ${amount} of {symbol}",
                 }
 
-                # Use smart execution for sell order
+            # Use smart execution for sell order
+            logger.debug(f"Placing LIVE sell order for {symbol}")
             price_val = self.trading_manager.alpaca_manager.get_current_price(symbol)
             try:
                 price = Decimal(str(price_val))
@@ -464,12 +468,13 @@ class RebalanceExecutionService:
                 raise ValueError(f"Invalid price for {symbol}: {price_val}")
 
             shares_to_sell = amount / price
+            logger.debug(f"Calculated shares to sell: {shares_to_sell} at price ${price}")
 
             order_result = self.smart_execution.place_order(
                 symbol=symbol, qty=float(shares_to_sell), side=BrokerOrderSide.SELL.to_alpaca()
             )
 
-            return {
+            result = {
                 "symbol": symbol,
                 "side": "sell",
                 "amount": amount,
@@ -478,8 +483,11 @@ class RebalanceExecutionService:
                 "order_id": order_result,
                 "message": f"Placed sell order for {shares_to_sell} shares of {symbol}",
             }
+            logger.debug(f"Sell order result: {result}")
+            return result
 
         except Exception as e:
+            logger.error(f"❌ Failed to place sell order for {symbol}: {e}")
             return {
                 "symbol": symbol,
                 "side": "sell",
@@ -492,8 +500,11 @@ class RebalanceExecutionService:
 
     def _place_buy_order(self, symbol: str, amount: Decimal, dry_run: bool) -> dict[str, Any]:
         """Place a buy order for the specified amount."""
+        logger.debug(f"_place_buy_order called: symbol={symbol}, amount={amount}, dry_run={dry_run}")
+        
         try:
             if dry_run:
+                logger.debug(f"Placing DRY RUN buy order for {symbol}")
                 return {
                     "symbol": symbol,
                     "side": "buy",
@@ -503,7 +514,8 @@ class RebalanceExecutionService:
                     "message": f"Would buy ${amount} of {symbol}",
                 }
 
-                # Use smart execution for buy order
+            # Use smart execution for buy order
+            logger.debug(f"Placing LIVE buy order for {symbol}")
             price_val = self.trading_manager.alpaca_manager.get_current_price(symbol)
             try:
                 price = Decimal(str(price_val))
@@ -514,12 +526,13 @@ class RebalanceExecutionService:
                 raise ValueError(f"Invalid price for {symbol}: {price_val}")
 
             shares_to_buy = amount / price
+            logger.debug(f"Calculated shares to buy: {shares_to_buy} at price ${price}")
 
             order_result = self.smart_execution.place_order(
                 symbol=symbol, qty=float(shares_to_buy), side=BrokerOrderSide.BUY.to_alpaca()
             )
 
-            return {
+            result = {
                 "symbol": symbol,
                 "side": "buy",
                 "amount": amount,
@@ -528,8 +541,11 @@ class RebalanceExecutionService:
                 "order_id": order_result,
                 "message": f"Placed buy order for {shares_to_buy} shares of {symbol}",
             }
+            logger.debug(f"Buy order result: {result}")
+            return result
 
         except Exception as e:
+            logger.error(f"❌ Failed to place buy order for {symbol}: {e}")
             return {
                 "symbol": symbol,
                 "side": "buy",
