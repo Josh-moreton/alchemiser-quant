@@ -166,8 +166,7 @@ class RebalanceCalculator:
             logger.info("=== RAW PLAN DETAILS FROM TRADING_MATH ===")
             for symbol, data in raw_plan.items():
                 logger.info(f"RAW_RESULT: {symbol}")
-                for key, value in data.items():
-                    logger.info(f"  {key}: {value} (type: {type(value)})")
+                logger.info(f"  data: {data}")
         else:
             logger.error("❌ TRADING_MATH_RETURNED_EMPTY")
 
