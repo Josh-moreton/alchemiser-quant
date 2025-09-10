@@ -150,6 +150,12 @@ class PortfolioRebalancingService:
                 logger.info(
                     f"FETCHED_POSITIONS_COUNT: {len(current_positions) if current_positions else 0}"
                 )
+                
+                # Handle empty positions gracefully for fresh accounts
+                if not current_positions:
+                    logger.warning("⚠️ NO_CURRENT_POSITIONS: This could be a fresh account or API failure")
+                    logger.info("🔄 PROCEEDING_WITH_EMPTY_POSITIONS: Will generate all BUY trades if portfolio value is valid")
+                    current_positions = {}  # Ensure we have an empty dict, not None
 
             if portfolio_value is None:
                 logger.info("Fetching portfolio value...")
@@ -166,20 +172,46 @@ class PortfolioRebalancingService:
                 )
                 logger.error(f"❌ {error_msg}")
                 logger.error("🚨 This is the ROOT CAUSE of the 'no trades generated' issue!")
-                logger.error("🚨 POTENTIAL_SOLUTIONS:")
-                logger.error("  1. Verify account has funds and positions")
-                logger.error("  2. Check API credentials and permissions")
-                logger.error("  3. Ensure correct trading environment (paper vs live)")
-                logger.error("  4. Check if account is restricted or blocked")
+                logger.error("🚨 ATTEMPTING EMERGENCY RECOVERY...")
+                
+                # Try emergency fallback: check if we can get buying power as portfolio value
+                try:
+                    account_summary = self.trading_manager.get_account_summary()
+                    if account_summary:
+                        buying_power = account_summary.get("buying_power", 0)
+                        cash = account_summary.get("cash", 0)
+                        
+                        logger.error(f"🚨 EMERGENCY_RECOVERY_DATA: buying_power=${buying_power}, cash=${cash}")
+                        
+                        # Use buying_power as emergency portfolio value for fresh accounts
+                        if buying_power > 0:
+                            portfolio_value = Decimal(str(buying_power))
+                            logger.error(f"🚨 EMERGENCY_RECOVERY_SUCCESS: Using buying_power as portfolio_value=${portfolio_value}")
+                        elif cash > 0:
+                            portfolio_value = Decimal(str(cash))
+                            logger.error(f"🚨 EMERGENCY_RECOVERY_SUCCESS: Using cash as portfolio_value=${portfolio_value}")
+                        else:
+                            logger.error("🚨 EMERGENCY_RECOVERY_FAILED: No buying_power or cash available")
+                            
+                except Exception as e:
+                    logger.error(f"🚨 EMERGENCY_RECOVERY_EXCEPTION: {e}")
+                
+                # If still invalid after recovery attempts, return error
+                if portfolio_value <= 0:
+                    logger.error("🚨 POTENTIAL_SOLUTIONS:")
+                    logger.error("  1. Verify account has funds and positions")
+                    logger.error("  2. Check API credentials and permissions")
+                    logger.error("  3. Ensure correct trading environment (paper vs live)")
+                    logger.error("  4. Check if account is restricted or blocked")
 
-                return RebalancePlanCollectionDTO(
-                    success=False,
-                    plans={},
-                    total_symbols=0,
-                    symbols_needing_rebalance=0,
-                    total_trade_value=Decimal("0"),
-                    error=f"Invalid portfolio value: ${portfolio_value}. {error_msg}",
-                )
+                    return RebalancePlanCollectionDTO(
+                        success=False,
+                        plans={},
+                        total_symbols=0,
+                        symbols_needing_rebalance=0,
+                        total_trade_value=Decimal("0"),
+                        error=f"Invalid portfolio value: ${portfolio_value}. {error_msg}",
+                    )
 
             # Validate target weights
             total_target_weight = sum(target_weights.values())
@@ -930,6 +962,9 @@ class PortfolioRebalancingService:
                         logger.warning(f"⚠️ MISSING_SYMBOL_IN_POSITION: {position}")
             else:
                 logger.error("❌ POSITIONS_DATA_FAILED_OR_EMPTY")
+                logger.warning("🔄 ATTEMPTING GRACEFUL RECOVERY: Using empty positions for fresh account scenario")
+                # For fresh accounts or API failures, we should still be able to calculate BUY trades
+                # if we have a valid portfolio value (cash balance). Empty positions = all BUY trades.
 
             logger.info("=== FINAL POSITION VALUES ===")
             logger.info(f"TOTAL_POSITIONS_FETCHED: {len(position_values)}")
