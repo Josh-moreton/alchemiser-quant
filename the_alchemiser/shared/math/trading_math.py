@@ -288,7 +288,7 @@ def calculate_rebalance_amounts(
     target_weights: dict[str, float],
     current_values: dict[str, float],
     total_portfolio_value: float,
-    min_trade_threshold: float = 0.01,  # 1% minimum threshold for trades
+    min_trade_threshold: float = 0.001,  # 0.1% minimum threshold for trades
 ) -> dict[str, dict[str, float]]:
     """Calculate comprehensive rebalancing plan for all portfolio positions.
 
@@ -304,7 +304,7 @@ def calculate_rebalance_amounts(
             current position values in dollars.
         total_portfolio_value (float): Total portfolio value in dollars.
         min_trade_threshold (float, optional): Minimum weight difference
-            to trigger a rebalancing trade. Defaults to 0.01 (1%).
+            to trigger a rebalancing trade. Defaults to 0.001 (0.1%).
 
     Returns:
         dict[str, dict]: Dictionary mapping each symbol to a detailed
@@ -337,30 +337,63 @@ def calculate_rebalance_amounts(
     import logging
 
     logger = logging.getLogger(__name__)
+    
+    # === TRADING_MATH ENTRY POINT LOGGING ===
+    logger.info("=== TRADING_MATH: CALCULATE_REBALANCE_AMOUNTS ===")
+    logger.info(f"MATH_FUNCTION_ENTRY")
+    logger.info(f"RECEIVED_TARGET_WEIGHTS: {target_weights}")
+    logger.info(f"RECEIVED_CURRENT_VALUES: {current_values}")
+    logger.info(f"RECEIVED_PORTFOLIO_VALUE: {total_portfolio_value}")
+    logger.info(f"RECEIVED_THRESHOLD: {min_trade_threshold}")
+    
+    # Validate inputs
+    if not target_weights:
+        logger.error("❌ TRADING_MATH_RECEIVED_EMPTY_TARGET_WEIGHTS")
+        return {}
+    
+    if total_portfolio_value <= 0:
+        logger.error(f"❌ TRADING_MATH_RECEIVED_INVALID_PORTFOLIO_VALUE: {total_portfolio_value}")
+        return {}
+    
     rebalance_plan = {}
 
     # Get all symbols from both target and current positions
     all_symbols = set(target_weights.keys()) | set(current_values.keys())
+    logger.info(f"ALL_SYMBOLS_TO_PROCESS: {all_symbols}")
 
     symbols_needing_rebalance = 0
 
     for symbol in all_symbols:
+        logger.info(f"=== PROCESSING SYMBOL: {symbol} ===")
+        
         target_weight = target_weights.get(symbol, 0.0)
         current_value = current_values.get(symbol, 0.0)
+
+        logger.info(f"SYMBOL_TARGET_WEIGHT: {target_weight}")
+        logger.info(f"SYMBOL_CURRENT_VALUE: {current_value}")
 
         # Ensure current_value is a float
         try:
             current_value = float(current_value)
         except (ValueError, TypeError):
+            logger.warning(f"Invalid current_value for {symbol}: {current_value}, using 0.0")
             current_value = 0.0
 
         current_weight, weight_diff = calculate_allocation_discrepancy(
             target_weight, current_value, total_portfolio_value
         )
+        
+        logger.info(f"CALCULATED_CURRENT_WEIGHT: {current_weight}")
+        logger.info(f"CALCULATED_WEIGHT_DIFF: {weight_diff}")
 
         target_value = total_portfolio_value * target_weight
         trade_amount = target_value - current_value
         needs_rebalance = abs(weight_diff) >= min_trade_threshold
+
+        logger.info(f"CALCULATED_TARGET_VALUE: ${target_value}")
+        logger.info(f"CALCULATED_TRADE_AMOUNT: ${trade_amount}")
+        logger.info(f"WEIGHT_DIFF_ABS: {abs(weight_diff)}")
+        logger.info(f"THRESHOLD_CHECK: {abs(weight_diff)} >= {min_trade_threshold} = {needs_rebalance}")
 
         # Add detailed threshold logging for all symbols (using debug level for verbose output)
         logger.debug(f"=== THRESHOLD CHECK: {symbol} ===")
@@ -372,7 +405,7 @@ def calculate_rebalance_amounts(
             f"{symbol}: Threshold {min_trade_threshold:.3f}% ({min_trade_threshold * 100:.1f}%)"
         )
         logger.debug(
-            f"{symbol}: Needs rebalance: {needs_rebalance} (diff {abs(weight_diff):.4f} {'≥' if needs_rebalance else '<'} threshold {min_trade_threshold:.4f})"
+            f"{symbol}: Needs rebalance: {needs_rebalance} (diff {abs(weight_diff):.6f} {'≥' if needs_rebalance else '<'} threshold {min_trade_threshold:.6f})"
         )
         logger.debug(f"{symbol}: Trade amount: ${trade_amount:.2f}")
 
@@ -397,6 +430,8 @@ def calculate_rebalance_amounts(
             "trade_amount": trade_amount,
             "needs_rebalance": needs_rebalance,
         }
+        
+        logger.info(f"SYMBOL_PLAN_CREATED: {symbol} -> {rebalance_plan[symbol]}")
 
     # Add comprehensive summary logging
     logging.info("=== REBALANCE CALCULATION SUMMARY ===")
@@ -427,5 +462,8 @@ def calculate_rebalance_amounts(
     logger.debug(
         f"Rebalance calculation complete: {symbols_needing_rebalance}/{len(all_symbols)} symbols need rebalancing"
     )
+    
+    logger.info("=== TRADING_MATH CALCULATION COMPLETE ===")
+    logger.info(f"RETURNING_PLAN_WITH: {len(rebalance_plan)} symbols")
 
     return rebalance_plan

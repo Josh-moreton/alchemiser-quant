@@ -111,15 +111,101 @@ class PortfolioRebalancingService:
             RebalancePlanCollectionDTO with rebalancing plans for all symbols
 
         """
+        # === REBALANCING SERVICE DATA TRANSFER LOGGING ===
+        logger.info("=== PORTFOLIO REBALANCING SERVICE: CALCULATE_REBALANCING_PLAN ===")
+        logger.info(f"SERVICE_TYPE: {type(self).__name__}")
+        logger.info(f"RECEIVED_TARGET_WEIGHTS_TYPE: {type(target_weights)}")
+        logger.info(f"RECEIVED_TARGET_WEIGHTS_COUNT: {len(target_weights) if target_weights else 0}")
+        logger.info(f"RECEIVED_CURRENT_POSITIONS: {current_positions is not None}")
+        logger.info(f"RECEIVED_PORTFOLIO_VALUE: {portfolio_value}")
+        
+        # Log exact received data
+        if target_weights:
+            logger.info("=== RECEIVED TARGET WEIGHTS ===")
+            target_total = sum(target_weights.values())
+            logger.info(f"TARGET_WEIGHTS_TOTAL: {target_total}")
+            for symbol, weight in target_weights.items():
+                logger.info(f"RECEIVED_WEIGHT: {symbol} = {weight} (type: {type(weight)})")
+        else:
+            logger.error("❌ REBALANCING_SERVICE_RECEIVED_EMPTY_TARGET_WEIGHTS")
+            return RebalancePlanCollectionDTO(
+                success=False,
+                plans={},
+                total_symbols=0,
+                symbols_needing_rebalance=0,
+                total_trade_value=Decimal("0"),
+                error="Empty target weights received",
+            )
+        
         try:
+            # === DATA FETCHING PHASE ===
+            logger.info("=== DATA FETCHING PHASE ===")
+            
+            # Fetch current data if not provided
+            if current_positions is None:
+                logger.info("Fetching current position values...")
+                current_positions = self._get_current_position_values()
+                logger.info(f"FETCHED_POSITIONS_COUNT: {len(current_positions) if current_positions else 0}")
+            
+            if portfolio_value is None:
+                logger.info("Fetching portfolio value...")
+                portfolio_value = self._get_portfolio_value()
+                logger.info(f"FETCHED_PORTFOLIO_VALUE: {portfolio_value}")
+            
+            # Log fetched data
+            logger.info("=== FETCHED DATA SUMMARY ===")
+            logger.info(f"PORTFOLIO_VALUE: {portfolio_value}")
+            if current_positions:
+                logger.info(f"CURRENT_POSITIONS_COUNT: {len(current_positions)}")
+                for symbol, value in current_positions.items():
+                    logger.info(f"CURRENT_POSITION: {symbol} = ${value}")
+            else:
+                logger.info("CURRENT_POSITIONS: Empty")
+            
+            # === DOMAIN CALCULATION PHASE ===
+            logger.info("=== CALLING DOMAIN CALCULATION ===")
+            logger.info(f"CALCULATOR_TYPE: {type(self.rebalance_calculator).__name__}")
+            logger.info(f"PASSING_TO_CALCULATOR:")
+            logger.info(f"  target_weights: {len(target_weights)} symbols")
+            logger.info(f"  current_positions: {len(current_positions) if current_positions else 0} positions")
+            logger.info(f"  portfolio_value: ${portfolio_value}")
+            
             # Use internal domain method
             domain_plans = self._calculate_rebalancing_plan_domain(
                 target_weights, current_positions, portfolio_value
             )
-
-            # Convert to DTO
-            return rebalance_plans_dict_to_collection_dto(domain_plans)
+            
+            # === DOMAIN RESULTS ANALYSIS ===
+            logger.info("=== DOMAIN CALCULATION RESULTS ===")
+            logger.info(f"DOMAIN_PLANS_TYPE: {type(domain_plans)}")
+            logger.info(f"DOMAIN_PLANS_COUNT: {len(domain_plans) if domain_plans else 0}")
+            
+            if domain_plans:
+                logger.info("=== DOMAIN PLANS DETAILS ===")
+                for symbol, plan in domain_plans.items():
+                    logger.info(f"DOMAIN_PLAN: {symbol}")
+                    logger.info(f"  needs_rebalance: {plan.needs_rebalance}")
+                    logger.info(f"  trade_amount: {plan.trade_amount}")
+                    logger.info(f"  current_weight: {plan.current_weight}")
+                    logger.info(f"  target_weight: {plan.target_weight}")
+            else:
+                logger.error("❌ DOMAIN_CALCULATION_RETURNED_EMPTY")
+            
+            # === DTO CONVERSION PHASE ===
+            logger.info("=== DTO CONVERSION PHASE ===")
+            dto_result = rebalance_plans_dict_to_collection_dto(domain_plans)
+            
+            logger.info(f"DTO_RESULT_TYPE: {type(dto_result)}")
+            logger.info(f"DTO_SUCCESS: {dto_result.success if hasattr(dto_result, 'success') else 'unknown'}")
+            logger.info(f"DTO_PLANS_COUNT: {len(dto_result.plans) if hasattr(dto_result, 'plans') else 'unknown'}")
+            logger.info(f"DTO_SYMBOLS_NEEDING_REBALANCE: {dto_result.symbols_needing_rebalance if hasattr(dto_result, 'symbols_needing_rebalance') else 'unknown'}")
+            
+            logger.info("=== REBALANCING SERVICE CALCULATION COMPLETE ===")
+            return dto_result
+            
         except Exception as e:
+            logger.error(f"❌ REBALANCING_SERVICE_CALCULATION_FAILED: {e}")
+            logger.exception("Full exception details:")
             return RebalancePlanCollectionDTO(
                 success=False,
                 plans={},
