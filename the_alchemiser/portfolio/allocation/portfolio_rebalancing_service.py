@@ -26,8 +26,10 @@ from the_alchemiser.shared.dto import (
     OrderRequestDTO,
     PortfolioMetricsDTO,
     PortfolioStateDTO,
-    RebalancePlanDTO,
     StrategySignalDTO,
+)
+from the_alchemiser.shared.dto.rebalance_plan_dto import (
+    RebalancePlanDTO as SharedRebalancePlanDTO,  # For inter-module communication
 )
 
 from ..holdings.position_analyzer import PositionAnalyzer
@@ -150,11 +152,15 @@ class PortfolioRebalancingService:
                 logger.info(
                     f"FETCHED_POSITIONS_COUNT: {len(current_positions) if current_positions else 0}"
                 )
-                
+
                 # Handle empty positions gracefully for fresh accounts
                 if not current_positions:
-                    logger.warning("⚠️ NO_CURRENT_POSITIONS: This could be a fresh account or API failure")
-                    logger.info("🔄 PROCEEDING_WITH_EMPTY_POSITIONS: Will generate all BUY trades if portfolio value is valid")
+                    logger.warning(
+                        "⚠️ NO_CURRENT_POSITIONS: This could be a fresh account or API failure"
+                    )
+                    logger.info(
+                        "🔄 PROCEEDING_WITH_EMPTY_POSITIONS: Will generate all BUY trades if portfolio value is valid"
+                    )
                     current_positions = {}  # Ensure we have an empty dict, not None
 
             if portfolio_value is None:
@@ -173,29 +179,37 @@ class PortfolioRebalancingService:
                 logger.error(f"❌ {error_msg}")
                 logger.error("🚨 This is the ROOT CAUSE of the 'no trades generated' issue!")
                 logger.error("🚨 ATTEMPTING EMERGENCY RECOVERY...")
-                
+
                 # Try emergency fallback: check if we can get buying power as portfolio value
                 try:
                     account_summary = self.trading_manager.get_account_summary()
                     if account_summary:
                         buying_power = account_summary.get("buying_power", 0)
                         cash = account_summary.get("cash", 0)
-                        
-                        logger.error(f"🚨 EMERGENCY_RECOVERY_DATA: buying_power=${buying_power}, cash=${cash}")
-                        
+
+                        logger.error(
+                            f"🚨 EMERGENCY_RECOVERY_DATA: buying_power=${buying_power}, cash=${cash}"
+                        )
+
                         # Use buying_power as emergency portfolio value for fresh accounts
                         if buying_power > 0:
                             portfolio_value = Decimal(str(buying_power))
-                            logger.error(f"🚨 EMERGENCY_RECOVERY_SUCCESS: Using buying_power as portfolio_value=${portfolio_value}")
+                            logger.error(
+                                f"🚨 EMERGENCY_RECOVERY_SUCCESS: Using buying_power as portfolio_value=${portfolio_value}"
+                            )
                         elif cash > 0:
                             portfolio_value = Decimal(str(cash))
-                            logger.error(f"🚨 EMERGENCY_RECOVERY_SUCCESS: Using cash as portfolio_value=${portfolio_value}")
+                            logger.error(
+                                f"🚨 EMERGENCY_RECOVERY_SUCCESS: Using cash as portfolio_value=${portfolio_value}"
+                            )
                         else:
-                            logger.error("🚨 EMERGENCY_RECOVERY_FAILED: No buying_power or cash available")
-                            
+                            logger.error(
+                                "🚨 EMERGENCY_RECOVERY_FAILED: No buying_power or cash available"
+                            )
+
                 except Exception as e:
                     logger.error(f"🚨 EMERGENCY_RECOVERY_EXCEPTION: {e}")
-                
+
                 # If still invalid after recovery attempts, return error
                 if portfolio_value <= 0:
                     logger.error("🚨 POTENTIAL_SOLUTIONS:")
@@ -776,7 +790,7 @@ class PortfolioRebalancingService:
         target_weights: dict[str, Decimal],
         correlation_id: str | None = None,
         causation_id: str | None = None,
-    ) -> RebalancePlanDTO | None:
+    ) -> SharedRebalancePlanDTO | None:
         """Create a rebalance plan DTO for execution module consumption.
 
         Args:
@@ -785,7 +799,7 @@ class PortfolioRebalancingService:
             causation_id: Optional causation ID for traceability
 
         Returns:
-            RebalancePlanDTO or None if no rebalancing needed
+            SharedRebalancePlanDTO or None if no rebalancing needed
 
         """
         try:
@@ -841,7 +855,7 @@ class PortfolioRebalancingService:
             if not items:
                 return None
 
-            return RebalancePlanDTO(
+            return SharedRebalancePlanDTO(
                 correlation_id=correlation_id,
                 causation_id=causation_id,
                 timestamp=datetime.now(UTC),
@@ -857,13 +871,13 @@ class PortfolioRebalancingService:
 
     def rebalance_plan_to_orders_dto(
         self,
-        rebalance_plan: RebalancePlanDTO,
+        rebalance_plan: SharedRebalancePlanDTO,
         execution_config: dict[str, Any] | None = None,
     ) -> list[OrderRequestDTO]:
         """Convert rebalance plan to order requests for execution module.
 
         Args:
-            rebalance_plan: RebalancePlanDTO to convert
+            rebalance_plan: SharedRebalancePlanDTO to convert
             execution_config: Optional execution configuration
 
         Returns:
@@ -962,7 +976,9 @@ class PortfolioRebalancingService:
                         logger.warning(f"⚠️ MISSING_SYMBOL_IN_POSITION: {position}")
             else:
                 logger.error("❌ POSITIONS_DATA_FAILED_OR_EMPTY")
-                logger.warning("🔄 ATTEMPTING GRACEFUL RECOVERY: Using empty positions for fresh account scenario")
+                logger.warning(
+                    "🔄 ATTEMPTING GRACEFUL RECOVERY: Using empty positions for fresh account scenario"
+                )
                 # For fresh accounts or API failures, we should still be able to calculate BUY trades
                 # if we have a valid portfolio value (cash balance). Empty positions = all BUY trades.
 

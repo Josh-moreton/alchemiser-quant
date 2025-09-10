@@ -182,7 +182,7 @@ class RebalanceCalculator:
                 # CRITICAL: Check for inconsistent results before creating domain objects
                 needs_rebalance = bool(data["needs_rebalance"])
                 trade_amount = float(data["trade_amount"])
-                
+
                 if needs_rebalance and trade_amount == 0:
                     symbols_with_zero_trade_amount += 1
                     logger.error(
@@ -190,7 +190,7 @@ class RebalanceCalculator:
                     )
                     logger.error(f"🚨 Raw data: {data}")
                     logger.error("🚨 This will cause filtering failures downstream!")
-                
+
                 domain_plan = RebalancePlan(
                     symbol=symbol,
                     current_weight=Decimal(str(data["current_weight"])),
@@ -221,9 +221,11 @@ class RebalanceCalculator:
         logger.info(
             f"SYMBOLS_NOT_NEEDING_REBALANCE: {len(domain_plans) - symbols_needing_rebalance}"
         )
-        
+
         if symbols_with_zero_trade_amount > 0:
-            logger.error(f"🚨 CRITICAL: {symbols_with_zero_trade_amount} symbols have inconsistent results!")
+            logger.error(
+                f"🚨 CRITICAL: {symbols_with_zero_trade_amount} symbols have inconsistent results!"
+            )
             logger.error("🚨 This will cause the filtering logic to fail downstream!")
 
         symbols_to_rebalance = [

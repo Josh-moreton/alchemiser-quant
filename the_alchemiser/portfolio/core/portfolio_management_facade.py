@@ -21,11 +21,10 @@ from the_alchemiser.portfolio.mappers.portfolio_rebalancing_mapping import (
     dto_plans_to_domain,
     dto_to_domain_rebalance_plan,
 )
-from the_alchemiser.portfolio.schemas.rebalancing import RebalancePlanDTO as LegacyRebalancePlanDTO
+from the_alchemiser.portfolio.schemas.rebalancing import PortfolioRebalancePlanDTO
 from the_alchemiser.portfolio.state.attribution_engine import (
     StrategyAttributionEngine,
 )
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
 from the_alchemiser.shared.math.num import floats_equal
 from the_alchemiser.shared.utils.serialization import ensure_serialized_dict
 from the_alchemiser.shared.value_objects.core_types import OrderDetails
@@ -429,7 +428,7 @@ class PortfolioManagementFacade:
         try:
             current_positions = self.get_current_positions()
             logger.info(f"CURRENT_POSITIONS_FETCHED: {len(current_positions)} positions")
-            
+
             positions_added_for_sell = 0
             for symbol, current_value in current_positions.items():
                 if symbol not in target_weights_decimal and current_value > 0:
@@ -437,7 +436,7 @@ class PortfolioManagementFacade:
                     target_weights_decimal[symbol] = Decimal("0.0")
                     positions_added_for_sell += 1
                     logger.info(f"ADDED_FOR_SELL: {symbol} = 0.0% (current: ${current_value})")
-            
+
             logger.info(f"TOTAL_POSITIONS_ADDED_FOR_SELL: {positions_added_for_sell}")
             logger.info(f"FINAL_TARGET_WEIGHTS_COUNT: {len(target_weights_decimal)}")
         except Exception as e:
@@ -837,7 +836,7 @@ class PortfolioManagementFacade:
             f"REBALANCE_THRESHOLD_USED: {self.rebalance_calculator.min_trade_threshold} ({float(self.rebalance_calculator.min_trade_threshold) * 100:.1f}%)"
         )
 
-        filtered_plan: dict[str, LegacyRebalancePlanDTO] = {}
+        filtered_plan: dict[str, PortfolioRebalancePlanDTO] = {}
         filtering_errors = []
         symbols_processed = 0
         symbols_included = 0

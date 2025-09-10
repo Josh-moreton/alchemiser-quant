@@ -25,10 +25,12 @@ from the_alchemiser.portfolio.allocation.rebalance_plan import RebalancePlan
 from the_alchemiser.shared.schemas.base import ResultDTO
 
 
-class RebalancePlanDTO(BaseModel):
-    """DTO for individual symbol rebalance plan.
+class PortfolioRebalancePlanDTO(BaseModel):
+    """DTO for individual symbol rebalance plan within portfolio module.
 
     Wraps the domain RebalancePlan object for service layer boundaries.
+    Note: This is portfolio-specific. For inter-module communication,
+    use shared.dto.rebalance_plan_dto.RebalancePlanDTO instead.
     """
 
     model_config = ConfigDict(
@@ -53,7 +55,7 @@ class RebalancePlanDTO(BaseModel):
     weight_change_bps: int = Field(..., description="Weight change in basis points")
 
     @classmethod
-    def from_domain(cls, plan: RebalancePlan) -> RebalancePlanDTO:
+    def from_domain(cls, plan: RebalancePlan) -> PortfolioRebalancePlanDTO:
         """Create DTO from domain RebalancePlan object."""
         return cls(
             symbol=plan.symbol,
@@ -71,7 +73,7 @@ class RebalancePlanDTO(BaseModel):
 
 
 class RebalancePlanCollectionDTO(ResultDTO):
-    """DTO for collection of rebalance plans by symbol.
+    """DTO for collection of portfolio rebalance plans by symbol.
 
     Replaces dict[str, RebalancePlan] returns from portfolio services.
     """
@@ -82,7 +84,9 @@ class RebalancePlanCollectionDTO(ResultDTO):
         validate_assignment=True,
     )
 
-    plans: dict[str, RebalancePlanDTO] = Field(..., description="Rebalance plans by symbol")
+    plans: dict[str, PortfolioRebalancePlanDTO] = Field(
+        ..., description="Rebalance plans by symbol"
+    )
     total_symbols: int = Field(..., ge=0, description="Total number of symbols")
     symbols_needing_rebalance: int = Field(
         ..., ge=0, description="Number of symbols needing rebalancing"

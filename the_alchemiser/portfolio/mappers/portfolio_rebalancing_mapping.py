@@ -18,10 +18,10 @@ from typing import Any
 
 from the_alchemiser.portfolio.allocation.rebalance_plan import RebalancePlan
 from the_alchemiser.portfolio.schemas.rebalancing import (
+    PortfolioRebalancePlanDTO,
     RebalanceExecutionResultDTO,
     RebalanceInstructionDTO,
     RebalancePlanCollectionDTO,
-    RebalancePlanDTO,
     RebalancingImpactDTO,
     RebalancingSummaryDTO,
 )
@@ -39,8 +39,8 @@ __all__ = [
 ]
 
 
-def dto_to_domain_rebalance_plan(dto: RebalancePlanDTO) -> RebalancePlan:
-    """Convert RebalancePlanDTO to domain RebalancePlan object.
+def dto_to_domain_rebalance_plan(dto: PortfolioRebalancePlanDTO) -> RebalancePlan:
+    """Convert PortfolioRebalancePlanDTO to domain RebalancePlan object.
 
     Derived attributes (trade_direction, trade_amount_abs, weight_change_bps) are not
     copied; they are computed lazily via RebalancePlan properties to ensure domain
@@ -58,8 +58,10 @@ def dto_to_domain_rebalance_plan(dto: RebalancePlanDTO) -> RebalancePlan:
     )
 
 
-def dto_plans_to_domain(dto_plans: dict[str, RebalancePlanDTO]) -> dict[str, RebalancePlan]:
-    """Convert dict of RebalancePlanDTO to dict of domain RebalancePlan objects."""
+def dto_plans_to_domain(
+    dto_plans: dict[str, PortfolioRebalancePlanDTO],
+) -> dict[str, RebalancePlan]:
+    """Convert dict of PortfolioRebalancePlanDTO to dict of domain RebalancePlan objects."""
     return {symbol: dto_to_domain_rebalance_plan(plan) for symbol, plan in dto_plans.items()}
 
 
@@ -72,7 +74,7 @@ def rebalance_plans_dict_to_collection_dto(
     total_trade_value = Decimal("0")
 
     for symbol, plan in plans.items():
-        plan_dto = RebalancePlanDTO.from_domain(plan)
+        plan_dto = PortfolioRebalancePlanDTO.from_domain(plan)
         plan_dtos[symbol] = plan_dto
 
         if plan.needs_rebalance:
