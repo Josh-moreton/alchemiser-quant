@@ -78,7 +78,7 @@ class PortfolioRebalancingService:
         current_positions: dict[str, Decimal] | None = None,
         portfolio_value: Decimal | None = None,
     ) -> dict[str, RebalancePlan]:
-        """Internal method to calculate rebalancing plan as domain objects.
+        """Calculate rebalancing plan as domain objects.
 
         Used by methods that need to work with domain objects internally.
         """
@@ -196,7 +196,7 @@ class PortfolioRebalancingService:
                 )
             
             # Warn if target weights don't sum to 1.0 (100%)
-            if abs(total_target_weight - 1.0) > 0.01:  # Allow 1% tolerance
+            if abs(total_target_weight - Decimal("1.0")) > Decimal("0.01"):  # Allow 1% tolerance
                 logger.warning(f"⚠️ TARGET_WEIGHTS_SUM_UNUSUAL: {total_target_weight:.3f} (expected ~1.0)")
             
             # Log current position values summary
@@ -547,7 +547,7 @@ class PortfolioRebalancingService:
         """
         try:
             # Get current portfolio data
-            current_positions = self._get_current_position_values()
+            _ = self._get_current_position_values()  # Fetch for side effects
             portfolio_value = self._get_portfolio_value()
 
             # Get account summary for additional metrics
@@ -913,7 +913,7 @@ class PortfolioRebalancingService:
             else:
                 logger.error("❌ POSITIONS_DATA_FAILED_OR_EMPTY")
 
-            logger.info(f"=== FINAL POSITION VALUES ===")
+            logger.info("=== FINAL POSITION VALUES ===")
             logger.info(f"TOTAL_POSITIONS_FETCHED: {len(position_values)}")
             if position_values:
                 total_value = sum(position_values.values())
@@ -986,25 +986,19 @@ class PortfolioRebalancingService:
                         logger.error("  1. Check if account has sufficient funds")
                         logger.error("  2. Verify API credentials and permissions")
                         logger.error("  3. Check if account is in correct trading mode (paper vs live)")
-                        
-                        # Return a minimal value to prevent complete failure
-                        logger.warning("⚠️ EMERGENCY_FALLBACK: Using minimal portfolio value of $1000 to prevent complete trade loss")
-                        return Decimal("1000.00")
-                    else:
-                        logger.info(f"✅ VALID_PORTFOLIO_VALUE_FROM_ACCOUNT: ${portfolio_value}")
+                        logger.error("🚨 Returning actual invalid portfolio value for proper error handling")
                         return portfolio_value
-                else:
-                    logger.error("❌ BOTH_PORTFOLIO_VALUE_AND_EQUITY_ARE_NONE")
+                    logger.info(f"✅ VALID_PORTFOLIO_VALUE_FROM_ACCOUNT: ${portfolio_value}")
+                    return portfolio_value
+                logger.error("❌ BOTH_PORTFOLIO_VALUE_AND_EQUITY_ARE_NONE")
             else:
                 logger.error("❌ ACCOUNT_SUMMARY_IS_NONE")
                 
             logger.error("❌ ALL_PORTFOLIO_VALUE_METHODS_FAILED")
             logger.error("🚨 CRITICAL: Cannot proceed with rebalancing without portfolio value")
             logger.error("🚨 This explains why no trades are being generated!")
-            
-            # Emergency fallback to prevent complete trade loss
-            logger.warning("⚠️ EMERGENCY_FALLBACK: Using minimal portfolio value to prevent complete failure")
-            return Decimal("1000.00")
+            logger.error("🚨 Returning zero portfolio value for proper error handling")
+            return Decimal("0")
             
         except Exception as e:
             # Fallback to account summary method if DTO method fails
@@ -1023,12 +1017,12 @@ class PortfolioRebalancingService:
                     
                     if result <= 0:
                         logger.error("❌ EMERGENCY_FALLBACK_ALSO_RETURNED_ZERO")
-                        logger.warning("⚠️ USING_MINIMAL_VALUE_TO_PREVENT_COMPLETE_FAILURE")
-                        return Decimal("1000.00")
+                        logger.error("🚨 Returning actual invalid portfolio value for proper error handling")
+                        return result
                     
                     return result
                 logger.error("❌ EMERGENCY_FALLBACK_FAILED")
-                return Decimal("1000.00")  # Prevent complete failure
+                return Decimal("0")
             except Exception as fallback_e:
                 logger.error(f"❌ EMERGENCY_FALLBACK_EXCEPTION: {fallback_e}")
-                return Decimal("1000.00")  # Prevent complete failure
+                return Decimal("0")
