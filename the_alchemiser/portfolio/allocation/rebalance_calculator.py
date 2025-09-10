@@ -138,8 +138,8 @@ class RebalanceCalculator:
                     target_value=Decimal(str(data["target_value"])),
                     current_value=Decimal(str(data["current_value"])),
                     trade_amount=Decimal(str(data["trade_amount"])),
-                    # Use the needs_rebalance calculation from trading_math.py - do not recalculate
-                    needs_rebalance=data["needs_rebalance"],
+                    # Convert float needs_rebalance from trading_math to boolean for domain object
+                    needs_rebalance=bool(data["needs_rebalance"]),
                 )
 
                 domain_plans[symbol] = domain_plan

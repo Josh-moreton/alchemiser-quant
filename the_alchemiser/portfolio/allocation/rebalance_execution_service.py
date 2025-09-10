@@ -119,15 +119,19 @@ class RebalanceExecutionService:
             logger.info("=== DETAILED EXECUTION SERVICE PLAN ANALYSIS ===")
             for symbol, plan in rebalance_plan.items():
                 logger.info(f"PLAN_ANALYSIS_{symbol}:")
-                logger.info(f"  needs_rebalance: {plan.needs_rebalance} (type: {type(plan.needs_rebalance)})")
-                logger.info(f"  trade_amount: {plan.trade_amount} (type: {type(plan.trade_amount)})")
+                logger.info(
+                    f"  needs_rebalance: {plan.needs_rebalance} (type: {type(plan.needs_rebalance)})"
+                )
+                logger.info(
+                    f"  trade_amount: {plan.trade_amount} (type: {type(plan.trade_amount)})"
+                )
                 logger.info(f"  symbol: {plan.symbol}")
-                
+
                 if plan.needs_rebalance:
                     action = "SELL" if plan.trade_amount < 0 else "BUY"
                     logger.info(f"  → ACTION: {action} ${abs(plan.trade_amount):.2f}")
                 else:
-                    logger.info(f"  → SKIPPED: below threshold")
+                    logger.info("  → SKIPPED: below threshold")
 
             if needs_rebalance_count > 0:
                 logger.info("PLANS_TO_EXECUTE:")

@@ -64,7 +64,9 @@ class PortfolioManagementFacade:
 
         # Log configuration for debugging
         logger = logging.getLogger(__name__)
-        logger.info(f"PortfolioManagementFacade initialized with min_trade_threshold={min_trade_threshold} ({float(min_trade_threshold)*100:.1f}%)")
+        logger.info(
+            f"PortfolioManagementFacade initialized with min_trade_threshold={min_trade_threshold} ({float(min_trade_threshold) * 100:.1f}%)"
+        )
 
         # Initialize domain objects
         self.rebalance_calculator = RebalanceCalculator(min_trade_threshold)
@@ -443,28 +445,34 @@ class PortfolioManagementFacade:
         logger.info("=== CALLING REBALANCING SERVICE ===")
         logger.info(f"CALLING_WITH_WEIGHTS: {target_weights_decimal}")
         logger.info(f"CALLING_SERVICE_TYPE: {type(self.rebalancing_service).__name__}")
-        
+
         full_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights_decimal)
-        
+
         # Immediate validation of service response
         logger.info("=== REBALANCING SERVICE RESPONSE VALIDATION ===")
         logger.info(f"RESPONSE_TYPE: {type(full_plan)}")
         logger.info(f"RESPONSE_SUCCESS: {getattr(full_plan, 'success', 'N/A')}")
         logger.info(f"RESPONSE_ERROR: {getattr(full_plan, 'error', 'N/A')}")
         logger.info(f"RESPONSE_HAS_PLANS: {hasattr(full_plan, 'plans')}")
-        
-        if hasattr(full_plan, 'plans'):
+
+        if hasattr(full_plan, "plans"):
             logger.info(f"RESPONSE_PLANS_TYPE: {type(full_plan.plans)}")
             logger.info(f"RESPONSE_PLANS_COUNT: {len(full_plan.plans) if full_plan.plans else 0}")
-            
+
             # Validate each plan object structure
             for symbol, plan_obj in full_plan.plans.items():
                 logger.info(f"RESPONSE_PLAN_{symbol}_TYPE: {type(plan_obj)}")
-                logger.info(f"RESPONSE_PLAN_{symbol}_HAS_NEEDS_REBALANCE: {hasattr(plan_obj, 'needs_rebalance')}")
-                logger.info(f"RESPONSE_PLAN_{symbol}_HAS_TRADE_AMOUNT: {hasattr(plan_obj, 'trade_amount')}")
-                if hasattr(plan_obj, 'needs_rebalance'):
-                    logger.info(f"RESPONSE_PLAN_{symbol}_NEEDS_REBALANCE: {plan_obj.needs_rebalance}")
-                if hasattr(plan_obj, 'trade_amount'):
+                logger.info(
+                    f"RESPONSE_PLAN_{symbol}_HAS_NEEDS_REBALANCE: {hasattr(plan_obj, 'needs_rebalance')}"
+                )
+                logger.info(
+                    f"RESPONSE_PLAN_{symbol}_HAS_TRADE_AMOUNT: {hasattr(plan_obj, 'trade_amount')}"
+                )
+                if hasattr(plan_obj, "needs_rebalance"):
+                    logger.info(
+                        f"RESPONSE_PLAN_{symbol}_NEEDS_REBALANCE: {plan_obj.needs_rebalance}"
+                    )
+                if hasattr(plan_obj, "trade_amount"):
                     logger.info(f"RESPONSE_PLAN_{symbol}_TRADE_AMOUNT: {plan_obj.trade_amount}")
         else:
             logger.error("❌ RESPONSE_NO_PLANS_ATTRIBUTE")
@@ -529,8 +537,8 @@ class PortfolioManagementFacade:
         logger.info(f"=== PRE-FILTERING ANALYSIS FOR {phase_normalized.upper()} PHASE ===")
         logger.info(f"FULL_PLAN_TYPE: {type(full_plan)}")
         logger.info(f"FULL_PLAN_HAS_PLANS_ATTR: {hasattr(full_plan, 'plans')}")
-        
-        if hasattr(full_plan, 'plans'):
+
+        if hasattr(full_plan, "plans"):
             logger.info(f"FULL_PLAN_PLANS_TYPE: {type(full_plan.plans)}")
             logger.info(f"FULL_PLAN_PLANS_COUNT: {len(full_plan.plans)}")
             logger.info(f"FULL_PLAN_SYMBOLS: {list(full_plan.plans.keys())}")
@@ -541,20 +549,20 @@ class PortfolioManagementFacade:
         # Detailed analysis of each plan before filtering
         symbols_that_should_match = []
         plan_analysis = {}
-        
+
         logger.info("=== DETAILED PLAN ANALYSIS ===")
         for symbol, plan in full_plan.plans.items():
             logger.info(f"=== ANALYZING PLAN FOR {symbol} ===")
-            
+
             # Extract all plan attributes with error handling
             try:
-                needs_rebal = getattr(plan, 'needs_rebalance', None)
-                trade_amt = getattr(plan, 'trade_amount', None)
-                current_weight = getattr(plan, 'current_weight', None)
-                target_weight = getattr(plan, 'target_weight', None)
-                current_value = getattr(plan, 'current_value', None)
-                target_value = getattr(plan, 'target_value', None)
-                
+                needs_rebal = getattr(plan, "needs_rebalance", None)
+                trade_amt = getattr(plan, "trade_amount", None)
+                current_weight = getattr(plan, "current_weight", None)
+                target_weight = getattr(plan, "target_weight", None)
+                current_value = getattr(plan, "current_value", None)
+                target_value = getattr(plan, "target_value", None)
+
                 logger.info(f"PLAN_ATTRIBUTES_{symbol}:")
                 logger.info(f"  needs_rebalance: {needs_rebal} (type: {type(needs_rebal)})")
                 logger.info(f"  trade_amount: {trade_amt} (type: {type(trade_amt)})")
@@ -562,98 +570,118 @@ class PortfolioManagementFacade:
                 logger.info(f"  target_weight: {target_weight}")
                 logger.info(f"  current_value: {current_value}")
                 logger.info(f"  target_value: {target_value}")
-                
+
                 # Store for comparison analysis
                 plan_analysis[symbol] = {
-                    'needs_rebalance': needs_rebal,
-                    'trade_amount': trade_amt,
-                    'current_weight': current_weight,
-                    'target_weight': target_weight,
-                    'current_value': current_value,
-                    'target_value': target_value
+                    "needs_rebalance": needs_rebal,
+                    "trade_amount": trade_amt,
+                    "current_weight": current_weight,
+                    "target_weight": target_weight,
+                    "current_value": current_value,
+                    "target_value": target_value,
                 }
-                
+
                 # Phase-specific matching logic with detailed logging
                 if needs_rebal is True:
                     logger.info(f"  ✅ {symbol} needs_rebalance=True, checking phase criteria...")
-                    
+
                     if phase_normalized == "sell":
                         if trade_amt is not None and trade_amt < 0:
-                            symbols_that_should_match.append(f"{symbol} (SELL ${abs(trade_amt):.2f})")
-                            logger.info(f"    ✅ {symbol} SHOULD match SELL criteria (trade_amount={trade_amt} < 0)")
+                            symbols_that_should_match.append(
+                                f"{symbol} (SELL ${abs(trade_amt):.2f})"
+                            )
+                            logger.info(
+                                f"    ✅ {symbol} SHOULD match SELL criteria (trade_amount={trade_amt} < 0)"
+                            )
                         else:
-                            logger.info(f"    ❌ {symbol} does NOT match SELL criteria (trade_amount={trade_amt})")
+                            logger.info(
+                                f"    ❌ {symbol} does NOT match SELL criteria (trade_amount={trade_amt})"
+                            )
                     elif phase_normalized == "buy":
                         if trade_amt is not None and trade_amt > 0:
                             symbols_that_should_match.append(f"{symbol} (BUY ${trade_amt:.2f})")
-                            logger.info(f"    ✅ {symbol} SHOULD match BUY criteria (trade_amount={trade_amt} > 0)")
+                            logger.info(
+                                f"    ✅ {symbol} SHOULD match BUY criteria (trade_amount={trade_amt} > 0)"
+                            )
                         else:
-                            logger.info(f"    ❌ {symbol} does NOT match BUY criteria (trade_amount={trade_amt})")
+                            logger.info(
+                                f"    ❌ {symbol} does NOT match BUY criteria (trade_amount={trade_amt})"
+                            )
                 else:
                     logger.info(f"  ❌ {symbol} needs_rebalance={needs_rebal}, skipping")
-                    
+
             except Exception as e:
                 logger.error(f"❌ ERROR analyzing plan for {symbol}: {e}")
                 logger.error(f"❌ Plan object: {plan}")
-                
-        logger.info(f"SYMBOLS_THAT_SHOULD_MATCH_{phase_normalized.upper()}: {symbols_that_should_match}")
+
+        logger.info(
+            f"SYMBOLS_THAT_SHOULD_MATCH_{phase_normalized.upper()}: {symbols_that_should_match}"
+        )
         logger.info(f"EXPECTED_COUNT_{phase_normalized.upper()}: {len(symbols_that_should_match)}")
-        
+
         # Create data checkpoint for comparison after filtering
         pre_filter_checkpoint = {
-            'phase': phase_normalized,
-            'total_plans': len(full_plan.plans),
-            'expected_matches': len(symbols_that_should_match),
-            'expected_symbols': symbols_that_should_match,
-            'plan_analysis': plan_analysis
+            "phase": phase_normalized,
+            "total_plans": len(full_plan.plans),
+            "expected_matches": len(symbols_that_should_match),
+            "expected_symbols": symbols_that_should_match,
+            "plan_analysis": plan_analysis,
         }
         logger.info(f"PRE_FILTER_CHECKPOINT: {pre_filter_checkpoint}")
 
         # === ENHANCED FILTERING WITH CRITICAL ERROR DETECTION ===
         logger.info(f"=== STARTING FILTERING FOR {phase_normalized.upper()} PHASE ===")
-        logger.info(f"FILTERING_LOGIC_TARGET: needs_rebalance=True AND phase={phase_normalized} AND trade_amount {'< 0' if phase_normalized == 'sell' else '> 0'}")
-        logger.info(f"REBALANCE_THRESHOLD_USED: {self.rebalance_calculator.min_trade_threshold} ({float(self.rebalance_calculator.min_trade_threshold)*100:.1f}%)")
-        
+        logger.info(
+            f"FILTERING_LOGIC_TARGET: needs_rebalance=True AND phase={phase_normalized} AND trade_amount {'< 0' if phase_normalized == 'sell' else '> 0'}"
+        )
+        logger.info(
+            f"REBALANCE_THRESHOLD_USED: {self.rebalance_calculator.min_trade_threshold} ({float(self.rebalance_calculator.min_trade_threshold) * 100:.1f}%)"
+        )
+
         filtered_plan: dict[str, RebalancePlanDTO] = {}
         filtering_errors = []
         symbols_processed = 0
         symbols_included = 0
         symbols_excluded = 0
-        
+
         # Enhanced filtering with comprehensive error detection and logging
         for symbol, plan in full_plan.plans.items():
             symbols_processed += 1
             logger.info(f"=== FILTERING SYMBOL {symbols_processed}: {symbol} ===")
-            
+
             try:
                 # Enhanced plan object debugging
                 logger.info(f"PLAN_TYPE_{symbol}: {type(plan)}")
                 logger.info(f"PLAN_ATTRS_{symbol}: {dir(plan)}")
-                
+
                 # Extract attributes with error handling
-                if not hasattr(plan, 'needs_rebalance'):
+                if not hasattr(plan, "needs_rebalance"):
                     error_msg = f"Plan for {symbol} missing 'needs_rebalance' attribute"
                     filtering_errors.append(error_msg)
                     logger.error(f"❌ {error_msg}")
                     logger.error(f"❌ PLAN_OBJECT_DUMP_{symbol}: {plan}")
                     symbols_excluded += 1
                     continue
-                    
-                if not hasattr(plan, 'trade_amount'):
+
+                if not hasattr(plan, "trade_amount"):
                     error_msg = f"Plan for {symbol} missing 'trade_amount' attribute"
                     filtering_errors.append(error_msg)
                     logger.error(f"❌ {error_msg}")
                     logger.error(f"❌ PLAN_OBJECT_DUMP_{symbol}: {plan}")
                     symbols_excluded += 1
                     continue
-                
+
                 needs_rebal = plan.needs_rebalance
                 trade_amt = plan.trade_amount
-                
+
                 # Additional debugging for critical fields
-                logger.info(f"PLAN_NEEDS_REBALANCE_RAW_{symbol}: {needs_rebal} (type: {type(needs_rebal)}, repr: {repr(needs_rebal)})")
-                logger.info(f"PLAN_TRADE_AMOUNT_RAW_{symbol}: {trade_amt} (type: {type(trade_amt)}, repr: {repr(trade_amt)})")
-                
+                logger.info(
+                    f"PLAN_NEEDS_REBALANCE_RAW_{symbol}: {needs_rebal} (type: {type(needs_rebal)}, repr: {needs_rebal!r})"
+                )
+                logger.info(
+                    f"PLAN_TRADE_AMOUNT_RAW_{symbol}: {trade_amt} (type: {type(trade_amt)}, repr: {trade_amt!r})"
+                )
+
                 # Validate the needs_rebalance field specifically
                 if needs_rebal is None:
                     error_msg = f"Plan for {symbol} has needs_rebalance=None"
@@ -661,8 +689,10 @@ class PortfolioManagementFacade:
                     logger.error(f"❌ {error_msg}")
                     symbols_excluded += 1
                     continue
-                elif not isinstance(needs_rebal, bool):
-                    logger.warning(f"⚠️ {symbol} needs_rebalance is not bool: {needs_rebal} (type: {type(needs_rebal)})")
+                if not isinstance(needs_rebal, bool):
+                    logger.warning(
+                        f"⚠️ {symbol} needs_rebalance is not bool: {needs_rebal} (type: {type(needs_rebal)})"
+                    )
                     # Try to convert to bool
                     try:
                         needs_rebal = bool(needs_rebal)
@@ -673,58 +703,74 @@ class PortfolioManagementFacade:
                         logger.error(f"❌ {error_msg}")
                         symbols_excluded += 1
                         continue
-                
-                # Validate the trade_amount field specifically  
+
+                # Validate the trade_amount field specifically
                 if trade_amt is None:
                     error_msg = f"Plan for {symbol} has trade_amount=None"
                     filtering_errors.append(error_msg)
                     logger.error(f"❌ {error_msg}")
                     symbols_excluded += 1
                     continue
-                
+
                 logger.info(f"FILTERING_{symbol}:")
                 logger.info(f"  needs_rebalance: {needs_rebal} (type: {type(needs_rebal)})")
                 logger.info(f"  trade_amount: {trade_amt} (type: {type(trade_amt)})")
-                
+
                 # Type conversion with error handling
                 if isinstance(trade_amt, str):
                     try:
                         trade_amt_float = float(trade_amt)
-                        logger.info(f"  Converted string trade_amount {trade_amt} -> {trade_amt_float}")
+                        logger.info(
+                            f"  Converted string trade_amount {trade_amt} -> {trade_amt_float}"
+                        )
                         trade_amt = trade_amt_float
                     except (ValueError, TypeError) as e:
-                        error_msg = f"Cannot convert trade_amount to number for {symbol}: {trade_amt} - {e}"
+                        error_msg = (
+                            f"Cannot convert trade_amount to number for {symbol}: {trade_amt} - {e}"
+                        )
                         filtering_errors.append(error_msg)
                         logger.error(f"❌ {error_msg}")
                         symbols_excluded += 1
                         continue
-                elif hasattr(trade_amt, '__float__'):  # Handles Decimal and other numeric types
+                elif hasattr(trade_amt, "__float__"):  # Handles Decimal and other numeric types
                     try:
                         trade_amt_float = float(trade_amt)
-                        logger.info(f"  Converted {type(trade_amt).__name__} trade_amount {trade_amt} -> {trade_amt_float}")
+                        logger.info(
+                            f"  Converted {type(trade_amt).__name__} trade_amount {trade_amt} -> {trade_amt_float}"
+                        )
                         trade_amt = trade_amt_float
                     except Exception as e:
-                        error_msg = f"Cannot convert trade_amount to float for {symbol}: {trade_amt} - {e}"
+                        error_msg = (
+                            f"Cannot convert trade_amount to float for {symbol}: {trade_amt} - {e}"
+                        )
                         filtering_errors.append(error_msg)
                         logger.error(f"❌ {error_msg}")
                         symbols_excluded += 1
                         continue
-                
+
                 # Phase-specific filtering logic with detailed decision logging
                 should_include = False
                 decision_reason = ""
-                
+
                 if not needs_rebal:
-                    decision_reason = f"needs_rebalance=False"
+                    decision_reason = "needs_rebalance=False"
                     logger.info(f"  ❌ EXCLUDING {symbol}: {decision_reason}")
-                    
+
                     # CRITICAL FIX: Check for obvious sell scenarios even if needs_rebalance=False
                     # This is a safeguard against threshold calculation issues
-                    if phase_normalized == "sell" and trade_amt < -1000:  # Large sell trades (>$1000)
-                        logger.warning(f"⚠️ OVERRIDE: {symbol} has large SELL trade ${abs(trade_amt):.2f} but needs_rebalance=False")
-                        logger.warning(f"⚠️ OVERRIDE: Including {symbol} anyway due to significant trade amount")
+                    if (
+                        phase_normalized == "sell" and trade_amt < -1000
+                    ):  # Large sell trades (>$1000)
+                        logger.warning(
+                            f"⚠️ OVERRIDE: {symbol} has large SELL trade ${abs(trade_amt):.2f} but needs_rebalance=False"
+                        )
+                        logger.warning(
+                            f"⚠️ OVERRIDE: Including {symbol} anyway due to significant trade amount"
+                        )
                         should_include = True
-                        decision_reason = f"OVERRIDE: Large SELL trade despite needs_rebalance=False"
+                        decision_reason = (
+                            "OVERRIDE: Large SELL trade despite needs_rebalance=False"
+                        )
                 elif phase_normalized == "sell" and trade_amt < 0:
                     should_include = True
                     decision_reason = f"SELL phase: trade_amount={trade_amt} < 0"
@@ -736,7 +782,7 @@ class PortfolioManagementFacade:
                 else:
                     decision_reason = f"{phase_normalized} phase: trade_amount={trade_amt} does not match criteria"
                     logger.info(f"  ❌ EXCLUDING {symbol}: {decision_reason}")
-                
+
                 if should_include:
                     filtered_plan[symbol] = plan
                     symbols_included += 1
@@ -744,62 +790,64 @@ class PortfolioManagementFacade:
                 else:
                     symbols_excluded += 1
                     logger.info(f"  ❌ {symbol} EXCLUDED from filtered plan: {decision_reason}")
-                
+
             except Exception as e:
                 error_msg = f"Unexpected error filtering {symbol}: {e}"
                 filtering_errors.append(error_msg)
                 logger.error(f"❌ {error_msg}")
                 logger.exception(f"Full exception for {symbol}:")
                 symbols_excluded += 1
-        
+
         # === COMPREHENSIVE FILTERING RESULTS ANALYSIS ===
         logger.info(f"=== FILTERING RESULTS FOR {phase_normalized.upper()} PHASE ===")
         logger.info(f"SYMBOLS_PROCESSED: {symbols_processed}")
         logger.info(f"SYMBOLS_INCLUDED: {symbols_included}")
         logger.info(f"SYMBOLS_EXCLUDED: {symbols_excluded}")
         logger.info(f"FILTERING_ERRORS_COUNT: {len(filtering_errors)}")
-        
+
         if filtering_errors:
             logger.error("=== FILTERING ERRORS ===")
             for error in filtering_errors:
                 logger.error(f"  ❌ {error}")
-        
+
         # Compare with expected results
         expected_count = len(symbols_that_should_match)
         actual_count = len(filtered_plan)
-        
-        logger.info(f"=== EXPECTED vs ACTUAL COMPARISON ===")
+
+        logger.info("=== EXPECTED vs ACTUAL COMPARISON ===")
         logger.info(f"EXPECTED_MATCHES: {expected_count}")
         logger.info(f"ACTUAL_MATCHES: {actual_count}")
         logger.info(f"EXPECTED_SYMBOLS: {symbols_that_should_match}")
         logger.info(f"ACTUAL_SYMBOLS: {list(filtered_plan.keys()) if filtered_plan else []}")
-        
+
         if expected_count != actual_count:
             logger.error(f"❌ MISMATCH: Expected {expected_count} symbols but got {actual_count}")
             logger.error("❌ CRITICAL FILTERING FAILURE DETECTED")
-            
+
             # Detailed mismatch analysis
-            expected_symbol_names = [s.split(' ')[0] for s in symbols_that_should_match]
+            expected_symbol_names = [s.split(" ")[0] for s in symbols_that_should_match]
             actual_symbol_names = list(filtered_plan.keys())
-            
+
             missing_symbols = set(expected_symbol_names) - set(actual_symbol_names)
             unexpected_symbols = set(actual_symbol_names) - set(expected_symbol_names)
-            
+
             if missing_symbols:
                 logger.error(f"❌ MISSING_SYMBOLS: {missing_symbols}")
             if unexpected_symbols:
                 logger.error(f"❌ UNEXPECTED_SYMBOLS: {unexpected_symbols}")
         else:
-            logger.info(f"✅ FILTERING_SUCCESS: Expected and actual counts match")
+            logger.info("✅ FILTERING_SUCCESS: Expected and actual counts match")
 
         # === POST-FILTERING ANALYSIS AND WARNING GENERATION ===
-        logger.info(f"=== POST-FILTERING ANALYSIS ===")
+        logger.info("=== POST-FILTERING ANALYSIS ===")
         logger.info(f"FILTERED_PLAN_COUNT: {len(filtered_plan)}")
         logger.info(f"FILTERED_PLAN_SYMBOLS: {list(filtered_plan.keys()) if filtered_plan else []}")
-        
+
         # Generate specific warning with context about the mismatch
         if filtered_plan:
-            logger.info(f"✅ {len(filtered_plan)} symbols match {phase_normalized.upper()} phase criteria")
+            logger.info(
+                f"✅ {len(filtered_plan)} symbols match {phase_normalized.upper()} phase criteria"
+            )
             for symbol in filtered_plan:
                 plan = filtered_plan[symbol]
                 logger.info(f"  - {symbol}: trade_amount={plan.trade_amount}")
@@ -808,14 +856,14 @@ class PortfolioManagementFacade:
             logger.warning(
                 f"NO SYMBOLS MATCH {phase_normalized.upper()} PHASE CRITERIA - no trades will be executed"
             )
+            logger.warning("*** CRITICAL ISSUE DETECTED ***")
             logger.warning(
-                f"*** CRITICAL ISSUE DETECTED ***"
+                f"Expected {len(symbols_that_should_match)} symbols but filtered plan is empty"
             )
-            logger.warning(f"Expected {len(symbols_that_should_match)} symbols but filtered plan is empty")
             logger.warning(f"Expected symbols: {symbols_that_should_match}")
             logger.warning(f"Full plan had {len(full_plan.plans)} symbols total")
             logger.warning(f"Filtering errors: {len(filtering_errors)}")
-            
+
             # Log the raw plan data for debugging
             logger.warning("=== RAW PLAN DATA FOR DEBUGGING ===")
             for symbol, plan in full_plan.plans.items():
@@ -830,15 +878,15 @@ class PortfolioManagementFacade:
         logger.info("=== FINAL EXPECTED vs ACTUAL COMPARISON ===")
         logger.info(f"  Expected: {symbols_that_should_match}")
         logger.info(f"  Actual:   {actual_symbols}")
-        
+
         # Create post-filtering checkpoint for debugging
         post_filter_checkpoint = {
-            'phase': phase_normalized,
-            'filtered_count': len(filtered_plan),
-            'filtered_symbols': actual_symbols,
-            'filtering_errors': filtering_errors,
-            'pre_filter_expected': len(symbols_that_should_match),
-            'match_success': len(filtered_plan) == len(symbols_that_should_match)
+            "phase": phase_normalized,
+            "filtered_count": len(filtered_plan),
+            "filtered_symbols": actual_symbols,
+            "filtering_errors": filtering_errors,
+            "pre_filter_expected": len(symbols_that_should_match),
+            "match_success": len(filtered_plan) == len(symbols_that_should_match),
         }
         logger.info(f"POST_FILTER_CHECKPOINT: {post_filter_checkpoint}")
 
@@ -880,49 +928,62 @@ class PortfolioManagementFacade:
             # Enhanced diagnostic analysis when no symbols match
             logger.error("❌ CRITICAL FILTERING FAILURE: NO SYMBOLS MATCHED CRITERIA")
             logger.error("=== DIAGNOSTIC ANALYSIS ===")
-            
+
             # Analyze what went wrong
             diagnostic_summary = {
-                'total_symbols_in_plan': len(full_plan.plans) if hasattr(full_plan, 'plans') else 0,
-                'symbols_with_needs_rebalance_true': 0,
-                'symbols_with_trade_amount_negative': 0,
-                'symbols_with_both_conditions': 0,
-                'filtering_errors_count': len(filtering_errors),
-                'phase': phase_normalized
+                "total_symbols_in_plan": len(full_plan.plans) if hasattr(full_plan, "plans") else 0,
+                "symbols_with_needs_rebalance_true": 0,
+                "symbols_with_trade_amount_negative": 0,
+                "symbols_with_both_conditions": 0,
+                "filtering_errors_count": len(filtering_errors),
+                "phase": phase_normalized,
             }
-            
+
             # Detailed analysis of why each symbol was excluded
             for symbol, plan in full_plan.plans.items():
                 try:
-                    has_needs_rebalance = hasattr(plan, 'needs_rebalance')
-                    has_trade_amount = hasattr(plan, 'trade_amount')
-                    
+                    has_needs_rebalance = hasattr(plan, "needs_rebalance")
+                    has_trade_amount = hasattr(plan, "trade_amount")
+
                     if has_needs_rebalance and plan.needs_rebalance:
-                        diagnostic_summary['symbols_with_needs_rebalance_true'] += 1
-                        
+                        diagnostic_summary["symbols_with_needs_rebalance_true"] += 1
+
                     if has_trade_amount:
-                        trade_amt_val = float(plan.trade_amount) if hasattr(plan.trade_amount, '__float__') else plan.trade_amount
+                        trade_amt_val = (
+                            float(plan.trade_amount)
+                            if hasattr(plan.trade_amount, "__float__")
+                            else plan.trade_amount
+                        )
                         if phase_normalized == "sell" and trade_amt_val < 0:
-                            diagnostic_summary['symbols_with_trade_amount_negative'] += 1
-                            
-                        if has_needs_rebalance and plan.needs_rebalance and phase_normalized == "sell" and trade_amt_val < 0:
-                            diagnostic_summary['symbols_with_both_conditions'] += 1
-                            logger.error(f"❌ SYMBOL_SHOULD_MATCH_BUT_DIDNT: {symbol} (needs_rebalance={plan.needs_rebalance}, trade_amount={trade_amt_val})")
-                    
+                            diagnostic_summary["symbols_with_trade_amount_negative"] += 1
+
+                        if (
+                            has_needs_rebalance
+                            and plan.needs_rebalance
+                            and phase_normalized == "sell"
+                            and trade_amt_val < 0
+                        ):
+                            diagnostic_summary["symbols_with_both_conditions"] += 1
+                            logger.error(
+                                f"❌ SYMBOL_SHOULD_MATCH_BUT_DIDNT: {symbol} (needs_rebalance={plan.needs_rebalance}, trade_amount={trade_amt_val})"
+                            )
+
                 except Exception as e:
                     logger.error(f"❌ DIAGNOSTIC_ERROR_{symbol}: {e}")
-            
+
             logger.error(f"DIAGNOSTIC_SUMMARY: {diagnostic_summary}")
-            
-            if diagnostic_summary['symbols_with_both_conditions'] > 0:
-                logger.error("❌ CRITICAL: Symbols met criteria but were still excluded - possible filtering bug")
-            elif diagnostic_summary['symbols_with_needs_rebalance_true'] == 0:
+
+            if diagnostic_summary["symbols_with_both_conditions"] > 0:
+                logger.error(
+                    "❌ CRITICAL: Symbols met criteria but were still excluded - possible filtering bug"
+                )
+            elif diagnostic_summary["symbols_with_needs_rebalance_true"] == 0:
                 logger.error("❌ ROOT_CAUSE: No symbols have needs_rebalance=True")
-            elif diagnostic_summary['symbols_with_trade_amount_negative'] == 0:
+            elif diagnostic_summary["symbols_with_trade_amount_negative"] == 0:
                 logger.error("❌ ROOT_CAUSE: No symbols have negative trade_amount for SELL phase")
             else:
                 logger.error("❌ ROOT_CAUSE: Unknown filtering failure")
-            
+
             return []
 
         # Convert filtered DTO plans to domain objects before execution
@@ -938,26 +999,28 @@ class PortfolioManagementFacade:
         )
 
         # === ENHANCED EXECUTION RESULTS DEBUGGING ===
-        logger.info(f"=== POST-EXECUTION ANALYSIS ===")
+        logger.info("=== POST-EXECUTION ANALYSIS ===")
         logger.info(f"EXECUTION_SERVICE_RETURNED_TYPE: {type(execution_results)}")
         logger.info(f"EXECUTION_SERVICE_RETURNED_CONTENT: {execution_results}")
-        
+
         if isinstance(execution_results, dict):
             orders_placed = execution_results.get("orders_placed", {})
             logger.info(f"ORDERS_PLACED_TYPE: {type(orders_placed)}")
             logger.info(f"ORDERS_PLACED_COUNT: {len(orders_placed) if orders_placed else 0}")
             logger.info(f"ORDERS_PLACED_CONTENT: {orders_placed}")
-            
+
             exec_summary = execution_results.get("execution_summary", {})
             logger.info(f"EXECUTION_SUMMARY_TYPE: {type(exec_summary)}")
             logger.info(f"EXECUTION_SUMMARY_CONTENT: {exec_summary}")
         else:
             logger.error(f"❌ UNEXPECTED_EXECUTION_RESULTS_TYPE: {type(execution_results)}")
-        
-        logger.info(f"=== DETAILED DOMAIN_FILTERED_PLAN PASSED TO EXECUTION ===")
+
+        logger.info("=== DETAILED DOMAIN_FILTERED_PLAN PASSED TO EXECUTION ===")
         logger.info(f"DOMAIN_PLAN_TYPE: {type(domain_filtered_plan)}")
-        logger.info(f"DOMAIN_PLAN_COUNT: {len(domain_filtered_plan) if domain_filtered_plan else 0}")
-        
+        logger.info(
+            f"DOMAIN_PLAN_COUNT: {len(domain_filtered_plan) if domain_filtered_plan else 0}"
+        )
+
         if domain_filtered_plan:
             for symbol, plan in domain_filtered_plan.items():
                 logger.info(f"DOMAIN_PLAN_{symbol}:")
@@ -966,7 +1029,7 @@ class PortfolioManagementFacade:
                 logger.info(f"  trade_amount: {getattr(plan, 'trade_amount', 'MISSING')}")
                 logger.info(f"  symbol: {getattr(plan, 'symbol', 'MISSING')}")
         else:
-            logger.error(f"❌ DOMAIN_FILTERED_PLAN_IS_EMPTY")
+            logger.error("❌ DOMAIN_FILTERED_PLAN_IS_EMPTY")
 
         # Log execution results
         logger.info(f"Execution service returned: {execution_results}")
