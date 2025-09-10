@@ -79,6 +79,19 @@ class RebalancingOrchestrator:
 
         """
         logging.info("🔄 Phase 1: Executing SELL orders to free buying power")
+        
+        # === ENHANCED SELL PHASE DEBUGGING ===
+        logging.info("=== SELL PHASE: TARGET PORTFOLIO RECEIVED ===")
+        logging.info(f"SELL_PHASE_TARGET_TYPE: {type(target_portfolio)}")
+        logging.info(f"SELL_PHASE_TARGET_COUNT: {len(target_portfolio) if target_portfolio else 0}")
+        
+        if target_portfolio:
+            total_allocation = sum(target_portfolio.values())
+            logging.info(f"SELL_PHASE_TOTAL_ALLOCATION: {total_allocation}")
+            for symbol, allocation in target_portfolio.items():
+                logging.info(f"SELL_PHASE_TARGET: {symbol} = {allocation} ({allocation * 100:.1f}%)")
+        else:
+            logging.error("❌ SELL_PHASE_RECEIVED_EMPTY_TARGET_PORTFOLIO")
 
         # Delegate to facade for SELL phase execution
         sell_orders = self.portfolio_facade.rebalance_portfolio_phase(
@@ -171,6 +184,20 @@ class RebalancingOrchestrator:
 
         """
         logging.info("🔄 Phase 3: Executing BUY orders with refreshed buying power")
+        
+        # === ENHANCED BUY PHASE DEBUGGING ===
+        logging.info("=== BUY PHASE: TARGET PORTFOLIO RECEIVED ===")
+        logging.info(f"BUY_PHASE_TARGET_TYPE: {type(target_portfolio)}")
+        logging.info(f"BUY_PHASE_TARGET_COUNT: {len(target_portfolio) if target_portfolio else 0}")
+        
+        if target_portfolio:
+            total_allocation = sum(target_portfolio.values())
+            logging.info(f"BUY_PHASE_TOTAL_ALLOCATION: {total_allocation}")
+            for symbol, allocation in target_portfolio.items():
+                if allocation > 0.001:  # Log significant allocations
+                    logging.info(f"BUY_PHASE_TARGET: {symbol} = {allocation} ({allocation * 100:.1f}%)")
+        else:
+            logging.error("❌ BUY_PHASE_RECEIVED_EMPTY_TARGET_PORTFOLIO")
 
         # Get fresh account info to update buying power if provider is available
         if self.account_info_provider and hasattr(self.account_info_provider, "get_account_info"):
