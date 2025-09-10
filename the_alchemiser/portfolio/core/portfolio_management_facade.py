@@ -934,6 +934,7 @@ class PortfolioManagementFacade:
                 "total_symbols_in_plan": len(full_plan.plans) if hasattr(full_plan, "plans") else 0,
                 "symbols_with_needs_rebalance_true": 0,
                 "symbols_with_trade_amount_negative": 0,
+                "symbols_with_trade_amount_positive": 0,
                 "symbols_with_both_conditions": 0,
                 "filtering_errors_count": len(filtering_errors),
                 "phase": phase_normalized,
@@ -954,18 +955,22 @@ class PortfolioManagementFacade:
                             if hasattr(plan.trade_amount, "__float__")
                             else plan.trade_amount
                         )
+                        # Phase-aware trade amount counting
                         if phase_normalized == "sell" and trade_amt_val < 0:
                             diagnostic_summary["symbols_with_trade_amount_negative"] += 1
+                        elif phase_normalized == "buy" and trade_amt_val > 0:
+                            diagnostic_summary["symbols_with_trade_amount_positive"] += 1
 
-                        if (
-                            has_needs_rebalance
-                            and plan.needs_rebalance
-                            and phase_normalized == "sell"
-                            and trade_amt_val < 0
-                        ):
+                        # Phase-aware both conditions check
+                        should_match_criteria = (
+                            (phase_normalized == "sell" and trade_amt_val < 0) or
+                            (phase_normalized == "buy" and trade_amt_val > 0)
+                        )
+                        
+                        if has_needs_rebalance and plan.needs_rebalance and should_match_criteria:
                             diagnostic_summary["symbols_with_both_conditions"] += 1
                             logger.error(
-                                f"❌ SYMBOL_SHOULD_MATCH_BUT_DIDNT: {symbol} (needs_rebalance={plan.needs_rebalance}, trade_amount={trade_amt_val})"
+                                f"❌ SYMBOL_SHOULD_MATCH_BUT_DIDNT: {symbol} (needs_rebalance={plan.needs_rebalance}, trade_amount={trade_amt_val}, phase={phase_normalized})"
                             )
 
                 except Exception as e:
@@ -979,8 +984,10 @@ class PortfolioManagementFacade:
                 )
             elif diagnostic_summary["symbols_with_needs_rebalance_true"] == 0:
                 logger.error("❌ ROOT_CAUSE: No symbols have needs_rebalance=True")
-            elif diagnostic_summary["symbols_with_trade_amount_negative"] == 0:
+            elif phase_normalized == "sell" and diagnostic_summary["symbols_with_trade_amount_negative"] == 0:
                 logger.error("❌ ROOT_CAUSE: No symbols have negative trade_amount for SELL phase")
+            elif phase_normalized == "buy" and diagnostic_summary["symbols_with_trade_amount_positive"] == 0:
+                logger.error("❌ ROOT_CAUSE: No symbols have positive trade_amount for BUY phase")
             else:
                 logger.error("❌ ROOT_CAUSE: Unknown filtering failure")
 
