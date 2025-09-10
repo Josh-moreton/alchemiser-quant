@@ -166,11 +166,41 @@ class PortfolioRebalancingService:
                 )
                 logger.error(f"❌ {error_msg}")
                 logger.error("🚨 This is the ROOT CAUSE of the 'no trades generated' issue!")
+                logger.error("🚨 ANALYSIS:")
+                logger.error("  - API calls to get portfolio value are failing (network/auth issues)")
+                logger.error("  - Account may be new with zero equity")
+                logger.error("  - Trading mode (paper vs live) may be incorrect")
                 logger.error("🚨 POTENTIAL_SOLUTIONS:")
                 logger.error("  1. Verify account has funds and positions")
                 logger.error("  2. Check API credentials and permissions")
                 logger.error("  3. Ensure correct trading environment (paper vs live)")
                 logger.error("  4. Check if account is restricted or blocked")
+                logger.error("  5. For new accounts, deposit funds before trading")
+                logger.error("  6. For testing, use paper trading with simulated funds")
+
+                # Enhanced debugging for portfolio value failure
+                logger.error("=== PORTFOLIO VALUE FAILURE DEBUGGING ===")
+                logger.error(f"TRADING_MANAGER_TYPE: {type(self.trading_manager)}")
+                try:
+                    # Test portfolio DTO again for detailed error info
+                    test_dto = self.trading_manager.get_portfolio_value()
+                    logger.error(f"TEST_PORTFOLIO_DTO: {test_dto}")
+                    if test_dto and hasattr(test_dto, 'value'):
+                        logger.error(f"TEST_DTO_VALUE: {test_dto.value} (type: {type(test_dto.value)})")
+                except Exception as test_e:
+                    logger.error(f"TEST_DTO_EXCEPTION: {test_e}")
+                    
+                try:
+                    # Test account summary for detailed error info
+                    test_summary = self.trading_manager.get_account_summary()
+                    logger.error(f"TEST_ACCOUNT_SUMMARY: {test_summary}")
+                    if test_summary:
+                        portfolio_val = test_summary.get("portfolio_value")
+                        equity_val = test_summary.get("equity")
+                        logger.error(f"TEST_SUMMARY_PORTFOLIO_VALUE: {portfolio_val}")
+                        logger.error(f"TEST_SUMMARY_EQUITY: {equity_val}")
+                except Exception as test_e:
+                    logger.error(f"TEST_SUMMARY_EXCEPTION: {test_e}")
 
                 return RebalancePlanCollectionDTO(
                     success=False,
@@ -930,6 +960,11 @@ class PortfolioRebalancingService:
                         logger.warning(f"⚠️ MISSING_SYMBOL_IN_POSITION: {position}")
             else:
                 logger.error("❌ POSITIONS_DATA_FAILED_OR_EMPTY")
+                logger.error("🚨 ANALYSIS: This could mean:")
+                logger.error("  1. API call to get_positions() failed (network/auth issue)")
+                logger.error("  2. Account has no positions (new/empty account)")
+                logger.error("  3. API returned success=False")
+                logger.error("🚨 DECISION: Proceeding with empty positions - rebalancing will create new positions")
 
             logger.info("=== FINAL POSITION VALUES ===")
             logger.info(f"TOTAL_POSITIONS_FETCHED: {len(position_values)}")
@@ -940,6 +975,7 @@ class PortfolioRebalancingService:
                     logger.info(f"FINAL_POSITION: {symbol} = ${value}")
             else:
                 logger.warning("❌ NO_POSITION_VALUES_EXTRACTED")
+                logger.warning("🚨 PROCEEDING WITH EMPTY POSITIONS: All target allocations will be BUY orders")
 
             return position_values
         except Exception as e:
