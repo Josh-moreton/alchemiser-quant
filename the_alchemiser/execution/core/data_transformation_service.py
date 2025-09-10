@@ -189,6 +189,14 @@ class DataTransformationService:
     def get_portfolio_value(self) -> PortfolioValueDTO:
         """Get total portfolio value with typed domain objects."""
         raw = self.alpaca_manager.get_portfolio_value()
+
+        # Handle None return from alpaca_manager (e.g., API failure or no account data)
+        if raw is None:
+            self.logger.warning(
+                "AlpacaManager returned None for portfolio value - using 0.0 as fallback"
+            )
+            raw = 0.0
+
         money = to_money_usd(raw)
         return PortfolioValueDTO(value=Decimal(str(raw)), money=money)
 

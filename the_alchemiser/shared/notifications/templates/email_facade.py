@@ -160,6 +160,14 @@ class EmailTemplates:
         return build_multi_strategy_email_html(result, mode)
 
     @staticmethod
+    def build_multi_strategy_report_neutral(result: Any, mode: str = "PAPER") -> str:
+        """Generate a neutral multi-strategy execution report.
+
+        This is an alias for multi_strategy_report to maintain backward compatibility.
+        """
+        return build_multi_strategy_email_html(result, mode)
+
+    @staticmethod
     def trading_report(
         trading_summary: dict[str, Any],
         strategy_signals: dict[str, Any] | None = None,
