@@ -591,112 +591,132 @@ class TradingEngine:
         logging.info("=== TRADING ENGINE REBALANCE_PORTFOLIO ENTRY ===")
         logging.info(f"ENGINE TYPE: {type(self).__name__}")
         logging.info(f"RECEIVED_TARGET_PORTFOLIO_TYPE: {type(target_portfolio)}")
-        logging.info(f"RECEIVED_TARGET_PORTFOLIO_COUNT: {len(target_portfolio) if target_portfolio else 0}")
+        logging.info(
+            f"RECEIVED_TARGET_PORTFOLIO_COUNT: {len(target_portfolio) if target_portfolio else 0}"
+        )
         logging.info(f"RECEIVED_STRATEGY_ATTRIBUTION_TYPE: {type(strategy_attribution)}")
-        
+
         # Data validation and detailed logging
         if not target_portfolio:
             logging.error("❌ CRITICAL: Empty target_portfolio received by TradingEngine")
             logging.error("❌ This indicates portfolio consolidation failed upstream")
             return []
-            
+
         # Log received portfolio in detail
         logging.info("=== RECEIVED TARGET PORTFOLIO BREAKDOWN ===")
         total_allocation = sum(target_portfolio.values())
         logging.info(f"Total allocation received: {total_allocation:.4f}")
-        
+
         for symbol, allocation in target_portfolio.items():
             if allocation > 0.001:  # Log meaningful allocations
-                logging.info(f"  RECEIVED: {symbol} = {allocation:.4f} ({allocation*100:.2f}%)")
-        
+                logging.info(f"  RECEIVED: {symbol} = {allocation:.4f} ({allocation * 100:.2f}%)")
+
         # Validate allocation integrity
         if abs(total_allocation - 1.0) > 0.05:
-            logging.warning(f"⚠️ Portfolio allocation integrity check: total={total_allocation:.4f}, expected~1.0")
-            
+            logging.warning(
+                f"⚠️ Portfolio allocation integrity check: total={total_allocation:.4f}, expected~1.0"
+            )
+
         # Log orchestrator details
         logging.info(f"ORCHESTRATOR_TYPE: {type(self._rebalancing_orchestrator).__name__}")
         logging.info(f"ORCHESTRATOR_EXISTS: {self._rebalancing_orchestrator is not None}")
-        
+
         # Get current account state for comparison
         try:
             account_info = self.get_account_info()
             current_positions = self.get_positions_dict()
-            current_portfolio_value = float(account_info.get('equity', 0))
-            
+            current_portfolio_value = float(account_info.get("equity", 0))
+
             logging.info("=== CURRENT ACCOUNT STATE FOR REBALANCING ===")
             logging.info(f"Current portfolio value: ${current_portfolio_value:,.2f}")
-            logging.info(f"Current buying power: ${float(account_info.get('buying_power', 0)):,.2f}")
+            logging.info(
+                f"Current buying power: ${float(account_info.get('buying_power', 0)):,.2f}"
+            )
             logging.info(f"Current positions count: {len(current_positions)}")
-            
+
             # Calculate expected trades
             expected_trades = []
             for symbol, target_allocation in target_portfolio.items():
                 target_value = target_allocation * current_portfolio_value
                 current_value = float(current_positions.get(symbol, 0))
                 trade_amount = target_value - current_value
-                
+
                 if abs(trade_amount) > 1.0:  # Significant trade threshold
                     action = "BUY" if trade_amount > 0 else "SELL"
-                    expected_trades.append({
-                        'symbol': symbol,
-                        'action': action,
-                        'amount': abs(trade_amount),
-                        'target_value': target_value,
-                        'current_value': current_value
-                    })
+                    expected_trades.append(
+                        {
+                            "symbol": symbol,
+                            "action": action,
+                            "amount": abs(trade_amount),
+                            "target_value": target_value,
+                            "current_value": current_value,
+                        }
+                    )
                     logging.info(f"  EXPECTED_TRADE: {action} {symbol} ${abs(trade_amount):,.2f}")
-                    
+
             logging.info(f"EXPECTED_TRADES_COUNT: {len(expected_trades)}")
-            
+
         except Exception as e:
             logging.warning(f"Could not get current account state for comparison: {e}")
             expected_trades = []
-        
+
         # === DATA TRANSFER POINT: TO ORCHESTRATOR ===
         logging.info("=== DATA TRANSFER: HANDING OFF TO REBALANCING ORCHESTRATOR ===")
-        logging.info(f"HANDOFF_DATA_CHECKSUM: {len(target_portfolio)} symbols, total={sum(target_portfolio.values()):.4f}")
-        
+        logging.info(
+            f"HANDOFF_DATA_CHECKSUM: {len(target_portfolio)} symbols, total={sum(target_portfolio.values()):.4f}"
+        )
+
         try:
             # Delegate to the rebalancing orchestrator for sequential execution
             # The RebalancingOrchestratorFacade provides a synchronous interface
-            orders_result: list[OrderDetails] = self._rebalancing_orchestrator.execute_full_rebalance_cycle(
-                target_portfolio, strategy_attribution
+            orders_result: list[OrderDetails] = (
+                self._rebalancing_orchestrator.execute_full_rebalance_cycle(
+                    target_portfolio, strategy_attribution
+                )
             )
-            
+
             # === EXECUTION RESULTS ANALYSIS ===
             logging.info("=== TRADING ENGINE EXECUTION RESULTS ===")
             logging.info(f"ORCHESTRATOR_RETURNED_TYPE: {type(orders_result)}")
-            logging.info(f"ORCHESTRATOR_RETURNED_COUNT: {len(orders_result) if orders_result else 0}")
-            
+            logging.info(
+                f"ORCHESTRATOR_RETURNED_COUNT: {len(orders_result) if orders_result else 0}"
+            )
+
             if orders_result:
                 logging.info("✅ ORDERS RECEIVED FROM ORCHESTRATOR:")
                 for i, order in enumerate(orders_result):
-                    logging.info(f"  Order {i+1}: {order}")
+                    logging.info(f"  Order {i + 1}: {order}")
                     if isinstance(order, dict):
-                        side = order.get('side', 'UNKNOWN')
-                        symbol = order.get('symbol', 'UNKNOWN')
-                        qty = order.get('qty', 0)
+                        side = order.get("side", "UNKNOWN")
+                        symbol = order.get("symbol", "UNKNOWN")
+                        qty = order.get("qty", 0)
                         logging.info(f"    Details: {side} {qty} {symbol}")
             else:
                 logging.error("❌ NO ORDERS RETURNED FROM ORCHESTRATOR")
                 logging.error("❌ This indicates orchestrator failed to process portfolio")
                 if expected_trades:
-                    logging.error(f"❌ TRADE LOSS: Expected {len(expected_trades)} trades but got 0 orders")
+                    logging.error(
+                        f"❌ TRADE LOSS: Expected {len(expected_trades)} trades but got 0 orders"
+                    )
                     for trade in expected_trades:
-                        logging.error(f"❌ LOST: {trade['action']} {trade['symbol']} ${trade['amount']:,.2f}")
-            
+                        logging.error(
+                            f"❌ LOST: {trade['action']} {trade['symbol']} ${trade['amount']:,.2f}"
+                        )
+
             # Final validation
             expected_count = len(expected_trades)
             actual_count = len(orders_result) if orders_result else 0
             if expected_count > 0 and actual_count == 0:
                 logging.critical("🚨 CRITICAL TRADE LOSS at TradingEngine level")
                 logging.critical(f"🚨 Expected {expected_count} orders, received {actual_count}")
-            
-            logging.info(f"FINAL_VALIDATION: expected_trades={expected_count}, actual_orders={actual_count}")
+
+            logging.info(
+                f"FINAL_VALIDATION: expected_trades={expected_count}, actual_orders={actual_count}"
+            )
             logging.info("=== TRADING ENGINE REBALANCE_PORTFOLIO EXIT ===")
-            
+
             return orders_result
-            
+
         except Exception as e:
             logging.error(f"❌ ORCHESTRATOR EXCEPTION: {e}")
             logging.error(f"❌ Exception type: {type(e).__name__}")

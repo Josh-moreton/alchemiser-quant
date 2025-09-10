@@ -432,28 +432,32 @@ def log_data_transfer_checkpoint(
     **additional_fields: Any,
 ) -> None:
     """Log a data transfer checkpoint with integrity validation.
-    
+
     This function provides standardized logging for data transfer points
     in the trade pipeline to help trace where data might be lost.
-    
+
     Args:
         logger: Logger instance to use
         stage: Name of the pipeline stage (e.g., "ExecutionManager→Engine")
         data: The data being transferred (typically portfolio allocation dict)
         context: Additional context description
         **additional_fields: Additional fields to log
-        
+
     """
     if data is None:
         logger.error(f"🚨 DATA_TRANSFER_CHECKPOINT[{stage}]: NULL DATA DETECTED")
         logger.error(f"🚨 Context: {context}")
         return
-        
+
     # Calculate data integrity metrics
     data_count = len(data) if data else 0
-    data_checksum = sum(data.values()) if data and all(isinstance(v, (int, float)) for v in data.values()) else 0
+    data_checksum = (
+        sum(data.values())
+        if data and all(isinstance(v, (int, float)) for v in data.values())
+        else 0
+    )
     data_type = type(data).__name__
-    
+
     # Log checkpoint info
     logger.info(f"=== DATA_TRANSFER_CHECKPOINT[{stage}] ===")
     logger.info(f"STAGE: {stage}")
@@ -461,28 +465,30 @@ def log_data_transfer_checkpoint(
     logger.info(f"DATA_TYPE: {data_type}")
     logger.info(f"DATA_COUNT: {data_count}")
     logger.info(f"DATA_CHECKSUM: {data_checksum:.6f}")
-    
+
     # Log detailed content for small datasets
     if data_count <= 10:
         logger.info(f"DATA_CONTENT: {data}")
     else:
         # Log first few items for large datasets
-        items = list(data.items())[:5] if hasattr(data, 'items') else []
+        items = list(data.items())[:5] if hasattr(data, "items") else []
         logger.info(f"DATA_SAMPLE: {dict(items)} (showing first 5 of {data_count})")
-    
+
     # Log additional fields
     for key, value in additional_fields.items():
         logger.info(f"ADDITIONAL_{key.upper()}: {value}")
-        
+
     # Data validation warnings
     if data_count == 0:
         logger.warning(f"⚠️ CHECKPOINT[{stage}]: Empty data detected")
-    
+
     if isinstance(data, dict) and all(isinstance(v, (int, float)) for v in data.values()):
         # Portfolio allocation validation
         if abs(data_checksum - 1.0) > 0.05:
-            logger.warning(f"⚠️ CHECKPOINT[{stage}]: Portfolio allocation sum={data_checksum:.4f}, expected~1.0")
-            
+            logger.warning(
+                f"⚠️ CHECKPOINT[{stage}]: Portfolio allocation sum={data_checksum:.4f}, expected~1.0"
+            )
+
     logger.info(f"=== END_CHECKPOINT[{stage}] ===")
 
 
@@ -493,52 +499,56 @@ def log_trade_expectation_vs_reality(
     stage: str = "Unknown",
 ) -> None:
     """Log comparison between expected trades and actual orders created.
-    
+
     Args:
         logger: Logger instance
         expected_trades: List of expected trade calculations
         actual_orders: List of actual orders created
         stage: Pipeline stage where this comparison is being made
-        
+
     """
     expected_count = len(expected_trades) if expected_trades else 0
     actual_count = len(actual_orders) if actual_orders else 0
-    
+
     logger.info(f"=== TRADE_EXPECTATION_VS_REALITY[{stage}] ===")
     logger.info(f"EXPECTED_TRADES: {expected_count}")
     logger.info(f"ACTUAL_ORDERS: {actual_count}")
     logger.info(f"MATCH: {expected_count == actual_count}")
-    
+
     if expected_count > 0:
         logger.info("EXPECTED_TRADE_DETAILS:")
         for i, trade in enumerate(expected_trades):
-            symbol = trade.get('symbol', 'UNKNOWN')
-            action = trade.get('action', 'UNKNOWN')
-            amount = trade.get('amount', 0)
-            logger.info(f"  Expected_{i+1}: {action} {symbol} ${amount:.2f}")
-    
+            symbol = trade.get("symbol", "UNKNOWN")
+            action = trade.get("action", "UNKNOWN")
+            amount = trade.get("amount", 0)
+            logger.info(f"  Expected_{i + 1}: {action} {symbol} ${amount:.2f}")
+
     if actual_count > 0:
         logger.info("ACTUAL_ORDER_DETAILS:")
         for i, order in enumerate(actual_orders):
-            if hasattr(order, 'symbol') and hasattr(order, 'side') and hasattr(order, 'qty'):
-                logger.info(f"  Actual_{i+1}: {order.side} {order.symbol} qty={order.qty}")
+            if hasattr(order, "symbol") and hasattr(order, "side") and hasattr(order, "qty"):
+                logger.info(f"  Actual_{i + 1}: {order.side} {order.symbol} qty={order.qty}")
             elif isinstance(order, dict):
-                symbol = order.get('symbol', 'UNKNOWN')
-                side = order.get('side', 'UNKNOWN')
-                qty = order.get('qty', 0)
-                logger.info(f"  Actual_{i+1}: {side} {symbol} qty={qty}")
+                symbol = order.get("symbol", "UNKNOWN")
+                side = order.get("side", "UNKNOWN")
+                qty = order.get("qty", 0)
+                logger.info(f"  Actual_{i + 1}: {side} {symbol} qty={qty}")
             else:
-                logger.info(f"  Actual_{i+1}: {order}")
-    
+                logger.info(f"  Actual_{i + 1}: {order}")
+
     # Flag mismatches
     if expected_count > 0 and actual_count == 0:
-        logger.error(f"🚨 TRADE_LOSS_DETECTED[{stage}]: Expected {expected_count} trades but got 0 orders")
+        logger.error(
+            f"🚨 TRADE_LOSS_DETECTED[{stage}]: Expected {expected_count} trades but got 0 orders"
+        )
         for trade in expected_trades:
-            symbol = trade.get('symbol', 'UNKNOWN')
-            action = trade.get('action', 'UNKNOWN')
-            amount = trade.get('amount', 0)
+            symbol = trade.get("symbol", "UNKNOWN")
+            action = trade.get("action", "UNKNOWN")
+            amount = trade.get("amount", 0)
             logger.error(f"🚨 LOST_TRADE: {action} {symbol} ${amount:.2f}")
     elif expected_count != actual_count:
-        logger.warning(f"⚠️ TRADE_COUNT_MISMATCH[{stage}]: Expected {expected_count} ≠ Actual {actual_count}")
-    
+        logger.warning(
+            f"⚠️ TRADE_COUNT_MISMATCH[{stage}]: Expected {expected_count} ≠ Actual {actual_count}"
+        )
+
     logger.info(f"=== END_EXPECTATION_VS_REALITY[{stage}] ===")

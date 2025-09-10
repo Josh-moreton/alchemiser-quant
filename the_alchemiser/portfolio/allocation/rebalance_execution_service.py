@@ -78,7 +78,7 @@ class RebalanceExecutionService:
             logger.info(f"RECEIVED_REBALANCE_PLAN_TYPE: {type(rebalance_plan)}")
             logger.info(f"RECEIVED_PLAN_COUNT: {len(rebalance_plan) if rebalance_plan else 0}")
             logger.info(f"DRY_RUN_MODE: {dry_run}")
-            
+
             if not rebalance_plan:
                 logger.error("❌ EXECUTION_SERVICE: Empty rebalance plan received")
                 logger.error("❌ This indicates portfolio facade failed to generate plans")
@@ -92,7 +92,7 @@ class RebalanceExecutionService:
                         "failed_orders": 0,
                     },
                 }
-            
+
             # Enhanced plan analysis logging
             logger.info("=== REBALANCE PLAN ANALYSIS ===")
             for symbol, plan in rebalance_plan.items():
@@ -100,8 +100,10 @@ class RebalanceExecutionService:
                 if plan.needs_rebalance:
                     action = "SELL" if plan.trade_amount < 0 else "BUY"
                     logger.info(f"  ACTION: {action} ${abs(plan.trade_amount):.2f}")
-                    logger.info(f"  DETAILS: weight_diff={plan.weight_diff:.4f}, trade_amount={plan.trade_amount:.2f}")
-            
+                    logger.info(
+                        f"  DETAILS: weight_diff={plan.weight_diff:.4f}, trade_amount={plan.trade_amount:.2f}"
+                    )
+
             # Filter plans that need rebalancing
             plans_to_execute = {
                 symbol: plan for symbol, plan in rebalance_plan.items() if plan.needs_rebalance
@@ -109,8 +111,10 @@ class RebalanceExecutionService:
 
             # Enhanced filtering results logging
             needs_rebalance_count = len(plans_to_execute)
-            logger.info(f"FILTERING_RESULTS: {len(rebalance_plan)} total plans → {needs_rebalance_count} need execution")
-            
+            logger.info(
+                f"FILTERING_RESULTS: {len(rebalance_plan)} total plans → {needs_rebalance_count} need execution"
+            )
+
             if needs_rebalance_count > 0:
                 logger.info("PLANS_TO_EXECUTE:")
                 for symbol, plan in plans_to_execute.items():
@@ -127,7 +131,9 @@ class RebalanceExecutionService:
                     )
 
             if not plans_to_execute:
-                logger.info("✅ EXECUTION_SERVICE: No rebalancing required - returning success with 0 orders")
+                logger.info(
+                    "✅ EXECUTION_SERVICE: No rebalancing required - returning success with 0 orders"
+                )
                 return {
                     "status": "success",
                     "message": "No rebalancing required",
@@ -144,7 +150,7 @@ class RebalanceExecutionService:
             # Execute sells first to free up capital
             sell_results = self._execute_sell_orders(plans_to_execute, dry_run)
             logger.info(f"SELL_PHASE_COMPLETE: {len(sell_results)} sell orders processed")
-            
+
             logger.info("=== EXECUTION PHASE 2: BUY ORDERS ===")
             # Execute buys with freed capital
             buy_results = self._execute_buy_orders(plans_to_execute, dry_run)
@@ -152,24 +158,26 @@ class RebalanceExecutionService:
 
             # Combine results
             all_orders = {**sell_results, **buy_results}
-            
+
             # === FINAL EXECUTION RESULTS ===
             logger.info("=== EXECUTION SERVICE FINAL RESULTS ===")
             logger.info(f"TOTAL_ORDERS_CREATED: {len(all_orders)}")
             logger.info(f"SELL_ORDERS: {len(sell_results)}")
             logger.info(f"BUY_ORDERS: {len(buy_results)}")
-            
+
             if all_orders:
                 logger.info("ORDERS_CREATED_DETAILS:")
                 for symbol, order_data in all_orders.items():
                     logger.info(f"  {symbol}: {order_data}")
             else:
                 logger.warning("❌ NO ORDERS CREATED despite having plans to execute")
-                logger.warning(f"❌ This indicates order creation failed for {needs_rebalance_count} planned trades")
+                logger.warning(
+                    f"❌ This indicates order creation failed for {needs_rebalance_count} planned trades"
+                )
 
             execution_summary = self._create_execution_summary(all_orders)
             logger.info(f"EXECUTION_SUMMARY: {execution_summary}")
-            
+
             result = {
                 "status": "success",
                 "message": f"Executed {len(all_orders)} rebalancing orders",
@@ -178,7 +186,7 @@ class RebalanceExecutionService:
                 "sell_orders": sell_results,
                 "buy_orders": buy_results,
             }
-            
+
             logger.info("=== EXECUTION SERVICE COMPLETE ===")
             return result
 
