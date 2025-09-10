@@ -346,15 +346,10 @@ class RebalancingOrchestrator:
             logging.info(f"BUY_PHASE_EXPECTED_SYMBOLS: {list(positive_allocations.keys())}")
             logging.info(f"BUY_PHASE_EXPECTED_COUNT: {len(positive_allocations)}")
             
-            # Specific check for the error log symbols
-            uvxy_buy = target_portfolio.get("UVXY", 0)
-            btal_buy = target_portfolio.get("BTAL", 0)
-            tecl_buy = target_portfolio.get("TECL", 0)
-            
-            logging.info("ERROR_LOG_SYMBOLS_BUY_EXPECTATIONS:")
-            logging.info(f"  UVXY: {uvxy_buy:.4f} - should generate BUY: {uvxy_buy > 0.001}")
-            logging.info(f"  BTAL: {btal_buy:.4f} - should generate BUY: {btal_buy > 0.001}")
-            logging.info(f"  TECL: {tecl_buy:.4f} - should generate BUY: {tecl_buy > 0.001}")
+            if len(positive_allocations) == 0:
+                logging.error("❌ CRITICAL: BUY PHASE EXPECTS NO TRADES - UNIVERSAL FAILURE!")
+            else:
+                logging.info(f"✅ BUY PHASE EXPECTS TRADES FOR {len(positive_allocations)} SYMBOLS")
         else:
             logging.error("❌ CRITICAL: ORCHESTRATOR PASSING EMPTY PORTFOLIO TO FACADE FOR BUY PHASE!")
             
@@ -499,8 +494,9 @@ class RebalancingOrchestrator:
             # Final validation against expectations
             if len(significant_allocations) > 0 and total_orders == 0:
                 logging.error(
-                    "🚨 ORCHESTRATOR TRADE LOSS: Expected orders for significant allocations but created 0"
+                    "🚨 UNIVERSAL ORCHESTRATOR TRADE LOSS: Expected orders for ANY significant allocations but created 0"
                 )
+                logging.error(f"🚨 SYSTEMIC FAILURE: {len(significant_allocations)} symbols with allocations generated 0 orders")
                 for symbol, allocation in significant_allocations.items():
                     logging.error(f"🚨 MISSING: {symbol} with {allocation:.1%} allocation")
 

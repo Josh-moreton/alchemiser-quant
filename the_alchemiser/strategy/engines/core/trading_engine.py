@@ -690,31 +690,18 @@ class TradingEngine:
             for symbol, allocation in target_portfolio.items():
                 logging.info(f"TRADING_ENGINE_RECEIVED: {symbol} = {allocation:.6f} ({allocation * 100:.2f}%)")
                 
-            # Verify expected symbols are present
-            expected_symbols = {"UVXY", "BTAL", "TECL"}  # Based on error log
+            # Verify expected symbols are present - GENERAL CHECK FOR ANY SYMBOLS
             received_symbols = set(target_portfolio.keys())
-            missing_symbols = expected_symbols - received_symbols
-            unexpected_symbols = received_symbols - expected_symbols
+            logging.info(f"RECEIVED_SYMBOLS_COUNT: {len(received_symbols)}")
+            logging.info(f"RECEIVED_SYMBOLS: {received_symbols}")
             
-            if missing_symbols:
-                logging.warning(f"⚠️ MISSING_EXPECTED_SYMBOLS: {missing_symbols}")
-            if unexpected_symbols:
-                logging.info(f"ℹ️ ADDITIONAL_SYMBOLS: {unexpected_symbols}")
-            
-            # Check for the specific symbols mentioned in the error
-            uvxy_allocation = target_portfolio.get("UVXY", 0)
-            btal_allocation = target_portfolio.get("BTAL", 0)
-            tecl_allocation = target_portfolio.get("TECL", 0)
-            
-            logging.info("ERROR_LOG_SYMBOLS_CHECK:")
-            logging.info(f"  UVXY: {uvxy_allocation:.4f} (expected: ~0.425 from error log)")
-            logging.info(f"  BTAL: {btal_allocation:.4f} (expected: ~0.075 from error log)")
-            logging.info(f"  TECL: {tecl_allocation:.4f} (expected: ~0.500 from error log)")
-            
-            # Calculate if allocations match error log expectations
-            expected_total = 0.425 + 0.075 + 0.500  # From error log: 42.5% + 7.5% + 50.0%
-            actual_total = uvxy_allocation + btal_allocation + tecl_allocation
-            logging.info(f"ERROR_LOG_ALLOCATION_MATCH: expected={expected_total:.3f}, actual={actual_total:.3f}")
+            # Check for ANY meaningful allocations
+            meaningful_allocations = {s: a for s, a in target_portfolio.items() if a > 0.001}
+            if len(meaningful_allocations) == 0:
+                logging.error("❌ CRITICAL: NO MEANINGFUL ALLOCATIONS FOR ANY SYMBOLS!")
+                logging.error("❌ UNIVERSAL FAILURE: No symbols have allocations > 0.1%")
+            else:
+                logging.info(f"✅ MEANINGFUL_ALLOCATIONS_FOUND: {len(meaningful_allocations)} symbols")
             
         else:
             logging.error("❌ CRITICAL: TRADING_ENGINE_RECEIVED_EMPTY_PORTFOLIO")
@@ -764,10 +751,10 @@ class TradingEngine:
                         logging.info(f"    Details: {side} {qty} {symbol}")
             else:
                 logging.error("❌ NO ORDERS RETURNED FROM ORCHESTRATOR")
-                logging.error("❌ This indicates orchestrator failed to process portfolio")
+                logging.error("❌ UNIVERSAL ORCHESTRATOR FAILURE: Expected ANY trades but got 0 orders")
                 if expected_trades:
                     logging.error(
-                        f"❌ TRADE LOSS: Expected {len(expected_trades)} trades but got 0 orders"
+                        f"❌ SYSTEMIC TRADE LOSS: Expected {len(expected_trades)} trades across ALL symbols but got 0 orders"
                     )
                     for trade in expected_trades:
                         logging.error(
@@ -778,8 +765,9 @@ class TradingEngine:
             expected_count = len(expected_trades)
             actual_count = len(orders_result) if orders_result else 0
             if expected_count > 0 and actual_count == 0:
-                logging.critical("🚨 CRITICAL TRADE LOSS at TradingEngine level")
-                logging.critical(f"🚨 Expected {expected_count} orders, received {actual_count}")
+                logging.critical("🚨 CRITICAL UNIVERSAL TRADE LOSS at TradingEngine level")
+                logging.critical(f"🚨 SYSTEMIC FAILURE: Expected {expected_count} orders for ANY symbols, received {actual_count}")
+                logging.critical("🚨 This indicates a fundamental breakdown in the trading pipeline")
 
             logging.info(
                 f"FINAL_VALIDATION: expected_trades={expected_count}, actual_orders={actual_count}"

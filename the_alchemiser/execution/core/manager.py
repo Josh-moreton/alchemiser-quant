@@ -55,25 +55,68 @@ class ExecutionManager(MultiStrategyExecutor):
 
     def _process_strategy_signals(self, strategy_signals: Any) -> dict[str, Any]:
         """Process and convert strategy signals to string-keyed format."""
+        
+        # === UNIVERSAL STRATEGY SIGNAL TRACKING ===
+        logging.info("=== _PROCESS_STRATEGY_SIGNALS ENTRY ===")
+        logging.info(f"SIGNAL_PROCESSING_INPUT_TYPE: {type(strategy_signals)}")
+        logging.info(f"SIGNAL_PROCESSING_INPUT: {strategy_signals}")
+        
         try:
+            original_signals = strategy_signals
             strategy_signals = _map_signals_to_typed(strategy_signals)
             # Convert StrategyType keys to strings for DTO compatibility
-            return {k.value: v for k, v in strategy_signals.items()}
+            processed_signals = {k.value: v for k, v in strategy_signals.items()}
+            
+            logging.info(f"SIGNAL_PROCESSING_OUTPUT_TYPE: {type(processed_signals)}")
+            logging.info(f"SIGNAL_PROCESSING_OUTPUT: {processed_signals}")
+            logging.info(f"SIGNAL_PROCESSING_SUCCESS: Mapped {len(original_signals) if original_signals else 0} → {len(processed_signals)} signals")
+            
+            return processed_signals
         except Exception as e:  # pragma: no cover - defensive
+            logging.error(f"❌ SIGNAL_PROCESSING_FAILED: {e}")
             logging.warning(f"Failed to map strategy signals to typed: {e}")
+            logging.info(f"SIGNAL_PROCESSING_FALLBACK: Returning original signals")
             return strategy_signals
 
     def _validate_portfolio_allocation(
         self, consolidated_portfolio: dict[str, float]
     ) -> dict[str, float]:
         """Validate and normalize portfolio allocation."""
+        
+        # === UNIVERSAL DATA TRACKING IN VALIDATION ===
+        logging.info("=== _VALIDATE_PORTFOLIO_ALLOCATION ENTRY ===")
+        input_total = sum(consolidated_portfolio.values()) if consolidated_portfolio else 0
+        input_count = len(consolidated_portfolio) if consolidated_portfolio else 0
+        logging.info(f"VALIDATION_INPUT: {input_count} symbols, total={input_total:.6f}")
+        
         if not consolidated_portfolio:
+            logging.error("❌ CRITICAL: VALIDATION RECEIVED EMPTY PORTFOLIO!")
+            logging.error("❌ UNIVERSAL FAILURE: No portfolio data reached validation stage")
             consolidated_portfolio = {"BIL": 1.0}
             logging.info("No portfolio signals generated, defaulting to cash (BIL)")
+        else:
+            # Log input data for tracking
+            input_meaningful = {s: a for s, a in consolidated_portfolio.items() if a > 0.001}
+            logging.info(f"VALIDATION_INPUT_MEANINGFUL: {len(input_meaningful)} symbols > 0.1%")
+            for symbol, allocation in input_meaningful.items():
+                logging.info(f"  VALIDATION_INPUT: {symbol} = {allocation:.6f}")
 
         total_allocation = sum(consolidated_portfolio.values())
         if abs(total_allocation - 1.0) > 0.05:
             logging.warning(f"Portfolio allocation sums to {total_allocation:.1%}, expected ~100%")
+        
+        # === UNIVERSAL DATA TRACKING AT VALIDATION EXIT ===
+        output_total = sum(consolidated_portfolio.values())
+        output_count = len(consolidated_portfolio)
+        output_meaningful = {s: a for s, a in consolidated_portfolio.items() if a > 0.001}
+        
+        logging.info(f"VALIDATION_OUTPUT: {output_count} symbols, total={output_total:.6f}")
+        logging.info(f"VALIDATION_OUTPUT_MEANINGFUL: {len(output_meaningful)} symbols > 0.1%")
+        
+        if len(output_meaningful) == 0:
+            logging.error("❌ CRITICAL: VALIDATION OUTPUT HAS NO MEANINGFUL ALLOCATIONS!")
+            logging.error("❌ VALIDATION BUG: Method eliminated ALL trading opportunities")
+        
         return consolidated_portfolio
 
     def _validate_and_filter_orders(self, orders_executed: list[Any]) -> list[Any]:
@@ -214,6 +257,11 @@ class ExecutionManager(MultiStrategyExecutor):
             logging.info(f"ACCOUNT EQUITY BEFORE: ${account_info_before.get('equity', 0):,.2f}")
             logging.info(f"BUYING POWER BEFORE: ${account_info_before.get('buying_power', 0):,.2f}")
 
+            # === UNIVERSAL DATA FLOW TRACKING ===
+            logging.info("=== UNIVERSAL DATA FLOW TRACKING START ===")
+            logging.info("TRACKING: All portfolio data through execution pipeline")
+            logging.info("PURPOSE: Identify where ALL position data is lost in the system")
+
             # Enhanced input validation logging
             logging.info("=== INPUT DATA VALIDATION ===")
             logging.info(f"Received pre_calculated_signals: {pre_calculated_signals is not None}")
@@ -237,6 +285,16 @@ class ExecutionManager(MultiStrategyExecutor):
                     sum(pre_calculated_portfolio.values()) if pre_calculated_portfolio else 0
                 )
                 logging.info(f"PRE_CALC_PORTFOLIO total allocation: {total_pre:.3f}")
+                
+                # === UNIVERSAL DATA INTEGRITY CHECK ===
+                logging.info("=== PRE-CALCULATED PORTFOLIO UNIVERSAL INTEGRITY CHECK ===")
+                if total_pre == 0:
+                    logging.error("❌ CRITICAL: PRE_CALC_PORTFOLIO HAS ZERO TOTAL ALLOCATION!")
+                    logging.error("❌ UNIVERSAL FAILURE: No allocations for ANY symbols in pre-calculated data")
+                elif abs(total_pre - 1.0) > 0.05:
+                    logging.warning(f"⚠️ PRE_CALC_PORTFOLIO allocation integrity issue: {total_pre:.3f}")
+                else:
+                    logging.info(f"✅ PRE_CALC_PORTFOLIO integrity check passed: {total_pre:.3f}")
 
             # Use pre-calculated signals if provided to avoid double calculation
             if (
@@ -256,6 +314,14 @@ class ExecutionManager(MultiStrategyExecutor):
                     logging.info(
                         f"  PRE_CALC: {symbol} = {allocation:.4f} ({allocation * 100:.2f}%)"
                     )
+                
+                # === UNIVERSAL PRE-CALC VALIDATION ===
+                pre_calc_meaningful = {s: a for s, a in consolidated_portfolio.items() if a > 0.001}
+                logging.info(f"PRE_CALC_MEANINGFUL_SYMBOLS: {len(pre_calc_meaningful)} symbols have >0.1% allocation")
+                if len(pre_calc_meaningful) == 0:
+                    logging.error("❌ CRITICAL: PRE_CALC has no meaningful allocations for ANY symbols!")
+                else:
+                    logging.info(f"✅ PRE_CALC has meaningful allocations for {len(pre_calc_meaningful)} symbols")
             else:
                 logging.warning("⚠️ RECALCULATING portfolio balance (potential bug source)")
                 strategy_signals, consolidated_portfolio, strategy_attribution = (
@@ -272,9 +338,35 @@ class ExecutionManager(MultiStrategyExecutor):
                     logging.info(
                         f"  FRESH_CALC: {symbol} = {allocation:.4f} ({allocation * 100:.2f}%)"
                     )
+                
+                # === UNIVERSAL FRESH CALC VALIDATION ===
+                fresh_calc_meaningful = {s: a for s, a in consolidated_portfolio.items() if a > 0.001}
+                logging.info(f"FRESH_CALC_MEANINGFUL_SYMBOLS: {len(fresh_calc_meaningful)} symbols have >0.1% allocation")
+                if len(fresh_calc_meaningful) == 0:
+                    logging.error("❌ CRITICAL: FRESH_CALC has no meaningful allocations for ANY symbols!")
+                    logging.error("❌ SYSTEMIC ISSUE: Strategy calculation resulted in zero meaningful allocations")
+                else:
+                    logging.info(f"✅ FRESH_CALC has meaningful allocations for {len(fresh_calc_meaningful)} symbols")
 
             strategy_signals = self._process_strategy_signals(strategy_signals)
             consolidated_portfolio = self._validate_portfolio_allocation(consolidated_portfolio)
+
+            # === UNIVERSAL POST-PROCESSING DATA INTEGRITY CHECK ===
+            logging.info("=== UNIVERSAL POST-PROCESSING DATA INTEGRITY CHECK ===")
+            post_process_total = sum(consolidated_portfolio.values()) if consolidated_portfolio else 0
+            post_process_meaningful = {s: a for s, a in consolidated_portfolio.items() if a > 0.001} if consolidated_portfolio else {}
+            
+            logging.info(f"POST_PROCESSING_TOTAL_ALLOCATION: {post_process_total:.6f}")
+            logging.info(f"POST_PROCESSING_MEANINGFUL_COUNT: {len(post_process_meaningful)}")
+            
+            if post_process_total == 0:
+                logging.error("❌ CRITICAL: POST_PROCESSING RESULTED IN ZERO TOTAL ALLOCATION!")
+                logging.error("❌ UNIVERSAL FAILURE: _validate_portfolio_allocation() zeroed out ALL data")
+            elif len(post_process_meaningful) == 0:
+                logging.error("❌ CRITICAL: POST_PROCESSING REMOVED ALL MEANINGFUL ALLOCATIONS!")
+                logging.error("❌ SYSTEMIC BUG: Processing pipeline eliminated ALL trading opportunities")
+            else:
+                logging.info(f"✅ POST_PROCESSING: {len(post_process_meaningful)} symbols retain meaningful allocations")
 
             # Enhanced portfolio state logging before rebalancing
             logging.info("=== PORTFOLIO ANALYSIS STAGE ===")
@@ -369,11 +461,10 @@ class ExecutionManager(MultiStrategyExecutor):
                 logging.info(f"ZERO_ALLOCATIONS: {zero_allocations} (count: {len(zero_allocations)})")
                 logging.info(f"POSITIVE_ALLOCATIONS: {positive_allocations} (count: {len(positive_allocations)})")
                 
-                # Verify we have meaningful trades to execute
+                # Verify we have meaningful trades to execute - UNIVERSAL CHECK
                 if len(positive_allocations) == 0:
                     logging.error("❌ CRITICAL: NO POSITIVE ALLOCATIONS - This will result in no BUY orders!")
-                elif len(positive_allocations) < 3 and "UVXY" not in positive_allocations:
-                    logging.warning(f"⚠️ UNUSUAL: Only {len(positive_allocations)} positive allocations, expected UVXY, BTAL, TECL")
+                    logging.error(f"❌ UNIVERSAL TRADE FAILURE: No symbols have positive allocations to trade")
                 else:
                     logging.info(f"✅ DATA_VALIDATION_PASSED: {len(positive_allocations)} symbols with positive allocations")
             else:
@@ -424,13 +515,9 @@ class ExecutionManager(MultiStrategyExecutor):
                         logging.info(f"    Details: {order.side} {order.qty} {order.symbol}")
             else:
                 logging.error("❌ NO ORDERS RETURNED from rebalance_portfolio")
-                logging.error("*** POTENTIAL BUG: Expected trades but got empty result ***")
-                logging.error(
-                    f"Expected trades for symbols: {list(significant_allocations.keys())}"
-                )
-                logging.error(
-                    f"Trade calculations showed {len([t for t in trade_calculations.values() if abs(t['trade_amount']) > 1.0])} significant trades needed"
-                )
+                logging.error("*** UNIVERSAL TRADE FAILURE: Expected ANY trades but got empty result ***")
+                logging.error(f"Expected trades for ANY symbols with positive allocations: {list(significant_allocations.keys())}")
+                logging.error(f"Trade calculations showed {len([t for t in trade_calculations.values() if abs(t['trade_amount']) > 1.0])} significant trades needed across ALL symbols")
 
             # Use utility function for expectation vs reality comparison
             log_trade_expectation_vs_reality(
