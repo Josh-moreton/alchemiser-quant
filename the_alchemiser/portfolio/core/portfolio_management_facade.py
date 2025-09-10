@@ -613,6 +613,37 @@ class PortfolioManagementFacade:
             domain_filtered_plan, dry_run=False
         )
 
+        # === ENHANCED EXECUTION RESULTS DEBUGGING ===
+        logger.info(f"=== POST-EXECUTION ANALYSIS ===")
+        logger.info(f"EXECUTION_SERVICE_RETURNED_TYPE: {type(execution_results)}")
+        logger.info(f"EXECUTION_SERVICE_RETURNED_CONTENT: {execution_results}")
+        
+        if isinstance(execution_results, dict):
+            orders_placed = execution_results.get("orders_placed", {})
+            logger.info(f"ORDERS_PLACED_TYPE: {type(orders_placed)}")
+            logger.info(f"ORDERS_PLACED_COUNT: {len(orders_placed) if orders_placed else 0}")
+            logger.info(f"ORDERS_PLACED_CONTENT: {orders_placed}")
+            
+            exec_summary = execution_results.get("execution_summary", {})
+            logger.info(f"EXECUTION_SUMMARY_TYPE: {type(exec_summary)}")
+            logger.info(f"EXECUTION_SUMMARY_CONTENT: {exec_summary}")
+        else:
+            logger.error(f"❌ UNEXPECTED_EXECUTION_RESULTS_TYPE: {type(execution_results)}")
+        
+        logger.info(f"=== DETAILED DOMAIN_FILTERED_PLAN PASSED TO EXECUTION ===")
+        logger.info(f"DOMAIN_PLAN_TYPE: {type(domain_filtered_plan)}")
+        logger.info(f"DOMAIN_PLAN_COUNT: {len(domain_filtered_plan) if domain_filtered_plan else 0}")
+        
+        if domain_filtered_plan:
+            for symbol, plan in domain_filtered_plan.items():
+                logger.info(f"DOMAIN_PLAN_{symbol}:")
+                logger.info(f"  Type: {type(plan)}")
+                logger.info(f"  needs_rebalance: {getattr(plan, 'needs_rebalance', 'MISSING')}")
+                logger.info(f"  trade_amount: {getattr(plan, 'trade_amount', 'MISSING')}")
+                logger.info(f"  symbol: {getattr(plan, 'symbol', 'MISSING')}")
+        else:
+            logger.error(f"❌ DOMAIN_FILTERED_PLAN_IS_EMPTY")
+
         # Log execution results
         logger.info(f"Execution service returned: {execution_results}")
         logger.info(f"Result type: {type(execution_results)}")
