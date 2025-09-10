@@ -449,12 +449,39 @@ class PortfolioManagementFacade:
 
         full_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights_decimal)
 
-        # Immediate validation of service response
+        # === CRITICAL REBALANCING SERVICE FAILURE DETECTION ===
         logger.info("=== REBALANCING SERVICE RESPONSE VALIDATION ===")
         logger.info(f"RESPONSE_TYPE: {type(full_plan)}")
         logger.info(f"RESPONSE_SUCCESS: {getattr(full_plan, 'success', 'N/A')}")
         logger.info(f"RESPONSE_ERROR: {getattr(full_plan, 'error', 'N/A')}")
         logger.info(f"RESPONSE_HAS_PLANS: {hasattr(full_plan, 'plans')}")
+
+        # Check for critical failure cases
+        service_failed = False
+        failure_reason = ""
+        
+        if not hasattr(full_plan, "success") or not getattr(full_plan, "success", False):
+            service_failed = True
+            failure_reason = f"Service returned success=False: {getattr(full_plan, 'error', 'Unknown error')}"
+            
+        elif not hasattr(full_plan, "plans") or not full_plan.plans:
+            service_failed = True
+            failure_reason = "Service returned empty or missing plans"
+            
+        elif len(full_plan.plans) == 0:
+            service_failed = True
+            failure_reason = "Service returned zero plans despite valid target weights"
+            
+        if service_failed:
+            logger.error(f"🚨 CRITICAL_REBALANCING_SERVICE_FAILURE: {failure_reason}")
+            logger.error(f"🚨 Target weights received: {target_weights_decimal}")
+            logger.error(f"🚨 This explains why no trades are being generated!")
+            logger.error(f"🚨 EMERGENCY_ACTION: Returning empty orders to prevent system crash")
+            
+            # Log the full response for debugging
+            logger.error(f"🚨 FULL_FAILED_RESPONSE: {full_plan}")
+            
+            return []
 
         if hasattr(full_plan, "plans"):
             logger.info(f"RESPONSE_PLANS_TYPE: {type(full_plan.plans)}")
