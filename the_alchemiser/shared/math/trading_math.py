@@ -288,7 +288,7 @@ def calculate_rebalance_amounts(
     target_weights: dict[str, float],
     current_values: dict[str, float],
     total_portfolio_value: float,
-    min_trade_threshold: float = 0.01,  # 1% minimum threshold for trades
+    min_trade_threshold: float = 0.001,  # 0.1% minimum threshold for trades
 ) -> dict[str, dict[str, float]]:
     """Calculate comprehensive rebalancing plan for all portfolio positions.
 
@@ -304,7 +304,7 @@ def calculate_rebalance_amounts(
             current position values in dollars.
         total_portfolio_value (float): Total portfolio value in dollars.
         min_trade_threshold (float, optional): Minimum weight difference
-            to trigger a rebalancing trade. Defaults to 0.01 (1%).
+            to trigger a rebalancing trade. Defaults to 0.001 (0.1%).
 
     Returns:
         dict[str, dict]: Dictionary mapping each symbol to a detailed

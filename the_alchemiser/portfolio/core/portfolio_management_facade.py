@@ -51,13 +51,13 @@ class PortfolioManagementFacade:
     def __init__(
         self,
         trading_manager: TradingServiceManager,
-        min_trade_threshold: Decimal = Decimal("0.01"),
+        min_trade_threshold: Decimal = Decimal("0.001"),
     ) -> None:
         """Initialize the portfolio management facade.
 
         Args:
             trading_manager: Service for trading operations and market data
-            min_trade_threshold: Minimum threshold for trade execution
+            min_trade_threshold: Minimum threshold for trade execution (default: 0.1%)
 
         """
         self.trading_manager = trading_manager

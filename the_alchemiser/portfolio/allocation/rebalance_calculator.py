@@ -19,11 +19,11 @@ class RebalanceCalculator:
     It delegates to the existing trading_math module but returns proper domain objects.
     """
 
-    def __init__(self, min_trade_threshold: Decimal = Decimal("0.01")) -> None:
+    def __init__(self, min_trade_threshold: Decimal = Decimal("0.001")) -> None:
         """Initialize the calculator with a minimum trade threshold.
 
         Args:
-            min_trade_threshold: Minimum weight difference to trigger a trade (default 1%)
+            min_trade_threshold: Minimum weight difference to trigger a trade (default 0.1%)
 
         """
         self.min_trade_threshold = min_trade_threshold
