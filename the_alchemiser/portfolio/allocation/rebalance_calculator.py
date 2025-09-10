@@ -104,6 +104,7 @@ class RebalanceCalculator:
         # Check for potential issues before calculation
         if portfolio_value_float <= 0:
             logger.error(f"❌ INVALID_PORTFOLIO_VALUE: {portfolio_value_float}")
+            logger.error("❌ Cannot calculate trades with zero or negative portfolio value")
             return {}
 
         total_target_weights = sum(target_weights_float.values())

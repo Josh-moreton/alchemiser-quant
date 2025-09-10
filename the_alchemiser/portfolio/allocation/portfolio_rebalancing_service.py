@@ -570,12 +570,12 @@ class PortfolioRebalancingService:
             portfolio_context = {
                 "total_value": portfolio_value,
                 "portfolio_value": portfolio_value,
-                "cash_value": account_summary.get("cash", Decimal("0")),
-                "equity_value": account_summary.get("equity", Decimal("0")),
-                "buying_power": account_summary.get("buying_power", Decimal("0")),
-                "day_pnl": account_summary.get("unrealized_pl", Decimal("0")),
-                "day_pnl_percent": account_summary.get("unrealized_plpc", Decimal("0")),
-                "account_id": account_summary.get("account_number"),
+                "cash_value": account_summary.cash,
+                "equity_value": account_summary.equity,
+                "buying_power": account_summary.buying_power,
+                "day_pnl": Decimal("0"),  # Not available in AccountSummary
+                "day_pnl_percent": Decimal("0"),  # Not available in AccountSummary
+                "account_id": account_summary.account_id,
             }
 
             # Convert portfolio data to DTO directly using existing DTO structure
@@ -990,9 +990,9 @@ class PortfolioRebalancingService:
             logger.info(f"ACCOUNT_SUMMARY_CONTENT: {account_summary}")
 
             if account_summary:
-                # Try portfolio_value first, then equity as fallback (aligned with CLI display logic)
-                portfolio_value_raw = account_summary.get("portfolio_value")
-                equity_raw = account_summary.get("equity")
+                # Use equity as portfolio value (AccountSummary doesn't have portfolio_value field)
+                portfolio_value_raw = account_summary.equity
+                equity_raw = account_summary.equity
 
                 logger.info(f"ACCOUNT_PORTFOLIO_VALUE: {portfolio_value_raw}")
                 logger.info(f"ACCOUNT_EQUITY: {equity_raw}")
@@ -1012,6 +1012,25 @@ class PortfolioRebalancingService:
                         logger.error(
                             "  3. Check if account is in correct trading mode (paper vs live)"
                         )
+                        
+                        # Try buying power fallback for zero portfolio value
+                        logger.info("🔧 ATTEMPTING_BUYING_POWER_FALLBACK_FOR_ZERO_PORTFOLIO")
+                        try:
+                            buying_power = account_summary.buying_power
+                            if buying_power and buying_power > 0:
+                                buying_power_decimal = Decimal(str(buying_power))
+                                logger.warning(
+                                    f"🔧 ZERO_PORTFOLIO_FALLBACK_TO_BUYING_POWER: ${buying_power_decimal}"
+                                )
+                                logger.warning(
+                                    "🔧 Using buying power when portfolio value is zero but we have funds"
+                                )
+                                return buying_power_decimal
+                            else:
+                                logger.error(f"❌ BUYING_POWER_ALSO_ZERO: {buying_power}")
+                        except Exception as bp_e:
+                            logger.error(f"❌ BUYING_POWER_FALLBACK_ERROR: {bp_e}")
+                        
                         logger.error(
                             "🚨 Returning actual invalid portfolio value for proper error handling"
                         )
@@ -1025,6 +1044,29 @@ class PortfolioRebalancingService:
             logger.error("❌ ALL_PORTFOLIO_VALUE_METHODS_FAILED")
             logger.error("🚨 CRITICAL: Cannot proceed with rebalancing without portfolio value")
             logger.error("🚨 This explains why no trades are being generated!")
+            
+            # CRITICAL FIX: Try buying power as a last resort for fresh portfolios
+            logger.info("🔧 ATTEMPTING_BUYING_POWER_FALLBACK")
+            try:
+                account_summary = self.trading_manager.get_account_summary()
+                if account_summary:
+                    buying_power = account_summary.buying_power
+                    if buying_power and buying_power > 0:
+                        buying_power_decimal = Decimal(str(buying_power))
+                        logger.warning(
+                            f"🔧 USING_BUYING_POWER_AS_PORTFOLIO_VALUE: ${buying_power_decimal}"
+                        )
+                        logger.warning(
+                            "🔧 This handles the case where portfolio is empty but we have funds to invest"
+                        )
+                        return buying_power_decimal
+                    else:
+                        logger.error(f"❌ BUYING_POWER_ALSO_ZERO_OR_INVALID: {buying_power}")
+                else:
+                    logger.error("❌ CANNOT_GET_ACCOUNT_SUMMARY_FOR_BUYING_POWER")
+            except Exception as buying_power_e:
+                logger.error(f"❌ BUYING_POWER_FALLBACK_FAILED: {buying_power_e}")
+            
             logger.error("🚨 Returning zero portfolio value for proper error handling")
             return Decimal("0")
 
@@ -1036,10 +1078,8 @@ class PortfolioRebalancingService:
                 logger.info("=== TRYING EMERGENCY FALLBACK ===")
                 account_summary = self.trading_manager.get_account_summary()
                 if account_summary:
-                    # Try portfolio_value first, then equity as fallback (aligned with CLI display logic)
-                    portfolio_value = account_summary.get(
-                        "portfolio_value", account_summary.get("equity", 0)
-                    )
+                    # Use equity as portfolio value (AccountSummary doesn't have portfolio_value field)
+                    portfolio_value = account_summary.equity
                     result = Decimal(str(portfolio_value))
                     logger.info(f"EMERGENCY_FALLBACK_VALUE: ${result}")
 
