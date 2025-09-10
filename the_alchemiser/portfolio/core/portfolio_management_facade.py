@@ -62,6 +62,10 @@ class PortfolioManagementFacade:
         """
         self.trading_manager = trading_manager
 
+        # Log configuration for debugging
+        logger = logging.getLogger(__name__)
+        logger.info(f"PortfolioManagementFacade initialized with min_trade_threshold={min_trade_threshold} ({float(min_trade_threshold)*100:.1f}%)")
+
         # Initialize domain objects
         self.rebalance_calculator = RebalanceCalculator(min_trade_threshold)
         self.position_analyzer = PositionAnalyzer()
@@ -608,6 +612,7 @@ class PortfolioManagementFacade:
         # === ENHANCED FILTERING WITH CRITICAL ERROR DETECTION ===
         logger.info(f"=== STARTING FILTERING FOR {phase_normalized.upper()} PHASE ===")
         logger.info(f"FILTERING_LOGIC_TARGET: needs_rebalance=True AND phase={phase_normalized} AND trade_amount {'< 0' if phase_normalized == 'sell' else '> 0'}")
+        logger.info(f"REBALANCE_THRESHOLD_USED: {self.rebalance_calculator.min_trade_threshold} ({float(self.rebalance_calculator.min_trade_threshold)*100:.1f}%)")
         
         filtered_plan: dict[str, RebalancePlanDTO] = {}
         filtering_errors = []
