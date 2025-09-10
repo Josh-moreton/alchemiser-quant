@@ -665,6 +665,59 @@ class TradingEngine:
         logging.info(
             f"HANDOFF_DATA_CHECKSUM: {len(target_portfolio)} symbols, total={sum(target_portfolio.values()):.4f}"
         )
+        
+        # === ENHANCED DATA TRANSFER VERIFICATION ===
+        logging.info("=== CRITICAL DATA VERIFICATION BEFORE ORCHESTRATOR ===")
+        
+        # Verify the target_portfolio passed from ExecutionManager
+        logging.info(f"TRADING_ENGINE_RECEIVED_TYPE: {type(target_portfolio)}")
+        logging.info(f"TRADING_ENGINE_RECEIVED_COUNT: {len(target_portfolio) if target_portfolio else 0}")
+        
+        if target_portfolio:
+            # Create integrity checksum for cross-validation
+            received_total = sum(target_portfolio.values())
+            received_checksum = f"symbols:{len(target_portfolio)}_total:{received_total:.6f}_hash:{hash(frozenset(target_portfolio.items()))}"
+            logging.info(f"TRADING_ENGINE_RECEIVED_CHECKSUM: {received_checksum}")
+            
+            # Verify data integrity matches expectations
+            if abs(received_total - 1.0) > 0.05:
+                logging.error(f"❌ TRADING_ENGINE_DATA_INTEGRITY_FAILED: total={received_total:.6f}, expected~1.0")
+            else:
+                logging.info(f"✅ TRADING_ENGINE_DATA_INTEGRITY_PASSED: total={received_total:.6f}")
+            
+            # Log each symbol allocation received
+            logging.info("=== TRADING_ENGINE_RECEIVED_ALLOCATIONS ===")
+            for symbol, allocation in target_portfolio.items():
+                logging.info(f"TRADING_ENGINE_RECEIVED: {symbol} = {allocation:.6f} ({allocation * 100:.2f}%)")
+                
+            # Verify expected symbols are present - GENERAL CHECK FOR ANY SYMBOLS
+            received_symbols = set(target_portfolio.keys())
+            logging.info(f"RECEIVED_SYMBOLS_COUNT: {len(received_symbols)}")
+            logging.info(f"RECEIVED_SYMBOLS: {received_symbols}")
+            
+            # Check for ANY meaningful allocations
+            meaningful_allocations = {s: a for s, a in target_portfolio.items() if a > 0.001}
+            if len(meaningful_allocations) == 0:
+                logging.error("❌ CRITICAL: NO MEANINGFUL ALLOCATIONS FOR ANY SYMBOLS!")
+                logging.error("❌ UNIVERSAL FAILURE: No symbols have allocations > 0.1%")
+            else:
+                logging.info(f"✅ MEANINGFUL_ALLOCATIONS_FOUND: {len(meaningful_allocations)} symbols")
+            
+        else:
+            logging.error("❌ CRITICAL: TRADING_ENGINE_RECEIVED_EMPTY_PORTFOLIO")
+            logging.error("❌ This confirms the data loss occurred upstream in ExecutionManager!")
+            
+        # Enhanced orchestrator information
+        logging.info(f"ORCHESTRATOR_TYPE_DETAIL: {type(self._rebalancing_orchestrator)}")
+        logging.info(f"ORCHESTRATOR_MODULE: {getattr(type(self._rebalancing_orchestrator), '__module__', 'unknown')}")
+        logging.info(f"ORCHESTRATOR_EXISTS: {self._rebalancing_orchestrator is not None}")
+        
+        if hasattr(self._rebalancing_orchestrator, "portfolio_facade"):
+            facade_type = type(getattr(self._rebalancing_orchestrator, "portfolio_facade", None))
+            logging.info(f"ORCHESTRATOR_FACADE_TYPE: {facade_type}")
+        
+        # Log the portfolio value being passed
+        logging.info(f"PORTFOLIO_VALUE_BEING_PASSED: ${portfolio_value_decimal}")
 
         try:
             # Delegate to the rebalancing orchestrator for sequential execution
@@ -698,10 +751,10 @@ class TradingEngine:
                         logging.info(f"    Details: {side} {qty} {symbol}")
             else:
                 logging.error("❌ NO ORDERS RETURNED FROM ORCHESTRATOR")
-                logging.error("❌ This indicates orchestrator failed to process portfolio")
+                logging.error("❌ UNIVERSAL ORCHESTRATOR FAILURE: Expected ANY trades but got 0 orders")
                 if expected_trades:
                     logging.error(
-                        f"❌ TRADE LOSS: Expected {len(expected_trades)} trades but got 0 orders"
+                        f"❌ SYSTEMIC TRADE LOSS: Expected {len(expected_trades)} trades across ALL symbols but got 0 orders"
                     )
                     for trade in expected_trades:
                         logging.error(
@@ -712,8 +765,9 @@ class TradingEngine:
             expected_count = len(expected_trades)
             actual_count = len(orders_result) if orders_result else 0
             if expected_count > 0 and actual_count == 0:
-                logging.critical("🚨 CRITICAL TRADE LOSS at TradingEngine level")
-                logging.critical(f"🚨 Expected {expected_count} orders, received {actual_count}")
+                logging.critical("🚨 CRITICAL UNIVERSAL TRADE LOSS at TradingEngine level")
+                logging.critical(f"🚨 SYSTEMIC FAILURE: Expected {expected_count} orders for ANY symbols, received {actual_count}")
+                logging.critical("🚨 This indicates a fundamental breakdown in the trading pipeline")
 
             logging.info(
                 f"FINAL_VALIDATION: expected_trades={expected_count}, actual_orders={actual_count}"
