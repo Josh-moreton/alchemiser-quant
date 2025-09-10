@@ -669,9 +669,14 @@ class TradingEngine:
         try:
             # Delegate to the rebalancing orchestrator for sequential execution
             # The RebalancingOrchestratorFacade provides a synchronous interface
+            # Pass the correctly calculated portfolio value to avoid recalculation
+            from decimal import Decimal
+            portfolio_value_decimal = Decimal(str(current_portfolio_value))
+            logging.info(f"PASSING_PORTFOLIO_VALUE_TO_ORCHESTRATOR: ${portfolio_value_decimal}")
+            
             orders_result: list[OrderDetails] = (
                 self._rebalancing_orchestrator.execute_full_rebalance_cycle(
-                    target_portfolio, strategy_attribution
+                    target_portfolio, strategy_attribution, portfolio_value_decimal
                 )
             )
 

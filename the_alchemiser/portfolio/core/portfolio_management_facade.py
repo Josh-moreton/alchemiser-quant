@@ -386,6 +386,7 @@ class PortfolioManagementFacade:
         self,
         target_portfolio: dict[str, float],
         phase: str,  # "sell" or "buy"
+        portfolio_value: Decimal | None = None,
     ) -> list[OrderDetails]:
         """Execute only one phase of the rebalancing: sells or buys.
 
@@ -446,8 +447,11 @@ class PortfolioManagementFacade:
         logger.info("=== CALLING REBALANCING SERVICE ===")
         logger.info(f"CALLING_WITH_WEIGHTS: {target_weights_decimal}")
         logger.info(f"CALLING_SERVICE_TYPE: {type(self.rebalancing_service).__name__}")
+        logger.info(f"PASSING_PORTFOLIO_VALUE: {portfolio_value}")
 
-        full_plan = self.rebalancing_service.calculate_rebalancing_plan(target_weights_decimal)
+        full_plan = self.rebalancing_service.calculate_rebalancing_plan(
+            target_weights_decimal, portfolio_value=portfolio_value
+        )
 
         # === CRITICAL REBALANCING SERVICE FAILURE DETECTION ===
         logger.info("=== REBALANCING SERVICE RESPONSE VALIDATION ===")

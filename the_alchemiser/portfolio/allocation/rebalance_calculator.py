@@ -104,7 +104,6 @@ class RebalanceCalculator:
         # Check for potential issues before calculation
         if portfolio_value_float <= 0:
             logger.error(f"❌ INVALID_PORTFOLIO_VALUE: {portfolio_value_float}")
-            logger.error("❌ Cannot calculate trades with zero or negative portfolio value")
             return {}
 
         total_target_weights = sum(target_weights_float.values())
@@ -166,7 +165,8 @@ class RebalanceCalculator:
             logger.info("=== RAW PLAN DETAILS FROM TRADING_MATH ===")
             for symbol, data in raw_plan.items():
                 logger.info(f"RAW_RESULT: {symbol}")
-                logger.info(f"  data: {data}")
+                for key, value in data.items():
+                    logger.info(f"  {key}: {value} (type: {type(value)})")
         else:
             logger.error("❌ TRADING_MATH_RETURNED_EMPTY")
 
