@@ -390,6 +390,42 @@ def calculate_rebalance_amounts(
         trade_amount = target_value - current_value
         needs_rebalance = abs(weight_diff) >= min_trade_threshold
 
+        # === ENHANCED THRESHOLD ANALYSIS FOR DEBUGGING ===
+        logger.info(f"=== ENHANCED THRESHOLD ANALYSIS: {symbol} ===")
+        logger.info(f"TARGET_WEIGHT_RAW: {target_weight}")
+        logger.info(f"CURRENT_VALUE_RAW: {current_value}")
+        logger.info(f"TOTAL_PORTFOLIO_VALUE_RAW: {total_portfolio_value}")
+        logger.info(f"CALCULATED_TARGET_VALUE: ${target_value}")
+        logger.info(f"CALCULATED_TRADE_AMOUNT: ${trade_amount}")
+        logger.info(f"WEIGHT_DIFF_ABS: {abs(weight_diff)}")
+        logger.info(f"MIN_TRADE_THRESHOLD: {min_trade_threshold}")
+        logger.info(f"THRESHOLD_CHECK_RESULT: {abs(weight_diff)} >= {min_trade_threshold} = {needs_rebalance}")
+        
+        # Show percentage calculations for clarity
+        logger.info(f"CURRENT_WEIGHT_PERCENT: {current_weight * 100:.3f}%")
+        logger.info(f"TARGET_WEIGHT_PERCENT: {target_weight * 100:.3f}%")
+        logger.info(f"WEIGHT_DIFF_PERCENT: {weight_diff * 100:.3f}%") 
+        logger.info(f"THRESHOLD_PERCENT: {min_trade_threshold * 100:.3f}%")
+        
+        # Calculate what the portfolio value should be based on current holdings
+        if current_value > 0 and target_weight > 0:
+            implied_portfolio_value = current_value / target_weight
+            logger.info(f"IMPLIED_PORTFOLIO_VALUE_FROM_{symbol}: ${implied_portfolio_value:.2f}")
+        
+        # Flag potential data issues
+        if total_portfolio_value <= 0:
+            logger.error(f"❌ INVALID_PORTFOLIO_VALUE: {total_portfolio_value}")
+        if current_value < 0:
+            logger.error(f"❌ NEGATIVE_CURRENT_VALUE_{symbol}: {current_value}")
+        if target_weight < 0 or target_weight > 1:
+            logger.error(f"❌ INVALID_TARGET_WEIGHT_{symbol}: {target_weight}")
+            
+        # Additional debug info for threshold failures
+        if not needs_rebalance and abs(weight_diff) > 0:
+            logger.warning(f"⚠️ {symbol}_BELOW_THRESHOLD: Need {abs(weight_diff) * 100:.3f}% change but threshold is {min_trade_threshold * 100:.3f}%")
+        elif needs_rebalance:
+            logger.info(f"✅ {symbol}_ABOVE_THRESHOLD: Need {abs(weight_diff) * 100:.3f}% change, threshold is {min_trade_threshold * 100:.3f}%")
+
         logger.info(f"CALCULATED_TARGET_VALUE: ${target_value}")
         logger.info(f"CALCULATED_TRADE_AMOUNT: ${trade_amount}")
         logger.info(f"WEIGHT_DIFF_ABS: {abs(weight_diff)}")
