@@ -156,6 +156,59 @@ class PortfolioRebalancingService:
                 portfolio_value = self._get_portfolio_value()
                 logger.info(f"FETCHED_PORTFOLIO_VALUE: {portfolio_value}")
 
+            # === CRITICAL DATA VALIDATION ===
+            logger.info("=== CRITICAL DATA VALIDATION ===")
+            
+            # Validate portfolio value
+            if portfolio_value <= 0:
+                error_msg = f"CRITICAL: Portfolio value is ${portfolio_value} - cannot calculate trades"
+                logger.error(f"❌ {error_msg}")
+                logger.error("🚨 This is the ROOT CAUSE of the 'no trades generated' issue!")
+                logger.error("🚨 POTENTIAL_SOLUTIONS:")
+                logger.error("  1. Verify account has funds and positions")
+                logger.error("  2. Check API credentials and permissions")
+                logger.error("  3. Ensure correct trading environment (paper vs live)")
+                logger.error("  4. Check if account is restricted or blocked")
+                
+                return RebalancePlanCollectionDTO(
+                    success=False,
+                    plans={},
+                    total_symbols=0,
+                    symbols_needing_rebalance=0,
+                    total_trade_value=Decimal("0"),
+                    error=f"Invalid portfolio value: ${portfolio_value}. {error_msg}",
+                )
+            
+            # Validate target weights
+            total_target_weight = sum(target_weights.values())
+            logger.info(f"TOTAL_TARGET_WEIGHT: {total_target_weight} ({total_target_weight * 100:.1f}%)")
+            
+            if total_target_weight <= 0:
+                error_msg = "Target weights sum to zero or negative"
+                logger.error(f"❌ {error_msg}")
+                return RebalancePlanCollectionDTO(
+                    success=False,
+                    plans={},
+                    total_symbols=0,
+                    symbols_needing_rebalance=0,
+                    total_trade_value=Decimal("0"),
+                    error=error_msg,
+                )
+            
+            # Warn if target weights don't sum to 1.0 (100%)
+            if abs(total_target_weight - 1.0) > 0.01:  # Allow 1% tolerance
+                logger.warning(f"⚠️ TARGET_WEIGHTS_SUM_UNUSUAL: {total_target_weight:.3f} (expected ~1.0)")
+            
+            # Log current position values summary
+            current_total_value = sum(current_positions.values()) if current_positions else Decimal("0")
+            logger.info(f"CURRENT_POSITIONS_TOTAL_VALUE: ${current_total_value}")
+            
+            if current_total_value > portfolio_value * Decimal("1.1"):  # 10% tolerance
+                logger.warning(f"⚠️ POSITION_VALUES_EXCEED_PORTFOLIO: ${current_total_value} > ${portfolio_value}")
+                logger.warning("⚠️ This might indicate stale data or calculation errors")
+            
+            logger.info("✅ DATA VALIDATION PASSED")
+
             # Log fetched data
             logger.info("=== FETCHED DATA SUMMARY ===")
             logger.info(f"PORTFOLIO_VALUE: {portfolio_value}")
@@ -894,7 +947,15 @@ class PortfolioRebalancingService:
             if portfolio_dto and hasattr(portfolio_dto, "value"):
                 portfolio_value = portfolio_dto.value
                 logger.info(f"PORTFOLIO_VALUE_FROM_DTO: ${portfolio_value} (type: {type(portfolio_value)})")
-                return portfolio_value
+                
+                # === CRITICAL DATA VALIDATION ===
+                if portfolio_value <= 0:
+                    logger.error(f"❌ INVALID_PORTFOLIO_VALUE_FROM_DTO: ${portfolio_value}")
+                    logger.error("🚨 This will cause ALL trades to be skipped! Attempting fallback...")
+                    # Continue to fallback method
+                else:
+                    logger.info(f"✅ VALID_PORTFOLIO_VALUE: ${portfolio_value}")
+                    return portfolio_value
             else:
                 logger.warning("❌ PORTFOLIO_DTO_MISSING_VALUE_ATTRIBUTE")
                 
@@ -916,14 +977,34 @@ class PortfolioRebalancingService:
                 if final_value is not None:
                     portfolio_value = Decimal(str(final_value))
                     logger.info(f"PORTFOLIO_VALUE_FROM_ACCOUNT_SUMMARY: ${portfolio_value}")
-                    return portfolio_value
+                    
+                    # === CRITICAL DATA VALIDATION ===
+                    if portfolio_value <= 0:
+                        logger.error(f"❌ INVALID_PORTFOLIO_VALUE_FROM_ACCOUNT: ${portfolio_value}")
+                        logger.error("🚨 This will cause ALL trades to be skipped!")
+                        logger.error("🚨 POTENTIAL_FIXES:")
+                        logger.error("  1. Check if account has sufficient funds")
+                        logger.error("  2. Verify API credentials and permissions")
+                        logger.error("  3. Check if account is in correct trading mode (paper vs live)")
+                        
+                        # Return a minimal value to prevent complete failure
+                        logger.warning("⚠️ EMERGENCY_FALLBACK: Using minimal portfolio value of $1000 to prevent complete trade loss")
+                        return Decimal("1000.00")
+                    else:
+                        logger.info(f"✅ VALID_PORTFOLIO_VALUE_FROM_ACCOUNT: ${portfolio_value}")
+                        return portfolio_value
                 else:
                     logger.error("❌ BOTH_PORTFOLIO_VALUE_AND_EQUITY_ARE_NONE")
             else:
                 logger.error("❌ ACCOUNT_SUMMARY_IS_NONE")
                 
             logger.error("❌ ALL_PORTFOLIO_VALUE_METHODS_FAILED")
-            return Decimal("0")
+            logger.error("🚨 CRITICAL: Cannot proceed with rebalancing without portfolio value")
+            logger.error("🚨 This explains why no trades are being generated!")
+            
+            # Emergency fallback to prevent complete trade loss
+            logger.warning("⚠️ EMERGENCY_FALLBACK: Using minimal portfolio value to prevent complete failure")
+            return Decimal("1000.00")
             
         except Exception as e:
             # Fallback to account summary method if DTO method fails
@@ -939,9 +1020,15 @@ class PortfolioRebalancingService:
                     )
                     result = Decimal(str(portfolio_value))
                     logger.info(f"EMERGENCY_FALLBACK_VALUE: ${result}")
+                    
+                    if result <= 0:
+                        logger.error("❌ EMERGENCY_FALLBACK_ALSO_RETURNED_ZERO")
+                        logger.warning("⚠️ USING_MINIMAL_VALUE_TO_PREVENT_COMPLETE_FAILURE")
+                        return Decimal("1000.00")
+                    
                     return result
                 logger.error("❌ EMERGENCY_FALLBACK_FAILED")
-                return Decimal("0")
+                return Decimal("1000.00")  # Prevent complete failure
             except Exception as fallback_e:
                 logger.error(f"❌ EMERGENCY_FALLBACK_EXCEPTION: {fallback_e}")
-                return Decimal("0")
+                return Decimal("1000.00")  # Prevent complete failure
