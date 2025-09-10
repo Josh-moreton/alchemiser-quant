@@ -438,9 +438,7 @@ def calculate_rebalance_amounts(
             logger.error(
                 f"🚨 CRITICAL_BUG_DETECTED_{symbol}: Large target weight ({target_weight * 100:.1f}%) with large diff ({abs(weight_diff) * 100:.1f}%) but needs_rebalance=False"
             )
-            logger.error(
-                "🚨 This indicates a threshold calculation bug that will cause trade loss"
-            )
+            logger.error("🚨 This indicates a threshold calculation bug that will cause trade loss")
 
         if trade_amount == 0.0 and target_weight > 0.01:
             logger.error(
