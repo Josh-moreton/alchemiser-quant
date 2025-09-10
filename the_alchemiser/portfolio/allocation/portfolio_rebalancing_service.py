@@ -202,14 +202,68 @@ class PortfolioRebalancingService:
                 except Exception as test_e:
                     logger.error(f"TEST_SUMMARY_EXCEPTION: {test_e}")
 
-                return RebalancePlanCollectionDTO(
-                    success=False,
-                    plans={},
-                    total_symbols=0,
-                    symbols_needing_rebalance=0,
-                    total_trade_value=Decimal("0"),
-                    error=f"Invalid portfolio value: ${portfolio_value}. {error_msg}",
-                )
+                # === PAPER TRADING ZERO VALUE RECOVERY ===
+                # Attempt to recover for paper trading scenarios
+                logger.warning("=== ATTEMPTING PAPER TRADING RECOVERY ===")
+                paper_trading_detected = False
+                
+                # Check if trading manager indicates paper trading
+                if hasattr(self.trading_manager, 'is_paper_trading'):
+                    is_paper = getattr(self.trading_manager, 'is_paper_trading', False)
+                    if is_paper:
+                        paper_trading_detected = True
+                        logger.warning("✅ PAPER_TRADING_DETECTED_VIA_MANAGER")
+                
+                # Check if we can access the alpaca manager through trading manager
+                if hasattr(self.trading_manager, 'alpaca_manager') or hasattr(self.trading_manager, '_alpaca_manager'):
+                    alpaca_mgr = getattr(self.trading_manager, 'alpaca_manager', None) or getattr(self.trading_manager, '_alpaca_manager', None)
+                    if alpaca_mgr and hasattr(alpaca_mgr, 'is_paper_trading'):
+                        is_paper = getattr(alpaca_mgr, 'is_paper_trading', False)
+                        if is_paper:
+                            paper_trading_detected = True
+                            logger.warning("✅ PAPER_TRADING_DETECTED_VIA_ALPACA_MANAGER")
+                
+                # Check endpoint for paper trading indicators
+                try:
+                    from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+                    _, _, endpoint = get_alpaca_keys()
+                    if endpoint and "paper" in endpoint.lower():
+                        paper_trading_detected = True
+                        logger.warning("✅ PAPER_TRADING_DETECTED_VIA_ENDPOINT")
+                        logger.warning(f"PAPER_ENDPOINT: {endpoint}")
+                except Exception as endpoint_e:
+                    logger.error(f"ENDPOINT_CHECK_FAILED: {endpoint_e}")
+                
+                # Check if account ID contains paper indicators
+                try:
+                    test_summary = self.trading_manager.get_account_summary()
+                    if test_summary:
+                        account_id = test_summary.get("account_id", "")
+                        if "paper" in str(account_id).lower():
+                            paper_trading_detected = True
+                            logger.warning("✅ PAPER_TRADING_DETECTED_VIA_ACCOUNT_ID")
+                except Exception:
+                    pass
+                
+                if paper_trading_detected:
+                    logger.warning("🚨 PAPER TRADING MODE: Applying default portfolio value for testing")
+                    default_portfolio_value = Decimal("100000.00")  # $100k default for paper trading
+                    logger.warning(f"🚨 USING_DEFAULT_PORTFOLIO_VALUE: ${default_portfolio_value}")
+                    logger.warning("🚨 This enables strategy testing with empty paper accounts")
+                    
+                    # Update portfolio_value for the calculation
+                    portfolio_value = default_portfolio_value
+                    logger.warning(f"🚨 RECOVERY_SUCCESSFUL: Proceeding with portfolio_value=${portfolio_value}")
+                else:
+                    logger.error("❌ NOT_PAPER_TRADING: Cannot use default portfolio value for live trading")
+                    return RebalancePlanCollectionDTO(
+                        success=False,
+                        plans={},
+                        total_symbols=0,
+                        symbols_needing_rebalance=0,
+                        total_trade_value=Decimal("0"),
+                        error=f"Invalid portfolio value: ${portfolio_value}. {error_msg}",
+                    )
 
             # Validate target weights
             total_target_weight = sum(target_weights.values())
@@ -1061,6 +1115,46 @@ class PortfolioRebalancingService:
             logger.error("❌ ALL_PORTFOLIO_VALUE_METHODS_FAILED")
             logger.error("🚨 CRITICAL: Cannot proceed with rebalancing without portfolio value")
             logger.error("🚨 This explains why no trades are being generated!")
+            
+            # === PAPER TRADING FALLBACK ===
+            # For paper trading accounts, provide a default portfolio value to enable testing
+            paper_trading_detected = False
+            
+            # Check multiple ways to detect paper trading
+            if hasattr(self.trading_manager, 'is_paper_trading') and getattr(self.trading_manager, 'is_paper_trading', False):
+                paper_trading_detected = True
+                logger.warning("✅ PAPER_TRADING_DETECTED_VIA_MANAGER")
+            
+            # Check alpaca manager
+            if not paper_trading_detected:
+                if hasattr(self.trading_manager, 'alpaca_manager') or hasattr(self.trading_manager, '_alpaca_manager'):
+                    alpaca_mgr = getattr(self.trading_manager, 'alpaca_manager', None) or getattr(self.trading_manager, '_alpaca_manager', None)
+                    if alpaca_mgr and hasattr(alpaca_mgr, 'is_paper_trading'):
+                        is_paper = getattr(alpaca_mgr, 'is_paper_trading', False)
+                        if is_paper:
+                            paper_trading_detected = True
+                            logger.warning("✅ PAPER_TRADING_DETECTED_VIA_ALPACA_MANAGER")
+            
+            # Check endpoint
+            if not paper_trading_detected:
+                try:
+                    from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+                    _, _, endpoint = get_alpaca_keys()
+                    if endpoint and "paper" in endpoint.lower():
+                        paper_trading_detected = True
+                        logger.warning(f"✅ PAPER_TRADING_DETECTED_VIA_ENDPOINT: {endpoint}")
+                except Exception:
+                    pass
+            
+            if paper_trading_detected:
+                logger.warning("=== PAPER TRADING FALLBACK ACTIVATED ===")
+                logger.warning("🚨 Account has zero equity but this is paper trading mode")
+                logger.warning("🚨 Using default portfolio value for testing purposes")
+                default_value = Decimal("100000.00")  # $100k default for paper trading
+                logger.warning(f"🚨 FALLBACK_PORTFOLIO_VALUE: ${default_value}")
+                logger.warning("🚨 This allows strategy testing even with empty paper account")
+                return default_value
+            
             logger.error("🚨 Returning zero portfolio value for proper error handling")
             return Decimal("0")
 
@@ -1081,6 +1175,14 @@ class PortfolioRebalancingService:
 
                     if result <= 0:
                         logger.error("❌ EMERGENCY_FALLBACK_ALSO_RETURNED_ZERO")
+                        
+                        # === PAPER TRADING EMERGENCY FALLBACK ===
+                        if hasattr(self.trading_manager, 'is_paper_trading') and getattr(self.trading_manager, 'is_paper_trading', False):
+                            logger.warning("=== EMERGENCY PAPER TRADING FALLBACK ===")
+                            default_value = Decimal("100000.00")
+                            logger.warning(f"🚨 EMERGENCY_PAPER_FALLBACK: ${default_value}")
+                            return default_value
+                        
                         logger.error(
                             "🚨 Returning actual invalid portfolio value for proper error handling"
                         )
