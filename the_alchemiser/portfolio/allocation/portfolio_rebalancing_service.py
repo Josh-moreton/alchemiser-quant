@@ -158,10 +158,12 @@ class PortfolioRebalancingService:
 
             # === CRITICAL DATA VALIDATION ===
             logger.info("=== CRITICAL DATA VALIDATION ===")
-            
+
             # Validate portfolio value
             if portfolio_value <= 0:
-                error_msg = f"CRITICAL: Portfolio value is ${portfolio_value} - cannot calculate trades"
+                error_msg = (
+                    f"CRITICAL: Portfolio value is ${portfolio_value} - cannot calculate trades"
+                )
                 logger.error(f"❌ {error_msg}")
                 logger.error("🚨 This is the ROOT CAUSE of the 'no trades generated' issue!")
                 logger.error("🚨 POTENTIAL_SOLUTIONS:")
@@ -169,7 +171,7 @@ class PortfolioRebalancingService:
                 logger.error("  2. Check API credentials and permissions")
                 logger.error("  3. Ensure correct trading environment (paper vs live)")
                 logger.error("  4. Check if account is restricted or blocked")
-                
+
                 return RebalancePlanCollectionDTO(
                     success=False,
                     plans={},
@@ -178,11 +180,13 @@ class PortfolioRebalancingService:
                     total_trade_value=Decimal("0"),
                     error=f"Invalid portfolio value: ${portfolio_value}. {error_msg}",
                 )
-            
+
             # Validate target weights
             total_target_weight = sum(target_weights.values())
-            logger.info(f"TOTAL_TARGET_WEIGHT: {total_target_weight} ({total_target_weight * 100:.1f}%)")
-            
+            logger.info(
+                f"TOTAL_TARGET_WEIGHT: {total_target_weight} ({total_target_weight * 100:.1f}%)"
+            )
+
             if total_target_weight <= 0:
                 error_msg = "Target weights sum to zero or negative"
                 logger.error(f"❌ {error_msg}")
@@ -194,19 +198,25 @@ class PortfolioRebalancingService:
                     total_trade_value=Decimal("0"),
                     error=error_msg,
                 )
-            
+
             # Warn if target weights don't sum to 1.0 (100%)
             if abs(total_target_weight - Decimal("1.0")) > Decimal("0.01"):  # Allow 1% tolerance
-                logger.warning(f"⚠️ TARGET_WEIGHTS_SUM_UNUSUAL: {total_target_weight:.3f} (expected ~1.0)")
-            
+                logger.warning(
+                    f"⚠️ TARGET_WEIGHTS_SUM_UNUSUAL: {total_target_weight:.3f} (expected ~1.0)"
+                )
+
             # Log current position values summary
-            current_total_value = sum(current_positions.values()) if current_positions else Decimal("0")
+            current_total_value = (
+                sum(current_positions.values()) if current_positions else Decimal("0")
+            )
             logger.info(f"CURRENT_POSITIONS_TOTAL_VALUE: ${current_total_value}")
-            
+
             if current_total_value > portfolio_value * Decimal("1.1"):  # 10% tolerance
-                logger.warning(f"⚠️ POSITION_VALUES_EXCEED_PORTFOLIO: ${current_total_value} > ${portfolio_value}")
+                logger.warning(
+                    f"⚠️ POSITION_VALUES_EXCEED_PORTFOLIO: ${current_total_value} > ${portfolio_value}"
+                )
                 logger.warning("⚠️ This might indicate stale data or calculation errors")
-            
+
             logger.info("✅ DATA VALIDATION PASSED")
 
             # Log fetched data
@@ -874,40 +884,48 @@ class PortfolioRebalancingService:
             # === ENHANCED POSITION VALUES FETCHING ===
             logger.info("=== FETCHING CURRENT POSITION VALUES ===")
             logger.info(f"TRADING_MANAGER_TYPE: {type(self.trading_manager).__name__}")
-            
+
             positions_data = self.trading_manager.get_positions()
             position_values = {}
 
             # DEBUG: Log what positions we got
             logger.info("=== POSITIONS DATA ANALYSIS ===")
             logger.info(f"POSITIONS_DATA_TYPE: {type(positions_data)}")
-            logger.info(f"POSITIONS_DATA_SUCCESS: {positions_data.get('success') if positions_data else 'None'}")
-            logger.info(f"POSITIONS_DATA_COUNT: {len(positions_data.get('positions', [])) if positions_data else 0}")
+            logger.info(
+                f"POSITIONS_DATA_SUCCESS: {positions_data.get('success') if positions_data else 'None'}"
+            )
+            logger.info(
+                f"POSITIONS_DATA_COUNT: {len(positions_data.get('positions', [])) if positions_data else 0}"
+            )
             logger.info(f"POSITIONS_DATA_CONTENT: {positions_data}")
 
             if positions_data and positions_data.get("success"):
                 positions = positions_data.get("positions", [])
                 logger.info(f"PROCESSING {len(positions)} POSITIONS")
-                
+
                 for i, position in enumerate(positions):
                     logger.info(f"=== POSITION {i + 1} ===")
                     logger.info(f"POSITION_RAW_DATA: {position}")
-                    
+
                     symbol = position.get("symbol")
                     market_value = position.get("market_value", 0)
                     qty = position.get("qty", 0)
-                    
+
                     logger.info(f"POSITION_SYMBOL: {symbol}")
-                    logger.info(f"POSITION_MARKET_VALUE: {market_value} (type: {type(market_value)})")
+                    logger.info(
+                        f"POSITION_MARKET_VALUE: {market_value} (type: {type(market_value)})"
+                    )
                     logger.info(f"POSITION_QTY: {qty}")
-                    
+
                     if symbol:
                         try:
                             decimal_value = Decimal(str(market_value))
                             position_values[symbol] = decimal_value
                             logger.info(f"CONVERTED_POSITION: {symbol} = ${decimal_value}")
                         except Exception as e:
-                            logger.error(f"❌ FAILED_TO_CONVERT_MARKET_VALUE: {symbol} = {market_value} - {e}")
+                            logger.error(
+                                f"❌ FAILED_TO_CONVERT_MARKET_VALUE: {symbol} = {market_value} - {e}"
+                            )
                     else:
                         logger.warning(f"⚠️ MISSING_SYMBOL_IN_POSITION: {position}")
             else:
@@ -922,7 +940,7 @@ class PortfolioRebalancingService:
                     logger.info(f"FINAL_POSITION: {symbol} = ${value}")
             else:
                 logger.warning("❌ NO_POSITION_VALUES_EXTRACTED")
-                
+
             return position_values
         except Exception as e:
             logger.error(f"❌ EXCEPTION_IN_GET_CURRENT_POSITION_VALUES: {e}")
@@ -938,46 +956,52 @@ class PortfolioRebalancingService:
             # === ENHANCED PORTFOLIO VALUE FETCHING ===
             logger.info("=== FETCHING PORTFOLIO VALUE ===")
             logger.info(f"TRADING_MANAGER_TYPE: {type(self.trading_manager).__name__}")
-            
+
             portfolio_dto = self.trading_manager.get_portfolio_value()
             logger.info(f"PORTFOLIO_DTO_TYPE: {type(portfolio_dto)}")
             logger.info(f"PORTFOLIO_DTO_CONTENT: {portfolio_dto}")
-            logger.info(f"PORTFOLIO_DTO_HAS_VALUE: {hasattr(portfolio_dto, 'value') if portfolio_dto else 'None'}")
-            
+            logger.info(
+                f"PORTFOLIO_DTO_HAS_VALUE: {hasattr(portfolio_dto, 'value') if portfolio_dto else 'None'}"
+            )
+
             if portfolio_dto and hasattr(portfolio_dto, "value"):
                 portfolio_value = portfolio_dto.value
-                logger.info(f"PORTFOLIO_VALUE_FROM_DTO: ${portfolio_value} (type: {type(portfolio_value)})")
-                
+                logger.info(
+                    f"PORTFOLIO_VALUE_FROM_DTO: ${portfolio_value} (type: {type(portfolio_value)})"
+                )
+
                 # === CRITICAL DATA VALIDATION ===
                 if portfolio_value <= 0:
                     logger.error(f"❌ INVALID_PORTFOLIO_VALUE_FROM_DTO: ${portfolio_value}")
-                    logger.error("🚨 This will cause ALL trades to be skipped! Attempting fallback...")
+                    logger.error(
+                        "🚨 This will cause ALL trades to be skipped! Attempting fallback..."
+                    )
                     # Continue to fallback method
                 else:
                     logger.info(f"✅ VALID_PORTFOLIO_VALUE: ${portfolio_value}")
                     return portfolio_value
             else:
                 logger.warning("❌ PORTFOLIO_DTO_MISSING_VALUE_ATTRIBUTE")
-                
+
             # Fallback method
             logger.info("=== TRYING FALLBACK METHOD ===")
             account_summary = self.trading_manager.get_account_summary()
             logger.info(f"ACCOUNT_SUMMARY_TYPE: {type(account_summary)}")
             logger.info(f"ACCOUNT_SUMMARY_CONTENT: {account_summary}")
-            
+
             if account_summary:
                 # Try portfolio_value first, then equity as fallback (aligned with CLI display logic)
                 portfolio_value_raw = account_summary.get("portfolio_value")
                 equity_raw = account_summary.get("equity")
-                
+
                 logger.info(f"ACCOUNT_PORTFOLIO_VALUE: {portfolio_value_raw}")
                 logger.info(f"ACCOUNT_EQUITY: {equity_raw}")
-                
+
                 final_value = portfolio_value_raw if portfolio_value_raw is not None else equity_raw
                 if final_value is not None:
                     portfolio_value = Decimal(str(final_value))
                     logger.info(f"PORTFOLIO_VALUE_FROM_ACCOUNT_SUMMARY: ${portfolio_value}")
-                    
+
                     # === CRITICAL DATA VALIDATION ===
                     if portfolio_value <= 0:
                         logger.error(f"❌ INVALID_PORTFOLIO_VALUE_FROM_ACCOUNT: ${portfolio_value}")
@@ -985,21 +1009,25 @@ class PortfolioRebalancingService:
                         logger.error("🚨 POTENTIAL_FIXES:")
                         logger.error("  1. Check if account has sufficient funds")
                         logger.error("  2. Verify API credentials and permissions")
-                        logger.error("  3. Check if account is in correct trading mode (paper vs live)")
-                        logger.error("🚨 Returning actual invalid portfolio value for proper error handling")
+                        logger.error(
+                            "  3. Check if account is in correct trading mode (paper vs live)"
+                        )
+                        logger.error(
+                            "🚨 Returning actual invalid portfolio value for proper error handling"
+                        )
                         return portfolio_value
                     logger.info(f"✅ VALID_PORTFOLIO_VALUE_FROM_ACCOUNT: ${portfolio_value}")
                     return portfolio_value
                 logger.error("❌ BOTH_PORTFOLIO_VALUE_AND_EQUITY_ARE_NONE")
             else:
                 logger.error("❌ ACCOUNT_SUMMARY_IS_NONE")
-                
+
             logger.error("❌ ALL_PORTFOLIO_VALUE_METHODS_FAILED")
             logger.error("🚨 CRITICAL: Cannot proceed with rebalancing without portfolio value")
             logger.error("🚨 This explains why no trades are being generated!")
             logger.error("🚨 Returning zero portfolio value for proper error handling")
             return Decimal("0")
-            
+
         except Exception as e:
             # Fallback to account summary method if DTO method fails
             logger.error(f"❌ EXCEPTION_IN_GET_PORTFOLIO_VALUE: {e}")
@@ -1014,12 +1042,14 @@ class PortfolioRebalancingService:
                     )
                     result = Decimal(str(portfolio_value))
                     logger.info(f"EMERGENCY_FALLBACK_VALUE: ${result}")
-                    
+
                     if result <= 0:
                         logger.error("❌ EMERGENCY_FALLBACK_ALSO_RETURNED_ZERO")
-                        logger.error("🚨 Returning actual invalid portfolio value for proper error handling")
+                        logger.error(
+                            "🚨 Returning actual invalid portfolio value for proper error handling"
+                        )
                         return result
-                    
+
                     return result
                 logger.error("❌ EMERGENCY_FALLBACK_FAILED")
                 return Decimal("0")
