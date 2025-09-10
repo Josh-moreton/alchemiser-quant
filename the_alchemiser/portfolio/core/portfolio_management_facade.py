@@ -422,6 +422,27 @@ class PortfolioManagementFacade:
             symbol: Decimal(str(weight)) for symbol, weight in target_portfolio.items()
         }
 
+        # CRITICAL FIX: Add current positions with 0% target weight for proper SELL trade generation
+        # This ensures that existing positions not mentioned in strategy signals get SELL trades
+        logger.info("=== ADDING CURRENT POSITIONS FOR SELL TRADE GENERATION ===")
+        try:
+            current_positions = self.get_current_positions()
+            logger.info(f"CURRENT_POSITIONS_FETCHED: {len(current_positions)} positions")
+            
+            positions_added_for_sell = 0
+            for symbol, current_value in current_positions.items():
+                if symbol not in target_weights_decimal and current_value > 0:
+                    # Existing position not in strategy targets should be sold (0% target)
+                    target_weights_decimal[symbol] = Decimal("0.0")
+                    positions_added_for_sell += 1
+                    logger.info(f"ADDED_FOR_SELL: {symbol} = 0.0% (current: ${current_value})")
+            
+            logger.info(f"TOTAL_POSITIONS_ADDED_FOR_SELL: {positions_added_for_sell}")
+            logger.info(f"FINAL_TARGET_WEIGHTS_COUNT: {len(target_weights_decimal)}")
+        except Exception as e:
+            logger.error(f"❌ FAILED_TO_ADD_CURRENT_POSITIONS_FOR_SELL: {e}")
+            # Continue with original target weights if position fetching fails
+
         # Log the converted data
         logger.info("=== DATA AFTER DECIMAL CONVERSION ===")
         total_decimal = sum(target_weights_decimal.values())
@@ -957,16 +978,6 @@ class PortfolioManagementFacade:
                     should_include = True
                     decision_reason = f"BUY phase: trade_direction={plan.trade_direction}"
                     logger.info(f"  ✅ INCLUDING {symbol}: {decision_reason}")
-                    logger.info(f"  🎯 BUY_MATCH_SUCCESS: {symbol} will be added to filtered plan")
-                elif phase_normalized == "buy":
-                    # Debug why BUY symbols are being excluded
-                    logger.error(f"🚨 BUY_PHASE_EXCLUSION_DEBUG for {symbol}:")
-                    logger.error(f"  trade_direction: {getattr(plan, 'trade_direction', 'MISSING')}")
-                    logger.error(f"  trade_amount: {getattr(plan, 'trade_amount', 'MISSING')}")
-                    logger.error(f"  needs_rebalance: {getattr(plan, 'needs_rebalance', 'MISSING')}")
-                    logger.error(f"  Expected: trade_direction='BUY', Got: '{getattr(plan, 'trade_direction', 'MISSING')}'")
-                    decision_reason = f"BUY phase: trade_direction={getattr(plan, 'trade_direction', 'MISSING')} does not match BUY"
-                    logger.error(f"  ❌ EXCLUDING {symbol}: {decision_reason}")
                 else:
                     decision_reason = f"{phase_normalized} phase: trade_direction={plan.trade_direction} does not match criteria"
                     logger.info(f"  ❌ EXCLUDING {symbol}: {decision_reason}")
