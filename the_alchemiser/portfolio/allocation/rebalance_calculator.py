@@ -97,6 +97,46 @@ class RebalanceCalculator:
         logger.info(f"CONVERTED_PORTFOLIO_VALUE: {portfolio_value_float}")
         logger.info(f"CONVERTED_THRESHOLD: {threshold_float}")
 
+        # === ENHANCED PRE-CALCULATION ANALYSIS ===
+        logger.info("=== ENHANCED PRE-CALCULATION ANALYSIS ===")
+        logger.info(f"THRESHOLD_PERCENTAGE: {threshold_float * 100:.3f}%")
+        
+        # Check for potential issues before calculation
+        if portfolio_value_float <= 0:
+            logger.error(f"❌ INVALID_PORTFOLIO_VALUE: {portfolio_value_float}")
+            return {}
+            
+        total_target_weights = sum(target_weights_float.values())
+        total_current_values = sum(current_values_float.values())
+        
+        logger.info(f"TOTAL_TARGET_WEIGHTS: {total_target_weights:.6f}")
+        logger.info(f"TOTAL_CURRENT_VALUES: ${total_current_values:.2f}")
+        logger.info(f"PORTFOLIO_VALUE_VS_CURRENT_SUM: ${portfolio_value_float:.2f} vs ${total_current_values:.2f}")
+        
+        # Pre-calculate expected weight differences to predict needs_rebalance
+        logger.info("=== PRE-CALCULATION WEIGHT DIFFERENCE ANALYSIS ===")
+        for symbol in target_weights_float.keys():
+            target_weight = target_weights_float.get(symbol, 0.0)
+            current_value = current_values_float.get(symbol, 0.0)
+            
+            # Calculate current weight and difference
+            current_weight = current_value / portfolio_value_float if portfolio_value_float > 0 else 0.0
+            weight_diff = target_weight - current_weight
+            
+            logger.info(f"PRE_CALC_{symbol}:")
+            logger.info(f"  target_weight: {target_weight:.6f} ({target_weight * 100:.3f}%)")
+            logger.info(f"  current_value: ${current_value:.2f}")
+            logger.info(f"  current_weight: {current_weight:.6f} ({current_weight * 100:.3f}%)")
+            logger.info(f"  weight_diff: {weight_diff:.6f} ({weight_diff * 100:.3f}%)")
+            logger.info(f"  weight_diff_abs: {abs(weight_diff):.6f}")
+            logger.info(f"  threshold: {threshold_float:.6f}")
+            logger.info(f"  will_need_rebalance: {abs(weight_diff) >= threshold_float}")
+            
+            if abs(weight_diff) < threshold_float:
+                logger.warning(f"⚠️ {symbol} BELOW_THRESHOLD: diff={abs(weight_diff):.6f} < threshold={threshold_float:.6f}")
+            else:
+                logger.info(f"✅ {symbol} ABOVE_THRESHOLD: diff={abs(weight_diff):.6f} >= threshold={threshold_float:.6f}")
+
         # === CALL TO TRADING_MATH ===
         logger.info("=== CALLING TRADING_MATH.CALCULATE_REBALANCE_AMOUNTS ===")
 
