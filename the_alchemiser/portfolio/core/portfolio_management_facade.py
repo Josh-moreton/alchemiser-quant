@@ -718,13 +718,18 @@ class PortfolioManagementFacade:
                     decision_reason = f"needs_rebalance=False"
                     logger.info(f"  ❌ EXCLUDING {symbol}: {decision_reason}")
                     
-                    # CRITICAL FIX: Check for obvious sell scenarios even if needs_rebalance=False
+                    # CRITICAL FIX: Check for obvious sell/buy scenarios even if needs_rebalance=False
                     # This is a safeguard against threshold calculation issues
                     if phase_normalized == "sell" and trade_amt < -1000:  # Large sell trades (>$1000)
                         logger.warning(f"⚠️ OVERRIDE: {symbol} has large SELL trade ${abs(trade_amt):.2f} but needs_rebalance=False")
                         logger.warning(f"⚠️ OVERRIDE: Including {symbol} anyway due to significant trade amount")
                         should_include = True
                         decision_reason = f"OVERRIDE: Large SELL trade despite needs_rebalance=False"
+                    elif phase_normalized == "buy" and trade_amt > 1000:  # Large buy trades (>$1000)
+                        logger.warning(f"⚠️ OVERRIDE: {symbol} has large BUY trade ${trade_amt:.2f} but needs_rebalance=False")
+                        logger.warning(f"⚠️ OVERRIDE: Including {symbol} anyway due to significant trade amount")
+                        should_include = True
+                        decision_reason = f"OVERRIDE: Large BUY trade despite needs_rebalance=False"
                 elif phase_normalized == "sell" and trade_amt < 0:
                     should_include = True
                     decision_reason = f"SELL phase: trade_amount={trade_amt} < 0"

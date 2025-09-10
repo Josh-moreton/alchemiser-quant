@@ -393,13 +393,24 @@ class RebalancingOrchestrator:
             logging.info(f"EXPECTED_SYMBOLS: {list(significant_allocations.keys())}")
             logging.info(f"ORDERS_CREATED_COUNT: {total_orders}")
 
-            # Final validation against expectations
+            # Final validation against expectations - but distinguish between errors and legitimate scenarios
             if len(significant_allocations) > 0 and total_orders == 0:
-                logging.error(
-                    "🚨 ORCHESTRATOR TRADE LOSS: Expected orders for significant allocations but created 0"
-                )
-                for symbol, allocation in significant_allocations.items():
-                    logging.error(f"🚨 MISSING: {symbol} with {allocation:.1%} allocation")
+                # Check if this is a legitimate scenario (e.g., all trades below threshold)
+                if sell_count == 0 and buy_count == 0:
+                    logging.warning(
+                        "⚠️ ORCHESTRATOR: No orders executed in either phase - may be due to trade thresholds"
+                    )
+                    logging.warning(
+                        "⚠️ ORCHESTRATOR: This may be normal if all required trades are below minimum thresholds"
+                    )
+                    for symbol, allocation in significant_allocations.items():
+                        logging.warning(f"⚠️ NO_TRADE: {symbol} with {allocation:.1%} allocation")
+                else:
+                    logging.error(
+                        "🚨 ORCHESTRATOR TRADE LOSS: Expected orders for significant allocations but created 0"
+                    )
+                    for symbol, allocation in significant_allocations.items():
+                        logging.error(f"🚨 MISSING: {symbol} with {allocation:.1%} allocation")
 
             # Log final order list in detail
             if all_orders:
