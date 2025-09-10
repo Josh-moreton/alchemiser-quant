@@ -135,35 +135,41 @@ class RebalancingOrchestrator:
 
         # Delegate to facade for SELL phase execution
         logging.info("=== ORCHESTRATOR DELEGATING TO FACADE FOR SELL PHASE ===")
-        
+
         # === CRITICAL DATA TRANSFER VERIFICATION TO FACADE ===
         logging.info("=== ORCHESTRATOR→FACADE DATA TRANSFER VERIFICATION ===")
         logging.info(f"FACADE_TYPE: {type(self.portfolio_facade)}")
-        logging.info(f"FACADE_MODULE: {getattr(type(self.portfolio_facade), '__module__', 'unknown')}")
-        
+        logging.info(
+            f"FACADE_MODULE: {getattr(type(self.portfolio_facade), '__module__', 'unknown')}"
+        )
+
         # Verify the target_portfolio being passed to facade
         logging.info(f"PASSING_TO_FACADE_TYPE: {type(target_portfolio)}")
         logging.info(f"PASSING_TO_FACADE_COUNT: {len(target_portfolio) if target_portfolio else 0}")
         logging.info(f"PASSING_TO_FACADE_PORTFOLIO_VALUE: {portfolio_value}")
-        
+
         if target_portfolio:
             facade_total = sum(target_portfolio.values())
             facade_checksum = f"symbols:{len(target_portfolio)}_total:{facade_total:.6f}_hash:{hash(frozenset(target_portfolio.items()))}"
             logging.info(f"FACADE_DATA_CHECKSUM: {facade_checksum}")
-            
+
             # Log what we're passing to facade for SELL phase
             logging.info("=== DATA BEING PASSED TO FACADE FOR SELL PHASE ===")
             for symbol, allocation in target_portfolio.items():
                 logging.info(f"FACADE_INPUT_SELL: {symbol} = {allocation:.6f}")
-                
+
             # Check if this data should generate SELL orders
             logging.info("=== SELL PHASE EXPECTATION ANALYSIS ===")
-            logging.info("SELL orders should be generated for symbols where current_position > target_position")
-            logging.info("With current target allocations, we need to check current positions vs targets")
-            
+            logging.info(
+                "SELL orders should be generated for symbols where current_position > target_position"
+            )
+            logging.info(
+                "With current target allocations, we need to check current positions vs targets"
+            )
+
         else:
             logging.error("❌ CRITICAL: ORCHESTRATOR PASSING EMPTY PORTFOLIO TO FACADE!")
-            
+
         logging.info("🚀 CALLING PORTFOLIO_FACADE.REBALANCE_PORTFOLIO_PHASE(sell)...")
         sell_orders = self.portfolio_facade.rebalance_portfolio_phase(
             target_portfolio, phase="sell", portfolio_value=portfolio_value
@@ -324,35 +330,39 @@ class RebalancingOrchestrator:
 
         # Delegate to facade for BUY phase execution with scaled sizing
         logging.info("=== ORCHESTRATOR DELEGATING TO FACADE FOR BUY PHASE ===")
-        
+
         # === CRITICAL DATA TRANSFER VERIFICATION TO FACADE (BUY PHASE) ===
         logging.info("=== ORCHESTRATOR→FACADE BUY PHASE DATA TRANSFER VERIFICATION ===")
-        
+
         # Verify the target_portfolio being passed to facade for BUY phase
         if target_portfolio:
             buy_facade_total = sum(target_portfolio.values())
             buy_facade_checksum = f"symbols:{len(target_portfolio)}_total:{buy_facade_total:.6f}_hash:{hash(frozenset(target_portfolio.items()))}"
             logging.info(f"BUY_FACADE_DATA_CHECKSUM: {buy_facade_checksum}")
-            
+
             # Log what we're passing to facade for BUY phase
             logging.info("=== DATA BEING PASSED TO FACADE FOR BUY PHASE ===")
             for symbol, allocation in target_portfolio.items():
                 if allocation > 0.001:  # Log meaningful allocations
-                    logging.info(f"FACADE_INPUT_BUY: {symbol} = {allocation:.6f} ({allocation * 100:.2f}%)")
-                    
+                    logging.info(
+                        f"FACADE_INPUT_BUY: {symbol} = {allocation:.6f} ({allocation * 100:.2f}%)"
+                    )
+
             # Check if this data should generate BUY orders
             logging.info("=== BUY PHASE EXPECTATION ANALYSIS ===")
             positive_allocations = {s: a for s, a in target_portfolio.items() if a > 0.001}
             logging.info(f"BUY_PHASE_EXPECTED_SYMBOLS: {list(positive_allocations.keys())}")
             logging.info(f"BUY_PHASE_EXPECTED_COUNT: {len(positive_allocations)}")
-            
+
             if len(positive_allocations) == 0:
                 logging.error("❌ CRITICAL: BUY PHASE EXPECTS NO TRADES - UNIVERSAL FAILURE!")
             else:
                 logging.info(f"✅ BUY PHASE EXPECTS TRADES FOR {len(positive_allocations)} SYMBOLS")
         else:
-            logging.error("❌ CRITICAL: ORCHESTRATOR PASSING EMPTY PORTFOLIO TO FACADE FOR BUY PHASE!")
-            
+            logging.error(
+                "❌ CRITICAL: ORCHESTRATOR PASSING EMPTY PORTFOLIO TO FACADE FOR BUY PHASE!"
+            )
+
         logging.info("🚀 CALLING PORTFOLIO_FACADE.REBALANCE_PORTFOLIO_PHASE(buy)...")
         buy_orders = self.portfolio_facade.rebalance_portfolio_phase(
             target_portfolio, phase="buy", portfolio_value=portfolio_value
@@ -441,7 +451,9 @@ class RebalancingOrchestrator:
 
             # Phase 1: Execute SELL orders to free buying power
             logging.info("=== REBALANCING PHASE 1: SELL ORDERS ===")
-            sell_orders = self.execute_sell_phase(target_portfolio, strategy_attribution, portfolio_value)
+            sell_orders = self.execute_sell_phase(
+                target_portfolio, strategy_attribution, portfolio_value
+            )
             all_orders.extend(sell_orders)
 
             # Enhanced phase 1 results logging
@@ -467,7 +479,9 @@ class RebalancingOrchestrator:
 
             # Phase 3: Execute BUY orders with refreshed buying power
             logging.info("=== REBALANCING PHASE 3: BUY ORDERS ===")
-            buy_orders = self.execute_buy_phase(target_portfolio, strategy_attribution, portfolio_value)
+            buy_orders = self.execute_buy_phase(
+                target_portfolio, strategy_attribution, portfolio_value
+            )
             all_orders.extend(buy_orders)
 
             # Enhanced phase 3 results logging
@@ -496,7 +510,9 @@ class RebalancingOrchestrator:
                 logging.error(
                     "🚨 UNIVERSAL ORCHESTRATOR TRADE LOSS: Expected orders for ANY significant allocations but created 0"
                 )
-                logging.error(f"🚨 SYSTEMIC FAILURE: {len(significant_allocations)} symbols with allocations generated 0 orders")
+                logging.error(
+                    f"🚨 SYSTEMIC FAILURE: {len(significant_allocations)} symbols with allocations generated 0 orders"
+                )
                 for symbol, allocation in significant_allocations.items():
                     logging.error(f"🚨 MISSING: {symbol} with {allocation:.1%} allocation")
 
