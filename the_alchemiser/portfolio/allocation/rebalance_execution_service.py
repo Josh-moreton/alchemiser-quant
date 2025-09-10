@@ -443,7 +443,6 @@ class RebalanceExecutionService:
     def _place_sell_order(self, symbol: str, amount: Decimal, dry_run: bool) -> dict[str, Any]:
         """Place a sell order for the specified amount."""
         logger.debug(f"_place_sell_order called: symbol={symbol}, amount={amount}, dry_run={dry_run}")
-        
         try:
             if dry_run:
                 logger.debug(f"Placing DRY RUN sell order for {symbol}")
