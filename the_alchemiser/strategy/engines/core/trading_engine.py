@@ -738,6 +738,85 @@ class TradingEngine:
         # Log the portfolio value being passed
         logging.info(f"PORTFOLIO_VALUE_BEING_PASSED: ${portfolio_value_decimal}")
 
+        # === COMPREHENSIVE PRE-ORCHESTRATOR VALIDATION ===
+        logging.info("=== TRADING_ENGINE: PRE-ORCHESTRATOR COMPREHENSIVE VALIDATION ===")
+        logging.info(f"CURRENT_PORTFOLIO_VALUE_RAW: {current_portfolio_value} (type: {type(current_portfolio_value)})")
+        logging.info(f"PORTFOLIO_VALUE_DECIMAL: {portfolio_value_decimal} (type: {type(portfolio_value_decimal)})")
+        
+        # Validate the value being passed
+        if portfolio_value_decimal <= 0:
+            logging.error(f"❌ CRITICAL_PORTFOLIO_VALUE_INVALID: ${portfolio_value_decimal}")
+            logging.error("🚨 This invalid portfolio value will cause downstream failures!")
+            logging.error("🚨 Investigating account info that generated this value...")
+            
+            # Log the account info that generated this value
+            logging.error(f"ACCOUNT_INFO_THAT_GENERATED_VALUE: {account_info}")
+            if account_info:
+                for key, value in account_info.items():
+                    logging.error(f"  {key}: {value} (type: {type(value)})")
+            else:
+                logging.error("ACCOUNT_INFO_IS_NONE_OR_EMPTY")
+        else:
+            logging.info(f"✅ PORTFOLIO_VALUE_VALID: ${portfolio_value_decimal}")
+
+        # Validate orchestrator chain
+        logging.info("=== ORCHESTRATOR_CHAIN_VALIDATION ===")
+        logging.info(f"ORCHESTRATOR_EXISTS: {self._rebalancing_orchestrator is not None}")
+        logging.info(f"ORCHESTRATOR_TYPE: {type(self._rebalancing_orchestrator)}")
+        
+        if hasattr(self._rebalancing_orchestrator, '_orchestrator'):
+            inner_orchestrator = getattr(self._rebalancing_orchestrator, '_orchestrator')
+            logging.info(f"INNER_ORCHESTRATOR_EXISTS: {inner_orchestrator is not None}")
+            logging.info(f"INNER_ORCHESTRATOR_TYPE: {type(inner_orchestrator)}")
+            
+            if hasattr(inner_orchestrator, 'portfolio_facade'):
+                facade = getattr(inner_orchestrator, 'portfolio_facade')
+                logging.info(f"FACADE_EXISTS: {facade is not None}")
+                logging.info(f"FACADE_TYPE: {type(facade)}")
+                
+                if hasattr(facade, 'rebalancing_service'):
+                    service = getattr(facade, 'rebalancing_service')
+                    logging.info(f"REBALANCING_SERVICE_EXISTS: {service is not None}")
+                    logging.info(f"REBALANCING_SERVICE_TYPE: {type(service)}")
+                    
+                    if hasattr(service, 'trading_manager'):
+                        trading_mgr = getattr(service, 'trading_manager')
+                        logging.info(f"SERVICE_TRADING_MANAGER_EXISTS: {trading_mgr is not None}")
+                        logging.info(f"SERVICE_TRADING_MANAGER_TYPE: {type(trading_mgr)}")
+                    else:
+                        logging.error("❌ REBALANCING_SERVICE_MISSING_TRADING_MANAGER")
+                else:
+                    logging.error("❌ FACADE_MISSING_REBALANCING_SERVICE")
+            else:
+                logging.error("❌ INNER_ORCHESTRATOR_MISSING_FACADE")
+        else:
+            logging.error("❌ ORCHESTRATOR_MISSING_INNER_ORCHESTRATOR")
+
+        # Test portfolio value retrieval from the chain
+        logging.info("=== TESTING_PORTFOLIO_VALUE_RETRIEVAL_CHAIN ===")
+        if hasattr(self._rebalancing_orchestrator, '_orchestrator'):
+            inner_orchestrator = getattr(self._rebalancing_orchestrator, '_orchestrator')
+            if hasattr(inner_orchestrator, 'portfolio_facade'):
+                facade = getattr(inner_orchestrator, 'portfolio_facade')
+                if hasattr(facade, 'rebalancing_service'):
+                    service = getattr(facade, 'rebalancing_service')
+                    if hasattr(service, '_get_portfolio_value'):
+                        logging.info("🔍 TESTING_SERVICE_PORTFOLIO_VALUE_RETRIEVAL")
+                        try:
+                            test_value = service._get_portfolio_value()
+                            logging.info(f"✅ SERVICE_PORTFOLIO_VALUE_TEST: ${test_value} (type: {type(test_value)})")
+                            if test_value != portfolio_value_decimal:
+                                logging.warning(f"⚠️ VALUE_MISMATCH: trading_engine=${portfolio_value_decimal} vs service=${test_value}")
+                        except Exception as e:
+                            logging.error(f"❌ SERVICE_PORTFOLIO_VALUE_TEST_FAILED: {e}")
+                            logging.error(f"❌ Exception type: {type(e).__name__}")
+
+        logging.info("=== DATA_HANDOFF_SUMMARY ===")
+        logging.info(f"TARGET_PORTFOLIO_SYMBOLS: {list(target_portfolio.keys())}")
+        logging.info(f"TARGET_PORTFOLIO_TOTAL: {sum(target_portfolio.values()):.6f}")
+        logging.info(f"PORTFOLIO_VALUE_TO_PASS: ${portfolio_value_decimal}")
+        logging.info(f"EXPECTED_TRADES_COUNT: {len(expected_trades)}")
+
         try:
             # Delegate to the rebalancing orchestrator for sequential execution
             # The RebalancingOrchestratorFacade provides a synchronous interface

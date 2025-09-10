@@ -449,6 +449,106 @@ class PortfolioManagementFacade:
         logger.info(f"CALLING_SERVICE_TYPE: {type(self.rebalancing_service).__name__}")
         logger.info(f"PASSING_PORTFOLIO_VALUE: {portfolio_value}")
 
+        # === COMPREHENSIVE PRE-SERVICE DEBUGGING ===
+        logger.info("=== PRE-SERVICE COMPREHENSIVE DEBUGGING ===")
+        logger.info(f"REBALANCING_SERVICE_EXISTS: {self.rebalancing_service is not None}")
+        logger.info(f"REBALANCING_SERVICE_TYPE: {type(self.rebalancing_service)}")
+        logger.info(f"REBALANCING_SERVICE_MODULE: {getattr(type(self.rebalancing_service), '__module__', 'unknown')}")
+        
+        # Check if the service has the portfolio value method
+        if hasattr(self.rebalancing_service, '_get_portfolio_value'):
+            logger.info("✅ SERVICE_HAS_GET_PORTFOLIO_VALUE_METHOD")
+        else:
+            logger.error("❌ SERVICE_MISSING_GET_PORTFOLIO_VALUE_METHOD")
+            
+        # Check if the service has the trading manager
+        if hasattr(self.rebalancing_service, 'trading_manager'):
+            logger.info("✅ SERVICE_HAS_TRADING_MANAGER")
+            logger.info(f"TRADING_MANAGER_TYPE: {type(getattr(self.rebalancing_service, 'trading_manager', None))}")
+        else:
+            logger.error("❌ SERVICE_MISSING_TRADING_MANAGER")
+            
+        # If portfolio_value is provided, validate it
+        if portfolio_value is not None:
+            logger.info(f"✅ PORTFOLIO_VALUE_PROVIDED: ${portfolio_value} (type: {type(portfolio_value)})")
+            if portfolio_value <= 0:
+                logger.error(f"❌ INVALID_PROVIDED_PORTFOLIO_VALUE: ${portfolio_value} - this will cause failure!")
+            else:
+                logger.info(f"✅ VALID_PROVIDED_PORTFOLIO_VALUE: ${portfolio_value}")
+        else:
+            logger.warning("⚠️ NO_PORTFOLIO_VALUE_PROVIDED - service will need to fetch it")
+            
+        # Test portfolio value retrieval if not provided
+        if portfolio_value is None and hasattr(self.rebalancing_service, '_get_portfolio_value'):
+            logger.info("🔍 TESTING_PORTFOLIO_VALUE_RETRIEVAL_BEFORE_SERVICE_CALL")
+            try:
+                test_portfolio_value = self.rebalancing_service._get_portfolio_value()
+                logger.info(f"✅ PRE_TEST_PORTFOLIO_VALUE_SUCCESS: ${test_portfolio_value} (type: {type(test_portfolio_value)})")
+                if test_portfolio_value <= 0:
+                    logger.error(f"❌ PRE_TEST_PORTFOLIO_VALUE_INVALID: ${test_portfolio_value} - this will cause the service to fail!")
+                    logger.error("🚨 ROOT_CAUSE_IDENTIFIED: Portfolio value retrieval returns invalid value")
+                else:
+                    logger.info(f"✅ PRE_TEST_PORTFOLIO_VALUE_VALID: ${test_portfolio_value}")
+            except Exception as e:
+                logger.error(f"❌ PRE_TEST_PORTFOLIO_VALUE_EXCEPTION: {e}")
+                logger.error(f"❌ EXCEPTION_TYPE: {type(e).__name__}")
+                logger.error("🚨 ROOT_CAUSE_IDENTIFIED: Portfolio value retrieval throws exception")
+
+        # Additional trading manager debugging if available
+        if hasattr(self.rebalancing_service, 'trading_manager'):
+            trading_manager = getattr(self.rebalancing_service, 'trading_manager')
+            logger.info("=== TRADING MANAGER VALIDATION ===")
+            logger.info(f"TRADING_MANAGER_EXISTS: {trading_manager is not None}")
+            
+            if trading_manager:
+                # Test account summary retrieval
+                logger.info("🔍 TESTING_ACCOUNT_SUMMARY_RETRIEVAL")
+                try:
+                    account_summary = trading_manager.get_account_summary()
+                    logger.info(f"✅ ACCOUNT_SUMMARY_SUCCESS: type={type(account_summary)}")
+                    logger.info(f"ACCOUNT_SUMMARY_CONTENT: {account_summary}")
+                    
+                    if account_summary and isinstance(account_summary, dict):
+                        portfolio_value_raw = account_summary.get("portfolio_value")
+                        equity_raw = account_summary.get("equity")
+                        logger.info(f"ACCOUNT_PORTFOLIO_VALUE_RAW: {portfolio_value_raw} (type: {type(portfolio_value_raw)})")
+                        logger.info(f"ACCOUNT_EQUITY_RAW: {equity_raw} (type: {type(equity_raw)})")
+                        
+                        if portfolio_value_raw is None and equity_raw is None:
+                            logger.error("❌ ACCOUNT_SUMMARY_MISSING_VALUE_FIELDS")
+                        elif portfolio_value_raw is not None and float(portfolio_value_raw) <= 0:
+                            logger.error(f"❌ ACCOUNT_PORTFOLIO_VALUE_INVALID: {portfolio_value_raw}")
+                        elif equity_raw is not None and float(equity_raw) <= 0:
+                            logger.error(f"❌ ACCOUNT_EQUITY_INVALID: {equity_raw}")
+                        else:
+                            logger.info("✅ ACCOUNT_SUMMARY_HAS_VALID_VALUE_FIELDS")
+                    else:
+                        logger.error(f"❌ ACCOUNT_SUMMARY_INVALID_FORMAT: {account_summary}")
+                        
+                except Exception as e:
+                    logger.error(f"❌ ACCOUNT_SUMMARY_EXCEPTION: {e}")
+                    logger.error(f"❌ EXCEPTION_TYPE: {type(e).__name__}")
+                    
+                # Test portfolio DTO retrieval
+                logger.info("🔍 TESTING_PORTFOLIO_DTO_RETRIEVAL")
+                try:
+                    portfolio_dto = trading_manager.get_portfolio_value()
+                    logger.info(f"✅ PORTFOLIO_DTO_SUCCESS: type={type(portfolio_dto)}")
+                    if hasattr(portfolio_dto, 'value'):
+                        logger.info(f"PORTFOLIO_DTO_VALUE: {portfolio_dto.value} (type: {type(portfolio_dto.value)})")
+                        if portfolio_dto.value <= 0:
+                            logger.error(f"❌ PORTFOLIO_DTO_VALUE_INVALID: {portfolio_dto.value}")
+                        else:
+                            logger.info(f"✅ PORTFOLIO_DTO_VALUE_VALID: {portfolio_dto.value}")
+                    else:
+                        logger.error("❌ PORTFOLIO_DTO_MISSING_VALUE_ATTRIBUTE")
+                except Exception as e:
+                    logger.error(f"❌ PORTFOLIO_DTO_EXCEPTION: {e}")
+                    logger.error(f"❌ EXCEPTION_TYPE: {type(e).__name__}")
+            else:
+                logger.error("❌ TRADING_MANAGER_IS_NONE")
+
+        logger.info("=== CALLING_REBALANCING_SERVICE_NOW ===")
         full_plan = self.rebalancing_service.calculate_rebalancing_plan(
             target_weights_decimal, portfolio_value=portfolio_value
         )
