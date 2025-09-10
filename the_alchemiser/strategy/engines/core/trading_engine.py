@@ -665,6 +665,72 @@ class TradingEngine:
         logging.info(
             f"HANDOFF_DATA_CHECKSUM: {len(target_portfolio)} symbols, total={sum(target_portfolio.values()):.4f}"
         )
+        
+        # === ENHANCED DATA TRANSFER VERIFICATION ===
+        logging.info("=== CRITICAL DATA VERIFICATION BEFORE ORCHESTRATOR ===")
+        
+        # Verify the target_portfolio passed from ExecutionManager
+        logging.info(f"TRADING_ENGINE_RECEIVED_TYPE: {type(target_portfolio)}")
+        logging.info(f"TRADING_ENGINE_RECEIVED_COUNT: {len(target_portfolio) if target_portfolio else 0}")
+        
+        if target_portfolio:
+            # Create integrity checksum for cross-validation
+            received_total = sum(target_portfolio.values())
+            received_checksum = f"symbols:{len(target_portfolio)}_total:{received_total:.6f}_hash:{hash(frozenset(target_portfolio.items()))}"
+            logging.info(f"TRADING_ENGINE_RECEIVED_CHECKSUM: {received_checksum}")
+            
+            # Verify data integrity matches expectations
+            if abs(received_total - 1.0) > 0.05:
+                logging.error(f"❌ TRADING_ENGINE_DATA_INTEGRITY_FAILED: total={received_total:.6f}, expected~1.0")
+            else:
+                logging.info(f"✅ TRADING_ENGINE_DATA_INTEGRITY_PASSED: total={received_total:.6f}")
+            
+            # Log each symbol allocation received
+            logging.info("=== TRADING_ENGINE_RECEIVED_ALLOCATIONS ===")
+            for symbol, allocation in target_portfolio.items():
+                logging.info(f"TRADING_ENGINE_RECEIVED: {symbol} = {allocation:.6f} ({allocation * 100:.2f}%)")
+                
+            # Verify expected symbols are present
+            expected_symbols = {"UVXY", "BTAL", "TECL"}  # Based on error log
+            received_symbols = set(target_portfolio.keys())
+            missing_symbols = expected_symbols - received_symbols
+            unexpected_symbols = received_symbols - expected_symbols
+            
+            if missing_symbols:
+                logging.warning(f"⚠️ MISSING_EXPECTED_SYMBOLS: {missing_symbols}")
+            if unexpected_symbols:
+                logging.info(f"ℹ️ ADDITIONAL_SYMBOLS: {unexpected_symbols}")
+            
+            # Check for the specific symbols mentioned in the error
+            uvxy_allocation = target_portfolio.get("UVXY", 0)
+            btal_allocation = target_portfolio.get("BTAL", 0)
+            tecl_allocation = target_portfolio.get("TECL", 0)
+            
+            logging.info("ERROR_LOG_SYMBOLS_CHECK:")
+            logging.info(f"  UVXY: {uvxy_allocation:.4f} (expected: ~0.425 from error log)")
+            logging.info(f"  BTAL: {btal_allocation:.4f} (expected: ~0.075 from error log)")
+            logging.info(f"  TECL: {tecl_allocation:.4f} (expected: ~0.500 from error log)")
+            
+            # Calculate if allocations match error log expectations
+            expected_total = 0.425 + 0.075 + 0.500  # From error log: 42.5% + 7.5% + 50.0%
+            actual_total = uvxy_allocation + btal_allocation + tecl_allocation
+            logging.info(f"ERROR_LOG_ALLOCATION_MATCH: expected={expected_total:.3f}, actual={actual_total:.3f}")
+            
+        else:
+            logging.error("❌ CRITICAL: TRADING_ENGINE_RECEIVED_EMPTY_PORTFOLIO")
+            logging.error("❌ This confirms the data loss occurred upstream in ExecutionManager!")
+            
+        # Enhanced orchestrator information
+        logging.info(f"ORCHESTRATOR_TYPE_DETAIL: {type(self._rebalancing_orchestrator)}")
+        logging.info(f"ORCHESTRATOR_MODULE: {getattr(type(self._rebalancing_orchestrator), '__module__', 'unknown')}")
+        logging.info(f"ORCHESTRATOR_EXISTS: {self._rebalancing_orchestrator is not None}")
+        
+        if hasattr(self._rebalancing_orchestrator, "portfolio_facade"):
+            facade_type = type(getattr(self._rebalancing_orchestrator, "portfolio_facade", None))
+            logging.info(f"ORCHESTRATOR_FACADE_TYPE: {facade_type}")
+        
+        # Log the portfolio value being passed
+        logging.info(f"PORTFOLIO_VALUE_BEING_PASSED: ${portfolio_value_decimal}")
 
         try:
             # Delegate to the rebalancing orchestrator for sequential execution

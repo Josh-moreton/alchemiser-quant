@@ -328,6 +328,58 @@ class ExecutionManager(MultiStrategyExecutor):
             # === DATA TRANSFER POINT: ENGINE.REBALANCE_PORTFOLIO ===
             logging.info("=== DATA TRANSFER POINT: PASSING TO ENGINE.REBALANCE_PORTFOLIO ===")
 
+            # === ENHANCED DATA INTEGRITY VERIFICATION ===
+            logging.info("=== CRITICAL DATA INTEGRITY VERIFICATION BEFORE ENGINE.REBALANCE_PORTFOLIO ===")
+            
+            # Data type validation
+            logging.info(f"CONSOLIDATED_PORTFOLIO_TYPE: {type(consolidated_portfolio)}")
+            logging.info(f"CONSOLIDATED_PORTFOLIO_IS_DICT: {isinstance(consolidated_portfolio, dict)}")
+            logging.info(f"CONSOLIDATED_PORTFOLIO_COUNT: {len(consolidated_portfolio) if consolidated_portfolio else 0}")
+            
+            if consolidated_portfolio:
+                # Verify data integrity
+                total_allocation_check = sum(consolidated_portfolio.values())
+                logging.info(f"TOTAL_ALLOCATION_VERIFICATION: {total_allocation_check:.6f}")
+                logging.info(f"ALLOCATION_SUM_IS_NEAR_ONE: {abs(total_allocation_check - 1.0) < 0.01}")
+                
+                # Log each allocation with data type information
+                logging.info("=== DETAILED ALLOCATION BREAKDOWN WITH TYPE VERIFICATION ===")
+                for symbol, allocation in consolidated_portfolio.items():
+                    logging.info(f"ALLOCATION_DETAIL: {symbol} = {allocation} (type: {type(allocation)}, is_numeric: {isinstance(allocation, int | float)})")
+                    
+                    # Validate allocation value range
+                    if allocation < 0 or allocation > 1:
+                        logging.error(f"❌ INVALID_ALLOCATION_RANGE: {symbol} = {allocation} (outside 0-1 range)")
+                    elif allocation > 0.001:  # Log significant allocations
+                        logging.info(f"✅ SIGNIFICANT_ALLOCATION: {symbol} = {allocation:.4f} ({allocation * 100:.2f}%)")
+                
+                # Verify no NaN or infinite values
+                for symbol, allocation in consolidated_portfolio.items():
+                    if not isinstance(allocation, int | float) or str(allocation).lower() in ["nan", "inf", "-inf"]:
+                        logging.error(f"❌ INVALID_ALLOCATION_VALUE: {symbol} = {allocation} (not a valid number)")
+                
+                # Create data checksum for tracking
+                data_values = list(consolidated_portfolio.values())
+                data_checksum = f"symbols:{len(consolidated_portfolio)}_total:{sum(data_values):.6f}_hash:{hash(frozenset(consolidated_portfolio.items()))}"
+                logging.info(f"DATA_CHECKSUM_BEFORE_ENGINE: {data_checksum}")
+                
+                # Check if any allocations might cause issues downstream
+                zero_allocations = [s for s, a in consolidated_portfolio.items() if a == 0]
+                positive_allocations = [s for s, a in consolidated_portfolio.items() if a > 0]
+                logging.info(f"ZERO_ALLOCATIONS: {zero_allocations} (count: {len(zero_allocations)})")
+                logging.info(f"POSITIVE_ALLOCATIONS: {positive_allocations} (count: {len(positive_allocations)})")
+                
+                # Verify we have meaningful trades to execute
+                if len(positive_allocations) == 0:
+                    logging.error("❌ CRITICAL: NO POSITIVE ALLOCATIONS - This will result in no BUY orders!")
+                elif len(positive_allocations) < 3 and "UVXY" not in positive_allocations:
+                    logging.warning(f"⚠️ UNUSUAL: Only {len(positive_allocations)} positive allocations, expected UVXY, BTAL, TECL")
+                else:
+                    logging.info(f"✅ DATA_VALIDATION_PASSED: {len(positive_allocations)} symbols with positive allocations")
+            else:
+                logging.error("❌ CRITICAL: CONSOLIDATED_PORTFOLIO IS EMPTY - No data to pass to engine!")
+                logging.error("❌ This explains why no trades are generated!")
+
             # Use utility function for standardized logging
             log_data_transfer_checkpoint(
                 logging.getLogger(__name__),
@@ -338,10 +390,22 @@ class ExecutionManager(MultiStrategyExecutor):
                 engine_type=type(self.engine).__name__,
             )
 
+            # Enhanced pre-call validation
+            logging.info("=== FINAL PRE-CALL VALIDATION ===")
+            logging.info(f"ENGINE_TYPE: {type(self.engine).__name__}")
+            logging.info(f"ENGINE_HAS_REBALANCE_PORTFOLIO: {hasattr(self.engine, 'rebalance_portfolio')}")
+            logging.info(f"STRATEGY_ATTRIBUTION_PROVIDED: {strategy_attribution is not None}")
+            
+            if strategy_attribution:
+                logging.info(f"STRATEGY_ATTRIBUTION_TYPE: {type(strategy_attribution)}")
+                logging.info(f"STRATEGY_ATTRIBUTION_COUNT: {len(strategy_attribution) if strategy_attribution else 0}")
+
             # Call the engine rebalance method
+            logging.info("🚀 CALLING ENGINE.REBALANCE_PORTFOLIO() NOW...")
             orders_executed = self.engine.rebalance_portfolio(
                 consolidated_portfolio, strategy_attribution
             )
+            logging.info("📥 ENGINE.REBALANCE_PORTFOLIO() RETURNED")
 
             # Enhanced rebalancing results logging
             logging.info("=== EXECUTION PIPELINE RESULTS ===")
@@ -367,11 +431,6 @@ class ExecutionManager(MultiStrategyExecutor):
                 logging.error(
                     f"Trade calculations showed {len([t for t in trade_calculations.values() if abs(t['trade_amount']) > 1.0])} significant trades needed"
                 )
-
-            # Data validation checkpoint
-            expected_trades = [
-                t for t in trade_calculations.values() if abs(t["trade_amount"]) > 1.0
-            ]
 
             # Use utility function for expectation vs reality comparison
             log_trade_expectation_vs_reality(
