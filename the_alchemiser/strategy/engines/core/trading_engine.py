@@ -622,6 +622,7 @@ class TradingEngine:
         logging.info(f"ORCHESTRATOR_EXISTS: {self._rebalancing_orchestrator is not None}")
 
         # Get current account state for comparison
+        current_portfolio_value = 0.0  # Default value in case of error
         try:
             account_info = self.get_account_info()
             current_positions = self.get_positions_dict()
@@ -716,6 +717,10 @@ class TradingEngine:
             facade_type = type(getattr(self._rebalancing_orchestrator, "portfolio_facade", None))
             logging.info(f"ORCHESTRATOR_FACADE_TYPE: {facade_type}")
         
+        # Convert portfolio value to Decimal for logging and orchestrator
+        from decimal import Decimal
+        portfolio_value_decimal = Decimal(str(current_portfolio_value))
+        
         # Log the portfolio value being passed
         logging.info(f"PORTFOLIO_VALUE_BEING_PASSED: ${portfolio_value_decimal}")
 
@@ -723,8 +728,6 @@ class TradingEngine:
             # Delegate to the rebalancing orchestrator for sequential execution
             # The RebalancingOrchestratorFacade provides a synchronous interface
             # Pass the correctly calculated portfolio value to avoid recalculation
-            from decimal import Decimal
-            portfolio_value_decimal = Decimal(str(current_portfolio_value))
             logging.info(f"PASSING_PORTFOLIO_VALUE_TO_ORCHESTRATOR: ${portfolio_value_decimal}")
             
             orders_result: list[OrderDetails] = (
