@@ -372,7 +372,7 @@ def calculate_rebalance_amounts(
             f"{symbol}: Threshold {min_trade_threshold:.3f}% ({min_trade_threshold * 100:.1f}%)"
         )
         logger.debug(
-            f"{symbol}: Needs rebalance: {needs_rebalance} (diff {abs(weight_diff):.4f} {'≥' if needs_rebalance else '<'} threshold {min_trade_threshold:.4f})"
+            f"{symbol}: Needs rebalance: {needs_rebalance} (diff {abs(weight_diff):.6f} {'≥' if needs_rebalance else '<'} threshold {min_trade_threshold:.6f})"
         )
         logger.debug(f"{symbol}: Trade amount: ${trade_amount:.2f}")
 
