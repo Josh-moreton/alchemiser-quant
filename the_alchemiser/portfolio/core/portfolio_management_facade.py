@@ -393,9 +393,11 @@ class PortfolioManagementFacade:
         logger = logging.getLogger(__name__)
         logger.info("=== PORTFOLIO MANAGEMENT FACADE: DATA TRANSFER CHECKPOINT ===")
         logger.info(f"FACADE_RECEIVED_RAW_DATA_TYPE: {type(target_portfolio)}")
-        logger.info(f"FACADE_RECEIVED_RAW_DATA_COUNT: {len(target_portfolio) if target_portfolio else 0}")
+        logger.info(
+            f"FACADE_RECEIVED_RAW_DATA_COUNT: {len(target_portfolio) if target_portfolio else 0}"
+        )
         logger.info(f"FACADE_RECEIVED_PHASE: '{phase}' (normalized: '{phase_normalized}')")
-        
+
         # Log the exact raw data received
         logger.info("=== RAW DATA RECEIVED BY FACADE ===")
         if target_portfolio:
@@ -411,22 +413,24 @@ class PortfolioManagementFacade:
         target_weights_decimal = {
             symbol: Decimal(str(weight)) for symbol, weight in target_portfolio.items()
         }
-        
+
         # Log the converted data
         logger.info("=== DATA AFTER DECIMAL CONVERSION ===")
         total_decimal = sum(target_weights_decimal.values())
         logger.info(f"DECIMAL_DATA_TOTAL: {total_decimal}")
         for symbol, weight in target_weights_decimal.items():
             logger.info(f"DECIMAL_CONVERTED: {symbol} = {weight} (type: {type(weight)})")
-        
+
         # Validate conversion integrity
         original_total = sum(target_portfolio.values())
         converted_total = float(sum(target_weights_decimal.values()))
         if abs(original_total - converted_total) > 0.0001:
-            logger.error(f"❌ DATA_CONVERSION_ERROR: original={original_total}, converted={converted_total}")
+            logger.error(
+                f"❌ DATA_CONVERSION_ERROR: original={original_total}, converted={converted_total}"
+            )
         else:
             logger.info(f"✅ DATA_CONVERSION_VALID: {original_total} -> {converted_total}")
-        
+
         # Create data integrity checksum for tracking through the system
         data_checksum = f"{len(target_weights_decimal)}:{hash(frozenset(target_weights_decimal.items()))}:{total_decimal:.6f}"
         logger.info(f"DATA_INTEGRITY_CHECKSUM: {data_checksum}")
@@ -438,19 +442,27 @@ class PortfolioManagementFacade:
         logger.info("=== REBALANCING SERVICE RESPONSE ===")
         logger.info(f"REBALANCING_SERVICE_TYPE: {type(self.rebalancing_service).__name__}")
         logger.info(f"FULL_PLAN_TYPE: {type(full_plan)}")
-        logger.info(f"FULL_PLAN_CONTAINS: {len(full_plan.plans) if hasattr(full_plan, 'plans') else 'unknown'} plans")
-        
-        if hasattr(full_plan, 'plans'):
-            logger.info(f"REBALANCE_SYMBOLS_NEEDING_REBALANCE: {getattr(full_plan, 'symbols_needing_rebalance', 'unknown')}")
+        logger.info(
+            f"FULL_PLAN_CONTAINS: {len(full_plan.plans) if hasattr(full_plan, 'plans') else 'unknown'} plans"
+        )
+
+        if hasattr(full_plan, "plans"):
+            logger.info(
+                f"REBALANCE_SYMBOLS_NEEDING_REBALANCE: {getattr(full_plan, 'symbols_needing_rebalance', 'unknown')}"
+            )
             logger.info("=== FULL PLAN DETAILS ===")
             for symbol, plan in full_plan.plans.items():
                 logger.info(f"PLAN_DETAIL: {symbol}")
                 logger.info(f"  needs_rebalance={getattr(plan, 'needs_rebalance', 'unknown')}")
-                logger.info(f"  trade_amount={getattr(plan, 'trade_amount', 'unknown')} (type: {type(getattr(plan, 'trade_amount', None))})")
+                logger.info(
+                    f"  trade_amount={getattr(plan, 'trade_amount', 'unknown')} (type: {type(getattr(plan, 'trade_amount', None))})"
+                )
                 logger.info(f"  current_weight={getattr(plan, 'current_weight', 'unknown')}")
                 logger.info(f"  target_weight={getattr(plan, 'target_weight', 'unknown')}")
         else:
-            logger.error(f"❌ UNEXPECTED_PLAN_TYPE: {type(full_plan)} does not have 'plans' attribute")
+            logger.error(
+                f"❌ UNEXPECTED_PLAN_TYPE: {type(full_plan)} does not have 'plans' attribute"
+            )
             logger.error(f"❌ PLAN_CONTENT: {full_plan}")
             return []
 
