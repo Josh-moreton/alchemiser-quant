@@ -957,6 +957,7 @@ class PortfolioManagementFacade:
                     should_include = True
                     decision_reason = f"BUY phase: trade_direction={plan.trade_direction}"
                     logger.info(f"  ✅ INCLUDING {symbol}: {decision_reason}")
+                    logger.info(f"  🎯 BUY_MATCH_SUCCESS: {symbol} will be added to filtered plan")
                 elif phase_normalized == "buy":
                     # Debug why BUY symbols are being excluded
                     logger.error(f"🚨 BUY_PHASE_EXCLUSION_DEBUG for {symbol}:")
