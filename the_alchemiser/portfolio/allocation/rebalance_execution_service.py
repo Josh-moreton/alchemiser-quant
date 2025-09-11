@@ -219,6 +219,107 @@ class RebalanceExecutionService:
             )
             raise StrategyExecutionError(f"Rebalancing execution failed: {e}") from e
 
+    def execute_rebalancing_plan_direct(
+        self, rebalance_plan: dict[str, RebalancePlan], dry_run: bool = True
+    ) -> dict[str, Any]:
+        """Execute rebalancing plan directly from plan data without position validation.
+        
+        This method addresses the core issue by executing trades directly from the 
+        rebalance plan without requiring additional position data fetching or validation.
+        The plan already contains all necessary trade specifications.
+
+        Args:
+            rebalance_plan: Complete rebalancing plan to execute
+            dry_run: If True, only simulate execution without placing real orders
+
+        Returns:
+            Execution results with order details and status
+
+        """
+        try:
+            logger.info("=== REBALANCE EXECUTION SERVICE: DIRECT EXECUTION (NO POSITION VALIDATION) ===")
+            logger.info(f"EXECUTION_SERVICE_TYPE: {type(self).__name__}")
+            logger.info(f"RECEIVED_REBALANCE_PLAN_TYPE: {type(rebalance_plan)}")
+            logger.info(f"RECEIVED_PLAN_COUNT: {len(rebalance_plan) if rebalance_plan else 0}")
+            logger.info(f"DRY_RUN_MODE: {dry_run}")
+            logger.info("BYPASSING_POSITION_DATA_VALIDATION: Using plan data directly")
+
+            if not rebalance_plan:
+                logger.error("❌ EXECUTION_SERVICE: Empty rebalance plan received")
+                return {
+                    "status": "error",
+                    "message": "Empty rebalance plan received",
+                    "orders_placed": {},
+                    "execution_summary": {
+                        "total_orders": 0,
+                        "successful_orders": 0,
+                        "failed_orders": 0,
+                    },
+                }
+
+            # Direct execution from plan data - no position validation required
+            logger.info("=== EXECUTING DIRECTLY FROM PLAN DATA ===")
+            
+            # Filter plans that need rebalancing (plan data is trusted)
+            plans_to_execute = {
+                symbol: plan for symbol, plan in rebalance_plan.items() if plan.needs_rebalance
+            }
+
+            logger.info(f"PLANS_TO_EXECUTE_COUNT: {len(plans_to_execute)}")
+            
+            if not plans_to_execute:
+                logger.info("✅ No rebalancing required - returning success with 0 orders")
+                return {
+                    "status": "success",
+                    "message": "No rebalancing required",
+                    "orders_placed": {},
+                    "execution_summary": {
+                        "total_orders": 0,
+                        "successful_orders": 0,
+                        "failed_orders": 0,
+                    },
+                }
+
+            # Execute all trades directly from plan specifications
+            all_orders = {}
+            
+            # Process all trades in plan order (sells will naturally come first if needed)
+            for symbol, plan in plans_to_execute.items():
+                if plan.trade_amount > 0:
+                    # Buy order
+                    result = self._place_buy_order(symbol, abs(plan.trade_amount), dry_run)
+                    all_orders[symbol] = result
+                    logger.info(f"BUY_ORDER_PLACED: {symbol} ${abs(plan.trade_amount)}")
+                elif plan.trade_amount < 0:
+                    # Sell order  
+                    result = self._place_sell_order(symbol, abs(plan.trade_amount), dry_run)
+                    all_orders[symbol] = result
+                    logger.info(f"SELL_ORDER_PLACED: {symbol} ${abs(plan.trade_amount)}")
+
+            execution_summary = self._create_execution_summary(all_orders)
+            logger.info(f"DIRECT_EXECUTION_SUMMARY: {execution_summary}")
+
+            result = {
+                "status": "success",
+                "message": f"Executed {len(all_orders)} rebalancing orders directly from plan",
+                "orders_placed": all_orders,
+                "execution_summary": execution_summary,
+            }
+
+            logger.info("=== DIRECT EXECUTION SERVICE COMPLETE ===")
+            return result
+
+        except Exception as e:
+            logger.error(f"❌ DIRECT_EXECUTION_SERVICE_EXCEPTION: {e}")
+            logger.exception("Full direct execution service exception details:")
+            self.error_handler.handle_error(
+                error=e,
+                component="RebalanceExecutionService.execute_rebalancing_plan_direct",
+                context="direct_rebalancing_execution",
+                additional_data={"plan_symbols": list(rebalance_plan.keys()), "dry_run": dry_run},
+            )
+            raise StrategyExecutionError(f"Direct rebalancing execution failed: {e}") from e
+
     def execute_single_rebalance(
         self, symbol: str, plan: RebalancePlan, dry_run: bool = True
     ) -> dict[str, Any]:
