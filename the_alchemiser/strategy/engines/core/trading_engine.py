@@ -649,7 +649,7 @@ class TradingEngine:
             expected_trades = []
             for symbol, target_allocation in target_portfolio.items():
                 target_value = target_allocation * current_portfolio_value
-                position_info = current_positions.get(symbol, {})
+                position_info: dict[str, Any] = current_positions.get(symbol, {})
                 current_value = float(position_info.get("market_value", 0)) if position_info else 0.0
                 trade_amount = target_value - current_value
 
