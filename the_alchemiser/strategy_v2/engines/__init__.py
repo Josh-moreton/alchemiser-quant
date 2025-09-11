@@ -3,13 +3,19 @@
 
 Strategy engines (Nuclear, KLM, TECL).
 
-This directory will contain strategy engines moved verbatim from
-the legacy strategy module via git mv operations.
+Contains strategy engines moved verbatim from the legacy strategy module.
+These engines preserve their original logic and are accessed through
+thin adapter wrappers.
 """
 
 from __future__ import annotations
 
-# NOTE: Engines will be moved here in Phase 3 via git mv
+# Strategy engines are available via submodules:
+# - nuclear: Nuclear energy trading strategy
+# - klm: KLM strategy variants  
+# - tecl: TECL strategy
+
 __all__ = [
-    # Will be populated after git mv operations
+    # Individual engines available via submodule imports
+    # Example: from .nuclear.engine import NuclearEngine
 ]
