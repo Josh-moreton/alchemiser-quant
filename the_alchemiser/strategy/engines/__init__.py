@@ -10,14 +10,11 @@ from __future__ import annotations
 
 from . import core
 from .engine import StrategyEngine
-from .klm import KLMEngine
-from .nuclear import NuclearEngine
-from .tecl import TECLEngine
+
+# Note: Engine imports are delayed to avoid circular dependencies
+# Use: from the_alchemiser.strategy_v2.engines.{engine_name} import {EngineClass}
 
 __all__ = [
-    "KLMEngine",
-    "NuclearEngine",
     "StrategyEngine",
-    "TECLEngine",
     "core",
 ]

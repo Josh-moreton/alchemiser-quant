@@ -15,9 +15,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from the_alchemiser.strategy.engines.klm import KLMEngine
-from the_alchemiser.strategy.engines.nuclear import NuclearEngine
-from the_alchemiser.strategy.engines.tecl import TECLEngine
+# Delayed imports to avoid circular dependency
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from the_alchemiser.strategy_v2.engines.klm import KLMEngine
+    from the_alchemiser.strategy_v2.engines.nuclear import NuclearEngine
+    from the_alchemiser.strategy_v2.engines.tecl import TECLEngine
 from the_alchemiser.strategy.types.strategy_type import StrategyType
 
 # Remove the local StrategyType definition since it's now in shared
@@ -33,10 +37,18 @@ class StrategyConfig:
     """Configuration for strategy initialization."""
 
     strategy_type: StrategyType
-    engine_class: type
+    engine_class_path: str
     default_allocation: float
     description: str
     enabled: bool = True
+    
+    def get_engine_class(self) -> type:
+        """Lazy load the engine class to avoid circular imports."""
+        module_path, class_name = self.engine_class_path.rsplit(".", 1)
+        import importlib
+        from typing import cast
+        module = importlib.import_module(module_path)
+        return cast(type, getattr(module, class_name))
 
 
 class StrategyRegistry:
@@ -50,21 +62,21 @@ class StrategyRegistry:
     _strategies: dict[StrategyType, StrategyConfig] = {
         StrategyType.NUCLEAR: StrategyConfig(
             strategy_type=StrategyType.NUCLEAR,
-            engine_class=NuclearEngine,
+            engine_class_path="the_alchemiser.strategy_v2.engines.nuclear.NuclearEngine",
             default_allocation=0.4,
             description="Nuclear energy and volatility hedge strategy",
             enabled=True,
         ),
         StrategyType.TECL: StrategyConfig(
             strategy_type=StrategyType.TECL,
-            engine_class=TECLEngine,
+            engine_class_path="the_alchemiser.strategy_v2.engines.tecl.TECLEngine",
             default_allocation=0.6,
             description="Technology leverage and momentum strategy",
             enabled=True,
         ),
         StrategyType.KLM: StrategyConfig(
             strategy_type=StrategyType.KLM,
-            engine_class=KLMEngine,
+            engine_class_path="the_alchemiser.strategy_v2.engines.klm.KLMEngine",
             default_allocation=0.2,
             description="Ensemble strategy with multiple variants",
             enabled=True,  # Enable to use the KLM strategy
@@ -120,7 +132,7 @@ class StrategyRegistry:
         if not config.enabled:
             raise ValueError(f"Strategy {strategy_type} is disabled")
 
-        return config.engine_class(**kwargs)
+        return config.get_engine_class()(**kwargs)
 
     @classmethod
     def get_default_allocations(cls) -> dict[StrategyType, float]:
