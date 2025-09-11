@@ -823,31 +823,46 @@ class ExecutionManager(MultiStrategyExecutor):
                 continue
 
             try:
-                # Use the portfolio execution service directly instead of missing execute_single_order
+                # Use the portfolio execution service directly with execute_single_rebalance
                 if hasattr(self.engine, "portfolio_rebalancer") and hasattr(
                     self.engine.portfolio_rebalancer, "execution_service"
                 ):
-                    execution_service = self.engine.portfolio_rebalancer.execution_service
-                    
-                    # Convert to the format expected by execution service
-                    if item.action == "BUY":
-                        order = execution_service.place_buy_order(
-                            symbol=item.symbol,
-                            dollar_amount=abs(float(item.trade_amount))
-                        )
-                    elif item.action == "SELL":
-                        order = execution_service.place_sell_order(
-                            symbol=item.symbol,
-                            dollar_amount=abs(float(item.trade_amount))
-                        )
-                    else:
-                        logging.warning(f"Unknown action {item.action} for {item.symbol}")
-                        continue
-                        
-                    if order and getattr(order, 'id', None):
+                    execution_service = (
+                        self.engine.portfolio_rebalancer.execution_service
+                    )
+
+                    # Convert RebalancePlanItemDTO to RebalancePlan domain object
+                    from decimal import Decimal
+
+                    from the_alchemiser.portfolio.allocation.rebalance_plan import (
+                        RebalancePlan,
+                    )
+
+                    # Create RebalancePlan from DTO data
+                    plan = RebalancePlan(
+                        symbol=item.symbol,
+                        current_weight=Decimal("0"),  # Not used in execution
+                        target_weight=Decimal("0"),  # Not used in execution
+                        weight_diff=Decimal("0"),  # Not used in execution
+                        target_value=abs(item.trade_amount),
+                        current_value=Decimal("0"),  # Not used in execution
+                        trade_amount=(
+                            item.trade_amount
+                            if item.action == "BUY"
+                            else -abs(item.trade_amount)
+                        ),
+                        needs_rebalance=True,
+                    )
+
+                    # Use execute_single_rebalance which handles buy/sell internally
+                    order = execution_service.execute_single_rebalance(
+                        symbol=item.symbol, plan=plan, dry_run=False
+                    )
+
+                    if order and order.get("order_id"):
                         executed_orders.append(order)
                         logging.info(
-                            f"✅ Successfully executed {item.action} {item.symbol}"
+                            f"✅ Successfully executed {item.action} {item.symbol}: {order.get('order_id')}"
                         )
                     else:
                         logging.error(
