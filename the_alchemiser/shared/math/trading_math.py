@@ -448,6 +448,18 @@ def calculate_rebalance_amounts(
                 f"🚨 This suggests target_value ({target_value}) equals current_value ({current_value})"
             )
 
+        # CRITICAL: Detect the portfolio value = 0 bug that causes all trade_amounts to be 0
+        if total_portfolio_value <= 0.0 and needs_rebalance:
+            logger.error(
+                f"🚨 ZERO_PORTFOLIO_VALUE_CAUSES_ZERO_TRADES_{symbol}: portfolio_value={total_portfolio_value}, needs_rebalance={needs_rebalance}, trade_amount={trade_amount}"
+            )
+            logger.error(
+                "🚨 ROOT CAUSE: Portfolio value is 0 or negative, making all trades impossible"
+            )
+            logger.error(
+                "🚨 FIX: Ensure portfolio value reflects cash balance for fresh accounts or fix API data fetching"
+            )
+
         if total_portfolio_value == 0 and target_weight > 0:
             logger.error(
                 "🚨 ZERO_PORTFOLIO_VALUE_BUG: Cannot calculate trades with zero portfolio value"

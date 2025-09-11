@@ -625,7 +625,18 @@ class TradingEngine:
         try:
             account_info = self.get_account_info()
             current_positions = self.get_positions_dict()
-            current_portfolio_value = float(account_info.get("equity", 0))
+
+            equity_raw = account_info.get("equity")
+            if equity_raw is None:
+                raise ValueError(
+                    "Equity not available in account info. "
+                    "Cannot determine portfolio value for rebalancing."
+                )
+
+            try:
+                current_portfolio_value = float(equity_raw)
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"Invalid equity format: {equity_raw}") from e
 
             logging.info("=== CURRENT ACCOUNT STATE FOR REBALANCING ===")
             logging.info(f"Current portfolio value: ${current_portfolio_value:,.2f}")

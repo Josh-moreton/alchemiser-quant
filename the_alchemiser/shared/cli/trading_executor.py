@@ -261,7 +261,18 @@ class TradingExecutor:
             account_info = trader.get_account_info()
 
             # Extract portfolio value (use equity as total portfolio value)
-            portfolio_value = float(account_info.get("equity", 0))
+            equity_raw = account_info.get("equity")
+            if equity_raw is None:
+                raise ValueError(
+                    "Equity not available in account info. "
+                    "Cannot calculate portfolio value for quantity calculations."
+                )
+
+            try:
+                portfolio_value = float(equity_raw)
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"Invalid equity format: {equity_raw}") from e
+
             if portfolio_value <= 0:
                 self.logger.warning(f"Invalid portfolio value: {portfolio_value}")
                 return []

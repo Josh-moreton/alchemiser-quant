@@ -468,14 +468,21 @@ class PortfolioBuilder:
             elif execution_summary and "positions" in execution_summary:
                 current_positions = execution_summary["positions"]
 
-            portfolio_value = 0.0
             if isinstance(account_after, dict):
                 try:
-                    portfolio_value = float(account_after.get("portfolio_value", 0)) or float(
-                        account_after.get("equity", 0)
+                    portfolio_value_raw = account_after.get("portfolio_value") or account_after.get(
+                        "equity"
                     )
-                except (TypeError, ValueError):
-                    portfolio_value = 0.0
+                    if portfolio_value_raw is None:
+                        raise ValueError("Portfolio value not available in account_after")
+                    portfolio_value = float(portfolio_value_raw)
+                except (TypeError, ValueError) as e:
+                    raise ValueError(
+                        f"Unable to extract valid portfolio value from account_after: {e}. "
+                        "Portfolio value is required for allocation comparison display."
+                    ) from e
+            else:
+                raise ValueError("account_after is not a dict, cannot extract portfolio value")
 
             # If we have positions, extract current values
             current_values: dict[str, float] = {}
