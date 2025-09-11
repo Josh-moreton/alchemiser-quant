@@ -1,15 +1,17 @@
-#!/usr/bin/env python3
-"""Business Unit: strategy | Status: current
+"""Business Unit: strategy | Status: current.
 
-Technical indicators and signal calculations.
+Technical indicators and market signals.
 
-This directory will contain indicator code moved verbatim from
-the legacy strategy module via git mv operations.
+This module contains technical analysis indicators used by trading strategies
+for signal generation and market analysis.
 """
 
 from __future__ import annotations
 
-# NOTE: Indicators will be moved here in Phase 3 via git mv
+from .indicator_utils import safe_get_indicator
+from .indicators import TechnicalIndicators
+
 __all__ = [
-    # Will be populated after git mv operations
+    "TechnicalIndicators",
+    "safe_get_indicator",
 ]
