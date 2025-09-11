@@ -41,10 +41,10 @@ class StrategyContext:
         if not self.timeframe:
             raise ValueError("timeframe cannot be empty")
         
-        # Ensure symbols are unique and uppercase
-        symbols_set = set(symbol.upper() for symbol in self.symbols)
-        if len(symbols_set) != len(self.symbols):
-            raise ValueError("symbols must be unique")
+        # Convert symbols to uppercase and check uniqueness
+        upper_symbols = [symbol.upper() for symbol in self.symbols]
+        if len(set(upper_symbols)) != len(upper_symbols):
+            raise ValueError("symbols must be unique (case-insensitive)")
         
-        # Replace symbols with uppercase versions
-        object.__setattr__(self, 'symbols', list(symbols_set))
+        # Replace symbols with uppercase versions, preserving order
+        object.__setattr__(self, 'symbols', upper_symbols)
