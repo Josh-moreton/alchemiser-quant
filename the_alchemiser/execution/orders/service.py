@@ -265,7 +265,8 @@ class OrderService:
         """Validate that we have sufficient position for sell order."""
         try:
             positions = self._trading.get_positions_dict()
-            current_position = positions.get(symbol, 0.0)
+            position_info: dict[str, Any] = positions.get(symbol, {})
+            current_position = float(position_info.get("qty", 0)) if position_info else 0.0
 
             if current_position <= 0:
                 raise OrderValidationError(f"No position to sell for {symbol}")

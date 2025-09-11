@@ -649,7 +649,8 @@ class TradingEngine:
             expected_trades = []
             for symbol, target_allocation in target_portfolio.items():
                 target_value = target_allocation * current_portfolio_value
-                current_value = float(current_positions.get(symbol, 0))
+                position_info: dict[str, Any] = current_positions.get(symbol, {})
+                current_value = float(position_info.get("market_value", 0)) if position_info else 0.0
                 trade_amount = target_value - current_value
 
                 if abs(trade_amount) > 1.0:  # Significant trade threshold
