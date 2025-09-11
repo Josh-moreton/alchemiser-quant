@@ -21,13 +21,8 @@ from the_alchemiser.shared.config.confidence_config import ConfidenceConfig
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy.engines.engine import StrategyEngine
-# Delayed imports to avoid circular dependency
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from the_alchemiser.strategy_v2.engines.klm import KLMEngine
-    from the_alchemiser.strategy_v2.engines.nuclear import NuclearEngine
-    from the_alchemiser.strategy_v2.engines.tecl import TECLEngine
+# Direct imports from strategy_v2 to avoid circular dependencies
+# NOTE: This is a temporary bridge until CLI migration to strategy_v2 is complete
 from the_alchemiser.strategy.engines.value_objects.confidence import Confidence
 from the_alchemiser.strategy.engines.value_objects.strategy_signal import StrategySignal
 from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
@@ -126,14 +121,16 @@ class TypedStrategyManager:
     def _create_typed_engine(self, strategy_type: StrategyType) -> StrategyEngine:
         """Create typed strategy engine instance."""
         if strategy_type == StrategyType.NUCLEAR:
-            from the_alchemiser.strategy_v2.engines.nuclear import NuclearEngine
+            # Direct import to avoid circular dependency during migration
+            from the_alchemiser.strategy_v2.engines.nuclear.engine import NuclearEngine
             return NuclearEngine(self.market_data_port)
         if strategy_type == StrategyType.KLM:
-            from the_alchemiser.strategy_v2.engines.klm import KLMEngine
+            # Direct import to avoid circular dependency during migration  
+            from the_alchemiser.strategy_v2.engines.klm.engine import KLMEngine
             return KLMEngine(self.market_data_port)
         if strategy_type == StrategyType.TECL:
-            from the_alchemiser.strategy_v2.engines.tecl import TECLEngine
-
+            # Direct import to avoid circular dependency during migration
+            from the_alchemiser.strategy_v2.engines.tecl.engine import TECLEngine
             return TECLEngine(self.market_data_port)
         raise ValueError(f"Unknown strategy type: {strategy_type}")
 
