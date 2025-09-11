@@ -107,14 +107,10 @@ def get_twelvedata_api_key() -> str | None:
     # Simple environment detection
     if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
         # In Lambda - get from AWS Secrets Manager
-        logger.info(
-            "Detected AWS Lambda environment - loading TwelveData key from Secrets Manager"
-        )
+        logger.info("Detected AWS Lambda environment - loading TwelveData key from Secrets Manager")
         return _get_twelvedata_key_from_aws()
     # Local dev - get from .env
-    logger.info(
-        "Detected local environment - loading TwelveData key from environment variables"
-    )
+    logger.info("Detected local environment - loading TwelveData key from environment variables")
     return _get_twelvedata_key_from_env()
 
 

@@ -177,21 +177,25 @@ class PortfolioManagementFacade:
         # For the core fix: if we have a valid plan, use direct execution to avoid position data dependency
         if rebalance_plan.success and rebalance_plan.plans:
             logging.info("USING_DIRECT_EXECUTION: Bypassing position data validation")
-            
+
             # Execute plan directly using the new method that doesn't require position validation
-            execution_results = self.execution_service.execute_rebalancing_plan_direct(domain_plans, dry_run)
-            
+            execution_results = self.execution_service.execute_rebalancing_plan_direct(
+                domain_plans, dry_run
+            )
+
             # Create simplified validation result since we're trusting the plan
             validation = {
                 "is_valid": True,
                 "issues": [],
                 "warnings": [],
                 "total_trade_value": rebalance_plan.total_trade_value,
-                "symbols_to_trade": [symbol for symbol, plan in rebalance_plan.plans.items() if plan.needs_rebalance],
+                "symbols_to_trade": [
+                    symbol for symbol, plan in rebalance_plan.plans.items() if plan.needs_rebalance
+                ],
             }
-            
+
             logging.debug("Direct execution results: %s", execution_results)
-            
+
             result_dict = {
                 "status": "completed",
                 "validation_results": validation,
@@ -203,7 +207,7 @@ class PortfolioManagementFacade:
 
         # Fallback to original validation-based execution if plan is invalid
         logging.warning("FALLBACK_TO_VALIDATION: Plan invalid, using original execution method")
-        
+
         # Validate plan (uses domain objects)
         validation = self.execution_service.validate_rebalancing_plan(domain_plans)
         logging.debug("Validation results: %s", validation)
@@ -534,16 +538,20 @@ class PortfolioManagementFacade:
             logger.error(f"🚨 CRITICAL_REBALANCING_SERVICE_FAILURE: {failure_reason}")
             logger.error(f"🚨 Target weights received: {target_weights_decimal}")
             logger.error("🚨 This explains why no trades are being generated!")
-            
+
             # CORE FIX: Instead of returning empty orders due to position data failure,
             # we should check if we can proceed with the plan data we have
-            if "POSITIONS_DATA_FAILED_OR_EMPTY" in str(getattr(full_plan, 'error', '')):
+            if "POSITIONS_DATA_FAILED_OR_EMPTY" in str(getattr(full_plan, "error", "")):
                 logger.error("🚨 DETECTED_POSITIONS_DATA_FAILURE: This is the core issue!")
-                logger.error("🚨 ATTEMPTING_EMERGENCY_PLAN_BASED_EXECUTION: Using available plan data")
-                
+                logger.error(
+                    "🚨 ATTEMPTING_EMERGENCY_PLAN_BASED_EXECUTION: Using available plan data"
+                )
+
                 # If the plan has any valid items despite position failure, try to use them
-                if hasattr(full_plan, 'plans') and full_plan.plans:
-                    logger.info("🔄 EMERGENCY_RECOVERY: Found valid plans despite position data failure")
+                if hasattr(full_plan, "plans") and full_plan.plans:
+                    logger.info(
+                        "🔄 EMERGENCY_RECOVERY: Found valid plans despite position data failure"
+                    )
                     # Continue with execution using available plan data
                 else:
                     logger.error("🚨 EMERGENCY_RECOVERY_FAILED: No valid plans available")
