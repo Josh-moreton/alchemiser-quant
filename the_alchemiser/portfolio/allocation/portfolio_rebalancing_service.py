@@ -917,7 +917,7 @@ class PortfolioRebalancingService:
 
             # Determine order side and quantity based on trade amount
             if item.trade_amount > 0:
-                side: Literal["BUY", "SELL"] = "BUY"
+                side = "BUY"
                 quantity = item.trade_amount
             else:
                 side = "SELL"
