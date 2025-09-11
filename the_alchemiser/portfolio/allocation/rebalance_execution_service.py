@@ -262,7 +262,9 @@ class RebalanceExecutionService:
             
             # Filter plans that need rebalancing (plan data is trusted)
             plans_to_execute = {
-                symbol: plan for symbol, plan in rebalance_plan.items() if plan.needs_rebalance
+                symbol: plan
+                for symbol, plan in rebalance_plan.items()
+                if hasattr(plan, "needs_rebalance") and isinstance(plan.needs_rebalance, bool) and plan.needs_rebalance
             }
 
             logger.info(f"PLANS_TO_EXECUTE_COUNT: {len(plans_to_execute)}")
