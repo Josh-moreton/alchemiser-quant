@@ -32,9 +32,7 @@ class ExecutionTracker:
         success_rate = result.success_rate * 100
 
         logger.info(f"📊 Execution Summary for {plan.plan_id}:")
-        logger.info(
-            f"  Success Rate: {success_rate:.1f}% ({result.orders_succeeded}/{result.orders_placed})"
-        )
+        logger.info(f"  Success Rate: {success_rate:.1f}% ({result.orders_succeeded}/{result.orders_placed})")
         logger.info(f"  Total Traded: ${result.total_trade_value}")
 
         if result.failure_count > 0:
