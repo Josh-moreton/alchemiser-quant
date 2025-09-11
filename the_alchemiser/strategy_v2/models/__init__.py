@@ -8,4 +8,6 @@ Provides immutable context objects for strategy execution.
 
 from __future__ import annotations
 
+from .context import StrategyContext
+
 __all__ = ["StrategyContext"]
