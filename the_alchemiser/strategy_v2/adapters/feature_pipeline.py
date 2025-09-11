@@ -248,6 +248,8 @@ class FeaturePipeline:
                 min_low = min(float(bar["l"]) for bar in recent_bars)
                 current_close = closes[-1]
                 
+                # If there is a price range (max_high != min_low), calculate price_position;
+                # otherwise, use the default value of 0.5 when no price range exists.
                 if not self.is_close(max_high, min_low):
                     features["price_position"] = (current_close - min_low) / (max_high - min_low)
                 else:
