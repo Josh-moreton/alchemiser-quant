@@ -39,7 +39,6 @@ from the_alchemiser.execution.brokers.account_service import (
 from the_alchemiser.execution.core.account_facade import AccountFacade
 from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
 from the_alchemiser.execution.execution_protocols import MultiStrategyExecutor
-from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.execution.strategies.smart_execution import SmartExecution
 from the_alchemiser.portfolio.core.portfolio_management_facade import (
     PortfolioManagementFacade,
@@ -197,9 +196,7 @@ class TradingEngine:
         self.portfolio_rebalancer: Any  # PortfolioManagementFacade instance
 
         # Initialize from bootstrap context
-        self._init_from_context(
-            bootstrap_context, strategy_allocations, ignore_market_hours
-        )
+        self._init_from_context(bootstrap_context, strategy_allocations, ignore_market_hours)
 
     def _init_from_context(
         self,
@@ -274,9 +271,7 @@ class TradingEngine:
         try:
             # Require TradingServiceManager for portfolio operations
             trading_manager = getattr(self, "_trading_service_manager", None)
-            if trading_manager is not None and hasattr(
-                trading_manager, "alpaca_manager"
-            ):
+            if trading_manager is not None and hasattr(trading_manager, "alpaca_manager"):
                 # Use modern portfolio management facade
                 self.portfolio_rebalancer = PortfolioManagementFacade(
                     trading_manager=trading_manager,
@@ -349,50 +344,64 @@ class TradingEngine:
             # Create proper ExecutionManager for multi-strategy coordination
             # The TradingServicesFacade is for focused execution tasks
             # Multi-strategy execution requires the dedicated ExecutionManager
-            
+
             # NEW: Try execution_v2 first, fallback to legacy
             try:
-                from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager as ExecutionManagerV2
-                
+                from the_alchemiser.execution_v2.core.execution_manager import (
+                    ExecutionManager as ExecutionManagerV2,
+                )
+
                 # Create execution_v2 manager with AlpacaManager
                 self._execution_manager_v2 = ExecutionManagerV2(self._alpaca_manager)
                 self.use_execution_v2 = True
                 self.logger.info("✅ Using NEW execution_v2 module")
-                
+
                 # Set up execution adapter for legacy interface compatibility
                 class ExecutionV2Adapter:
                     """Adapter to make execution_v2 compatible with legacy MultiStrategyExecutor interface."""
-                    
+
                     def __init__(self, execution_manager_v2):
                         self.execution_manager_v2 = execution_manager_v2
-                    
+
                     def execute_rebalance_plan(self, plan):
                         """Execute rebalance plan using execution_v2."""
                         result = self.execution_manager_v2.execute_rebalance_plan(plan)
-                        
+
                         # Convert to legacy format for compatibility
-                        return [{
-                            "symbol": order.symbol,
-                            "action": order.action,
-                            "quantity": float(order.shares),
-                            "order_id": order.order_id,
-                            "success": order.success,
-                            "error": order.error_message,
-                        } for order in result.orders]
-                    
-                    def execute_multi_strategy(self, signals=None, portfolio=None, attribution=None):
+                        return [
+                            {
+                                "symbol": order.symbol,
+                                "action": order.action,
+                                "quantity": float(order.shares),
+                                "order_id": order.order_id,
+                                "success": order.success,
+                                "error": order.error_message,
+                            }
+                            for order in result.orders
+                        ]
+
+                    def execute_multi_strategy(
+                        self, signals=None, portfolio=None, attribution=None
+                    ):
                         """Legacy fallback method for compatibility."""
                         # This should not be called if we're using execution_v2 properly
-                        raise NotImplementedError("Legacy execution not available with execution_v2")
-                
-                self._execution_manager_for_multi_strategy = ExecutionV2Adapter(self._execution_manager_v2)
-                
+                        raise NotImplementedError(
+                            "Legacy execution not available with execution_v2"
+                        )
+
+                self._execution_manager_for_multi_strategy = ExecutionV2Adapter(
+                    self._execution_manager_v2
+                )
+
             except ImportError as import_error:
-                self.logger.warning(f"⚠️ execution_v2 not available ({import_error}), using legacy execution")
+                self.logger.warning(
+                    f"⚠️ execution_v2 not available ({import_error}), using legacy execution"
+                )
                 self.use_execution_v2 = False
-                
+
                 # Fallback to legacy execution
                 from the_alchemiser.execution.core.manager import ExecutionManager
+
                 self._execution_manager_for_multi_strategy = ExecutionManager(self)
         except Exception as e:
             raise TradingClientError(
@@ -435,9 +444,7 @@ class TradingEngine:
                 aggregated = self._typed.generate_all_signals(datetime.now(UTC))
 
                 # Use pure mapping function to convert to CLI-compatible format
-                return run_all_strategies_mapping(
-                    aggregated, self._typed.strategy_allocations
-                )
+                return run_all_strategies_mapping(aggregated, self._typed.strategy_allocations)
 
             @property
             def strategy_allocations(self) -> dict[StrategyType, float]:
@@ -503,9 +510,7 @@ class TradingEngine:
             EnrichedAccountInfo with portfolio history and closed P&L data.
 
         """
-        enriched = self._account_facade.get_enriched_account_info(
-            paper_trading=self.paper_trading
-        )
+        enriched = self._account_facade.get_enriched_account_info(paper_trading=self.paper_trading)
         # Update market_hours_ignored flag based on engine setting
         enriched["market_hours_ignored"] = self.ignore_market_hours
         return enriched
@@ -523,9 +528,7 @@ class TradingEngine:
 
     def get_positions_dict(
         self,
-    ) -> (
-        PositionsDict
-    ):  # Phase 18: Migrated from dict[str, dict[str, Any]] to PositionsDict
+    ) -> PositionsDict:  # Phase 18: Migrated from dict[str, dict[str, Any]] to PositionsDict
         """Get current positions as dictionary keyed by symbol.
 
         This is an alias for get_positions() to maintain backward compatibility.
@@ -626,9 +629,7 @@ class TradingEngine:
         self,
         target_portfolio: dict[str, float],
         strategy_attribution: dict[str, list[StrategyType]] | None = None,
-    ) -> list[
-        OrderDetails
-    ]:  # Phase 18: Migrated from list[dict[str, Any]] to list[OrderDetails]
+    ) -> list[OrderDetails]:  # Phase 18: Migrated from list[dict[str, Any]] to list[OrderDetails]
         """Rebalance portfolio to target allocation with sequential execution to prevent buying power issues.
 
         Delegates to RebalancingOrchestrator for sequential SELL→settle→BUY execution
@@ -649,15 +650,11 @@ class TradingEngine:
         logging.info(
             f"RECEIVED_TARGET_PORTFOLIO_COUNT: {len(target_portfolio) if target_portfolio else 0}"
         )
-        logging.info(
-            f"RECEIVED_STRATEGY_ATTRIBUTION_TYPE: {type(strategy_attribution)}"
-        )
+        logging.info(f"RECEIVED_STRATEGY_ATTRIBUTION_TYPE: {type(strategy_attribution)}")
 
         # Data validation and detailed logging
         if not target_portfolio:
-            logging.error(
-                "❌ CRITICAL: Empty target_portfolio received by TradingEngine"
-            )
+            logging.error("❌ CRITICAL: Empty target_portfolio received by TradingEngine")
             logging.error("❌ This indicates portfolio consolidation failed upstream")
             return []
 
@@ -668,9 +665,7 @@ class TradingEngine:
 
         for symbol, allocation in target_portfolio.items():
             if allocation > 0.001:  # Log meaningful allocations
-                logging.info(
-                    f"  RECEIVED: {symbol} = {allocation:.4f} ({allocation * 100:.2f}%)"
-                )
+                logging.info(f"  RECEIVED: {symbol} = {allocation:.4f} ({allocation * 100:.2f}%)")
 
         # Validate allocation integrity
         if abs(total_allocation - 1.0) > 0.05:
@@ -679,12 +674,8 @@ class TradingEngine:
             )
 
         # Log orchestrator details
-        logging.info(
-            f"ORCHESTRATOR_TYPE: {type(self._rebalancing_orchestrator).__name__}"
-        )
-        logging.info(
-            f"ORCHESTRATOR_EXISTS: {self._rebalancing_orchestrator is not None}"
-        )
+        logging.info(f"ORCHESTRATOR_TYPE: {type(self._rebalancing_orchestrator).__name__}")
+        logging.info(f"ORCHESTRATOR_EXISTS: {self._rebalancing_orchestrator is not None}")
 
         # Get current account state for comparison
         try:
@@ -716,9 +707,7 @@ class TradingEngine:
                 target_value = target_allocation * current_portfolio_value
                 position_info: dict[str, Any] = current_positions.get(symbol, {})
                 current_value = (
-                    float(position_info.get("market_value", 0))
-                    if position_info
-                    else 0.0
+                    float(position_info.get("market_value", 0)) if position_info else 0.0
                 )
                 trade_amount = target_value - current_value
 
@@ -733,9 +722,7 @@ class TradingEngine:
                             "current_value": current_value,
                         }
                     )
-                    logging.info(
-                        f"  EXPECTED_TRADE: {action} {symbol} ${abs(trade_amount):,.2f}"
-                    )
+                    logging.info(f"  EXPECTED_TRADE: {action} {symbol} ${abs(trade_amount):,.2f}")
 
             logging.info(f"EXPECTED_TRADES_COUNT: {len(expected_trades)}")
 
@@ -743,9 +730,7 @@ class TradingEngine:
             logging.error(
                 f"❌ CRITICAL: Cannot proceed with rebalancing - failed to get account state: {e}"
             )
-            logging.error(
-                "❌ Rebalancing requires current portfolio value for safe execution"
-            )
+            logging.error("❌ Rebalancing requires current portfolio value for safe execution")
             # Return empty list rather than proceeding with unknown portfolio state
             return []
 
@@ -776,9 +761,7 @@ class TradingEngine:
                     f"❌ TRADING_ENGINE_DATA_INTEGRITY_FAILED: total={received_total:.6f}, expected~1.0"
                 )
             else:
-                logging.info(
-                    f"✅ TRADING_ENGINE_DATA_INTEGRITY_PASSED: total={received_total:.6f}"
-                )
+                logging.info(f"✅ TRADING_ENGINE_DATA_INTEGRITY_PASSED: total={received_total:.6f}")
 
             # Log each symbol allocation received
             logging.info("=== TRADING_ENGINE_RECEIVED_ALLOCATIONS ===")
@@ -793,14 +776,10 @@ class TradingEngine:
             logging.info(f"RECEIVED_SYMBOLS: {received_symbols}")
 
             # Check for ANY meaningful allocations
-            meaningful_allocations = {
-                s: a for s, a in target_portfolio.items() if a > 0.001
-            }
+            meaningful_allocations = {s: a for s, a in target_portfolio.items() if a > 0.001}
             if len(meaningful_allocations) == 0:
                 logging.error("❌ CRITICAL: NO MEANINGFUL ALLOCATIONS FOR ANY SYMBOLS!")
-                logging.error(
-                    "❌ UNIVERSAL FAILURE: No symbols have allocations > 0.1%"
-                )
+                logging.error("❌ UNIVERSAL FAILURE: No symbols have allocations > 0.1%")
             else:
                 logging.info(
                     f"✅ MEANINGFUL_ALLOCATIONS_FOUND: {len(meaningful_allocations)} symbols"
@@ -808,25 +787,17 @@ class TradingEngine:
 
         else:
             logging.error("❌ CRITICAL: TRADING_ENGINE_RECEIVED_EMPTY_PORTFOLIO")
-            logging.error(
-                "❌ This confirms the data loss occurred upstream in ExecutionManager!"
-            )
+            logging.error("❌ This confirms the data loss occurred upstream in ExecutionManager!")
 
         # Enhanced orchestrator information
-        logging.info(
-            f"ORCHESTRATOR_TYPE_DETAIL: {type(self._rebalancing_orchestrator)}"
-        )
+        logging.info(f"ORCHESTRATOR_TYPE_DETAIL: {type(self._rebalancing_orchestrator)}")
         logging.info(
             f"ORCHESTRATOR_MODULE: {getattr(type(self._rebalancing_orchestrator), '__module__', 'unknown')}"
         )
-        logging.info(
-            f"ORCHESTRATOR_EXISTS: {self._rebalancing_orchestrator is not None}"
-        )
+        logging.info(f"ORCHESTRATOR_EXISTS: {self._rebalancing_orchestrator is not None}")
 
         if hasattr(self._rebalancing_orchestrator, "portfolio_facade"):
-            facade_type = type(
-                getattr(self._rebalancing_orchestrator, "portfolio_facade", None)
-            )
+            facade_type = type(getattr(self._rebalancing_orchestrator, "portfolio_facade", None))
             logging.info(f"ORCHESTRATOR_FACADE_TYPE: {facade_type}")
 
         # Convert portfolio value to Decimal for orchestrator
@@ -841,9 +812,7 @@ class TradingEngine:
             # Delegate to the rebalancing orchestrator for sequential execution
             # The RebalancingOrchestratorFacade provides a synchronous interface
             # Pass the correctly calculated portfolio value to avoid recalculation
-            logging.info(
-                f"PASSING_PORTFOLIO_VALUE_TO_ORCHESTRATOR: ${portfolio_value_decimal}"
-            )
+            logging.info(f"PASSING_PORTFOLIO_VALUE_TO_ORCHESTRATOR: ${portfolio_value_decimal}")
 
             orders_result: list[OrderDetails] = (
                 self._rebalancing_orchestrator.execute_full_rebalance_cycle(
@@ -885,9 +854,7 @@ class TradingEngine:
             expected_count = len(expected_trades)
             actual_count = len(orders_result) if orders_result else 0
             if expected_count > 0 and actual_count == 0:
-                logging.critical(
-                    "🚨 CRITICAL UNIVERSAL TRADE LOSS at TradingEngine level"
-                )
+                logging.critical("🚨 CRITICAL UNIVERSAL TRADE LOSS at TradingEngine level")
                 logging.critical(
                     f"🚨 SYSTEMIC FAILURE: Expected {expected_count} orders for ANY symbols, received {actual_count}"
                 )
@@ -992,29 +959,21 @@ class TradingEngine:
                     "ignore_market_hours": self.ignore_market_hours,
                 },
             )
-            error_handler.handle_error_with_context(
-                error=e, context=context, should_continue=False
-            )
+            error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
             logging.error(f"Pre-execution validation failed: {e}")
             return MultiStrategyExecutionResultDTO(
                 success=False,
                 strategy_signals={},
                 consolidated_portfolio={},
                 orders_executed=[],
-                account_info_before=_create_default_account_info(
-                    "pre_validation_error"
-                ),
+                account_info_before=_create_default_account_info("pre_validation_error"),
                 account_info_after=_create_default_account_info("pre_validation_error"),
                 execution_summary=dict_to_execution_summary_dto(
                     {
                         "error": f"Pre-execution validation failed: {e}",
                         "mode": "error",
-                        "account_info_before": _create_default_account_info(
-                            "pre_validation_error"
-                        ),
-                        "account_info_after": _create_default_account_info(
-                            "pre_validation_error"
-                        ),
+                        "account_info_before": _create_default_account_info("pre_validation_error"),
+                        "account_info_after": _create_default_account_info("pre_validation_error"),
                     }
                 ),
                 final_portfolio_state=None,
@@ -1035,9 +994,7 @@ class TradingEngine:
                     logging.info(f"Strategy {strategy} signals: {signals}")
 
             if pre_calculated_portfolio:
-                logging.info(
-                    f"Pre-calculated portfolio state: {pre_calculated_portfolio}"
-                )
+                logging.info(f"Pre-calculated portfolio state: {pre_calculated_portfolio}")
                 # Log any significant allocations
                 for symbol, allocation in pre_calculated_portfolio.items():
                     if allocation > 0.01:  # Log allocations > 1%
@@ -1045,11 +1002,11 @@ class TradingEngine:
                             f"ALLOCATION: {symbol}: {allocation:.3f} ({allocation * 100:.1f}%)"
                         )
 
-            if hasattr(self, 'use_execution_v2') and self.use_execution_v2:
+            if hasattr(self, "use_execution_v2") and self.use_execution_v2:
                 logging.info("🚀 Using execution_v2 for order placement")
             else:
                 logging.info("⚠️ Using legacy execution module")
-                
+
             logging.info("Calling _multi_strategy_executor.execute_multi_strategy()...")
 
             # NEW APPROACH: Generate rebalance plan DTO from portfolio allocation
@@ -1076,10 +1033,8 @@ class TradingEngine:
                     )
 
                     # Execute the rebalance plan directly without recalculation
-                    orders_executed = (
-                        self._multi_strategy_executor.execute_rebalance_plan(
-                            rebalance_plan
-                        )
+                    orders_executed = self._multi_strategy_executor.execute_rebalance_plan(
+                        rebalance_plan
                     )
 
                     # Convert StrategyType keys to string keys for DTO compatibility
@@ -1103,14 +1058,14 @@ class TradingEngine:
 
                     # Create execution result manually since we bypassed execute_multi_strategy
                     # Create placeholder AccountInfo instances
+                    from the_alchemiser.shared.schemas.execution_summary import (
+                        AllocationSummary,
+                        ExecutionSummary,
+                        StrategyPnLSummary,
+                        TradingSummary,
+                    )
                     from the_alchemiser.shared.value_objects.core_types import (
                         AccountInfo,
-                    )
-                    from the_alchemiser.shared.schemas.execution_summary import (
-                        ExecutionSummary,
-                        AllocationSummary,
-                        TradingSummary,
-                        StrategyPnLSummary,
                     )
 
                     # Placeholder account info since we don't have real account data in this flow
@@ -1134,12 +1089,8 @@ class TradingEngine:
                             total_value=Decimal("0"),
                             strategies_allocated=0,
                             target_allocation={},
-                            total_allocation=Decimal(
-                                "100.0"
-                            ),  # Add missing required field
-                            num_positions=len(
-                                orders_executed
-                            ),  # Add missing required field
+                            total_allocation=Decimal("100.0"),  # Add missing required field
+                            num_positions=len(orders_executed),  # Add missing required field
                             largest_position_pct=Decimal(
                                 "50.0"
                             ),  # Add missing required field (TECL=50%)
@@ -1147,21 +1098,13 @@ class TradingEngine:
                         strategy_summary={},
                         trading_summary=TradingSummary(
                             total_orders=len(orders_executed),
-                            orders_executed=len(
-                                [o for o in orders_executed if o.get("order_id")]
-                            ),
+                            orders_executed=len([o for o in orders_executed if o.get("order_id")]),
                             success_rate=(
                                 Decimal("0.0")
                                 if len(orders_executed) == 0
                                 else Decimal(
                                     str(
-                                        len(
-                                            [
-                                                o
-                                                for o in orders_executed
-                                                if o.get("order_id")
-                                            ]
-                                        )
+                                        len([o for o in orders_executed if o.get("order_id")])
                                         / len(orders_executed)
                                     )
                                 )
@@ -1178,9 +1121,7 @@ class TradingEngine:
                         account_info_after=placeholder_account,
                         mode="paper",
                         engine_mode="direct_dto",
-                        error=(
-                            None if len(orders_executed) > 0 else "No orders executed"
-                        ),
+                        error=(None if len(orders_executed) > 0 else "No orders executed"),
                     )
 
                     result = MultiStrategyExecutionResultDTO(
@@ -1193,14 +1134,10 @@ class TradingEngine:
                         account_info_before=placeholder_account,
                         account_info_after=placeholder_account,
                         execution_summary=placeholder_execution_summary,
-                        error_message=(
-                            None if len(orders_executed) > 0 else "No orders executed"
-                        ),
+                        error_message=(None if len(orders_executed) > 0 else "No orders executed"),
                     )
 
-                    logging.info(
-                        f"Direct DTO execution completed: {len(orders_executed)} orders"
-                    )
+                    logging.info(f"Direct DTO execution completed: {len(orders_executed)} orders")
 
                 else:
                     logging.info("No rebalance plan generated - no trades needed")
@@ -1256,9 +1193,7 @@ class TradingEngine:
                     "ignore_market_hours": self.ignore_market_hours,
                 },
             )
-            error_handler.handle_error_with_context(
-                error=e, context=context, should_continue=False
-            )
+            error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
             logging.error(f"Multi-strategy execution failed: {e}")
 
             # Enhanced error handling (fail-fast; no legacy import fallback)
@@ -1294,12 +1229,8 @@ class TradingEngine:
                     {
                         "error": f"Execution failed: {e}",
                         "mode": "error",
-                        "account_info_before": _create_default_account_info(
-                            "execution_error"
-                        ),
-                        "account_info_after": _create_default_account_info(
-                            "execution_error"
-                        ),
+                        "account_info_before": _create_default_account_info("execution_error"),
+                        "account_info_after": _create_default_account_info("execution_error"),
                     }
                 ),
                 final_portfolio_state=None,
@@ -1342,17 +1273,14 @@ class TradingEngine:
 
     def get_multi_strategy_performance_report(
         self,
-    ) -> dict[
-        str, Any
-    ]:  # TODO: Change to StrategyPnLSummary once implementation updated
+    ) -> dict[str, Any]:  # TODO: Change to StrategyPnLSummary once implementation updated
         """Generate comprehensive performance report for all strategies."""
         try:
             current_positions = self.get_positions()
             return {
                 "timestamp": datetime.now(UTC).isoformat(),
                 "strategy_allocations": {
-                    k.value: v
-                    for k, v in self.strategy_manager.strategy_allocations.items()
+                    k.value: v for k, v in self.strategy_manager.strategy_allocations.items()
                 },
                 "current_positions": current_positions,
                 "performance_summary": self.strategy_manager.get_strategy_performance_summary(),
@@ -1370,12 +1298,8 @@ class TradingEngine:
                 component="TradingEngine.get_multi_strategy_performance_report",
                 function_name="get_multi_strategy_performance_report",
             )
-            error_handler.handle_error_with_context(
-                error=e, context=context, should_continue=False
-            )
-            raise StrategyExecutionError(
-                f"Failed to generate performance report: {e}"
-            ) from e
+            error_handler.handle_error_with_context(error=e, context=context, should_continue=False)
+            raise StrategyExecutionError(f"Failed to generate performance report: {e}") from e
 
     def _trigger_post_trade_validation(
         self,
@@ -1404,18 +1328,14 @@ class TradingEngine:
                     continue
 
                 if not isinstance(symbol, str):
-                    invalid_orders.append(
-                        f"Order {i}: Symbol must be string, got {type(symbol)}"
-                    )
+                    invalid_orders.append(f"Order {i}: Symbol must be string, got {type(symbol)}")
                     continue
 
                 validated_symbols.add(symbol.strip().upper())
 
             # Log validation issues
             if invalid_orders:
-                logging.warning(
-                    f"⚠️ Order validation issues: {'; '.join(invalid_orders)}"
-                )
+                logging.warning(f"⚠️ Order validation issues: {'; '.join(invalid_orders)}")
 
             if not validated_symbols:
                 logging.warning(
@@ -1429,11 +1349,7 @@ class TradingEngine:
 
             for strategy_type, signal in strategy_signals.items():
                 symbol = signal.get("symbol")
-                if (
-                    symbol
-                    and symbol != "NUCLEAR_PORTFOLIO"
-                    and symbol != "BEAR_PORTFOLIO"
-                ):
+                if symbol and symbol != "NUCLEAR_PORTFOLIO" and symbol != "BEAR_PORTFOLIO":
                     if strategy_type == StrategyType.NUCLEAR:
                         nuclear_symbols.append(symbol)
                     elif strategy_type == StrategyType.TECL:
@@ -1493,9 +1409,7 @@ class TradingEngine:
                 component="TradingEngine._trigger_post_trade_validation",
                 function_name="_trigger_post_trade_validation",
                 additional_data={
-                    "strategy_signals": {
-                        str(k): v for k, v in strategy_signals.items()
-                    },
+                    "strategy_signals": {str(k): v for k, v in strategy_signals.items()},
                     "orders_executed_count": len(orders_executed),
                 },
             )

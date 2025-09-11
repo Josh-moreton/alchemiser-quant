@@ -22,7 +22,7 @@ class ExecutionTracker:
         logger.info(f"📋 Plan received: {plan.plan_id}")
         logger.info(f"  Total value: ${plan.total_trade_value}")
         logger.info(f"  Items: {len(plan.items)}")
-        
+
         for item in plan.items:
             logger.info(f"  📦 {item.action} ${item.trade_amount} {item.symbol}")
 
@@ -30,11 +30,11 @@ class ExecutionTracker:
     def log_execution_summary(plan: RebalancePlanDTO, result: ExecutionResultDTO) -> None:
         """Log execution summary."""
         success_rate = result.success_rate * 100
-        
+
         logger.info(f"📊 Execution Summary for {plan.plan_id}:")
         logger.info(f"  Success Rate: {success_rate:.1f}% ({result.orders_succeeded}/{result.orders_placed})")
         logger.info(f"  Total Traded: ${result.total_trade_value}")
-        
+
         if result.failure_count > 0:
             logger.warning(f"  Failed Orders: {result.failure_count}")
             for order in result.orders:
@@ -45,7 +45,7 @@ class ExecutionTracker:
     def check_execution_health(result: ExecutionResultDTO) -> None:
         """Check execution health and alert on issues."""
         failure_rate = 1.0 - result.success_rate
-        
+
         if failure_rate > 0.5:  # >50% failure rate
             logger.critical(f"🚨 HIGH FAILURE RATE: {failure_rate:.1%}")
         elif failure_rate > 0.2:  # >20% failure rate

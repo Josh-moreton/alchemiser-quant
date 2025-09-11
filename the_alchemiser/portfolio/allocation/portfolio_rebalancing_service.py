@@ -881,8 +881,8 @@ class PortfolioRebalancingService:
     ) -> list[OrderRequestDTO]:
         """Convert rebalance plan to order requests for execution module.
 
-        This method executes trades directly from the rebalance plan DTO without 
-        requiring additional position data fetching, addressing the core issue 
+        This method executes trades directly from the rebalance plan DTO without
+        requiring additional position data fetching, addressing the core issue
         described in the problem statement.
 
         Args:
@@ -895,7 +895,7 @@ class PortfolioRebalancingService:
         """
         logger.info("=== CONVERTING REBALANCE PLAN TO ORDERS (NO POSITION DATA DEPENDENCY) ===")
         logger.info(f"PLAN_CONTAINS_ITEMS: {len(rebalance_plan.items)}")
-        
+
         # Convert rebalance plan DTO to list of order request DTOs directly
         order_requests = []
 
@@ -904,14 +904,16 @@ class PortfolioRebalancingService:
         execution_priority_raw = (
             execution_config.get("execution_priority", "BALANCE") if execution_config else "BALANCE"
         )
-        time_in_force_raw = execution_config.get("time_in_force", "DAY") if execution_config else "DAY"
-        
+        time_in_force_raw = (
+            execution_config.get("time_in_force", "DAY") if execution_config else "DAY"
+        )
+
         # Ensure proper typing for literals with proper casting
         if str(execution_priority_raw) in ["SPEED", "COST", "BALANCE"]:
             execution_priority: Literal["SPEED", "COST", "BALANCE"] = str(execution_priority_raw)  # type: ignore
         else:
             execution_priority = "BALANCE"
-            
+
         if str(time_in_force_raw) in ["DAY", "GTC", "IOC", "FOK"]:
             time_in_force: Literal["DAY", "GTC", "IOC", "FOK"] = str(time_in_force_raw)  # type: ignore
         else:
@@ -925,7 +927,9 @@ class PortfolioRebalancingService:
         for item in rebalance_plan.items:
             # Skip if no trade needed or action is HOLD
             if item.action == "HOLD" or item.trade_amount == 0:
-                logger.info(f"SKIPPING {item.symbol}: action={item.action}, trade_amount={item.trade_amount}")
+                logger.info(
+                    f"SKIPPING {item.symbol}: action={item.action}, trade_amount={item.trade_amount}"
+                )
                 continue
 
             # Create orders directly from plan data - this is the key fix
@@ -957,7 +961,9 @@ class PortfolioRebalancingService:
             )
             order_requests.append(order_request)
 
-        logger.info(f"CREATED_ORDERS_FROM_PLAN: {len(order_requests)} orders without position data dependency")
+        logger.info(
+            f"CREATED_ORDERS_FROM_PLAN: {len(order_requests)} orders without position data dependency"
+        )
         return order_requests
 
     def _get_current_position_values(self) -> dict[str, Decimal]:
@@ -1033,7 +1039,9 @@ class PortfolioRebalancingService:
             return position_values
         except Exception as e:
             logger.warning(f"⚠️ EXCEPTION_IN_GET_CURRENT_POSITION_VALUES: {e}")
-            logger.info("🔄 GRACEFUL_RECOVERY: Returning empty positions to allow fresh account trading")
+            logger.info(
+                "🔄 GRACEFUL_RECOVERY: Returning empty positions to allow fresh account trading"
+            )
             # CORE FIX: Instead of failing completely, return empty positions
             # This allows the system to continue and generate all BUY trades
             return {}

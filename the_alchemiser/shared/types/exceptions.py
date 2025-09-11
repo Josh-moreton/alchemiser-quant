@@ -197,6 +197,31 @@ class PositionValidationError(TradingClientError):
         self.available_qty = available_qty
 
 
+class PortfolioError(AlchemiserError):
+    """Raised when portfolio operations fail."""
+
+    def __init__(
+        self,
+        message: str,
+        module: str | None = None,
+        operation: str | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Initialize portfolio error with context."""
+        context: dict[str, Any] = {}
+        if module:
+            context["module"] = module
+        if operation:
+            context["operation"] = operation
+        if correlation_id:
+            context["correlation_id"] = correlation_id
+
+        super().__init__(message, context)
+        self.module = module
+        self.operation = operation
+        self.correlation_id = correlation_id
+
+
 class IndicatorCalculationError(AlchemiserError):
     """Raised when technical indicator calculations fail."""
 

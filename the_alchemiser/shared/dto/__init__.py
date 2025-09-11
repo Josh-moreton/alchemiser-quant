@@ -25,6 +25,7 @@ from the_alchemiser.shared.dto.rebalance_plan_dto import (
     RebalancePlanItemDTO,
 )
 from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
+from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
 
 
 # Placeholder DTO classes for future implementation
@@ -50,5 +51,6 @@ __all__ = [
     "PositionDTO",
     "RebalancePlanDTO",
     "RebalancePlanItemDTO",
+    "StrategyAllocationDTO",
     "StrategySignalDTO",
 ]

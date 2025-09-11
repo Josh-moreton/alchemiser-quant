@@ -31,39 +31,39 @@ class Executor:
 
     def execute_rebalance_plan(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
         """Execute rebalance plan by iterating items and placing orders.
-        
+
         Args:
             plan: RebalancePlanDTO with items to execute
-            
+
         Returns:
             ExecutionResultDTO with order results and success status
 
         """
         logger.info(f"🚀 Executing rebalance plan {plan.plan_id} with {len(plan.items)} items")
-        
+
         orders: list[OrderResultDTO] = []
         total_trade_value = Decimal("0")
-        
+
         for item in plan.items:
             # Skip HOLD actions - only process trades
             if item.action == "HOLD":
                 logger.debug(f"⏭️ Skipping HOLD action for {item.symbol}")
                 continue
-                
+
             logger.info(f"📦 Processing {item.action} ${item.trade_amount} {item.symbol}")
-            
+
             # Execute the trade
             order_result = self._execute_trade_item(item)
             orders.append(order_result)
-            
+
             if order_result.success:
                 total_trade_value += abs(item.trade_amount)
-                
+
         # Calculate summary statistics
         orders_placed = len(orders)
         orders_succeeded = sum(1 for order in orders if order.success)
         overall_success = orders_succeeded == orders_placed if orders_placed > 0 else True
-        
+
         result = ExecutionResultDTO(
             success=overall_success,
             plan_id=plan.plan_id,
@@ -74,26 +74,26 @@ class Executor:
             total_trade_value=total_trade_value,
             execution_timestamp=datetime.now(UTC),
         )
-        
+
         logger.info(
             f"✅ Execution complete: {orders_succeeded}/{orders_placed} orders succeeded "
             f"(${total_trade_value} traded)"
         )
-        
+
         return result
 
     def _execute_trade_item(self, item: RebalancePlanItemDTO) -> OrderResultDTO:
         """Execute a single trade item.
-        
+
         Args:
             item: RebalancePlanItemDTO to execute
-            
+
         Returns:
             OrderResultDTO with execution result
 
         """
         timestamp = datetime.now(UTC)
-        
+
         try:
             # Get current price
             price = self.alpaca_manager.get_current_price(item.symbol)
@@ -109,32 +109,32 @@ class Executor:
                     error_message=f"Could not get current price for {item.symbol}",
                     timestamp=timestamp,
                 )
-            
+
             # Calculate shares to trade
             price_decimal = Decimal(str(price))
             shares = abs(item.trade_amount) / price_decimal
-            
+
             # Place market order
             side = item.action.lower()  # "BUY" -> "buy", "SELL" -> "sell"
             envelope = self.alpaca_manager.place_market_order(
-                symbol=item.symbol,
-                side=side,
-                qty=float(shares)
+                symbol=item.symbol, side=side, qty=float(shares)
             )
-            
+
             # Extract order ID from envelope
             order_id = None
             if envelope.success and envelope.raw_order:
                 order_id = getattr(envelope.raw_order, "id", None)
-            
+
             success = envelope.success and order_id is not None
             error_message = envelope.error_message if not success else None
-            
+
             if success:
-                logger.info(f"✅ Order placed: {item.action} {shares:.4f} shares {item.symbol} → {order_id}")
+                logger.info(
+                    f"✅ Order placed: {item.action} {shares:.4f} shares {item.symbol} → {order_id}"
+                )
             else:
                 logger.error(f"❌ Order failed: {item.action} {item.symbol} - {error_message}")
-            
+
             return OrderResultDTO(
                 symbol=item.symbol,
                 action=item.action,
@@ -146,7 +146,7 @@ class Executor:
                 error_message=error_message,
                 timestamp=timestamp,
             )
-            
+
         except Exception as e:
             logger.error(f"❌ Unexpected error executing {item.action} {item.symbol}: {e}")
             return OrderResultDTO(

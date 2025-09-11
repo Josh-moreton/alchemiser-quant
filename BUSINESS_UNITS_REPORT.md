@@ -22,7 +22,27 @@ This document tracks files by business unit as defined in the modular architectu
 ## Business Unit: portfolio
 
 ### Status: current
-- Portfolio module files (to be documented)
+
+**New portfolio_v2 module (recommended):**
+- `the_alchemiser/portfolio_v2/__init__.py` - Main module exports (PortfolioServiceV2, RebalancePlanCalculator)
+- `the_alchemiser/portfolio_v2/core/__init__.py` - Core components exports
+- `the_alchemiser/portfolio_v2/core/portfolio_service.py` - Main orchestration facade for rebalance plans
+- `the_alchemiser/portfolio_v2/core/planner.py` - Core rebalance plan calculator
+- `the_alchemiser/portfolio_v2/core/state_reader.py` - Portfolio state snapshot builder
+- `the_alchemiser/portfolio_v2/adapters/__init__.py` - Adapters exports
+- `the_alchemiser/portfolio_v2/adapters/alpaca_data_adapter.py` - Data access via shared AlpacaManager
+- `the_alchemiser/portfolio_v2/models/__init__.py` - Models exports
+- `the_alchemiser/portfolio_v2/models/portfolio_snapshot.py` - Immutable portfolio state snapshot
+- `the_alchemiser/portfolio_v2/models/sizing_policy.py` - Trade sizing and rounding policies
+
+**Shared DTOs (added for portfolio_v2):**
+- `the_alchemiser/shared/dto/strategy_allocation_dto.py` - Strategy allocation DTO for portfolio input
+
+**Shared exceptions (updated for portfolio_v2):**
+- `the_alchemiser/shared/types/exceptions.py` - Added PortfolioError for portfolio_v2 error handling
+
+**Legacy portfolio module (existing):**
+- `the_alchemiser/portfolio/...` - Legacy portfolio files (to be deprecated after portfolio_v2 migration)
 
 ## Business Unit: strategy  
 

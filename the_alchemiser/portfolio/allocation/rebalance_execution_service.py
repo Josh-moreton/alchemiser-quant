@@ -76,16 +76,12 @@ class RebalanceExecutionService:
             logger.info("=== REBALANCE EXECUTION SERVICE: EXECUTE_REBALANCING_PLAN ===")
             logger.info(f"EXECUTION_SERVICE_TYPE: {type(self).__name__}")
             logger.info(f"RECEIVED_REBALANCE_PLAN_TYPE: {type(rebalance_plan)}")
-            logger.info(
-                f"RECEIVED_PLAN_COUNT: {len(rebalance_plan) if rebalance_plan else 0}"
-            )
+            logger.info(f"RECEIVED_PLAN_COUNT: {len(rebalance_plan) if rebalance_plan else 0}")
             logger.info(f"DRY_RUN_MODE: {dry_run}")
 
             if not rebalance_plan:
                 logger.error("❌ EXECUTION_SERVICE: Empty rebalance plan received")
-                logger.error(
-                    "❌ This indicates portfolio facade failed to generate plans"
-                )
+                logger.error("❌ This indicates portfolio facade failed to generate plans")
                 return {
                     "status": "error",
                     "message": "Empty rebalance plan received",
@@ -110,9 +106,7 @@ class RebalanceExecutionService:
 
             # Filter plans that need rebalancing
             plans_to_execute = {
-                symbol: plan
-                for symbol, plan in rebalance_plan.items()
-                if plan.needs_rebalance
+                symbol: plan for symbol, plan in rebalance_plan.items() if plan.needs_rebalance
             }
 
             # Enhanced filtering results logging
@@ -173,9 +167,7 @@ class RebalanceExecutionService:
             logger.info("=== EXECUTION PHASE 1: SELL ORDERS ===")
             # Execute sells first to free up capital
             sell_results = self._execute_sell_orders(plans_to_execute, dry_run)
-            logger.info(
-                f"SELL_PHASE_COMPLETE: {len(sell_results)} sell orders processed"
-            )
+            logger.info(f"SELL_PHASE_COMPLETE: {len(sell_results)} sell orders processed")
 
             logger.info("=== EXECUTION PHASE 2: BUY ORDERS ===")
             # Execute buys with freed capital
@@ -253,9 +245,7 @@ class RebalanceExecutionService:
             )
             logger.info(f"EXECUTION_SERVICE_TYPE: {type(self).__name__}")
             logger.info(f"RECEIVED_REBALANCE_PLAN_TYPE: {type(rebalance_plan)}")
-            logger.info(
-                f"RECEIVED_PLAN_COUNT: {len(rebalance_plan) if rebalance_plan else 0}"
-            )
+            logger.info(f"RECEIVED_PLAN_COUNT: {len(rebalance_plan) if rebalance_plan else 0}")
             logger.info(f"DRY_RUN_MODE: {dry_run}")
             logger.info("BYPASSING_POSITION_DATA_VALIDATION: Using plan data directly")
 
@@ -287,9 +277,7 @@ class RebalanceExecutionService:
             logger.info(f"PLANS_TO_EXECUTE_COUNT: {len(plans_to_execute)}")
 
             if not plans_to_execute:
-                logger.info(
-                    "✅ No rebalancing required - returning success with 0 orders"
-                )
+                logger.info("✅ No rebalancing required - returning success with 0 orders")
                 return {
                     "status": "success",
                     "message": "No rebalancing required",
@@ -308,20 +296,14 @@ class RebalanceExecutionService:
             for symbol, plan in plans_to_execute.items():
                 if plan.trade_amount > 0:
                     # Buy order
-                    result = self._place_buy_order(
-                        symbol, abs(plan.trade_amount), dry_run
-                    )
+                    result = self._place_buy_order(symbol, abs(plan.trade_amount), dry_run)
                     all_orders[symbol] = result
                     logger.info(f"BUY_ORDER_PLACED: {symbol} ${abs(plan.trade_amount)}")
                 elif plan.trade_amount < 0:
                     # Sell order
-                    result = self._place_sell_order(
-                        symbol, abs(plan.trade_amount), dry_run
-                    )
+                    result = self._place_sell_order(symbol, abs(plan.trade_amount), dry_run)
                     all_orders[symbol] = result
-                    logger.info(
-                        f"SELL_ORDER_PLACED: {symbol} ${abs(plan.trade_amount)}"
-                    )
+                    logger.info(f"SELL_ORDER_PLACED: {symbol} ${abs(plan.trade_amount)}")
 
             execution_summary = self._create_execution_summary(all_orders)
             logger.info(f"DIRECT_EXECUTION_SUMMARY: {execution_summary}")
@@ -348,9 +330,7 @@ class RebalanceExecutionService:
                     "dry_run": dry_run,
                 },
             )
-            raise StrategyExecutionError(
-                f"Direct rebalancing execution failed: {e}"
-            ) from e
+            raise StrategyExecutionError(f"Direct rebalancing execution failed: {e}") from e
 
     def execute_single_rebalance(
         self, symbol: str, plan: RebalancePlan, dry_run: bool = True
@@ -400,9 +380,7 @@ class RebalanceExecutionService:
                 "error": str(e),
             }
 
-    def validate_rebalancing_plan(
-        self, rebalance_plan: dict[str, RebalancePlan]
-    ) -> dict[str, Any]:
+    def validate_rebalancing_plan(self, rebalance_plan: dict[str, RebalancePlan]) -> dict[str, Any]:
         """Validate a rebalancing plan before execution.
 
         Args:
@@ -425,9 +403,7 @@ class RebalanceExecutionService:
         try:
             # Check for symbols needing rebalancing
             symbols_to_trade = [
-                symbol
-                for symbol, plan in rebalance_plan.items()
-                if plan.needs_rebalance
+                symbol for symbol, plan in rebalance_plan.items() if plan.needs_rebalance
             ]
             validation_results["symbols_to_trade"] = symbols_to_trade
 
@@ -437,9 +413,7 @@ class RebalanceExecutionService:
 
             # Calculate total trade value
             total_trade_value = sum(
-                abs(plan.trade_amount)
-                for plan in rebalance_plan.values()
-                if plan.needs_rebalance
+                abs(plan.trade_amount) for plan in rebalance_plan.values() if plan.needs_rebalance
             )
             validation_results["total_trade_value"] = total_trade_value
 
@@ -465,9 +439,7 @@ class RebalanceExecutionService:
                 account_summary = self.trading_manager.account.get_account_summary()
                 buying_power = account_summary["buying_power"]
                 # Consider sell proceeds as additional available funds within the workflow
-                effective_buying_power = Decimal(str(buying_power)) + Decimal(
-                    str(sell_proceeds)
-                )
+                effective_buying_power = Decimal(str(buying_power)) + Decimal(str(sell_proceeds))
                 logging.debug(
                     "Rebalance validation - buy_amount=%s sell_proceeds=%s buying_power=%s effective=%s",
                     str(buy_amount),
@@ -493,8 +465,7 @@ class RebalanceExecutionService:
             # Validate positions for sell orders
             positions = self.trading_manager.get_all_positions()
             position_dict = {
-                getattr(pos, "symbol", getattr(pos, "symbol", "")): pos
-                for pos in positions
+                getattr(pos, "symbol", getattr(pos, "symbol", "")): pos for pos in positions
             }
 
             logging.debug(
@@ -584,9 +555,7 @@ class RebalanceExecutionService:
                 break
 
             requested_amount = plan.trade_amount
-            amount_to_buy = (
-                requested_amount if requested_amount <= remaining_bp else remaining_bp
-            )
+            amount_to_buy = requested_amount if requested_amount <= remaining_bp else remaining_bp
 
             # Place scaled order (or full if within limit)
             result = self._place_buy_order(symbol, amount_to_buy, dry_run)
@@ -595,8 +564,7 @@ class RebalanceExecutionService:
             if amount_to_buy < requested_amount:
                 result["status"] = result.get("status", "placed")
                 result["message"] = (
-                    result.get("message", "")
-                    + f" (scaled to ${amount_to_buy} due to buying power)"
+                    result.get("message", "") + f" (scaled to ${amount_to_buy} due to buying power)"
                 ).strip()
 
             buy_orders[symbol] = result
@@ -606,9 +574,7 @@ class RebalanceExecutionService:
 
         return buy_orders
 
-    def _place_sell_order(
-        self, symbol: str, amount: Decimal, dry_run: bool
-    ) -> dict[str, Any]:
+    def _place_sell_order(self, symbol: str, amount: Decimal, dry_run: bool) -> dict[str, Any]:
         """Place a sell order for the specified amount."""
         logger.debug(
             f"_place_sell_order called: symbol={symbol}, amount={amount}, dry_run={dry_run}"
@@ -637,9 +603,7 @@ class RebalanceExecutionService:
                 raise ValueError(f"Invalid price for {symbol}: {price_val}")
 
             shares_to_sell = amount / price
-            logger.debug(
-                f"Calculated shares to sell: {shares_to_sell} at price ${price}"
-            )
+            logger.debug(f"Calculated shares to sell: {shares_to_sell} at price ${price}")
 
             order_result = self.smart_execution.place_order(
                 symbol=symbol, qty=float(shares_to_sell), side=BrokerOrderSide.SELL
@@ -669,9 +633,7 @@ class RebalanceExecutionService:
                 "message": f"Failed to place sell order: {e}",
             }
 
-    def _place_buy_order(
-        self, symbol: str, amount: Decimal, dry_run: bool
-    ) -> dict[str, Any]:
+    def _place_buy_order(self, symbol: str, amount: Decimal, dry_run: bool) -> dict[str, Any]:
         """Place a buy order for the specified amount."""
         logger.debug(
             f"_place_buy_order called: symbol={symbol}, amount={amount}, dry_run={dry_run}"
@@ -734,9 +696,7 @@ class RebalanceExecutionService:
         """Create summary of execution results."""
         total_orders = len(orders)
         successful_orders = sum(
-            1
-            for order in orders.values()
-            if order.get("status") in ["placed", "simulated"]
+            1 for order in orders.values() if order.get("status") in ["placed", "simulated"]
         )
         failed_orders = total_orders - successful_orders
 
