@@ -47,7 +47,30 @@ This document tracks files by business unit as defined in the modular architectu
 ## Business Unit: strategy  
 
 ### Status: current
-- Strategy module files (to be documented)
+
+**New strategy_v2 module (recommended):**
+- `the_alchemiser/strategy_v2/__init__.py` - Main module exports (StrategyOrchestrator, StrategyContext)
+- `the_alchemiser/strategy_v2/core/__init__.py` - Core components exports
+- `the_alchemiser/strategy_v2/core/orchestrator.py` - Strategy orchestration and DTO mapping
+- `the_alchemiser/strategy_v2/core/registry.py` - Strategy engine registry
+- `the_alchemiser/strategy_v2/core/factory.py` - Factory functions for orchestrator setup
+- `the_alchemiser/strategy_v2/adapters/__init__.py` - Adapters exports
+- `the_alchemiser/strategy_v2/adapters/market_data_adapter.py` - Market data adapter wrapping AlpacaManager
+- `the_alchemiser/strategy_v2/adapters/feature_pipeline.py` - Feature computation with float tolerance handling
+- `the_alchemiser/strategy_v2/models/__init__.py` - Models exports
+- `the_alchemiser/strategy_v2/models/context.py` - Immutable strategy execution context
+- `the_alchemiser/strategy_v2/engines/` - Strategy engines moved from legacy (Nuclear, KLM, TECL)
+- `the_alchemiser/strategy_v2/indicators/` - Technical indicators moved from legacy
+- `the_alchemiser/strategy_v2/errors.py` - Typed error classes with module context
+- `the_alchemiser/strategy_v2/README.md` - Module documentation and usage
+
+**Legacy strategy module (deprecated):**
+- `the_alchemiser/strategy/README_DEPRECATED.md` - Deprecation notice and migration guide
+- `the_alchemiser/strategy/engines/nuclear/__init__.py` - Compatibility shim for Nuclear engine
+- `the_alchemiser/strategy/engines/klm/__init__.py` - Compatibility shim for KLM engine
+- `the_alchemiser/strategy/engines/tecl/__init__.py` - Compatibility shim for TECL engine
+- `the_alchemiser/strategy/indicators/__init__.py` - Compatibility shim for indicators
+- `the_alchemiser/strategy/...` - Other legacy strategy files (see README_DEPRECATED.md)
 
 ## Business Unit: shared
 
