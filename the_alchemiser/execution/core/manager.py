@@ -8,7 +8,7 @@ This module implements the MultiStrategyExecutor protocol for strategy orchestra
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from the_alchemiser.execution.execution_protocols import MultiStrategyExecutor
 from the_alchemiser.shared.errors.error_handler import handle_errors_with_retry
@@ -32,6 +32,9 @@ from the_alchemiser.shared.types.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
+
+if TYPE_CHECKING:
+    from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
 from the_alchemiser.shared.value_objects.core_types import AccountInfo
 from the_alchemiser.strategy.mappers.mappers import (
     map_signals_dict as _map_signals_to_typed,
@@ -85,56 +88,97 @@ class ExecutionManager(MultiStrategyExecutor):
         """Validate and normalize portfolio allocation."""
         # === UNIVERSAL DATA TRACKING IN VALIDATION ===
         logging.info("=== _VALIDATE_PORTFOLIO_ALLOCATION ENTRY ===")
-        input_total = sum(consolidated_portfolio.values()) if consolidated_portfolio else 0
+        input_total = (
+            sum(consolidated_portfolio.values()) if consolidated_portfolio else 0
+        )
         input_count = len(consolidated_portfolio) if consolidated_portfolio else 0
-        logging.info(f"VALIDATION_INPUT: {input_count} symbols, total={input_total:.6f}")
+        logging.info(
+            f"VALIDATION_INPUT: {input_count} symbols, total={input_total:.6f}"
+        )
 
         if not consolidated_portfolio:
             logging.error("❌ CRITICAL: VALIDATION RECEIVED EMPTY PORTFOLIO!")
-            logging.error("❌ UNIVERSAL FAILURE: No portfolio data reached validation stage")
+            logging.error(
+                "❌ UNIVERSAL FAILURE: No portfolio data reached validation stage"
+            )
             consolidated_portfolio = {"BIL": 1.0}
             logging.info("No portfolio signals generated, defaulting to cash (BIL)")
         else:
             # Log input data for tracking
-            input_meaningful = {s: a for s, a in consolidated_portfolio.items() if a > 0.001}
-            logging.info(f"VALIDATION_INPUT_MEANINGFUL: {len(input_meaningful)} symbols > 0.1%")
+            input_meaningful = {
+                s: a for s, a in consolidated_portfolio.items() if a > 0.001
+            }
+            logging.info(
+                f"VALIDATION_INPUT_MEANINGFUL: {len(input_meaningful)} symbols > 0.1%"
+            )
             for symbol, allocation in input_meaningful.items():
                 logging.info(f"  VALIDATION_INPUT: {symbol} = {allocation:.6f}")
 
         total_allocation = sum(consolidated_portfolio.values())
         if abs(total_allocation - 1.0) > 0.05:
-            logging.warning(f"Portfolio allocation sums to {total_allocation:.1%}, expected ~100%")
+            logging.warning(
+                f"Portfolio allocation sums to {total_allocation:.1%}, expected ~100%"
+            )
 
         # === UNIVERSAL DATA TRACKING AT VALIDATION EXIT ===
         output_total = sum(consolidated_portfolio.values())
         output_count = len(consolidated_portfolio)
-        output_meaningful = {s: a for s, a in consolidated_portfolio.items() if a > 0.001}
+        output_meaningful = {
+            s: a for s, a in consolidated_portfolio.items() if a > 0.001
+        }
 
-        logging.info(f"VALIDATION_OUTPUT: {output_count} symbols, total={output_total:.6f}")
-        logging.info(f"VALIDATION_OUTPUT_MEANINGFUL: {len(output_meaningful)} symbols > 0.1%")
+        logging.info(
+            f"VALIDATION_OUTPUT: {output_count} symbols, total={output_total:.6f}"
+        )
+        logging.info(
+            f"VALIDATION_OUTPUT_MEANINGFUL: {len(output_meaningful)} symbols > 0.1%"
+        )
 
         if len(output_meaningful) == 0:
-            logging.error("❌ CRITICAL: VALIDATION OUTPUT HAS NO MEANINGFUL ALLOCATIONS!")
-            logging.error("❌ VALIDATION BUG: Method eliminated ALL trading opportunities")
+            logging.error(
+                "❌ CRITICAL: VALIDATION OUTPUT HAS NO MEANINGFUL ALLOCATIONS!"
+            )
+            logging.error(
+                "❌ VALIDATION BUG: Method eliminated ALL trading opportunities"
+            )
 
         return consolidated_portfolio
 
     def _validate_and_filter_orders(self, orders_executed: list[Any]) -> list[Any]:
-        """Validate orders and filter out those with None IDs."""
+        """Validate orders and filter out those with None IDs or failed orders."""
         orders_with_none_ids = []
         valid_orders = []
 
         for order in orders_executed:
-            if order and hasattr(order, "id") and order.id is not None:
-                valid_orders.append(order)
+            # Handle both dictionary (OrderDetails) and object formats
+            if order:
+                if isinstance(order, dict):
+                    order_id = order.get("id")
+                else:
+                    order_id = (
+                        getattr(order, "id", None) if hasattr(order, "id") else None
+                    )
+
+                # Consider orders valid if they have a real order ID (not None, empty, or "unknown")
+                if order_id and order_id not in [None, "", "unknown"]:
+                    valid_orders.append(order)
+                else:
+                    orders_with_none_ids.append(order)
+                    logging.error(
+                        "order_execution_none_id_detected",
+                        extra={
+                            "order": str(order),
+                            "order_type": type(order).__name__,
+                            "id_value": order_id,
+                            "is_dict": isinstance(order, dict),
+                        },
+                    )
             else:
                 orders_with_none_ids.append(order)
                 logging.error(
-                    "order_execution_none_id_detected",
+                    "order_execution_null_order_detected",
                     extra={
-                        "order": str(order),
-                        "has_id_attr": hasattr(order, "id") if order else False,
-                        "id_value": getattr(order, "id", "NO_ATTR") if order else "NULL_ORDER",
+                        "order": "NULL_ORDER",
                     },
                 )
 
@@ -167,7 +211,9 @@ class ExecutionManager(MultiStrategyExecutor):
             "status": "INACTIVE",
         }
 
-    def _handle_data_provider_error(self, e: DataProviderError) -> MultiStrategyExecutionResultDTO:
+    def _handle_data_provider_error(
+        self, e: DataProviderError
+    ) -> MultiStrategyExecutionResultDTO:
         """Handle DataProviderError by returning a safe result."""
         from the_alchemiser.shared.logging.logging_utils import (
             get_logger,
@@ -225,7 +271,9 @@ class ExecutionManager(MultiStrategyExecutor):
             },
         ) from e
 
-    @handle_errors_with_retry(operation="multi_strategy_execution", critical=True, max_retries=1)
+    @handle_errors_with_retry(
+        operation="multi_strategy_execution", critical=True, max_retries=1
+    )
     def execute_multi_strategy(
         self,
         pre_calculated_signals: Any = None,
@@ -254,17 +302,25 @@ class ExecutionManager(MultiStrategyExecutor):
             # === ENHANCED LOGGING: EXECUTION MANAGER START ===
             logging.info("=== MULTI-STRATEGY EXECUTOR START ===")
             logging.info(f"ENGINE TYPE: {type(self.engine).__name__}")
-            logging.info(f"ACCOUNT EQUITY BEFORE: ${account_info_before.get('equity', 0):,.2f}")
-            logging.info(f"BUYING POWER BEFORE: ${account_info_before.get('buying_power', 0):,.2f}")
+            logging.info(
+                f"ACCOUNT EQUITY BEFORE: ${account_info_before.get('equity', 0):,.2f}"
+            )
+            logging.info(
+                f"BUYING POWER BEFORE: ${account_info_before.get('buying_power', 0):,.2f}"
+            )
 
             # === UNIVERSAL DATA FLOW TRACKING ===
             logging.info("=== UNIVERSAL DATA FLOW TRACKING START ===")
             logging.info("TRACKING: All portfolio data through execution pipeline")
-            logging.info("PURPOSE: Identify where ALL position data is lost in the system")
+            logging.info(
+                "PURPOSE: Identify where ALL position data is lost in the system"
+            )
 
             # Enhanced input validation logging
             logging.info("=== INPUT DATA VALIDATION ===")
-            logging.info(f"Received pre_calculated_signals: {pre_calculated_signals is not None}")
+            logging.info(
+                f"Received pre_calculated_signals: {pre_calculated_signals is not None}"
+            )
             logging.info(
                 f"Received pre_calculated_portfolio: {pre_calculated_portfolio is not None}"
             )
@@ -279,17 +335,25 @@ class ExecutionManager(MultiStrategyExecutor):
                 )
 
             if pre_calculated_portfolio is not None:
-                logging.info(f"PRE_CALC_PORTFOLIO type: {type(pre_calculated_portfolio)}")
+                logging.info(
+                    f"PRE_CALC_PORTFOLIO type: {type(pre_calculated_portfolio)}"
+                )
                 logging.info(f"PRE_CALC_PORTFOLIO content: {pre_calculated_portfolio}")
                 total_pre = (
-                    sum(pre_calculated_portfolio.values()) if pre_calculated_portfolio else 0
+                    sum(pre_calculated_portfolio.values())
+                    if pre_calculated_portfolio
+                    else 0
                 )
                 logging.info(f"PRE_CALC_PORTFOLIO total allocation: {total_pre:.3f}")
 
                 # === UNIVERSAL DATA INTEGRITY CHECK ===
-                logging.info("=== PRE-CALCULATED PORTFOLIO UNIVERSAL INTEGRITY CHECK ===")
+                logging.info(
+                    "=== PRE-CALCULATED PORTFOLIO UNIVERSAL INTEGRITY CHECK ==="
+                )
                 if total_pre == 0:
-                    logging.error("❌ CRITICAL: PRE_CALC_PORTFOLIO HAS ZERO TOTAL ALLOCATION!")
+                    logging.error(
+                        "❌ CRITICAL: PRE_CALC_PORTFOLIO HAS ZERO TOTAL ALLOCATION!"
+                    )
                     logging.error(
                         "❌ UNIVERSAL FAILURE: No allocations for ANY symbols in pre-calculated data"
                     )
@@ -298,7 +362,9 @@ class ExecutionManager(MultiStrategyExecutor):
                         f"⚠️ PRE_CALC_PORTFOLIO allocation integrity issue: {total_pre:.3f}"
                     )
                 else:
-                    logging.info(f"✅ PRE_CALC_PORTFOLIO integrity check passed: {total_pre:.3f}")
+                    logging.info(
+                        f"✅ PRE_CALC_PORTFOLIO integrity check passed: {total_pre:.3f}"
+                    )
 
             # Use pre-calculated signals if provided to avoid double calculation
             if (
@@ -310,7 +376,9 @@ class ExecutionManager(MultiStrategyExecutor):
                 consolidated_portfolio = pre_calculated_portfolio
                 strategy_attribution = pre_calculated_attribution
                 logging.info("✅ USING PRE-CALCULATED DATA from rebalancer")
-                logging.info(f"Pre-calculated portfolio has {len(consolidated_portfolio)} symbols")
+                logging.info(
+                    f"Pre-calculated portfolio has {len(consolidated_portfolio)} symbols"
+                )
 
                 # Enhanced pre-calculated data logging
                 logging.info("=== PRE-CALCULATED DATA DETAILS ===")
@@ -320,7 +388,9 @@ class ExecutionManager(MultiStrategyExecutor):
                     )
 
                 # === UNIVERSAL PRE-CALC VALIDATION ===
-                pre_calc_meaningful = {s: a for s, a in consolidated_portfolio.items() if a > 0.001}
+                pre_calc_meaningful = {
+                    s: a for s, a in consolidated_portfolio.items() if a > 0.001
+                }
                 logging.info(
                     f"PRE_CALC_MEANINGFUL_SYMBOLS: {len(pre_calc_meaningful)} symbols have >0.1% allocation"
                 )
@@ -333,7 +403,9 @@ class ExecutionManager(MultiStrategyExecutor):
                         f"✅ PRE_CALC has meaningful allocations for {len(pre_calc_meaningful)} symbols"
                     )
             else:
-                logging.warning("⚠️ RECALCULATING portfolio balance (potential bug source)")
+                logging.warning(
+                    "⚠️ RECALCULATING portfolio balance (potential bug source)"
+                )
                 strategy_signals, consolidated_portfolio, strategy_attribution = (
                     self.engine.strategy_manager.run_all_strategies()
                 )
@@ -369,7 +441,9 @@ class ExecutionManager(MultiStrategyExecutor):
                     )
 
             strategy_signals = self._process_strategy_signals(strategy_signals)
-            consolidated_portfolio = self._validate_portfolio_allocation(consolidated_portfolio)
+            consolidated_portfolio = self._validate_portfolio_allocation(
+                consolidated_portfolio
+            )
 
             # === UNIVERSAL POST-PROCESSING DATA INTEGRITY CHECK ===
             logging.info("=== UNIVERSAL POST-PROCESSING DATA INTEGRITY CHECK ===")
@@ -383,15 +457,21 @@ class ExecutionManager(MultiStrategyExecutor):
             )
 
             logging.info(f"POST_PROCESSING_TOTAL_ALLOCATION: {post_process_total:.6f}")
-            logging.info(f"POST_PROCESSING_MEANINGFUL_COUNT: {len(post_process_meaningful)}")
+            logging.info(
+                f"POST_PROCESSING_MEANINGFUL_COUNT: {len(post_process_meaningful)}"
+            )
 
             if post_process_total == 0:
-                logging.error("❌ CRITICAL: POST_PROCESSING RESULTED IN ZERO TOTAL ALLOCATION!")
+                logging.error(
+                    "❌ CRITICAL: POST_PROCESSING RESULTED IN ZERO TOTAL ALLOCATION!"
+                )
                 logging.error(
                     "❌ UNIVERSAL FAILURE: _validate_portfolio_allocation() zeroed out ALL data"
                 )
             elif len(post_process_meaningful) == 0:
-                logging.error("❌ CRITICAL: POST_PROCESSING REMOVED ALL MEANINGFUL ALLOCATIONS!")
+                logging.error(
+                    "❌ CRITICAL: POST_PROCESSING REMOVED ALL MEANINGFUL ALLOCATIONS!"
+                )
                 logging.error(
                     "❌ SYSTEMIC BUG: Processing pipeline eliminated ALL trading opportunities"
                 )
@@ -424,7 +504,11 @@ class ExecutionManager(MultiStrategyExecutor):
             for symbol, target_allocation in consolidated_portfolio.items():
                 target_value = target_allocation * current_portfolio_value
                 position_info = current_positions.get(symbol, {})
-                current_value = float(position_info.get("market_value", 0)) if position_info else 0.0
+                current_value = (
+                    float(position_info.get("market_value", 0))
+                    if position_info
+                    else 0.0
+                )
                 trade_amount = target_value - current_value
                 trade_calculations[symbol] = {
                     "target_allocation": target_allocation,
@@ -447,11 +531,17 @@ class ExecutionManager(MultiStrategyExecutor):
                         f"Target allocation {symbol}: {allocation:.3f} ({allocation * 100:.1f}%)"
                     )
 
-            logging.info(f"SIGNIFICANT ALLOCATIONS COUNT: {len(significant_allocations)}")
-            logging.info(f"TRADE CALCULATIONS READY: {len(trade_calculations)} symbols analyzed")
+            logging.info(
+                f"SIGNIFICANT ALLOCATIONS COUNT: {len(significant_allocations)}"
+            )
+            logging.info(
+                f"TRADE CALCULATIONS READY: {len(trade_calculations)} symbols analyzed"
+            )
 
             # === DATA TRANSFER POINT: ENGINE.REBALANCE_PORTFOLIO ===
-            logging.info("=== DATA TRANSFER POINT: PASSING TO ENGINE.REBALANCE_PORTFOLIO ===")
+            logging.info(
+                "=== DATA TRANSFER POINT: PASSING TO ENGINE.REBALANCE_PORTFOLIO ==="
+            )
 
             # === ENHANCED DATA INTEGRITY VERIFICATION ===
             logging.info(
@@ -470,13 +560,17 @@ class ExecutionManager(MultiStrategyExecutor):
             if consolidated_portfolio:
                 # Verify data integrity
                 total_allocation_check = sum(consolidated_portfolio.values())
-                logging.info(f"TOTAL_ALLOCATION_VERIFICATION: {total_allocation_check:.6f}")
+                logging.info(
+                    f"TOTAL_ALLOCATION_VERIFICATION: {total_allocation_check:.6f}"
+                )
                 logging.info(
                     f"ALLOCATION_SUM_IS_NEAR_ONE: {abs(total_allocation_check - 1.0) < 0.01}"
                 )
 
                 # Log each allocation with data type information
-                logging.info("=== DETAILED ALLOCATION BREAKDOWN WITH TYPE VERIFICATION ===")
+                logging.info(
+                    "=== DETAILED ALLOCATION BREAKDOWN WITH TYPE VERIFICATION ==="
+                )
                 for symbol, allocation in consolidated_portfolio.items():
                     logging.info(
                         f"ALLOCATION_DETAIL: {symbol} = {allocation} (type: {type(allocation)}, is_numeric: {isinstance(allocation, int | float)})"
@@ -494,7 +588,9 @@ class ExecutionManager(MultiStrategyExecutor):
 
                 # Verify no NaN or infinite values
                 for symbol, allocation in consolidated_portfolio.items():
-                    if not isinstance(allocation, int | float) or str(allocation).lower() in [
+                    if not isinstance(allocation, int | float) or str(
+                        allocation
+                    ).lower() in [
                         "nan",
                         "inf",
                         "-inf",
@@ -509,8 +605,12 @@ class ExecutionManager(MultiStrategyExecutor):
                 logging.info(f"DATA_CHECKSUM_BEFORE_ENGINE: {data_checksum}")
 
                 # Check if any allocations might cause issues downstream
-                zero_allocations = [s for s, a in consolidated_portfolio.items() if a == 0]
-                positive_allocations = [s for s, a in consolidated_portfolio.items() if a > 0]
+                zero_allocations = [
+                    s for s, a in consolidated_portfolio.items() if a == 0
+                ]
+                positive_allocations = [
+                    s for s, a in consolidated_portfolio.items() if a > 0
+                ]
                 logging.info(
                     f"ZERO_ALLOCATIONS: {zero_allocations} (count: {len(zero_allocations)})"
                 )
@@ -552,7 +652,9 @@ class ExecutionManager(MultiStrategyExecutor):
             logging.info(
                 f"ENGINE_HAS_REBALANCE_PORTFOLIO: {hasattr(self.engine, 'rebalance_portfolio')}"
             )
-            logging.info(f"STRATEGY_ATTRIBUTION_PROVIDED: {strategy_attribution is not None}")
+            logging.info(
+                f"STRATEGY_ATTRIBUTION_PROVIDED: {strategy_attribution is not None}"
+            )
 
             if strategy_attribution:
                 logging.info(f"STRATEGY_ATTRIBUTION_TYPE: {type(strategy_attribution)}")
@@ -570,7 +672,9 @@ class ExecutionManager(MultiStrategyExecutor):
             # Enhanced rebalancing results logging
             logging.info("=== EXECUTION PIPELINE RESULTS ===")
             logging.info(f"ORDERS_RETURNED_TYPE: {type(orders_executed)}")
-            logging.info(f"ORDERS_RETURNED_COUNT: {len(orders_executed) if orders_executed else 0}")
+            logging.info(
+                f"ORDERS_RETURNED_COUNT: {len(orders_executed) if orders_executed else 0}"
+            )
 
             if orders_executed:
                 logging.info("✅ ORDERS RECEIVED FROM REBALANCING:")
@@ -581,7 +685,9 @@ class ExecutionManager(MultiStrategyExecutor):
                         and hasattr(order, "qty")
                         and hasattr(order, "side")
                     ):
-                        logging.info(f"    Details: {order.side} {order.qty} {order.symbol}")
+                        logging.info(
+                            f"    Details: {order.side} {order.qty} {order.symbol}"
+                        )
             else:
                 logging.error("❌ NO ORDERS RETURNED from rebalance_portfolio")
                 logging.error(
@@ -624,7 +730,9 @@ class ExecutionManager(MultiStrategyExecutor):
             )
 
             if not self.engine.paper_trading and orders_executed:
-                self.engine._trigger_post_trade_validation(strategy_signals, orders_executed)
+                self.engine._trigger_post_trade_validation(
+                    strategy_signals, orders_executed
+                )
 
             final_positions = self.engine.get_positions()
             final_portfolio_state = build_portfolio_state_data(
@@ -639,11 +747,15 @@ class ExecutionManager(MultiStrategyExecutor):
                 account_info_before=account_info_before,
                 account_info_after=account_info_after,
                 execution_summary=dict_to_execution_summary_dto(execution_summary),
-                final_portfolio_state=dict_to_portfolio_state_dto(final_portfolio_state),
+                final_portfolio_state=dict_to_portfolio_state_dto(
+                    final_portfolio_state
+                ),
             )
 
             save_dashboard_data(self.engine, result)
-            self.engine._archive_daily_strategy_pnl(execution_summary.get("pnl_summary", {}))
+            self.engine._archive_daily_strategy_pnl(
+                execution_summary.get("pnl_summary", {})
+            )
             return result
 
         except TradingClientError as e:
@@ -672,3 +784,85 @@ class ExecutionManager(MultiStrategyExecutor):
             AttributeError,
         ) as e:
             self._handle_configuration_strategy_error(e)
+
+    def execute_rebalance_plan(
+        self,
+        rebalance_plan: RebalancePlanDTO,
+    ) -> list[Any]:
+        """Execute trades directly from portfolio rebalance plan DTO.
+
+        This method bypasses all recalculation and validation, simply executing
+        the trades specified in the rebalance plan DTO from the portfolio module.
+
+        Args:
+            rebalance_plan: RebalancePlanDTO containing specific trade instructions
+
+        Returns:
+            List of executed order objects.
+
+        """
+        logging.info("=== DIRECT DTO EXECUTION START ===")
+        logging.info(f"Received rebalance plan with {len(rebalance_plan.items)} items")
+
+        # Import DTO type locally to avoid circular imports
+        from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
+
+        if not isinstance(rebalance_plan, RebalancePlanDTO):
+            raise ValueError(f"Expected RebalancePlanDTO, got {type(rebalance_plan)}")
+
+        executed_orders = []
+
+        for item in rebalance_plan.items:
+            logging.info(f"Executing {item.action} {item.symbol}: ${item.trade_amount}")
+
+            # Skip HOLD actions or zero trades
+            if item.action == "HOLD" or item.trade_amount == 0:
+                logging.info(
+                    f"Skipping {item.symbol}: action={item.action}, amount={item.trade_amount}"
+                )
+                continue
+
+            try:
+                # Use the portfolio execution service directly instead of missing execute_single_order
+                if hasattr(self.engine, "portfolio_rebalancer") and hasattr(
+                    self.engine.portfolio_rebalancer, "execution_service"
+                ):
+                    execution_service = self.engine.portfolio_rebalancer.execution_service
+                    
+                    # Convert to the format expected by execution service
+                    if item.action == "BUY":
+                        order = execution_service.place_buy_order(
+                            symbol=item.symbol,
+                            dollar_amount=abs(float(item.trade_amount))
+                        )
+                    elif item.action == "SELL":
+                        order = execution_service.place_sell_order(
+                            symbol=item.symbol,
+                            dollar_amount=abs(float(item.trade_amount))
+                        )
+                    else:
+                        logging.warning(f"Unknown action {item.action} for {item.symbol}")
+                        continue
+                        
+                    if order and getattr(order, 'id', None):
+                        executed_orders.append(order)
+                        logging.info(
+                            f"✅ Successfully executed {item.action} {item.symbol}"
+                        )
+                    else:
+                        logging.error(
+                            f"❌ Failed to execute {item.action} {item.symbol}: {order}"
+                        )
+                else:
+                    logging.error(
+                        "❌ Engine missing portfolio_rebalancer.execution_service"
+                    )
+
+            except Exception as e:
+                logging.error(f"❌ Error executing {item.action} {item.symbol}: {e}")
+                continue
+
+        logging.info(
+            f"=== DIRECT DTO EXECUTION COMPLETE: {len(executed_orders)} orders executed ==="
+        )
+        return executed_orders

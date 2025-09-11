@@ -27,6 +27,9 @@ class AlpacaSettings(BaseModel):
     cash_reserve_pct: float = 0.05
     slippage_bps: int = 5
     enable_websocket_orders: bool = True
+    # Credentials - typically loaded from .env file or environment variables
+    key: str | None = Field(default=None, alias="ALPACA_KEY")
+    secret: str | None = Field(default=None, alias="ALPACA_SECRET")
 
 
 class AwsSettings(BaseModel):

@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 from the_alchemiser.shared.config.config import load_settings
 
 if TYPE_CHECKING:  # pragma: no cover - hint for type checkers only
-    from the_alchemiser.execution.config.execution_config import StrategyConfig
+    from the_alchemiser.execution.strategies.config import StrategyConfig
 
 
 @dataclass
@@ -45,7 +45,9 @@ class ExecutionConfig:
     repeg_timeout_multiplier: float = 1.5  # Multiply timeout by this factor each re-peg
     repeg_price_improvement_ticks: int = 1  # Ticks to improve price each re-peg
     min_repeg_interval_seconds: float = 0.5  # Minimum time between re-pegs
-    volatility_pause_threshold_bps: float = 100.0  # Pause re-pegging if volatility spikes
+    volatility_pause_threshold_bps: float = (
+        100.0  # Pause re-pegging if volatility spikes
+    )
 
     @classmethod
     def from_settings(cls) -> ExecutionConfig:
@@ -63,12 +65,18 @@ class ExecutionConfig:
                 leveraged_etf_symbols=execution.leveraged_etf_symbols,
                 high_volume_etfs=execution.high_volume_etfs,
                 # Adaptive re-pegging settings with safe fallbacks
-                enable_adaptive_repegging=getattr(execution, "enable_adaptive_repegging", True),
-                repeg_timeout_multiplier=getattr(execution, "repeg_timeout_multiplier", 1.5),
+                enable_adaptive_repegging=getattr(
+                    execution, "enable_adaptive_repegging", True
+                ),
+                repeg_timeout_multiplier=getattr(
+                    execution, "repeg_timeout_multiplier", 1.5
+                ),
                 repeg_price_improvement_ticks=getattr(
                     execution, "repeg_price_improvement_ticks", 1
                 ),
-                min_repeg_interval_seconds=getattr(execution, "min_repeg_interval_seconds", 0.5),
+                min_repeg_interval_seconds=getattr(
+                    execution, "min_repeg_interval_seconds", 0.5
+                ),
                 volatility_pause_threshold_bps=getattr(
                     execution, "volatility_pause_threshold_bps", 100.0
                 ),
@@ -135,7 +143,9 @@ class ExecutionConfig:
         spread_degradation_pct = (
             current_spread_cents - original_spread_cents
         ) / original_spread_cents
-        spread_degradation_bps = spread_degradation_pct * 10000  # Convert to basis points
+        spread_degradation_bps = (
+            spread_degradation_pct * 10000
+        )  # Convert to basis points
 
         return spread_degradation_bps > self.volatility_pause_threshold_bps
 
@@ -193,7 +203,7 @@ def create_strategy_config() -> StrategyConfig:  # forward ref for static typing
     """Create a StrategyConfig from current ExecutionConfig."""
     from decimal import Decimal
 
-    from the_alchemiser.execution.config.execution_config import StrategyConfig
+    from the_alchemiser.execution.strategies.config import StrategyConfig
 
     config = get_execution_config()
     return StrategyConfig(
@@ -203,7 +213,9 @@ def create_strategy_config() -> StrategyConfig:  # forward ref for static typing
         timeout_multiplier=config.repeg_timeout_multiplier,
         price_improvement_ticks=config.repeg_price_improvement_ticks,
         min_repeg_interval_seconds=config.min_repeg_interval_seconds,
-        volatility_pause_threshold_bps=Decimal(str(config.volatility_pause_threshold_bps)),
+        volatility_pause_threshold_bps=Decimal(
+            str(config.volatility_pause_threshold_bps)
+        ),
         enable_adaptive_pricing=config.enable_adaptive_repegging,
         enable_volatility_pause=config.enable_adaptive_repegging,
     )

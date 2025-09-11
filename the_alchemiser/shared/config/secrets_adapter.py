@@ -15,6 +15,9 @@ import json
 import logging
 import os
 
+# Auto-load .env file into environment variables
+from the_alchemiser.shared.config import env_loader  # noqa: F401
+
 logger = logging.getLogger(__name__)
 
 # Try to import boto3 for AWS Secrets Manager support
@@ -83,14 +86,15 @@ def _get_alpaca_keys_from_aws() -> tuple[str, str, str] | tuple[None, None, None
 
 
 def _get_alpaca_keys_from_env() -> tuple[str, str, str] | tuple[None, None, None]:
-    """Get Alpaca keys from environment variables."""
-    api_key = os.getenv("ALPACA_KEY")
-    secret_key = os.getenv("ALPACA_SECRET")
-    endpoint = os.getenv("ALPACA_ENDPOINT")
+    """Get Alpaca keys from environment variables (.env file auto-loaded)."""
+    # Try both formats: ALPACA_KEY and ALPACA__KEY (Pydantic nested format)
+    api_key = os.getenv("ALPACA_KEY") or os.getenv("ALPACA__KEY")
+    secret_key = os.getenv("ALPACA_SECRET") or os.getenv("ALPACA__SECRET")
+    endpoint = os.getenv("ALPACA_ENDPOINT") or os.getenv("ALPACA__ENDPOINT")
 
     if not api_key or not secret_key or not endpoint:
         logger.error(
-            "Missing Alpaca credentials in environment variables: ALPACA_KEY, ALPACA_SECRET, ALPACA_ENDPOINT"
+            "Missing Alpaca credentials in environment variables: ALPACA_KEY/ALPACA__KEY, ALPACA_SECRET/ALPACA__SECRET, ALPACA_ENDPOINT/ALPACA__ENDPOINT"
         )
         return None, None, None
 
@@ -103,10 +107,14 @@ def get_twelvedata_api_key() -> str | None:
     # Simple environment detection
     if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
         # In Lambda - get from AWS Secrets Manager
-        logger.info("Detected AWS Lambda environment - loading TwelveData key from Secrets Manager")
+        logger.info(
+            "Detected AWS Lambda environment - loading TwelveData key from Secrets Manager"
+        )
         return _get_twelvedata_key_from_aws()
     # Local dev - get from .env
-    logger.info("Detected local environment - loading TwelveData key from environment variables")
+    logger.info(
+        "Detected local environment - loading TwelveData key from environment variables"
+    )
     return _get_twelvedata_key_from_env()
 
 
