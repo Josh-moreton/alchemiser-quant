@@ -1,6 +1,6 @@
 """Business Unit: execution | Status: current.
 
-Simple executor that consumes RebalancePlanDTO and places orders.
+Executor that consumes RebalancePlanDTO and places orders.
 
 Core principle: iterate through plan items and place orders - nothing more.
 No portfolio calculations, position fetching, or trade recalculation.
@@ -22,8 +22,8 @@ from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO, Rebal
 logger = logging.getLogger(__name__)
 
 
-class SimpleExecutor:
-    """Simple executor that processes RebalancePlanDTO items."""
+class Executor:
+    """Executor that processes RebalancePlanDTO items."""
 
     def __init__(self, alpaca_manager: AlpacaManager) -> None:
         """Initialize with AlpacaManager."""
