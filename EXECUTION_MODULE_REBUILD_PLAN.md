@@ -26,7 +26,7 @@ The execution module violates the fundamental principle of modular architecture 
 **COMPLETE DEPRECATION**: The entire current `execution/` module will be marked as legacy and replaced with a clean, minimal implementation. This includes:
 
 - `execution/core/manager.py` - 2,000+ lines of complex recalculation logic
-- `execution/strategies/` - Unnecessary execution strategies 
+- `execution/strategies/` - Unnecessary execution strategies
 - `execution/orders/` - Overly complex order management
 - `execution/analytics/` - Portfolio analytics (belongs in portfolio module)
 - `execution/pricing/` - Market data logic (use shared Alpaca capabilities)
@@ -103,17 +103,14 @@ execution/                             # LEGACY: Mark for deprecation
 ```text
 execution_v2/
 ├── core/
-│   ├── simple_executor.py          # NEW: Core execution logic (~50 lines)
+│   ├── executor.py          # NEW: Core execution logic (~50 lines)
 │   ├── execution_manager.py        # NEW: Simple coordinator (~30 lines)
 │   └── execution_tracker.py        # NEW: Basic result tracking (~40 lines)
 ├── adapters/
 │   ├── alpaca_adapter.py            # NEW: Wrapper around shared.brokers.AlpacaManager
-│   └── mock_adapter.py              # NEW: Testing adapter
 ├── models/
 │   ├── execution_result.py         # NEW: Simple result models
 │   └── order_status.py             # NEW: Order status tracking
-└── tests/
-    └── test_*.py                    # NEW: Comprehensive tests
 ```
 
 #### 1.2 Mark Legacy Module for Deprecation
@@ -135,31 +132,31 @@ from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO, Rebal
 
 class SimpleExecutor:
     """Ultra-simple executor that only places orders from DTOs."""
-    
+
     def __init__(self, alpaca_manager: AlpacaManager):
         """Initialize with shared Alpaca manager."""
         self.alpaca = alpaca_manager
-    
+
     def execute_rebalance_plan(
-        self, 
+        self,
         plan: RebalancePlanDTO
     ) -> ExecutionResultDTO:
         """Execute a rebalance plan by placing orders."""
         results = []
-        
+
         for item in plan.items:
             if item.action == "HOLD":
                 continue
-                
+
             result = self._place_single_order(item)
             results.append(result)
-            
+
         return ExecutionResultDTO(
             correlation_id=plan.correlation_id,
             orders=results,
             success=all(r.success for r in results)
         )
-    
+
     def _place_single_order(self, item: RebalancePlanItemDTO) -> OrderResult:
         """Place a single order from plan item."""
         # 1. Get market price using shared Alpaca manager
@@ -171,22 +168,22 @@ class SimpleExecutor:
                 success=False,
                 error="Could not get current price"
             )
-        
+
         # 2. Calculate shares
         shares = abs(item.trade_amount) / Decimal(str(price))
-        
+
         # 3. Place order using shared Alpaca manager
         envelope = self.alpaca.place_market_order(
             symbol=item.symbol,
             side=item.action.lower(),  # BUY -> buy, SELL -> sell
             qty=float(shares)
         )
-        
+
         # 4. Extract order ID from envelope
         order_id = None
         if envelope.success and envelope.raw_order:
             order_id = getattr(envelope.raw_order, 'id', None)
-        
+
         return OrderResult(
             symbol=item.symbol,
             order_id=order_id,
@@ -202,7 +199,7 @@ from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 
 class AlpacaAdapter:
     """Thin adapter around shared AlpacaManager for execution module."""
-    
+
     def __init__(self, api_key: str, secret_key: str, paper: bool = True):
         """Initialize adapter with shared Alpaca manager."""
         self.alpaca = AlpacaManager(
@@ -210,27 +207,27 @@ class AlpacaAdapter:
             secret_key=secret_key,
             paper=paper
         )
-    
+
     def get_current_price(self, symbol: str) -> float | None:
         """Get current price using shared manager."""
         return self.alpaca.get_current_price(symbol)
-    
+
     def place_market_order(
-        self, 
-        symbol: str, 
-        side: str, 
+        self,
+        symbol: str,
+        side: str,
         qty: float
     ) -> OrderExecutionResult:
         """Place market order using shared manager."""
         envelope = self.alpaca.place_market_order(symbol, side, qty)
-        
+
         return OrderExecutionResult(
             success=envelope.success,
             order_id=getattr(envelope.raw_order, 'id', None) if envelope.raw_order else None,
             error=envelope.error_message,
             raw_response=envelope.raw_order
         )
-    
+
     def validate_connection(self) -> bool:
         """Validate connection using shared manager."""
         return self.alpaca.validate_connection()
@@ -243,7 +240,7 @@ class AlpacaAdapter:
 **NO CUSTOM BROKER NEEDED**: Use the existing `shared.brokers.AlpacaManager` which already provides:
 
 - ✅ `place_market_order()` - Returns `RawOrderEnvelope` with order details
-- ✅ `place_limit_order()` - For more sophisticated order types  
+- ✅ `place_limit_order()` - For more sophisticated order types
 - ✅ `get_current_price()` - Market price discovery
 - ✅ `get_positions()` - Position data (not needed for execution, but available)
 - ✅ `validate_connection()` - Connection health checks
@@ -255,12 +252,14 @@ class AlpacaAdapter:
 #### 2.2 Debug Current Alpaca Integration Issues
 
 The existing `AlpacaManager` already handles:
+
 - API credentials and authentication
-- Paper vs live trading configuration  
+- Paper vs live trading configuration
 - Order placement and status tracking
 - Error handling and logging
 
 **Investigation needed**: Why are orders returning `None` IDs?
+
 - Check if API credentials are valid
 - Verify paper trading environment setup
 - Test with minimal order amounts
@@ -273,7 +272,7 @@ from the_alchemiser.execution_v2.adapters.alpaca_adapter import AlpacaAdapter
 
 class MockAdapter(AlpacaAdapter):
     """Mock adapter for testing execution logic."""
-    
+
     def __init__(self):
         # Don't call super().__init__ to avoid real Alpaca connection
         self.mock_prices = {
@@ -283,25 +282,25 @@ class MockAdapter(AlpacaAdapter):
             "FNGO": 25.0,
         }
         self.order_counter = 0
-    
+
     def get_current_price(self, symbol: str) -> float | None:
         """Mock price lookup."""
         return self.mock_prices.get(symbol, 100.0)  # Default $100
-    
+
     def place_market_order(self, symbol: str, side: str, qty: float) -> OrderExecutionResult:
         """Mock order placement - always succeeds."""
         self.order_counter += 1
         order_id = f"MOCK_{self.order_counter:06d}"
-        
+
         logger.info(f"🧪 MOCK ORDER: {side.upper()} {qty} {symbol}, ID: {order_id}")
-        
+
         return OrderExecutionResult(
             success=True,
             order_id=order_id,
             error=None,
             raw_response={"mock": True, "symbol": symbol, "qty": qty, "side": side}
         )
-    
+
     def validate_connection(self) -> bool:
         """Mock connection validation."""
         return True
@@ -317,30 +316,30 @@ class MockAdapter(AlpacaAdapter):
 # execution_v2/core/execution_manager.py
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
-from the_alchemiser.execution_v2.core.simple_executor import SimpleExecutor
+from the_alchemiser.execution_v2.core.executor import SimpleExecutor
 
 class ExecutionManager:
     """Simple execution manager that delegates to SimpleExecutor."""
-    
+
     def __init__(self, alpaca_manager: AlpacaManager):
         """Initialize with shared Alpaca manager."""
         self.executor = SimpleExecutor(alpaca_manager)
-    
+
     def execute_rebalance_plan(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
         """Execute rebalance plan using simple executor."""
         logger.info(f"🚀 NEW EXECUTION: {len(plan.items)} items (using execution_v2)")
-        
+
         result = self.executor.execute_rebalance_plan(plan)
-        
+
         logger.info(f"✅ Execution complete: {result.success} ({result.orders_placed} orders)")
         return result
-    
+
     @classmethod
     def create_with_config(cls, api_key: str, secret_key: str, paper: bool = True):
         """Factory method for easy creation."""
         alpaca_manager = AlpacaManager(
-            api_key=api_key, 
-            secret_key=secret_key, 
+            api_key=api_key,
+            secret_key=secret_key,
             paper=paper
         )
         return cls(alpaca_manager)
@@ -354,13 +353,13 @@ Modify `trading_engine.py` to use the NEW execution manager while keeping legacy
 # In TradingEngine.__init__()
 def __init__(self, ...):
     # ... existing initialization ...
-    
+
     # NEW: Initialize execution_v2 manager
     try:
         from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager as ExecutionManagerV2
         self.execution_manager_v2 = ExecutionManagerV2.create_with_config(
             api_key=config.api_key,
-            secret_key=config.secret_key, 
+            secret_key=config.secret_key,
             paper=config.paper_trading
         )
         self.use_execution_v2 = True
@@ -372,13 +371,13 @@ def __init__(self, ...):
 # In TradingEngine.execute_multi_strategy()
 def execute_multi_strategy(self, ...):
     # ... portfolio calculation ...
-    
+
     # Get rebalance plan DTO from portfolio
     rebalance_plan = self.portfolio_rebalancer.rebalancing_service.create_rebalance_plan_dto(
         target_weights,
         correlation_id=correlation_id
     )
-    
+
     if rebalance_plan:
         if self.use_execution_v2:
             # NEW: Simple execution - no recalculation
@@ -391,7 +390,7 @@ def execute_multi_strategy(self, ...):
     else:
         # No trades needed
         execution_result = ExecutionResultDTO(success=True, orders=[])
-    
+
     # Return results...
 ```
 
@@ -417,22 +416,26 @@ Use the new `execution_v2` module instead:
 # OLD (deprecated)
 from the_alchemiser.execution.core.manager import ExecutionManager
 
-# NEW (recommended)  
+# NEW (recommended)
 from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
 ```
 
 The new module:
+
 - 200 lines vs 10,000+ lines
 - Consumes portfolio DTOs directly
 - Uses shared Alpaca capabilities
 - Simple, focused, testable
 
 ## Timeline
+
 - Phase 1: execution_v2 available alongside legacy
 - Phase 2: Switch trading engine to execution_v2
 - Phase 3: Remove legacy execution module entirely
+
 """
-```
+
+```markdown
 
 ### Phase 4: Error Handling & Monitoring (Week 4)
 
@@ -447,6 +450,11 @@ class BrokerConnectionError(ExecutionError):
     """Broker API connection failed."""
     pass
 
+```
+
+### 4.1 Simple Error Recovery
+
+```python
 class OrderPlacementError(ExecutionError):
     """Order placement failed."""
     pass
@@ -456,7 +464,7 @@ class InsufficientFundsError(ExecutionError):
     pass
 ```
 
-#### 4.2 Execution Monitoring
+### 4.2 Execution Monitoring
 
 ```python
 class ExecutionMonitor:
@@ -501,71 +509,6 @@ class ExecutionLogger:
         else:
             logger.error(f"❌ Order failed: {item.action} ${item.trade_amount} {item.symbol}")
 ```
-
-### Phase 5: Testing & Validation (Week 5)
-
-#### 5.1 Unit Tests
-
-```python
-def test_simple_executor():
-    """Test simple executor with mock broker."""
-    broker = MockBroker()
-    executor = SimpleExecutor(broker)
-
-    plan = create_test_rebalance_plan()
-    result = executor.execute_rebalance_plan(plan)
-
-    assert result.success
-    assert len(result.orders) == len([i for i in plan.items if i.action != "HOLD"])
-
-def test_alpaca_broker_integration():
-    """Test Alpaca broker with paper trading."""
-    broker = AlpacaBroker(api_key="test", secret_key="test", paper=True)
-
-    # Test with small order
-    order_id = broker.place_order("SPY", "BUY", Decimal("1"), "MARKET")
-
-    assert order_id is not None
-    assert isinstance(order_id, str)
-```
-
-#### 5.2 Integration Tests
-
-```python
-def test_end_to_end_execution():
-    """Test end-to-end execution flow."""
-    # Create portfolio with target weights
-    target_weights = {"SPY": Decimal("0.6"), "QQQ": Decimal("0.4")}
-
-    # Generate rebalance plan
-    plan = portfolio_service.create_rebalance_plan_dto(target_weights)
-
-    # Execute plan
-    result = execution_manager.execute_rebalance_plan(plan)
-
-    # Verify execution
-    assert result.success
-    assert all(order.success for order in result.orders)
-```
-
-#### 5.3 Live Testing Protocol
-
-1. **Paper Trading Validation**
-   - Test with paper trading account
-   - Verify orders are placed correctly
-   - Check order IDs are returned
-   - Validate execution results
-
-2. **Small Live Test**
-   - Use minimal amounts ($10-20)
-   - Test with liquid ETFs (SPY, QQQ)
-   - Monitor execution closely
-   - Verify account updates
-
-3. **Production Rollout**
-   - Gradual increase in trade sizes
-   - Monitor execution quality
-   - Track broker integration health
 
 ## Migration Strategy
 
@@ -619,19 +562,18 @@ def test_end_to_end_execution():
 
 ## File Structure
 
-```
+```text
 execution/
 ├── __init__.py
 ├── core/
 │   ├── __init__.py
-│   ├── simple_executor.py          # Main execution logic
+│   ├── executor.py          # Main execution logic
 │   ├── execution_manager.py        # Manager interface
 │   └── execution_tracker.py        # Execution monitoring
 ├── brokers/
 │   ├── __init__.py
 │   ├── base_broker.py              # Broker interface
 │   ├── alpaca_broker.py            # Alpaca implementation
-│   └── mock_broker.py              # Testing broker
 ├── models/
 │   ├── __init__.py
 │   ├── execution_result.py         # Result models
@@ -640,11 +582,7 @@ execution/
 │   ├── __init__.py
 │   ├── execution_monitor.py        # Health monitoring
 │   └── execution_logger.py         # Detailed logging
-└── tests/
-    ├── __init__.py
-    ├── test_simple_executor.py
-    ├── test_brokers.py
-    └── test_integration.py
+
 ```
 
 ## Implementation Timeline
