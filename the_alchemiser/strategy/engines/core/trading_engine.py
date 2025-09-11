@@ -33,23 +33,25 @@ from typing import TYPE_CHECKING, Any, Protocol
 if TYPE_CHECKING:  # Import for type checking only to avoid runtime dependency
     from the_alchemiser.strategy.schemas.strategies import StrategySignalDisplayDTO
 
-from the_alchemiser.execution.brokers.account_service import (
-    AccountService as TypedAccountService,
-)
-from the_alchemiser.execution.core.account_facade import AccountFacade
-from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
-from the_alchemiser.execution.execution_protocols import MultiStrategyExecutor
-from the_alchemiser.execution.strategies.smart_execution import SmartExecution
+# Legacy execution imports commented out to break circular dependencies
+# from the_alchemiser.execution.brokers.account_service import (
+#     AccountService as TypedAccountService,
+# )
+# from the_alchemiser.execution.core.account_facade import AccountFacade
+# from the_alchemiser.execution.core.execution_schemas import ExecutionResultDTO
+# from the_alchemiser.execution.execution_protocols import MultiStrategyExecutor
+# from the_alchemiser.execution.strategies.smart_execution import SmartExecution
 from the_alchemiser.portfolio.core.portfolio_management_facade import (
     PortfolioManagementFacade,
 )
 from the_alchemiser.shared.brokers import AlpacaManager
-from the_alchemiser.shared.config.bootstrap import (
-    TradingBootstrapContext,
-    bootstrap_from_container,
-    bootstrap_from_service_manager,
-    bootstrap_traditional,
-)
+# Legacy bootstrap imports commented out to break circular dependencies  
+# from the_alchemiser.shared.config.bootstrap import (
+#     TradingBootstrapContext,
+#     bootstrap_from_container,
+#     bootstrap_from_service_manager,
+#     bootstrap_traditional,
+# )
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.logging.logging_utils import (
@@ -399,10 +401,12 @@ class TradingEngine:
                 )
                 self.use_execution_v2 = False
 
-                # Fallback to legacy execution
-                from the_alchemiser.execution.core.manager import ExecutionManager
-
-                self._execution_manager_for_multi_strategy = ExecutionManager(self)
+                # Legacy execution manager commented out to remove fallback dependencies
+                # from the_alchemiser.execution.core.manager import ExecutionManager
+                # self._execution_manager_for_multi_strategy = ExecutionManager(self)
+                raise TradingClientError(
+                    "Legacy execution modules are no longer supported. Use execution_v2 instead."
+                )
         except Exception as e:
             raise TradingClientError(
                 f"Failed to initialize account service or execution manager: {e}",

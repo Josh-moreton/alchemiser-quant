@@ -14,8 +14,15 @@ import logging
 import os
 import sys
 
+# CLI formatter imports (moved from function-level)
+from the_alchemiser.shared.cli.cli_formatter import render_footer, render_header
 from the_alchemiser.shared.cli.signal_analyzer import SignalAnalyzer
 from the_alchemiser.shared.config.config import Settings, load_settings
+
+# DI imports (required for v2 architecture)
+from the_alchemiser.shared.config.container import (
+    ApplicationContainer,
+)
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.logging.logging_utils import (
     configure_production_logging,
@@ -30,20 +37,7 @@ from the_alchemiser.shared.types.exceptions import (
     StrategyExecutionError,
     TradingClientError,
 )
-
-# DI imports (optional)
-try:
-    from the_alchemiser.shared.config.container import (
-        ApplicationContainer,
-    )
-    from the_alchemiser.shared.utils.service_factory import ServiceFactory
-
-    DI_AVAILABLE = True
-except ImportError:
-    DI_AVAILABLE = False
-
-# CLI formatter imports (moved from function-level)
-from the_alchemiser.shared.cli.cli_formatter import render_footer, render_header
+from the_alchemiser.shared.utils.service_factory import ServiceFactory
 
 # Global DI container
 # Use Optional for proper type inference by static type checkers
@@ -64,16 +58,12 @@ class TradingSystem:
         """Initialize dependency injection system."""
         global _di_container
 
-        if DI_AVAILABLE:
-            self.container = ApplicationContainer()
-            _di_container = (
-                self.container
-            )  # Keep global for backward compatibility during transition
-            ServiceFactory.initialize(self.container)
-            self.logger.info("Dependency injection initialized")
-        else:
-            self.logger.error("DI not available - system requires dependency injection")
-            raise ConfigurationError("Dependency injection system is required but not available")
+        self.container = ApplicationContainer()
+        _di_container = (
+            self.container
+        )  # Keep global for backward compatibility during transition
+        ServiceFactory.initialize(self.container)
+        self.logger.info("Dependency injection initialized")
 
     def analyze_signals(self, show_tracking: bool = False) -> bool:
         """Generate and display strategy signals without trading.
