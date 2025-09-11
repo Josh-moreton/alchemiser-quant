@@ -256,7 +256,8 @@ class PositionService:
 
         """
         positions = self._trading.get_positions_dict()
-        quantity = positions.get(symbol, 0.0)
+        position_info = positions.get(symbol, {})
+        quantity = float(position_info.get("qty", 0)) if position_info else 0.0
 
         if floats_equal(quantity, 0.0):
             return {

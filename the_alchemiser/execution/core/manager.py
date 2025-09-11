@@ -423,7 +423,8 @@ class ExecutionManager(MultiStrategyExecutor):
             trade_calculations = {}
             for symbol, target_allocation in consolidated_portfolio.items():
                 target_value = target_allocation * current_portfolio_value
-                current_value = float(current_positions.get(symbol, 0))
+                position_info = current_positions.get(symbol, {})
+                current_value = float(position_info.get("market_value", 0)) if position_info else 0.0
                 trade_amount = target_value - current_value
                 trade_calculations[symbol] = {
                     "target_allocation": target_allocation,
