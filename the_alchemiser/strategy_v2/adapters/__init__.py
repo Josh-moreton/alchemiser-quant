@@ -8,6 +8,11 @@ Provides thin wrappers around shared data sources for strategy consumption.
 
 from __future__ import annotations
 
+from .feature_pipeline import FeaturePipeline
+from .market_data_adapter import MarketDataProvider, StrategyMarketDataAdapter
+
 __all__ = [
-    # Will be added in Phase 2
+    "FeaturePipeline",
+    "MarketDataProvider",
+    "StrategyMarketDataAdapter",
 ]

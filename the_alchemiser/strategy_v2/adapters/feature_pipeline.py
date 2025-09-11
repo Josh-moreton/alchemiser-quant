@@ -1,0 +1,275 @@
+#!/usr/bin/env python3
+"""Business Unit: strategy | Status: current
+
+Feature pipeline for computed features and non-financial statistics.
+
+Provides utilities for computing features from raw market data,
+handling float-based statistical calculations with appropriate tolerances.
+"""
+
+from __future__ import annotations
+
+import logging
+import math
+from typing import Any
+
+import numpy as np
+import pandas as pd
+
+logger = logging.getLogger(__name__)
+
+
+class FeaturePipeline:
+    """Pipeline for computing features from market data.
+    
+    Handles non-financial statistical computations using float arithmetic
+    with appropriate tolerance checks for comparisons.
+    """
+    
+    def __init__(self, default_tolerance: float = 1e-9) -> None:
+        """Initialize feature pipeline.
+        
+        Args:
+            default_tolerance: Default tolerance for float comparisons
+        """
+        self._tolerance = default_tolerance
+        self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+    
+    def compute_returns(self, bars: list[dict[str, Any]]) -> list[float]:
+        """Compute price returns from bar data.
+        
+        Args:
+            bars: List of bar dictionaries with 'c' (close) prices
+            
+        Returns:
+            List of returns (excluding first bar which has no prior price)
+            
+        Note:
+            Uses float arithmetic for statistical calculations.
+            Returns empty list if insufficient data.
+        """
+        if len(bars) < 2:
+            return []
+        
+        returns = []
+        for i in range(1, len(bars)):
+            try:
+                prev_close = float(bars[i-1]["c"])
+                curr_close = float(bars[i]["c"])
+                
+                if math.isclose(prev_close, 0.0, abs_tol=self._tolerance):
+                    self._logger.warning("Zero or near-zero price encountered in returns calculation")
+                    returns.append(0.0)
+                else:
+                    ret = (curr_close - prev_close) / prev_close
+                    returns.append(ret)
+            except (KeyError, ValueError, TypeError) as e:
+                self._logger.warning(f"Invalid bar data in returns calculation: {e}")
+                returns.append(0.0)
+        
+        return returns
+    
+    def compute_volatility(
+        self, 
+        returns: list[float], 
+        window: int | None = None,
+        annualize: bool = True
+    ) -> float:
+        """Compute volatility from returns.
+        
+        Args:
+            returns: List of returns
+            window: Optional window for rolling volatility (uses all data if None)
+            annualize: Whether to annualize volatility (assumes daily returns)
+            
+        Returns:
+            Volatility as float (0.0 if insufficient data)
+            
+        Note:
+            Uses float arithmetic for statistical calculations.
+        """
+        if not returns or len(returns) < 2:
+            return 0.0
+        
+        try:
+            # Use most recent window if specified
+            data = returns[-window:] if window else returns
+            
+            if len(data) < 2:
+                return 0.0
+            
+            # Calculate standard deviation
+            mean_return = sum(data) / len(data)
+            variance = sum((r - mean_return) ** 2 for r in data) / (len(data) - 1)
+            vol = math.sqrt(variance)
+            
+            # Annualize if requested (assumes daily returns, multiply by sqrt(252))
+            if annualize:
+                vol *= math.sqrt(252)
+            
+            return vol
+            
+        except Exception as e:
+            self._logger.warning(f"Error computing volatility: {e}")
+            return 0.0
+    
+    def compute_moving_average(
+        self, 
+        values: list[float], 
+        window: int
+    ) -> list[float]:
+        """Compute simple moving average.
+        
+        Args:
+            values: List of values
+            window: Window size for moving average
+            
+        Returns:
+            List of moving averages (shorter than input by window-1)
+            
+        Note:
+            Uses float arithmetic for statistical calculations.
+        """
+        if len(values) < window or window <= 0:
+            return []
+        
+        averages = []
+        for i in range(window - 1, len(values)):
+            window_values = values[i - window + 1:i + 1]
+            avg = sum(window_values) / len(window_values)
+            averages.append(avg)
+        
+        return averages
+    
+    def compute_correlation(
+        self, 
+        series1: list[float], 
+        series2: list[float]
+    ) -> float:
+        """Compute correlation between two series.
+        
+        Args:
+            series1: First time series
+            series2: Second time series
+            
+        Returns:
+            Correlation coefficient (-1 to 1, 0.0 if error)
+            
+        Note:
+            Uses float arithmetic with tolerance checking.
+        """
+        if len(series1) != len(series2) or len(series1) < 2:
+            return 0.0
+        
+        try:
+            # Convert to numpy for efficient computation
+            arr1 = np.array(series1, dtype=float)
+            arr2 = np.array(series2, dtype=float)
+            
+            # Use numpy correlation
+            corr_matrix = np.corrcoef(arr1, arr2)
+            correlation = corr_matrix[0, 1]
+            
+            # Handle NaN case
+            if math.isnan(correlation):
+                return 0.0
+            
+            return float(correlation)
+            
+        except Exception as e:
+            self._logger.warning(f"Error computing correlation: {e}")
+            return 0.0
+    
+    def is_close(self, a: float, b: float, tolerance: float | None = None) -> bool:
+        """Check if two float values are close within tolerance.
+        
+        Args:
+            a: First value
+            b: Second value
+            tolerance: Optional tolerance (uses default if None)
+            
+        Returns:
+            True if values are close within tolerance
+            
+        Note:
+            Helper for float comparisons in non-financial contexts.
+        """
+        tol = tolerance if tolerance is not None else self._tolerance
+        return math.isclose(a, b, abs_tol=tol)
+    
+    def extract_price_features(
+        self, 
+        bars: list[dict[str, Any]], 
+        lookback_window: int = 20
+    ) -> dict[str, float]:
+        """Extract common price-based features from bar data.
+        
+        Args:
+            bars: List of bar dictionaries
+            lookback_window: Window for rolling calculations
+            
+        Returns:
+            Dictionary of computed features
+            
+        Note:
+            Returns 0.0 for features that cannot be computed.
+        """
+        if not bars:
+            return {}
+        
+        features: dict[str, float] = {}
+        
+        try:
+            # Extract prices
+            closes = [float(bar["c"]) for bar in bars]
+            highs = [float(bar["h"]) for bar in bars]
+            lows = [float(bar["l"]) for bar in bars]
+            volumes = [float(bar["v"]) for bar in bars]
+            
+            # Current price
+            features["current_price"] = closes[-1] if closes else 0.0
+            
+            # Returns and volatility
+            returns = self.compute_returns(bars)
+            features["volatility"] = self.compute_volatility(returns, window=lookback_window)
+            
+            # Moving averages
+            if len(closes) >= lookback_window:
+                ma = self.compute_moving_average(closes, lookback_window)
+                features["ma_ratio"] = closes[-1] / ma[-1] if ma and not self.is_close(ma[-1], 0.0) else 1.0
+            else:
+                features["ma_ratio"] = 1.0
+            
+            # High-low range (normalized by close)
+            if len(bars) >= lookback_window:
+                recent_bars = bars[-lookback_window:]
+                max_high = max(float(bar["h"]) for bar in recent_bars)
+                min_low = min(float(bar["l"]) for bar in recent_bars)
+                current_close = closes[-1]
+                
+                if not self.is_close(max_high, min_low):
+                    features["price_position"] = (current_close - min_low) / (max_high - min_low)
+                else:
+                    features["price_position"] = 0.5
+            else:
+                features["price_position"] = 0.5
+            
+            # Volume features
+            if len(volumes) >= lookback_window:
+                avg_volume = sum(volumes[-lookback_window:]) / lookback_window
+                features["volume_ratio"] = volumes[-1] / avg_volume if not self.is_close(avg_volume, 0.0) else 1.0
+            else:
+                features["volume_ratio"] = 1.0
+            
+        except Exception as e:
+            self._logger.warning(f"Error extracting price features: {e}")
+            # Return default features on error
+            features = {
+                "current_price": 0.0,
+                "volatility": 0.0,
+                "ma_ratio": 1.0,
+                "price_position": 0.5,
+                "volume_ratio": 1.0,
+            }
+        
+        return features
