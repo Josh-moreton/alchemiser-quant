@@ -57,7 +57,8 @@ class FeaturePipeline:
                 prev_close = float(bars[i-1]["c"])
                 curr_close = float(bars[i]["c"])
                 
-                if math.isclose(prev_close, 0.0, abs_tol=self._tolerance):
+                # Use direct comparison with a small epsilon for financial price data
+                if prev_close < 1e-6:
                     self._logger.warning("Zero or near-zero price encountered in returns calculation")
                     returns.append(0.0)
                 else:
