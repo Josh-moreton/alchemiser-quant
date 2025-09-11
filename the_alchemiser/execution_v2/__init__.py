@@ -13,6 +13,6 @@ from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
 
 __all__ = [
-    "ExecutionManager", 
+    "ExecutionManager",
     "ExecutionResultDTO",
 ]
