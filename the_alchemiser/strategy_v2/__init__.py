@@ -17,6 +17,7 @@ Public API:
 from __future__ import annotations
 
 # Core imports
+from .core.orchestrator import StrategyOrchestrator
 from .core.registry import get_strategy, list_strategies, register_strategy
 from .models.context import StrategyContext
 
@@ -24,6 +25,7 @@ from .models.context import StrategyContext
 __all__ = [
     # Core components
     "StrategyContext",
+    "StrategyOrchestrator",
     "get_strategy", 
     "list_strategies",
     "register_strategy",
