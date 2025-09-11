@@ -1,12 +1,23 @@
-"""Business Unit: strategy | Status: current.
+#!/usr/bin/env python3
+"""Business Unit: strategy | Status: legacy
 
-KLM Strategy Module.
+Compatibility shim for moved KLM engine.
 
-Ensemble strategy with multiple variants for different market conditions.
+This module provides backward compatibility for imports of the KLM engine
+which has been moved to strategy_v2. This shim will be removed in a future release.
 """
 
-from __future__ import annotations
+import warnings
 
-from .engine import KLMEngine
+# Issue deprecation warning
+warnings.warn(
+    "Importing KLM engine from strategy.engines.klm is deprecated. "
+    "Use strategy_v2.engines.klm instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
+# Re-export from new location
+from ...strategy_v2.engines.klm.engine import KLMEngine
 
 __all__ = ["KLMEngine"]

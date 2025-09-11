@@ -1,12 +1,23 @@
-"""Business Unit: strategy | Status: current.
+#!/usr/bin/env python3
+"""Business Unit: strategy | Status: legacy
 
-Nuclear Strategy Module.
+Compatibility shim for moved Nuclear engine.
 
-High-frequency nuclear energy trading strategy focused on uranium and nuclear energy ETFs.
+This module provides backward compatibility for imports of the Nuclear engine
+which has been moved to strategy_v2. This shim will be removed in a future release.
 """
 
-from __future__ import annotations
+import warnings
 
-from .engine import NuclearEngine
+# Issue deprecation warning
+warnings.warn(
+    "Importing Nuclear engine from strategy.engines.nuclear is deprecated. "
+    "Use strategy_v2.engines.nuclear instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
+# Re-export from new location
+from ...strategy_v2.engines.nuclear.engine import NuclearEngine
 
 __all__ = ["NuclearEngine"]

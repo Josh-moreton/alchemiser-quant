@@ -1,12 +1,23 @@
-"""Business Unit: strategy | Status: current.
+#!/usr/bin/env python3
+"""Business Unit: strategy | Status: legacy
 
-TECL Strategy Module.
+Compatibility shim for moved TECL engine.
 
-Technology-focused leverage strategy with volatility protection.
+This module provides backward compatibility for imports of the TECL engine
+which has been moved to strategy_v2. This shim will be removed in a future release.
 """
 
-from __future__ import annotations
+import warnings
 
-from .engine import TECLEngine
+# Issue deprecation warning
+warnings.warn(
+    "Importing TECL engine from strategy.engines.tecl is deprecated. "
+    "Use strategy_v2.engines.tecl instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
+# Re-export from new location  
+from ...strategy_v2.engines.tecl.engine import TECLEngine
 
 __all__ = ["TECLEngine"]
