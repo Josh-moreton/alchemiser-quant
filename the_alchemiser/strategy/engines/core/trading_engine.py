@@ -349,9 +349,51 @@ class TradingEngine:
             # Create proper ExecutionManager for multi-strategy coordination
             # The TradingServicesFacade is for focused execution tasks
             # Multi-strategy execution requires the dedicated ExecutionManager
-            from the_alchemiser.execution.core.manager import ExecutionManager
-
-            self._execution_manager_for_multi_strategy = ExecutionManager(self)
+            
+            # NEW: Try execution_v2 first, fallback to legacy
+            try:
+                from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager as ExecutionManagerV2
+                
+                # Create execution_v2 manager with AlpacaManager
+                self._execution_manager_v2 = ExecutionManagerV2(self._alpaca_manager)
+                self.use_execution_v2 = True
+                self.logger.info("✅ Using NEW execution_v2 module")
+                
+                # Set up execution adapter for legacy interface compatibility
+                class ExecutionV2Adapter:
+                    """Adapter to make execution_v2 compatible with legacy MultiStrategyExecutor interface."""
+                    
+                    def __init__(self, execution_manager_v2):
+                        self.execution_manager_v2 = execution_manager_v2
+                    
+                    def execute_rebalance_plan(self, plan):
+                        """Execute rebalance plan using execution_v2."""
+                        result = self.execution_manager_v2.execute_rebalance_plan(plan)
+                        
+                        # Convert to legacy format for compatibility
+                        return [{
+                            "symbol": order.symbol,
+                            "action": order.action,
+                            "quantity": float(order.shares),
+                            "order_id": order.order_id,
+                            "success": order.success,
+                            "error": order.error_message,
+                        } for order in result.orders]
+                    
+                    def execute_multi_strategy(self, signals=None, portfolio=None, attribution=None):
+                        """Legacy fallback method for compatibility."""
+                        # This should not be called if we're using execution_v2 properly
+                        raise NotImplementedError("Legacy execution not available with execution_v2")
+                
+                self._execution_manager_for_multi_strategy = ExecutionV2Adapter(self._execution_manager_v2)
+                
+            except ImportError as import_error:
+                self.logger.warning(f"⚠️ execution_v2 not available ({import_error}), using legacy execution")
+                self.use_execution_v2 = False
+                
+                # Fallback to legacy execution
+                from the_alchemiser.execution.core.manager import ExecutionManager
+                self._execution_manager_for_multi_strategy = ExecutionManager(self)
         except Exception as e:
             raise TradingClientError(
                 f"Failed to initialize account service or execution manager: {e}",
@@ -1003,6 +1045,11 @@ class TradingEngine:
                             f"ALLOCATION: {symbol}: {allocation:.3f} ({allocation * 100:.1f}%)"
                         )
 
+            if hasattr(self, 'use_execution_v2') and self.use_execution_v2:
+                logging.info("🚀 Using execution_v2 for order placement")
+            else:
+                logging.info("⚠️ Using legacy execution module")
+                
             logging.info("Calling _multi_strategy_executor.execute_multi_strategy()...")
 
             # NEW APPROACH: Generate rebalance plan DTO from portfolio allocation
