@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: execution | Status: current.
+"""Business Unit: execution | Status: legacy.
 
 Trading Engine Bootstrap Module.
 
