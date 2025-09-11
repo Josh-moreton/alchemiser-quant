@@ -134,7 +134,17 @@ def build_portfolio_state_data(
     """Build portfolio state data for reporting purposes."""
     from the_alchemiser.shared.math.trading_math import calculate_allocation_discrepancy
 
-    portfolio_value = float(account_info.get("portfolio_value", 0.0))
+    portfolio_value_raw = account_info.get("portfolio_value")
+    if portfolio_value_raw is None:
+        raise ValueError(
+            "Portfolio value not available in account info for reporting. "
+            "Cannot build portfolio state data without portfolio value."
+        )
+
+    try:
+        portfolio_value = float(portfolio_value_raw)
+    except (ValueError, TypeError) as e:
+        raise ValueError(f"Invalid portfolio value format: {portfolio_value_raw}") from e
 
     # Calculate target values (simple implementation)
     target_values = {

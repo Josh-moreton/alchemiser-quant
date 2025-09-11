@@ -405,8 +405,14 @@ def render_account_info(account_info: dict[str, Any], console: Console | None = 
     portfolio_history = account_info.get("portfolio_history", {})
     open_positions = account_info.get("open_positions", [])
 
-    # Account basics
-    portfolio_value = account_data.get("portfolio_value", account_data.get("equity", 0))
+    # Account basics - fail fast if portfolio_value not available
+    portfolio_value = account_data.get("portfolio_value") or account_data.get("equity")
+    if portfolio_value is None:
+        raise ValueError(
+            "Portfolio value not available in account data. "
+            "Check API connection and account status. "
+            "Cannot display portfolio information without portfolio value."
+        )
     cash = account_data.get("cash", 0)
     buying_power = account_data.get("buying_power", 0)
 
@@ -555,13 +561,25 @@ def render_target_vs_current_allocations(
         deltas = allocation_comparison.get("deltas", {})
         # Derive portfolio_value from sum of target values if not present
         try:
-            portfolio_value = sum(target_values.values()) or account_info.get(
-                "portfolio_value", 0.0
-            )
-        except Exception:
-            portfolio_value = account_info.get("portfolio_value", 0.0)
+            portfolio_value = sum(target_values.values())
+            if portfolio_value <= 0:
+                portfolio_value = account_info.get("portfolio_value")
+                if portfolio_value is None:
+                    raise ValueError("Portfolio value is 0 or not available")
+        except Exception as e:
+            portfolio_value = account_info.get("portfolio_value")
+            if portfolio_value is None:
+                raise ValueError(
+                    f"Unable to determine portfolio value: {e}. "
+                    "Portfolio value is required for allocation comparison display."
+                ) from e
     else:
-        portfolio_value = account_info.get("portfolio_value", 0.0)
+        portfolio_value = account_info.get("portfolio_value")
+        if portfolio_value is None:
+            raise ValueError(
+                "Portfolio value not available in account info. "
+                "Cannot calculate target allocation values without portfolio value."
+            )
         target_values = {
             symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()
         }
@@ -930,12 +948,17 @@ def render_multi_strategy_summary(
             base_account.update(cast(EnrichedAccountInfo, enriched_account))
 
         account_content = Text()
-        pv_raw = base_account.get("portfolio_value", base_account.get("equity", 0))
+        pv_raw = base_account.get("portfolio_value") or base_account.get("equity")
+        if pv_raw is None:
+            raise ValueError(
+                "Portfolio value not available in execution result account info. "
+                "Cannot display execution summary without portfolio value."
+            )
         cash_raw = base_account.get("cash", 0)
         try:
             pv = float(pv_raw)
-        except Exception:
-            pv = 0.0
+        except Exception as e:
+            raise ValueError(f"Invalid portfolio value format: {pv_raw}") from e
         try:
             cash = float(cash_raw)
         except Exception:
@@ -1045,7 +1068,7 @@ def render_multi_strategy_summary_dto(
         try:
             # Convert account info from execution result
             account_dict = dict(summary.execution_result.account_info_after)
-            current_positions = {}  # Extract from final_portfolio_state if available
+            current_positions: dict[str, Any] = {}  # Extract from final_portfolio_state if available
 
             render_target_vs_current_allocations(
                 summary.execution_result.consolidated_portfolio,

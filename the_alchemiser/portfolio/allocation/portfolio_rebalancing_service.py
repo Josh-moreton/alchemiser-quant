@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 from the_alchemiser.execution.core.trading_services_facade import (
     TradingServicesFacade as TradingServiceManager,
@@ -184,8 +184,8 @@ class PortfolioRebalancingService:
                 try:
                     account_summary = self.trading_manager.get_account_summary()
                     if account_summary:
-                        buying_power = account_summary.get("buying_power", 0)
-                        cash = account_summary.get("cash", 0)
+                        buying_power = account_summary.buying_power
+                        cash = account_summary.cash
 
                         logger.error(
                             f"🚨 EMERGENCY_RECOVERY_DATA: buying_power=${buying_power}, cash=${cash}"
@@ -193,12 +193,12 @@ class PortfolioRebalancingService:
 
                         # Use buying_power as emergency portfolio value for fresh accounts
                         if buying_power > 0:
-                            portfolio_value = Decimal(str(buying_power))
+                            portfolio_value = buying_power
                             logger.error(
                                 f"🚨 EMERGENCY_RECOVERY_SUCCESS: Using buying_power as portfolio_value=${portfolio_value}"
                             )
                         elif cash > 0:
-                            portfolio_value = Decimal(str(cash))
+                            portfolio_value = cash
                             logger.error(
                                 f"🚨 EMERGENCY_RECOVERY_SUCCESS: Using cash as portfolio_value=${portfolio_value}"
                             )
@@ -616,12 +616,12 @@ class PortfolioRebalancingService:
             portfolio_context = {
                 "total_value": portfolio_value,
                 "portfolio_value": portfolio_value,
-                "cash_value": account_summary.get("cash", Decimal("0")),
-                "equity_value": account_summary.get("equity", Decimal("0")),
-                "buying_power": account_summary.get("buying_power", Decimal("0")),
-                "day_pnl": account_summary.get("unrealized_pl", Decimal("0")),
-                "day_pnl_percent": account_summary.get("unrealized_plpc", Decimal("0")),
-                "account_id": account_summary.get("account_number"),
+                "cash_value": account_summary.cash if account_summary else Decimal("0"),
+                "equity_value": account_summary.equity if account_summary else Decimal("0"),
+                "buying_power": account_summary.buying_power if account_summary else Decimal("0"),
+                "day_pnl": Decimal("0"),  # AccountMetrics doesn't have unrealized_pl
+                "day_pnl_percent": Decimal("0"),  # AccountMetrics doesn't have unrealized_plpc
+                "account_id": account_summary.account_id if account_summary else None,
             }
 
             # Convert portfolio data to DTO directly using existing DTO structure
@@ -688,7 +688,7 @@ class PortfolioRebalancingService:
                 portfolio_id="main_portfolio",
                 positions=position_dtos,
                 metrics=metrics,
-                metadata=portfolio_context.get("metadata", {}),
+                metadata={},
             )
 
         except Exception as e:
@@ -889,13 +889,26 @@ class PortfolioRebalancingService:
 
         # Default values for execution configuration
         portfolio_id = "main_portfolio"
-        execution_priority = (
+        execution_priority_raw = (
             execution_config.get("execution_priority", "BALANCE") if execution_config else "BALANCE"
         )
-        time_in_force = execution_config.get("time_in_force", "DAY") if execution_config else "DAY"
+        time_in_force_raw = execution_config.get("time_in_force", "DAY") if execution_config else "DAY"
+        
+        # Ensure proper typing for literals with proper casting
+        if str(execution_priority_raw) in ["SPEED", "COST", "BALANCE"]:
+            execution_priority: Literal["SPEED", "COST", "BALANCE"] = str(execution_priority_raw)  # type: ignore
+        else:
+            execution_priority = "BALANCE"
+            
+        if str(time_in_force_raw) in ["DAY", "GTC", "IOC", "FOK"]:
+            time_in_force: Literal["DAY", "GTC", "IOC", "FOK"] = str(time_in_force_raw)  # type: ignore
+        else:
+            time_in_force = "DAY"
 
         # Generate correlation ID for this rebalance operation
         correlation_id = f"rebalance_{portfolio_id}_{rebalance_plan.correlation_id or 'unknown'}"
+
+        import uuid
 
         for item in rebalance_plan.items:
             # Skip if no trade needed or action is HOLD
@@ -904,25 +917,31 @@ class PortfolioRebalancingService:
 
             # Determine order side and quantity based on trade amount
             if item.trade_amount > 0:
-                side = "buy"
+                side: Literal["BUY", "SELL"] = "BUY"
                 quantity = item.trade_amount
             else:
-                side = "sell"
+                side = "SELL"
                 quantity = abs(item.trade_amount)
 
             # Create order request
             order_request = OrderRequestDTO(
+                correlation_id=correlation_id,
+                causation_id=rebalance_plan.causation_id or correlation_id,
+                timestamp=rebalance_plan.timestamp,
+                request_id=f"req_{uuid.uuid4().hex[:12]}",
+                portfolio_id=portfolio_id,
                 symbol=item.symbol,
                 quantity=quantity,
                 side=side,
-                order_type="market",  # Default to market orders for rebalancing
+                order_type="MARKET",  # Default to market orders for rebalancing
                 time_in_force=time_in_force,
-                correlation_id=correlation_id,
-                portfolio_id=portfolio_id,
                 execution_priority=execution_priority,
-                created_at=rebalance_plan.timestamp,
+                rebalance_plan_id=rebalance_plan.plan_id,
+                reason=f"Portfolio rebalancing for {item.symbol}",
             )
             order_requests.append(order_request)
+
+        return order_requests
 
     def _get_current_position_values(self) -> dict[str, Decimal]:
         """Get current position values using trading manager."""
@@ -1041,16 +1060,13 @@ class PortfolioRebalancingService:
             logger.info(f"ACCOUNT_SUMMARY_CONTENT: {account_summary}")
 
             if account_summary:
-                # Try portfolio_value first, then equity as fallback (aligned with CLI display logic)
-                portfolio_value_raw = account_summary.get("portfolio_value")
-                equity_raw = account_summary.get("equity")
+                # AccountSummary doesn't have portfolio_value field, use equity directly
+                equity_raw = account_summary.equity
 
-                logger.info(f"ACCOUNT_PORTFOLIO_VALUE: {portfolio_value_raw}")
                 logger.info(f"ACCOUNT_EQUITY: {equity_raw}")
 
-                final_value = portfolio_value_raw if portfolio_value_raw is not None else equity_raw
-                if final_value is not None:
-                    portfolio_value = Decimal(str(final_value))
+                if equity_raw is not None:
+                    portfolio_value = equity_raw
                     logger.info(f"PORTFOLIO_VALUE_FROM_ACCOUNT_SUMMARY: ${portfolio_value}")
 
                     # === CRITICAL DATA VALIDATION ===
@@ -1069,15 +1085,21 @@ class PortfolioRebalancingService:
                         return portfolio_value
                     logger.info(f"✅ VALID_PORTFOLIO_VALUE_FROM_ACCOUNT: ${portfolio_value}")
                     return portfolio_value
-                logger.error("❌ BOTH_PORTFOLIO_VALUE_AND_EQUITY_ARE_NONE")
+                logger.error("❌ EQUITY_IS_NONE")
             else:
                 logger.error("❌ ACCOUNT_SUMMARY_IS_NONE")
 
             logger.error("❌ ALL_PORTFOLIO_VALUE_METHODS_FAILED")
             logger.error("🚨 CRITICAL: Cannot proceed with rebalancing without portfolio value")
             logger.error("🚨 This explains why no trades are being generated!")
-            logger.error("🚨 Returning zero portfolio value for proper error handling")
-            return Decimal("0")
+
+            # Raise exception instead of returning 0 to prevent silent failures
+            raise ValueError(
+                "Unable to fetch portfolio value from any source. "
+                "Check: (1) Account has funds/positions, (2) API credentials are valid, "
+                "(3) Correct trading environment (paper vs live), (4) Account is not restricted. "
+                "Portfolio value is required for trade calculations."
+            )
 
         except Exception as e:
             # Fallback to account summary method if DTO method fails
@@ -1087,11 +1109,9 @@ class PortfolioRebalancingService:
                 logger.info("=== TRYING EMERGENCY FALLBACK ===")
                 account_summary = self.trading_manager.get_account_summary()
                 if account_summary:
-                    # Try portfolio_value first, then equity as fallback (aligned with CLI display logic)
-                    portfolio_value = account_summary.get(
-                        "portfolio_value", account_summary.get("equity", 0)
-                    )
-                    result = Decimal(str(portfolio_value))
+                    # Use equity from AccountSummary
+                    portfolio_value = account_summary.equity
+                    result = portfolio_value
                     logger.info(f"EMERGENCY_FALLBACK_VALUE: ${result}")
 
                     if result <= 0:
@@ -1103,7 +1123,18 @@ class PortfolioRebalancingService:
 
                     return result
                 logger.error("❌ EMERGENCY_FALLBACK_FAILED")
-                return Decimal("0")
+
+                # Raise exception instead of returning 0 to prevent silent failures
+                raise ValueError(
+                    "Emergency fallback failed to fetch portfolio value. "
+                    "Account summary returned None or empty data. "
+                    "Verify API connection and account status."
+                )
             except Exception as fallback_e:
                 logger.error(f"❌ EMERGENCY_FALLBACK_EXCEPTION: {fallback_e}")
-                return Decimal("0")
+
+                # Raise exception instead of returning 0 to prevent silent failures
+                raise ValueError(
+                    f"Emergency fallback exception during portfolio value fetch: {fallback_e}. "
+                    "Unable to determine portfolio value from any available source."
+                ) from fallback_e
