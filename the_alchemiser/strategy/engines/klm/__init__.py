@@ -18,6 +18,6 @@ warnings.warn(
 )
 
 # Re-export from new location
-from ...strategy_v2.engines.klm.engine import KLMEngine
+from the_alchemiser.strategy_v2.engines.klm.engine import KLMEngine
 
 __all__ = ["KLMEngine"]

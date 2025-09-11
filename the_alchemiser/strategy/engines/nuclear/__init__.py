@@ -18,6 +18,6 @@ warnings.warn(
 )
 
 # Re-export from new location
-from ...strategy_v2.engines.nuclear.engine import NuclearEngine
+from the_alchemiser.strategy_v2.engines.nuclear.engine import NuclearEngine
 
 __all__ = ["NuclearEngine"]

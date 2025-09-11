@@ -18,6 +18,6 @@ warnings.warn(
 )
 
 # Re-export from new location  
-from ...strategy_v2.engines.tecl.engine import TECLEngine
+from the_alchemiser.strategy_v2.engines.tecl.engine import TECLEngine
 
 __all__ = ["TECLEngine"]
