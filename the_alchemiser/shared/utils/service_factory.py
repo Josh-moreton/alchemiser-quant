@@ -5,11 +5,7 @@ Service factory using dependency injection.
 
 from __future__ import annotations
 
-from typing import cast
-
-from the_alchemiser.execution.core.trading_services_facade import (
-    TradingServicesFacade as TradingServiceManager,
-)
+from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
 from the_alchemiser.shared.config.container import (
     ApplicationContainer,
 )
@@ -28,21 +24,22 @@ class ServiceFactory:
         cls._container = container
 
     @classmethod
-    def create_trading_service_manager(
+    def create_execution_manager(
         cls,
         api_key: str | None = None,
         secret_key: str | None = None,
         paper: bool | None = None,
-    ) -> TradingServiceManager:
-        """Create TradingServiceManager using DI or traditional method."""
+    ) -> ExecutionManager:
+        """Create ExecutionManager using DI or traditional method."""
         if cls._container is not None and all(x is None for x in [api_key, secret_key, paper]):
-            # Use DI container
-            return cast(TradingServiceManager, cls._container.services.trading_service_manager())
-        # Backward compatibility: direct instantiation
+            # Use DI container - get ExecutionManager from services
+            return cls._container.services.execution_manager()
+        
+        # Direct instantiation for backward compatibility
         api_key = api_key or "default_key"
         secret_key = secret_key or "default_secret"
         paper = paper if paper is not None else True
-        return TradingServiceManager(api_key, secret_key, paper)
+        return ExecutionManager.create_with_config(api_key, secret_key, paper=paper)
 
     @classmethod
     def get_container(cls) -> ApplicationContainer | None:

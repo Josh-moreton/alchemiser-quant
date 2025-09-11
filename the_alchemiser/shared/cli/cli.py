@@ -179,11 +179,15 @@ def signal(
                     )
                     raise typer.Exit(1)
 
-                from the_alchemiser.execution.core.trading_services_facade import (
-                    TradingServicesFacade as TradingServiceManager,
-                )
+                # Legacy TradingServiceManager import commented out
+                # from the_alchemiser.execution.core.trading_services_facade import (
+                #     TradingServicesFacade as TradingServiceManager,
+                # )
+                # tsm = TradingServiceManager(api_key, secret_key, paper=True)
 
-                tsm = TradingServiceManager(api_key, secret_key, paper=True)
+                # Use AlpacaManager directly instead of legacy facade
+                from the_alchemiser.shared.brokers import AlpacaManager
+                alpaca_manager = AlpacaManager(api_key, secret_key, paper=True)
 
                 # Adapter implementing MarketDataPort
                 class _MarketDataPortAdapter(MarketDataPort):
@@ -591,23 +595,14 @@ def status() -> None:
 
         account_info: dict[str, Any] = dict(trader.get_account_info())
 
-        # Always use enriched typed account summary (using typed domain)
-        from the_alchemiser.execution.core.trading_services_facade import (
-            TradingServicesFacade as TradingServiceManager,
-        )
+        # Always use basic account info instead of enriched typed summary
+        # Legacy TradingServiceManager import commented out to remove fallback dependencies
+        # from the_alchemiser.execution.core.trading_services_facade import (
+        #     TradingServicesFacade as TradingServiceManager,
+        # )
 
-        tsm: TradingServiceManager | None = None
-        try:
-            api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not is_live)
-            if not api_key or not secret_key:
-                raise RuntimeError("Alpaca credentials not available")
-            tsm = TradingServiceManager(api_key, secret_key, paper=not is_live)
-            enriched = tsm.get_account_summary_enriched()
-            # Extract the summary from the DTO
-            if enriched and enriched.summary:
-                account_info = enriched.summary.model_dump()
-        except Exception as e:
-            console.print(f"[dim yellow]Enriched account summary unavailable: {e}[/dim yellow]")
+        # Use basic account info from TradingEngine instead of legacy enriched summary
+        # This removes dependency on legacy execution modules
 
         # AccountInfo is always returned (never None), so this check is always true
         # Cast to dict[str, Any] for render_account_info compatibility
