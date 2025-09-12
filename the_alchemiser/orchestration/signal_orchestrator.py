@@ -256,7 +256,9 @@ class SignalOrchestrator:
             # Convert strategy allocations to Decimal for event
             strategy_allocations = {}
             allocations = get_strategy_allocations(self.settings)
-            for strategy_name, allocation in allocations.items():
+            for strategy_type, allocation in allocations.items():
+                # Convert StrategyType enum to string for event schema compatibility
+                strategy_name = strategy_type.value
                 strategy_allocations[strategy_name] = Decimal(str(allocation))
 
             # Convert consolidated portfolio to Decimal for event  

@@ -9,7 +9,6 @@ objects with proper confidence values and target allocations.
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
@@ -17,6 +16,7 @@ from typing import Any
 import pandas as pd
 
 from the_alchemiser.shared.config.confidence_config import ConfidenceConfig, NuclearConfidenceConfig
+from the_alchemiser.shared.logging.logging_utils import get_trading_logger
 from the_alchemiser.shared.types import Confidence, StrategyEngine, StrategySignal
 from the_alchemiser.shared.types.exceptions import StrategyExecutionError
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
@@ -32,8 +32,16 @@ class NuclearEngine(StrategyEngine):
     """Typed Nuclear Strategy Engine using MarketDataPort and producing StrategySignal objects."""
 
     def __init__(self, market_data_port: MarketDataPort) -> None:
+        """Initialize Nuclear strategy engine.
+
+        Args:
+            market_data_port: Market data provider implementing MarketDataPort protocol
+
+        """
         self.market_data_port = market_data_port
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_trading_logger(
+            __name__, strategy="Nuclear", module="strategy.engines.nuclear"
+        )
         self.indicators = TechnicalIndicators()
         self.confidence_config = ConfidenceConfig.default()
         # pure strategy evaluated via nuclear_logic.evaluate_nuclear_strategy
@@ -136,12 +144,12 @@ class NuclearEngine(StrategyEngine):
         # TODO: Remove this deprecated mapping dependency
         # This should be replaced with direct DTO construction
         # For now, we'll implement the required functionality directly
-        def symbol_str_to_symbol(symbol_str: str):
+        def symbol_str_to_symbol(symbol_str: str) -> Symbol:
             from the_alchemiser.shared.value_objects.symbol import Symbol
 
             return Symbol(symbol_str)
 
-        def bars_to_dataframe(bars):
+        def bars_to_dataframe(bars: list[Any] | None) -> pd.DataFrame:
             # Simplified conversion - replace with proper implementation
             import pandas as pd
 
@@ -175,12 +183,12 @@ class NuclearEngine(StrategyEngine):
                 if "Close" not in df.columns:
                     self.logger.warning(f"Missing 'Close' column for {symbol}, skipping indicators")
                     continue
-                    
+
                 close = df["Close"]
                 if close.empty:
                     self.logger.warning(f"Empty 'Close' data for {symbol}, skipping indicators")
                     continue
-                    
+
                 indicators[symbol] = {
                     "rsi_10": safe_get_indicator(close, self.indicators.rsi, 10),
                     "rsi_20": safe_get_indicator(close, self.indicators.rsi, 20),
@@ -330,11 +338,10 @@ class NuclearEngine(StrategyEngine):
                 break
 
             # Check for volatility hedge conditions (VIX-related symbols)
-            if check_symbol in ["UVXY", "VIX"] and current_price > 0:
+            if check_symbol in ["UVXY", "VIX"] and current_price > 0 and current_price > 15:
                 # Assume volatility hedge if UVXY price is elevated
-                if current_price > 15:  # UVXY elevated threshold
-                    confidence = config.volatility_hedge_confidence
-                    break
+                confidence = config.volatility_hedge_confidence
+                break
 
             # Market regime confidence (moderate overbought/oversold)
             if rsi_val > config.rsi_moderate_overbought or rsi_val < config.rsi_moderate_oversold:
