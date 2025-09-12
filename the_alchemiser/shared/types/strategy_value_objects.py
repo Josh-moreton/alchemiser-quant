@@ -1,8 +1,8 @@
-"""Business Unit: strategy | Status: current
+"""Business Unit: shared | Status: current
 
-Strategy value objects for strategy_v2.
+Strategy value objects used across modules.
 
-Core domain objects used by strategy engines.
+Core domain objects for strategy signals and confidence levels.
 """
 
 from __future__ import annotations

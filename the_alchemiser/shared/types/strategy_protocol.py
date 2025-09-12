@@ -1,6 +1,6 @@
-"""Business Unit: strategy | Status: current
+"""Business Unit: shared | Status: current
 
-Strategy engine protocol and base types for strategy_v2.
+Strategy engine protocol definition.
 
 Defines the interface that strategy engines must implement.
 """
@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Protocol, runtime_checkable
 
-from ...shared.types.market_data_port import MarketDataPort
+from .market_data_port import MarketDataPort
 
 
 @runtime_checkable

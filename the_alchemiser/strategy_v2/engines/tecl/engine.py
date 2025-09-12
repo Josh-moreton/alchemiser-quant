@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
@@ -39,8 +39,9 @@ from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.shared.utils.common import ActionType
 from the_alchemiser.shared.value_objects.symbol import Symbol
-from the_alchemiser.strategy_v2.engines.engine import StrategyEngine
-from the_alchemiser.strategy_v2.engines.value_objects import Confidence, StrategySignal
+from the_alchemiser.shared.types import StrategyEngine, StrategySignal, Confidence
+from the_alchemiser.strategy_v2.indicators.indicator_utils import safe_get_indicator
+from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
 from the_alchemiser.strategy_v2.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
 
@@ -517,30 +518,6 @@ class TECLEngine(StrategyEngine):
         except Exception as e:
             logging.error(f"Error generating TECL signals: {e}")
             return []
-
-    def run_once(self) -> list[Alert] | None:
-        """Run strategy once and return alerts (StrategyEngine protocol)."""
-        try:
-            signals = self.generate_signals(datetime.now(UTC))
-            if not signals:
-                return None
-
-            # Convert signals to alerts (simplified implementation)
-            alerts = []
-            for signal in signals:
-                alert = Alert(
-                    message=f"TECL Strategy: {signal.action} {signal.symbol.value} - "
-                    f"{signal.reasoning[:100]}...",
-                    severity="INFO",
-                    symbol=signal.symbol,
-                )
-                alerts.append(alert)
-
-            return alerts
-
-        except Exception as e:
-            logging.error(f"Error in TECL run_once: {e}")
-            return None
 
     def validate_signal(self, signal: StrategySignal) -> bool:
         """Validate generated signal (StrategyEngine protocol)."""
