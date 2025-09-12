@@ -362,3 +362,8 @@ class StrategyExecutionError(AlchemiserError):
         self.strategy_name = strategy_name
         self.symbol = symbol
         self.operation = operation
+
+
+class StrategyValidationError(StrategyExecutionError):
+    """Raised when strategy validation fails."""
+    pass

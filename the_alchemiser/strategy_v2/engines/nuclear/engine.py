@@ -19,13 +19,10 @@ from the_alchemiser.shared.config.confidence_config import ConfidenceConfig, Nuc
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.shared.value_objects.symbol import Symbol
-from the_alchemiser.strategy.engines.engine import StrategyEngine
-from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
-from the_alchemiser.strategy.indicators.indicator_utils import safe_get_indicator
-from the_alchemiser.strategy.indicators.indicators import TechnicalIndicators
-
-from ..value_objects.confidence import Confidence
-from ..value_objects.strategy_signal import StrategySignal
+from the_alchemiser.shared.types import StrategyEngine, StrategySignal, Confidence
+from the_alchemiser.shared.types.exceptions import StrategyExecutionError
+from the_alchemiser.strategy_v2.indicators.indicator_utils import safe_get_indicator
+from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
 from .logic import evaluate_nuclear_strategy
 
 
@@ -132,10 +129,17 @@ class NuclearEngine(StrategyEngine):
 
         Allows a one-off MarketDataPort override for this call.
         """
-        from the_alchemiser.strategy.mappers.mappers import (
-            bars_to_dataframe,
-            symbol_str_to_symbol,
-        )
+        # TODO: Remove this deprecated mapping dependency
+        # This should be replaced with direct DTO construction  
+        # For now, we'll implement the required functionality directly
+        def symbol_str_to_symbol(symbol_str: str):
+            from the_alchemiser.shared.value_objects.symbol import Symbol
+            return Symbol(symbol_str)
+        
+        def bars_to_dataframe(bars):
+            # Simplified conversion - replace with proper implementation
+            import pandas as pd
+            return pd.DataFrame(bars) if bars else pd.DataFrame()
 
         market_data = {}
         port = market_data_port or self.market_data_port
