@@ -86,8 +86,19 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self._paper = paper
         self._base_url = base_url
 
-        # Initialize clients
+        # Initialize clients with graceful failure handling
+        self._trading_client = None
+        self._data_client = None
+        self._initialization_error = None
+        
         try:
+            # Check for network restrictions first
+            self._check_network_connectivity()
+            
+            # Validate credentials are available
+            if not api_key or not secret_key:
+                raise ValueError("Missing required credentials: api_key and secret_key must be provided")
+            
             # Note: TradingClient type stubs may not accept base_url as kwarg; avoid passing extras for mypy
             self._trading_client = TradingClient(
                 api_key=api_key, secret_key=secret_key, paper=paper
@@ -98,18 +109,60 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.info(f"AlpacaManager initialized - Paper: {paper}")
 
         except Exception as e:
-            logger.error(f"Failed to initialize Alpaca clients: {e}")
-            raise
+            self._initialization_error = e
+            logger.warning(f"AlpacaManager initialization failed: {e}")
+            # Don't raise here - allow graceful degradation
+
+    def _check_network_connectivity(self) -> None:
+        """Check network connectivity to Alpaca services.
+        
+        Raises:
+            ConnectionError: If network access to Alpaca services is not available
+        """
+        import socket
+        
+        try:
+            # Try to resolve the Alpaca data endpoint
+            socket.gethostbyname("data.alpaca.markets")
+        except (socket.gaierror, OSError) as e:
+            raise ConnectionError(
+                f"Network access to Alpaca services is not available: {e}. "
+                "This is likely due to network restrictions in the current environment."
+            ) from e
 
     @property
     def trading_client(self) -> TradingClient:
         """Get the trading client for backward compatibility."""
+        if self._trading_client is None:
+            if self._initialization_error:
+                raise RuntimeError(f"AlpacaManager was not properly initialized: {self._initialization_error}")
+            raise RuntimeError("AlpacaManager trading client is not available")
         return self._trading_client
 
     @property
     def data_client(self) -> StockHistoricalDataClient:
         """Get the data client for backward compatibility."""
+        if self._data_client is None:
+            if self._initialization_error:
+                raise RuntimeError(f"AlpacaManager was not properly initialized: {self._initialization_error}")
+            raise RuntimeError("AlpacaManager data client is not available")
         return self._data_client
+
+    def is_initialized(self) -> bool:
+        """Check if AlpacaManager was properly initialized.
+        
+        Returns:
+            True if both trading and data clients are available, False otherwise
+        """
+        return self._trading_client is not None and self._data_client is not None
+
+    def get_initialization_error(self) -> Exception | None:
+        """Get the initialization error if any.
+        
+        Returns:
+            The exception that occurred during initialization, or None if successful
+        """
+        return self._initialization_error
 
     @property
     def is_paper_trading(self) -> bool:
@@ -573,6 +626,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             Tuple of (bid, ask) prices, or None if not available.
 
         """
+        if not self.is_initialized():
+            logger.warning(f"Cannot fetch quote for {symbol}: AlpacaManager not properly initialized")
+            return None
+            
         try:
             request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
             quotes = self._data_client.get_stock_latest_quote(request)
@@ -608,6 +665,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def get_latest_quote_raw(self, symbol: str) -> Any | None:
         """Get latest quote as raw object (backward compatibility)."""
+        if not self.is_initialized():
+            logger.warning(f"Cannot fetch quote for {symbol}: AlpacaManager not properly initialized")
+            return None
+            
         try:
             request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
             quotes = self._data_client.get_stock_latest_quote(request)
@@ -665,6 +726,12 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             timeframe: Timeframe (1Min, 5Min, 15Min, 1Hour, 1Day)
 
         """
+        if not self.is_initialized():
+            logger.warning(f"Cannot fetch historical data for {symbol}: AlpacaManager not properly initialized")
+            if self._initialization_error:
+                logger.warning(f"Initialization error: {self._initialization_error}")
+            return []
+            
         try:
             # Map timeframe strings to Alpaca TimeFrame objects (case-insensitive)
             timeframe_map = {
