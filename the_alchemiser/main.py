@@ -59,9 +59,7 @@ class TradingSystem:
         global _di_container
 
         self.container = ApplicationContainer()
-        _di_container = (
-            self.container
-        )  # Keep global for backward compatibility during transition
+        _di_container = self.container  # Keep global for backward compatibility during transition
         ServiceFactory.initialize(self.container)
         self.logger.info("Dependency injection initialized")
 

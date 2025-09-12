@@ -13,17 +13,13 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
+from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
 from the_alchemiser.shared.cli.cli_formatter import (
-    render_enriched_order_summaries,
     render_footer,
     render_header,
-    render_multi_strategy_summary,
-    render_strategy_signals,
-    render_target_vs_current_allocations,
 )
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
 
 
 class TradingExecutor:
@@ -43,7 +39,7 @@ class TradingExecutor:
         self.show_tracking = show_tracking
         self.export_tracking_json = export_tracking_json
         self.logger = get_logger(__name__)
-        
+
         # Delegate orchestration to dedicated orchestrator
         self.orchestrator = TradingOrchestrator(
             settings, container, live_trading, ignore_market_hours
@@ -52,7 +48,7 @@ class TradingExecutor:
     def run(self) -> bool:
         """Execute trading strategy."""
         render_header("Analyzing market conditions...", "Multi-Strategy Trading")
-        
+
         # Delegate to orchestration layer
         success = self.orchestrator.execute_trading_workflow()
 
@@ -68,7 +64,7 @@ class TradingExecutor:
             render_footer("Trading execution completed successfully!")
         else:
             render_footer("Trading execution failed - check logs for details")
-            
+
         return success
 
     def _display_post_execution_tracking(self) -> None:

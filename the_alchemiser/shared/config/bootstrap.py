@@ -17,13 +17,9 @@ from typing import Any, TypedDict
 # from the_alchemiser.execution.core.trading_services_facade import (
 #     TradingServicesFacade as TradingServiceManager,
 # )
-
 from the_alchemiser.shared.brokers import AlpacaManager
-from the_alchemiser.shared.config.config import Settings, load_settings
-from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
-from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
+from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.types.exceptions import ConfigurationError
-from the_alchemiser.shared.utils.context import create_error_context
 
 
 def _get_market_data_service():

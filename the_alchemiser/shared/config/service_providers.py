@@ -36,7 +36,7 @@ class ServiceProviders(containers.DeclarativeContainer):
 
     # Legacy services commented out to remove fallback dependencies
     # These will be replaced with v2 equivalents as they are migrated
-    
+
     # order_service = providers.Factory(OrderService, trading_repo=infrastructure.trading_repository)
     # position_service = providers.Factory(
     #     PositionService, trading_repo=infrastructure.trading_repository

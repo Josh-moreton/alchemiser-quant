@@ -9,14 +9,14 @@ strategy identifiers to their corresponding engine implementations.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 from ...shared.dto.strategy_allocation_dto import StrategyAllocationDTO
 
 
 class StrategyEngine(Protocol):
     """Protocol for strategy engine implementations."""
-    
+
     def __call__(self, context: Any) -> StrategyAllocationDTO:
         """Execute strategy and return allocation DTO."""
         ...
@@ -24,40 +24,39 @@ class StrategyEngine(Protocol):
 
 class StrategyRegistry:
     """Registry for strategy engines."""
-    
+
     def __init__(self) -> None:
         """Initialize empty registry."""
         self._strategies: dict[str, StrategyEngine] = {}
-    
+
     def register(self, strategy_id: str, engine: StrategyEngine) -> None:
         """Register a strategy engine.
-        
+
         Args:
             strategy_id: Unique identifier for the strategy
             engine: Strategy engine implementation
+
         """
         self._strategies[strategy_id] = engine
-    
+
     def get_strategy(self, strategy_id: str) -> StrategyEngine:
         """Get strategy engine by ID.
-        
+
         Args:
             strategy_id: Strategy identifier
-            
+
         Returns:
             Strategy engine implementation
-            
+
         Raises:
             KeyError: If strategy not found
+
         """
         if strategy_id not in self._strategies:
             available = list(self._strategies.keys())
-            raise KeyError(
-                f"Strategy '{strategy_id}' not found. "
-                f"Available strategies: {available}"
-            )
+            raise KeyError(f"Strategy '{strategy_id}' not found. Available strategies: {available}")
         return self._strategies[strategy_id]
-    
+
     def list_strategies(self) -> list[str]:
         """List all registered strategy IDs."""
         return list(self._strategies.keys())

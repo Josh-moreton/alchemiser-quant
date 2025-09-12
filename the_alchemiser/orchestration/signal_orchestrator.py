@@ -15,13 +15,13 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
+from the_alchemiser.orchestration.strategy_orchestrator import StrategyOrchestrator
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.orchestration.strategy_orchestrator import StrategyOrchestrator
 from the_alchemiser.shared.types.exceptions import DataProviderError
 from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
 
-# Nuclear strategy symbol constants  
+# Nuclear strategy symbol constants
 NUCLEAR_SYMBOLS = ["SMR", "BWXT", "LEU", "EXC", "NLR", "OKLO"]
 
 
@@ -36,16 +36,14 @@ class SignalOrchestrator:
     def generate_signals(self) -> tuple[dict[str, Any], dict[str, float]]:
         """Generate strategy signals."""
         # Use strategy orchestrator for signal generation
-        # Get AlpacaManager from container and wrap it with MarketDataPort adapter
-        alpaca_manager = self.container.infrastructure.market_data_repository()
-        from the_alchemiser.shared.adapters.market_data_port_adapter import MarketDataPortAdapter
-        market_data_port = MarketDataPortAdapter(alpaca_manager)
+        # Get MarketDataService from container
+        market_data_service = self.container.infrastructure.market_data_service()
         strategy_allocations = get_strategy_allocations(self.settings)
-        
+
         # strategy_allocations is already typed as dict[StrategyType, float]
         typed_allocations = strategy_allocations
-        
-        strategy_orch = StrategyOrchestrator(market_data_port, typed_allocations)
+
+        strategy_orch = StrategyOrchestrator(market_data_service, typed_allocations)
         aggregated_signals = strategy_orch.generate_all_signals(datetime.now(UTC))
 
         # Convert aggregated signals to display format
@@ -107,11 +105,15 @@ class SignalOrchestrator:
 
             # Check for explicit failure indicators
             if reasoning and ("no signal produced" in reasoning.lower()):
-                strategy_name = strategy_type.value if hasattr(strategy_type, 'value') else str(strategy_type)
+                strategy_name = (
+                    strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
+                )
                 failed_strategies.append(strategy_name)
             # Check for fallback/default behavior due to data issues
             elif reasoning and ("no market data available" in reasoning.lower()):
-                strategy_name = strategy_type.value if hasattr(strategy_type, 'value') else str(strategy_type)
+                strategy_name = (
+                    strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
+                )
                 fallback_strategies.append(strategy_name)
 
         # If all strategies either failed completely or are using fallback defaults,
@@ -179,9 +181,10 @@ class SignalOrchestrator:
 
     def analyze_signals(self) -> tuple[dict[str, Any], dict[str, float]] | None:
         """Run complete signal analysis workflow.
-        
+
         Returns:
             Tuple of (strategy_signals, consolidated_portfolio) if successful, None if failed
+
         """
         try:
             # System now uses fully typed domain model
@@ -203,7 +206,7 @@ class SignalOrchestrator:
 
             return strategy_signals, consolidated_portfolio
 
-        except (DataProviderError,) as e:
+        except DataProviderError as e:
             self.logger.error(f"Signal analysis failed: {e}")
             return None
         except Exception as e:
@@ -220,14 +223,14 @@ class SignalOrchestrator:
         # Convert strategy name to strategy type key
         strategy_key = strategy_name.upper()
         signal = None
-        
+
         # Find signal for this strategy
         for key, sig in strategy_signals.items():
-            key_name = key.value if hasattr(key, 'value') else str(key)
+            key_name = key.value if hasattr(key, "value") else str(key)
             if key_name.upper() == strategy_key:
                 signal = sig
                 break
-                
+
         if not signal:
             return 0
 
@@ -268,14 +271,14 @@ class SignalOrchestrator:
         # Convert strategy name to strategy type key
         strategy_key = strategy_name.upper()
         signal = None
-        
+
         # Find signal for this strategy
         for key, sig in strategy_signals.items():
-            key_name = key.value if hasattr(key, 'value') else str(key)
+            key_name = key.value if hasattr(key, "value") else str(key)
             if key_name.upper() == strategy_key:
                 signal = sig
                 break
-                
+
         if not signal:
             return set()
 
