@@ -12,7 +12,7 @@ from __future__ import annotations
 
 # Strategy engines are available via submodules:
 # - nuclear: Nuclear energy trading strategy
-# - klm: KLM strategy variants  
+# - klm: KLM strategy variants
 # - tecl: TECL strategy
 
 __all__ = [

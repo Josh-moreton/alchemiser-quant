@@ -9,6 +9,7 @@ from dependency_injector import containers, providers
 
 # Using execution_v2 instead of legacy execution
 from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
+from the_alchemiser.shared.events.bus import EventBus
 
 # Legacy imports removed to eliminate fallback dependencies
 # from the_alchemiser.execution.brokers.account_service import AccountService
@@ -28,6 +29,9 @@ class ServiceProviders(containers.DeclarativeContainer):
     infrastructure = providers.DependenciesContainer()
     config = providers.DependenciesContainer()
 
+    # Event bus (singleton for the application)
+    event_bus = providers.Singleton(EventBus)
+
     # V2 execution manager (replaces legacy TradingServiceManager)
     execution_manager = providers.Factory(
         ExecutionManager,
@@ -36,7 +40,7 @@ class ServiceProviders(containers.DeclarativeContainer):
 
     # Legacy services commented out to remove fallback dependencies
     # These will be replaced with v2 equivalents as they are migrated
-    
+
     # order_service = providers.Factory(OrderService, trading_repo=infrastructure.trading_repository)
     # position_service = providers.Factory(
     #     PositionService, trading_repo=infrastructure.trading_repository

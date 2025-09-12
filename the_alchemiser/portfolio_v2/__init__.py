@@ -4,7 +4,7 @@ Portfolio state management and rebalancing logic.
 
 Portfolio_v2 is a minimal, DTO-first module that:
 - Consumes StrategyAllocationDTO (from shared.dto)
-- Uses shared Alpaca capabilities for current positions/prices  
+- Uses shared Alpaca capabilities for current positions/prices
 - Produces clean RebalancePlanDTO with BUY/SELL/HOLD items
 - Does no order placement, execution hinting, or analytics
 

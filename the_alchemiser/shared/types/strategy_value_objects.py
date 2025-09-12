@@ -18,9 +18,9 @@ from the_alchemiser.shared.value_objects.symbol import Symbol
 
 class Confidence(BaseModel):
     """Represents confidence level in a strategy signal."""
-    
+
     value: Decimal
-    
+
     def __init__(self, value: Decimal | float | str) -> None:
         if isinstance(value, (float, str)):
             value = Decimal(str(value))
@@ -29,14 +29,14 @@ class Confidence(BaseModel):
 
 class StrategySignal(BaseModel):
     """Represents a strategy signal with all required metadata."""
-    
+
     symbol: Symbol
     action: str  # BUY, SELL, HOLD
     confidence: Confidence
     target_allocation: Decimal | None = None
     reasoning: str = ""
     timestamp: datetime
-    
+
     def __init__(
         self,
         symbol: Symbol | str,
@@ -45,7 +45,7 @@ class StrategySignal(BaseModel):
         target_allocation: Decimal | float | None = None,
         reasoning: str = "",
         timestamp: datetime | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         if isinstance(symbol, str):
             symbol = Symbol(symbol)
@@ -55,7 +55,7 @@ class StrategySignal(BaseModel):
             target_allocation = Decimal(str(target_allocation))
         if timestamp is None:
             timestamp = datetime.now()
-            
+
         super().__init__(
             symbol=symbol,
             action=action,
@@ -63,5 +63,5 @@ class StrategySignal(BaseModel):
             target_allocation=target_allocation,
             reasoning=reasoning,
             timestamp=timestamp,
-            **kwargs
+            **kwargs,
         )

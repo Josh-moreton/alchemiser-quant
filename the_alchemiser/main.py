@@ -14,6 +14,8 @@ import logging
 import os
 import sys
 
+from the_alchemiser.orchestration.event_driven_orchestrator import EventDrivenOrchestrator
+
 # CLI formatter imports (moved from function-level)
 from the_alchemiser.shared.cli.cli_formatter import render_footer, render_header
 from the_alchemiser.shared.cli.signal_analyzer import SignalAnalyzer
@@ -24,6 +26,7 @@ from the_alchemiser.shared.config.container import (
     ApplicationContainer,
 )
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
+from the_alchemiser.shared.events import EventBus, StartupEvent
 from the_alchemiser.shared.logging.logging_utils import (
     configure_production_logging,
     generate_request_id,
@@ -52,18 +55,76 @@ class TradingSystem:
         self.logger = get_logger(__name__)
         self.error_handler = TradingSystemErrorHandler()
         self.container: ApplicationContainer | None = None
+        self.event_driven_orchestrator: EventDrivenOrchestrator | None = None
         self._initialize_di()
+        self._initialize_event_orchestration()
 
     def _initialize_di(self) -> None:
         """Initialize dependency injection system."""
         global _di_container
 
         self.container = ApplicationContainer()
-        _di_container = (
-            self.container
-        )  # Keep global for backward compatibility during transition
+        _di_container = self.container  # Keep global for backward compatibility during transition
         ServiceFactory.initialize(self.container)
         self.logger.info("Dependency injection initialized")
+
+    def _initialize_event_orchestration(self) -> None:
+        """Initialize event-driven orchestration system."""
+        try:
+            if self.container is None:
+                self.logger.warning("Cannot initialize event orchestration: DI container not ready")
+                return
+
+            # Initialize event-driven orchestrator
+            self.event_driven_orchestrator = EventDrivenOrchestrator(self.container)
+            self.logger.info("Event-driven orchestration initialized")
+
+        except Exception as e:
+            # Don't let event orchestration failure break the traditional system
+            self.logger.warning(f"Failed to initialize event orchestration: {e}")
+            self.event_driven_orchestrator = None
+
+    def _emit_startup_event(self, startup_mode: str, ignore_market_hours: bool = False) -> None:
+        """Emit StartupEvent to trigger event-driven workflows.
+
+        Args:
+            startup_mode: The mode the system is starting in (signal, trade, etc.)
+            ignore_market_hours: Whether market hours are being ignored
+
+        """
+        try:
+            if self.container is None:
+                self.logger.warning("Cannot emit StartupEvent: DI container not initialized")
+                return
+
+            # Get event bus from container
+            event_bus: EventBus = self.container.services.event_bus()
+
+            # Create StartupEvent
+            import uuid
+            from datetime import UTC, datetime
+
+            event = StartupEvent(
+                correlation_id=str(uuid.uuid4()),
+                causation_id=f"system-startup-{datetime.now(UTC).isoformat()}",
+                event_id=f"startup-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="main",
+                source_component="TradingSystem",
+                startup_mode=startup_mode,
+                configuration={
+                    "ignore_market_hours": ignore_market_hours,
+                    "settings_loaded": True,
+                },
+            )
+
+            # Emit the event
+            event_bus.publish(event)
+            self.logger.debug(f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}")
+
+        except Exception as e:
+            # Don't let startup event emission failure break the system
+            self.logger.warning(f"Failed to emit StartupEvent: {e}")
 
     def analyze_signals(self, show_tracking: bool = False) -> bool:
         """Generate and display strategy signals without trading.
@@ -257,6 +318,9 @@ def main(argv: list[str] | None = None) -> bool:
     try:
         # Initialize system
         system = TradingSystem()
+
+        # PHASE 6: Emit StartupEvent to trigger event-driven workflows
+        system._emit_startup_event(args.mode, getattr(args, "ignore_market_hours", False))
 
         # Display header with simple trading mode detection
         if args.mode == "trade":

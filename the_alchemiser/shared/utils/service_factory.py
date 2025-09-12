@@ -34,7 +34,7 @@ class ServiceFactory:
         if cls._container is not None and all(x is None for x in [api_key, secret_key, paper]):
             # Use DI container - get ExecutionManager from services
             return cls._container.services.execution_manager()
-        
+
         # Direct instantiation for backward compatibility
         api_key = api_key or "default_key"
         secret_key = secret_key or "default_secret"

@@ -366,4 +366,4 @@ class StrategyExecutionError(AlchemiserError):
 
 class StrategyValidationError(StrategyExecutionError):
     """Raised when strategy validation fails."""
-    pass
+

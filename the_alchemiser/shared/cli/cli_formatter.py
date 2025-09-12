@@ -1068,7 +1068,9 @@ def render_multi_strategy_summary_dto(
         try:
             # Convert account info from execution result
             account_dict = dict(summary.execution_result.account_info_after)
-            current_positions: dict[str, Any] = {}  # Extract from final_portfolio_state if available
+            current_positions: dict[
+                str, Any
+            ] = {}  # Extract from final_portfolio_state if available
 
             render_target_vs_current_allocations(
                 summary.execution_result.consolidated_portfolio,
