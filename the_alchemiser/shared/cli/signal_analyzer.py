@@ -2,19 +2,16 @@
 
 Signal analysis CLI module.
 
-Handles signal generation and display without trading execution.
+Thin CLI wrapper that delegates to orchestration layer for signal analysis workflow.
 """
 
 from __future__ import annotations
 
-import re
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:  # Avoid runtime import cost / circulars
-    from the_alchemiser.shared.config.container import (
-        ApplicationContainer,
-    )
+if TYPE_CHECKING:
+    from the_alchemiser.shared.config.container import ApplicationContainer
     from the_alchemiser.strategy.schemas.strategies import StrategySignalDisplayDTO
 
 from the_alchemiser.shared.cli.cli_formatter import (
@@ -25,159 +22,23 @@ from the_alchemiser.shared.cli.cli_formatter import (
 )
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.types.exceptions import DataProviderError
-from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
-from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
-from the_alchemiser.strategy.managers.typed_strategy_manager import TypedStrategyManager
-from the_alchemiser.strategy.registry.strategy_registry import StrategyType
-
-# Nuclear strategy symbol constants
-NUCLEAR_SYMBOLS = ["SMR", "BWXT", "LEU", "EXC", "NLR", "OKLO"]
+from the_alchemiser.shared.orchestration.signal_orchestrator import SignalOrchestrator
 
 
 class SignalAnalyzer:
-    """Handles signal analysis and display."""
+    """Thin CLI wrapper for signal analysis workflow."""
 
     def __init__(self, settings: Settings, container: ApplicationContainer) -> None:
         self.settings = settings
         self.container = container
         self.logger = get_logger(__name__)
-
-    def _generate_signals(
-        self,
-    ) -> tuple[dict[StrategyType, StrategySignalDisplayDTO], dict[str, float]]:
-        """Generate strategy signals."""
-        # Use typed adapter for engines (DataFrame compatibility) and typed port for fetching
-        market_data_port = self.container.infrastructure.market_data_service()
-
-        # Create strategy manager with proper allocations
-        strategy_allocations = get_strategy_allocations(self.settings)
-
-        # Generate typed signals directly
-        from datetime import UTC, datetime
-
-        typed_manager = TypedStrategyManager(market_data_port, strategy_allocations)
-        aggregated_signals = typed_manager.generate_all_signals(datetime.now(UTC))
-
-        # Use centralized mapping function (reuse requirement)
-        from the_alchemiser.strategy.schemas.strategies import run_all_strategies_mapping
-
-        strategy_signals, consolidated_portfolio, _strategy_attribution = (
-            run_all_strategies_mapping(aggregated_signals, strategy_allocations)
-        )
-
-        return strategy_signals, consolidated_portfolio
-
-    def _validate_signal_quality(
-        self,
-        strategy_signals: dict[StrategyType, StrategySignalDisplayDTO],
-        consolidated_portfolio: dict[str, float],
-    ) -> bool:
-        """Validate that signal analysis produced meaningful results.
-
-        Returns False if any data fetch failures occurred or if all strategies failed
-        to get market data. The system should not operate on partial information.
-
-        Args:
-            strategy_signals: Generated strategy signals
-            consolidated_portfolio: Consolidated portfolio allocation
-
-        Returns:
-            True if analysis appears valid, False if it should be considered a failure
-
-        """
-        if not strategy_signals:
-            return False
-
-        # Check for any data fetch failures - fail immediately on any failure
-        # We don't want trades being made on partial information
-        if self._has_data_fetch_failures():
-            self.logger.error(
-                "Signal analysis failed due to data fetch failures. "
-                "The system does not operate on partial information."
-            )
-            return False
-
-        # Count strategies that failed due to data issues
-        failed_strategies = []
-        fallback_strategies = []  # Strategies using fallback/default signals
-
-        for strategy_type, signal in strategy_signals.items():
-            reasoning = signal.get("reasoning", "")
-
-            # Check for explicit failure indicators
-            if reasoning and ("no signal produced" in reasoning.lower()):
-                failed_strategies.append(strategy_type.value)
-            # Check for fallback/default behavior due to data issues
-            elif reasoning and ("no market data available" in reasoning.lower()):
-                fallback_strategies.append(strategy_type.value)
-
-        # If all strategies either failed completely or are using fallback defaults,
-        # consider this a system failure
-        total_affected = len(failed_strategies) + len(fallback_strategies)
-
-        if total_affected == len(strategy_signals):
-            if failed_strategies and not fallback_strategies:
-                # All strategies failed completely
-                self.logger.error(
-                    f"All strategies failed due to market data issues: {failed_strategies}"
-                )
-            elif fallback_strategies and not failed_strategies:
-                # All strategies using fallback due to market data issues
-                self.logger.error(
-                    f"All strategies using fallback signals due to market data issues: {fallback_strategies}"
-                )
-            else:
-                # Mixed failure/fallback
-                self.logger.error(
-                    f"All strategies affected by market data issues - "
-                    f"failed: {failed_strategies}, fallback: {fallback_strategies}"
-                )
-            return False
-
-        return True
-
-    def _has_data_fetch_failures(self) -> bool:
-        """Check if any data fetch failures occurred during signal generation.
-
-        This method detects if the system is in an environment where data fetching
-        fails, which should cause the signal analysis to fail rather than operate
-        on partial information.
-
-        Returns:
-            True if data fetch failures are detected, False otherwise
-
-        """
-        try:
-            # Check if we're in a network-restricted environment by attempting
-            # to resolve the Alpaca data endpoint that strategies depend on
-            import socket
-
-            socket.gethostbyname("data.alpaca.markets")
-
-            # If we can resolve the hostname, we likely have network access
-            # Any data fetch failures would be credential/API issues that
-            # should be handled by individual strategy error handling
-            return False
-
-        except (socket.gaierror, OSError):
-            # Cannot resolve hostname - indicates network restrictions
-            # This means any data-dependent operations will fail
-            self.logger.warning(
-                "Network restrictions detected: cannot resolve data.alpaca.markets. "
-                "This indicates data fetch operations will fail."
-            )
-            return True
-
-        except Exception as e:
-            # If we can't determine connectivity, be conservative
-            # In production this should rarely happen
-            self.logger.debug(f"Could not determine network connectivity: {e}")
-            return False
+        
+        # Delegate orchestration to dedicated orchestrator
+        self.orchestrator = SignalOrchestrator(settings, container)
 
     def _display_results(
         self,
-        strategy_signals: dict[StrategyType, StrategySignalDisplayDTO],
+        strategy_signals: dict[str, Any],
         consolidated_portfolio: dict[str, float],
         show_tracking: bool,
     ) -> None:
@@ -289,7 +150,7 @@ class SignalAnalyzer:
 
     def _display_strategy_summary(
         self,
-        strategy_signals: dict[StrategyType, StrategySignalDisplayDTO],
+        strategy_signals: dict[str, Any],
         consolidated_portfolio: dict[str, float],
     ) -> None:
         """Display strategy allocation summary."""
@@ -309,7 +170,7 @@ class SignalAnalyzer:
         for strategy_name, allocation in allocations.items():
             if allocation > 0:
                 pct = int(allocation * 100)
-                positions = self._count_positions_for_strategy(
+                positions = self.orchestrator.count_positions_for_strategy(
                     strategy_name, strategy_signals, consolidated_portfolio
                 )
                 strategy_lines.append(
@@ -324,66 +185,6 @@ class SignalAnalyzer:
         else:
             self.logger.info(f"Strategy Summary:\n{strategy_summary}")
 
-    def _count_positions_for_strategy(
-        self,
-        strategy_name: str,
-        strategy_signals: dict[StrategyType, StrategySignalDisplayDTO],
-        consolidated_portfolio: dict[str, float],
-    ) -> int:
-        """Count positions for a specific strategy."""
-        strategy_type = getattr(StrategyType, strategy_name.upper(), None)
-        if not strategy_type or strategy_type not in strategy_signals:
-            return 0
-
-        signal = strategy_signals[strategy_type]
-        symbol = signal.get("symbol")
-
-        if strategy_name.upper() == "NUCLEAR":
-            # Nuclear strategy can have multiple positions
-            if signal.get("action") == "BUY":
-                if symbol == "UVXY_BTAL_PORTFOLIO":
-                    return 2  # UVXY and BTAL
-                if symbol == "UVXY":
-                    return 1  # Just UVXY
-                # For NUCLEAR_PORTFOLIO, count actual symbols in consolidated portfolio
-                if isinstance(symbol, str) and "NUCLEAR_PORTFOLIO" in symbol:
-                    # Extract symbols from format like "NUCLEAR_PORTFOLIO (SMR, BWXT, LEU)"
-                    # Use regex for robust parsing to handle edge cases
-                    match = re.search(r"\(([^)]+)\)", symbol)
-                    if match:
-                        symbols_part = match.group(1)
-                        nuclear_symbols = [s.strip() for s in symbols_part.split(",")]
-                        return len([s for s in nuclear_symbols if s in consolidated_portfolio])
-                    # Fallback: count nuclear symbols in consolidated portfolio
-                    return len([s for s in NUCLEAR_SYMBOLS if s in consolidated_portfolio])
-            return 0
-        if strategy_name.upper() in ["TECL", "KLM"]:
-            # Single position strategies
-            return 1 if signal.get("action") == "BUY" else 0
-        # Count from consolidated portfolio if possible
-        strategy_symbols = self._get_symbols_for_strategy(strategy_name, strategy_signals)
-        return len([s for s in strategy_symbols if s in consolidated_portfolio])
-
-    def _get_symbols_for_strategy(
-        self,
-        strategy_name: str,
-        strategy_signals: dict[StrategyType, StrategySignalDisplayDTO],
-    ) -> set[str]:
-        """Get symbols associated with a strategy."""
-        strategy_type = getattr(StrategyType, strategy_name.upper(), None)
-        if not strategy_type or strategy_type not in strategy_signals:
-            return set()
-
-        signal = strategy_signals[strategy_type]
-        symbol: Any = signal.get("symbol")
-
-        if isinstance(symbol, str):
-            return {symbol}
-        if isinstance(symbol, dict):
-            return set(symbol.keys())
-
-        return set()
-
     def run(self, show_tracking: bool = False) -> bool:
         """Run signal analysis.
 
@@ -394,38 +195,17 @@ class SignalAnalyzer:
         """
         render_header("MULTI-STRATEGY SIGNAL ANALYSIS", f"Analysis at {datetime.now(UTC)}")
 
-        try:
-            # System now uses fully typed domain model
-            try:
-                from rich.console import Console
-
-                Console().print("[dim]Using typed StrategySignal domain model[/dim]")
-            except Exception:
-                self.logger.info("Using typed StrategySignal domain model")
-
-            # Generate signals
-            strategy_signals, consolidated_portfolio = self._generate_signals()
-
-            if not strategy_signals:
-                self.logger.error("Failed to generate strategy signals")
-                return False
-
-            # Check if analysis produced meaningful results
-            if not self._validate_signal_quality(strategy_signals, consolidated_portfolio):
-                self.logger.error(
-                    "Signal analysis failed validation - no meaningful data available"
-                )
-                return False
-
-            # Display results (tracking gated by flag)
-            self._display_results(strategy_signals, consolidated_portfolio, show_tracking)
-
-            render_footer("Signal analysis completed successfully!")
-            return True
-
-        except (DataProviderError, StrategyExecutionError) as e:
-            self.logger.error(f"Signal analysis failed: {e}")
+        # Delegate to orchestration layer
+        result = self.orchestrator.analyze_signals()
+        
+        if result is None:
+            self.logger.error("Signal analysis failed")
             return False
-        except Exception as e:
-            self.logger.error(f"Unexpected error in signal analysis: {e}")
-            return False
+            
+        strategy_signals, consolidated_portfolio = result
+
+        # Display results (tracking gated by flag)
+        self._display_results(strategy_signals, consolidated_portfolio, show_tracking)
+
+        render_footer("Signal analysis completed successfully!")
+        return True
