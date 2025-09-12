@@ -9,7 +9,9 @@ Handles the complete workflow from strategy orchestration to signal validation a
 from __future__ import annotations
 
 import re
+import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -17,6 +19,8 @@ if TYPE_CHECKING:
 
 from the_alchemiser.orchestration.strategy_orchestrator import StrategyOrchestrator
 from the_alchemiser.shared.config.config import Settings
+from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
+from the_alchemiser.shared.events import EventBus, SignalGenerated
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types.exceptions import DataProviderError
 from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
@@ -32,6 +36,9 @@ class SignalOrchestrator:
         self.settings = settings
         self.container = container
         self.logger = get_logger(__name__)
+        
+        # Get event bus from container for dual-path emission
+        self.event_bus: EventBus = container.services.event_bus()
 
     def generate_signals(self) -> tuple[dict[str, Any], dict[str, float]]:
         """Generate strategy signals."""
@@ -186,10 +193,11 @@ class SignalOrchestrator:
 
     def analyze_signals(self) -> tuple[dict[str, Any], dict[str, float]] | None:
         """Run complete signal analysis workflow.
-
+        
+        DUAL-PATH: Emits SignalGenerated event AND returns traditional response.
+        
         Returns:
             Tuple of (strategy_signals, consolidated_portfolio) if successful, None if failed
-
         """
         try:
             # System now uses fully typed domain model
@@ -209,6 +217,10 @@ class SignalOrchestrator:
                 )
                 return None
 
+            # DUAL-PATH: Emit SignalGenerated event for event-driven consumers
+            self._emit_signal_generated_event(strategy_signals, consolidated_portfolio)
+
+            # Return traditional response for backwards compatibility  
             return strategy_signals, consolidated_portfolio
 
         except DataProviderError as e:
@@ -217,6 +229,67 @@ class SignalOrchestrator:
         except Exception as e:
             self.logger.error(f"Unexpected error in signal analysis: {e}")
             return None
+
+    def _emit_signal_generated_event(
+        self, 
+        strategy_signals: dict[str, Any], 
+        consolidated_portfolio: dict[str, float]
+    ) -> None:
+        """Emit SignalGenerated event for event-driven architecture.
+        
+        Converts traditional signal data to event format for new event-driven consumers.
+        """
+        try:
+            # Convert strategy signals to DTO format
+            signal_dtos = []
+            correlation_id = str(uuid.uuid4())
+            causation_id = f"signal-analysis-{datetime.now(UTC).isoformat()}"
+            
+            for strategy_type, signal_data in strategy_signals.items():
+                strategy_name = strategy_type.value if hasattr(strategy_type, 'value') else str(strategy_type)
+                signal_dto = StrategySignalDTO(
+                    correlation_id=correlation_id,
+                    causation_id=causation_id,
+                    timestamp=datetime.now(UTC),
+                    symbol=signal_data.get("symbol", "UNKNOWN"),
+                    action=signal_data.get("action", "HOLD"),
+                    confidence=Decimal(str(signal_data.get("confidence", 0.0))),
+                    reasoning=signal_data.get("reasoning", "Signal generated"),
+                    strategy_name=strategy_name,
+                    allocation_weight=None,  # Will be determined by portfolio module
+                )
+                signal_dtos.append(signal_dto)
+
+            # Convert strategy allocations to Decimal for event
+            strategy_allocations = {}
+            allocations = get_strategy_allocations(self.settings)
+            for strategy_name, allocation in allocations.items():
+                strategy_allocations[strategy_name] = Decimal(str(allocation))
+
+            # Convert consolidated portfolio to Decimal for event  
+            consolidated_decimal = {}
+            for symbol, allocation in consolidated_portfolio.items():
+                consolidated_decimal[symbol] = Decimal(str(allocation))
+
+            # Create and emit the event
+            event = SignalGenerated(
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+                event_id=f"signal-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="orchestration",
+                source_component="SignalOrchestrator",
+                signals=signal_dtos,
+                strategy_allocations=strategy_allocations,
+                consolidated_portfolio=consolidated_decimal,
+            )
+
+            self.event_bus.publish(event)
+            self.logger.debug(f"Emitted SignalGenerated event {event.event_id}")
+
+        except Exception as e:
+            # Don't let event emission failure break the traditional workflow
+            self.logger.warning(f"Failed to emit SignalGenerated event: {e}")
 
     def count_positions_for_strategy(
         self,
