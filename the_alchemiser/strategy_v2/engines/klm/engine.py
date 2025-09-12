@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from decimal import Decimal
+import decimal
 from typing import Any
 
 import pandas as pd
@@ -271,6 +272,16 @@ class KLMEngine(StrategyEngine):
         symbol_or_allocation = best_result[0]
         action = best_result[1]
         reason = best_result[2] if len(best_result) > 2 else "KLM Ensemble Selection"
+        
+        # Validate the result components before proceeding
+        if symbol_or_allocation is None:
+            self.logger.warning("Best variant returned None for symbol/allocation, using BIL")
+            symbol_or_allocation = "BIL"
+        if action is None or action not in ["BUY", "SELL", "HOLD"]:
+            self.logger.warning(f"Best variant returned invalid action '{action}', using HOLD")
+            action = ActionType.HOLD.value
+        if reason is None:
+            reason = "KLM Ensemble Selection"
 
         # Build detailed analysis
         detailed_reason = self._build_detailed_klm_analysis(
@@ -295,6 +306,14 @@ class KLMEngine(StrategyEngine):
             try:
                 # Each variant has its own evaluate method
                 result = variant.evaluate(indicators, market_data)
+                
+                # Validate the result structure
+                if not result or not hasattr(result, "__len__") or len(result) < 2:
+                    self.logger.warning(f"Variant {variant.name} returned invalid result structure: {result}")
+                    result = ("BIL", ActionType.HOLD.value, f"Invalid result from {variant.name}")
+                elif result[0] is None or result[1] is None:
+                    self.logger.warning(f"Variant {variant.name} returned None values: {result}")
+                    result = ("BIL", ActionType.HOLD.value, f"None values from {variant.name}")
 
                 # Calculate performance metric for ensemble selection
                 performance = self._calculate_variant_performance(variant)
@@ -471,6 +490,11 @@ class KLMEngine(StrategyEngine):
             # Multi-asset allocation - create signal for each asset
             for symbol_str, weight in symbol_or_allocation.items():
                 try:
+                    # Validate weight is a valid number
+                    if weight is None or not isinstance(weight, (int, float)) or weight != weight:  # NaN check
+                        self.logger.warning(f"Invalid weight for {symbol_str}: {weight}, skipping")
+                        continue
+                    
                     symbol = Symbol(symbol_str)
                     target_allocation = Percentage(Decimal(str(weight)))
                     confidence = self._calculate_confidence(action, weight)
@@ -485,8 +509,9 @@ class KLMEngine(StrategyEngine):
                     )
                     signals.append(signal)
 
-                except (ValueError, TypeError) as e:
-                    self.logger.warning(f"Skipping invalid symbol {symbol_str}: {e}")
+                except (ValueError, TypeError, decimal.InvalidOperation) as e:
+                    self.logger.warning(f"Skipping invalid symbol {symbol_str} with weight {weight}: {e}")
+                    continue
 
         else:
             # Single symbol allocation
@@ -507,8 +532,8 @@ class KLMEngine(StrategyEngine):
                 )
                 signals.append(signal)
 
-            except (ValueError, TypeError) as e:
-                self.logger.error(f"Error creating signal for {symbol_or_allocation}: {e}")
+            except (ValueError, TypeError, decimal.InvalidOperation) as e:
+                self.logger.error(f"Error creating signal for {symbol_or_allocation} with action {action}: {e}")
                 # Return hold signal as fallback
                 return self._create_hold_signal(f"Invalid symbol: {symbol_or_allocation}", now)
 
@@ -517,6 +542,11 @@ class KLMEngine(StrategyEngine):
     def _calculate_confidence(self, action: str, weight: float) -> Confidence:
         """Calculate confidence based on action and allocation weight."""
         config = self.confidence_config.klm
+        
+        # Validate weight is a valid number
+        if weight is None or not isinstance(weight, (int, float)) or weight != weight:  # NaN check
+            self.logger.warning(f"Invalid weight for confidence calculation: {weight}, using default")
+            weight = 0.0
 
         if action == "BUY":
             # Higher weight = higher confidence (configurable formula)
@@ -537,7 +567,16 @@ class KLMEngine(StrategyEngine):
             # Hold signals have lower confidence (configurable)
             confidence_value = float(config.hold_confidence)
 
-        return Confidence(Decimal(str(confidence_value)))
+        # Ensure confidence_value is valid before Decimal conversion
+        if confidence_value is None or not isinstance(confidence_value, (int, float)) or confidence_value != confidence_value:  # NaN check
+            self.logger.warning(f"Invalid confidence value: {confidence_value}, using default 0.5")
+            confidence_value = 0.5
+
+        try:
+            return Confidence(Decimal(str(confidence_value)))
+        except (decimal.InvalidOperation, ValueError) as e:
+            self.logger.warning(f"Failed to convert confidence value {confidence_value} to Decimal: {e}, using default")
+            return Confidence(Decimal("0.5"))
 
     def _create_hold_signal(self, reason: str, now: datetime) -> list[StrategySignal]:
         """Create a default hold signal for BIL."""

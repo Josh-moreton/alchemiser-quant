@@ -13,6 +13,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 
@@ -42,7 +43,7 @@ class StrategySignal(BaseModel):
         symbol: Symbol | str,
         action: str,
         confidence: Confidence | Decimal | float,
-        target_allocation: Decimal | float | None = None,
+        target_allocation: Decimal | float | Percentage | None = None,
         reasoning: str = "",
         timestamp: datetime | None = None,
         **kwargs: Any,
@@ -52,7 +53,10 @@ class StrategySignal(BaseModel):
         if not isinstance(confidence, Confidence):
             confidence = Confidence(confidence)
         if target_allocation is not None and not isinstance(target_allocation, Decimal):
-            target_allocation = Decimal(str(target_allocation))
+            if isinstance(target_allocation, Percentage):
+                target_allocation = target_allocation.value
+            else:
+                target_allocation = Decimal(str(target_allocation))
         if timestamp is None:
             timestamp = datetime.now()
 
