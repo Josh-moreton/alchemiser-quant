@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Business Unit: execution | Status: current.
+"""Business Unit: shared | Status: current.
 
-Execution data transfer objects for AWS Lambda event handling.
+Lambda event data transfer objects for AWS Lambda event handling.
 
-Provides typed DTOs for Lambda event parsing and execution coordination.
+Provides typed DTOs for Lambda event parsing and cross-module coordination.
 """
 
 from __future__ import annotations
