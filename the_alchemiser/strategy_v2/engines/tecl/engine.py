@@ -51,15 +51,14 @@ warnings.filterwarnings("ignore")
 class TECLEngine(StrategyEngine):
     """TECL Strategy Engine - Long-term technology leverage with volatility protection."""
 
-    def __init__(self, data_provider: MarketDataPort) -> None:
+    def __init__(self, market_data_port: MarketDataPort) -> None:
         """Initialize TECL strategy with typed MarketDataPort.
 
         Args:
-            data_provider: Market data provider implementing MarketDataPort protocol
+            market_data_port: Market data provider implementing MarketDataPort protocol
 
         """
-        super().__init__("TECL", data_provider)
-        self.data_provider = data_provider  # Keep for backward compatibility with existing methods
+        self.data_provider = market_data_port  # Keep for backward compatibility with existing methods
         self.indicators = TechnicalIndicators()
         self.confidence_config = ConfidenceConfig.default()
 

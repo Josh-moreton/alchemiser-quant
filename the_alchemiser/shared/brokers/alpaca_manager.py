@@ -666,16 +666,17 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         """
         try:
-            # Map timeframe strings to Alpaca TimeFrame objects
+            # Map timeframe strings to Alpaca TimeFrame objects (case-insensitive)
             timeframe_map = {
-                "1Min": TimeFrame(1, TimeFrameUnit.Minute),
-                "5Min": TimeFrame(5, TimeFrameUnit.Minute),
-                "15Min": TimeFrame(15, TimeFrameUnit.Minute),
-                "1Hour": TimeFrame(1, TimeFrameUnit.Hour),
-                "1Day": TimeFrame(1, TimeFrameUnit.Day),
+                "1min": TimeFrame(1, TimeFrameUnit.Minute),
+                "5min": TimeFrame(5, TimeFrameUnit.Minute),
+                "15min": TimeFrame(15, TimeFrameUnit.Minute),
+                "1hour": TimeFrame(1, TimeFrameUnit.Hour),
+                "1day": TimeFrame(1, TimeFrameUnit.Day),
             }
 
-            if timeframe not in timeframe_map:
+            timeframe_lower = timeframe.lower()
+            if timeframe_lower not in timeframe_map:
                 raise ValueError(f"Unsupported timeframe: {timeframe}")
 
             from datetime import datetime
@@ -685,7 +686,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             request = StockBarsRequest(
                 symbol_or_symbols=symbol,
-                timeframe=timeframe_map[timeframe],
+                timeframe=timeframe_map[timeframe_lower],
                 start=start_dt,
                 end=end_dt,
             )
@@ -1049,6 +1050,91 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def __repr__(self) -> str:
         """String representation."""
         return f"AlpacaManager(paper={self._paper})"
+
+    # MarketDataPort protocol implementation
+    def get_bars(self, symbol, period: str, timeframe: str) -> list:
+        """Get historical bars for a symbol implementing MarketDataPort.
+        
+        Args:
+            symbol: Symbol (can be Symbol object or string)
+            period: Period string (e.g., "1Y", "6M")
+            timeframe: Timeframe string (e.g., "1Day", "1Hour")
+            
+        Returns:
+            List of bar data (simplified format for now)
+        """
+        try:
+            from datetime import datetime, timedelta
+            
+            # Convert symbol to string if it's a Symbol object
+            symbol_str = symbol.value if hasattr(symbol, 'value') else str(symbol)
+            
+            # Simple period mapping (basic implementation)
+            if "Y" in period:
+                days = int(period.replace("Y", "")) * 365
+            elif "M" in period:
+                days = int(period.replace("M", "")) * 30
+            elif "D" in period:
+                days = int(period.replace("D", ""))
+            else:
+                days = 365  # Default to 1 year
+            
+            end_date = datetime.now().strftime("%Y-%m-%d")
+            start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+            
+            # Use existing get_historical_bars method
+            return self.get_historical_bars(symbol_str, start_date, end_date, timeframe)
+        except Exception as e:
+            logger.warning(f"Failed to get bars for {symbol}: {e}")
+            return []
+
+    def get_latest_quote(self, symbol):
+        """Get latest quote implementing MarketDataPort.
+        
+        Args:
+            symbol: Symbol (can be Symbol object or string)
+            
+        Returns:
+            QuoteModel or None
+        """
+        try:
+            # Convert symbol to string if it's a Symbol object
+            symbol_str = symbol.value if hasattr(symbol, 'value') else str(symbol)
+            
+            # Use existing quote method
+            quote_data = self.get_quote(symbol_str)
+            if quote_data:
+                # Return simplified quote for now (strategy engines may need to be updated)
+                from the_alchemiser.shared.types.quote import QuoteModel
+                return QuoteModel(
+                    symbol=symbol_str,
+                    bid=quote_data.get("bidPrice", 0.0),
+                    ask=quote_data.get("askPrice", 0.0),
+                    timestamp=datetime.now()
+                )
+            return None
+        except Exception as e:
+            logger.warning(f"Failed to get quote for {symbol}: {e}")
+            return None
+
+    def get_mid_price(self, symbol) -> float | None:
+        """Get mid price implementing MarketDataPort.
+        
+        Args:
+            symbol: Symbol (can be Symbol object or string)
+            
+        Returns:
+            Mid price as float or None
+        """
+        try:
+            # Convert symbol to string if it's a Symbol object
+            symbol_str = symbol.value if hasattr(symbol, 'value') else str(symbol)
+            
+            # Use existing get_current_price method which should return mid price
+            return self.get_current_price(symbol_str)
+        except Exception as e:
+            logger.warning(f"Failed to get mid price for {symbol}: {e}")
+            return None
 
 
 # Factory function for easy creation
