@@ -39,13 +39,8 @@ class SignalOrchestrator:
         market_data_port = self.container.infrastructure.market_data_service()
         strategy_allocations = get_strategy_allocations(self.settings)
         
-        # Convert strategy allocations to new format
-        from the_alchemiser.shared.types.strategy_types import StrategyType
-        typed_allocations = {}
-        for strategy_name, allocation in strategy_allocations.items():
-            strategy_type = getattr(StrategyType, strategy_name.upper(), None)
-            if strategy_type:
-                typed_allocations[strategy_type] = allocation
+        # Strategy allocations are already in the correct format (StrategyType -> float)
+        typed_allocations = strategy_allocations
         
         strategy_orch = StrategyOrchestrator(market_data_port, typed_allocations)
         aggregated_signals = strategy_orch.generate_all_signals(datetime.now(UTC))

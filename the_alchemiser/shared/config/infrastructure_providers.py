@@ -8,9 +8,7 @@ from __future__ import annotations
 from dependency_injector import containers, providers
 
 from the_alchemiser.shared.brokers import AlpacaManager
-
-# Legacy strategy import commented out to break circular dependency
-# from the_alchemiser.strategy.data.market_data_service import MarketDataService
+from the_alchemiser.shared.services.market_data_service import MarketDataService
 
 
 class InfrastructureProviders(containers.DeclarativeContainer):
@@ -27,12 +25,11 @@ class InfrastructureProviders(containers.DeclarativeContainer):
         paper=config.paper_trading,
     )
 
-    # Legacy market data service commented out to break circular dependency
-    # market_data_service = providers.Singleton(
-    #     MarketDataService,
-    #     market_data_repo=alpaca_manager,
-    # )
-    # data_provider = market_data_service
+    # Market data service with proper domain boundary
+    market_data_service = providers.Singleton(
+        MarketDataService,
+        market_data_repo=alpaca_manager,
+    )
 
     # Backward compatibility: provide same interface
     trading_repository = alpaca_manager

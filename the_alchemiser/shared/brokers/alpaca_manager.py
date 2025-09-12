@@ -666,16 +666,17 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         """
         try:
-            # Map timeframe strings to Alpaca TimeFrame objects
+            # Map timeframe strings to Alpaca TimeFrame objects (case-insensitive)
             timeframe_map = {
-                "1Min": TimeFrame(1, TimeFrameUnit.Minute),
-                "5Min": TimeFrame(5, TimeFrameUnit.Minute),
-                "15Min": TimeFrame(15, TimeFrameUnit.Minute),
-                "1Hour": TimeFrame(1, TimeFrameUnit.Hour),
-                "1Day": TimeFrame(1, TimeFrameUnit.Day),
+                "1min": TimeFrame(1, TimeFrameUnit.Minute),
+                "5min": TimeFrame(5, TimeFrameUnit.Minute),
+                "15min": TimeFrame(15, TimeFrameUnit.Minute),
+                "1hour": TimeFrame(1, TimeFrameUnit.Hour),
+                "1day": TimeFrame(1, TimeFrameUnit.Day),
             }
 
-            if timeframe not in timeframe_map:
+            timeframe_lower = timeframe.lower()
+            if timeframe_lower not in timeframe_map:
                 raise ValueError(f"Unsupported timeframe: {timeframe}")
 
             from datetime import datetime
@@ -685,7 +686,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             request = StockBarsRequest(
                 symbol_or_symbols=symbol,
-                timeframe=timeframe_map[timeframe],
+                timeframe=timeframe_map[timeframe_lower],
                 start=start_dt,
                 end=end_dt,
             )

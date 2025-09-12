@@ -59,10 +59,10 @@ class KLMEngine(StrategyEngine):
     4. Returns typed StrategySignal objects
     """
 
-    def __init__(
-        self, market_data_port: MarketDataPort, strategy_name: str = "KLM_Ensemble"
-    ) -> None:
-        super().__init__(strategy_name, market_data_port)
+    def __init__(self, market_data_port: MarketDataPort) -> None:
+        self.market_data_port = market_data_port
+        self.strategy_name = "KLM_Ensemble"
+        self.logger = logging.getLogger(f"Strategy.{self.strategy_name}")
         self.indicators = TechnicalIndicators()
         self.confidence_config = ConfidenceConfig.default()
 
@@ -101,7 +101,6 @@ class KLMEngine(StrategyEngine):
             + self.additional_symbols
         )
 
-        self.logger = logging.getLogger(f"Strategy.{self.strategy_name}")
         self.logger.info(f"KLM Ensemble initialized with {len(self.strategy_variants)} variants")
 
     def get_required_symbols(self) -> list[str]:
