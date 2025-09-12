@@ -8,8 +8,6 @@ Provides typed DTOs for Lambda event parsing and cross-module coordination.
 
 from __future__ import annotations
 
-from typing import Literal
-
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -27,11 +25,11 @@ class LambdaEventDTO(BaseModel):
         str_strip_whitespace=True,
     )
 
-    mode: Literal["trade", "bot"] | None = Field(
-        default=None,
-        description="Operation mode: 'trade' for trading, 'bot' for signals only"
+    mode: str | None = Field(default=None, description="Execution mode")
+    trading_mode: str | None = Field(default=None, description="Trading mode (paper/live)")
+    ignore_market_hours: bool | None = Field(
+        default=None, description="Whether to ignore market hours"
     )
-    ignore_market_hours: bool = Field(
-        default=False,
-        description="Whether to ignore market hours constraints"
+    arguments: list[str] | None = Field(
+        default=None, description="Additional command line arguments"
     )
