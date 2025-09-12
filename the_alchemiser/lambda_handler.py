@@ -17,8 +17,8 @@ import json
 import logging
 from typing import Any
 
-from the_alchemiser.execution_v2.core.execution_schemas import LambdaEventDTO
 from the_alchemiser.main import main
+from the_alchemiser.shared.dto import LambdaEventDTO
 from the_alchemiser.shared.logging.logging_utils import (
     generate_request_id,
     set_request_id,
@@ -88,13 +88,11 @@ def parse_event_mode(
         mode = "trade"
 
     # Build command arguments
-    args = [mode]
+    args: list[str] = [mode]
 
     # Only add trading-specific flags for trade mode
-    if mode == "trade":
-        # Add market hours override if specified
-        if event.ignore_market_hours:
-            args.append("--ignore-market-hours")
+    if mode == "trade" and event.ignore_market_hours:
+        args.append("--ignore-market-hours")
 
     logger.info(f"Parsed event to command: {' '.join(args)}")
     return args

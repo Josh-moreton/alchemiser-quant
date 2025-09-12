@@ -11,6 +11,7 @@ from the_alchemiser.shared.dto.execution_report_dto import (
     ExecutedOrderDTO,
     ExecutionReportDTO,
 )
+from the_alchemiser.shared.dto.lambda_event_dto import LambdaEventDTO
 from the_alchemiser.shared.dto.order_request_dto import (
     MarketDataDTO,
     OrderRequestDTO,
@@ -44,6 +45,7 @@ __all__ = [
     # Implemented DTOs
     "ExecutedOrderDTO",
     "ExecutionReportDTO",
+    "LambdaEventDTO",
     "MarketDataDTO",
     "OrderRequestDTO",
     "PortfolioMetricsDTO",
