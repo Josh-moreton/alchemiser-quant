@@ -152,7 +152,7 @@ class PortfolioOrchestrator:
             positions_dict = {pos.symbol: float(pos.market_value) for pos in current_positions}
             
             # Use portfolio calculations for comparison
-            from the_alchemiser.portfolio.calculations.portfolio_calculations import (
+            from the_alchemiser.portfolio_v2.calculations.portfolio_calculations import (
                 build_allocation_comparison,
             )
             
