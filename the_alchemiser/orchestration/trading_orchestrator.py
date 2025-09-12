@@ -1,4 +1,4 @@
-"""Business Unit: shared | Status: current
+"""Business Unit: orchestration | Status: current
 
 Trading execution orchestration workflow.
 
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.orchestration.signal_orchestrator import SignalOrchestrator
+from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.types.exceptions import (
     NotificationError,
     TradingClientError,

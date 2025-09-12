@@ -1,4 +1,4 @@
-"""Business Unit: shared | Status: current
+"""Business Unit: orchestration | Status: current
 
 Signal analysis orchestration workflow.
 
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.orchestration.strategy_orchestrator import StrategyOrchestrator
+from the_alchemiser.orchestration.strategy_orchestrator import StrategyOrchestrator
 from the_alchemiser.shared.types.exceptions import DataProviderError
 from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
 

@@ -1,4 +1,4 @@
-"""Business Unit: shared | Status: current
+"""Business Unit: orchestration | Status: current
 
 Cross-module orchestration components.
 

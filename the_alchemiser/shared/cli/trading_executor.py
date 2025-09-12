@@ -23,7 +23,7 @@ from the_alchemiser.shared.cli.cli_formatter import (
 )
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.orchestration.trading_orchestrator import TradingOrchestrator
+from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
 
 
 class TradingExecutor:

@@ -11,14 +11,15 @@ CORE ENFORCED RULES:
          - strategy – signal generation, indicators, ML models
          - portfolio – portfolio state, sizing, rebalancing logic
          - execution – broker API integrations, order placement, error handling
+         - orchestration – cross-module workflow coordination and business process orchestration
          - shared – DTOs, utilities, logging, cross-cutting concerns
 5. Keep BUSINESS_UNITS_REPORT.md consistent when adding/removing files.
 6. No legacy fallbacks: never reintroduce removed legacy providers or silent downgrade paths.
 
 -------------------------------------------------------------------------------
-MODULAR ARCHITECTURE: FOUR TOP-LEVEL MODULES
+MODULAR ARCHITECTURE: FIVE TOP-LEVEL MODULES
 -------------------------------------------------------------------------------
-The codebase is organized around four main modules with clear responsibilities
+The codebase is organized around five main modules with clear responsibilities
 and controlled dependencies:
 
 1. strategy/
@@ -36,7 +37,12 @@ and controlled dependencies:
      Contains: Order routing, broker connectors, execution strategies, order lifecycle management
      Examples: Alpaca integration, smart execution algorithms, order validation, fill monitoring
      
-4. shared/
+4. orchestration/
+     Purpose: Cross-module workflow coordination and business process orchestration
+     Contains: Workflow orchestrators that coordinate between business units
+     Examples: SignalOrchestrator, TradingOrchestrator, StrategyOrchestrator, PortfolioOrchestrator
+     
+5. shared/
      Purpose: DTOs, utilities, logging, cross-cutting concerns, common value objects
      Contains: Data transfer objects, utility functions, logging setup, shared types
      Examples: Money/Decimal types, Symbol classes, DTOs, configuration, error handling
@@ -45,6 +51,7 @@ MODULE DEPENDENCY RULES:
  - strategy/ → shared/ (allowed)
  - portfolio/ → shared/ (allowed)  
  - execution/ → shared/ (allowed)
+ - orchestration/ → strategy/, portfolio/, execution/, shared/ (allowed)
  - strategy/ → portfolio/ (FORBIDDEN)
  - strategy/ → execution/ (FORBIDDEN)
  - portfolio/ → execution/ (FORBIDDEN)
@@ -63,6 +70,8 @@ CODE PLACEMENT EXAMPLES:
  - Portfolio rebalancing logic → portfolio/rebalancing/
  - New position tracker → portfolio/positions/
  - Order execution strategy → execution/strategies/
+ - Workflow orchestrator → orchestration/
+ - Cross-module coordination logic → orchestration/
  - Common DTO classes → shared/dto/
  - Utility functions → shared/utils/
  - Logging setup → shared/logging/
@@ -86,6 +95,12 @@ execution/
 ├── orders/                  # Order management and lifecycle
 ├── strategies/              # Smart execution strategies  
 └── core/                    # Core execution logic and account management
+
+orchestration/
+├── signal_orchestrator.py   # Signal analysis workflow coordination
+├── trading_orchestrator.py  # Trading execution workflow coordination
+├── strategy_orchestrator.py # Multi-strategy coordination and conflict resolution
+└── portfolio_orchestrator.py # Portfolio rebalancing workflow coordination
 
 shared/
 ├── dto/                     # Data transfer objects
@@ -229,6 +244,12 @@ execution module:
 """Business Unit: execution | Status: current
 
 Broker API integrations and order placement.
+"""
+
+orchestration module:
+"""Business Unit: orchestration | Status: current
+
+Cross-module workflow coordination and business process orchestration.
 """
 
 shared module:
