@@ -70,9 +70,15 @@ def _get_alpaca_keys_from_aws() -> tuple[str, str, str] | tuple[None, None, None
         secret_key = secret_data.get("ALPACA_SECRET")
         endpoint = secret_data.get("ALPACA_ENDPOINT")
 
-        if not api_key or not secret_key or not endpoint:
-            logger.error("Missing Alpaca credentials in AWS Secrets Manager")
+        # Require at least API key and secret key
+        if not api_key or not secret_key:
+            logger.error("Missing required Alpaca credentials in AWS Secrets Manager: ALPACA_KEY, ALPACA_SECRET")
             return None, None, None
+
+        # If no endpoint specified, default to paper trading
+        if not endpoint:
+            endpoint = "https://paper-api.alpaca.markets"
+            logger.info("No ALPACA_ENDPOINT in AWS Secrets Manager, defaulting to paper trading mode")
 
         logger.info("Successfully loaded Alpaca credentials from AWS Secrets Manager")
         return api_key, secret_key, endpoint
@@ -92,11 +98,17 @@ def _get_alpaca_keys_from_env() -> tuple[str, str, str] | tuple[None, None, None
     secret_key = os.getenv("ALPACA_SECRET") or os.getenv("ALPACA__SECRET")
     endpoint = os.getenv("ALPACA_ENDPOINT") or os.getenv("ALPACA__ENDPOINT")
 
-    if not api_key or not secret_key or not endpoint:
+    # Require at least API key and secret key
+    if not api_key or not secret_key:
         logger.error(
-            "Missing Alpaca credentials in environment variables: ALPACA_KEY/ALPACA__KEY, ALPACA_SECRET/ALPACA__SECRET, ALPACA_ENDPOINT/ALPACA__ENDPOINT"
+            "Missing required Alpaca credentials in environment variables: ALPACA_KEY/ALPACA__KEY, ALPACA_SECRET/ALPACA__SECRET"
         )
         return None, None, None
+
+    # If no endpoint specified, default to paper trading
+    if not endpoint:
+        endpoint = "https://paper-api.alpaca.markets"
+        logger.info("No ALPACA_ENDPOINT specified, defaulting to paper trading mode")
 
     logger.info("Successfully loaded Alpaca credentials from environment variables")
     return api_key, secret_key, endpoint
@@ -131,7 +143,7 @@ def _get_twelvedata_key_from_aws() -> str | None:
             return None
 
         logger.info("Successfully loaded TwelveData API key from AWS Secrets Manager")
-        return api_key
+        return str(api_key)
 
     except ClientError as e:
         logger.error(f"Failed to retrieve TwelveData key from AWS: {e}")
