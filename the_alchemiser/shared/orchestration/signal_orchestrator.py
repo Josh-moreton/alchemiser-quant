@@ -40,7 +40,7 @@ class SignalOrchestrator:
         strategy_allocations = get_strategy_allocations(self.settings)
         
         # Convert strategy allocations to new format
-        from the_alchemiser.strategy.registry.strategy_registry import StrategyType
+        from the_alchemiser.shared.types.strategy_types import StrategyType
         typed_allocations = {}
         for strategy_name, allocation in strategy_allocations.items():
             strategy_type = getattr(StrategyType, strategy_name.upper(), None)
