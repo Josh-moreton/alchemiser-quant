@@ -36,7 +36,7 @@ class SignalOrchestrator:
     def generate_signals(self) -> tuple[dict[str, Any], dict[str, float]]:
         """Generate strategy signals."""
         # Use strategy orchestrator for signal generation
-        market_data_port = self.container.infrastructure.market_data_repository()
+        market_data_port = self.container.infrastructure.market_data_service()
         strategy_allocations = get_strategy_allocations(self.settings)
         
         # Strategy allocations are already in the correct format (StrategyType -> float)
