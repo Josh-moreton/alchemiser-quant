@@ -20,7 +20,7 @@ class StrategyV2Error(Exception):
         message: str,
         module: str = "strategy_v2",
         correlation_id: str | None = None,
-        **kwargs: Any,
+        **kwargs: Any
     ) -> None:
         """Initialize strategy error.
 
