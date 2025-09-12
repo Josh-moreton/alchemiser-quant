@@ -30,6 +30,7 @@ from the_alchemiser.shared.utils.common import ActionType
 from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.shared.types import StrategyEngine, StrategySignal, Confidence
 from the_alchemiser.shared.types.exceptions import StrategyExecutionError
+from the_alchemiser.strategy_v2.core.base_engine import BaseStrategyEngine
 from the_alchemiser.strategy_v2.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
 from .base_variant import BaseKLMVariant
@@ -49,7 +50,7 @@ from .variants import (
 )
 
 
-class KLMEngine(StrategyEngine):
+class KLMEngine(BaseStrategyEngine, StrategyEngine):
     """Typed KLM Strategy Ensemble implementing StrategyEngine protocol.
 
     Implements the complete Clojure ensemble architecture:
@@ -60,9 +61,9 @@ class KLMEngine(StrategyEngine):
     """
 
     def __init__(
-        self, market_data_port: MarketDataPort, strategy_name: str = "KLM_Ensemble"
+        self, market_data_port: MarketDataPort
     ) -> None:
-        super().__init__(strategy_name, market_data_port)
+        super().__init__("KLM_Ensemble", market_data_port)
         self.indicators = TechnicalIndicators()
         self.confidence_config = ConfidenceConfig.default()
 

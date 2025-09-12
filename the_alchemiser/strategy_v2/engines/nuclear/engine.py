@@ -21,12 +21,13 @@ from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.shared.types import StrategyEngine, StrategySignal, Confidence
 from the_alchemiser.shared.types.exceptions import StrategyExecutionError
+from the_alchemiser.strategy_v2.core.base_engine import BaseStrategyEngine
 from the_alchemiser.strategy_v2.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
 from .logic import evaluate_nuclear_strategy
 
 
-class NuclearEngine(StrategyEngine):
+class NuclearEngine(BaseStrategyEngine, StrategyEngine):
     """Typed Nuclear Strategy Engine using MarketDataPort and producing StrategySignal objects."""
 
     def __init__(self, market_data_port: MarketDataPort) -> None:

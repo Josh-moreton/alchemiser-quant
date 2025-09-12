@@ -40,15 +40,14 @@ from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.shared.utils.common import ActionType
 from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.shared.types import StrategyEngine, StrategySignal, Confidence
-from the_alchemiser.strategy_v2.indicators.indicator_utils import safe_get_indicator
-from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
+from the_alchemiser.strategy_v2.core.base_engine import BaseStrategyEngine
 from the_alchemiser.strategy_v2.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
 
 warnings.filterwarnings("ignore")
 
 
-class TECLEngine(StrategyEngine):
+class TECLEngine(BaseStrategyEngine, StrategyEngine):
     """TECL Strategy Engine - Long-term technology leverage with volatility protection."""
 
     def __init__(self, data_provider: MarketDataPort) -> None:
