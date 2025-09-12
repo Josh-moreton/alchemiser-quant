@@ -26,7 +26,6 @@ Key Symbols:
 
 from __future__ import annotations
 
-import logging
 import warnings
 from datetime import datetime
 from decimal import Decimal
@@ -35,6 +34,7 @@ from typing import Any
 import pandas as pd
 
 from the_alchemiser.shared.config.confidence_config import ConfidenceConfig, TECLConfidenceConfig
+from the_alchemiser.shared.logging.logging_utils import get_trading_logger
 from the_alchemiser.shared.types import Confidence, StrategyEngine, StrategySignal
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.percentage import Percentage
@@ -56,8 +56,10 @@ class TECLEngine(StrategyEngine):
             market_data_port: Market data provider implementing MarketDataPort protocol
 
         """
-        self.data_provider = market_data_port  # Keep for backward compatibility with existing methods
-        self.logger = logging.getLogger(__name__)
+        self.data_provider = (
+            market_data_port  # Keep for backward compatibility with existing methods
+        )
+        self.logger = get_trading_logger(__name__, strategy="TECL", module="strategy.engines.tecl")
         self.indicators = TechnicalIndicators()
         self.confidence_config = ConfidenceConfig.default()
 
@@ -89,12 +91,12 @@ class TECLEngine(StrategyEngine):
         # TODO: Remove this deprecated mapping dependency
         # This should be replaced with direct DTO construction
         # For now, we'll implement the required functionality directly
-        def symbol_str_to_symbol(symbol_str: str):
+        def symbol_str_to_symbol(symbol_str: str) -> Symbol:
             from the_alchemiser.shared.value_objects.symbol import Symbol
 
             return Symbol(symbol_str)
 
-        def bars_to_dataframe(bars):
+        def bars_to_dataframe(bars: list[Any] | None) -> pd.DataFrame:
             # Simplified conversion - replace with proper implementation
             return pd.DataFrame(bars) if bars else pd.DataFrame()
 
@@ -118,18 +120,18 @@ class TECLEngine(StrategyEngine):
         for symbol, df in market_data.items():
             if df.empty:
                 continue
-            
+
             try:
                 # Check if Close column exists before accessing it
                 if "Close" not in df.columns:
                     self.logger.warning(f"Missing 'Close' column for {symbol}, skipping indicators")
                     continue
-                    
+
                 close = df["Close"]
                 if close.empty:
                     self.logger.warning(f"Empty 'Close' data for {symbol}, skipping indicators")
                     continue
-                    
+
                 indicators[symbol] = {
                     "rsi_9": safe_get_indicator(close, self.indicators.rsi, 9),
                     "rsi_10": safe_get_indicator(close, self.indicators.rsi, 10),
@@ -140,7 +142,7 @@ class TECLEngine(StrategyEngine):
                 }
             except Exception as e:
                 self.logger.warning(f"Failed to calculate indicators for {symbol}: {e}")
-                
+
         return indicators
 
     def evaluate_tecl_strategy(
@@ -277,7 +279,9 @@ class TECLEngine(StrategyEngine):
         kmlm_rsi = indicators["KMLM"]["rsi_10"]
 
         # Debug logging for RSI comparison
-        self.logger.debug(f"KMLM Switcher - XLK RSI(10) = {xlk_rsi:.2f}, KMLM RSI(10) = {kmlm_rsi:.2f}")
+        self.logger.debug(
+            f"KMLM Switcher - XLK RSI(10) = {xlk_rsi:.2f}, KMLM RSI(10) = {kmlm_rsi:.2f}"
+        )
 
         switcher_analysis = f"{market_analysis}\n\nKMLM Switcher Analysis:\n"
         switcher_analysis += f"• XLK (Technology) RSI(10): {xlk_rsi:.1f}\n"
@@ -332,7 +336,8 @@ class TECLEngine(StrategyEngine):
     def _evaluate_bond_vs_short_selection(
         self, indicators: dict[str, Any], switcher_analysis: str, market_regime: str
     ) -> tuple[str | dict[str, float], str, str]:
-        """Final selection between bonds and short positions using RSI filter mechanism.
+        """Select the final asset between bonds and short positions using RSI filter mechanism.
+
         This implements the filter/select-top logic from the Clojure version.
         """
         # Create candidate list with their RSI(9) values
@@ -585,7 +590,9 @@ class TECLEngine(StrategyEngine):
 
 def main() -> None:
     """Test the TECL strategy engine."""
-    logger = logging.getLogger(__name__)
+    from the_alchemiser.shared.logging.logging_utils import get_logger
+
+    logger = get_logger(__name__)
     logger.info("🚀 TECL Strategy Engine Test")
     logger.info("=" * 50)
     logger.info("Note: This test requires a configured data provider")
