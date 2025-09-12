@@ -19,7 +19,7 @@ from ..utils.timezone_utils import ensure_timezone_aware
 
 class BaseEvent(BaseModel):
     """Base class for all events in the system.
-    
+
     Provides common fields for correlation tracking, timing, and metadata.
     All specific events should inherit from this class.
     """
@@ -36,18 +36,18 @@ class BaseEvent(BaseModel):
     causation_id: str = Field(
         ..., min_length=1, description="Causation identifier for traceability"
     )
-    
+
     # Event identification and timing
     event_id: str = Field(..., min_length=1, description="Unique event identifier")
     event_type: str = Field(..., min_length=1, description="Type of event")
     timestamp: datetime = Field(..., description="Event timestamp")
-    
+
     # Event source and context
     source_module: str = Field(..., min_length=1, description="Module that emitted the event")
     source_component: str | None = Field(
         default=None, description="Specific component that emitted the event"
     )
-    
+
     # Optional metadata for extensibility
     metadata: dict[str, Any] | None = Field(
         default=None, description="Additional event-specific metadata"
@@ -64,13 +64,14 @@ class BaseEvent(BaseModel):
 
         Returns:
             Dictionary representation of the event with properly serialized values.
+
         """
         data = self.model_dump()
-        
+
         # Convert datetime to ISO string
         if self.timestamp:
             data["timestamp"] = self.timestamp.isoformat()
-            
+
         return data
 
     @classmethod
@@ -85,6 +86,7 @@ class BaseEvent(BaseModel):
 
         Raises:
             ValueError: If data is invalid or missing required fields
+
         """
         # Convert string timestamp back to datetime
         if "timestamp" in data and isinstance(data["timestamp"], str):

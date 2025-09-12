@@ -21,10 +21,10 @@ from .schemas import RebalancePlanned, SignalGenerated, StartupEvent, TradeExecu
 
 __all__ = [
     "BaseEvent",
-    "EventBus", 
+    "EventBus",
     "EventHandler",
-    "StartupEvent",
+    "RebalancePlanned",
     "SignalGenerated",
-    "RebalancePlanned", 
+    "StartupEvent",
     "TradeExecuted",
 ]
