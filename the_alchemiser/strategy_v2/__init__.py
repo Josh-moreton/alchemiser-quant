@@ -26,7 +26,7 @@ __all__ = [
     # Core components
     "StrategyContext",
     "StrategyOrchestrator",
-    "get_strategy", 
+    "get_strategy",
     "list_strategies",
     "register_strategy",
 ]

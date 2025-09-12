@@ -15,9 +15,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
+from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.types.exceptions import (
     NotificationError,
     TradingClientError,
@@ -47,7 +47,7 @@ class TradingOrchestrator:
 
         self.ignore_market_hours = ignore_market_hours
         self.logger = get_logger(__name__)
-        
+
         # Create signal orchestrator for signal generation
         self.signal_orchestrator = SignalOrchestrator(settings, container)
 
@@ -93,9 +93,9 @@ class TradingOrchestrator:
             if result is None:
                 self.logger.error("Failed to generate strategy signals")
                 return None
-                
+
             strategy_signals, consolidated_portfolio = result
-            
+
             # For now, return a simplified execution result
             # TODO: Integrate with execution_v2 for actual order placement
             return {
@@ -104,14 +104,12 @@ class TradingOrchestrator:
                 "success": True,
                 "message": "Signal generation completed successfully",
             }
-            
+
         except Exception as e:
             self.logger.error(f"Strategy signal execution failed: {e}")
             return None
 
-    def send_trading_notification(
-        self, result: dict[str, any], mode_str: str
-    ) -> None:
+    def send_trading_notification(self, result: dict[str, any], mode_str: str) -> None:
         """Send trading completion notification.
 
         Args:
@@ -121,14 +119,14 @@ class TradingOrchestrator:
         """
         try:
             from the_alchemiser.shared.notifications.email_utils import (
-                send_email_notification,
                 build_error_email_html,
+                send_email_notification,
             )
 
             # Create simple HTML content for the result
             success = result.get("success", False)
             message = result.get("message", "Trading execution completed")
-            
+
             if success:
                 html_content = f"""
                 <h2>Trading Execution Report - {mode_str.upper()}</h2>
@@ -181,9 +179,10 @@ class TradingOrchestrator:
 
     def execute_trading_workflow(self) -> bool:
         """Execute complete trading workflow.
-        
+
         Returns:
             True if trading succeeded, False otherwise
+
         """
         mode_str = "LIVE" if self.live_trading else "PAPER"
 

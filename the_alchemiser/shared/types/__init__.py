@@ -17,7 +17,7 @@ __all__ = [
     "Quantity",
     # Strategy types
     "StrategyEngine",
-    "StrategySignal", 
+    "StrategySignal",
     "Confidence",
     # Broker enums
     "OrderSideType",

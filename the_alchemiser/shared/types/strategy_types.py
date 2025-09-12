@@ -10,7 +10,7 @@ from enum import Enum
 
 class StrategyType(Enum):
     """Enumeration of available strategy types."""
-    
+
     NUCLEAR = "nuclear"
     TECL = "tecl"
     KLM = "klm"

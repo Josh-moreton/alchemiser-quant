@@ -16,8 +16,8 @@ from .registry import get_strategy, list_strategies, register_strategy
 __all__ = [
     "StrategyOrchestrator",
     "create_orchestrator",
-    "create_orchestrator_with_adapter", 
+    "create_orchestrator_with_adapter",
     "get_strategy",
-    "list_strategies", 
+    "list_strategies",
     "register_strategy",
 ]

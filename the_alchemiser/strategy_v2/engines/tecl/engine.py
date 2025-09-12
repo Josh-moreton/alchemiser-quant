@@ -35,13 +35,11 @@ from typing import Any
 import pandas as pd
 
 from the_alchemiser.shared.config.confidence_config import ConfidenceConfig, TECLConfidenceConfig
+from the_alchemiser.shared.types import Confidence, StrategyEngine, StrategySignal
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.shared.utils.common import ActionType
 from the_alchemiser.shared.value_objects.symbol import Symbol
-from the_alchemiser.shared.types import StrategyEngine, StrategySignal, Confidence
-from the_alchemiser.strategy_v2.indicators.indicator_utils import safe_get_indicator
-from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
 from the_alchemiser.strategy_v2.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
 
@@ -87,13 +85,15 @@ class TECLEngine(StrategyEngine):
 
     def get_market_data(self) -> dict[str, Any]:
         """Fetch data for all symbols."""
+
         # TODO: Remove this deprecated mapping dependency
-        # This should be replaced with direct DTO construction  
+        # This should be replaced with direct DTO construction
         # For now, we'll implement the required functionality directly
         def symbol_str_to_symbol(symbol_str: str):
             from the_alchemiser.shared.value_objects.symbol import Symbol
+
             return Symbol(symbol_str)
-        
+
         def bars_to_dataframe(bars):
             # Simplified conversion - replace with proper implementation
             return pd.DataFrame(bars) if bars else pd.DataFrame()

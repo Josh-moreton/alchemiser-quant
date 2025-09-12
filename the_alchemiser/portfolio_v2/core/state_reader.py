@@ -23,30 +23,30 @@ logger = logging.getLogger(__name__)
 
 class PortfolioStateReader:
     """Builds immutable portfolio snapshots from live market data.
-    
+
     Coordinates data fetching from AlpacaDataAdapter and constructs
     consistent PortfolioSnapshot instances for rebalancing calculations.
     """
-    
+
     def __init__(self, data_adapter: AlpacaDataAdapter) -> None:
         """Initialize state reader with data adapter.
-        
+
         Args:
             data_adapter: AlpacaDataAdapter for market data access
 
         """
         self._data_adapter = data_adapter
-    
+
     def build_portfolio_snapshot(self, symbols: set[str] | None = None) -> PortfolioSnapshot:
         """Build current portfolio snapshot with positions, prices, and cash.
-        
+
         Args:
             symbols: Optional set of symbols to include prices for.
                     If None, includes all symbols from current positions.
-                    
+
         Returns:
             PortfolioSnapshot with current state
-            
+
         Raises:
             Exception: If snapshot cannot be built due to data errors
 
@@ -57,13 +57,13 @@ class PortfolioStateReader:
             "Building portfolio snapshot",
             module="portfolio_v2.core.state_reader",
             action="build_snapshot",
-            requested_symbols=sorted(symbols) if symbols else None
+            requested_symbols=sorted(symbols) if symbols else None,
         )
-        
+
         try:
             # Step 1: Get current positions
             positions = self._data_adapter.get_positions()
-            
+
             # Step 2: Determine which symbols we need prices for
             position_symbols = set(positions.keys())
             if symbols is None:
@@ -72,15 +72,15 @@ class PortfolioStateReader:
             else:
                 # Use requested symbols plus any symbols we have positions in
                 price_symbols = symbols.union(position_symbols)
-            
+
             # Step 3: Get current prices for all required symbols
             prices = {}
             if price_symbols:
                 prices = self._data_adapter.get_current_prices(list(price_symbols))
-            
+
             # Step 4: Get cash balance
             cash = self._data_adapter.get_account_cash()
-            
+
             # Step 5: Calculate total portfolio value
             position_value = Decimal("0")
             for symbol, quantity in positions.items():
@@ -89,17 +89,14 @@ class PortfolioStateReader:
                 else:
                     # This should not happen if our logic is correct
                     raise ValueError(f"Missing price for position symbol: {symbol}")
-            
+
             total_value = position_value + cash
-            
+
             # Step 6: Create and validate snapshot
             snapshot = PortfolioSnapshot(
-                positions=positions,
-                prices=prices,
-                cash=cash,
-                total_value=total_value
+                positions=positions, prices=prices, cash=cash, total_value=total_value
             )
-            
+
             # Validate snapshot consistency
             if not snapshot.validate_total_value():
                 log_with_context(
@@ -109,9 +106,9 @@ class PortfolioStateReader:
                     module="portfolio_v2.core.state_reader",
                     action="build_snapshot",
                     calculated_total=str(snapshot.get_total_position_value() + snapshot.cash),
-                    snapshot_total=str(snapshot.total_value)
+                    snapshot_total=str(snapshot.total_value),
                 )
-            
+
             log_with_context(
                 logger,
                 logging.INFO,
@@ -122,11 +119,11 @@ class PortfolioStateReader:
                 price_count=len(prices),
                 total_value=str(total_value),
                 cash_balance=str(cash),
-                position_value=str(position_value)
+                position_value=str(position_value),
             )
-            
+
             return snapshot
-            
+
         except Exception as e:
             log_with_context(
                 logger,
@@ -134,6 +131,6 @@ class PortfolioStateReader:
                 f"Failed to build portfolio snapshot: {e}",
                 module="portfolio_v2.core.state_reader",
                 action="build_snapshot",
-                error=str(e)
+                error=str(e),
             )
             raise

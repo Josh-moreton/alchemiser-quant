@@ -13,8 +13,6 @@ import logging
 import subprocess
 import time
 from datetime import UTC, datetime
-from decimal import Decimal
-from pathlib import Path
 from typing import Any
 
 import typer
@@ -37,9 +35,6 @@ from the_alchemiser.shared.types.exceptions import (
     AlchemiserError,
     TradingClientError,
 )
-from the_alchemiser.shared.types.market_data_port import MarketDataPort
-from the_alchemiser.shared.types.quote import QuoteModel
-from the_alchemiser.shared.value_objects.symbol import Symbol
 
 # Delayed imports to avoid circular dependency issues during module loading
 # from the_alchemiser.strategy.engines.core.trading_engine import TradingEngine
@@ -139,7 +134,9 @@ def signal(
         # DSL mode path -----------------------------------------------------
         if dsl_strategy:
             # TODO: DSL functionality temporarily disabled due to deprecated module removal
-            console.print("[bold red]DSL mode temporarily disabled during migration to strategy_v2[/bold red]")
+            console.print(
+                "[bold red]DSL mode temporarily disabled during migration to strategy_v2[/bold red]"
+            )
             console.print("Please use the default signal analysis mode.")
             raise typer.Exit(1)
 
@@ -613,7 +610,9 @@ def dsl_count(
     """
     # TODO: DSL functionality temporarily disabled due to deprecated module removal
     console = Console()
-    console.print("[bold red]DSL functionality temporarily disabled during migration to strategy_v2[/bold red]")
+    console.print(
+        "[bold red]DSL functionality temporarily disabled during migration to strategy_v2[/bold red]"
+    )
     raise typer.Exit(1)
 
 

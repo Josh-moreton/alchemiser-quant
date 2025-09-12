@@ -23,22 +23,24 @@ class StrategyEngine(Protocol):
 
     def generate_signals(self, timestamp: datetime) -> list:
         """Generate strategy signals for the given timestamp.
-        
+
         Args:
             timestamp: Timestamp for signal generation
-            
+
         Returns:
             List of strategy signals
+
         """
         ...
 
     def validate_signals(self, signals: list) -> None:
         """Validate generated signals.
-        
+
         Args:
             signals: List of signals to validate
-            
+
         Raises:
             ValueError: If signals are invalid
+
         """
         ...

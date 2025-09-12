@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
-    from the_alchemiser.strategy.schemas.strategies import StrategySignalDisplayDTO
 
+from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.cli.cli_formatter import (
     render_footer,
     render_header,
@@ -22,7 +22,6 @@ from the_alchemiser.shared.cli.cli_formatter import (
 )
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 
 
 class SignalAnalyzer:
@@ -32,7 +31,7 @@ class SignalAnalyzer:
         self.settings = settings
         self.container = container
         self.logger = get_logger(__name__)
-        
+
         # Delegate orchestration to dedicated orchestrator
         self.orchestrator = SignalOrchestrator(settings, container)
 
@@ -197,11 +196,11 @@ class SignalAnalyzer:
 
         # Delegate to orchestration layer
         result = self.orchestrator.analyze_signals()
-        
+
         if result is None:
             self.logger.error("Signal analysis failed")
             return False
-            
+
         strategy_signals, consolidated_portfolio = result
 
         # Display results (tracking gated by flag)

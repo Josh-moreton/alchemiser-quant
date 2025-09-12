@@ -10,7 +10,7 @@ from the_alchemiser.shared.types.strategy_types import StrategyType
 
 class StrategyRegistry:
     """Strategy registry bridge for migration."""
-    
+
     @staticmethod
     def get_default_allocations() -> dict[StrategyType, float]:
         """Get default strategy allocations."""
@@ -19,7 +19,7 @@ class StrategyRegistry:
             StrategyType.TECL: 0.3,
             StrategyType.KLM: 0.2,
         }
-    
+
     @staticmethod
     def is_strategy_enabled(strategy_type: StrategyType) -> bool:
         """Check if strategy is enabled."""
