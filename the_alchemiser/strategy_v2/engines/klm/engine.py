@@ -157,9 +157,6 @@ class KLMEngine(StrategyEngine):
 
         except Exception as e:
             self.logger.error(f"Error generating KLM signals: {e}")
-            self.logger.error(f"Exception type: {type(e)}, details: {repr(e)}")
-            import traceback
-            self.logger.error(f"Traceback: {traceback.format_exc()}")
             raise StrategyExecutionError(
                 f"KLM ensemble signal generation failed: {e}", strategy_name=self.strategy_name
             ) from e
