@@ -36,6 +36,7 @@ import pandas as pd
 from the_alchemiser.shared.config.confidence_config import ConfidenceConfig, TECLConfidenceConfig
 from the_alchemiser.shared.logging.logging_utils import get_trading_logger
 from the_alchemiser.shared.types import Confidence, StrategyEngine, StrategySignal
+from the_alchemiser.shared.types.market_data import bars_to_dataframe
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.shared.utils.common import ActionType
@@ -96,9 +97,8 @@ class TECLEngine(StrategyEngine):
 
             return Symbol(symbol_str)
 
-        def bars_to_dataframe(bars: list[Any] | None) -> pd.DataFrame:
-            # Simplified conversion - replace with proper implementation
-            return pd.DataFrame(bars) if bars else pd.DataFrame()
+        # Use the proper bars_to_dataframe function from shared.types.market_data
+        # This function correctly converts BarModel objects to DataFrame with uppercase column names
 
         market_data = {}
         for symbol in self.all_symbols:

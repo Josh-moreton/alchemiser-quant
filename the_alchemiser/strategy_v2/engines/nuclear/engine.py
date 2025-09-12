@@ -19,6 +19,7 @@ from the_alchemiser.shared.config.confidence_config import ConfidenceConfig, Nuc
 from the_alchemiser.shared.logging.logging_utils import get_trading_logger
 from the_alchemiser.shared.types import Confidence, StrategyEngine, StrategySignal
 from the_alchemiser.shared.types.exceptions import StrategyExecutionError
+from the_alchemiser.shared.types.market_data import bars_to_dataframe
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.shared.value_objects.symbol import Symbol
@@ -149,11 +150,8 @@ class NuclearEngine(StrategyEngine):
 
             return Symbol(symbol_str)
 
-        def bars_to_dataframe(bars: list[Any] | None) -> pd.DataFrame:
-            # Simplified conversion - replace with proper implementation
-            import pandas as pd
-
-            return pd.DataFrame(bars) if bars else pd.DataFrame()
+        # Use the proper bars_to_dataframe function from shared.types.market_data
+        # This function correctly converts BarModel objects to DataFrame with uppercase column names
 
         market_data = {}
         port = market_data_port or self.market_data_port
