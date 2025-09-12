@@ -117,15 +117,29 @@ class TECLEngine(StrategyEngine):
         for symbol, df in market_data.items():
             if df.empty:
                 continue
-            close = df["Close"]
-            indicators[symbol] = {
-                "rsi_9": safe_get_indicator(close, self.indicators.rsi, 9),
-                "rsi_10": safe_get_indicator(close, self.indicators.rsi, 10),
-                "rsi_20": safe_get_indicator(close, self.indicators.rsi, 20),
-                "ma_200": safe_get_indicator(close, self.indicators.moving_average, 200),
-                "ma_20": safe_get_indicator(close, self.indicators.moving_average, 20),
-                "current_price": float(close.iloc[-1]),
-            }
+            
+            try:
+                # Check if Close column exists before accessing it
+                if "Close" not in df.columns:
+                    self.logger.warning(f"Missing 'Close' column for {symbol}, skipping indicators")
+                    continue
+                    
+                close = df["Close"]
+                if close.empty:
+                    self.logger.warning(f"Empty 'Close' data for {symbol}, skipping indicators")
+                    continue
+                    
+                indicators[symbol] = {
+                    "rsi_9": safe_get_indicator(close, self.indicators.rsi, 9),
+                    "rsi_10": safe_get_indicator(close, self.indicators.rsi, 10),
+                    "rsi_20": safe_get_indicator(close, self.indicators.rsi, 20),
+                    "ma_200": safe_get_indicator(close, self.indicators.moving_average, 200),
+                    "ma_20": safe_get_indicator(close, self.indicators.moving_average, 20),
+                    "current_price": float(close.iloc[-1]),
+                }
+            except Exception as e:
+                self.logger.warning(f"Failed to calculate indicators for {symbol}: {e}")
+                
         return indicators
 
     def evaluate_tecl_strategy(

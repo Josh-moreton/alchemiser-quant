@@ -171,7 +171,16 @@ class NuclearEngine(StrategyEngine):
                 continue
 
             try:
+                # Check if Close column exists before accessing it
+                if "Close" not in df.columns:
+                    self.logger.warning(f"Missing 'Close' column for {symbol}, skipping indicators")
+                    continue
+                    
                 close = df["Close"]
+                if close.empty:
+                    self.logger.warning(f"Empty 'Close' data for {symbol}, skipping indicators")
+                    continue
+                    
                 indicators[symbol] = {
                     "rsi_10": safe_get_indicator(close, self.indicators.rsi, 10),
                     "rsi_20": safe_get_indicator(close, self.indicators.rsi, 20),
