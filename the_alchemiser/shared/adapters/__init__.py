@@ -1,4 +1,4 @@
-"""Business Unit: shared | Status: current
+"""Business Unit: shared | Status: current.
 
 Adapter implementations for interfacing between different architectural layers.
 """
