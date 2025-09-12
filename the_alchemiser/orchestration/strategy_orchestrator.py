@@ -100,6 +100,8 @@ class StrategyOrchestrator:
 
     def _initialize_typed_engines(self) -> None:
         """Initialize typed strategy engines that implement StrategyEngine protocol."""
+        failed_strategies = []
+        
         for strategy_type in self.strategy_allocations:
             try:
                 engine = self._create_typed_engine(strategy_type)
@@ -110,8 +112,12 @@ class StrategyOrchestrator:
                 )
             except Exception as e:
                 self.logger.error(f"Failed to initialize {strategy_type.value} typed engine: {e}")
-                # Remove from allocations if initialization failed
-                del self.strategy_allocations[strategy_type]
+                # Collect failed strategies for removal after iteration
+                failed_strategies.append(strategy_type)
+        
+        # Remove failed strategies from allocations
+        for strategy_type in failed_strategies:
+            del self.strategy_allocations[strategy_type]
 
     def _create_typed_engine(self, strategy_type: StrategyType) -> StrategyEngine:
         """Create typed strategy engine instance."""

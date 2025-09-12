@@ -9,6 +9,7 @@ objects with proper confidence values and target allocations.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
@@ -31,7 +32,8 @@ class NuclearEngine(StrategyEngine):
     """Typed Nuclear Strategy Engine using MarketDataPort and producing StrategySignal objects."""
 
     def __init__(self, market_data_port: MarketDataPort) -> None:
-        super().__init__("Nuclear", market_data_port)
+        self.market_data_port = market_data_port
+        self.logger = logging.getLogger(__name__)
         self.indicators = TechnicalIndicators()
         self.confidence_config = ConfidenceConfig.default()
         # pure strategy evaluated via nuclear_logic.evaluate_nuclear_strategy
