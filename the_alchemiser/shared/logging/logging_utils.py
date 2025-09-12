@@ -15,7 +15,8 @@ from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import Any
 
-from the_alchemiser.portfolio.utils.s3_utils import S3FileHandler
+# TODO: S3 handler was removed with deprecated portfolio module
+# from the_alchemiser.portfolio.utils.s3_utils import S3FileHandler
 
 # Constants
 _S3_PROTOCOL_PREFIX = "s3://"
@@ -243,11 +244,17 @@ def setup_logging(
     # File handler if specified
     if log_file:
         if log_file.startswith(_S3_PROTOCOL_PREFIX):
-            # Use S3 handler for S3 URIs
-            s3_handler = S3FileHandler(log_file)
-            s3_handler.setFormatter(formatter)
-            s3_handler.setLevel(log_level)
-            handlers.append(s3_handler)
+            # TODO: S3 handler was removed with deprecated portfolio module
+            # Use local file handler as fallback
+            logging.warning("S3 logging not available - using local file fallback")
+            log_file = log_file.replace(_S3_PROTOCOL_PREFIX, "").replace("/", "_")
+            # Ensure directory exists for local files
+            if os.path.dirname(log_file):
+                os.makedirs(os.path.dirname(log_file), exist_ok=True)
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setFormatter(formatter)
+            file_handler.setLevel(log_level)
+            handlers.append(file_handler)
         else:
             # Ensure directory exists for local files
             if os.path.dirname(log_file):

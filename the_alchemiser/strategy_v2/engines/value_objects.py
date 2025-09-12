@@ -13,7 +13,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from ....shared.value_objects.symbol import Symbol
+from the_alchemiser.shared.value_objects.symbol import Symbol
 
 
 class Confidence(BaseModel):

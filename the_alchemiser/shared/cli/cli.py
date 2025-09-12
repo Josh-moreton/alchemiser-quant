@@ -47,7 +47,8 @@ from the_alchemiser.shared.value_objects.symbol import Symbol
 # from the_alchemiser.strategy.dsl.parser import DSLParser
 # from the_alchemiser.strategy.dsl.strategy_loader import StrategyLoader
 # Import domain models for type annotations
-from the_alchemiser.strategy.types.bar import BarModel
+# TODO: BarModel was removed with deprecated strategy module
+# from the_alchemiser.strategy.types.bar import BarModel
 
 # Constants to avoid duplication
 STYLE_BOLD_CYAN = "bold cyan"
@@ -137,6 +138,10 @@ def signal(
     try:
         # DSL mode path -----------------------------------------------------
         if dsl_strategy:
+            # TODO: DSL functionality temporarily disabled due to deprecated module removal
+            console.print("[bold red]DSL mode temporarily disabled during migration to strategy_v2[/bold red]")
+            console.print("Please use the default signal analysis mode.")
+            raise typer.Exit(1)
             show_welcome()
 
             # Resolve strategy file path (allow bare name referencing clj-strategies dir)
@@ -827,6 +832,10 @@ def dsl_count(
     and reports structural complexity so large strategies can be optimized before
     full evaluation.
     """
+    # TODO: DSL functionality temporarily disabled due to deprecated module removal
+    console = Console()
+    console.print("[bold red]DSL functionality temporarily disabled during migration to strategy_v2[/bold red]")
+    raise typer.Exit(1)
     show_welcome()
 
     raw_path = dsl_strategy.strip()
