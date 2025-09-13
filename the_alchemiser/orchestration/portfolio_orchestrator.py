@@ -204,7 +204,13 @@ class PortfolioOrchestrator:
                     "buying_power": getattr(account_raw, "buying_power", 0),
                     "equity": getattr(account_raw, "equity", None) or getattr(account_raw, "portfolio_value", None),
                 }
-                self.logger.info(f"Retrieved account info: Portfolio value ${account_info.get('portfolio_value', 0):,.2f}")
+                portfolio_value = account_info.get('portfolio_value', 0)
+                # Safely convert to float for logging, handling string values from API
+                try:
+                    portfolio_value_float = float(portfolio_value) if portfolio_value is not None else 0.0
+                except (ValueError, TypeError):
+                    portfolio_value_float = 0.0
+                self.logger.info(f"Retrieved account info: Portfolio value ${portfolio_value_float:,.2f}")
 
             # Get current positions
             current_positions = {}
