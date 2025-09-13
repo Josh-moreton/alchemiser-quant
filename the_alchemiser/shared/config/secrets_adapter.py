@@ -17,6 +17,7 @@ import os
 
 # Auto-load .env file into environment variables
 from the_alchemiser.shared.config import env_loader  # noqa: F401
+from the_alchemiser.shared.config.config import load_settings
 
 logger = logging.getLogger(__name__)
 
@@ -72,13 +73,17 @@ def _get_alpaca_keys_from_aws() -> tuple[str, str, str] | tuple[None, None, None
 
         # Require at least API key and secret key
         if not api_key or not secret_key:
-            logger.error("Missing required Alpaca credentials in AWS Secrets Manager: ALPACA_KEY, ALPACA_SECRET")
+            logger.error(
+                "Missing required Alpaca credentials in AWS Secrets Manager: ALPACA_KEY, ALPACA_SECRET"
+            )
             return None, None, None
 
         # If no endpoint specified, default to paper trading
         if not endpoint:
             endpoint = "https://paper-api.alpaca.markets"
-            logger.info("No ALPACA_ENDPOINT in AWS Secrets Manager, defaulting to paper trading mode")
+            logger.info(
+                "No ALPACA_ENDPOINT in AWS Secrets Manager, defaulting to paper trading mode"
+            )
 
         logger.info("Successfully loaded Alpaca credentials from AWS Secrets Manager")
         return api_key, secret_key, endpoint
@@ -163,3 +168,86 @@ def _get_twelvedata_key_from_env() -> str | None:
 
     logger.info("Successfully loaded TwelveData API key from environment")
     return api_key
+
+
+def get_email_password() -> str | None:
+    """Get email password from the appropriate source.
+
+    Simple environment detection:
+    - If AWS_LAMBDA_FUNCTION_NAME exists: Use AWS Secrets Manager
+    - Otherwise: Use environment variables (.env file)
+
+    Returns:
+        Email password string or None if not found
+
+    """
+    # Simple environment detection
+    if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+        # In Lambda - get from AWS Secrets Manager
+        logger.info("Detected AWS Lambda environment - loading email password from Secrets Manager")
+        return _get_email_password_from_aws()
+    # Local dev - get from .env
+    logger.info("Detected local environment - loading email password from environment variables")
+    return _get_email_password_from_env()
+
+
+def _get_email_password_from_aws() -> str | None:
+    """Get email password from AWS Secrets Manager."""
+    if not BOTO3_AVAILABLE:
+        logger.error("boto3 not available for AWS Secrets Manager access")
+        return None
+
+    try:
+        client = boto3.client("secretsmanager", region_name="eu-west-2")
+        response = client.get_secret_value(SecretId="the-alchemiser-secrets")
+        secret_data = json.loads(response["SecretString"])
+
+        # Look for email password in secrets (prioritize SMTP_PASSWORD)
+        password = (
+            secret_data.get("SMTP_PASSWORD")
+            or secret_data.get("email_password")
+            or secret_data.get("EMAIL_PASSWORD")
+        )
+
+        if not password:
+            logger.warning("Email password not found in AWS Secrets Manager")
+            return None
+
+        logger.info("Successfully loaded email password from AWS Secrets Manager")
+        return str(password)
+
+    except ClientError as e:
+        logger.error(f"Failed to retrieve email password from AWS: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error retrieving email password from AWS: {e}")
+        return None
+
+
+def _get_email_password_from_env() -> str | None:
+    """Get email password from environment variables."""
+    # First try the Pydantic config model (preferred method)
+    try:
+        config = load_settings()
+        if config.email.password:
+            logger.info("Successfully loaded email password from Pydantic config (EMAIL__PASSWORD)")
+            return config.email.password
+    except Exception as e:
+        logger.debug(f"Could not load email password from Pydantic config: {e}")
+
+    # Fallback to direct environment variable access for backward compatibility
+    password = (
+        os.getenv("EMAIL__PASSWORD")
+        or os.getenv("EMAIL_PASSWORD")
+        or os.getenv("EMAIL__SMTP_PASSWORD")
+        or os.getenv("SMTP_PASSWORD")
+    )
+
+    if not password:
+        logger.warning(
+            "Email password not found in environment variables (tried EMAIL__PASSWORD, EMAIL_PASSWORD, EMAIL__SMTP_PASSWORD, SMTP_PASSWORD)"
+        )
+        return None
+
+    logger.info("Successfully loaded email password from environment variables (fallback method)")
+    return password

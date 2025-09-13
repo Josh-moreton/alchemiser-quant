@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 
 from the_alchemiser.shared.config.config import load_settings
-from the_alchemiser.shared.config.secrets_manager import SecretsManager
+from the_alchemiser.shared.config.secrets_adapter import get_email_password
 from the_alchemiser.shared.schemas.reporting import EmailCredentials
 
 
@@ -20,7 +20,6 @@ class EmailConfig:
 
     def __init__(self) -> None:
         """Prepare helpers for loading configuration from multiple sources."""
-        self.secrets_manager = SecretsManager()
         self._config_cache: EmailCredentials | None = None
 
     def get_config(
@@ -45,11 +44,8 @@ class EmailConfig:
             from_email = config.email.from_email
             to_email = config.email.to_email
 
-            # Get secrets manager config
-            secret_name = config.secrets_manager.secret_name
-
-            # Get sensitive password from AWS Secrets Manager
-            email_password = self._get_email_password(secret_name)
+            # Get sensitive password from secrets adapter (environment-aware)
+            email_password = get_email_password()
 
             # Validate required fields
             if not from_email:
@@ -57,7 +53,7 @@ class EmailConfig:
                 return None
 
             if not email_password:
-                logging.error("email_password not found in AWS Secrets Manager")
+                logging.warning("Email password not found - email notifications will be disabled")
                 return None
 
             # Use from_email as to_email if to_email is not specified
@@ -80,21 +76,6 @@ class EmailConfig:
         except Exception as e:
             logging.error(f"Error loading email configuration: {e}")
             return None
-
-    def _get_email_password(self, secret_name: str) -> str | None:
-        """Get email password from AWS Secrets Manager."""
-        try:
-            secrets = self.secrets_manager.get_secret(secret_name)
-            if secrets:
-                # Look for email password in secrets (prioritize SMTP_PASSWORD)
-                return (
-                    secrets.get("SMTP_PASSWORD")
-                    or secrets.get("email_password")
-                    or secrets.get("EMAIL_PASSWORD")
-                )
-        except Exception as e:
-            logging.warning(f"Could not get email password from secrets manager: {e}")
-        return None
 
     def clear_cache(self) -> None:
         """Clear the configuration cache."""

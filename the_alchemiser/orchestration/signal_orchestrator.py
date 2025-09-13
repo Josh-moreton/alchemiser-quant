@@ -36,7 +36,7 @@ class SignalOrchestrator:
         self.settings = settings
         self.container = container
         self.logger = get_logger(__name__)
-        
+
         # Get event bus from container for dual-path emission
         self.event_bus: EventBus = container.services.event_bus()
 
@@ -45,7 +45,7 @@ class SignalOrchestrator:
         # Use strategy orchestrator for signal generation
         market_data_port = self.container.infrastructure.market_data_service()
         strategy_allocations = get_strategy_allocations(self.settings)
-        
+
         # Strategy allocations are already in the correct format (StrategyType -> float)
         typed_allocations = strategy_allocations
         strategy_orch = StrategyOrchestrator(market_data_port, typed_allocations)
@@ -186,11 +186,12 @@ class SignalOrchestrator:
 
     def analyze_signals(self) -> tuple[dict[str, Any], dict[str, float]] | None:
         """Run complete signal analysis workflow.
-        
+
         DUAL-PATH: Emits SignalGenerated event AND returns traditional response.
-        
+
         Returns:
             Tuple of (strategy_signals, consolidated_portfolio) if successful, None if failed
+
         """
         try:
             # System now uses fully typed domain model
@@ -213,7 +214,7 @@ class SignalOrchestrator:
             # DUAL-PATH: Emit SignalGenerated event for event-driven consumers
             self._emit_signal_generated_event(strategy_signals, consolidated_portfolio)
 
-            # Return traditional response for backwards compatibility  
+            # Return traditional response for backwards compatibility
             return strategy_signals, consolidated_portfolio
 
         except DataProviderError as e:
@@ -224,12 +225,10 @@ class SignalOrchestrator:
             return None
 
     def _emit_signal_generated_event(
-        self, 
-        strategy_signals: dict[str, Any], 
-        consolidated_portfolio: dict[str, float]
+        self, strategy_signals: dict[str, Any], consolidated_portfolio: dict[str, float]
     ) -> None:
         """Emit SignalGenerated event for event-driven architecture.
-        
+
         Converts traditional signal data to event format for new event-driven consumers.
         """
         try:
@@ -237,9 +236,11 @@ class SignalOrchestrator:
             signal_dtos = []
             correlation_id = str(uuid.uuid4())
             causation_id = f"signal-analysis-{datetime.now(UTC).isoformat()}"
-            
+
             for strategy_type, signal_data in strategy_signals.items():
-                strategy_name = strategy_type.value if hasattr(strategy_type, 'value') else str(strategy_type)
+                strategy_name = (
+                    strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
+                )
                 signal_dto = StrategySignalDTO(
                     correlation_id=correlation_id,
                     causation_id=causation_id,
@@ -261,7 +262,7 @@ class SignalOrchestrator:
                 strategy_name = strategy_type.value
                 strategy_allocations[strategy_name] = Decimal(str(allocation))
 
-            # Convert consolidated portfolio to Decimal for event  
+            # Convert consolidated portfolio to Decimal for event
             consolidated_decimal = {}
             for symbol, allocation in consolidated_portfolio.items():
                 consolidated_decimal[symbol] = Decimal(str(allocation))

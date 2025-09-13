@@ -73,6 +73,7 @@ class EmailSettings(BaseModel):
     smtp_port: int = 587
     from_email: str | None = None
     to_email: str | None = None
+    password: str | None = None
     neutral_mode: bool = True
 
 
