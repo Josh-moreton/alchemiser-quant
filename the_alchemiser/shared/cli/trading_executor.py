@@ -62,6 +62,8 @@ class TradingExecutor:
         account_info = result.get("account_info")
         current_positions = result.get("current_positions")
         allocation_comparison = result.get("allocation_comparison")
+        orders_executed = result.get("orders_executed", [])
+        execution_result = result.get("execution_result")
         success = bool(result.get("success", False))
 
         # Display strategy signals and comprehensive portfolio information
@@ -73,6 +75,10 @@ class TradingExecutor:
                 current_positions,
                 allocation_comparison
             )
+
+        # Display execution results if trades were made
+        if orders_executed:
+            self._display_execution_results(orders_executed, execution_result)
 
         # Display tracking if requested
         if self.show_tracking:
@@ -136,6 +142,51 @@ class TradingExecutor:
 
         # Display strategy summary
         self._display_strategy_summary(strategy_signals, consolidated_portfolio)
+
+    def _display_execution_results(
+        self,
+        orders_executed: list[dict[str, Any]],
+        execution_result: Any = None,
+    ) -> None:
+        """Display comprehensive execution results including order details and summary."""
+        from the_alchemiser.shared.cli.cli_formatter import render_orders_executed
+        
+        try:
+            # Display orders executed using existing formatter
+            render_orders_executed(orders_executed)
+            
+            # Display execution summary if available
+            if execution_result:
+                try:
+                    from rich.console import Console
+                    from rich.panel import Panel
+                    
+                    console = Console()
+                    
+                    success_rate = execution_result.success_rate if hasattr(execution_result, 'success_rate') else 1.0
+                    total_value = execution_result.total_trade_value if hasattr(execution_result, 'total_trade_value') else 0
+                    
+                    summary_content = [
+                        f"[bold green]Execution Success Rate:[/bold green] {success_rate:.1%}",
+                        f"[bold blue]Orders Placed:[/bold blue] {execution_result.orders_placed}",
+                        f"[bold green]Orders Succeeded:[/bold green] {execution_result.orders_succeeded}",
+                        f"[bold yellow]Total Trade Value:[/bold yellow] ${float(total_value):,.2f}",
+                    ]
+                    
+                    if hasattr(execution_result, 'failure_count') and execution_result.failure_count > 0:
+                        summary_content.append(f"[bold red]Orders Failed:[/bold red] {execution_result.failure_count}")
+                    
+                    console.print(Panel(
+                        "\n".join(summary_content),
+                        title="Execution Summary",
+                        style="bold white"
+                    ))
+                    
+                except Exception as e:
+                    self.logger.warning(f"Failed to display execution summary: {e}")
+            
+        except Exception as e:
+            self.logger.warning(f"Failed to display execution results: {e}")
 
     def _display_strategy_summary(
         self,
