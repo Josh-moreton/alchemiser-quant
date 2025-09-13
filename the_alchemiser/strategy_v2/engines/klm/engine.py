@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import decimal
 import logging
+import math
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
@@ -493,8 +494,8 @@ class KLMEngine(StrategyEngine):
                 try:
                     # Validate weight is a valid number
                     if (
-                        weight is None or not isinstance(weight, (int, float)) or weight != weight
-                    ):  # NaN check
+                        weight is None or not isinstance(weight, (int, float)) or math.isnan(weight)
+                    ):
                         self.logger.warning(f"Invalid weight for {symbol_str}: {weight}, skipping")
                         continue
 
@@ -551,7 +552,7 @@ class KLMEngine(StrategyEngine):
         config = self.confidence_config.klm
 
         # Validate weight is a valid number
-        if weight is None or not isinstance(weight, (int, float)) or weight != weight:  # NaN check
+        if weight is None or not isinstance(weight, (int, float)) or math.isnan(weight):
             self.logger.warning(
                 f"Invalid weight for confidence calculation: {weight}, using default"
             )
@@ -580,8 +581,8 @@ class KLMEngine(StrategyEngine):
         if (
             confidence_value is None
             or not isinstance(confidence_value, (int, float))
-            or confidence_value != confidence_value
-        ):  # NaN check
+            or math.isnan(confidence_value)
+        ):
             self.logger.warning(f"Invalid confidence value: {confidence_value}, using default 0.5")
             confidence_value = 0.5
 
