@@ -1,18 +1,26 @@
 """Logging utilities for the modular architecture.
 
-Placeholder implementation for centralized logging setup.
-Currently under construction - no logic implemented yet.
+Legacy compatibility module that delegates to the centralized logging utilities.
+All new code should import directly from logging_utils.py.
 """
 
 from __future__ import annotations
 
 import logging
+from typing import Any
+
+# Import from the centralized utilities
+from the_alchemiser.shared.logging.logging_utils import (
+    get_logger as _get_logger,
+    log_with_context as _log_with_context,
+    setup_logging as _setup_logging,
+)
 
 
 def get_logger(name: str) -> logging.Logger:
     """Get a logger instance with the given name.
 
-    Placeholder implementation. Will be enhanced in Phase 2.
+    Delegates to centralized logging utilities.
 
     Args:
         name: Logger name
@@ -21,31 +29,37 @@ def get_logger(name: str) -> logging.Logger:
         Logger instance
 
     """
-    return logging.getLogger(name)
+    return _get_logger(name)
 
 
 def setup_logging(level: str = "INFO") -> None:
     """Set up logging configuration.
 
-    Placeholder implementation. Will be enhanced in Phase 2.
+    Delegates to centralized logging utilities with human-readable format.
 
     Args:
         level: Logging level
 
     """
-    logging.basicConfig(level=getattr(logging, level.upper()))
+    log_level = getattr(logging, level.upper(), logging.INFO)
+    _setup_logging(
+        log_level=log_level,
+        structured_format=False,  # Use human-readable format for compatibility
+        suppress_third_party=True,
+    )
 
 
-def log_with_context(logger: logging.Logger, level: str, message: str, **context: object) -> None:
+def log_with_context(logger: logging.Logger, level: str, message: str, **context: Any) -> None:
     """Log a message with additional context.
 
-    Placeholder implementation. Will be enhanced in Phase 2.
+    Delegates to centralized logging utilities.
 
     Args:
         logger: Logger instance
-        level: Log level
+        level: Log level as string
         message: Log message
         **context: Additional context
 
     """
-    getattr(logger, level.lower())(f"{message} | Context: {context}")
+    log_level = getattr(logging, level.upper(), logging.INFO)
+    _log_with_context(logger, log_level, message, **context)
