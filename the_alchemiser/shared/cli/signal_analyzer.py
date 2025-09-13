@@ -17,6 +17,7 @@ from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
 from the_alchemiser.shared.cli.cli_formatter import (
     render_account_info,
+    render_enriched_order_summaries,
     render_footer,
     render_header,
     render_portfolio_allocation,
@@ -49,6 +50,7 @@ class SignalAnalyzer:
         account_info: dict[str, Any] | None = None,
         current_positions: dict[str, Any] | None = None,
         allocation_comparison: dict[str, Any] | None = None,
+        open_orders: list[dict[str, Any]] | None = None,
     ) -> None:
         """Display comprehensive signal analysis results including account info."""
         # Display strategy signals
@@ -77,6 +79,13 @@ class SignalAnalyzer:
         elif consolidated_portfolio:
             # Fallback to basic portfolio allocation display
             render_portfolio_allocation(consolidated_portfolio)
+
+        # Display open orders if available
+        if open_orders:
+            try:
+                render_enriched_order_summaries(open_orders)
+            except Exception as e:
+                self.logger.warning(f"Failed to display open orders: {e}")
 
         # Display strategy summary
         self._display_strategy_summary(strategy_signals, consolidated_portfolio)
@@ -236,6 +245,7 @@ class SignalAnalyzer:
         account_info = result.get("account_info")
         current_positions = result.get("current_positions")
         allocation_comparison = result.get("allocation_comparison")
+        open_orders = result.get("open_orders", [])
 
         # Display results with enhanced account information
         self._display_results(
@@ -244,7 +254,8 @@ class SignalAnalyzer:
             show_tracking,
             account_info,
             current_positions,
-            allocation_comparison
+            allocation_comparison,
+            open_orders
         )
 
         # Display strategy summary

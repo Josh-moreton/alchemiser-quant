@@ -64,6 +64,7 @@ class TradingExecutor:
         allocation_comparison = result.get("allocation_comparison")
         orders_executed = result.get("orders_executed", [])
         execution_result = result.get("execution_result")
+        open_orders = result.get("open_orders", [])
         success = bool(result.get("success", False))
 
         # Display strategy signals and comprehensive portfolio information
@@ -73,7 +74,8 @@ class TradingExecutor:
                 consolidated_portfolio,
                 account_info,
                 current_positions,
-                allocation_comparison
+                allocation_comparison,
+                open_orders
             )
 
         # Display execution results if trades were made
@@ -102,11 +104,13 @@ class TradingExecutor:
         account_info: dict[str, Any] | None = None,
         current_positions: dict[str, Any] | None = None,
         allocation_comparison: dict[str, Any] | None = None,
+        open_orders: list[dict[str, Any]] | None = None,
     ) -> None:
         """Display comprehensive trading strategy results including account info and allocations."""
         # Import CLI formatters
         from the_alchemiser.shared.cli.cli_formatter import (
             render_account_info,
+            render_enriched_order_summaries,
             render_portfolio_allocation,
             render_strategy_signals,
             render_target_vs_current_allocations,
@@ -139,6 +143,13 @@ class TradingExecutor:
         elif consolidated_portfolio:
             # Fallback to basic portfolio allocation display
             render_portfolio_allocation(consolidated_portfolio)
+
+        # Display open orders if available
+        if open_orders:
+            try:
+                render_enriched_order_summaries(open_orders)
+            except Exception as e:
+                self.logger.warning(f"Failed to display open orders: {e}")
 
         # Display strategy summary
         self._display_strategy_summary(strategy_signals, consolidated_portfolio)
