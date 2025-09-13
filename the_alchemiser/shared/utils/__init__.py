@@ -13,6 +13,9 @@ from ..types.exceptions import *
 # Cross-cutting utilities and error handling
 from .context import ErrorContextData, create_error_context
 from .error_reporter import *
+
+# Portfolio calculation utilities
+from .portfolio_calculations import build_allocation_comparison
 from .price_discovery_utils import (
     PriceProvider,
     QuoteProvider,
@@ -27,6 +30,3 @@ from .timezone_utils import (
     normalize_timestamp_to_utc,
     to_iso_string,
 )
-
-# Portfolio calculation utilities
-from .portfolio_calculations import build_allocation_comparison

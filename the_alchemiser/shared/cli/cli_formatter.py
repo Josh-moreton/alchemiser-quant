@@ -1054,7 +1054,9 @@ def render_multi_strategy_summary_dto(
         console: Optional console for rendering
 
     """
-    from the_alchemiser.application.mapping.summary_mapping import allocation_comparison_to_dict
+    from the_alchemiser.shared.mappers.execution_summary_mapping import (
+        allocation_comparison_to_dict,
+    )
 
     c = console or Console()
 
@@ -1106,15 +1108,15 @@ def render_comprehensive_trading_results(
     console: Console | None = None,
 ) -> None:
     """Render comprehensive trading results including signals, account info, and allocations.
-    
+
     This function consolidates the display logic that was duplicated between
     signal_analyzer.py and trading_executor.py.
-    
+
     Args:
         strategy_signals: Strategy signals dictionary
         consolidated_portfolio: Target portfolio allocation
         account_info: Account information dictionary
-        current_positions: Current positions dictionary  
+        current_positions: Current positions dictionary
         allocation_comparison: Allocation comparison analysis
         open_orders: List of open orders
         console: Rich console instance (created if None)
@@ -1122,7 +1124,7 @@ def render_comprehensive_trading_results(
     """
     if console is None:
         console = Console()
-    
+
     # Display strategy signals
     if strategy_signals:
         render_strategy_signals(strategy_signals)
@@ -1130,10 +1132,12 @@ def render_comprehensive_trading_results(
     # Display account information if available
     if account_info:
         try:
-            render_account_info({
-                "account": account_info, 
-                "open_positions": list(current_positions.values()) if current_positions else []
-            })
+            render_account_info(
+                {
+                    "account": account_info,
+                    "open_positions": list(current_positions.values()) if current_positions else [],
+                }
+            )
         except Exception as e:
             logger.warning(f"Failed to display account info: {e}")
 
@@ -1141,10 +1145,10 @@ def render_comprehensive_trading_results(
     if consolidated_portfolio and account_info and current_positions is not None:
         try:
             render_target_vs_current_allocations(
-                consolidated_portfolio, 
-                account_info, 
+                consolidated_portfolio,
+                account_info,
                 current_positions,
-                allocation_comparison=allocation_comparison
+                allocation_comparison=allocation_comparison,
             )
         except Exception as e:
             logger.warning(f"Failed to display allocation comparison: {e}")
@@ -1169,7 +1173,7 @@ def render_strategy_summary(
     console: Console | None = None,
 ) -> None:
     """Render strategy allocation summary.
-    
+
     Args:
         strategy_signals: Strategy signals dictionary
         consolidated_portfolio: Target portfolio allocation
@@ -1179,7 +1183,7 @@ def render_strategy_summary(
     """
     if console is None:
         console = Console()
-    
+
     strategy_lines = []
 
     # Build summary for each strategy
@@ -1199,6 +1203,7 @@ def render_strategy_summary(
 
     try:
         from rich.panel import Panel
+
         console.print(Panel(strategy_summary, title="Strategy Summary", border_style="blue"))
     except ImportError:
         logger.info(f"Strategy Summary:\n{strategy_summary}")
@@ -1206,18 +1211,18 @@ def render_strategy_summary(
 
 def _count_positions_for_strategy(
     strategy_name: str,
-    strategy_signals: dict[str, Any], 
+    strategy_signals: dict[str, Any],
     consolidated_portfolio: dict[str, float],
     allocations: dict[str, float],
 ) -> int:
     """Count positions for a specific strategy.
-    
+
     Args:
         strategy_name: Name of the strategy
         strategy_signals: Strategy signals dictionary
         consolidated_portfolio: Target portfolio allocation
         allocations: Strategy allocation percentages from config
-        
+
     Returns:
         Number of positions for the strategy
 

@@ -33,9 +33,9 @@ class SignalAnalyzer:
         self.container = container
         self.logger = get_logger(__name__)
 
-        # Delegate orchestration to dedicated orchestrator  
+        # Delegate orchestration to dedicated orchestrator
         self.orchestrator = SignalOrchestrator(settings, container)
-        
+
         # Also create trading orchestrator for enhanced signal analysis with account info
         self.trading_orchestrator = TradingOrchestrator(settings, container, live_trading=False)
 
@@ -57,7 +57,7 @@ class SignalAnalyzer:
             account_info,
             current_positions,
             allocation_comparison,
-            open_orders
+            open_orders,
         )
 
     def _display_strategy_tracking(self) -> None:
@@ -188,13 +188,13 @@ class SignalAnalyzer:
 
         # Display results with enhanced account information
         self._display_results(
-            strategy_signals, 
-            consolidated_portfolio, 
+            strategy_signals,
+            consolidated_portfolio,
             show_tracking,
             account_info,
             current_positions,
             allocation_comparison,
-            open_orders
+            open_orders,
         )
 
         # Display strategy summary

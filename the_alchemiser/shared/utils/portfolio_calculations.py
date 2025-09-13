@@ -3,7 +3,7 @@
 
 Portfolio calculation utilities for allocation analysis and comparison.
 
-This module provides shared calculation functions for portfolio allocation 
+This module provides shared calculation functions for portfolio allocation
 analysis, avoiding duplication across modules. These utilities are used by
 both CLI formatters and orchestrators for consistent allocation calculations.
 """
@@ -40,7 +40,7 @@ def build_allocation_comparison(
     portfolio_value = account_dict.get("portfolio_value")
     if portfolio_value is None:
         portfolio_value = account_dict.get("equity")
-    
+
     if portfolio_value is None:
         raise ValueError(
             "Portfolio value not available in account info. "

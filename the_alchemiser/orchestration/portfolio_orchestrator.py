@@ -186,31 +186,37 @@ class PortfolioOrchestrator:
 
     def get_comprehensive_account_data(self) -> dict[str, Any] | None:
         """Retrieve comprehensive account data including account info, positions, and open orders.
-        
+
         Returns:
             Dictionary containing account_info, current_positions, and open_orders, or None if failed
 
         """
         try:
             alpaca_manager = self.container.infrastructure.alpaca_manager()
-            
+
             # Get account info
             account_raw = alpaca_manager.get_account()
             account_info = None
             if account_raw:
                 account_info = {
-                    "portfolio_value": getattr(account_raw, "portfolio_value", None) or getattr(account_raw, "equity", None),
+                    "portfolio_value": getattr(account_raw, "portfolio_value", None)
+                    or getattr(account_raw, "equity", None),
                     "cash": getattr(account_raw, "cash", 0),
                     "buying_power": getattr(account_raw, "buying_power", 0),
-                    "equity": getattr(account_raw, "equity", None) or getattr(account_raw, "portfolio_value", None),
+                    "equity": getattr(account_raw, "equity", None)
+                    or getattr(account_raw, "portfolio_value", None),
                 }
-                portfolio_value = account_info.get('portfolio_value', 0)
+                portfolio_value = account_info.get("portfolio_value", 0)
                 # Safely convert to float for logging, handling string values from API
                 try:
-                    portfolio_value_float = float(portfolio_value) if portfolio_value is not None else 0.0
+                    portfolio_value_float = (
+                        float(portfolio_value) if portfolio_value is not None else 0.0
+                    )
                 except (ValueError, TypeError):
                     portfolio_value_float = 0.0
-                self.logger.info(f"Retrieved account info: Portfolio value ${portfolio_value_float:,.2f}")
+                self.logger.info(
+                    f"Retrieved account info: Portfolio value ${portfolio_value_float:,.2f}"
+                )
 
             # Get current positions
             current_positions = {}
@@ -238,10 +244,16 @@ class PortfolioOrchestrator:
                         {
                             "id": getattr(order, "id", "unknown"),
                             "symbol": getattr(order, "symbol", "unknown"),
-                            "type": str(getattr(order, "order_type", "unknown")).replace("OrderType.", ""),
+                            "type": str(getattr(order, "order_type", "unknown")).replace(
+                                "OrderType.", ""
+                            ),
                             "qty": float(getattr(order, "qty", 0)),
-                            "limit_price": float(getattr(order, "limit_price", 0)) if order.limit_price else None,
-                            "status": str(getattr(order, "status", "unknown")).replace("OrderStatus.", ""),
+                            "limit_price": float(getattr(order, "limit_price", 0))
+                            if order.limit_price
+                            else None,
+                            "status": str(getattr(order, "status", "unknown")).replace(
+                                "OrderStatus.", ""
+                            ),
                             "created_at": str(getattr(order, "created_at", "unknown")),
                         }
                         for order in orders_list
