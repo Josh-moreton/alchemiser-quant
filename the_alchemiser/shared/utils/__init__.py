@@ -27,3 +27,6 @@ from .timezone_utils import (
     normalize_timestamp_to_utc,
     to_iso_string,
 )
+
+# Portfolio calculation utilities
+from .portfolio_calculations import build_allocation_comparison
