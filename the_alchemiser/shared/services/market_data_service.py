@@ -1,4 +1,4 @@
-"""Business Unit: shared | Status: current
+"""Business Unit: shared | Status: current.
 
 Market data service providing domain-facing interface.
 
@@ -8,6 +8,7 @@ handling input normalization, error mapping, and providing a clean domain interf
 
 from __future__ import annotations
 
+from datetime import UTC
 from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -173,7 +174,7 @@ class MarketDataService(MarketDataPort):
         """
         from datetime import datetime, timedelta
 
-        end_date = datetime.now()
+        end_date = datetime.now(UTC)
 
         # Simple period mapping
         if "Y" in period:
@@ -189,11 +190,11 @@ class MarketDataService(MarketDataPort):
 
         return start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")
 
-    def _convert_to_bar_model(self, bar_data: Any, symbol: str) -> BarModel:
+    def _convert_to_bar_model(self, bar_data: Any, symbol: str) -> BarModel:  # noqa: ANN401
         """Convert raw bar data to BarModel.
 
         Args:
-            bar_data: Raw bar data from repository
+            bar_data: Raw bar data from repository (dictionary from Pydantic model_dump())
             symbol: Symbol string
 
         Returns:
@@ -202,36 +203,24 @@ class MarketDataService(MarketDataPort):
         """
         from datetime import datetime
 
-        # Handle different bar data formats
-        if hasattr(bar_data, "__dict__"):
-            # Object with attributes
+        if isinstance(bar_data, dict):
+            # Dictionary format from Pydantic model_dump() with full field names
+            timestamp = bar_data.get("timestamp", datetime.now(UTC))
+            open_price = bar_data.get("open", 0)
+            high_price = bar_data.get("high", 0)
+            low_price = bar_data.get("low", 0)
+            close_price = bar_data.get("close", 0)
+            volume = bar_data.get("volume", 0)
+
             return BarModel(
                 symbol=symbol,
-                timestamp=getattr(bar_data, "timestamp", datetime.now()),
-                open=float(getattr(bar_data, "open", 0)),
-                high=float(getattr(bar_data, "high", 0)),
-                low=float(getattr(bar_data, "low", 0)),
-                close=float(getattr(bar_data, "close", 0)),
-                volume=int(getattr(bar_data, "volume", 0)),
+                timestamp=timestamp if isinstance(timestamp, datetime) else datetime.now(UTC),
+                open=float(open_price),
+                high=float(high_price),
+                low=float(low_price),
+                close=float(close_price),
+                volume=int(volume),
             )
-        elif isinstance(bar_data, dict):
-            # Dictionary format
-            return BarModel(
-                symbol=symbol,
-                timestamp=bar_data.get("timestamp", datetime.now()),
-                open=float(bar_data.get("open", 0)),
-                high=float(bar_data.get("high", 0)),
-                low=float(bar_data.get("low", 0)),
-                close=float(bar_data.get("close", 0)),
-                volume=int(bar_data.get("volume", 0)),
-            )
-        # Fallback - create empty bar
-        return BarModel(
-            symbol=symbol,
-            timestamp=datetime.now(),
-            open=0.0,
-            high=0.0,
-            low=0.0,
-            close=0.0,
-            volume=0,
-        )
+
+        # This should not happen with clean Pydantic model_dump() data
+        raise ValueError(f"Expected dictionary from Pydantic model_dump(), got {type(bar_data)}")

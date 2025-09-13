@@ -3,11 +3,11 @@
 Alpaca broker adapter (moved from execution module for architectural compliance).
 
 This module consolidates scattered Alpaca client usage into a single, well-managed class.
-It provides a transitional approach that:
+It provides a clean interface that:
 1. Reduces scattered imports
 2. Adds consistent error handling
-3. Maintains backward compatibility
-4. Sets up for future improvements
+3. Uses Pydantic models directly
+4. Provides clean domain interfaces
 
 Phase 2 Update: Now implements domain interfaces for type safety and future migration.
 Phase 3 Update: Moved to shared module to resolve architectural boundary violations.
@@ -47,9 +47,7 @@ from the_alchemiser.shared.dto.broker_dto import (
     WebSocketResult,
 )
 
-# Backward compatibility aliases
-WebSocketResultDTO = WebSocketResult
-OrderExecutionResultDTO = OrderExecutionResult
+# Use DTOs directly without aliases
 
 
 class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
@@ -102,16 +100,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             raise
 
     @property
-    def trading_client(self) -> TradingClient:
-        """Get the trading client for backward compatibility."""
-        return self._trading_client
-
-    @property
-    def data_client(self) -> StockHistoricalDataClient:
-        """Get the data client for backward compatibility."""
-        return self._data_client
-
-    @property
     def is_paper_trading(self) -> bool:
         """Check if using paper trading."""
         return self._paper
@@ -133,8 +121,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         return self._paper
 
     # Helper methods for DTO mapping
-    def _alpaca_order_to_execution_result(self, order: Any) -> OrderExecutionResultDTO:
-        """Convert Alpaca order object to OrderExecutionResultDTO.
+    def _alpaca_order_to_execution_result(self, order: Any) -> OrderExecutionResult:
+        """Convert Alpaca order object to OrderExecutionResult.
 
         Simple implementation that avoids circular imports.
         """
@@ -174,10 +162,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             success = mapped_status not in ["rejected", "canceled"]
 
-            return OrderExecutionResultDTO(
+            return OrderExecutionResult(
                 success=success,
                 order_id=order_id,
-                status=mapped_status,  # type: ignore[arg-type]
+                status=mapped_status,
                 filled_qty=filled_qty,
                 avg_fill_price=avg_fill_price,
                 submitted_at=submitted_at,
@@ -190,14 +178,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def _create_error_execution_result(
         self, error: Exception, context: str = "Operation", order_id: str = "unknown"
-    ) -> OrderExecutionResultDTO:
-        """Create an error OrderExecutionResultDTO."""
+    ) -> OrderExecutionResult:
+        """Create an error OrderExecutionResult."""
         from datetime import UTC
 
-        return OrderExecutionResultDTO(
+        return OrderExecutionResult(
             success=False,
             order_id=order_id,
-            status="rejected",  # type: ignore[arg-type]
+            status="rejected",
             filled_qty=Decimal("0"),
             avg_fill_price=None,
             submitted_at=datetime.now(UTC),
@@ -233,7 +221,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             raise
 
     def get_positions_dict(self) -> dict[str, float]:
-        """Get all positions as dict mapping symbol to quantity (legacy method - use get_positions).
+        """Get all positions as dict mapping symbol to quantity.
 
         Returns:
             Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
@@ -256,16 +244,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             # Best-effort mapping; return what we have
             pass
         return result
-
-    def get_all_positions(self) -> list[Any]:
-        """Get all positions as list (backward compatibility)."""
-        try:
-            positions = self._trading_client.get_all_positions()
-            logger.debug(f"Successfully retrieved {len(positions)} positions")
-            return list(positions)
-        except Exception as e:
-            logger.error(f"Failed to get positions: {e}")
-            raise
 
     def get_position(self, symbol: str) -> Any | None:
         """Get position for a specific symbol."""
@@ -319,14 +297,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 error_message=str(e),
             )
 
-    def get_order_execution_result(self, order_id: str) -> OrderExecutionResultDTO:
+    def get_order_execution_result(self, order_id: str) -> OrderExecutionResult:
         """Fetch latest order state and map to execution result DTO.
 
         Args:
             order_id: The unique Alpaca order ID
 
         Returns:
-            OrderExecutionResultDTO reflecting the latest known state.
+            OrderExecutionResult reflecting the latest known state.
 
         """
         try:
@@ -431,7 +409,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         quantity: float,
         limit_price: float,
         time_in_force: str = "day",
-    ) -> OrderExecutionResultDTO:
+    ) -> OrderExecutionResult:
         """Place a limit order with validation and DTO conversion.
 
         Args:
@@ -442,7 +420,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             time_in_force: Order time in force (default: 'day')
 
         Returns:
-            OrderExecutionResultDTO with execution details
+            OrderExecutionResult with execution details
 
         """
         try:
@@ -474,12 +452,12 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             # Use the updated place_order method that returns RawOrderEnvelope
             envelope = self.place_order(order_request)
 
-            # Convert envelope to OrderExecutionResultDTO for backward compatibility
-            def raw_order_envelope_to_execution_result_dto(envelope):
-                """Convert RawOrderEnvelope to OrderExecutionResultDTO."""
-                from the_alchemiser.execution.orders.schemas import OrderExecutionResultDTO
+            # Convert envelope to OrderExecutionResult
+            def raw_order_envelope_to_execution_result(envelope: Any) -> Any:
+                """Convert RawOrderEnvelope to OrderExecutionResult."""
+                from the_alchemiser.shared.dto.broker_dto import OrderExecutionResult
 
-                return OrderExecutionResultDTO(
+                return OrderExecutionResult(
                     success=envelope.success,
                     order_id=getattr(envelope.raw_order, "id", None)
                     if envelope.raw_order
@@ -489,7 +467,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                     timestamp=envelope.response_timestamp,
                 )
 
-            return raw_order_envelope_to_execution_result_dto(envelope)
+            return raw_order_envelope_to_execution_result(envelope)
 
         except ValueError as e:
             logger.error(f"Invalid limit order parameters: {e}")
@@ -564,7 +542,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             raise
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
-        """Get latest bid/ask quote for a symbol (interface compatible).
+        """Get latest bid/ask quote for a symbol.
 
         Args:
             symbol: Stock symbol
@@ -606,22 +584,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get latest quote for {symbol}: {e}")
             return None
 
-    def get_latest_quote_raw(self, symbol: str) -> Any | None:
-        """Get latest quote as raw object (backward compatibility)."""
-        try:
-            request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
-            quotes = self._data_client.get_stock_latest_quote(request)
-            quote = quotes.get(symbol)
-
-            if quote:
-                logger.debug(f"Successfully retrieved quote for {symbol}")
-                return quote
-            logger.warning(f"No quote data available for {symbol}")
-            return None
-        except Exception as e:
-            logger.error(f"Failed to get latest quote for {symbol}: {e}")
-            return None
-
     def get_quote(self, symbol: str) -> dict[str, Any] | None:
         """Get quote information for a symbol (MarketDataRepository interface).
 
@@ -632,22 +594,17 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             Dictionary with quote information or None if failed
 
         """
-        from the_alchemiser.shared.mappers.market_data_mappers import quote_to_domain
-
         try:
-            quote = self.get_latest_quote_raw(symbol)
+            request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
+            quotes = self._data_client.get_stock_latest_quote(request)
+            quote = quotes.get(symbol)
+
             if quote:
-                # Use shared quote mapping functionality
-                quote_model = quote_to_domain(quote)
-                if quote_model:
-                    return {
-                        "symbol": symbol,
-                        "bid_price": float(quote_model.bid),
-                        "ask_price": float(quote_model.ask),
-                        "bid_size": int(getattr(quote, "bid_size", 0)),
-                        "ask_size": int(getattr(quote, "ask_size", 0)),
-                        "timestamp": quote_model.ts,
-                    }
+                # Use Pydantic model_dump() for consistent field names
+                quote_dict = quote.model_dump()
+                # Ensure we have symbol in the output
+                quote_dict["symbol"] = symbol
+                return quote_dict
             return None
         except Exception as e:
             logger.error(f"Failed to get quote for {symbol}: {e}")
@@ -663,6 +620,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             start_date: Start date (YYYY-MM-DD format)
             end_date: End date (YYYY-MM-DD format)
             timeframe: Timeframe (1Min, 5Min, 15Min, 1Hour, 1Day)
+
+        Returns:
+            List of dictionaries with bar data using Pydantic model field names
 
         """
         try:
@@ -715,22 +675,16 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             bars = list(bars_obj)
             logger.debug(f"Successfully retrieved {len(bars)} bars for {symbol}")
-            # Convert to list of dicts for interface compatibility
+
+            # Use Pydantic model_dump() to get proper dictionaries with full field names
             result: list[dict[str, Any]] = []
-            for b in bars:
+            for bar in bars:
                 try:
-                    result.append(
-                        {
-                            "t": getattr(b, "timestamp", None),
-                            "o": float(getattr(b, "open", 0) or 0),
-                            "h": float(getattr(b, "high", 0) or 0),
-                            "l": float(getattr(b, "low", 0) or 0),
-                            "c": float(getattr(b, "close", 0) or 0),
-                            "v": float(getattr(b, "volume", 0) or 0),
-                        }
-                    )
-                except Exception:
-                    # Best-effort conversion
+                    # Alpaca SDK uses Pydantic models, use model_dump()
+                    bar_dict = bar.model_dump()
+                    result.append(bar_dict)
+                except Exception as e:
+                    logger.warning(f"Failed to convert bar for {symbol}: {e}")
                     continue
             return result
 
@@ -837,7 +791,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         try:
             asset = self._trading_client.get_asset(symbol)
-            # Convert to dictionary for interface compatibility
+            # Convert to dictionary
             return {
                 "symbol": getattr(asset, "symbol", symbol),
                 "name": getattr(asset, "name", None),
@@ -878,7 +832,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         try:
             # Some stubs may not accept start/end; fetch without filters
             calendar = self._trading_client.get_calendar()
-            # Convert to list of dictionaries for interface compatibility
+            # Convert to list of dictionaries
             return [
                 {
                     "date": str(getattr(day, "date", "")),
@@ -911,7 +865,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         try:
             # Fetch without kwargs to satisfy type stubs
             history = self._trading_client.get_portfolio_history()
-            # Convert to dictionary for interface compatibility
+            # Convert to dictionary
             return {
                 "timestamp": getattr(history, "timestamp", []),
                 "equity": getattr(history, "equity", []),
@@ -949,7 +903,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             activities = get_activities(
                 activity_type=activity_type, date=start_date, until=end_date
             )
-            # Convert to list of dictionaries for interface compatibility
+            # Convert to list of dictionaries
             return [
                 {
                     "id": str(getattr(activity, "id", "")),
@@ -1017,7 +971,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 30
-    ) -> WebSocketResultDTO:
+    ) -> WebSocketResult:
         """Wait for orders to reach a final state.
 
         Args:
@@ -1025,7 +979,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             max_wait_seconds: Maximum time to wait for completion
 
         Returns:
-            WebSocketResultDTO with completion status and completed order IDs
+            WebSocketResult with completion status and completed order IDs
 
         """
         from the_alchemiser.execution.monitoring.websocket_order_monitor import (
@@ -1041,7 +995,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     @property
     def data_provider(self) -> DataProvider:
-        """Get data provider interface for OrderExecutor protocol compatibility.
+        """Get data provider interface for OrderExecutor protocol.
 
         Returns self since AlpacaManager implements DataProvider methods.
         """
