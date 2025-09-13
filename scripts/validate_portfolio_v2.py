@@ -10,13 +10,15 @@ Usage:
 
 from __future__ import annotations
 
-import logging
-import os
+import sys
 from decimal import Decimal
 
-# Set up basic logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Set up proper logging using centralized utilities
+from the_alchemiser.shared.logging.logging_utils import get_logger, setup_logging
+
+# Initialize logging once
+setup_logging(structured_format=False, suppress_third_party=True)
+logger = get_logger(__name__)
 
 
 def validate_strategy_allocation_dto() -> bool:
@@ -162,9 +164,14 @@ def main() -> None:
     
     results = []
     
-    results.append(validate_strategy_allocation_dto())
-    results.append(validate_portfolio_models())
-    results.append(validate_plan_calculator())
+    try:
+        results.append(validate_strategy_allocation_dto())
+        results.append(validate_portfolio_models())
+        results.append(validate_plan_calculator())
+    except Exception as e:
+        logger.error("Validation failed with exception: %s", e, exc_info=True)
+        print("❌ Validation failed with exception!")
+        sys.exit(1)
     
     print("\n" + "=" * 50)
     print("📊 Validation Summary:")
@@ -182,9 +189,11 @@ def main() -> None:
         print("   - RebalancePlanCalculator produces valid trade plans")
         print("   - All financial calculations use Decimal precision")
         print("   - Module boundaries respected (only imports from shared)")
+        logger.info("Portfolio_v2 validation completed successfully")
     else:
+        logger.error("Portfolio_v2 validation failed: %d/%d tests passed", passed, total)
         print("❌ Some validations failed!")
-        exit(1)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
