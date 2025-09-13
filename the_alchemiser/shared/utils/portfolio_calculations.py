@@ -1,9 +1,11 @@
-"""Business Unit: portfolio | Status: current.
+#!/usr/bin/env python3
+"""Business Unit: shared | Status: current
 
-Portfolio calculation functions for allocation analysis and comparison.
+Portfolio calculation utilities for allocation analysis and comparison.
 
-Provides functions to calculate allocation comparisons between target and current
-portfolio states, including delta calculations and value computations.
+This module provides shared calculation functions for portfolio allocation 
+analysis, avoiding duplication across modules. These utilities are used by
+both CLI formatters and orchestrators for consistent allocation calculations.
 """
 
 from __future__ import annotations

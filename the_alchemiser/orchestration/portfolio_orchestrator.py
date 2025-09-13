@@ -155,8 +155,8 @@ class PortfolioOrchestrator:
             current_positions = alpaca_manager.get_positions()
             positions_dict = {pos.symbol: float(pos.market_value) for pos in current_positions}
 
-            # Use portfolio calculations for comparison
-            from the_alchemiser.portfolio_v2.calculations.portfolio_calculations import (
+            # Use shared utilities for allocation comparison
+            from the_alchemiser.shared.utils.portfolio_calculations import (
                 build_allocation_comparison,
             )
 
