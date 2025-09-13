@@ -640,7 +640,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                     quote_dict = quote.model_dump()
                     # Ensure we have symbol in the output
                     quote_dict["symbol"] = symbol
-                    return dict(quote_dict)  # Explicit type conversion
+                    return quote_dict
                 # Fallback to manual conversion if not a Pydantic model
                 return {
                     "symbol": symbol,
