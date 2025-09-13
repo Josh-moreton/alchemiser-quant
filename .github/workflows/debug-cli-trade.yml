@@ -36,6 +36,8 @@ jobs:
           ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
           ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
           ALPACA_ENDPOINT: ${{ secrets.ALPACA_ENDPOINT }}
+          EMAIL__FROM_EMAIL: ${{ vars.EMAIL__FROM_EMAIL }}
+          EMAIL__TO_EMAIL: ${{ vars.EMAIL__TO_EMAIL }}
         run: |
           set +e
           poetry run alchemiser trade --ignore-market-hours --verbose > cli_output.log 2>&1
