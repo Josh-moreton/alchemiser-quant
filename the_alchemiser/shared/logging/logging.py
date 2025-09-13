@@ -9,12 +9,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-# Import from the centralized utilities
-from the_alchemiser.shared.logging.logging_utils import (
-    get_logger as _get_logger,
-    log_with_context as _log_with_context,
-    setup_logging as _setup_logging,
-)
+# Import from the centralized utilities using relative imports to avoid circular dependency
+from .logging_utils import get_logger as _get_logger
+from .logging_utils import log_with_context as _log_with_context
+from .logging_utils import setup_logging as _setup_logging
 
 
 def get_logger(name: str) -> logging.Logger:
