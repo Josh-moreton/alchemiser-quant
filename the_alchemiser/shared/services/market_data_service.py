@@ -223,4 +223,4 @@ class MarketDataService(MarketDataPort):
             )
 
         # This should not happen with clean Pydantic model_dump() data
-        raise ValueError(f"Unexpected bar data format: {type(bar_data)}")
+        raise ValueError(f"Expected dictionary from Pydantic model_dump(), got {type(bar_data)}")
