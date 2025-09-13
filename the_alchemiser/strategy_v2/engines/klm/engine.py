@@ -27,6 +27,7 @@ from the_alchemiser.shared.math.math_utils import (
 )
 from the_alchemiser.shared.types import Confidence, StrategyEngine, StrategySignal
 from the_alchemiser.shared.types.exceptions import StrategyExecutionError
+from the_alchemiser.shared.types.market_data import bars_to_dataframe
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.shared.utils.common import ActionType
@@ -177,9 +178,7 @@ class KLMEngine(StrategyEngine):
 
             return Symbol(symbol_str)
 
-        def bars_to_dataframe(bars):
-            # Simplified conversion - replace with proper implementation
-            return pd.DataFrame(bars) if bars else pd.DataFrame()
+        # Use the proper bars_to_dataframe function from shared.types.market_data
 
         market_data = {}
         port = market_data_port or self.market_data_port
