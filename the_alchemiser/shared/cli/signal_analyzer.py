@@ -14,11 +14,12 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
+from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
 from the_alchemiser.shared.cli.cli_formatter import (
+    render_comprehensive_trading_results,
     render_footer,
     render_header,
-    render_portfolio_allocation,
-    render_strategy_signals,
+    render_strategy_summary,
 )
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -32,29 +33,32 @@ class SignalAnalyzer:
         self.container = container
         self.logger = get_logger(__name__)
 
-        # Delegate orchestration to dedicated orchestrator
+        # Delegate orchestration to dedicated orchestrator  
         self.orchestrator = SignalOrchestrator(settings, container)
+        
+        # Also create trading orchestrator for enhanced signal analysis with account info
+        self.trading_orchestrator = TradingOrchestrator(settings, container, live_trading=False)
 
     def _display_results(
         self,
         strategy_signals: dict[str, Any],
         consolidated_portfolio: dict[str, float],
         show_tracking: bool,
+        account_info: dict[str, Any] | None = None,
+        current_positions: dict[str, Any] | None = None,
+        allocation_comparison: dict[str, Any] | None = None,
+        open_orders: list[dict[str, Any]] | None = None,
     ) -> None:
-        """Display signal analysis results."""
-        # Display strategy signals
-        render_strategy_signals(strategy_signals)
-
-        # Display consolidated portfolio
-        if consolidated_portfolio:
-            render_portfolio_allocation(consolidated_portfolio)
-
-        # Display strategy summary
-        self._display_strategy_summary(strategy_signals, consolidated_portfolio)
-
-        # Optionally display strategy tracking information (gated behind flag to preserve legacy minimal output)
-        if show_tracking:
-            self._display_strategy_tracking()
+        """Display comprehensive signal analysis results including account info."""
+        # Use shared display function to avoid code duplication
+        render_comprehensive_trading_results(
+            strategy_signals,
+            consolidated_portfolio,
+            account_info,
+            current_positions,
+            allocation_comparison,
+            open_orders
+        )
 
     def _display_strategy_tracking(self) -> None:
         """Display strategy tracking information from StrategyOrderTracker."""
@@ -153,39 +157,12 @@ class SignalAnalyzer:
         consolidated_portfolio: dict[str, float],
     ) -> None:
         """Display strategy allocation summary."""
-        try:
-            from rich.console import Console
-            from rich.panel import Panel
-
-            console = Console()
-        except ImportError:
-            console = None
-
-        # Get allocation percentages from config
+        # Use shared function to avoid code duplication
         allocations = self.settings.strategy.default_strategy_allocations
-        strategy_lines = []
-
-        # Build summary for each strategy
-        for strategy_name, allocation in allocations.items():
-            if allocation > 0:
-                pct = int(allocation * 100)
-                positions = self.orchestrator.count_positions_for_strategy(
-                    strategy_name, strategy_signals, consolidated_portfolio
-                )
-                strategy_lines.append(
-                    f"[bold cyan]{strategy_name.upper()}:[/bold cyan] "
-                    f"{positions} positions, {pct}% allocation"
-                )
-
-        strategy_summary = "\n".join(strategy_lines)
-
-        if console:
-            console.print(Panel(strategy_summary, title="Strategy Summary", border_style="blue"))
-        else:
-            self.logger.info(f"Strategy Summary:\n{strategy_summary}")
+        render_strategy_summary(strategy_signals, consolidated_portfolio, allocations)
 
     def run(self, show_tracking: bool = False) -> bool:
-        """Run signal analysis.
+        """Run signal analysis with enhanced account information display.
 
         Args:
             show_tracking: When True, include strategy performance tracking table (opt-in to keep
@@ -194,17 +171,38 @@ class SignalAnalyzer:
         """
         render_header("MULTI-STRATEGY SIGNAL ANALYSIS", f"Analysis at {datetime.now(UTC)}")
 
-        # Delegate to orchestration layer
-        result = self.orchestrator.analyze_signals()
+        # Use enhanced trading orchestrator for comprehensive signal analysis with account info
+        result = self.trading_orchestrator.execute_strategy_signals()
 
         if result is None:
             self.logger.error("Signal analysis failed")
             return False
 
-        strategy_signals, consolidated_portfolio = result
+        # Extract comprehensive result data
+        strategy_signals = result.get("strategy_signals", {})
+        consolidated_portfolio = result.get("consolidated_portfolio", {})
+        account_info = result.get("account_info")
+        current_positions = result.get("current_positions")
+        allocation_comparison = result.get("allocation_comparison")
+        open_orders = result.get("open_orders", [])
 
-        # Display results (tracking gated by flag)
-        self._display_results(strategy_signals, consolidated_portfolio, show_tracking)
+        # Display results with enhanced account information
+        self._display_results(
+            strategy_signals, 
+            consolidated_portfolio, 
+            show_tracking,
+            account_info,
+            current_positions,
+            allocation_comparison,
+            open_orders
+        )
+
+        # Display strategy summary
+        self._display_strategy_summary(strategy_signals, consolidated_portfolio)
+
+        # Display tracking if requested
+        if show_tracking:
+            self._display_strategy_tracking()
 
         render_footer("Signal analysis completed successfully!")
         return True

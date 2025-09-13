@@ -1094,3 +1094,140 @@ def render_multi_strategy_summary_dto(
         summary.enriched_account,
         console=c,
     )
+
+
+def render_comprehensive_trading_results(
+    strategy_signals: dict[str, Any],
+    consolidated_portfolio: dict[str, float],
+    account_info: dict[str, Any] | None = None,
+    current_positions: dict[str, Any] | None = None,
+    allocation_comparison: dict[str, Any] | None = None,
+    open_orders: list[dict[str, Any]] | None = None,
+    console: Console | None = None,
+) -> None:
+    """Render comprehensive trading results including signals, account info, and allocations.
+    
+    This function consolidates the display logic that was duplicated between
+    signal_analyzer.py and trading_executor.py.
+    
+    Args:
+        strategy_signals: Strategy signals dictionary
+        consolidated_portfolio: Target portfolio allocation
+        account_info: Account information dictionary
+        current_positions: Current positions dictionary  
+        allocation_comparison: Allocation comparison analysis
+        open_orders: List of open orders
+        console: Rich console instance (created if None)
+
+    """
+    if console is None:
+        console = Console()
+    
+    # Display strategy signals
+    if strategy_signals:
+        render_strategy_signals(strategy_signals)
+
+    # Display account information if available
+    if account_info:
+        try:
+            render_account_info({
+                "account": account_info, 
+                "open_positions": list(current_positions.values()) if current_positions else []
+            })
+        except Exception as e:
+            logger.warning(f"Failed to display account info: {e}")
+
+    # Display target vs current allocations comparison if available
+    if consolidated_portfolio and account_info and current_positions is not None:
+        try:
+            render_target_vs_current_allocations(
+                consolidated_portfolio, 
+                account_info, 
+                current_positions,
+                allocation_comparison=allocation_comparison
+            )
+        except Exception as e:
+            logger.warning(f"Failed to display allocation comparison: {e}")
+            # Fallback to basic portfolio allocation display
+            render_portfolio_allocation(consolidated_portfolio)
+    elif consolidated_portfolio:
+        # Fallback to basic portfolio allocation display
+        render_portfolio_allocation(consolidated_portfolio)
+
+    # Display open orders if available
+    if open_orders:
+        try:
+            render_enriched_order_summaries(open_orders)
+        except Exception as e:
+            logger.warning(f"Failed to display open orders: {e}")
+
+
+def render_strategy_summary(
+    strategy_signals: dict[str, Any],
+    consolidated_portfolio: dict[str, float],
+    allocations: dict[str, float],
+    console: Console | None = None,
+) -> None:
+    """Render strategy allocation summary.
+    
+    Args:
+        strategy_signals: Strategy signals dictionary
+        consolidated_portfolio: Target portfolio allocation
+        allocations: Strategy allocation percentages from config
+        console: Rich console instance (created if None)
+
+    """
+    if console is None:
+        console = Console()
+    
+    strategy_lines = []
+
+    # Build summary for each strategy
+    for strategy_name, allocation in allocations.items():
+        if allocation > 0:
+            pct = int(allocation * 100)
+            # Calculate positions from signals for each strategy
+            positions = _count_positions_for_strategy(
+                strategy_name, strategy_signals, consolidated_portfolio, allocations
+            )
+            strategy_lines.append(
+                f"[bold cyan]{strategy_name.upper()}:[/bold cyan] "
+                f"{positions} positions, {pct}% allocation"
+            )
+
+    strategy_summary = "\n".join(strategy_lines)
+
+    try:
+        from rich.panel import Panel
+        console.print(Panel(strategy_summary, title="Strategy Summary", border_style="blue"))
+    except ImportError:
+        logger.info(f"Strategy Summary:\n{strategy_summary}")
+
+
+def _count_positions_for_strategy(
+    strategy_name: str,
+    strategy_signals: dict[str, Any], 
+    consolidated_portfolio: dict[str, float],
+    allocations: dict[str, float],
+) -> int:
+    """Count positions for a specific strategy.
+    
+    Args:
+        strategy_name: Name of the strategy
+        strategy_signals: Strategy signals dictionary
+        consolidated_portfolio: Target portfolio allocation
+        allocations: Strategy allocation percentages from config
+        
+    Returns:
+        Number of positions for the strategy
+
+    """
+    # Simple position counting logic
+    # This could be enhanced to use actual position tracking
+    positions = 0
+    for _symbol, allocation in consolidated_portfolio.items():
+        if allocation > 0:
+            positions += 1
+    # For now, distribute positions evenly across enabled strategies
+    enabled_strategies = sum(1 for alloc in allocations.values() if alloc > 0)
+    return positions // max(enabled_strategies, 1)

@@ -15,8 +15,10 @@ if TYPE_CHECKING:
 
 from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
 from the_alchemiser.shared.cli.cli_formatter import (
+    render_comprehensive_trading_results,
     render_footer,
     render_header,
+    render_strategy_summary,
 )
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -59,11 +61,28 @@ class TradingExecutor:
         # Extract signal data for display
         strategy_signals = result.get("strategy_signals", {})
         consolidated_portfolio = result.get("consolidated_portfolio", {})
+        account_info = result.get("account_info")
+        current_positions = result.get("current_positions")
+        allocation_comparison = result.get("allocation_comparison")
+        orders_executed = result.get("orders_executed", [])
+        execution_result = result.get("execution_result")
+        open_orders = result.get("open_orders", [])
         success = bool(result.get("success", False))
 
-        # Display strategy signals and portfolio allocation (like signal analyzer does)
-        if strategy_signals or consolidated_portfolio:
-            self._display_trading_results(strategy_signals, consolidated_portfolio)
+        # Display strategy signals and comprehensive portfolio information
+        if strategy_signals or consolidated_portfolio or account_info:
+            self._display_trading_results(
+                strategy_signals, 
+                consolidated_portfolio,
+                account_info,
+                current_positions,
+                allocation_comparison,
+                open_orders
+            )
+
+        # Display execution results if trades were made
+        if orders_executed:
+            self._display_execution_results(orders_executed, execution_result)
 
         # Display tracking if requested
         if self.show_tracking:
@@ -84,81 +103,70 @@ class TradingExecutor:
         self,
         strategy_signals: dict[str, Any],
         consolidated_portfolio: dict[str, float],
+        account_info: dict[str, Any] | None = None,
+        current_positions: dict[str, Any] | None = None,
+        allocation_comparison: dict[str, Any] | None = None,
+        open_orders: list[dict[str, Any]] | None = None,
     ) -> None:
-        """Display trading strategy signals and portfolio allocation results."""
-        # Import CLI formatters
-        from the_alchemiser.shared.cli.cli_formatter import (
-            render_portfolio_allocation,
-            render_strategy_signals,
+        """Display comprehensive trading strategy results including account info and allocations."""
+        # Use shared display function to avoid code duplication
+        render_comprehensive_trading_results(
+            strategy_signals,
+            consolidated_portfolio,
+            account_info,
+            current_positions,
+            allocation_comparison,
+            open_orders
         )
 
-        # Display strategy signals
-        if strategy_signals:
-            render_strategy_signals(strategy_signals)
-
-        # Display consolidated portfolio
-        if consolidated_portfolio:
-            render_portfolio_allocation(consolidated_portfolio)
-
-        # Display strategy summary (reuse logic from signal analyzer)
-        self._display_strategy_summary(strategy_signals, consolidated_portfolio)
-
-    def _display_strategy_summary(
-        self,
-        strategy_signals: dict[str, Any],
-        consolidated_portfolio: dict[str, float],
-    ) -> None:
-        """Display strategy allocation summary."""
-        try:
-            from rich.console import Console
-            from rich.panel import Panel
-
-            console = Console()
-        except ImportError:
-            console = None
-
-        # Get allocation percentages from config
+        # Display strategy summary
         allocations = self.settings.strategy.default_strategy_allocations
-        strategy_lines = []
+        render_strategy_summary(strategy_signals, consolidated_portfolio, allocations)
 
-        # Build summary for each strategy
-        for strategy_name, allocation in allocations.items():
-            if allocation > 0:
-                pct = int(allocation * 100)
-                # Calculate positions from signals for each strategy
-                positions = self._count_positions_for_strategy(
-                    strategy_name, strategy_signals, consolidated_portfolio
-                )
-                strategy_lines.append(
-                    f"[bold cyan]{strategy_name.upper()}:[/bold cyan] "
-                    f"{positions} positions, {pct}% allocation"
-                )
-
-        strategy_summary = "\n".join(strategy_lines)
-
-        if console:
-            console.print(Panel(strategy_summary, title="Strategy Summary", border_style="blue"))
-        else:
-            self.logger.info(f"Strategy Summary:\n{strategy_summary}")
-
-    def _count_positions_for_strategy(
+    def _display_execution_results(
         self,
-        strategy_name: str,
-        strategy_signals: dict[str, Any],
-        consolidated_portfolio: dict[str, float],
-    ) -> int:
-        """Count positions for a specific strategy."""
-        # Simple position counting logic
-        # This could be enhanced to use actual position tracking
-        positions = 0
-        for _symbol, allocation in consolidated_portfolio.items():
-            if allocation > 0:
-                positions += 1
-        # For now, distribute positions evenly across enabled strategies
-        enabled_strategies = sum(
-            1 for alloc in self.settings.strategy.default_strategy_allocations.values() if alloc > 0
-        )
-        return positions // max(enabled_strategies, 1)
+        orders_executed: list[dict[str, Any]],
+        execution_result: Any = None,
+    ) -> None:
+        """Display comprehensive execution results including order details and summary."""
+        from the_alchemiser.shared.cli.cli_formatter import render_orders_executed
+        
+        try:
+            # Display orders executed using existing formatter
+            render_orders_executed(orders_executed)
+            
+            # Display execution summary if available
+            if execution_result:
+                try:
+                    from rich.console import Console
+                    from rich.panel import Panel
+                    
+                    console = Console()
+                    
+                    success_rate = execution_result.success_rate if hasattr(execution_result, "success_rate") else 1.0
+                    total_value = execution_result.total_trade_value if hasattr(execution_result, "total_trade_value") else 0
+                    
+                    summary_content = [
+                        f"[bold green]Execution Success Rate:[/bold green] {success_rate:.1%}",
+                        f"[bold blue]Orders Placed:[/bold blue] {execution_result.orders_placed}",
+                        f"[bold green]Orders Succeeded:[/bold green] {execution_result.orders_succeeded}",
+                        f"[bold yellow]Total Trade Value:[/bold yellow] ${float(total_value):,.2f}",
+                    ]
+                    
+                    if hasattr(execution_result, "failure_count") and execution_result.failure_count > 0:
+                        summary_content.append(f"[bold red]Orders Failed:[/bold red] {execution_result.failure_count}")
+                    
+                    console.print(Panel(
+                        "\n".join(summary_content),
+                        title="Execution Summary",
+                        style="bold white"
+                    ))
+                    
+                except Exception as e:
+                    self.logger.warning(f"Failed to display execution summary: {e}")
+            
+        except Exception as e:
+            self.logger.warning(f"Failed to display execution results: {e}")
 
     def _display_post_execution_tracking(self) -> None:
         """Display strategy performance tracking after execution."""
