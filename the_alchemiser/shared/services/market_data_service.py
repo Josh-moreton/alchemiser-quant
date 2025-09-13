@@ -214,7 +214,7 @@ class MarketDataService(MarketDataPort):
                 close=float(getattr(bar_data, "close", 0)),
                 volume=int(getattr(bar_data, "volume", 0)),
             )
-        if isinstance(bar_data, dict):
+        elif isinstance(bar_data, dict):
             # Dictionary format
             return BarModel(
                 symbol=symbol,
