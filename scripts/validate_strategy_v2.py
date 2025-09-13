@@ -19,6 +19,13 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+# Set up proper logging using centralized utilities
+from the_alchemiser.shared.logging.logging_utils import get_logger, setup_logging
+
+# Initialize logging once
+setup_logging(structured_format=False, suppress_third_party=True)
+logger = get_logger(__name__)
+
 from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
 from the_alchemiser.strategy_v2 import StrategyContext, StrategyOrchestrator
 from the_alchemiser.strategy_v2.adapters.market_data_adapter import StrategyMarketDataAdapter
@@ -93,6 +100,8 @@ def main() -> None:
             print("✅ Weights sum validation: PASS")
         else:
             print(f"❌ Weights sum validation: FAIL (sum={weights_sum})")
+            logger.error("Weights sum validation failed: sum=%s", weights_sum)
+            sys.exit(1)
             
         # Test 5: DTO serialization
         print("\n🔄 Test 5: DTO serialization")
@@ -125,8 +134,10 @@ def main() -> None:
         print("✅ Serialization: Working")
         
         print("\n📋 Strategy_v2 Module Status: READY FOR INTEGRATION")
+        logger.info("Strategy_v2 validation completed successfully")
         
     except Exception as e:
+        logger.error("Strategy_v2 validation failed with exception: %s", e, exc_info=True)
         print(f"\n❌ Validation failed: {e}")
         import traceback
         traceback.print_exc()

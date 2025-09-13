@@ -60,7 +60,7 @@ class StrategyOrchestrator:
             self._logger.info(
                 f"Running strategy {strategy_id} with context: {context}",
                 extra={
-                    "module": "strategy_v2.core.orchestrator",
+                    "component": "strategy_v2.core.orchestrator",
                     "correlation_id": correlation_id,
                     "strategy_id": strategy_id,
                     "symbols": context.symbols,
@@ -94,7 +94,7 @@ class StrategyOrchestrator:
             self._logger.info(
                 f"Strategy {strategy_id} completed successfully",
                 extra={
-                    "module": "strategy_v2.core.orchestrator",
+                    "component": "strategy_v2.core.orchestrator",
                     "correlation_id": correlation_id,
                     "weights_sum": sum(normalized_weights.values()),
                     "symbols_count": len(normalized_weights),
@@ -107,7 +107,7 @@ class StrategyOrchestrator:
             self._logger.error(
                 f"Strategy {strategy_id} execution failed: {e}",
                 extra={
-                    "module": "strategy_v2.core.orchestrator",
+                    "component": "strategy_v2.core.orchestrator",
                     "correlation_id": correlation_id,
                     "error": str(e),
                 },
@@ -158,7 +158,7 @@ class StrategyOrchestrator:
         if total <= 0:
             self._logger.warning(
                 f"Invalid total weight: {total}, using equal weights",
-                extra={"module": "strategy_v2.core.orchestrator"},
+                extra={"component": "strategy_v2.core.orchestrator"},
             )
             # Fall back to equal weights
             equal_weight = Decimal("1.0") / len(weights)

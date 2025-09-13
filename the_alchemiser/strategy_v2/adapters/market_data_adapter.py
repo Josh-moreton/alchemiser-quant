@@ -101,7 +101,7 @@ class StrategyMarketDataAdapter:
             except Exception as e:
                 self._logger.warning(
                     f"Failed to fetch bars for {symbol}: {e}",
-                    extra={"module": "strategy_v2.adapters.market_data_adapter"},
+                    extra={"component": "strategy_v2.adapters.market_data_adapter"},
                 )
                 result[symbol] = []
 
@@ -139,7 +139,7 @@ class StrategyMarketDataAdapter:
             except Exception as e:
                 self._logger.warning(
                     f"Failed to get current price for {symbol}: {e}",
-                    extra={"module": "strategy_v2.adapters.market_data_adapter"},
+                    extra={"component": "strategy_v2.adapters.market_data_adapter"},
                 )
                 result[symbol] = 0.0
 
@@ -157,6 +157,6 @@ class StrategyMarketDataAdapter:
         except Exception as e:
             self._logger.error(
                 f"Market data connection validation failed: {e}",
-                extra={"module": "strategy_v2.adapters.market_data_adapter"},
+                extra={"component": "strategy_v2.adapters.market_data_adapter"},
             )
             return False
