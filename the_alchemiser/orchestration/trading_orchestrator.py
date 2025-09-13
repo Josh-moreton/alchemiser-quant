@@ -219,6 +219,7 @@ class TradingOrchestrator:
 
         Returns:
             Dictionary with strategy signals, portfolio, and success status, or None if failed
+
         """
         mode_str = "LIVE" if self.live_trading else "PAPER"
 

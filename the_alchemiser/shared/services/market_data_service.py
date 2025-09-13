@@ -194,7 +194,7 @@ class MarketDataService(MarketDataPort):
         """Convert raw bar data to BarModel.
 
         Args:
-            bar_data: Raw bar data from repository
+            bar_data: Raw bar data from repository (now using full field names from Pydantic models)
             symbol: Symbol string
 
         Returns:
@@ -205,7 +205,7 @@ class MarketDataService(MarketDataPort):
 
         # Handle different bar data formats
         if hasattr(bar_data, "__dict__"):
-            # Object with attributes
+            # Object with attributes (Pydantic model or similar)
             return BarModel(
                 symbol=symbol,
                 timestamp=getattr(bar_data, "timestamp", datetime.now(UTC)),
@@ -215,35 +215,16 @@ class MarketDataService(MarketDataPort):
                 close=float(getattr(bar_data, "close", 0)),
                 volume=int(getattr(bar_data, "volume", 0)),
             )
-        
+
         if isinstance(bar_data, dict):
-            # Dictionary format - handle both full names and abbreviated keys from AlpacaManager
-            # AlpacaManager uses: "t", "o", "h", "l", "c", "v"
-            # Check for abbreviated keys first, then fall back to full names
-            timestamp = bar_data.get("t")
-            if timestamp is None:
-                timestamp = bar_data.get("timestamp", datetime.now(UTC))
-            
-            open_price = bar_data.get("o")
-            if open_price is None:
-                open_price = bar_data.get("open", 0)
-                
-            high_price = bar_data.get("h")
-            if high_price is None:
-                high_price = bar_data.get("high", 0)
-                
-            low_price = bar_data.get("l")
-            if low_price is None:
-                low_price = bar_data.get("low", 0)
-                
-            close_price = bar_data.get("c")
-            if close_price is None:
-                close_price = bar_data.get("close", 0)
-                
-            volume = bar_data.get("v")
-            if volume is None:
-                volume = bar_data.get("volume", 0)
-            
+            # Dictionary format - now using full field names from Pydantic model_dump()
+            timestamp = bar_data.get("timestamp", datetime.now(UTC))
+            open_price = bar_data.get("open", 0)
+            high_price = bar_data.get("high", 0)
+            low_price = bar_data.get("low", 0)
+            close_price = bar_data.get("close", 0)
+            volume = bar_data.get("volume", 0)
+
             return BarModel(
                 symbol=symbol,
                 timestamp=timestamp if isinstance(timestamp, datetime) else datetime.now(UTC),
@@ -253,7 +234,7 @@ class MarketDataService(MarketDataPort):
                 close=float(close_price),
                 volume=int(volume),
             )
-        
+
         # Fallback - create empty bar
         return BarModel(
             symbol=symbol,

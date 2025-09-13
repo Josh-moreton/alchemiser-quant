@@ -493,9 +493,7 @@ class KLMEngine(StrategyEngine):
             for symbol_str, weight in symbol_or_allocation.items():
                 try:
                     # Validate weight is a valid number
-                    if (
-                        weight is None or not isinstance(weight, (int, float)) or math.isnan(weight)
-                    ):
+                    if weight is None or not isinstance(weight, (int, float)) or math.isnan(weight):
                         self.logger.warning(f"Invalid weight for {symbol_str}: {weight}, skipping")
                         continue
 

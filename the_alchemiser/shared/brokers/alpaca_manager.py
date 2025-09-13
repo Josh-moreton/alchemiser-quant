@@ -197,7 +197,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         return OrderExecutionResultDTO(
             success=False,
             order_id=order_id,
-            status="rejected",  # type: ignore[arg-type]
+            status="rejected",
             filled_qty=Decimal("0"),
             avg_fill_price=None,
             submitted_at=datetime.now(UTC),
@@ -475,7 +475,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             envelope = self.place_order(order_request)
 
             # Convert envelope to OrderExecutionResultDTO for backward compatibility
-            def raw_order_envelope_to_execution_result_dto(envelope):
+            def raw_order_envelope_to_execution_result_dto(envelope: Any) -> Any:
                 """Convert RawOrderEnvelope to OrderExecutionResultDTO."""
                 from the_alchemiser.execution.orders.schemas import OrderExecutionResultDTO
 
@@ -632,22 +632,24 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             Dictionary with quote information or None if failed
 
         """
-        from the_alchemiser.shared.mappers.market_data_mappers import quote_to_domain
-
         try:
             quote = self.get_latest_quote_raw(symbol)
             if quote:
-                # Use shared quote mapping functionality
-                quote_model = quote_to_domain(quote)
-                if quote_model:
-                    return {
-                        "symbol": symbol,
-                        "bid_price": float(quote_model.bid),
-                        "ask_price": float(quote_model.ask),
-                        "bid_size": int(getattr(quote, "bid_size", 0)),
-                        "ask_size": int(getattr(quote, "ask_size", 0)),
-                        "timestamp": quote_model.ts,
-                    }
+                # If it's a Pydantic model, use model_dump() for consistent field names
+                if hasattr(quote, "model_dump"):
+                    quote_dict = quote.model_dump()
+                    # Ensure we have symbol in the output
+                    quote_dict["symbol"] = symbol
+                    return dict(quote_dict)  # Explicit type conversion
+                # Fallback to manual conversion if not a Pydantic model
+                return {
+                    "symbol": symbol,
+                    "bid_price": float(getattr(quote, "bid_price", 0)),
+                    "ask_price": float(getattr(quote, "ask_price", 0)),
+                    "bid_size": int(getattr(quote, "bid_size", 0)),
+                    "ask_size": int(getattr(quote, "ask_size", 0)),
+                    "timestamp": getattr(quote, "timestamp", None),
+                }
             return None
         except Exception as e:
             logger.error(f"Failed to get quote for {symbol}: {e}")
@@ -663,6 +665,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             start_date: Start date (YYYY-MM-DD format)
             end_date: End date (YYYY-MM-DD format)
             timeframe: Timeframe (1Min, 5Min, 15Min, 1Hour, 1Day)
+
+        Returns:
+            List of dictionaries with bar data using full field names (compatible with Pydantic model_dump())
 
         """
         try:
@@ -715,22 +720,32 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             bars = list(bars_obj)
             logger.debug(f"Successfully retrieved {len(bars)} bars for {symbol}")
-            # Convert to list of dicts for interface compatibility
+
+            # Use Pydantic model_dump() to get proper dictionaries with full field names
             result: list[dict[str, Any]] = []
-            for b in bars:
+            for bar in bars:
                 try:
-                    result.append(
-                        {
-                            "t": getattr(b, "timestamp", None),
-                            "o": float(getattr(b, "open", 0) or 0),
-                            "h": float(getattr(b, "high", 0) or 0),
-                            "l": float(getattr(b, "low", 0) or 0),
-                            "c": float(getattr(b, "close", 0) or 0),
-                            "v": float(getattr(b, "volume", 0) or 0),
-                        }
-                    )
-                except Exception:
-                    # Best-effort conversion
+                    # If it's a Pydantic model, use model_dump()
+                    if hasattr(bar, "model_dump"):
+                        bar_dict = bar.model_dump()
+                        result.append(bar_dict)
+                    else:
+                        # Fallback to manual conversion if not a Pydantic model
+                        result.append(
+                            {
+                                "symbol": symbol,
+                                "timestamp": getattr(bar, "timestamp", None),
+                                "open": float(getattr(bar, "open", 0) or 0),
+                                "high": float(getattr(bar, "high", 0) or 0),
+                                "low": float(getattr(bar, "low", 0) or 0),
+                                "close": float(getattr(bar, "close", 0) or 0),
+                                "volume": float(getattr(bar, "volume", 0) or 0),
+                                "trade_count": getattr(bar, "trade_count", None),
+                                "vwap": getattr(bar, "vwap", None),
+                            }
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to convert bar for {symbol}: {e}")
                     continue
             return result
 
