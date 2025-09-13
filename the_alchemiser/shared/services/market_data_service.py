@@ -1,4 +1,4 @@
-"""Business Unit: shared | Status: current
+"""Business Unit: shared | Status: current.
 
 Market data service providing domain-facing interface.
 
@@ -8,6 +8,7 @@ handling input normalization, error mapping, and providing a clean domain interf
 
 from __future__ import annotations
 
+from datetime import UTC
 from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -173,7 +174,7 @@ class MarketDataService(MarketDataPort):
         """
         from datetime import datetime, timedelta
 
-        end_date = datetime.now()
+        end_date = datetime.now(UTC)
 
         # Simple period mapping
         if "Y" in period:
@@ -189,7 +190,7 @@ class MarketDataService(MarketDataPort):
 
         return start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")
 
-    def _convert_to_bar_model(self, bar_data: Any, symbol: str) -> BarModel:
+    def _convert_to_bar_model(self, bar_data: Any, symbol: str) -> BarModel:  # noqa: ANN401
         """Convert raw bar data to BarModel.
 
         Args:
@@ -207,28 +208,56 @@ class MarketDataService(MarketDataPort):
             # Object with attributes
             return BarModel(
                 symbol=symbol,
-                timestamp=getattr(bar_data, "timestamp", datetime.now()),
+                timestamp=getattr(bar_data, "timestamp", datetime.now(UTC)),
                 open=float(getattr(bar_data, "open", 0)),
                 high=float(getattr(bar_data, "high", 0)),
                 low=float(getattr(bar_data, "low", 0)),
                 close=float(getattr(bar_data, "close", 0)),
                 volume=int(getattr(bar_data, "volume", 0)),
             )
-        elif isinstance(bar_data, dict):
-            # Dictionary format
+        
+        if isinstance(bar_data, dict):
+            # Dictionary format - handle both full names and abbreviated keys from AlpacaManager
+            # AlpacaManager uses: "t", "o", "h", "l", "c", "v"
+            # Check for abbreviated keys first, then fall back to full names
+            timestamp = bar_data.get("t")
+            if timestamp is None:
+                timestamp = bar_data.get("timestamp", datetime.now(UTC))
+            
+            open_price = bar_data.get("o")
+            if open_price is None:
+                open_price = bar_data.get("open", 0)
+                
+            high_price = bar_data.get("h")
+            if high_price is None:
+                high_price = bar_data.get("high", 0)
+                
+            low_price = bar_data.get("l")
+            if low_price is None:
+                low_price = bar_data.get("low", 0)
+                
+            close_price = bar_data.get("c")
+            if close_price is None:
+                close_price = bar_data.get("close", 0)
+                
+            volume = bar_data.get("v")
+            if volume is None:
+                volume = bar_data.get("volume", 0)
+            
             return BarModel(
                 symbol=symbol,
-                timestamp=bar_data.get("timestamp", datetime.now()),
-                open=float(bar_data.get("open", 0)),
-                high=float(bar_data.get("high", 0)),
-                low=float(bar_data.get("low", 0)),
-                close=float(bar_data.get("close", 0)),
-                volume=int(bar_data.get("volume", 0)),
+                timestamp=timestamp if isinstance(timestamp, datetime) else datetime.now(UTC),
+                open=float(open_price),
+                high=float(high_price),
+                low=float(low_price),
+                close=float(close_price),
+                volume=int(volume),
             )
+        
         # Fallback - create empty bar
         return BarModel(
             symbol=symbol,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(UTC),
             open=0.0,
             high=0.0,
             low=0.0,
