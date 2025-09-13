@@ -8,7 +8,7 @@ Thin CLI wrapper that delegates to orchestration layer for trading execution wor
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -50,7 +50,20 @@ class TradingExecutor:
         render_header("Analyzing market conditions...", "Multi-Strategy Trading")
 
         # Delegate to orchestration layer
-        success = self.orchestrator.execute_trading_workflow()
+        result = self.orchestrator.execute_trading_workflow_with_details()
+
+        if result is None:
+            render_footer("Trading execution failed - check logs for details")
+            return False
+
+        # Extract signal data for display
+        strategy_signals = result.get("strategy_signals", {})
+        consolidated_portfolio = result.get("consolidated_portfolio", {})
+        success = bool(result.get("success", False))
+
+        # Display strategy signals and portfolio allocation (like signal analyzer does)
+        if strategy_signals or consolidated_portfolio:
+            self._display_trading_results(strategy_signals, consolidated_portfolio)
 
         # Display tracking if requested
         if self.show_tracking:
@@ -66,6 +79,86 @@ class TradingExecutor:
             render_footer("Trading execution failed - check logs for details")
 
         return success
+
+    def _display_trading_results(
+        self,
+        strategy_signals: dict[str, Any],
+        consolidated_portfolio: dict[str, float],
+    ) -> None:
+        """Display trading strategy signals and portfolio allocation results."""
+        # Import CLI formatters
+        from the_alchemiser.shared.cli.cli_formatter import (
+            render_portfolio_allocation,
+            render_strategy_signals,
+        )
+
+        # Display strategy signals
+        if strategy_signals:
+            render_strategy_signals(strategy_signals)
+
+        # Display consolidated portfolio
+        if consolidated_portfolio:
+            render_portfolio_allocation(consolidated_portfolio)
+
+        # Display strategy summary (reuse logic from signal analyzer)
+        self._display_strategy_summary(strategy_signals, consolidated_portfolio)
+
+    def _display_strategy_summary(
+        self,
+        strategy_signals: dict[str, Any],
+        consolidated_portfolio: dict[str, float],
+    ) -> None:
+        """Display strategy allocation summary."""
+        try:
+            from rich.console import Console
+            from rich.panel import Panel
+
+            console = Console()
+        except ImportError:
+            console = None
+
+        # Get allocation percentages from config
+        allocations = self.settings.strategy.default_strategy_allocations
+        strategy_lines = []
+
+        # Build summary for each strategy
+        for strategy_name, allocation in allocations.items():
+            if allocation > 0:
+                pct = int(allocation * 100)
+                # Calculate positions from signals for each strategy
+                positions = self._count_positions_for_strategy(
+                    strategy_name, strategy_signals, consolidated_portfolio
+                )
+                strategy_lines.append(
+                    f"[bold cyan]{strategy_name.upper()}:[/bold cyan] "
+                    f"{positions} positions, {pct}% allocation"
+                )
+
+        strategy_summary = "\n".join(strategy_lines)
+
+        if console:
+            console.print(Panel(strategy_summary, title="Strategy Summary", border_style="blue"))
+        else:
+            self.logger.info(f"Strategy Summary:\n{strategy_summary}")
+
+    def _count_positions_for_strategy(
+        self,
+        strategy_name: str,
+        strategy_signals: dict[str, Any],
+        consolidated_portfolio: dict[str, float],
+    ) -> int:
+        """Count positions for a specific strategy."""
+        # Simple position counting logic
+        # This could be enhanced to use actual position tracking
+        positions = 0
+        for _symbol, allocation in consolidated_portfolio.items():
+            if allocation > 0:
+                positions += 1
+        # For now, distribute positions evenly across enabled strategies
+        enabled_strategies = sum(
+            1 for alloc in self.settings.strategy.default_strategy_allocations.values() if alloc > 0
+        )
+        return positions // max(enabled_strategies, 1)
 
     def _display_post_execution_tracking(self) -> None:
         """Display strategy performance tracking after execution."""
@@ -108,7 +201,7 @@ class TradingExecutor:
             )
 
             # Create tracker using same mode as execution
-            tracker = StrategyOrderTracker(paper_trading=not self.live_trading)
+            tracker = StrategyOrderTracker(paper_trading=not self.orchestrator.live_trading)
 
             # Get summary data for all strategies
             summary_data = []
@@ -174,7 +267,7 @@ class TradingExecutor:
                     {
                         "summary": summary_data,
                         "export_timestamp": datetime.now(UTC).isoformat(),
-                        "trading_mode": "live" if self.live_trading else "paper",
+                        "trading_mode": "live" if self.orchestrator.live_trading else "paper",
                     },
                     f,
                     indent=2,

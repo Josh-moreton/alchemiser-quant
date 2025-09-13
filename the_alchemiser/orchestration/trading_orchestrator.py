@@ -10,7 +10,7 @@ orchestration and execution_v2 modules.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -85,7 +85,7 @@ class TradingOrchestrator:
         except NotificationError as e:
             self.logger.warning(f"Failed to send market closed notification: {e}")
 
-    def execute_strategy_signals(self) -> dict[str, any] | None:
+    def execute_strategy_signals(self) -> dict[str, Any] | None:
         """Generate strategy signals and return execution data."""
         try:
             # Generate signals using signal orchestrator
@@ -109,7 +109,7 @@ class TradingOrchestrator:
             self.logger.error(f"Strategy signal execution failed: {e}")
             return None
 
-    def send_trading_notification(self, result: dict[str, any], mode_str: str) -> None:
+    def send_trading_notification(self, result: dict[str, Any], mode_str: str) -> None:
         """Send trading completion notification.
 
         Args:
@@ -213,3 +213,44 @@ class TradingOrchestrator:
         except Exception as e:
             self.handle_trading_error(e, mode_str)
             return False
+
+    def execute_trading_workflow_with_details(self) -> dict[str, Any] | None:
+        """Execute complete trading workflow and return detailed results.
+
+        Returns:
+            Dictionary with strategy signals, portfolio, and success status, or None if failed
+        """
+        mode_str = "LIVE" if self.live_trading else "PAPER"
+
+        try:
+            # System now uses fully typed domain model
+            self.logger.info("Using typed StrategySignal domain model")
+
+            # Check market hours
+            if not self.check_market_hours():
+                self.logger.info("Market closed - no action taken")
+                return {
+                    "strategy_signals": {},
+                    "consolidated_portfolio": {},
+                    "success": True,
+                    "message": "Market closed - no action taken",
+                }
+
+            # Execute strategy signals
+            result = self.execute_strategy_signals()
+            if result is None:
+                self.logger.error("Strategy execution failed")
+                return None
+
+            # Send notification
+            self.send_trading_notification(result, mode_str)
+
+            return result
+
+        except TradingClientError as e:
+            self.handle_trading_error(e, mode_str)
+            return None
+
+        except Exception as e:
+            self.handle_trading_error(e, mode_str)
+            return None
