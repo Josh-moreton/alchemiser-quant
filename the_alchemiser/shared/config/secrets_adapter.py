@@ -17,6 +17,7 @@ import os
 
 # Auto-load .env file into environment variables
 from the_alchemiser.shared.config import env_loader  # noqa: F401
+from the_alchemiser.shared.config.config import load_settings
 
 logger = logging.getLogger(__name__)
 
@@ -225,19 +226,28 @@ def _get_email_password_from_aws() -> str | None:
 
 def _get_email_password_from_env() -> str | None:
     """Get email password from environment variables."""
-    # Try multiple possible environment variable names
+    # First try the Pydantic config model (preferred method)
+    try:
+        config = load_settings()
+        if config.email.password:
+            logger.info("Successfully loaded email password from Pydantic config (EMAIL__PASSWORD)")
+            return config.email.password
+    except Exception as e:
+        logger.debug(f"Could not load email password from Pydantic config: {e}")
+
+    # Fallback to direct environment variable access for backward compatibility
     password = (
-        os.getenv("EMAIL_PASSWORD")
+        os.getenv("EMAIL__PASSWORD")
+        or os.getenv("EMAIL_PASSWORD")
         or os.getenv("EMAIL__SMTP_PASSWORD")
         or os.getenv("SMTP_PASSWORD")
-        or os.getenv("EMAIL__PASSWORD")
     )
 
     if not password:
         logger.warning(
-            "Email password not found in environment variables (tried EMAIL_PASSWORD, EMAIL__SMTP_PASSWORD, SMTP_PASSWORD, EMAIL__PASSWORD)"
+            "Email password not found in environment variables (tried EMAIL__PASSWORD, EMAIL_PASSWORD, EMAIL__SMTP_PASSWORD, SMTP_PASSWORD)"
         )
         return None
 
-    logger.info("Successfully loaded email password from environment variables")
+    logger.info("Successfully loaded email password from environment variables (fallback method)")
     return password
