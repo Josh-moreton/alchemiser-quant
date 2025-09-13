@@ -100,8 +100,8 @@ class TradingOrchestrator:
 
             strategy_signals, consolidated_portfolio = result
 
-            # Get account information, current positions, and open orders
-            alpaca_manager = self.container.infrastructure.alpaca_manager()
+            # Get comprehensive account data using portfolio orchestrator
+            account_data = self.portfolio_orchestrator.get_comprehensive_account_data()
             account_info = None
             current_positions = {}
             allocation_comparison = None
@@ -109,54 +109,12 @@ class TradingOrchestrator:
             orders_executed = []
             open_orders = []
             
-            try:
-                # Get account info and positions (same as signal mode)
-                account_raw = alpaca_manager.get_account()
-                if account_raw:
-                    account_info = {
-                        "portfolio_value": getattr(account_raw, "portfolio_value", None) or getattr(account_raw, "equity", None),
-                        "cash": getattr(account_raw, "cash", 0),
-                        "buying_power": getattr(account_raw, "buying_power", 0),
-                        "equity": getattr(account_raw, "equity", None) or getattr(account_raw, "portfolio_value", None),
-                    }
-                    self.logger.info(f"Retrieved account info: Portfolio value ${account_info.get('portfolio_value', 0):,.2f}")
-
-                positions_list = alpaca_manager.get_positions()
-                if positions_list:
-                    current_positions = {
-                        pos.symbol: {
-                            "qty": float(getattr(pos, "qty", 0)),
-                            "market_value": float(getattr(pos, "market_value", 0)),
-                            "avg_entry_price": float(getattr(pos, "avg_entry_price", 0)),
-                            "current_price": float(getattr(pos, "current_price", 0)),
-                            "unrealized_pl": float(getattr(pos, "unrealized_pl", 0)),
-                            "unrealized_plpc": float(getattr(pos, "unrealized_plpc", 0)),
-                        }
-                        for pos in positions_list
-                    }
-                    self.logger.info(f"Retrieved {len(current_positions)} current positions")
-
-                # Get open orders
-                try:
-                    orders_list = alpaca_manager.get_orders(status="open")
-                    if orders_list:
-                        open_orders = [
-                            {
-                                "id": getattr(order, "id", "unknown"),
-                                "symbol": getattr(order, "symbol", "unknown"),
-                                "type": str(getattr(order, "order_type", "unknown")).replace("OrderType.", ""),
-                                "qty": float(getattr(order, "qty", 0)),
-                                "limit_price": float(getattr(order, "limit_price", 0)) if getattr(order, "limit_price") else None,
-                                "status": str(getattr(order, "status", "unknown")).replace("OrderStatus.", ""),
-                                "created_at": str(getattr(order, "created_at", "unknown")),
-                            }
-                            for order in orders_list
-                        ]
-                        self.logger.info(f"Retrieved {len(open_orders)} open orders")
-                except Exception as e:
-                    self.logger.warning(f"Failed to retrieve open orders: {e}")
-
-                # Calculate allocation comparison
+            if account_data:
+                account_info = account_data.get("account_info")
+                current_positions = account_data.get("current_positions", {})
+                open_orders = account_data.get("open_orders", [])
+                
+                # Calculate allocation comparison if we have the necessary data
                 if account_info and consolidated_portfolio:
                     allocation_analysis = self.portfolio_orchestrator.analyze_allocation_comparison(consolidated_portfolio)
                     if allocation_analysis:
@@ -174,7 +132,6 @@ class TradingOrchestrator:
                     
                     if target_values and deltas:
                         # Create simple orders based on significant deltas
-                        from decimal import Decimal
                         
                         orders_to_place = []
                         
@@ -236,10 +193,8 @@ class TradingOrchestrator:
                             self.logger.info("📊 No significant trades needed - portfolio already balanced")
                     else:
                         self.logger.warning("Could not calculate trades - missing allocation comparison data")
-
-            except Exception as e:
-                self.logger.warning(f"Failed to execute trades: {e}")
-                # Continue with signal data even if execution fails
+            else:
+                self.logger.warning("Could not retrieve account data for trading")
 
             return {
                 "strategy_signals": strategy_signals,
@@ -268,71 +223,26 @@ class TradingOrchestrator:
 
             strategy_signals, consolidated_portfolio = result
 
-            # Get account information, current positions, and open orders
-            alpaca_manager = self.container.infrastructure.alpaca_manager()
+            # Get comprehensive account data using portfolio orchestrator
+            account_data = self.portfolio_orchestrator.get_comprehensive_account_data()
             account_info = None
             current_positions = {}
             allocation_comparison = None
             open_orders = []
             
-            try:
-                # Get account info
-                account_raw = alpaca_manager.get_account()
-                if account_raw:
-                    account_info = {
-                        "portfolio_value": getattr(account_raw, "portfolio_value", None) or getattr(account_raw, "equity", None),
-                        "cash": getattr(account_raw, "cash", 0),
-                        "buying_power": getattr(account_raw, "buying_power", 0),
-                        "equity": getattr(account_raw, "equity", None) or getattr(account_raw, "portfolio_value", None),
-                    }
-                    self.logger.info(f"Retrieved account info: Portfolio value ${account_info.get('portfolio_value', 0):,.2f}")
-
-                # Get current positions
-                positions_list = alpaca_manager.get_positions()
-                if positions_list:
-                    current_positions = {
-                        pos.symbol: {
-                            "qty": float(getattr(pos, "qty", 0)),
-                            "market_value": float(getattr(pos, "market_value", 0)),
-                            "avg_entry_price": float(getattr(pos, "avg_entry_price", 0)),
-                            "current_price": float(getattr(pos, "current_price", 0)),
-                            "unrealized_pl": float(getattr(pos, "unrealized_pl", 0)),
-                            "unrealized_plpc": float(getattr(pos, "unrealized_plpc", 0)),
-                        }
-                        for pos in positions_list
-                    }
-                    self.logger.info(f"Retrieved {len(current_positions)} current positions")
-
-                # Get open orders
-                try:
-                    orders_list = alpaca_manager.get_orders(status="open")
-                    if orders_list:
-                        open_orders = [
-                            {
-                                "id": getattr(order, "id", "unknown"),
-                                "symbol": getattr(order, "symbol", "unknown"),
-                                "type": str(getattr(order, "order_type", "unknown")).replace("OrderType.", ""),
-                                "qty": float(getattr(order, "qty", 0)),
-                                "limit_price": float(getattr(order, "limit_price", 0)) if getattr(order, "limit_price") else None,
-                                "status": str(getattr(order, "status", "unknown")).replace("OrderStatus.", ""),
-                                "created_at": str(getattr(order, "created_at", "unknown")),
-                            }
-                            for order in orders_list
-                        ]
-                        self.logger.info(f"Retrieved {len(open_orders)} open orders")
-                except Exception as e:
-                    self.logger.warning(f"Failed to retrieve open orders: {e}")
-
+            if account_data:
+                account_info = account_data.get("account_info")
+                current_positions = account_data.get("current_positions", {})
+                open_orders = account_data.get("open_orders", [])
+                
                 # Calculate allocation comparison if we have the necessary data
                 if account_info and consolidated_portfolio:
                     allocation_analysis = self.portfolio_orchestrator.analyze_allocation_comparison(consolidated_portfolio)
                     if allocation_analysis:
                         allocation_comparison = allocation_analysis.get("comparison")
                         self.logger.info("Generated allocation comparison analysis")
-
-            except Exception as e:
-                self.logger.warning(f"Failed to retrieve account/position data: {e}")
-                # Continue with basic signal data even if account enrichment fails
+            else:
+                self.logger.warning("Could not retrieve account data - continuing with basic signal data")
 
             return {
                 "strategy_signals": strategy_signals,

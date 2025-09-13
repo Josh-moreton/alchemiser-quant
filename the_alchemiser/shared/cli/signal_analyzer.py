@@ -16,13 +16,10 @@ if TYPE_CHECKING:
 from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
 from the_alchemiser.shared.cli.cli_formatter import (
-    render_account_info,
-    render_enriched_order_summaries,
+    render_comprehensive_trading_results,
     render_footer,
     render_header,
-    render_portfolio_allocation,
-    render_strategy_signals,
-    render_target_vs_current_allocations,
+    render_strategy_summary,
 )
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -53,46 +50,15 @@ class SignalAnalyzer:
         open_orders: list[dict[str, Any]] | None = None,
     ) -> None:
         """Display comprehensive signal analysis results including account info."""
-        # Display strategy signals
-        render_strategy_signals(strategy_signals)
-
-        # Display account information if available
-        if account_info:
-            try:
-                render_account_info({"account": account_info, "open_positions": list(current_positions.values()) if current_positions else []})
-            except Exception as e:
-                self.logger.warning(f"Failed to display account info: {e}")
-
-        # Display target vs current allocations comparison if available
-        if consolidated_portfolio and account_info and current_positions is not None:
-            try:
-                render_target_vs_current_allocations(
-                    consolidated_portfolio, 
-                    account_info, 
-                    current_positions,
-                    allocation_comparison=allocation_comparison
-                )
-            except Exception as e:
-                self.logger.warning(f"Failed to display allocation comparison: {e}")
-                # Fallback to basic portfolio allocation display
-                render_portfolio_allocation(consolidated_portfolio)
-        elif consolidated_portfolio:
-            # Fallback to basic portfolio allocation display
-            render_portfolio_allocation(consolidated_portfolio)
-
-        # Display open orders if available
-        if open_orders:
-            try:
-                render_enriched_order_summaries(open_orders)
-            except Exception as e:
-                self.logger.warning(f"Failed to display open orders: {e}")
-
-        # Display strategy summary
-        self._display_strategy_summary(strategy_signals, consolidated_portfolio)
-
-        # Optionally display strategy tracking information (gated behind flag to preserve legacy minimal output)
-        if show_tracking:
-            self._display_strategy_tracking()
+        # Use shared display function to avoid code duplication
+        render_comprehensive_trading_results(
+            strategy_signals,
+            consolidated_portfolio,
+            account_info,
+            current_positions,
+            allocation_comparison,
+            open_orders
+        )
 
     def _display_strategy_tracking(self) -> None:
         """Display strategy tracking information from StrategyOrderTracker."""
@@ -191,36 +157,9 @@ class SignalAnalyzer:
         consolidated_portfolio: dict[str, float],
     ) -> None:
         """Display strategy allocation summary."""
-        try:
-            from rich.console import Console
-            from rich.panel import Panel
-
-            console = Console()
-        except ImportError:
-            console = None
-
-        # Get allocation percentages from config
+        # Use shared function to avoid code duplication
         allocations = self.settings.strategy.default_strategy_allocations
-        strategy_lines = []
-
-        # Build summary for each strategy
-        for strategy_name, allocation in allocations.items():
-            if allocation > 0:
-                pct = int(allocation * 100)
-                positions = self.orchestrator.count_positions_for_strategy(
-                    strategy_name, strategy_signals, consolidated_portfolio
-                )
-                strategy_lines.append(
-                    f"[bold cyan]{strategy_name.upper()}:[/bold cyan] "
-                    f"{positions} positions, {pct}% allocation"
-                )
-
-        strategy_summary = "\n".join(strategy_lines)
-
-        if console:
-            console.print(Panel(strategy_summary, title="Strategy Summary", border_style="blue"))
-        else:
-            self.logger.info(f"Strategy Summary:\n{strategy_summary}")
+        render_strategy_summary(strategy_signals, consolidated_portfolio, allocations)
 
     def run(self, show_tracking: bool = False) -> bool:
         """Run signal analysis with enhanced account information display.

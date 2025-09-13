@@ -15,8 +15,10 @@ if TYPE_CHECKING:
 
 from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
 from the_alchemiser.shared.cli.cli_formatter import (
+    render_comprehensive_trading_results,
     render_footer,
     render_header,
+    render_strategy_summary,
 )
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -107,52 +109,19 @@ class TradingExecutor:
         open_orders: list[dict[str, Any]] | None = None,
     ) -> None:
         """Display comprehensive trading strategy results including account info and allocations."""
-        # Import CLI formatters
-        from the_alchemiser.shared.cli.cli_formatter import (
-            render_account_info,
-            render_enriched_order_summaries,
-            render_portfolio_allocation,
-            render_strategy_signals,
-            render_target_vs_current_allocations,
+        # Use shared display function to avoid code duplication
+        render_comprehensive_trading_results(
+            strategy_signals,
+            consolidated_portfolio,
+            account_info,
+            current_positions,
+            allocation_comparison,
+            open_orders
         )
 
-        # Display strategy signals
-        if strategy_signals:
-            render_strategy_signals(strategy_signals)
-
-        # Display account information if available
-        if account_info:
-            try:
-                render_account_info({"account": account_info, "open_positions": list(current_positions.values()) if current_positions else []})
-            except Exception as e:
-                self.logger.warning(f"Failed to display account info: {e}")
-
-        # Display target vs current allocations comparison if available
-        if consolidated_portfolio and account_info and current_positions is not None:
-            try:
-                render_target_vs_current_allocations(
-                    consolidated_portfolio, 
-                    account_info, 
-                    current_positions,
-                    allocation_comparison=allocation_comparison
-                )
-            except Exception as e:
-                self.logger.warning(f"Failed to display allocation comparison: {e}")
-                # Fallback to basic portfolio allocation display
-                render_portfolio_allocation(consolidated_portfolio)
-        elif consolidated_portfolio:
-            # Fallback to basic portfolio allocation display
-            render_portfolio_allocation(consolidated_portfolio)
-
-        # Display open orders if available
-        if open_orders:
-            try:
-                render_enriched_order_summaries(open_orders)
-            except Exception as e:
-                self.logger.warning(f"Failed to display open orders: {e}")
-
         # Display strategy summary
-        self._display_strategy_summary(strategy_signals, consolidated_portfolio)
+        allocations = self.settings.strategy.default_strategy_allocations
+        render_strategy_summary(strategy_signals, consolidated_portfolio, allocations)
 
     def _display_execution_results(
         self,
@@ -174,8 +143,8 @@ class TradingExecutor:
                     
                     console = Console()
                     
-                    success_rate = execution_result.success_rate if hasattr(execution_result, 'success_rate') else 1.0
-                    total_value = execution_result.total_trade_value if hasattr(execution_result, 'total_trade_value') else 0
+                    success_rate = execution_result.success_rate if hasattr(execution_result, "success_rate") else 1.0
+                    total_value = execution_result.total_trade_value if hasattr(execution_result, "total_trade_value") else 0
                     
                     summary_content = [
                         f"[bold green]Execution Success Rate:[/bold green] {success_rate:.1%}",
@@ -184,7 +153,7 @@ class TradingExecutor:
                         f"[bold yellow]Total Trade Value:[/bold yellow] ${float(total_value):,.2f}",
                     ]
                     
-                    if hasattr(execution_result, 'failure_count') and execution_result.failure_count > 0:
+                    if hasattr(execution_result, "failure_count") and execution_result.failure_count > 0:
                         summary_content.append(f"[bold red]Orders Failed:[/bold red] {execution_result.failure_count}")
                     
                     console.print(Panel(
@@ -198,63 +167,6 @@ class TradingExecutor:
             
         except Exception as e:
             self.logger.warning(f"Failed to display execution results: {e}")
-
-    def _display_strategy_summary(
-        self,
-        strategy_signals: dict[str, Any],
-        consolidated_portfolio: dict[str, float],
-    ) -> None:
-        """Display strategy allocation summary."""
-        try:
-            from rich.console import Console
-            from rich.panel import Panel
-
-            console = Console()
-        except ImportError:
-            console = None
-
-        # Get allocation percentages from config
-        allocations = self.settings.strategy.default_strategy_allocations
-        strategy_lines = []
-
-        # Build summary for each strategy
-        for strategy_name, allocation in allocations.items():
-            if allocation > 0:
-                pct = int(allocation * 100)
-                # Calculate positions from signals for each strategy
-                positions = self._count_positions_for_strategy(
-                    strategy_name, strategy_signals, consolidated_portfolio
-                )
-                strategy_lines.append(
-                    f"[bold cyan]{strategy_name.upper()}:[/bold cyan] "
-                    f"{positions} positions, {pct}% allocation"
-                )
-
-        strategy_summary = "\n".join(strategy_lines)
-
-        if console:
-            console.print(Panel(strategy_summary, title="Strategy Summary", border_style="blue"))
-        else:
-            self.logger.info(f"Strategy Summary:\n{strategy_summary}")
-
-    def _count_positions_for_strategy(
-        self,
-        strategy_name: str,
-        strategy_signals: dict[str, Any],
-        consolidated_portfolio: dict[str, float],
-    ) -> int:
-        """Count positions for a specific strategy."""
-        # Simple position counting logic
-        # This could be enhanced to use actual position tracking
-        positions = 0
-        for _symbol, allocation in consolidated_portfolio.items():
-            if allocation > 0:
-                positions += 1
-        # For now, distribute positions evenly across enabled strategies
-        enabled_strategies = sum(
-            1 for alloc in self.settings.strategy.default_strategy_allocations.values() if alloc > 0
-        )
-        return positions // max(enabled_strategies, 1)
 
     def _display_post_execution_tracking(self) -> None:
         """Display strategy performance tracking after execution."""
