@@ -31,8 +31,6 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-import pandas as pd
-
 from the_alchemiser.shared.config.confidence_config import ConfidenceConfig, TECLConfidenceConfig
 from the_alchemiser.shared.logging.logging_utils import get_trading_logger
 from the_alchemiser.shared.types import Confidence, StrategyEngine, StrategySignal

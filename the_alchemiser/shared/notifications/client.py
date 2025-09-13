@@ -57,7 +57,7 @@ class EmailClient:
         """
         email_config = self._get_config()
         if not email_config:
-            logging.error("Email configuration not available")
+            logging.warning("Email configuration not available - skipping email notification")
             return False
 
         smtp_server = email_config["smtp_server"]
