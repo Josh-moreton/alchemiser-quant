@@ -194,7 +194,7 @@ class MarketDataService(MarketDataPort):
         """Convert raw bar data to BarModel.
 
         Args:
-            bar_data: Raw bar data from repository (now using full field names from Pydantic models)
+            bar_data: Raw bar data from repository (dictionary from Pydantic model_dump())
             symbol: Symbol string
 
         Returns:
@@ -203,21 +203,8 @@ class MarketDataService(MarketDataPort):
         """
         from datetime import datetime
 
-        # Handle different bar data formats
-        if hasattr(bar_data, "__dict__"):
-            # Object with attributes (Pydantic model or similar)
-            return BarModel(
-                symbol=symbol,
-                timestamp=getattr(bar_data, "timestamp", datetime.now(UTC)),
-                open=float(getattr(bar_data, "open", 0)),
-                high=float(getattr(bar_data, "high", 0)),
-                low=float(getattr(bar_data, "low", 0)),
-                close=float(getattr(bar_data, "close", 0)),
-                volume=int(getattr(bar_data, "volume", 0)),
-            )
-
         if isinstance(bar_data, dict):
-            # Dictionary format - now using full field names from Pydantic model_dump()
+            # Dictionary format from Pydantic model_dump() with full field names
             timestamp = bar_data.get("timestamp", datetime.now(UTC))
             open_price = bar_data.get("open", 0)
             high_price = bar_data.get("high", 0)
@@ -235,13 +222,5 @@ class MarketDataService(MarketDataPort):
                 volume=int(volume),
             )
 
-        # Fallback - create empty bar
-        return BarModel(
-            symbol=symbol,
-            timestamp=datetime.now(UTC),
-            open=0.0,
-            high=0.0,
-            low=0.0,
-            close=0.0,
-            volume=0,
-        )
+        # This should not happen with clean Pydantic model_dump() data
+        raise ValueError(f"Unexpected bar data format: {type(bar_data)}")
