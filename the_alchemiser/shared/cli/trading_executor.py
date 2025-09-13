@@ -59,11 +59,20 @@ class TradingExecutor:
         # Extract signal data for display
         strategy_signals = result.get("strategy_signals", {})
         consolidated_portfolio = result.get("consolidated_portfolio", {})
+        account_info = result.get("account_info")
+        current_positions = result.get("current_positions")
+        allocation_comparison = result.get("allocation_comparison")
         success = bool(result.get("success", False))
 
-        # Display strategy signals and portfolio allocation (like signal analyzer does)
-        if strategy_signals or consolidated_portfolio:
-            self._display_trading_results(strategy_signals, consolidated_portfolio)
+        # Display strategy signals and comprehensive portfolio information
+        if strategy_signals or consolidated_portfolio or account_info:
+            self._display_trading_results(
+                strategy_signals, 
+                consolidated_portfolio,
+                account_info,
+                current_positions,
+                allocation_comparison
+            )
 
         # Display tracking if requested
         if self.show_tracking:
@@ -84,23 +93,48 @@ class TradingExecutor:
         self,
         strategy_signals: dict[str, Any],
         consolidated_portfolio: dict[str, float],
+        account_info: dict[str, Any] | None = None,
+        current_positions: dict[str, Any] | None = None,
+        allocation_comparison: dict[str, Any] | None = None,
     ) -> None:
-        """Display trading strategy signals and portfolio allocation results."""
+        """Display comprehensive trading strategy results including account info and allocations."""
         # Import CLI formatters
         from the_alchemiser.shared.cli.cli_formatter import (
+            render_account_info,
             render_portfolio_allocation,
             render_strategy_signals,
+            render_target_vs_current_allocations,
         )
 
         # Display strategy signals
         if strategy_signals:
             render_strategy_signals(strategy_signals)
 
-        # Display consolidated portfolio
-        if consolidated_portfolio:
+        # Display account information if available
+        if account_info:
+            try:
+                render_account_info({"account": account_info, "open_positions": list(current_positions.values()) if current_positions else []})
+            except Exception as e:
+                self.logger.warning(f"Failed to display account info: {e}")
+
+        # Display target vs current allocations comparison if available
+        if consolidated_portfolio and account_info and current_positions is not None:
+            try:
+                render_target_vs_current_allocations(
+                    consolidated_portfolio, 
+                    account_info, 
+                    current_positions,
+                    allocation_comparison=allocation_comparison
+                )
+            except Exception as e:
+                self.logger.warning(f"Failed to display allocation comparison: {e}")
+                # Fallback to basic portfolio allocation display
+                render_portfolio_allocation(consolidated_portfolio)
+        elif consolidated_portfolio:
+            # Fallback to basic portfolio allocation display
             render_portfolio_allocation(consolidated_portfolio)
 
-        # Display strategy summary (reuse logic from signal analyzer)
+        # Display strategy summary
         self._display_strategy_summary(strategy_signals, consolidated_portfolio)
 
     def _display_strategy_summary(

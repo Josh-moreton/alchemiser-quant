@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
+from the_alchemiser.orchestration.portfolio_orchestrator import PortfolioOrchestrator
 from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -51,6 +52,9 @@ class TradingOrchestrator:
         # Create signal orchestrator for signal generation
         self.signal_orchestrator = SignalOrchestrator(settings, container)
 
+        # Create portfolio orchestrator for allocation analysis
+        self.portfolio_orchestrator = PortfolioOrchestrator(settings, container)
+
     def check_market_hours(self) -> bool:
         """Check if market is open for trading."""
         if self.ignore_market_hours:
@@ -86,7 +90,7 @@ class TradingOrchestrator:
             self.logger.warning(f"Failed to send market closed notification: {e}")
 
     def execute_strategy_signals(self) -> dict[str, Any] | None:
-        """Generate strategy signals and return execution data."""
+        """Generate strategy signals and return comprehensive execution data including account info."""
         try:
             # Generate signals using signal orchestrator
             result = self.signal_orchestrator.analyze_signals()
@@ -96,13 +100,59 @@ class TradingOrchestrator:
 
             strategy_signals, consolidated_portfolio = result
 
-            # For now, return a simplified execution result
-            # TODO: Integrate with execution_v2 for actual order placement
+            # Get account information and current positions
+            alpaca_manager = self.container.infrastructure.alpaca_manager()
+            account_info = None
+            current_positions = {}
+            allocation_comparison = None
+            
+            try:
+                # Get account info
+                account_raw = alpaca_manager.get_account()
+                if account_raw:
+                    account_info = {
+                        "portfolio_value": getattr(account_raw, "portfolio_value", None) or getattr(account_raw, "equity", None),
+                        "cash": getattr(account_raw, "cash", 0),
+                        "buying_power": getattr(account_raw, "buying_power", 0),
+                        "equity": getattr(account_raw, "equity", None) or getattr(account_raw, "portfolio_value", None),
+                    }
+                    self.logger.info(f"Retrieved account info: Portfolio value ${account_info.get('portfolio_value', 0):,.2f}")
+
+                # Get current positions
+                positions_list = alpaca_manager.get_positions()
+                if positions_list:
+                    current_positions = {
+                        pos.symbol: {
+                            "qty": float(getattr(pos, "qty", 0)),
+                            "market_value": float(getattr(pos, "market_value", 0)),
+                            "avg_entry_price": float(getattr(pos, "avg_entry_price", 0)),
+                            "current_price": float(getattr(pos, "current_price", 0)),
+                            "unrealized_pl": float(getattr(pos, "unrealized_pl", 0)),
+                            "unrealized_plpc": float(getattr(pos, "unrealized_plpc", 0)),
+                        }
+                        for pos in positions_list
+                    }
+                    self.logger.info(f"Retrieved {len(current_positions)} current positions")
+
+                # Calculate allocation comparison if we have the necessary data
+                if account_info and consolidated_portfolio:
+                    allocation_analysis = self.portfolio_orchestrator.analyze_allocation_comparison(consolidated_portfolio)
+                    if allocation_analysis:
+                        allocation_comparison = allocation_analysis.get("comparison")
+                        self.logger.info("Generated allocation comparison analysis")
+
+            except Exception as e:
+                self.logger.warning(f"Failed to retrieve account/position data: {e}")
+                # Continue with basic signal data even if account enrichment fails
+
             return {
                 "strategy_signals": strategy_signals,
                 "consolidated_portfolio": consolidated_portfolio,
+                "account_info": account_info,
+                "current_positions": current_positions,
+                "allocation_comparison": allocation_comparison,
                 "success": True,
-                "message": "Signal generation completed successfully",
+                "message": "Signal generation completed successfully with account integration",
             }
 
         except Exception as e:
