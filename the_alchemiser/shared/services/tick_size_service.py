@@ -12,30 +12,29 @@ from decimal import Decimal
 
 class TickSizeService:
     """Simple tick size service for trading calculations."""
-    
+
     def get_tick_size(self, symbol: str, price: Decimal) -> Decimal:
         """Get tick size for a symbol at a given price.
-        
+
         Args:
             symbol: Trading symbol
             price: Current price
-            
+
         Returns:
             Tick size as Decimal
-            
+
         """
         # Simple implementation - most stocks use penny increments
         # In a full implementation, this would consider:
         # - Symbol-specific rules
         # - Price-based rules (e.g., stocks over $1 vs under $1)
         # - Market-specific rules
-        
+
         if price < Decimal("1.00"):
             # Sub-dollar stocks often use smaller increments
             return Decimal("0.0001")
-        else:
-            # Most stocks use penny increments
-            return Decimal("0.01")
+        # Most stocks use penny increments
+        return Decimal("0.01")
 
 
 # Alias for backward compatibility

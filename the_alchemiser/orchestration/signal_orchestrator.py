@@ -72,7 +72,7 @@ class SignalOrchestrator:
         # Create consolidated portfolio from signals with proper scaling
         consolidated_portfolio_dict: dict[str, float] = {}
         contributing_strategies = []
-        
+
         # Process signals by strategy to preserve allocation context
         for strategy_type, signals in aggregated_signals.get_signals_by_strategy().items():
             strategy_allocation = typed_allocations.get(strategy_type, 0.0)
@@ -88,7 +88,7 @@ class SignalOrchestrator:
                     else:
                         signal_allocation = 0.1
                     portfolio_allocation = signal_allocation * strategy_allocation
-                    
+
                     # Handle potential conflicts - if symbol already exists, sum allocations
                     if signal.symbol.value in consolidated_portfolio_dict:
                         consolidated_portfolio_dict[signal.symbol.value] += portfolio_allocation

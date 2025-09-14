@@ -227,13 +227,19 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                     pos.get("symbol") if isinstance(pos, dict) else None
                 )
                 # Use qty_available if available, fallback to qty for compatibility
-                qty_available = getattr(pos, "qty_available", None) if not isinstance(pos, dict) else pos.get("qty_available")
+                qty_available = (
+                    getattr(pos, "qty_available", None)
+                    if not isinstance(pos, dict)
+                    else pos.get("qty_available")
+                )
                 if qty_available is not None:
                     qty_raw = qty_available
                 else:
                     # Fallback to total qty if qty_available is not available
-                    qty_raw = getattr(pos, "qty", None) if not isinstance(pos, dict) else pos.get("qty")
-                
+                    qty_raw = (
+                        getattr(pos, "qty", None) if not isinstance(pos, dict) else pos.get("qty")
+                    )
+
                 if symbol and qty_raw is not None:
                     try:
                         result[str(symbol)] = float(qty_raw)
@@ -270,7 +276,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             order_filled_avg_price = getattr(order, "filled_avg_price", None)
             order_side = getattr(order, "side", "")
             order_status = getattr(order, "status", "SUBMITTED")
-            
+
             logger.info(f"Successfully placed order: {order_id} for {order_symbol}")
 
             # Handle price - use filled_avg_price if available, otherwise estimate
@@ -281,9 +287,17 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 price = Decimal(str(order_request.limit_price))
 
             # Extract enum values properly
-            action_value = order_side.value.upper() if hasattr(order_side, "value") else str(order_side).upper()
-            status_value = order_status.value.upper() if hasattr(order_status, "value") else str(order_status).upper()
-            
+            action_value = (
+                order_side.value.upper()
+                if hasattr(order_side, "value")
+                else str(order_side).upper()
+            )
+            status_value = (
+                order_status.value.upper()
+                if hasattr(order_status, "value")
+                else str(order_status).upper()
+            )
+
             # Calculate total_value: use filled_quantity if > 0, otherwise use order quantity
             # This ensures total_value > 0 for DTO validation even for unfilled orders
             filled_qty_decimal = Decimal(str(order_filled_qty))
@@ -292,7 +306,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 total_value = filled_qty_decimal * price
             else:
                 total_value = order_qty_decimal * price
-            
+
             return ExecutedOrderDTO(
                 order_id=order_id,
                 symbol=order_symbol,
@@ -306,11 +320,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             )
         except Exception as e:
             logger.error(f"Failed to place order: {e}")
-            
+
             # Return a failed order DTO with valid values
             symbol = getattr(order_request, "symbol", "UNKNOWN")
             side = getattr(order_request, "side", None)
-            
+
             # Extract action from order request
             action = "BUY"  # Default fallback
             if side:
@@ -322,7 +336,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                         action = "SELL"
                     elif "BUY" in side_str:
                         action = "BUY"
-            
+
             return ExecutedOrderDTO(
                 order_id="FAILED",  # Must be non-empty
                 symbol=symbol,
@@ -1002,13 +1016,13 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         try:
             # Use the place_market_order method which now returns ExecutedOrderDTO
             result = self.place_market_order(symbol, "sell", qty=qty)
-            
+
             # Check if the order was successful and return order_id
             if result.status not in ["REJECTED", "CANCELED"] and result.order_id:
                 return result.order_id
             logger.error(f"Smart sell order failed for {symbol}: {result.error_message}")
             return None
-                
+
         except Exception as e:
             logger.error(f"Smart sell order failed for {symbol}: {e}")
             return None
@@ -1038,45 +1052,50 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         """
         import time
-        
+
         completed_orders = []
         start_time = time.time()
-        
+
         try:
-            while len(completed_orders) < len(order_ids) and (time.time() - start_time) < max_wait_seconds:
+            while (
+                len(completed_orders) < len(order_ids)
+                and (time.time() - start_time) < max_wait_seconds
+            ):
                 for order_id in order_ids:
                     if order_id not in completed_orders:
                         try:
                             order = self._trading_client.get_order_by_id(order_id)
                             order_status = getattr(order, "status", "").upper()
-                            
+
                             # Check if order is in a final state
                             if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
                                 completed_orders.append(order_id)
-                                logger.info(f"Order {order_id} completed with status: {order_status}")
+                                logger.info(
+                                    f"Order {order_id} completed with status: {order_status}"
+                                )
                         except Exception as e:
                             logger.warning(f"Failed to check order {order_id} status: {e}")
-                
+
                 # Sleep briefly between checks to avoid hammering the API
                 if len(completed_orders) < len(order_ids):
                     time.sleep(0.5)
-            
+
             success = len(completed_orders) == len(order_ids)
-            
+
             return WebSocketResult(
                 success=success,
                 message=f"Completed {len(completed_orders)}/{len(order_ids)} orders",
                 completed_order_ids=completed_orders,
-                metadata={"total_wait_time": time.time() - start_time}
+                metadata={"total_wait_time": time.time() - start_time},
             )
-            
+
         except Exception as e:
             logger.error(f"Error monitoring order completion: {e}")
             return WebSocketResult(
                 success=False,
                 message=f"Error monitoring orders: {e}",
                 completed_order_ids=completed_orders,
-                metadata={"error": str(e)}
+                metadata={"error": str(e)},
             )
 
     @property

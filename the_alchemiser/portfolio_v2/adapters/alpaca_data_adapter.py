@@ -64,7 +64,7 @@ class AlpacaDataAdapter:
             for position in raw_positions:
                 symbol = str(position.symbol).upper()
                 # Use qty_available if available, fallback to qty for compatibility
-                available_qty = getattr(position, 'qty_available', None)
+                available_qty = getattr(position, "qty_available", None)
                 if available_qty is not None:
                     quantity = Decimal(str(available_qty))
                 else:

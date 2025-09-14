@@ -116,22 +116,23 @@ class Executor:
 
             # Check if this is a complete exit (target_weight = 0 and selling)
             is_complete_exit = (
-                item.action == "SELL" and 
-                hasattr(item, "target_weight") and 
-                item.target_weight == Decimal("0")
+                item.action == "SELL"
+                and hasattr(item, "target_weight")
+                and item.target_weight == Decimal("0")
             )
 
             # Place market order - returns ExecutedOrderDTO
             side = item.action.lower()  # "BUY" -> "buy", "SELL" -> "sell"
             executed_order = self.alpaca_manager.place_market_order(
-                symbol=item.symbol, 
-                side=side, 
-                qty=float(shares),
-                is_complete_exit=is_complete_exit
+                symbol=item.symbol, side=side, qty=float(shares), is_complete_exit=is_complete_exit
             )
 
             # Extract results from ExecutedOrderDTO
-            order_id = executed_order.order_id if executed_order.order_id != "FAILED" and executed_order.order_id != "INVALID" else None
+            order_id = (
+                executed_order.order_id
+                if executed_order.order_id != "FAILED" and executed_order.order_id != "INVALID"
+                else None
+            )
             success = executed_order.status not in ["REJECTED", "FAILED"] and order_id is not None
             error_message = executed_order.error_message if not success else None
 

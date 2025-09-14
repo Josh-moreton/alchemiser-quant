@@ -13,7 +13,7 @@ from the_alchemiser.shared.logging.logging_utils import get_logger
 
 def display_strategy_tracking(paper_trading: bool) -> None:
     """Display strategy tracking information from StrategyOrderTracker.
-    
+
     Utility function that can be called from any CLI component to show
     strategy performance tracking without code duplication.
 
@@ -22,7 +22,7 @@ def display_strategy_tracking(paper_trading: bool) -> None:
 
     """
     logger = get_logger(__name__)
-    
+
     try:
         from rich.console import Console
         from rich.panel import Panel
@@ -51,9 +51,7 @@ def display_strategy_tracking(paper_trading: bool) -> None:
             return
 
         # Create tracking table
-        tracking_table = Table(
-            title="Strategy Performance Tracking", show_lines=True, expand=True
-        )
+        tracking_table = Table(title="Strategy Performance Tracking", show_lines=True, expand=True)
         tracking_table.add_column("Strategy", style="bold magenta")
         tracking_table.add_column("Positions", justify="center")
         tracking_table.add_column("Total P&L", justify="right")
@@ -115,7 +113,7 @@ def display_strategy_tracking(paper_trading: bool) -> None:
 
 def display_detailed_strategy_positions(paper_trading: bool) -> None:
     """Display detailed strategy positions and P&L summary.
-    
+
     Utility function that shows individual positions and aggregated P&L data,
     complementing the basic strategy tracking display.
 
@@ -124,7 +122,7 @@ def display_detailed_strategy_positions(paper_trading: bool) -> None:
 
     """
     logger = get_logger(__name__)
-    
+
     try:
         from rich.console import Console
         from rich.table import Table
@@ -168,9 +166,7 @@ def display_detailed_strategy_positions(paper_trading: bool) -> None:
             console.print(strategy_table)
 
             # Show P&L summary for each strategy with positions
-            strategy_pnl_table = Table(
-                title="Strategy P&L Summary", show_lines=True, expand=True
-            )
+            strategy_pnl_table = Table(title="Strategy P&L Summary", show_lines=True, expand=True)
             strategy_pnl_table.add_column("Strategy", style="bold magenta")
             strategy_pnl_table.add_column("Realized P&L", justify="right")
             strategy_pnl_table.add_column("Unrealized P&L", justify="right")
@@ -208,9 +204,7 @@ def display_detailed_strategy_positions(paper_trading: bool) -> None:
                 console.print(strategy_pnl_table)
         else:
             console.print()
-            console.print(
-                "[dim yellow]No strategy positions found in tracking system[/dim yellow]"
-            )
+            console.print("[dim yellow]No strategy positions found in tracking system[/dim yellow]")
 
     except Exception as e:  # Non-fatal UI enhancement
         logger.warning(f"Strategy detailed positions display unavailable: {e}")
