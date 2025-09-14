@@ -545,13 +545,12 @@ def render_target_vs_current_allocations(
     account_info: dict[str, Any],
     current_positions: dict[str, Any],
     console: Console | None = None,
-    allocation_comparison: dict[str, Any] | AllocationComparisonDTO | None = None,
+    allocation_comparison: AllocationComparisonDTO | None = None,
 ) -> None:
     """Pretty-print target vs current allocations using optional precomputed Decimal comparison.
 
-    If allocation_comparison provided, expects either:
-    - A dictionary with keys: target_values, current_values, deltas with Decimal values
-    - An AllocationComparisonDTO object with target_values, current_values, deltas attributes
+    If allocation_comparison provided, expects an AllocationComparisonDTO object with
+    target_values, current_values, deltas attributes with Decimal precision.
     Falls back to on-the-fly float computation otherwise.
     """
     from decimal import Decimal
@@ -559,40 +558,36 @@ def render_target_vs_current_allocations(
     c = console or Console()
 
     if allocation_comparison:
-        # Handle both AllocationComparisonDTO objects and dictionaries
-        if hasattr(allocation_comparison, "target_values"):
-            # AllocationComparisonDTO object - use attributes directly
-            target_values = allocation_comparison.target_values
-            current_values = allocation_comparison.current_values
-            deltas = allocation_comparison.deltas
-        else:
-            # Dictionary - use .get() method
-            target_values = allocation_comparison.get("target_values", {})
-            current_values = allocation_comparison.get("current_values", {})
-            deltas = allocation_comparison.get("deltas", {})
+        # Use AllocationComparisonDTO attributes directly
+        target_values = allocation_comparison.target_values
+        current_values = allocation_comparison.current_values
+        deltas = allocation_comparison.deltas
         # Derive portfolio_value from sum of target values if not present
         try:
             portfolio_value = sum(target_values.values())
             if portfolio_value <= 0:
-                portfolio_value = account_info.get("portfolio_value")
-                if portfolio_value is None:
+                pv_from_account = account_info.get("portfolio_value")
+                if pv_from_account is None:
                     raise ValueError("Portfolio value is 0 or not available")
+                portfolio_value = Decimal(str(pv_from_account))
         except Exception as e:
-            portfolio_value = account_info.get("portfolio_value")
-            if portfolio_value is None:
+            pv_from_account = account_info.get("portfolio_value")
+            if pv_from_account is None:
                 raise ValueError(
                     f"Unable to determine portfolio value: {e}. "
                     "Portfolio value is required for allocation comparison display."
                 ) from e
+            portfolio_value = Decimal(str(pv_from_account))
     else:
-        portfolio_value = account_info.get("portfolio_value")
-        if portfolio_value is None:
+        pv_from_account = account_info.get("portfolio_value")
+        if pv_from_account is None:
             raise ValueError(
                 "Portfolio value not available in account info. "
                 "Cannot calculate target allocation values without portfolio value."
             )
+        portfolio_value = Decimal(str(pv_from_account))
         target_values = {
-            symbol: portfolio_value * weight for symbol, weight in target_portfolio.items()
+            symbol: portfolio_value * Decimal(str(weight)) for symbol, weight in target_portfolio.items()
         }
         current_values = {}
         for symbol, pos in current_positions.items():
@@ -600,9 +595,9 @@ def render_target_vs_current_allocations(
                 market_value = float(pos.get("market_value", 0.0))
             else:
                 market_value = float(getattr(pos, "market_value", 0.0))
-            current_values[symbol] = market_value
+            current_values[symbol] = Decimal(str(market_value))
         deltas = {
-            s: (Decimal(str(target_values.get(s, 0))) - Decimal(str(current_values.get(s, 0))))
+            s: (target_values.get(s, Decimal("0")) - current_values.get(s, Decimal("0")))
             for s in set(target_values) | set(current_values)
         }
 
@@ -616,59 +611,17 @@ def render_target_vs_current_allocations(
     all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
     for symbol in sorted(all_symbols):
         target_weight = target_portfolio.get(symbol, 0.0)
-        target_value = target_values.get(symbol, 0)
-        current_value = current_values.get(symbol, 0)
+        target_value = target_values.get(symbol, Decimal("0"))
+        current_value = current_values.get(symbol, Decimal("0"))
 
-        # When allocation_comparison is provided, use Decimal values directly
-        if allocation_comparison:
-            # Use Decimal precision throughout
-            try:
-                tv_decimal = (
-                    target_value
-                    if isinstance(target_value, Decimal)
-                    else Decimal(str(target_value))
-                )
-                cv_decimal = (
-                    current_value
-                    if isinstance(current_value, Decimal)
-                    else Decimal(str(current_value))
-                )
-                pv_decimal = (
-                    portfolio_value
-                    if isinstance(portfolio_value, Decimal)
-                    else Decimal(str(portfolio_value))
-                )
-
-                # Calculate weights with Decimal precision
-                current_weight = float(cv_decimal / pv_decimal) if pv_decimal > 0 else 0.0
-                display_target_value = target_value
-                display_current_value = current_value
-            except Exception:
-                # Fallback to original logic if Decimal conversion fails
-                cv_float = float(current_value) if current_value else 0.0
-                current_weight = (
-                    cv_float / float(portfolio_value) if float(portfolio_value) > 0 else 0.0
-                )
-                display_target_value = target_value
-                display_current_value = current_value
-        else:
-            # Legacy float path for backward compatibility
-            try:
-                tv_float = float(target_value)
-                cv_float = float(current_value)
-                display_target_value = tv_float
-                display_current_value = cv_float
-            except Exception:
-                tv_float = 0.0
-                cv_float = 0.0
-                display_target_value = tv_float
-                display_current_value = cv_float
-            current_weight = (
-                cv_float / float(portfolio_value) if float(portfolio_value) > 0 else 0.0
-            )
+        # Calculate current weight with Decimal precision
+        try:
+            current_weight = float(current_value / portfolio_value) if portfolio_value > 0 else 0.0
+        except Exception:
+            current_weight = 0.0
 
         percent_diff = abs(target_weight - current_weight)
-        dollar_diff = deltas.get(symbol, 0)
+        dollar_diff = deltas.get(symbol, Decimal("0"))
         try:
             dollar_diff_float = float(dollar_diff)
         except Exception:
@@ -696,8 +649,8 @@ def render_target_vs_current_allocations(
 
         table.add_row(
             symbol,
-            f"{target_weight:.1%}\n[dim]{_format_money(display_target_value)}[/dim]",
-            f"{current_weight:.1%}\n[dim]{_format_money(display_current_value)}[/dim]",
+            f"{target_weight:.1%}\n[dim]{_format_money(target_value)}[/dim]",
+            f"{current_weight:.1%}\n[dim]{_format_money(current_value)}[/dim]",
             f"[{dollar_color}]{dollar_sign}{_format_money(abs(dollar_diff_float))}[/{dollar_color}]",
             action,
         )
@@ -1065,19 +1018,10 @@ def render_multi_strategy_summary_dto(
         console: Optional console for rendering
 
     """
-    from the_alchemiser.shared.mappers.execution_summary_mapping import (
-        allocation_comparison_to_dict,
-    )
-
     c = console or Console()
 
-    # Use the allocation comparison if available for enhanced target vs current display
-    allocation_comparison_dict = None
-    if summary.allocation_comparison:
-        allocation_comparison_dict = allocation_comparison_to_dict(summary.allocation_comparison)
-
     # Display target vs current allocations with enhanced precision
-    if allocation_comparison_dict and summary.execution_result.consolidated_portfolio:
+    if summary.allocation_comparison and summary.execution_result.consolidated_portfolio:
         try:
             # Convert account info from execution result
             account_dict = dict(summary.execution_result.account_info_after)
@@ -1089,7 +1033,7 @@ def render_multi_strategy_summary_dto(
                 summary.execution_result.consolidated_portfolio,
                 account_dict,
                 current_positions,
-                allocation_comparison=allocation_comparison_dict,
+                allocation_comparison=summary.allocation_comparison,
                 console=c,
             )
         except Exception:
@@ -1114,7 +1058,7 @@ def render_comprehensive_trading_results(
     consolidated_portfolio: dict[str, float],
     account_info: dict[str, Any] | None = None,
     current_positions: dict[str, Any] | None = None,
-    allocation_comparison: dict[str, Any] | None = None,
+    allocation_comparison: AllocationComparisonDTO | None = None,
     open_orders: list[dict[str, Any]] | None = None,
     console: Console | None = None,
 ) -> None:
@@ -1128,7 +1072,7 @@ def render_comprehensive_trading_results(
         consolidated_portfolio: Target portfolio allocation
         account_info: Account information dictionary
         current_positions: Current positions dictionary
-        allocation_comparison: Allocation comparison analysis
+        allocation_comparison: AllocationComparisonDTO for allocation comparison analysis
         open_orders: List of open orders
         console: Rich console instance (created if None)
 

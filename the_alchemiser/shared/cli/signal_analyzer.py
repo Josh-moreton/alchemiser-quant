@@ -35,8 +35,6 @@ class SignalAnalyzer(BaseCLI):
         # Also create trading orchestrator for enhanced signal analysis with account info
         self.trading_orchestrator = TradingOrchestrator(settings, container, live_trading=False)
 
-
-
     def run(self, show_tracking: bool = False) -> bool:
         """Run signal analysis with enhanced account information display.
 
