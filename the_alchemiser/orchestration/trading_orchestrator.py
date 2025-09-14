@@ -21,7 +21,6 @@ from the_alchemiser.execution_v2.models.execution_result import ExecutionResultD
 from the_alchemiser.orchestration.portfolio_orchestrator import PortfolioOrchestrator
 from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO, RebalancePlanItemDTO
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
@@ -98,20 +97,16 @@ class TradingOrchestrator:
     def execute_strategy_signals_with_trading(self) -> dict[str, Any] | None:
         """Generate strategy signals AND execute trades, returning comprehensive execution data."""
         try:
-            # Generate signals using signal orchestrator
-            result = self.signal_orchestrator.analyze_signals()
-            if result is None:
+            # Generate signals using signal orchestrator with direct DTO access
+            strategy_signals, consolidated_portfolio_dto = self.signal_orchestrator.generate_signals()
+            if not strategy_signals:
                 self.logger.error("Failed to generate strategy signals")
                 return None
 
-            strategy_signals, consolidated_portfolio_dict = result
-
-            # Convert dict back to DTO for portfolio orchestrator compatibility
-            consolidated_portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
-                allocation_dict=consolidated_portfolio_dict,
-                correlation_id=f"trading_orchestrator_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
-                source_strategies=None,  # We don't have this info at this level
-            )
+            # Validate signal quality before proceeding
+            if not self.signal_orchestrator.validate_signal_quality(strategy_signals, consolidated_portfolio_dto):
+                self.logger.error("Signal analysis failed validation - no meaningful data available")
+                return None
 
             # Get comprehensive account data using portfolio orchestrator
             account_data = self.portfolio_orchestrator.get_comprehensive_account_data()
@@ -180,7 +175,7 @@ class TradingOrchestrator:
 
             return {
                 "strategy_signals": strategy_signals,
-                "consolidated_portfolio": consolidated_portfolio_dict,
+                "consolidated_portfolio": consolidated_portfolio_dto.to_dict_allocation(),
                 "account_info": account_info,
                 "current_positions": current_positions,
                 "allocation_comparison": allocation_comparison,
@@ -198,20 +193,16 @@ class TradingOrchestrator:
     def execute_strategy_signals(self) -> dict[str, Any] | None:
         """Generate strategy signals and return comprehensive execution data (signal mode)."""
         try:
-            # Generate signals using signal orchestrator
-            result = self.signal_orchestrator.analyze_signals()
-            if result is None:
+            # Generate signals using signal orchestrator with direct DTO access
+            strategy_signals, consolidated_portfolio_dto = self.signal_orchestrator.generate_signals()
+            if not strategy_signals:
                 self.logger.error("Failed to generate strategy signals")
                 return None
 
-            strategy_signals, consolidated_portfolio_dict = result
-
-            # Convert dict back to DTO for portfolio orchestrator compatibility
-            consolidated_portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
-                allocation_dict=consolidated_portfolio_dict,
-                correlation_id=f"trading_orchestrator_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
-                source_strategies=None,  # We don't have this info at this level
-            )
+            # Validate signal quality before proceeding
+            if not self.signal_orchestrator.validate_signal_quality(strategy_signals, consolidated_portfolio_dto):
+                self.logger.error("Signal analysis failed validation - no meaningful data available")
+                return None
 
             # Get comprehensive account data using portfolio orchestrator
             account_data = self.portfolio_orchestrator.get_comprehensive_account_data()
@@ -241,7 +232,7 @@ class TradingOrchestrator:
 
             return {
                 "strategy_signals": strategy_signals,
-                "consolidated_portfolio": consolidated_portfolio_dict,
+                "consolidated_portfolio": consolidated_portfolio_dto.to_dict_allocation(),
                 "account_info": account_info,
                 "current_positions": current_positions,
                 "allocation_comparison": allocation_comparison,
