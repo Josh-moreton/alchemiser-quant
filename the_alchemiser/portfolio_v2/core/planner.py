@@ -259,6 +259,16 @@ class RebalancePlanCalculator:
 
             items.append(item)
 
+        # Sort items to ensure SELL orders are processed before BUY orders
+        # This allows SELL orders to free up buying power for BUY orders
+        def order_priority(item: RebalancePlanItemDTO) -> tuple[int, int]:
+            # Primary sort: action priority (SELL=0, BUY=1, HOLD=2)
+            action_priority = {"SELL": 0, "BUY": 1, "HOLD": 2}.get(item.action, 3)
+            # Secondary sort: item priority (lower number = higher priority)
+            return (action_priority, item.priority)
+        
+        items.sort(key=order_priority)
+
         return items
 
     def _calculate_priority(self, trade_amount: Decimal) -> int:
