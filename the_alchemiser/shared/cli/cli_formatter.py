@@ -17,6 +17,7 @@ from rich.table import Table
 
 from the_alchemiser.shared.math.num import floats_equal
 from the_alchemiser.shared.schemas.common import (
+    AllocationComparisonDTO,
     MultiStrategyExecutionResultDTO,
     MultiStrategySummaryDTO,
 )
@@ -544,21 +545,31 @@ def render_target_vs_current_allocations(
     account_info: dict[str, Any],
     current_positions: dict[str, Any],
     console: Console | None = None,
-    allocation_comparison: dict[str, Any] | None = None,
+    allocation_comparison: dict[str, Any] | AllocationComparisonDTO | None = None,
 ) -> None:
     """Pretty-print target vs current allocations using optional precomputed Decimal comparison.
 
-    If allocation_comparison provided, expects keys: target_values, current_values, deltas
-    with Decimal values. Falls back to on-the-fly float computation otherwise.
+    If allocation_comparison provided, expects either:
+    - A dictionary with keys: target_values, current_values, deltas with Decimal values
+    - An AllocationComparisonDTO object with target_values, current_values, deltas attributes
+    Falls back to on-the-fly float computation otherwise.
     """
     from decimal import Decimal
 
     c = console or Console()
 
     if allocation_comparison:
-        target_values = allocation_comparison.get("target_values", {})
-        current_values = allocation_comparison.get("current_values", {})
-        deltas = allocation_comparison.get("deltas", {})
+        # Handle both AllocationComparisonDTO objects and dictionaries
+        if hasattr(allocation_comparison, 'target_values'):
+            # AllocationComparisonDTO object - use attributes directly
+            target_values = allocation_comparison.target_values
+            current_values = allocation_comparison.current_values
+            deltas = allocation_comparison.deltas
+        else:
+            # Dictionary - use .get() method
+            target_values = allocation_comparison.get("target_values", {})
+            current_values = allocation_comparison.get("current_values", {})
+            deltas = allocation_comparison.get("deltas", {})
         # Derive portfolio_value from sum of target values if not present
         try:
             portfolio_value = sum(target_values.values())
