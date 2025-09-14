@@ -19,6 +19,7 @@ from the_alchemiser.shared.cli.cli_formatter import (
 )
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 
 
 class BaseCLI:
@@ -42,7 +43,7 @@ class BaseCLI:
         consolidated_portfolio: dict[str, float],
         account_info: dict[str, Any] | None = None,
         current_positions: dict[str, Any] | None = None,
-        allocation_comparison: dict[str, Any] | None = None,
+        allocation_comparison: AllocationComparisonDTO | None = None,
         open_orders: list[dict[str, Any]] | None = None,
     ) -> None:
         """Display comprehensive analysis results including account info and strategy summary.
@@ -55,7 +56,7 @@ class BaseCLI:
             consolidated_portfolio: Consolidated portfolio allocation
             account_info: Optional account information
             current_positions: Optional current positions data
-            allocation_comparison: Optional allocation comparison data
+            allocation_comparison: Optional AllocationComparisonDTO for allocation comparison
             open_orders: Optional open orders data
 
         """
@@ -75,7 +76,7 @@ class BaseCLI:
 
     def _display_strategy_tracking(self, paper_trading: bool | None = None) -> None:
         """Display strategy tracking information from StrategyOrderTracker.
-        
+
         This method consolidates the strategy tracking display logic that was duplicated
         across SignalAnalyzer, TradingExecutor, and the main CLI status command.
 
@@ -84,16 +85,16 @@ class BaseCLI:
 
         """
         from the_alchemiser.shared.cli.strategy_tracking_utils import display_strategy_tracking
-        
+
         # Determine paper trading mode
         if paper_trading is None:
             paper_trading = self.container.config.paper_trading()
-            
+
         display_strategy_tracking(paper_trading)
 
     def _display_detailed_strategy_positions(self, paper_trading: bool | None = None) -> None:
         """Display detailed strategy positions and P&L summary.
-        
+
         This method shows individual positions and aggregated P&L data,
         complementing the basic strategy tracking display.
 
@@ -104,9 +105,9 @@ class BaseCLI:
         from the_alchemiser.shared.cli.strategy_tracking_utils import (
             display_detailed_strategy_positions,
         )
-        
+
         # Determine paper trading mode
         if paper_trading is None:
             paper_trading = self.container.config.paper_trading()
-            
+
         display_detailed_strategy_positions(paper_trading)

@@ -266,7 +266,7 @@ class RebalancePlanCalculator:
             action_priority = {"SELL": 0, "BUY": 1, "HOLD": 2}.get(item.action, 3)
             # Secondary sort: item priority (lower number = higher priority)
             return (action_priority, item.priority)
-        
+
         items.sort(key=order_priority)
 
         return items
