@@ -255,18 +255,11 @@ def status() -> None:
         # Cast to dict[str, Any] for render_account_info compatibility
         render_account_info(dict(account_info))
 
-        # Always show enriched positions display using typed path
+        # Basic positions display through AlpacaManager (enriched positions feature removed)
         try:
-            # Reuse TSM if available, otherwise instantiate
-            if tsm is None:
-                api_key, secret_key = secrets_manager.get_alpaca_keys()
-                if not api_key or not secret_key:
-                    raise RuntimeError("Alpaca credentials not available")
-                tsm = TradingServiceManager(api_key, secret_key, paper=not is_live)
-
-            enriched_positions = tsm.get_positions_enriched()
-            if enriched_positions:
-                table = Table(title="Open Positions (Enriched)", show_lines=True, expand=True)
+            positions = alpaca_manager.get_all_positions()
+            if positions:
+                table = Table(title="Open Positions", show_lines=True, expand=True)
                 table.add_column("Symbol", style=STYLE_BOLD_CYAN)
                 table.add_column("Qty", justify="right")
                 table.add_column("Avg Price", justify="right")
@@ -274,21 +267,20 @@ def status() -> None:
                 table.add_column("Mkt Value", justify="right")
                 table.add_column("Unrlzd P&L", justify="right")
 
-                for item in enriched_positions.positions[:50]:  # Cap display to avoid huge tables
-                    summary = item.summary
+                for position in positions[:50]:  # Cap display to avoid huge tables
                     table.add_row(
-                        str(summary.get("symbol", "")),
-                        f"{float(summary.get('qty', 0.0)):.4f}",
-                        f"${float(summary.get('avg_entry_price', 0.0)):.2f}",
-                        f"${float(summary.get('current_price', 0.0)):.2f}",
-                        f"${float(summary.get('market_value', 0.0)):.2f}",
-                        f"${float(summary.get('unrealized_pl', 0.0)):.2f} ({float(summary.get('unrealized_plpc', 0.0)):.2%})",
+                        str(position.symbol),
+                        f"{float(position.qty):.4f}",
+                        f"${float(position.avg_entry_price):.2f}",
+                        f"${float(position.current_price or 0.0):.2f}",
+                        f"${float(position.market_value or 0.0):.2f}",
+                        f"${float(position.unrealized_pl or 0.0):.2f} ({float(position.unrealized_plpc or 0.0):.2%})",
                     )
 
                 console.print()
                 console.print(table)
         except Exception as e:  # Non-fatal UI enhancement
-            console.print(f"[dim yellow]Enriched positions unavailable: {e}[/dim yellow]")
+            console.print(f"[dim yellow]Positions display unavailable: {e}[/dim yellow]")
 
         # Display strategy tracking information
         try:
@@ -303,70 +295,7 @@ def status() -> None:
 
         console.print("[bold green]Account status retrieved successfully![/bold green]")
 
-        # Display order lifecycle information if available
-        try:
-            # Access TradingServiceManager through the bootstrap context
-            tsm = bootstrap_context.get("trading_service_manager")
-            if tsm:
-                # Get lifecycle metrics and tracked orders
-                lifecycle_metrics = tsm.get_lifecycle_metrics()
-                tracked_orders = tsm.get_all_tracked_orders()
-
-                if tracked_orders or lifecycle_metrics.get("event_counts"):
-                    lifecycle_table = Table(
-                        title="Order Lifecycle Status", show_lines=True, expand=True
-                    )
-                    lifecycle_table.add_column("Metric", style="bold cyan")
-                    lifecycle_table.add_column("Value", justify="right")
-
-                    # Add general metrics
-                    event_counts = lifecycle_metrics.get("event_counts", {})
-                    lifecycle_table.add_row("Total Tracked Orders", str(len(tracked_orders)))
-                    lifecycle_table.add_row(
-                        "Active Observers", str(lifecycle_metrics.get("total_observers", 0))
-                    )
-
-                    if event_counts:
-                        lifecycle_table.add_row("", "")  # Separator
-                        lifecycle_table.add_row("[bold]Event Counts[/bold]", "")
-                        for event_type, count in event_counts.items():
-                            lifecycle_table.add_row(f"  {event_type}", str(count))
-
-                    console.print()
-                    console.print(lifecycle_table)
-
-                    # If there are recent tracked orders, show them
-                    if tracked_orders:
-                        orders_table = Table(
-                            title="Recent Tracked Orders", show_lines=True, expand=True
-                        )
-                        orders_table.add_column("Order ID", style="cyan")
-                        orders_table.add_column("Lifecycle State", justify="center")
-
-                        # Show last 10 orders
-                        for order_id, state in list(tracked_orders.items())[-10:]:
-                            # Color code based on state
-                            if state.value in ["FILLED"]:
-                                state_display = f"[green]{state.value}[/green]"
-                            elif state.value in ["CANCELLED", "REJECTED", "ERROR", "EXPIRED"]:
-                                state_display = f"[red]{state.value}[/red]"
-                            elif state.value in ["PARTIALLY_FILLED"]:
-                                state_display = f"[yellow]{state.value}[/yellow]"
-                            else:
-                                state_display = f"[blue]{state.value}[/blue]"
-
-                            orders_table.add_row(
-                                str(order_id).split("(")[1].rstrip(")").split("'")[1][:8]
-                                + "...",  # Show short ID
-                                state_display,
-                            )
-
-                        console.print()
-                        console.print(orders_table)
-
-        except Exception as e:
-            # Non-fatal: lifecycle display is optional enhancement
-            console.print(f"[dim yellow]Order lifecycle info unavailable: {e}[/dim yellow]")
+        # Order lifecycle display removed - legacy feature that used undefined TradingServiceManager
 
     except TradingClientError as e:
         error_handler.handle_error(
