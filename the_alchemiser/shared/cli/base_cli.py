@@ -89,7 +89,7 @@ class BaseCLI:
         if paper_trading is None:
             paper_trading = self.container.config.paper_trading()
 
-        display_strategy_tracking(paper_trading)
+        display_strategy_tracking(paper_trading=paper_trading)
 
     def _display_detailed_strategy_positions(self, paper_trading: bool | None = None) -> None:
         """Display detailed strategy positions and P&L summary.
@@ -109,4 +109,4 @@ class BaseCLI:
         if paper_trading is None:
             paper_trading = self.container.config.paper_trading()
 
-        display_detailed_strategy_positions(paper_trading)
+        display_detailed_strategy_positions(paper_trading=paper_trading)
