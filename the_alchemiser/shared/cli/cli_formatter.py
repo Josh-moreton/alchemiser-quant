@@ -258,7 +258,7 @@ def _create_signal_panel(strategy_type: Any, signal: dict[str, Any]) -> Panel:
     content = "\n\n".join(content_sections)
 
     # Extract nested conditional expression into a statement
-    panel_title = strategy_type.value if hasattr(strategy_type, 'value') else strategy_type
+    panel_title = strategy_type.value if hasattr(strategy_type, "value") else strategy_type
 
     return Panel(
         content,
