@@ -13,17 +13,22 @@ import uuid
 from collections.abc import MutableMapping
 from contextvars import ContextVar
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 # Constants
 _S3_PROTOCOL_PREFIX = "s3://"
+
+# S3 logging configuration constants
+_S3_ENABLED_VALUES = frozenset(["1", "true", "yes", "on"])
+_LAMBDA_ENV_VARS = frozenset(["AWS_EXECUTION_ENV", "AWS_LAMBDA_RUNTIME_API", "LAMBDA_RUNTIME_DIR"])
 
 # Context variables for request tracking
 request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
 error_id_context: ContextVar[str | None] = ContextVar("error_id", default=None)
 
 
-class AlchemiserLoggerAdapter(logging.LoggerAdapter):
+class AlchemiserLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
     """Custom logger adapter for the Alchemiser quantitative trading system."""
 
     def process(
@@ -139,6 +144,73 @@ def get_error_id() -> str | None:
     return error_id_context.get()
 
 
+def _is_lambda_environment() -> bool:
+    """Check if running in AWS Lambda environment."""
+    return any(os.environ.get(var) for var in _LAMBDA_ENV_VARS)
+
+
+def _is_s3_logging_enabled() -> bool:
+    """Check if S3 logging is explicitly enabled."""
+    return os.environ.get("ENABLE_S3_LOGGING", "").lower() in _S3_ENABLED_VALUES
+
+
+def _should_suppress_s3_logging(log_file: str | None) -> bool:
+    """Determine if S3 logging should be suppressed in Lambda environment."""
+    return (
+        _is_lambda_environment()
+        and log_file is not None
+        and log_file.startswith(_S3_PROTOCOL_PREFIX)
+        and not _is_s3_logging_enabled()
+    )
+
+
+def _create_directory_if_needed(file_path: str) -> None:
+    """Create directory for log file if it doesn't exist."""
+    log_path = Path(file_path)
+    if log_path.parent.name:  # Only create if parent directory is specified
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+
+
+def _create_s3_fallback_handler(
+    log_file: str, formatter: logging.Formatter, log_level: int
+) -> logging.Handler:
+    """Create fallback file handler for S3 logging."""
+    # Convert S3 path to local file path
+    fallback_file = log_file.replace(_S3_PROTOCOL_PREFIX, "").replace("/", "_")
+    _create_directory_if_needed(fallback_file)
+
+    handler = logging.FileHandler(fallback_file)
+    handler.setFormatter(formatter)
+    handler.setLevel(log_level)
+    return handler
+
+
+def _create_local_file_handler(
+    log_file: str,
+    formatter: logging.Formatter,
+    log_level: int,
+    enable_file_rotation: bool,
+    max_file_size_mb: int,
+) -> logging.Handler:
+    """Create local file handler with optional rotation."""
+    _create_directory_if_needed(log_file)
+
+    handler: logging.Handler
+    if enable_file_rotation:
+        from logging.handlers import RotatingFileHandler
+
+        max_bytes = max_file_size_mb * 1024 * 1024  # Convert MB to bytes
+        handler = RotatingFileHandler(
+            log_file, mode="a", maxBytes=max_bytes, backupCount=5, encoding="utf-8"
+        )
+    else:
+        handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
+
+    handler.setFormatter(formatter)
+    handler.setLevel(log_level)
+    return handler
+
+
 def generate_request_id() -> str:
     """Generate a new request ID.
 
@@ -188,27 +260,8 @@ def setup_logging(
     """
     root_logger = logging.getLogger()
 
-    # Production hygiene: Guard against S3 logging in Lambda environments
-    is_lambda = any(
-        [
-            os.environ.get("AWS_EXECUTION_ENV"),
-            os.environ.get("AWS_LAMBDA_RUNTIME_API"),
-            os.environ.get("LAMBDA_RUNTIME_DIR"),
-        ]
-    )
-    s3_logging_enabled = os.environ.get("ENABLE_S3_LOGGING", "").lower() in (
-        "1",
-        "true",
-        "yes",
-        "on",
-    )
-
-    if (
-        is_lambda
-        and log_file
-        and log_file.startswith(_S3_PROTOCOL_PREFIX)
-        and not s3_logging_enabled
-    ):
+    # Handle S3 logging suppression in Lambda environments
+    if _should_suppress_s3_logging(log_file):
         logger = get_logger(__name__)
         logger.warning(
             "S3 logging requested in Lambda environment but ENABLE_S3_LOGGING not set. "
@@ -241,35 +294,15 @@ def setup_logging(
     # File handler if specified
     if log_file:
         if log_file.startswith(_S3_PROTOCOL_PREFIX):
-            # S3 logging not available - using local file fallback
+            # S3 logging fallback implementation
             logging.warning("S3 logging not available - using local file fallback")
-            log_file = log_file.replace(_S3_PROTOCOL_PREFIX, "").replace("/", "_")
-            # Ensure directory exists for local files
-            if os.path.dirname(log_file):
-                os.makedirs(os.path.dirname(log_file), exist_ok=True)
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setFormatter(formatter)
-            file_handler.setLevel(log_level)
-            handlers.append(file_handler)
+            file_handler = _create_s3_fallback_handler(log_file, formatter, log_level)
         else:
-            # Ensure directory exists for local files
-            if os.path.dirname(log_file):
-                os.makedirs(os.path.dirname(log_file), exist_ok=True)
-
-            file_handler: logging.Handler
-            if enable_file_rotation:
-                from logging.handlers import RotatingFileHandler
-
-                max_bytes = max_file_size_mb * 1024 * 1024  # Convert MB to bytes
-                file_handler = RotatingFileHandler(
-                    log_file, mode="a", maxBytes=max_bytes, backupCount=5, encoding="utf-8"
-                )
-            else:
-                file_handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
-
-            file_handler.setFormatter(formatter)
-            file_handler.setLevel(log_level)
-            handlers.append(file_handler)
+            # Local file logging
+            file_handler = _create_local_file_handler(
+                log_file, formatter, log_level, enable_file_rotation, max_file_size_mb
+            )
+        handlers.append(file_handler)
 
     # Configure root logger
     root_logger.setLevel(logging.DEBUG)  # Capture everything, filter at handler level
@@ -321,25 +354,9 @@ def configure_production_logging(
     In Lambda environments, defaults to CloudWatch-only logging unless S3 is explicitly enabled.
     """
     # Production hygiene: Only allow S3 logging if explicitly enabled
-    is_lambda = any(
-        [
-            os.environ.get("AWS_EXECUTION_ENV"),
-            os.environ.get("AWS_LAMBDA_RUNTIME_API"),
-            os.environ.get("LAMBDA_RUNTIME_DIR"),
-        ]
-    )
-    s3_logging_enabled = os.environ.get("ENABLE_S3_LOGGING", "").lower() in (
-        "1",
-        "true",
-        "yes",
-        "on",
-    )
-
-    # If in Lambda and S3 logging not explicitly enabled, force log_file to None
-    if is_lambda and not s3_logging_enabled:
-        if log_file and log_file.startswith(_S3_PROTOCOL_PREFIX):
-            logger = get_logger(__name__)
-            logger.info("Lambda production mode: defaulting to CloudWatch-only logging")
+    if _should_suppress_s3_logging(log_file):
+        logger = get_logger(__name__)
+        logger.info("Lambda production mode: defaulting to CloudWatch-only logging")
         log_file = None
 
     setup_logging(
@@ -455,9 +472,7 @@ def log_data_transfer_checkpoint(
     # Calculate data integrity metrics
     data_count = len(data) if data else 0
     data_checksum = (
-        sum(data.values())
-        if data and all(isinstance(v, (int, float)) for v in data.values())
-        else 0
+        sum(data.values()) if data and all(isinstance(v, int | float) for v in data.values()) else 0
     )
     data_type = type(data).__name__
 
@@ -485,14 +500,60 @@ def log_data_transfer_checkpoint(
     if data_count == 0:
         logger.warning(f"⚠️ CHECKPOINT[{stage}]: Empty data detected")
 
-    if isinstance(data, dict) and all(isinstance(v, (int, float)) for v in data.values()):
+    if (
+        isinstance(data, dict)
+        and all(isinstance(v, int | float) for v in data.values())
+        and abs(data_checksum - 1.0) > 0.05
+    ):
         # Portfolio allocation validation
-        if abs(data_checksum - 1.0) > 0.05:
-            logger.warning(
-                f"⚠️ CHECKPOINT[{stage}]: Portfolio allocation sum={data_checksum:.4f}, expected~1.0"
-            )
+        logger.warning(
+            f"⚠️ CHECKPOINT[{stage}]: Portfolio allocation sum={data_checksum:.4f}, expected~1.0"
+        )
 
     logger.info(f"=== END_CHECKPOINT[{stage}] ===")
+
+
+def _format_trade_details(trade: dict[str, Any], index: int) -> str:
+    """Format trade details for logging."""
+    symbol = trade.get("symbol", "UNKNOWN")
+    action = trade.get("action", "UNKNOWN")
+    amount = trade.get("amount", 0)
+    return f"  Expected_{index + 1}: {action} {symbol} ${amount:.2f}"
+
+
+def _format_order_details(order: Any, index: int) -> str:
+    """Format order details for logging."""
+    if hasattr(order, "symbol") and hasattr(order, "side") and hasattr(order, "qty"):
+        return f"  Actual_{index + 1}: {order.side} {order.symbol} qty={order.qty}"
+    if isinstance(order, dict):
+        symbol = order.get("symbol", "UNKNOWN")
+        side = order.get("side", "UNKNOWN")
+        qty = order.get("qty", 0)
+        return f"  Actual_{index + 1}: {side} {symbol} qty={qty}"
+    return f"  Actual_{index + 1}: {order}"
+
+
+def _log_trade_mismatches(
+    logger: logging.Logger,
+    expected_trades: list[dict[str, Any]],
+    expected_count: int,
+    actual_count: int,
+    stage: str,
+) -> None:
+    """Log trade count mismatches and lost trades."""
+    if expected_count > 0 and actual_count == 0:
+        logger.error(
+            f"🚨 TRADE_LOSS_DETECTED[{stage}]: Expected {expected_count} trades but got 0 orders"
+        )
+        for trade in expected_trades:
+            symbol = trade.get("symbol", "UNKNOWN")
+            action = trade.get("action", "UNKNOWN")
+            amount = trade.get("amount", 0)
+            logger.error(f"🚨 LOST_TRADE: {action} {symbol} ${amount:.2f}")
+    elif expected_count != actual_count:
+        logger.warning(
+            f"⚠️ TRADE_COUNT_MISMATCH[{stage}]: Expected {expected_count} ≠ Actual {actual_count}"
+        )
 
 
 def log_trade_expectation_vs_reality(
@@ -521,37 +582,14 @@ def log_trade_expectation_vs_reality(
     if expected_count > 0:
         logger.info("EXPECTED_TRADE_DETAILS:")
         for i, trade in enumerate(expected_trades):
-            symbol = trade.get("symbol", "UNKNOWN")
-            action = trade.get("action", "UNKNOWN")
-            amount = trade.get("amount", 0)
-            logger.info(f"  Expected_{i + 1}: {action} {symbol} ${amount:.2f}")
+            logger.info(_format_trade_details(trade, i))
 
     if actual_count > 0:
         logger.info("ACTUAL_ORDER_DETAILS:")
         for i, order in enumerate(actual_orders):
-            if hasattr(order, "symbol") and hasattr(order, "side") and hasattr(order, "qty"):
-                logger.info(f"  Actual_{i + 1}: {order.side} {order.symbol} qty={order.qty}")
-            elif isinstance(order, dict):
-                symbol = order.get("symbol", "UNKNOWN")
-                side = order.get("side", "UNKNOWN")
-                qty = order.get("qty", 0)
-                logger.info(f"  Actual_{i + 1}: {side} {symbol} qty={qty}")
-            else:
-                logger.info(f"  Actual_{i + 1}: {order}")
+            logger.info(_format_order_details(order, i))
 
     # Flag mismatches
-    if expected_count > 0 and actual_count == 0:
-        logger.error(
-            f"🚨 TRADE_LOSS_DETECTED[{stage}]: Expected {expected_count} trades but got 0 orders"
-        )
-        for trade in expected_trades:
-            symbol = trade.get("symbol", "UNKNOWN")
-            action = trade.get("action", "UNKNOWN")
-            amount = trade.get("amount", 0)
-            logger.error(f"🚨 LOST_TRADE: {action} {symbol} ${amount:.2f}")
-    elif expected_count != actual_count:
-        logger.warning(
-            f"⚠️ TRADE_COUNT_MISMATCH[{stage}]: Expected {expected_count} ≠ Actual {actual_count}"
-        )
+    _log_trade_mismatches(logger, expected_trades, expected_count, actual_count, stage)
 
     logger.info(f"=== END_EXPECTATION_VS_REALITY[{stage}] ===")
