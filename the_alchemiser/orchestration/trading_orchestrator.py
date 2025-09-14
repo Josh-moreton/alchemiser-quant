@@ -95,7 +95,7 @@ class TradingOrchestrator:
             self.logger.warning(f"Failed to send market closed notification: {e}")
 
     def execute_strategy_signals_with_trading(self) -> dict[str, Any] | None:
-        """Generate strategy signals AND execute actual trades, returning comprehensive execution data."""
+        """Generate strategy signals AND execute trades, returning comprehensive execution data."""
         try:
             # Generate signals using signal orchestrator
             result = self.signal_orchestrator.analyze_signals()
@@ -138,7 +138,9 @@ class TradingOrchestrator:
                     )
 
                     if rebalance_plan:
-                        self.logger.info(f"📋 Generated rebalance plan with {len(rebalance_plan.items)} items")
+                        self.logger.info(
+                            f"📋 Generated rebalance plan with {len(rebalance_plan.items)} items"
+                        )
 
                         # Get ExecutionManager from container
                         execution_manager = self.container.services.execution_manager()
@@ -150,7 +152,8 @@ class TradingOrchestrator:
                         orders_executed = self._convert_execution_result_to_orders(execution_result)
 
                         self.logger.info(
-                            f"✅ Execution completed: {execution_result.orders_succeeded}/{execution_result.orders_placed} orders succeeded"
+                            f"✅ Execution completed: {execution_result.orders_succeeded}/"
+                            f"{execution_result.orders_placed} orders succeeded"
                         )
 
                         # Log detailed execution results
@@ -184,7 +187,7 @@ class TradingOrchestrator:
             return None
 
     def execute_strategy_signals(self) -> dict[str, Any] | None:
-        """Generate strategy signals and return comprehensive execution data including account info (signal mode)."""
+        """Generate strategy signals and return comprehensive execution data (signal mode)."""
         try:
             # Generate signals using signal orchestrator
             result = self.signal_orchestrator.analyze_signals()
@@ -387,7 +390,7 @@ class TradingOrchestrator:
         """Convert allocation comparison data to RebalancePlanDTO.
 
         Args:
-            allocation_comparison: Allocation comparison data with target_values, current_values, deltas
+            allocation_comparison: Allocation comparison data with target/current values, deltas
             account_info: Account information including portfolio_value
 
         Returns:
@@ -422,8 +425,16 @@ class TradingOrchestrator:
                     target_val = target_values.get(symbol, Decimal("0"))
                     current_val = current_values.get(symbol, Decimal("0"))
 
-                    target_weight = target_val / portfolio_value_decimal if portfolio_value_decimal > 0 else Decimal("0")
-                    current_weight = current_val / portfolio_value_decimal if portfolio_value_decimal > 0 else Decimal("0")
+                    target_weight = (
+                        target_val / portfolio_value_decimal
+                        if portfolio_value_decimal > 0
+                        else Decimal("0")
+                    )
+                    current_weight = (
+                        current_val / portfolio_value_decimal
+                        if portfolio_value_decimal > 0
+                        else Decimal("0")
+                    )
 
                     plan_item = RebalancePlanItemDTO(
                         symbol=symbol,
@@ -464,7 +475,9 @@ class TradingOrchestrator:
             self.logger.error(f"Failed to create rebalance plan: {e}")
             return None
 
-    def _convert_execution_result_to_orders(self, execution_result: ExecutionResultDTO) -> list[dict[str, Any]]:
+    def _convert_execution_result_to_orders(
+        self, execution_result: ExecutionResultDTO
+    ) -> list[dict[str, Any]]:
         """Convert ExecutionResultDTO to format expected by CLI display.
 
         Args:
@@ -513,6 +526,7 @@ class TradingOrchestrator:
 
         # Log summary
         self.logger.info(
-            f"📊 Execution Summary: {execution_result.orders_succeeded}/{execution_result.orders_placed} "
-            f"orders succeeded, ${execution_result.total_trade_value} total trade value"
+            f"📊 Execution Summary: {execution_result.orders_succeeded}/"
+            f"{execution_result.orders_placed} orders succeeded, "
+            f"${execution_result.total_trade_value} total trade value"
         )

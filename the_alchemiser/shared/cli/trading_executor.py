@@ -160,7 +160,8 @@ class TradingExecutor:
                     summary_content = [
                         f"[bold green]Execution Success Rate:[/bold green] {success_rate:.1%}",
                         f"[bold blue]Orders Placed:[/bold blue] {execution_result.orders_placed}",
-                        f"[bold green]Orders Succeeded:[/bold green] {execution_result.orders_succeeded}",
+                        f"[bold green]Orders Succeeded:[/bold green] "
+                        f"{execution_result.orders_succeeded}",
                         f"[bold yellow]Total Trade Value:[/bold yellow] ${float(total_value):,.2f}",
                     ]
 
@@ -195,7 +196,6 @@ class TradingExecutor:
         """
         try:
             from rich.console import Console
-            from rich.panel import Panel
             from rich.table import Table
 
             console = Console()
@@ -374,7 +374,8 @@ class TradingExecutor:
                 from rich.console import Console
 
                 Console().print(
-                    f"[bold red]Failed to export tracking summary to {self.export_tracking_json}: {e}[/bold red]"
+                    f"[bold red]Failed to export tracking summary to "
+                    f"{self.export_tracking_json}: {e}[/bold red]"
                 )
             except ImportError:
                 pass
