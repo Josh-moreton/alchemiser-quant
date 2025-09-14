@@ -259,7 +259,7 @@ def status() -> None:
         try:
             # Reuse TSM if available, otherwise instantiate
             if tsm is None:
-                api_key, secret_key = secrets_manager.get_alpaca_keys(paper_trading=not is_live)
+                api_key, secret_key = secrets_manager.get_alpaca_keys()
                 if not api_key or not secret_key:
                     raise RuntimeError("Alpaca credentials not available")
                 tsm = TradingServiceManager(api_key, secret_key, paper=not is_live)
