@@ -29,6 +29,7 @@ class BaseKLMVariant(ABC):
     """
 
     def __init__(self, name: str, description: str) -> None:
+        """Initialize KLM variant with name and description."""
         self.name = name
         self.description = description
         self.performance_history: list[float] = []
@@ -39,9 +40,7 @@ class BaseKLMVariant(ABC):
         self,
         indicators: dict[str, dict[str, float]],
         market_data: dict[str, pd.DataFrame] | None = None,
-    ) -> (
-        tuple[str | dict[str, float], str, str] | KLMDecision
-    ):  # TODO: Phase 9 - Gradual migration to KLMDecision
+    ) -> tuple[str | dict[str, float], str, str] | KLMDecision:
         """Evaluate the strategy variant and return trading decision.
 
         Args:
@@ -53,6 +52,10 @@ class BaseKLMVariant(ABC):
             - symbol_or_allocation: Single symbol string OR dict of {symbol: weight}
             - action: Action type (BUY, SELL, HOLD)
             - reason: Human-readable explanation
+
+        Note:
+            Phase 9 migration: Supports both legacy tuple and new KLMDecision formats.
+            Variants can gradually migrate to KLMDecision as needed.
 
         """
 
@@ -87,13 +90,54 @@ class BaseKLMVariant(ABC):
     def apply_rsi_filter(
         self, candidates: list[str], indicators: dict[str, Any], window: int = 10
     ) -> list[str]:
-        """Filter candidates by RSI values."""
+        """Filter candidates by RSI values.
+
+        Filters out symbols that don't have valid RSI data for the specified window.
+        This ensures only symbols with complete RSI indicators are considered for strategy decisions.
+
+        Args:
+            candidates: List of symbol strings to filter
+            indicators: Dictionary containing RSI indicator data
+            window: RSI calculation window (default 10)
+
+        Returns:
+            List of symbols that have valid RSI data for the specified window
+
+        """
         filtered = []
+        rsi_key = f"rsi_{window}"
+        
         for symbol in candidates:
-            if symbol in indicators:
-                # TODO: Implement actual RSI filtering logic
-                filtered.append(symbol)
+            if symbol in indicators and rsi_key in indicators[symbol]:
+                rsi_value = indicators[symbol][rsi_key]
+                # Ensure RSI value is valid (between 0 and 100)
+                if isinstance(rsi_value, int | float) and 0 <= rsi_value <= 100:
+                    filtered.append(symbol)
+        
         return filtered
+
+    def create_klm_decision(
+        self, symbol: str, action: str, reasoning: str
+    ) -> KLMDecision:
+        """Create a structured KLMDecision from individual components.
+
+        Helper method for Phase 9 migration to support variants transitioning
+        from tuple returns to structured KLMDecision objects.
+
+        Args:
+            symbol: Single symbol string (not dict allocation)
+            action: Action type (BUY, SELL, HOLD)
+            reasoning: Human-readable explanation
+
+        Returns:
+            Structured KLMDecision object
+
+        """
+        return {
+            "symbol": symbol,
+            "action": action,  # type: ignore[typeddict-item]
+            "reasoning": reasoning,
+        }
 
     # Common allocation patterns from Clojure
     @property
