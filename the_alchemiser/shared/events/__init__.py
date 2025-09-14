@@ -17,14 +17,25 @@ from __future__ import annotations
 from .base import BaseEvent
 from .bus import EventBus
 from .handlers import EventHandler
-from .schemas import RebalancePlanned, SignalGenerated, StartupEvent, TradeExecuted
+from .schemas import (
+    AllocationComparisonCompleted,
+    PortfolioStateChanged,
+    RebalancePlanned,
+    SignalGenerated,
+    StartupEvent,
+    TradeExecuted,
+    TradeExecutionStarted,
+)
 
 __all__ = [
+    "AllocationComparisonCompleted",
     "BaseEvent",
     "EventBus",
     "EventHandler",
+    "PortfolioStateChanged",
     "RebalancePlanned",
     "SignalGenerated",
     "StartupEvent",
     "TradeExecuted",
+    "TradeExecutionStarted",
 ]

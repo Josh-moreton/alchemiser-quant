@@ -9,6 +9,9 @@ without trading execution.
 
 from __future__ import annotations
 
+import uuid
+from datetime import UTC, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -16,6 +19,9 @@ if TYPE_CHECKING:
 
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
+from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO, PortfolioMetricsDTO
+from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
+from the_alchemiser.shared.events import EventBus, RebalancePlanned, AllocationComparisonCompleted
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 
@@ -27,6 +33,9 @@ class PortfolioOrchestrator:
         self.settings = settings
         self.container = container
         self.logger = get_logger(__name__)
+
+        # Get event bus from container for dual-path emission
+        self.event_bus: EventBus = container.services.event_bus()
 
     def analyze_portfolio_state(self) -> dict[str, Any] | None:
         """Analyze current portfolio state and generate rebalancing recommendations.
@@ -114,6 +123,36 @@ class PortfolioOrchestrator:
                 f"${rebalance_plan.total_trade_value:.2f} total trade value"
             )
 
+            # DUAL-PATH: Emit RebalancePlanned event for event-driven consumers
+            try:
+                # Create a minimal portfolio state DTO for event emission
+                minimal_metrics = PortfolioMetricsDTO(
+                    total_value=Decimal(str(rebalance_plan.total_trade_value)),
+                    cash_value=Decimal("0"),
+                    equity_value=Decimal(str(rebalance_plan.total_trade_value)),
+                    buying_power=Decimal("0"),
+                    day_pnl=Decimal("0"),
+                    day_pnl_percent=Decimal("0"),
+                    total_pnl=Decimal("0"),
+                    total_pnl_percent=Decimal("0"),
+                )
+
+                portfolio_state = PortfolioStateDTO(
+                    correlation_id=str(uuid.uuid4()),
+                    causation_id=f"portfolio-rebalancing-{datetime.now(UTC).isoformat()}",
+                    timestamp=datetime.now(UTC),
+                    portfolio_id="main_portfolio",
+                    account_id=None,
+                    positions=[],  # Would be populated from portfolio service
+                    metrics=minimal_metrics,
+                )
+
+                self._emit_rebalance_planned_event(rebalance_plan, portfolio_state)
+            except Exception as e:
+                # Don't let event emission break the traditional workflow
+                self.logger.warning(f"Failed to emit rebalance events: {e}")
+
+            # Return traditional response for backwards compatibility
             return {
                 "plan": rebalance_plan,
                 "trade_count": len(rebalance_plan.trades),
@@ -177,6 +216,39 @@ class PortfolioOrchestrator:
             )
 
             self.logger.info("Generated allocation comparison analysis")
+
+            # DUAL-PATH: Emit AllocationComparisonCompleted event for event-driven consumers
+            try:
+                # Convert data to Decimal for event emission
+                target_allocations_decimal = {
+                    symbol: Decimal(str(allocation))
+                    for symbol, allocation in consolidated_portfolio.to_dict_allocation().items()
+                }
+                
+                # Calculate current allocations from positions
+                total_portfolio_value = float(account_info.portfolio_value)
+                current_allocations_decimal = {}
+                differences_decimal = {}
+                
+                for symbol, market_value in positions_dict.items():
+                    current_allocation = market_value / total_portfolio_value if total_portfolio_value > 0 else 0
+                    current_allocations_decimal[symbol] = Decimal(str(current_allocation))
+                    
+                    # Calculate difference
+                    target_allocation = target_allocations_decimal.get(symbol, Decimal("0"))
+                    differences_decimal[symbol] = target_allocation - Decimal(str(current_allocation))
+                
+                # Determine if rebalancing is required (significant differences)
+                rebalancing_required = any(abs(diff) > Decimal("0.05") for diff in differences_decimal.values())
+                
+                self._emit_allocation_comparison_completed_event(
+                    target_allocations_decimal,
+                    current_allocations_decimal,
+                    differences_decimal,
+                    rebalancing_required
+                )
+            except Exception as e:
+                self.logger.warning(f"Failed to emit allocation comparison event: {e}")
 
             return allocation_comparison_dto
 
@@ -271,6 +343,86 @@ class PortfolioOrchestrator:
         except Exception as e:
             self.logger.error(f"Failed to retrieve comprehensive account data: {e}")
             return None
+
+    def _emit_rebalance_planned_event(
+        self, rebalance_plan: RebalancePlanDTO, portfolio_state: PortfolioStateDTO
+    ) -> None:
+        """Emit RebalancePlanned event for event-driven architecture.
+
+        Converts traditional rebalancing plan data to event format for new event-driven consumers.
+
+        Args:
+            rebalance_plan: The rebalancing plan DTO
+            portfolio_state: Current portfolio state DTO
+
+        """
+        try:
+            correlation_id = str(uuid.uuid4())
+            causation_id = f"rebalance-planning-{datetime.now(UTC).isoformat()}"
+
+            # Create and emit the event
+            event = RebalancePlanned(
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+                event_id=f"rebalance-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="orchestration",
+                source_component="PortfolioOrchestrator",
+                rebalance_plan=rebalance_plan,
+                portfolio_state=portfolio_state,
+            )
+
+            self.event_bus.publish(event)
+            self.logger.debug(f"Emitted RebalancePlanned event {event.event_id}")
+
+        except Exception as e:
+            # Don't let event emission failure break the traditional workflow
+            self.logger.warning(f"Failed to emit RebalancePlanned event: {e}")
+
+    def _emit_allocation_comparison_completed_event(
+        self, 
+        target_allocations: dict[str, Decimal], 
+        current_allocations: dict[str, Decimal],
+        differences: dict[str, Decimal],
+        rebalancing_required: bool
+    ) -> None:
+        """Emit AllocationComparisonCompleted event for event-driven architecture.
+
+        Args:
+            target_allocations: Target allocation percentages
+            current_allocations: Current allocation percentages  
+            differences: Allocation differences
+            rebalancing_required: Whether rebalancing is needed
+
+        """
+        try:
+            correlation_id = str(uuid.uuid4())
+            causation_id = f"allocation-comparison-{datetime.now(UTC).isoformat()}"
+
+            # Create and emit the event
+            event = AllocationComparisonCompleted(
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+                event_id=f"allocation-comparison-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="orchestration",
+                source_component="PortfolioOrchestrator",
+                target_allocations=target_allocations,
+                current_allocations=current_allocations,
+                allocation_differences=differences,
+                rebalancing_required=rebalancing_required,
+                comparison_metadata={
+                    "analysis_timestamp": datetime.now(UTC).isoformat(),
+                    "total_positions": len(current_allocations),
+                },
+            )
+
+            self.event_bus.publish(event)
+            self.logger.debug(f"Emitted AllocationComparisonCompleted event {event.event_id}")
+
+        except Exception as e:
+            # Don't let event emission failure break the traditional workflow
+            self.logger.warning(f"Failed to emit AllocationComparisonCompleted event: {e}")
 
     def execute_portfolio_workflow(
         self, target_allocations: dict[str, float]

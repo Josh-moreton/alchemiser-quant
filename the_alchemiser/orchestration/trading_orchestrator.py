@@ -21,7 +21,9 @@ from the_alchemiser.execution_v2.models.execution_result import ExecutionResultD
 from the_alchemiser.orchestration.portfolio_orchestrator import PortfolioOrchestrator
 from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.config.config import Settings
+from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO, PortfolioMetricsDTO
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO, RebalancePlanItemDTO
+from the_alchemiser.shared.events import EventBus, TradeExecuted, TradeExecutionStarted
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 from the_alchemiser.shared.types.exceptions import (
@@ -45,6 +47,9 @@ class TradingOrchestrator:
         self.live_trading = not self.container.config.paper_trading()
 
         self.ignore_market_hours = ignore_market_hours
+
+        # Get event bus from container for dual-path emission
+        self.event_bus: EventBus = container.services.event_bus()
 
         # Create signal orchestrator for signal generation
         self.signal_orchestrator = SignalOrchestrator(settings, container)
@@ -160,6 +165,25 @@ class TradingOrchestrator:
                             f"📋 Generated rebalance plan with {len(rebalance_plan.items)} items"
                         )
 
+                        # DUAL-PATH: Emit TradeExecutionStarted event for event-driven consumers
+                        execution_plan = {
+                            "plan_id": rebalance_plan.plan_id,
+                            "trade_count": len(rebalance_plan.items),
+                            "total_trade_value": float(rebalance_plan.total_trade_value),
+                            "trades": [
+                                {
+                                    "symbol": item.symbol,
+                                    "action": item.action,
+                                    "trade_amount": float(item.trade_amount),
+                                    "target_value": float(item.target_value),
+                                    "current_value": float(item.current_value),
+                                }
+                                for item in rebalance_plan.items
+                            ],
+                        }
+                        mode_str = "LIVE" if self.live_trading else "PAPER"
+                        self._emit_trade_execution_started_event(execution_plan, mode_str)
+
                         # Get ExecutionManager from container
                         execution_manager = self.container.services.execution_manager()
 
@@ -174,12 +198,32 @@ class TradingOrchestrator:
                             f"{execution_result.orders_placed} orders succeeded"
                         )
 
+                        # DUAL-PATH: Emit TradeExecuted event for event-driven consumers
+                        execution_success = execution_result.orders_succeeded > 0 and execution_result.orders_succeeded == execution_result.orders_placed
+                        self._emit_trade_executed_event(execution_result, execution_success)
+
                         # Log detailed execution results
                         self._log_detailed_execution_results(execution_result)
                     else:
                         self.logger.info(
                             "📊 No significant trades needed - portfolio already balanced"
                         )
+                        
+                        # DUAL-PATH: Emit TradeExecuted event for successful no-trade scenario
+                        # Create empty execution result to represent successful no-op
+                        
+                        no_trade_result = ExecutionResultDTO(
+                            success=True,
+                            plan_id=f"no-trade-{uuid.uuid4()}",
+                            correlation_id=str(uuid.uuid4()),
+                            orders=[],
+                            orders_placed=0,
+                            orders_succeeded=0,
+                            total_trade_value=Decimal("0"),
+                            execution_timestamp=datetime.now(UTC),
+                            metadata={"scenario": "no_trades_needed"},
+                        )
+                        self._emit_trade_executed_event(no_trade_result, True)
                 elif execute_trades:
                     self.logger.warning(
                         "Could not calculate trades - missing allocation comparison data"
@@ -215,6 +259,26 @@ class TradingOrchestrator:
         except Exception as e:
             error_context = "with trading" if execute_trades else "signal execution"
             self.logger.error(f"Strategy execution {error_context} failed: {e}")
+            
+            # DUAL-PATH: Emit TradeExecuted event for failure case
+            if execute_trades:
+                try:
+                    
+                    failed_result = ExecutionResultDTO(
+                        success=False,
+                        plan_id=f"failed-{uuid.uuid4()}",
+                        correlation_id=str(uuid.uuid4()),
+                        orders=[],
+                        orders_placed=0,
+                        orders_succeeded=0,
+                        total_trade_value=Decimal("0"),
+                        execution_timestamp=datetime.now(UTC),
+                        metadata={"error": str(e)},
+                    )
+                    self._emit_trade_executed_event(failed_result, False, str(e))
+                except Exception as emit_error:
+                    self.logger.warning(f"Failed to emit failure event: {emit_error}")
+            
             return None
 
     def send_trading_notification(self, result: dict[str, Any], mode_str: str) -> None:
@@ -510,3 +574,120 @@ class TradingOrchestrator:
             f"{execution_result.orders_placed} orders succeeded, "
             f"${execution_result.total_trade_value} total trade value"
         )
+
+    def _emit_trade_executed_event(
+        self, execution_result: ExecutionResultDTO, success: bool, error_message: str | None = None
+    ) -> None:
+        """Emit TradeExecuted event for event-driven architecture.
+
+        Converts trading execution data to event format for new event-driven consumers.
+
+        Args:
+            execution_result: The execution result from trading
+            success: Whether the execution was successful overall
+            error_message: Error message if execution failed
+
+        """
+        try:
+            correlation_id = str(uuid.uuid4())
+            causation_id = f"trade-execution-{datetime.now(UTC).isoformat()}"
+
+            # Create execution results dictionary
+            execution_data = {
+                "orders_placed": execution_result.orders_placed if execution_result else 0,
+                "orders_succeeded": execution_result.orders_succeeded if execution_result else 0,
+                "total_trade_value": float(execution_result.total_trade_value) if execution_result else 0.0,
+                "orders": [
+                    {
+                        "symbol": order.symbol,
+                        "action": order.action,
+                        "shares": float(order.shares) if order.shares else 0.0,
+                        "price": float(order.price) if order.price else 0.0,
+                        "trade_amount": float(order.trade_amount) if order.trade_amount else 0.0,
+                        "success": order.success,
+                        "error_message": order.error_message,
+                        "order_id": order.order_id,
+                    }
+                    for order in execution_result.orders
+                ] if execution_result else [],
+            }
+
+            # Create portfolio state after execution (minimal for now)
+            portfolio_state_after = None
+            if success and execution_result:
+                minimal_metrics = PortfolioMetricsDTO(
+                    total_value=execution_result.total_trade_value,
+                    cash_value=Decimal("0"),
+                    equity_value=execution_result.total_trade_value,
+                    buying_power=Decimal("0"),
+                    day_pnl=Decimal("0"),
+                    day_pnl_percent=Decimal("0"),
+                    total_pnl=Decimal("0"),
+                    total_pnl_percent=Decimal("0"),
+                )
+
+                portfolio_state_after = PortfolioStateDTO(
+                    correlation_id=correlation_id,
+                    causation_id=causation_id,
+                    timestamp=datetime.now(UTC),
+                    portfolio_id="main_portfolio",
+                    account_id=None,
+                    positions=[],  # Would be populated from portfolio service
+                    metrics=minimal_metrics,
+                )
+
+            # Create and emit the event
+            event = TradeExecuted(
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+                event_id=f"trade-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="orchestration",
+                source_component="TradingOrchestrator",
+                execution_results=execution_data,
+                portfolio_state_after=portfolio_state_after,
+                success=success,
+                error_message=error_message,
+            )
+
+            self.event_bus.publish(event)
+            self.logger.debug(f"Emitted TradeExecuted event {event.event_id}")
+
+        except Exception as e:
+            # Don't let event emission failure break the traditional workflow
+            self.logger.warning(f"Failed to emit TradeExecuted event: {e}")
+
+    def _emit_trade_execution_started_event(
+        self, execution_plan: dict[str, Any], trade_mode: str
+    ) -> None:
+        """Emit TradeExecutionStarted event for event-driven architecture.
+
+        Args:
+            execution_plan: The trading execution plan
+            trade_mode: Trading mode (LIVE/PAPER)
+
+        """
+        try:
+            correlation_id = str(uuid.uuid4())
+            causation_id = f"trade-execution-start-{datetime.now(UTC).isoformat()}"
+
+            # Create and emit the event
+            event = TradeExecutionStarted(
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+                event_id=f"trade-start-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="orchestration",
+                source_component="TradingOrchestrator",
+                execution_plan=execution_plan,
+                portfolio_state_before=None,  # Would be populated from portfolio analysis
+                trade_mode=trade_mode,
+                market_conditions=None,  # Would be populated from market data
+            )
+
+            self.event_bus.publish(event)
+            self.logger.debug(f"Emitted TradeExecutionStarted event {event.event_id}")
+
+        except Exception as e:
+            # Don't let event emission failure break the traditional workflow
+            self.logger.warning(f"Failed to emit TradeExecutionStarted event: {e}")
