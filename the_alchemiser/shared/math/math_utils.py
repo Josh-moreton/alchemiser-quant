@@ -153,7 +153,9 @@ def _get_fallback_value_for_metric(data: pd.Series, metric: str) -> float:
     if len(data) == 0:
         return 0.1 if metric == "std" else 0.0
     
-    fallback_handlers = {
+    from typing import Callable
+    
+    fallback_handlers: dict[str, Callable[[], float]] = {
         "mean": lambda: float(data.mean()),
         "std": lambda: 0.1,  # Default volatility
         "min": lambda: float(data.min()),
