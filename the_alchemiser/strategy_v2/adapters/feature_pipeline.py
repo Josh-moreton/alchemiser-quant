@@ -196,32 +196,30 @@ class FeaturePipeline:
 
     def _compute_ma_ratio(self, closes: list[float], lookback_window: int) -> float:
         """Compute moving average ratio feature.
-        
+
         Args:
             closes: List of closing prices
             lookback_window: Window for moving average calculation
-            
+
         Returns:
             Ratio of current price to moving average (1.0 if insufficient data)
 
         """
         if len(closes) >= lookback_window:
             ma = self.compute_moving_average(closes, lookback_window)
-            return (
-                closes[-1] / ma[-1] if ma and not self.is_close(ma[-1], 0.0) else 1.0
-            )
+            return closes[-1] / ma[-1] if ma and not self.is_close(ma[-1], 0.0) else 1.0
         return 1.0
 
     def _compute_price_position(
         self, bars: list[dict[str, Any]], current_close: float, lookback_window: int
     ) -> float:
         """Compute price position within high-low range.
-        
+
         Args:
             bars: List of bar dictionaries
             current_close: Current closing price
             lookback_window: Window for high-low range calculation
-            
+
         Returns:
             Price position in range [0, 1] (0.5 if insufficient data or no range)
 
@@ -239,11 +237,11 @@ class FeaturePipeline:
 
     def _compute_volume_ratio(self, volumes: list[float], lookback_window: int) -> float:
         """Compute volume ratio feature.
-        
+
         Args:
             volumes: List of volume values
             lookback_window: Window for average volume calculation
-            
+
         Returns:
             Ratio of current volume to average volume (1.0 if insufficient data)
 

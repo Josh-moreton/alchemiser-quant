@@ -98,15 +98,15 @@ class PortfolioBuilder:
     def _extract_portfolio_value(data: dict[str, Any]) -> float:
         """Extract portfolio value from account data."""
         account_after = data.get("account_info_after", {})
-        
+
         if not isinstance(account_after, dict):
             raise ValueError("account_after is not a dict, cannot extract portfolio value")
-        
+
         # Direct extraction from Alpaca account data
         portfolio_value_raw = account_after.get("portfolio_value") or account_after.get("equity")
         if portfolio_value_raw is None:
             raise ValueError("Portfolio value not available in account_after")
-        
+
         try:
             return float(portfolio_value_raw)
         except (TypeError, ValueError) as e:
@@ -294,7 +294,7 @@ class PortfolioBuilder:
                         for symbol, weight in list(consolidated_portfolio.items())[:5]
                     ]
                 )
-            
+
             # Fallback to execution_summary if needed
             exec_summary = data.get("execution_summary", {}) or {}
             summary_consolidated = exec_summary.get("consolidated_portfolio", {})
@@ -305,7 +305,7 @@ class PortfolioBuilder:
                         for symbol, weight in list(summary_consolidated.items())[:5]
                     ]
                 )
-            
+
             return "<span style='color: #6B7280; font-style: italic;'>Portfolio data unavailable</span>"
         except Exception as e:  # pragma: no cover - defensive path
             return f"<span style='color: #EF4444;'>Error loading portfolio: {e}</span>"

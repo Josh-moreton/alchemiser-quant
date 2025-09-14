@@ -83,7 +83,9 @@ class RebalancePlanCalculator:
             if not trade_items:
                 # Create a dummy HOLD item if no trades are needed
                 dummy_symbol = (
-                    next(iter(strategy.target_weights.keys())) if strategy.target_weights else "CASH"
+                    next(iter(strategy.target_weights.keys()))
+                    if strategy.target_weights
+                    else "CASH"
                 )
                 trade_items = [
                     RebalancePlanItemDTO(

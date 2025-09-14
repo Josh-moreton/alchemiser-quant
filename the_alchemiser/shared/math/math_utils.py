@@ -141,27 +141,27 @@ def calculate_percentage_change(current_value: float, previous_value: float) -> 
 
 def _get_fallback_value_for_metric(data: pd.Series, metric: str) -> float:
     """Get fallback value when insufficient data for rolling calculation.
-    
+
     Args:
         data: Input data series
         metric: Statistical metric type
-        
+
     Returns:
         Appropriate fallback value for the metric type
 
     """
     if len(data) == 0:
         return 0.1 if metric == "std" else 0.0
-    
-    from typing import Callable
-    
+
+    from collections.abc import Callable
+
     fallback_handlers: dict[str, Callable[[], float]] = {
         "mean": lambda: float(data.mean()),
         "std": lambda: 0.1,  # Default volatility
         "min": lambda: float(data.min()),
         "max": lambda: float(data.max()),
     }
-    
+
     handler = fallback_handlers.get(metric)
     return handler() if handler else 0.0
 

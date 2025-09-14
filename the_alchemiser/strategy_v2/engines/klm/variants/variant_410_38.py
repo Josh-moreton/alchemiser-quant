@@ -11,15 +11,8 @@ Since 506/38 was just corrected to use FNGU, 410/38 only differs in the SSO addi
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from the_alchemiser.shared.utils.common import ActionType
-
-if TYPE_CHECKING:
-    from the_alchemiser.shared.value_objects.core_types import KLMDecision
-else:
-    # Import for runtime use
-    from the_alchemiser.shared.value_objects.core_types import KLMDecision
+from the_alchemiser.shared.value_objects.core_types import KLMDecision
 
 from .variant_506_38 import KlmVariant50638
 

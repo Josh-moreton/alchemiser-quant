@@ -10,18 +10,13 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from the_alchemiser.shared.utils.common import ActionType
-
-if TYPE_CHECKING:
-    from the_alchemiser.shared.value_objects.core_types import KLMDecision
-else:
-    # Import for runtime use
-    from the_alchemiser.shared.value_objects.core_types import KLMDecision
+from the_alchemiser.shared.value_objects.core_types import KLMDecision
 
 
 class BaseKLMVariant(ABC):
