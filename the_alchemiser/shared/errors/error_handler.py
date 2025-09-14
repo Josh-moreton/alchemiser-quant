@@ -491,7 +491,7 @@ class TradingSystemErrorHandler:
         entry += "\n"
         return entry
 
-    def _add_error_section(self, report: str, category_data: dict[str, Any] | None, 
+    def _add_error_section(self, report: str, category_data: dict[str, Any] | None,
                           title: str, description: str = "") -> str:
         """Add an error section to the report if the category has errors."""
         if category_data is None:
