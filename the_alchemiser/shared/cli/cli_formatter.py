@@ -88,7 +88,7 @@ def _collect_indicator_parts(indicators: dict[str, Any]) -> tuple[list[str], lis
     rsi_parts = []
     ma_parts = []
     other_parts = []
-    
+
     for k, v in indicators.items():
         if k.startswith("rsi_"):
             rsi_parts.append(f"{k.upper()}:{v:.1f}")
@@ -96,7 +96,7 @@ def _collect_indicator_parts(indicators: dict[str, Any]) -> tuple[list[str], lis
             ma_parts.append(f"{k.upper()}:{v:.1f}")
         elif k != "current_price":
             other_parts.append(f"{k}:{v:.2f}")
-    
+
     return rsi_parts, ma_parts, other_parts
 
 
@@ -122,11 +122,11 @@ def _create_market_regime_panel(all_indicators: dict[str, dict[str, Any]]) -> Pa
     """Create market regime panel if SPY data is available."""
     if "SPY" not in all_indicators:
         return None
-        
+
     spy_data = all_indicators["SPY"]
     spy_price = spy_data.get("current_price", 0)
     spy_ma200 = spy_data.get("ma_200", 0)
-    
+
     if spy_price > 0 and spy_ma200 > 0:
         regime = (
             "[bold green]BULL MARKET[/bold green]"
@@ -175,7 +175,7 @@ def render_technical_indicators(
         ind = all_indicators[symbol]
         price = ind.get("current_price", 0)
         price_str = _format_price_string(price)
-        
+
         rsi_parts, ma_parts, other_parts = _collect_indicator_parts(ind)
         rsi_level = _get_rsi_level(ind)
         trend_indicator = _get_trend_indicator(ind, price)
@@ -191,7 +191,7 @@ def render_technical_indicators(
 
     c = console or Console()
     c.print(table)
-    
+
     regime_panel = _create_market_regime_panel(all_indicators)
     if regime_panel:
         c.print(regime_panel)
@@ -209,14 +209,14 @@ def _determine_action_style(action: str) -> tuple[str, str]:
 def _build_signal_details(allocation: Any, confidence: Any, symbol: str, action: str) -> list[str]:
     """Build details lines for signal display."""
     details_lines: list[str] = []
-    
+
     # Add allocation if valid
     try:
         if isinstance(allocation, int | float):
             details_lines.append(f"Target Allocation: {float(allocation):.1%}")
     except Exception:
         pass
-    
+
     # Add confidence if valid
     try:
         if isinstance(confidence, int | float) and 0 <= float(confidence) <= 1:
@@ -229,7 +229,7 @@ def _build_signal_details(allocation: Any, confidence: Any, symbol: str, action:
         details_lines.append("Portfolio Components:")
         details_lines.append("• UVXY: 75% (volatility hedge)")
         details_lines.append("• BTAL: 25% (anti-beta hedge)")
-    
+
     return details_lines
 
 
@@ -256,7 +256,7 @@ def _create_signal_panel(strategy_type: Any, signal: dict[str, Any]) -> Panel:
         content_sections.append("\n".join(details_lines))
     content_sections.append(formatted_reason)
     content = "\n\n".join(content_sections)
-    
+
     return Panel(
         content,
         title=f"{strategy_type.value if hasattr(strategy_type, 'value') else strategy_type}",
@@ -578,13 +578,14 @@ def render_footer(message: str, success: bool = True, console: Console | None = 
     c.print()
 
 
-def _compute_allocation_values_from_dto(allocation_comparison: AllocationComparisonDTO, account_info: dict[str, Any]) -> tuple[dict[str, Decimal], dict[str, Decimal], dict[str, Decimal], Decimal]:
+def _compute_allocation_values_from_dto(
+    allocation_comparison: AllocationComparisonDTO, account_info: dict[str, Any]
+) -> tuple[dict[str, Decimal], dict[str, Decimal], dict[str, Decimal], Decimal]:
     """Compute allocation values from AllocationComparisonDTO."""
-    
     target_values = allocation_comparison.target_values
     current_values = allocation_comparison.current_values
     deltas = allocation_comparison.deltas
-    
+
     # Derive portfolio_value from sum of target values if not present
     try:
         portfolio_value = sum(target_values.values())
@@ -603,14 +604,18 @@ def _compute_allocation_values_from_dto(allocation_comparison: AllocationCompari
                 "Portfolio value is required for allocation comparison display."
             ) from e
         portfolio_value = Decimal(str(pv_from_account))
-    
+
     return target_values, current_values, deltas, portfolio_value
 
 
-def _compute_allocation_values_on_fly(target_portfolio: dict[str, float], account_info: dict[str, Any], current_positions: dict[str, Any]) -> tuple[dict[str, Decimal], dict[str, Decimal], dict[str, Decimal], Decimal]:
+def _compute_allocation_values_on_fly(
+    target_portfolio: dict[str, float],
+    account_info: dict[str, Any],
+    current_positions: dict[str, Any],
+) -> tuple[dict[str, Decimal], dict[str, Decimal], dict[str, Decimal], Decimal]:
     """Compute allocation values on-the-fly from raw data."""
     from decimal import Decimal
-    
+
     pv_from_account = account_info.get("portfolio_value")
     if pv_from_account is None:
         raise ValueError(
@@ -619,7 +624,8 @@ def _compute_allocation_values_on_fly(target_portfolio: dict[str, float], accoun
         )
     portfolio_value = Decimal(str(pv_from_account))
     target_values = {
-        symbol: portfolio_value * Decimal(str(weight)) for symbol, weight in target_portfolio.items()
+        symbol: portfolio_value * Decimal(str(weight))
+        for symbol, weight in target_portfolio.items()
     }
     current_values = {}
     for symbol, pos in current_positions.items():
@@ -632,7 +638,7 @@ def _compute_allocation_values_on_fly(target_portfolio: dict[str, float], accoun
         s: (target_values.get(s, Decimal("0")) - current_values.get(s, Decimal("0")))
         for s in set(target_values) | set(current_values)
     }
-    
+
     return target_values, current_values, deltas, portfolio_value
 
 
@@ -672,9 +678,13 @@ def render_target_vs_current_allocations(
     c = console or Console()
 
     if allocation_comparison:
-        target_values, current_values, deltas, portfolio_value = _compute_allocation_values_from_dto(allocation_comparison, account_info)
+        target_values, current_values, deltas, portfolio_value = (
+            _compute_allocation_values_from_dto(allocation_comparison, account_info)
+        )
     else:
-        target_values, current_values, deltas, portfolio_value = _compute_allocation_values_on_fly(target_portfolio, account_info, current_positions)
+        target_values, current_values, deltas, portfolio_value = _compute_allocation_values_on_fly(
+            target_portfolio, account_info, current_positions
+        )
 
     table = Table(title="Portfolio Rebalancing Summary", show_lines=True, expand=True, box=None)
     table.add_column("Symbol", style=STYLE_BOLD_CYAN, justify="center", width=8)
@@ -836,9 +846,10 @@ def render_enriched_order_summaries(
     c.print(table)
 
 
-def _render_orders_executed_table(execution_result: MultiStrategyExecutionResultDTO, console: Console) -> None:
+def _render_orders_executed_table(
+    execution_result: MultiStrategyExecutionResultDTO, console: Console
+) -> None:
     """Render the orders executed table for multi-strategy summary."""
-
     orders_table = Table(
         title=f"Orders Executed ({len(execution_result.orders_executed)})", show_lines=False
     )
@@ -912,12 +923,14 @@ def _log_no_orders_context(execution_result: MultiStrategyExecutionResultDTO) ->
     logger.warning("*** THIS IS WHERE TRADES MAY BE GETTING LOST ***")
 
 
-def _build_enriched_account_info(execution_result: MultiStrategyExecutionResultDTO, enriched_account: dict[str, Any] | None) -> dict[str, Any]:
+def _build_enriched_account_info(
+    execution_result: MultiStrategyExecutionResultDTO, enriched_account: dict[str, Any] | None
+) -> dict[str, Any]:
     """Build enriched account dictionary for display."""
     from typing import cast
 
     from the_alchemiser.shared.value_objects.core_types import EnrichedAccountInfo
-    
+
     base_account: EnrichedAccountInfo = cast(
         EnrichedAccountInfo, dict(execution_result.account_info_after)
     )
@@ -934,65 +947,71 @@ def _extract_and_validate_financial_values(base_account: dict[str, Any]) -> tupl
             "Portfolio value not available in execution result account info. "
             "Cannot display execution summary without portfolio value."
         )
-    
+
     cash_raw = base_account.get("cash", 0)
-    
+
     try:
         pv = float(pv_raw)
     except Exception as e:
         raise ValueError(f"Invalid portfolio value format: {pv_raw}") from e
-    
+
     try:
         cash = float(cash_raw)
     except Exception:
         cash = 0.0
-    
+
     return pv, cash
 
 
 from rich.text import Text
 
 
-def _append_portfolio_history_to_content(base_account: dict[str, Any], account_content: Text) -> None:
+def _append_portfolio_history_to_content(
+    base_account: dict[str, Any], account_content: Text
+) -> None:
     """Add portfolio history P&L information to account content."""
     from typing import cast
 
     from the_alchemiser.shared.value_objects.core_types import PortfolioHistoryData
-    
+
     portfolio_history = base_account.get("portfolio_history")
     if not isinstance(portfolio_history, dict):
         return
-    
+
     ph: PortfolioHistoryData = cast(PortfolioHistoryData, portfolio_history)
     profit_loss = ph.get("profit_loss", []) or []
     profit_loss_pct = ph.get("profit_loss_pct", []) or []
-    
+
     if not profit_loss:
         return
-    
+
     recent_pl = profit_loss[-1]
     recent_pl_pct = profit_loss_pct[-1] if profit_loss_pct else 0
     pl_color = "green" if recent_pl >= 0 else "red"
     pl_sign = "+" if recent_pl >= 0 else ""
-    
+
     account_content.append(
         f"Recent P&L: {pl_sign}${recent_pl:,.2f} ({pl_sign}{recent_pl_pct * 100:.2f}%)\n",
         style=f"bold {pl_color}",
     )
 
 
-def _render_account_summary(execution_result: MultiStrategyExecutionResultDTO, enriched_account: dict[str, Any] | None, console: Console) -> None:
+def _render_account_summary(
+    execution_result: MultiStrategyExecutionResultDTO,
+    enriched_account: dict[str, Any] | None,
+    console: Console,
+) -> None:
     """Render account summary section."""
     from rich.panel import Panel
     from rich.text import Text
 
     base_account = _build_enriched_account_info(execution_result, enriched_account)
     pv, cash = _extract_and_validate_financial_values(base_account)
-    
+
     account_content = Text()
     account_content.append(f"Portfolio Value: ${pv:,.2f}\n", style=STYLE_BOLD_GREEN)
     account_content.append(f"Cash Balance: ${cash:,.2f}\n", style="bold blue")
-    
+
     _append_portfolio_history_to_content(base_account, account_content)
 
     account_panel = Panel(account_content, title="Account Summary", style=STYLE_BOLD_WHITE)
@@ -1006,9 +1025,7 @@ def _render_closed_pnl_table(enriched_account: dict[str, Any], console: Console)
     if not closed_pnl:
         return
 
-    closed_pnl_table = Table(
-        title="Recent Closed Positions P&L (Last 7 Days)", show_lines=False
-    )
+    closed_pnl_table = Table(title="Recent Closed Positions P&L (Last 7 Days)", show_lines=False)
     closed_pnl_table.add_column("Symbol", style=STYLE_BOLD_CYAN, justify="center")
     closed_pnl_table.add_column("Realized P&L", style="bold", justify="right")
     closed_pnl_table.add_column("P&L %", style="bold", justify="right")

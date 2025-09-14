@@ -106,14 +106,14 @@ class BaseKLMVariant(ABC):
         """
         filtered = []
         rsi_key = f"rsi_{window}"
-        
+
         for symbol in candidates:
             if symbol in indicators and rsi_key in indicators[symbol]:
                 rsi_value = indicators[symbol][rsi_key]
                 # Ensure RSI value is valid (between 0 and 100)
                 if isinstance(rsi_value, int | float) and 0 <= rsi_value <= 100:
                     filtered.append(symbol)
-        
+
         return filtered
 
     def create_klm_decision(
@@ -218,9 +218,7 @@ class BaseKLMVariant(ABC):
         # No overbought conditions met - proceed to Single Popped KMLM
         return None
 
-    def evaluate_single_popped_kmlm(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def evaluate_single_popped_kmlm(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Single Popped KMLM logic - common across most standard variants.
 
         Logic:
@@ -240,9 +238,7 @@ class BaseKLMVariant(ABC):
         # Fallback if UVXY data unavailable
         return self.evaluate_combined_pop_bot(indicators)
 
-    def evaluate_bsc_strategy(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def evaluate_bsc_strategy(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """BSC (Bond/Stock/Commodity) strategy when UVXY RSI(21) > 65.
 
         Logic from CLJ:
@@ -266,14 +262,14 @@ class BaseKLMVariant(ABC):
                 )
         else:
             # Fallback
-            result = self.create_klm_decision("VIXM", ActionType.BUY.value, "BSC: Default VIXM (no SPY data)")
+            result = self.create_klm_decision(
+                "VIXM", ActionType.BUY.value, "BSC: Default VIXM (no SPY data)"
+            )
 
         self.log_klm_decision(result)
         return result
 
-    def evaluate_combined_pop_bot(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def evaluate_combined_pop_bot(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Combined Pop Bot strategy - standard across most variants.
 
         Sequence (from CLJ):
@@ -322,9 +318,7 @@ class BaseKLMVariant(ABC):
         return self.evaluate_core_kmlm_switcher(indicators)
 
     @abstractmethod
-    def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def evaluate_core_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Core KMLM switcher - each variant implements its own logic.
         This is where variants differ after the common overbought/pop bot logic.
         """

@@ -65,9 +65,7 @@ class KlmVariant50638(BaseKLMVariant):
         # Step 2: Single Popped KMLM logic
         return self.evaluate_single_popped_kmlm(indicators)
 
-    def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def evaluate_core_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Core KMLM switcher logic - CORRECTED to match CLJ exactly:
 
         From CLJ lines 170-182: When XLK > KMLM, select FNGU with RSI filter (select-bottom 1)
@@ -92,9 +90,7 @@ class KlmVariant50638(BaseKLMVariant):
         # Step 2: Long/Short Rotator logic (when XLK <= KMLM or missing data)
         return self._evaluate_long_short_rotator(indicators)
 
-    def _evaluate_long_short_rotator(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_long_short_rotator(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Long/Short Rotator - CORRECTED to match CLJ exactly.
 
         From CLJ lines 184-195: "Long/Short Rotator with FTLS KMLM SSO UUP"

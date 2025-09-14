@@ -36,9 +36,7 @@ class KlmVariant41038(KlmVariant50638):
         self.name = "410/38"
         self.description = "MonkeyBusiness Simons variant - Same as 506/38 + SSO in rotator"
 
-    def _evaluate_long_short_rotator(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_long_short_rotator(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """410/38 L/S Rotator - SAME as 506/38 but includes SSO.
 
         CLJ: "Long/Short Rotator with FTLS KMLM SSO UUP"
@@ -68,7 +66,9 @@ class KlmVariant41038(KlmVariant50638):
 
         else:
             # Fallback to KMLM since it's defensive
-            result = self.create_klm_decision("KMLM", ActionType.BUY.value, "410/38 L/S Rotator: KMLM fallback")
+            result = self.create_klm_decision(
+                "KMLM", ActionType.BUY.value, "410/38 L/S Rotator: KMLM fallback"
+            )
 
         self.log_klm_decision(result)
         return result

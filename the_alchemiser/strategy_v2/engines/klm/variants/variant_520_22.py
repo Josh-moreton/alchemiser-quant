@@ -55,11 +55,9 @@ class KlmVariant52022(BaseKLMVariant):
         # Step 2: Single Popped KMLM logic (same as 506/38)
         return self.evaluate_single_popped_kmlm(indicators)
 
-    def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def evaluate_core_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Core KMLM switcher for variant 520/22.
-        
+
         KEY DIFFERENCE: TECL/SVIX only (no SOXL).
         CLJ shows: select-bottom 1 from [TECL, SVIX] (not TECL/SOXL/SVIX)
         """
@@ -91,9 +89,7 @@ class KlmVariant52022(BaseKLMVariant):
         # Fallback to L/S Rotator if XLK <= KMLM or missing data
         return self._evaluate_long_short_rotator(indicators)
 
-    def _evaluate_long_short_rotator(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_long_short_rotator(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """520/22 L/S Rotator - uses FTLS/KMLM/SSO/UUP (like 410/38)."""
         rotator_symbols = ["FTLS", "KMLM", "SSO", "UUP"]
 
@@ -117,7 +113,9 @@ class KlmVariant52022(BaseKLMVariant):
             )
         else:
             # Fallback to KMLM
-            result = self.create_klm_decision("KMLM", ActionType.BUY.value, "520/22 L/S Rotator: KMLM fallback")
+            result = self.create_klm_decision(
+                "KMLM", ActionType.BUY.value, "520/22 L/S Rotator: KMLM fallback"
+            )
 
         self.log_klm_decision(result)
         return result

@@ -102,9 +102,7 @@ class KlmVariant53018(BaseKLMVariant):
         # Step 9: "10. KMLM Switcher | Holy Grail" - the final complex branch
         return self._evaluate_holy_grail_kmlm_switcher(indicators)
 
-    def _evaluate_spy_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_spy_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """SPY Scale-In | VIX+ -> VIX++ (CLJ lines 782-796)."""
         if "SPY" not in indicators:
             return None
@@ -134,9 +132,7 @@ class KlmVariant53018(BaseKLMVariant):
 
         return None
 
-    def _evaluate_ioo_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_ioo_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """IOO Scale-In | VIX+ -> VIX++ (identical pattern to SPY)."""
         if "IOO" not in indicators:
             return None
@@ -164,9 +160,7 @@ class KlmVariant53018(BaseKLMVariant):
 
         return None
 
-    def _evaluate_qqq_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_qqq_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """QQQ Scale-In | VIX+ -> VIX++ (threshold 79 vs 80)."""
         if "QQQ" not in indicators:
             return None
@@ -194,9 +188,7 @@ class KlmVariant53018(BaseKLMVariant):
 
         return None
 
-    def _evaluate_vtv_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_vtv_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """VTV Scale-In | VIX -> VIX+ (different pattern - uses VIXY)."""
         if "VTV" not in indicators:
             return None
@@ -224,9 +216,7 @@ class KlmVariant53018(BaseKLMVariant):
 
         return None
 
-    def _evaluate_xlp_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_xlp_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """XLP Scale-In | VIX -> VIX+ (threshold 77, same pattern as VTV)."""
         if "XLP" not in indicators:
             return None
@@ -254,9 +244,7 @@ class KlmVariant53018(BaseKLMVariant):
 
         return None
 
-    def _evaluate_xlf_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_xlf_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """XLF Scale-In | VIX -> VIX+ (threshold 81, same pattern)."""
         if "XLF" not in indicators:
             return None
@@ -368,7 +356,9 @@ class KlmVariant53018(BaseKLMVariant):
         # Check VOX overbought
         if "VOX" in indicators and indicators["VOX"].get("rsi_10", 0) > 79:
             allocation = self.vix_blend
-            result = self.create_klm_decision(allocation, ActionType.BUY.value, "Holy Grail: VOX RSI(10) > 79 → VIX Blend")
+            result = self.create_klm_decision(
+                allocation, ActionType.BUY.value, "Holy Grail: VOX RSI(10) > 79 → VIX Blend"
+            )
             self.log_klm_decision(result)
             return result
 
@@ -405,21 +395,25 @@ class KlmVariant53018(BaseKLMVariant):
         # Default to complex KMLM switcher logic
         return self._evaluate_kmlm_switcher_plus_fngu(indicators)
 
-    def _evaluate_holy_grail_pop_bot(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_holy_grail_pop_bot(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Pop bot logic within Holy Grail branch."""
         # TQQQ oversold (< 31, different from standard < 30)
         if "TQQQ" in indicators and indicators["TQQQ"].get("rsi_10", 50) < 31:
-            return self.create_klm_decision("TECL", ActionType.BUY.value, "Holy Grail Pop Bot: TQQQ RSI < 31 → TECL")
+            return self.create_klm_decision(
+                "TECL", ActionType.BUY.value, "Holy Grail Pop Bot: TQQQ RSI < 31 → TECL"
+            )
 
         # SOXL oversold
         if "SOXL" in indicators and indicators["SOXL"].get("rsi_10", 50) < 30:
-            return self.create_klm_decision("SOXL", ActionType.BUY.value, "Holy Grail Pop Bot: SOXL RSI < 30 → SOXL")
+            return self.create_klm_decision(
+                "SOXL", ActionType.BUY.value, "Holy Grail Pop Bot: SOXL RSI < 30 → SOXL"
+            )
 
         # SPXL oversold
         if "SPXL" in indicators and indicators["SPXL"].get("rsi_10", 50) < 30:
-            return self.create_klm_decision("SPXL", ActionType.BUY.value, "Holy Grail Pop Bot: SPXL RSI < 30 → SPXL")
+            return self.create_klm_decision(
+                "SPXL", ActionType.BUY.value, "Holy Grail Pop Bot: SPXL RSI < 30 → SPXL"
+            )
 
         # Fall through to KMLM Switcher + FNGU
         return self._evaluate_kmlm_switcher_plus_fngu(indicators)
@@ -570,9 +564,7 @@ class KlmVariant53018(BaseKLMVariant):
         return list(set(all_symbols))
 
     # Override the base class method since 530/18 doesn't use standard pattern
-    def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def evaluate_core_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """530/18 doesn't use the standard core KMLM switcher pattern.
         It has its own complex Holy Grail logic.
         """

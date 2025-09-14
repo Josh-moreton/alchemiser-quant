@@ -74,11 +74,9 @@ class KLMVariantNova(BaseKLMVariant):
         # Fallback if UVIX data unavailable
         return self.evaluate_combined_pop_bot(indicators)
 
-    def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def evaluate_core_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Core KMLM switcher for variant Nova.
-        
+
         COMPLETELY DIFFERENT: Individual stocks with RSI(11).
         CLJ shows: RSI(11) select-top 1 from FNGO/TSLA/MSFT/AAPL/NVDA/GOOGL/AMZN
         """
@@ -108,18 +106,17 @@ class KLMVariantNova(BaseKLMVariant):
                     )
                     self.log_klm_decision(result)
                     return result
-                else:
-                    # Fallback to FNGO if no RSI(11) data
-                    result = self.create_klm_decision("FNGO", ActionType.BUY.value, "Nova KMLM Switcher: FNGO fallback")
-                    self.log_klm_decision(result)
-                    return result
+                # Fallback to FNGO if no RSI(11) data
+                result = self.create_klm_decision(
+                    "FNGO", ActionType.BUY.value, "Nova KMLM Switcher: FNGO fallback"
+                )
+                self.log_klm_decision(result)
+                return result
 
         # XLK <= KMLM → L/S Rotator (same as 520/22)
         return self._evaluate_ls_rotator_nova(indicators)
 
-    def _evaluate_ls_rotator_nova(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_ls_rotator_nova(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Nova L/S Rotator - same as 520/22 (FTLS/KMLM/SSO/UUP)."""
         # Volatility filter candidates: FTLS, KMLM, SSO, UUP
         rotator_symbols = ["FTLS", "KMLM", "SSO", "UUP"]
@@ -142,7 +139,9 @@ class KLMVariantNova(BaseKLMVariant):
             )
         else:
             # Fallback to KMLM
-            result = self.create_klm_decision("KMLM", ActionType.BUY.value, "Nova L/S Rotator: KMLM fallback")
+            result = self.create_klm_decision(
+                "KMLM", ActionType.BUY.value, "Nova L/S Rotator: KMLM fallback"
+            )
 
         self.log_klm_decision(result)
         return result

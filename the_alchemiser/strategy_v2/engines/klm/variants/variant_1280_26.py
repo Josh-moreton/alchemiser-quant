@@ -14,12 +14,9 @@ This is a fundamentally different architecture from other variants.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import pandas as pd
 
 from the_alchemiser.shared.utils.common import ActionType
-
 from the_alchemiser.shared.value_objects.core_types import KLMDecision
 
 from ..base_variant import BaseKLMVariant
@@ -68,36 +65,42 @@ class KlmVariant128026(BaseKLMVariant):
         """
         # Priority 1: TQQQ oversold
         if "TQQQ" in indicators and indicators["TQQQ"]["rsi_10"] < 30:
-            result = self.create_klm_decision("TECL", ActionType.BUY.value, "1280/26 Pop Bot: TQQQ RSI < 30 → TECL")
+            result = self.create_klm_decision(
+                "TECL", ActionType.BUY.value, "1280/26 Pop Bot: TQQQ RSI < 30 → TECL"
+            )
             self.log_klm_decision(result)
             return result
 
         # Priority 2: SOXL oversold
         if "SOXL" in indicators and indicators["SOXL"]["rsi_10"] < 30:
-            result = self.create_klm_decision("SOXL", ActionType.BUY.value, "1280/26 Pop Bot: SOXL RSI < 30 → SOXL")
+            result = self.create_klm_decision(
+                "SOXL", ActionType.BUY.value, "1280/26 Pop Bot: SOXL RSI < 30 → SOXL"
+            )
             self.log_klm_decision(result)
             return result
 
         # Priority 3: SPXL oversold
         if "SPXL" in indicators and indicators["SPXL"]["rsi_10"] < 30:
-            result = self.create_klm_decision("SPXL", ActionType.BUY.value, "1280/26 Pop Bot: SPXL RSI < 30 → SPXL")
+            result = self.create_klm_decision(
+                "SPXL", ActionType.BUY.value, "1280/26 Pop Bot: SPXL RSI < 30 → SPXL"
+            )
             self.log_klm_decision(result)
             return result
 
         # Priority 4: LABU oversold (KEY DIFFERENCE - this variant includes LABU)
         if "LABU" in indicators and indicators["LABU"]["rsi_10"] < 25:
-            result = self.create_klm_decision("LABU", ActionType.BUY.value, "1280/26 Pop Bot: LABU RSI < 25 → LABU")
+            result = self.create_klm_decision(
+                "LABU", ActionType.BUY.value, "1280/26 Pop Bot: LABU RSI < 25 → LABU"
+            )
             self.log_klm_decision(result)
             return result
 
         # No oversold conditions - proceed to KMLM Switcher
         return self.evaluate_core_kmlm_switcher(indicators)
 
-    def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def evaluate_core_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Core KMLM switcher for variant 1280/26.
-        
+
         select-bottom 2 from TECL/SOXL/SVIX (NOT FNGU) creates equal-weight allocation.
         CLJ lines 331-350: When XLK > KMLM → select-bottom 2 from [TECL, SOXL, SVIX]
         """
@@ -126,7 +129,7 @@ class KlmVariant128026(BaseKLMVariant):
                     )
                     self.log_klm_decision(result)
                     return result
-                elif candidates:
+                if candidates:
                     # Only one candidate available, use it
                     selected_symbol = candidates[0][0]
                     result = self.create_klm_decision(
@@ -140,9 +143,7 @@ class KlmVariant128026(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator
         return self._evaluate_ls_rotator_1280(indicators)
 
-    def _evaluate_ls_rotator_1280(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_ls_rotator_1280(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """1280/26 L/S Rotator - uses SQQQ/TLT select-top 1."""
         candidates = []
         for symbol in ["SQQQ", "TLT"]:
@@ -162,7 +163,9 @@ class KlmVariant128026(BaseKLMVariant):
             )
         else:
             # Fallback
-            result = self.create_klm_decision("TLT", ActionType.BUY.value, "1280/26 L/S Rotator: TLT fallback")
+            result = self.create_klm_decision(
+                "TLT", ActionType.BUY.value, "1280/26 L/S Rotator: TLT fallback"
+            )
 
         self.log_klm_decision(result)
         return result

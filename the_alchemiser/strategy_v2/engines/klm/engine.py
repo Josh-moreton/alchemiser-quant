@@ -293,31 +293,29 @@ class KLMEngine(StrategyEngine):
 
         return symbol_or_allocation, action, detailed_reason, best_variant.name
 
-    def _extract_result_components(
-        self, result: Any
-    ) -> tuple[str | dict[str, float], str, str]:
+    def _extract_result_components(self, result: Any) -> tuple[str | dict[str, float], str, str]:
         """Extract components from either tuple or KLMDecision format.
-        
+
         Supports migration period where variants may return either format.
         """
         from the_alchemiser.shared.value_objects.core_types import KLMDecision
-        
+
         # Check if it's a KLMDecision (TypedDict)
         if isinstance(result, dict) and "symbol" in result and "action" in result:
             klm_decision: KLMDecision = result  # type: ignore[assignment]
             return (
                 klm_decision["symbol"],
                 klm_decision["action"],
-                klm_decision.get("reasoning", "KLM Decision")
+                klm_decision.get("reasoning", "KLM Decision"),
             )
-        
+
         # Legacy tuple format
         if hasattr(result, "__len__") and len(result) >= 2:
             symbol_or_allocation = result[0]
             action = result[1]
             reason = result[2] if len(result) > 2 else "KLM Ensemble Selection"
             return symbol_or_allocation, action, reason
-            
+
         # Invalid format
         self.logger.warning(f"Invalid result format: {result}")
         return "BIL", ActionType.HOLD.value, "Invalid result format"
@@ -376,17 +374,17 @@ class KLMEngine(StrategyEngine):
         # KLMDecision format
         if isinstance(result, dict):
             return (
-                "symbol" in result 
-                and "action" in result 
-                and result["symbol"] is not None 
+                "symbol" in result
+                and "action" in result
+                and result["symbol"] is not None
                 and result["action"] is not None
             )
-        
+
         # Tuple format
         return (
-            hasattr(result, "__len__") 
-            and len(result) >= 2 
-            and result[0] is not None 
+            hasattr(result, "__len__")
+            and len(result) >= 2
+            and result[0] is not None
             and result[1] is not None
         )
 
@@ -399,17 +397,17 @@ class KLMEngine(StrategyEngine):
                 if isinstance(symbol, dict):
                     return f"allocation:{len(symbol)} symbols"
                 return str(symbol)
-            
+
             # Tuple format
             if hasattr(result, "__len__") and len(result) > 0:
                 first_element = result[0]
                 if isinstance(first_element, dict):
                     return f"allocation:{len(first_element)} symbols"
                 return str(first_element)
-                
+
         except (IndexError, TypeError, AttributeError, KeyError):
             pass
-            
+
         return "unknown"
 
     def _select_best_variant(
