@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: shared | Status: current
+"""Business Unit: shared | Status: current.
 
 Strategy allocation data transfer objects for inter-module communication.
 
@@ -126,11 +126,14 @@ class StrategyAllocationDTO(BaseModel):
                 data["target_weights"] = converted_weights
 
         # Convert portfolio_value to Decimal if needed
-        if "portfolio_value" in data and data["portfolio_value"] is not None:
-            if isinstance(data["portfolio_value"], str):
-                try:
-                    data["portfolio_value"] = Decimal(data["portfolio_value"])
-                except (ValueError, TypeError) as e:
-                    raise ValueError(f"Invalid portfolio_value: {data['portfolio_value']}") from e
+        if (
+            "portfolio_value" in data
+            and data["portfolio_value"] is not None
+            and isinstance(data["portfolio_value"], str)
+        ):
+            try:
+                data["portfolio_value"] = Decimal(data["portfolio_value"])
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"Invalid portfolio_value: {data['portfolio_value']}") from e
 
         return cls(**data)

@@ -15,6 +15,11 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from ..utils.dto_conversion import (
+    convert_datetime_fields_from_dict,
+    convert_decimal_fields_from_dict,
+    convert_nested_rebalance_item_data,
+)
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
@@ -118,7 +123,10 @@ class RebalancePlanDTO(BaseModel):
     @classmethod
     def ensure_timezone_aware_timestamp(cls, v: datetime) -> datetime:
         """Ensure timestamp is timezone-aware."""
-        return ensure_timezone_aware(v)
+        result = ensure_timezone_aware(v)
+        if result is None:
+            raise ValueError("timestamp cannot be None")
+        return result
 
     def to_dict(self) -> dict[str, Any]:
         """Convert DTO to dictionary for serialization.
@@ -176,57 +184,38 @@ class RebalancePlanDTO(BaseModel):
 
         """
         # Convert string timestamp back to datetime
-        if "timestamp" in data and isinstance(data["timestamp"], str):
-            try:
-                timestamp_str = data["timestamp"]
-                if timestamp_str.endswith("Z"):
-                    timestamp_str = timestamp_str[:-1] + "+00:00"
-                data["timestamp"] = datetime.fromisoformat(timestamp_str)
-            except ValueError as e:
-                raise ValueError(f"Invalid timestamp format: {data['timestamp']}") from e
+        datetime_fields = ["timestamp"]
+        convert_datetime_fields_from_dict(data, datetime_fields)
 
         # Convert string decimal fields back to Decimal
         decimal_fields = ["total_portfolio_value", "total_trade_value", "max_drift_tolerance"]
-        for field_name in decimal_fields:
-            if (
-                field_name in data
-                and data[field_name] is not None
-                and isinstance(data[field_name], str)
-            ):
-                try:
-                    data[field_name] = Decimal(data[field_name])
-                except (ValueError, TypeError) as e:
-                    raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
+        convert_decimal_fields_from_dict(data, decimal_fields)
 
         # Convert items if present
-        if "items" in data and isinstance(data["items"], list):
-            items_data = []
-            for item_data in data["items"]:
-                if isinstance(item_data, dict):
-                    # Convert Decimal fields in items
-                    item_decimal_fields = [
-                        "current_weight",
-                        "target_weight",
-                        "weight_diff",
-                        "target_value",
-                        "current_value",
-                        "trade_amount",
-                    ]
-                    for field_name in item_decimal_fields:
-                        if (
-                            field_name in item_data
-                            and item_data[field_name] is not None
-                            and isinstance(item_data[field_name], str)
-                        ):
-                            try:
-                                item_data[field_name] = Decimal(item_data[field_name])
-                            except (ValueError, TypeError) as e:
-                                raise ValueError(
-                                    f"Invalid {field_name} value in item: {item_data[field_name]}"
-                                ) from e
-                    items_data.append(RebalancePlanItemDTO(**item_data))
-                else:
-                    items_data.append(item_data)  # Assume already a DTO
-            data["items"] = items_data
+        data["items"] = cls._convert_items_from_dict(data.get("items", []))
 
         return cls(**data)
+
+    @classmethod
+    def _convert_items_from_dict(cls, items: list[Any]) -> list[RebalancePlanItemDTO]:
+        """Convert items list from dictionary format.
+        
+        Args:
+            items: List of item data (dicts or DTOs)
+            
+        Returns:
+            List of RebalancePlanItemDTO instances
+
+        """
+        if not isinstance(items, list):
+            return []
+        
+        items_data = []
+        for item_data in items:
+            if isinstance(item_data, dict):
+                converted_item = convert_nested_rebalance_item_data(dict(item_data))
+                items_data.append(RebalancePlanItemDTO(**converted_item))
+            else:
+                items_data.append(item_data)  # Assume already a DTO
+        
+        return items_data

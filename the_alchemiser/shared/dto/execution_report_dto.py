@@ -15,6 +15,11 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from ..utils.dto_conversion import (
+    convert_datetime_fields_from_dict,
+    convert_decimal_fields_from_dict,
+    convert_nested_order_data,
+)
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
@@ -82,7 +87,10 @@ class ExecutedOrderDTO(BaseModel):
     @classmethod
     def ensure_timezone_aware_execution_timestamp(cls, v: datetime) -> datetime:
         """Ensure timestamp is timezone-aware."""
-        return ensure_timezone_aware(v)
+        result = ensure_timezone_aware(v)
+        if result is None:
+            raise ValueError("execution_timestamp cannot be None")
+        return result
 
 
 class ExecutionReportDTO(BaseModel):
@@ -151,7 +159,10 @@ class ExecutionReportDTO(BaseModel):
     @classmethod
     def ensure_timezone_aware_timestamps(cls, v: datetime) -> datetime:
         """Ensure timestamp is timezone-aware."""
-        return ensure_timezone_aware(v)
+        result = ensure_timezone_aware(v)
+        if result is None:
+            raise ValueError("timestamp cannot be None")
+        return result
 
     @field_validator("success_rate")
     @classmethod
@@ -232,15 +243,7 @@ class ExecutionReportDTO(BaseModel):
         """
         # Convert string timestamps back to datetime
         datetime_fields = ["timestamp", "execution_start_time", "execution_end_time"]
-        for field_name in datetime_fields:
-            if field_name in data and isinstance(data[field_name], str):
-                try:
-                    timestamp_str = data[field_name]
-                    if timestamp_str.endswith("Z"):
-                        timestamp_str = timestamp_str[:-1] + "+00:00"
-                    data[field_name] = datetime.fromisoformat(timestamp_str)
-                except ValueError as e:
-                    raise ValueError(f"Invalid {field_name} format: {data[field_name]}") from e
+        convert_datetime_fields_from_dict(data, datetime_fields)
 
         # Convert string decimal fields back to Decimal
         decimal_fields = [
@@ -251,62 +254,33 @@ class ExecutionReportDTO(BaseModel):
             "success_rate",
             "average_execution_time_seconds",
         ]
-        for field_name in decimal_fields:
-            if (
-                field_name in data
-                and data[field_name] is not None
-                and isinstance(data[field_name], str)
-            ):
-                try:
-                    data[field_name] = Decimal(data[field_name])
-                except (ValueError, TypeError) as e:
-                    raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
+        convert_decimal_fields_from_dict(data, decimal_fields)
 
         # Convert orders if present
-        if "orders" in data and isinstance(data["orders"], list):
-            orders_data = []
-            for order_data in data["orders"]:
-                if isinstance(order_data, dict):
-                    # Convert execution timestamp in order
-                    if "execution_timestamp" in order_data and isinstance(
-                        order_data["execution_timestamp"], str
-                    ):
-                        try:
-                            timestamp_str = order_data["execution_timestamp"]
-                            if timestamp_str.endswith("Z"):
-                                timestamp_str = timestamp_str[:-1] + "+00:00"
-                            order_data["execution_timestamp"] = datetime.fromisoformat(
-                                timestamp_str
-                            )
-                        except ValueError as e:
-                            raise ValueError(
-                                f"Invalid execution_timestamp format in order: {order_data['execution_timestamp']}"
-                            ) from e
-
-                    # Convert Decimal fields in order
-                    order_decimal_fields = [
-                        "quantity",
-                        "filled_quantity",
-                        "price",
-                        "total_value",
-                        "commission",
-                        "fees",
-                    ]
-                    for field_name in order_decimal_fields:
-                        if (
-                            field_name in order_data
-                            and order_data[field_name] is not None
-                            and isinstance(order_data[field_name], str)
-                        ):
-                            try:
-                                order_data[field_name] = Decimal(order_data[field_name])
-                            except (ValueError, TypeError) as e:
-                                raise ValueError(
-                                    f"Invalid {field_name} value in order: {order_data[field_name]}"
-                                ) from e
-                    orders_data.append(ExecutedOrderDTO(**order_data))
-                else:
-                    orders_data.append(order_data)  # Assume already a DTO
-            data["orders"] = orders_data
+        data["orders"] = cls._convert_orders_from_dict(data.get("orders", []))
 
         return cls(**data)
+
+    @classmethod
+    def _convert_orders_from_dict(cls, orders: list[Any]) -> list[ExecutedOrderDTO]:
+        """Convert orders list from dictionary format.
+        
+        Args:
+            orders: List of order data (dicts or DTOs)
+            
+        Returns:
+            List of ExecutedOrderDTO instances
+
+        """
+        if not isinstance(orders, list):
+            return []
+        
+        orders_data = []
+        for order_data in orders:
+            if isinstance(order_data, dict):
+                converted_order = convert_nested_order_data(dict(order_data))
+                orders_data.append(ExecutedOrderDTO(**converted_order))
+            else:
+                orders_data.append(order_data)  # Assume already a DTO
+        
+        return orders_data

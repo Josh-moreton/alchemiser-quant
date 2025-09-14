@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: shared | Status: current
+"""Business Unit: shared | Status: current.
 
 Consolidated portfolio data transfer objects for inter-module communication.
 
