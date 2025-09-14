@@ -9,15 +9,19 @@ orchestration and execution_v2 modules.
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
+from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
 from the_alchemiser.orchestration.portfolio_orchestrator import PortfolioOrchestrator
 from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.config.config import Settings
+from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO, RebalancePlanItemDTO
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types.exceptions import (
     NotificationError,
@@ -37,6 +41,8 @@ class TradingOrchestrator:
     ) -> None:
         self.settings = settings
         self.container = container
+        self.logger = get_logger(__name__)
+        
         # Get trading mode from container (ignore deprecated parameter)
         self.live_trading = not self.container.config.paper_trading()
 
@@ -47,7 +53,6 @@ class TradingOrchestrator:
             )
 
         self.ignore_market_hours = ignore_market_hours
-        self.logger = get_logger(__name__)
 
         # Create signal orchestrator for signal generation
         self.signal_orchestrator = SignalOrchestrator(settings, container)
@@ -123,93 +128,41 @@ class TradingOrchestrator:
                         allocation_comparison = allocation_analysis.get("comparison")
                         self.logger.info("Generated allocation comparison analysis")
 
-                # NOW DO ACTUAL TRADING: Calculate simple trade actions based on allocation differences
+                # NOW DO ACTUAL TRADING: Use proper ExecutionManager to place trades
                 if allocation_comparison and account_info:
                     self.logger.info("🚀 EXECUTING ACTUAL TRADES")
 
-                    # Extract allocation comparison data
-                    target_values = allocation_comparison.get("target_values", {})
-                    current_values = allocation_comparison.get("current_values", {})
-                    deltas = allocation_comparison.get("deltas", {})
+                    # Convert allocation comparison to RebalancePlanDTO
+                    rebalance_plan = self._create_rebalance_plan_from_allocation(
+                        allocation_comparison, account_info
+                    )
 
-                    if target_values and deltas:
-                        # Create simple orders based on significant deltas
+                    if rebalance_plan:
+                        self.logger.info(f"📋 Generated rebalance plan with {len(rebalance_plan.items)} items")
 
-                        orders_to_place = []
+                        # Get ExecutionManager from container
+                        execution_manager = self.container.services.execution_manager()
 
-                        for symbol, delta in deltas.items():
-                            delta_value = float(delta) if delta else 0
-                            # Only trade if delta is significant (> $100)
-                            if abs(delta_value) > 100:
-                                if delta_value > 0:
-                                    # Need to buy more
-                                    orders_to_place.append(
-                                        {
-                                            "symbol": symbol,
-                                            "action": "BUY",
-                                            "dollar_amount": abs(delta_value),
-                                        }
-                                    )
-                                else:
-                                    # Need to sell
-                                    orders_to_place.append(
-                                        {
-                                            "symbol": symbol,
-                                            "action": "SELL",
-                                            "dollar_amount": abs(delta_value),
-                                        }
-                                    )
+                        # Execute the rebalance plan
+                        execution_result = execution_manager.execute_rebalance_plan(rebalance_plan)
 
-                        if orders_to_place:
-                            self.logger.info(f"Calculated {len(orders_to_place)} trades to execute")
+                        # Convert ExecutionResultDTO to format expected by CLI
+                        orders_executed = self._convert_execution_result_to_orders(execution_result)
 
-                            # Execute trades using AlpacaManager directly (simplified approach)
-                            for order in orders_to_place:
-                                try:
-                                    # For now, create mock execution results to show what would be traded
-                                    # In a real implementation, this would call alpaca_manager to place orders
-
-                                    orders_executed.append(
-                                        {
-                                            "symbol": order["symbol"],
-                                            "side": order["action"],
-                                            "qty": order["dollar_amount"]
-                                            / 100,  # Mock qty calculation
-                                            "filled_qty": order["dollar_amount"] / 100,
-                                            "filled_avg_price": 100,  # Mock price
-                                            "estimated_value": order["dollar_amount"],
-                                            "order_id": f"mock_{order['symbol']}_{order['action']}",
-                                            "status": "FILLED",
-                                            "error": None,
-                                        }
-                                    )
-                                    self.logger.info(
-                                        f"✅ Mock execution: {order['action']} ${order['dollar_amount']:.2f} {order['symbol']}"
-                                    )
-
-                                except Exception as e:
-                                    self.logger.warning(f"❌ Failed to execute {order}: {e}")
-                                    orders_executed.append(
-                                        {
-                                            "symbol": order["symbol"],
-                                            "side": order["action"],
-                                            "qty": 0,
-                                            "filled_qty": 0,
-                                            "filled_avg_price": 0,
-                                            "estimated_value": order["dollar_amount"],
-                                            "order_id": None,
-                                            "status": "FAILED",
-                                            "error": str(e),
-                                        }
-                                    )
-                        else:
-                            self.logger.info(
-                                "📊 No significant trades needed - portfolio already balanced"
-                            )
-                    else:
-                        self.logger.warning(
-                            "Could not calculate trades - missing allocation comparison data"
+                        self.logger.info(
+                            f"✅ Execution completed: {execution_result.orders_succeeded}/{execution_result.orders_placed} orders succeeded"
                         )
+
+                        # Log detailed execution results
+                        self._log_detailed_execution_results(execution_result)
+                    else:
+                        self.logger.info(
+                            "📊 No significant trades needed - portfolio already balanced"
+                        )
+                else:
+                    self.logger.warning(
+                        "Could not calculate trades - missing allocation comparison data"
+                    )
             else:
                 self.logger.warning("Could not retrieve account data for trading")
 
@@ -376,7 +329,7 @@ class TradingOrchestrator:
             # Send notification
             self.send_trading_notification(result, mode_str)
 
-            return result.get("success", False)
+            return bool(result.get("success", False))
 
         except TradingClientError as e:
             self.handle_trading_error(e, mode_str)
@@ -427,3 +380,139 @@ class TradingOrchestrator:
         except Exception as e:
             self.handle_trading_error(e, mode_str)
             return None
+
+    def _create_rebalance_plan_from_allocation(
+        self, allocation_comparison: dict[str, Any], account_info: dict[str, Any]
+    ) -> RebalancePlanDTO | None:
+        """Convert allocation comparison data to RebalancePlanDTO.
+
+        Args:
+            allocation_comparison: Allocation comparison data with target_values, current_values, deltas
+            account_info: Account information including portfolio_value
+
+        Returns:
+            RebalancePlanDTO ready for execution, or None if no significant trades needed
+
+        """
+        try:
+            # Extract allocation comparison data
+            target_values = allocation_comparison.get("target_values", {})
+            current_values = allocation_comparison.get("current_values", {})
+            deltas = allocation_comparison.get("deltas", {})
+
+            if not target_values or not deltas:
+                self.logger.warning("Missing allocation comparison data")
+                return None
+
+            # Filter for significant trades (> $100)
+            min_trade_amount = Decimal("100")
+            plan_items = []
+            total_trade_value = Decimal("0")
+
+            portfolio_value = account_info.get("portfolio_value", account_info.get("equity", 0))
+            portfolio_value_decimal = Decimal(str(portfolio_value))
+
+            for symbol, delta in deltas.items():
+                delta_decimal = Decimal(str(delta))
+                if abs(delta_decimal) >= min_trade_amount:
+                    # Determine action
+                    action = "BUY" if delta_decimal > 0 else "SELL"
+
+                    # Calculate weights
+                    target_val = target_values.get(symbol, Decimal("0"))
+                    current_val = current_values.get(symbol, Decimal("0"))
+
+                    target_weight = target_val / portfolio_value_decimal if portfolio_value_decimal > 0 else Decimal("0")
+                    current_weight = current_val / portfolio_value_decimal if portfolio_value_decimal > 0 else Decimal("0")
+
+                    plan_item = RebalancePlanItemDTO(
+                        symbol=symbol,
+                        current_weight=current_weight,
+                        target_weight=target_weight,
+                        weight_diff=target_weight - current_weight,
+                        target_value=target_val,
+                        current_value=current_val,
+                        trade_amount=delta_decimal,
+                        action=action,
+                        priority=1,  # All trades have equal priority for now
+                    )
+                    plan_items.append(plan_item)
+                    total_trade_value += abs(delta_decimal)
+
+            if not plan_items:
+                self.logger.info("No significant trades needed - all deltas below threshold")
+                return None
+
+            # Create correlation IDs
+            correlation_id = str(uuid.uuid4())
+            plan_id = f"rebalance-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}"
+
+            rebalance_plan = RebalancePlanDTO(
+                correlation_id=correlation_id,
+                causation_id=f"trading-orchestrator-{correlation_id}",
+                timestamp=datetime.now(UTC),
+                plan_id=plan_id,
+                items=plan_items,
+                total_portfolio_value=portfolio_value_decimal,
+                total_trade_value=total_trade_value,
+                execution_urgency="NORMAL",
+            )
+
+            return rebalance_plan
+
+        except Exception as e:
+            self.logger.error(f"Failed to create rebalance plan: {e}")
+            return None
+
+    def _convert_execution_result_to_orders(self, execution_result: ExecutionResultDTO) -> list[dict[str, Any]]:
+        """Convert ExecutionResultDTO to format expected by CLI display.
+
+        Args:
+            execution_result: ExecutionResultDTO from ExecutionManager
+
+        Returns:
+            List of order dictionaries in format expected by CLI
+
+        """
+        orders_executed = []
+
+        for order in execution_result.orders:
+            order_dict = {
+                "symbol": order.symbol,
+                "side": order.action,
+                "qty": float(order.shares) if order.shares else 0,
+                "filled_qty": float(order.shares) if order.success and order.shares else 0,
+                "filled_avg_price": float(order.price) if order.price else 0,
+                "estimated_value": float(abs(order.trade_amount)),
+                "order_id": order.order_id,
+                "status": "FILLED" if order.success else "FAILED",
+                "error": order.error_message,
+            }
+            orders_executed.append(order_dict)
+
+        return orders_executed
+
+    def _log_detailed_execution_results(self, execution_result: ExecutionResultDTO) -> None:
+        """Log detailed execution results for each order.
+
+        Args:
+            execution_result: ExecutionResultDTO with order details
+
+        """
+        for order in execution_result.orders:
+            if order.success:
+                self.logger.info(
+                    f"✅ {order.action} {order.symbol}: "
+                    f"{order.shares:.4f} shares @ ${order.price:.2f} "
+                    f"(Order ID: {order.order_id})"
+                )
+            else:
+                self.logger.error(
+                    f"❌ {order.action} {order.symbol} FAILED: {order.error_message}"
+                )
+
+        # Log summary
+        self.logger.info(
+            f"📊 Execution Summary: {execution_result.orders_succeeded}/{execution_result.orders_placed} "
+            f"orders succeeded, ${execution_result.total_trade_value} total trade value"
+        )
