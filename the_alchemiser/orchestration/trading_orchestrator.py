@@ -211,7 +211,6 @@ class TradingOrchestrator:
                         
                         # DUAL-PATH: Emit TradeExecuted event for successful no-trade scenario
                         # Create empty execution result to represent successful no-op
-                        from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
                         
                         no_trade_result = ExecutionResultDTO(
                             success=True,
