@@ -9,6 +9,7 @@ without trading execution.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -39,13 +40,13 @@ class PortfolioOrchestrator:
             # Use portfolio_v2 for modern portfolio analysis
             from the_alchemiser.portfolio_v2 import PortfolioServiceV2
 
-            # Get portfolio service from container
+            # Get portfolio service from container  
             portfolio_service = PortfolioServiceV2(
-                data_adapter=self.container.infrastructure.alpaca_manager()
+                alpaca_manager=self.container.infrastructure.alpaca_manager()
             )
 
-            # Get current portfolio snapshot
-            portfolio_snapshot = portfolio_service.get_portfolio_snapshot()
+            # Get current portfolio snapshot via state reader
+            portfolio_snapshot = portfolio_service._state_reader.build_portfolio_snapshot()
 
             if not portfolio_snapshot:
                 self.logger.warning("Could not retrieve portfolio snapshot")
@@ -58,7 +59,7 @@ class PortfolioOrchestrator:
 
             return {
                 "snapshot": portfolio_snapshot,
-                "analysis_timestamp": portfolio_snapshot.timestamp,
+                "analysis_timestamp": datetime.now(),
                 "position_count": len(portfolio_snapshot.positions),
                 "total_value": float(portfolio_snapshot.total_value),
             }
@@ -100,23 +101,32 @@ class PortfolioOrchestrator:
             data_adapter = self.container.infrastructure.alpaca_manager()
 
             # Create rebalance plan calculator
-            calculator = RebalancePlanCalculator(data_adapter)
+            calculator = RebalancePlanCalculator()
+
+            # Get portfolio snapshot
+            from the_alchemiser.portfolio_v2.core.state_reader import PortfolioStateReader
+            from the_alchemiser.portfolio_v2.adapters.alpaca_data_adapter import AlpacaDataAdapter
+            
+            data_adapter_instance = AlpacaDataAdapter(data_adapter)
+            state_reader = PortfolioStateReader(data_adapter_instance)
+            snapshot = state_reader.build_portfolio_snapshot()
 
             # Generate rebalancing plan
-            rebalance_plan = calculator.calculate_rebalance_plan(allocation_dto)
+            correlation_id = f"rebalance_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            rebalance_plan = calculator.build_plan(allocation_dto, snapshot, correlation_id)
 
             if not rebalance_plan:
                 self.logger.warning("Could not generate rebalancing plan")
                 return None
 
             self.logger.info(
-                f"Generated rebalancing plan: {len(rebalance_plan.trades)} trades, "
+                f"Generated rebalancing plan: {len(rebalance_plan.items)} trades, "
                 f"${rebalance_plan.total_trade_value:.2f} total trade value"
             )
 
             return {
                 "plan": rebalance_plan,
-                "trade_count": len(rebalance_plan.trades),
+                "trade_count": len(rebalance_plan.items),
                 "total_trade_value": float(rebalance_plan.total_trade_value),
                 "target_allocations": target_allocations.to_dict_allocation(),
                 "plan_timestamp": rebalance_plan.timestamp,
@@ -290,13 +300,25 @@ class PortfolioOrchestrator:
             if not portfolio_state:
                 return None
 
+            # Create ConsolidatedPortfolioDTO from target allocations dict
+            from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
+            from decimal import Decimal
+            
+            consolidated_dto = ConsolidatedPortfolioDTO(
+                target_allocations={symbol: Decimal(str(weight)) for symbol, weight in target_allocations.items()},
+                correlation_id=f"portfolio_workflow_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                timestamp=datetime.now(),
+                strategy_count=1,
+                source_strategies=["portfolio_workflow"]
+            )
+
             # Generate rebalancing plan
-            rebalancing_plan = self.generate_rebalancing_plan(target_allocations)
+            rebalancing_plan = self.generate_rebalancing_plan(consolidated_dto)
             if not rebalancing_plan:
                 return None
 
             # Analyze allocation comparison
-            allocation_analysis = self.analyze_allocation_comparison(target_allocations)
+            allocation_analysis = self.analyze_allocation_comparison(consolidated_dto)
             if not allocation_analysis:
                 return None
 

@@ -33,9 +33,8 @@ class TickSizeService:
         if price < Decimal("1.00"):
             # Sub-dollar stocks often use smaller increments
             return Decimal("0.0001")
-        else:
-            # Most stocks use penny increments
-            return Decimal("0.01")
+        # Most stocks use penny increments
+        return Decimal("0.01")
 
 
 # Alias for backward compatibility

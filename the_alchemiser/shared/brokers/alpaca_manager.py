@@ -269,7 +269,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             price = Decimal("0.01")  # Default minimal price
             if order_filled_avg_price:
                 price = Decimal(str(order_filled_avg_price))
-            elif hasattr(order_request, 'limit_price') and order_request.limit_price:
+            elif hasattr(order_request, "limit_price") and order_request.limit_price:
                 price = Decimal(str(order_request.limit_price))
 
             return ExecutedOrderDTO(
@@ -289,7 +289,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             # Return a failed order DTO
             return ExecutedOrderDTO(
                 order_id="",
-                symbol=getattr(order_request, 'symbol', 'UNKNOWN'),
+                symbol=getattr(order_request, "symbol", "UNKNOWN"),
                 action="UNKNOWN",
                 quantity=Decimal("0"),
                 filled_quantity=Decimal("0"),
@@ -941,9 +941,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             # Check if the order was successful and return order_id
             if result.status not in ["REJECTED", "CANCELED"] and result.order_id:
                 return result.order_id
-            else:
-                logger.error(f"Smart sell order failed for {symbol}: {result.error_message}")
-                return None
+            logger.error(f"Smart sell order failed for {symbol}: {result.error_message}")
+            return None
                 
         except Exception as e:
             logger.error(f"Smart sell order failed for {symbol}: {e}")

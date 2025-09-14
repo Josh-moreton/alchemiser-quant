@@ -9,7 +9,7 @@ with event-driven workflows for better decoupling and extensibility.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -31,6 +31,8 @@ class EventDrivenOrchestrator:
     Replaces traditional direct-call orchestration with event-driven handlers
     that provide better decoupling and extensibility.
     """
+    
+    workflow_state: dict[str, bool | str | None]
 
     def __init__(self, container: ApplicationContainer) -> None:
         """Initialize the event-driven orchestrator.
@@ -301,7 +303,7 @@ class EventDrivenOrchestrator:
         except Exception as e:
             self.logger.error(f"Recovery workflow failed: {e}")
 
-    def get_workflow_status(self) -> dict[str, any]:
+    def get_workflow_status(self) -> dict[str, Any]:
         """Get current workflow status for monitoring.
 
         Returns:

@@ -9,8 +9,7 @@ SignalOrchestrator method calls and enabling loose coupling.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -20,7 +19,6 @@ from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
     EventHandler,
-    SignalGenerated,
     SignalGenerationRequested,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -39,6 +37,7 @@ class SignalEventHandler(EventHandler):
         Args:
             settings: Application settings
             container: Application container for dependency injection
+
         """
         self.settings = settings
         self.container = container
@@ -78,6 +77,7 @@ class SignalEventHandler(EventHandler):
 
         Args:
             event: The signal generation request event
+
         """
         self.logger.info(
             f"📊 Signal generation requested: {event.analysis_mode}",

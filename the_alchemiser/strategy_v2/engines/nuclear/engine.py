@@ -551,3 +551,23 @@ class NuclearEngine(StrategyEngine):
         if tlt_rsi20 is not None and psq_rsi20 is not None and tlt_rsi20 > psq_rsi20:
             return "QQQ"
         return "SQQQ"
+
+    def validate_signals(self, signals: list) -> None:
+        """Validate generated signals.
+        
+        Args:
+            signals: List of signals to validate
+            
+        Raises:
+            ValueError: If signals are invalid
+        """
+        if not signals:
+            return
+            
+        for signal in signals:
+            if not hasattr(signal, 'symbol') or not signal.symbol:
+                raise ValueError("Signal missing symbol")
+            if not hasattr(signal, 'action') or signal.action not in ['BUY', 'SELL', 'HOLD']:
+                raise ValueError(f"Invalid signal action: {getattr(signal, 'action', None)}")
+            if not hasattr(signal, 'allocation') or signal.allocation < 0:
+                raise ValueError(f"Invalid signal allocation: {getattr(signal, 'allocation', None)}")

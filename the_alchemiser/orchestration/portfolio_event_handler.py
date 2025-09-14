@@ -10,7 +10,7 @@ PortfolioOrchestrator method calls and enabling loose coupling.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -38,6 +38,7 @@ class PortfolioEventHandler(EventHandler):
 
         Args:
             container: Application container for dependency injection
+
         """
         self.container = container
         self.logger = get_logger(__name__)
@@ -76,6 +77,7 @@ class PortfolioEventHandler(EventHandler):
 
         Args:
             event: The portfolio analysis request event
+
         """
         self.logger.info(
             f"🏦 Portfolio analysis requested: {event.analysis_type}",

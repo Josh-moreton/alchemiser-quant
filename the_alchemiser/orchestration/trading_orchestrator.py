@@ -11,7 +11,7 @@ event coordination with proper correlation tracking.
 from __future__ import annotations
 
 import uuid
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -35,10 +35,8 @@ from the_alchemiser.shared.events import (
     TradingWorkflowRequested,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 from the_alchemiser.shared.types.exceptions import (
     NotificationError,
-    TradingClientError,
 )
 
 
@@ -67,6 +65,7 @@ class TradingOrchestrator(EventHandler):
             settings: Application settings
             container: Dependency injection container
             ignore_market_hours: Whether to ignore market hours check
+
         """
         self.settings = settings
         self.container = container
@@ -147,6 +146,7 @@ class TradingOrchestrator(EventHandler):
             
         Returns:
             Workflow results or None if failed
+
         """
         workflow_id = str(uuid.uuid4())
         correlation_id = str(uuid.uuid4())
@@ -185,7 +185,7 @@ class TradingOrchestrator(EventHandler):
                         extra={"workflow_id": workflow_id}
                     )
                     return workflow.get("results")
-                elif workflow.get("status") == "failed":
+                if workflow.get("status") == "failed":
                     self.logger.error(
                         f"❌ Workflow {workflow_id} failed: {workflow.get('error')}",
                         extra={"workflow_id": workflow_id}
@@ -230,7 +230,6 @@ class TradingOrchestrator(EventHandler):
 
     def _request_signal_generation(self, workflow_event: TradingWorkflowRequested) -> None:
         """Request signal generation via SignalGenerationRequested event."""
-        
         # Create signal generation request event
         signal_request_event = SignalGenerationRequested(
             correlation_id=workflow_event.correlation_id,
