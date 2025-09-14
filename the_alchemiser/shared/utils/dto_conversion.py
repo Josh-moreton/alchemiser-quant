@@ -169,7 +169,6 @@ def convert_nested_rebalance_item_data(item_data: dict[str, Any]) -> dict[str, A
         
     Returns:
         Modified dictionary with converted fields
-
     """
     # Convert Decimal fields in items
     item_decimal_fields = [
