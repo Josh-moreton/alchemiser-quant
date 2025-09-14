@@ -1,4 +1,4 @@
-"""Business Unit: orchestration | Status: current
+"""Business Unit: orchestration | Status: current.
 
 Signal analysis orchestration workflow.
 
@@ -69,17 +69,34 @@ class SignalOrchestrator:
                     "reasoning": signal.reasoning,
                 }
 
-        # Create consolidated portfolio from signals
-        consolidated_portfolio_dict = {}
+        # Create consolidated portfolio from signals with proper scaling
+        consolidated_portfolio_dict: dict[str, float] = {}
         contributing_strategies = []
-        for signal in aggregated_signals.consolidated_signals:
-            if signal.action == "BUY":
-                consolidated_portfolio_dict[signal.symbol.value] = float(
-                    signal.target_allocation or 0.1
-                )
+        
+        # Process signals by strategy to preserve allocation context
+        for strategy_type, signals in aggregated_signals.get_signals_by_strategy().items():
+            strategy_allocation = typed_allocations.get(strategy_type, 0.0)
+            for signal in signals:
+                if signal.action == "BUY":
+                    # Scale target allocation by strategy's portfolio allocation
+                    if signal.target_allocation:
+                        # Handle both Percentage objects and raw Decimal values
+                        if hasattr(signal.target_allocation, "value"):
+                            signal_allocation = float(signal.target_allocation.value)
+                        else:
+                            signal_allocation = float(signal.target_allocation)
+                    else:
+                        signal_allocation = 0.1
+                    portfolio_allocation = signal_allocation * strategy_allocation
+                    
+                    # Handle potential conflicts - if symbol already exists, sum allocations
+                    if signal.symbol.value in consolidated_portfolio_dict:
+                        consolidated_portfolio_dict[signal.symbol.value] += portfolio_allocation
+                    else:
+                        consolidated_portfolio_dict[signal.symbol.value] = portfolio_allocation
 
         # Get strategy names that contributed
-        for strategy_type in aggregated_signals.get_signals_by_strategy().keys():
+        for strategy_type in aggregated_signals.get_signals_by_strategy():
             contributing_strategies.append(str(strategy_type))
 
         # Create ConsolidatedPortfolioDTO
