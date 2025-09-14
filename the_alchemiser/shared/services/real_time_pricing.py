@@ -37,8 +37,6 @@ from typing import Any
 
 from the_alchemiser.shared.brokers.alpaca_utils import (
     create_stock_data_stream,
-    get_alpaca_quote_type,
-    get_alpaca_trade_type,
 )
 
 # TODO: Phase 11 - Types available for future migration to structured pricing data
@@ -239,7 +237,6 @@ class RealTimePricingService:
         """Handle incoming quote updates from Alpaca stream."""
         try:
             # Handle both Quote objects and dictionary format
-            quote_type = get_alpaca_quote_type()
             if isinstance(quote, dict):
                 symbol = quote.get("symbol")
                 bid_price = quote.get("bid_price", 0)
@@ -288,7 +285,6 @@ class RealTimePricingService:
         """Handle incoming trade updates from Alpaca stream."""
         try:
             # Handle both Trade objects and dictionary format
-            trade_type = get_alpaca_trade_type()
             if isinstance(trade, dict):
                 symbol = trade.get("symbol")
                 price = trade.get("price", 0)
