@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from typing import Any
 
-# Types available for structured performance reports
 from .base import BaseEmailTemplate
 
 

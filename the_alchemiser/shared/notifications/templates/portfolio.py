@@ -81,16 +81,9 @@ class PortfolioBuilder:
 
     @staticmethod
     def _extract_current_positions(data: dict[str, Any]) -> dict[str, Any]:
-        """Extract current positions from various data sources."""
+        """Extract current positions from execution result data."""
+        # Use account_after open_positions from Alpaca Pydantic models
         account_after = data.get("account_info_after", {})
-        final_portfolio_state = data.get("final_portfolio_state")
-        execution_summary = data.get("execution_summary", {})
-
-        # Method 1: Fresh positions data
-        if final_portfolio_state and final_portfolio_state.get("current_positions"):
-            return cast(dict[str, Any], final_portfolio_state["current_positions"])
-
-        # Method 2: account_after open_positions
         if isinstance(account_after, dict) and account_after.get("open_positions"):
             open_positions = account_after.get("open_positions", [])
             current_positions = {}
@@ -99,19 +92,6 @@ class PortfolioBuilder:
                     if isinstance(pos, dict) and pos.get("symbol"):
                         current_positions[pos["symbol"]] = pos
             return current_positions
-
-        # Method 3: final_positions attribute
-        if data.get("final_positions"):
-            return cast(dict[str, Any], data["final_positions"])
-
-        # Method 4: positions attribute
-        if data.get("positions"):
-            return cast(dict[str, Any], data["positions"])
-
-        # Method 5: execution_summary positions
-        if execution_summary and "positions" in execution_summary:
-            return cast(dict[str, Any], execution_summary["positions"])
-
         return {}
 
     @staticmethod
@@ -122,10 +102,12 @@ class PortfolioBuilder:
         if not isinstance(account_after, dict):
             raise ValueError("account_after is not a dict, cannot extract portfolio value")
         
+        # Direct extraction from Alpaca account data
+        portfolio_value_raw = account_after.get("portfolio_value") or account_after.get("equity")
+        if portfolio_value_raw is None:
+            raise ValueError("Portfolio value not available in account_after")
+        
         try:
-            portfolio_value_raw = account_after.get("portfolio_value") or account_after.get("equity")
-            if portfolio_value_raw is None:
-                raise ValueError("Portfolio value not available in account_after")
             return float(portfolio_value_raw)
         except (TypeError, ValueError) as e:
             raise ValueError(
@@ -300,37 +282,20 @@ class PortfolioBuilder:
 
     @staticmethod
     def build_portfolio_allocation(result: ExecutionLike) -> str:
-        """Build HTML display of portfolio allocation.
-
-        Precedence:
-        1. final_portfolio_state.allocations.current_percent
-        2. top-level consolidated_portfolio (MultiStrategyExecutionResultDTO)
-        3. execution_summary.consolidated_portfolio
-        """
+        """Build HTML display of portfolio allocation using direct data access."""
         data = _normalise_result(result)
         try:
-            final_portfolio_state = data.get("final_portfolio_state") or {}
-            if final_portfolio_state:
-                allocations = final_portfolio_state.get("allocations", {})
-                portfolio_lines: list[str] = []
-                for symbol, info in allocations.items():
-                    current_percent = info.get("current_percent", 0)
-                    if current_percent and current_percent > 0.1:
-                        portfolio_lines.append(
-                            f"<span style='font-weight: 600;'>{symbol}:</span> {current_percent:.1f}%"
-                        )
-                if portfolio_lines:
-                    return "<br>".join(portfolio_lines)
-
-            top_consolidated = data.get("consolidated_portfolio", {}) or {}
-            if top_consolidated:
+            # Use top-level consolidated_portfolio directly from execution result
+            consolidated_portfolio = data.get("consolidated_portfolio", {})
+            if consolidated_portfolio:
                 return "<br>".join(
                     [
                         f"<span style='font-weight: 600;'>{symbol}:</span> {weight:.1%}"
-                        for symbol, weight in list(top_consolidated.items())[:5]
+                        for symbol, weight in list(consolidated_portfolio.items())[:5]
                     ]
                 )
-
+            
+            # Fallback to execution_summary if needed
             exec_summary = data.get("execution_summary", {}) or {}
             summary_consolidated = exec_summary.get("consolidated_portfolio", {})
             if summary_consolidated:
@@ -340,6 +305,7 @@ class PortfolioBuilder:
                         for symbol, weight in list(summary_consolidated.items())[:5]
                     ]
                 )
+            
             return "<span style='color: #6B7280; font-style: italic;'>Portfolio data unavailable</span>"
         except Exception as e:  # pragma: no cover - defensive path
             return f"<span style='color: #EF4444;'>Error loading portfolio: {e}</span>"
