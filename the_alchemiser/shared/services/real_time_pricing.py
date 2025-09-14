@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared; Status: current.
 
-Real-time WebSocket Price Streaming for Alpaca Trading.
+Real-time WebSocket Price Streaming for Alpaca Trading with Structured Data Types.
 
 This module provides real-time stock price updates via Alpaca's WebSocket streams
 to ensure accurate limit order pricing. It maintains current bid/ask quotes and
-last trade prices for symbols used in trading strategies.
+last trade prices for symbols used in trading strategies using structured data types.
 
 DESIGN PHILOSOPHY:
 =================
@@ -14,15 +14,26 @@ DESIGN PHILOSOPHY:
 - Thread-safe quote storage with automatic cleanup
 - Graceful fallback to REST API when needed
 - Subscribe only to symbols being actively traded
+- Rich market data capture with volume and market depth
 
 KEY FEATURES:
 ============
-1. Real-time quote updates (bid/ask/last price)
-2. Automatic symbol subscription management
-3. Thread-safe price storage
-4. Connection health monitoring
-5. Smart reconnection logic
-6. Memory-efficient quote caching
+1. Real-time quote updates with market depth (bid/ask sizes)
+2. Enhanced trade data with volume information
+3. Structured data types (QuoteModel, PriceDataModel) 
+4. Backward compatibility with legacy RealTimeQuote
+5. Automatic symbol subscription management
+6. Thread-safe price storage
+7. Connection health monitoring
+8. Smart reconnection logic
+9. Memory-efficient quote caching
+
+MIGRATION NOTES:
+===============
+- New code should use get_quote_data() and get_price_data()
+- Legacy get_real_time_quote() still supported with deprecation warnings
+- Enhanced data capture includes bid_size, ask_size, and volume
+- Structured types provide better type safety and richer market data
 """
 
 from __future__ import annotations
