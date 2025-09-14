@@ -22,6 +22,9 @@ from ..dto.rebalance_plan_dto import RebalancePlanDTO
 from ..dto.signal_dto import StrategySignalDTO
 from .base import BaseEvent
 
+# Constants
+EVENT_TYPE_DESCRIPTION = "Type of event"
+
 
 class StartupEvent(BaseEvent):
     """Event emitted when the system starts up.
@@ -30,7 +33,7 @@ class StartupEvent(BaseEvent):
     """
 
     # Override event_type with default
-    event_type: str = Field(default="StartupEvent", description="Type of event")
+    event_type: str = Field(default="StartupEvent", description=EVENT_TYPE_DESCRIPTION)
 
     # Startup-specific fields
     startup_mode: str = Field(..., description="Startup mode (signal, trade, etc.)")
@@ -46,7 +49,7 @@ class SignalGenerated(BaseEvent):
     """
 
     # Override event_type with default
-    event_type: str = Field(default="SignalGenerated", description="Type of event")
+    event_type: str = Field(default="SignalGenerated", description=EVENT_TYPE_DESCRIPTION)
 
     # Signal-specific fields
     signals: list[StrategySignalDTO] = Field(..., description="List of generated strategy signals")
@@ -65,7 +68,7 @@ class RebalancePlanned(BaseEvent):
     """
 
     # Override event_type with default
-    event_type: str = Field(default="RebalancePlanned", description="Type of event")
+    event_type: str = Field(default="RebalancePlanned", description=EVENT_TYPE_DESCRIPTION)
 
     # Rebalance-specific fields
     rebalance_plan: RebalancePlanDTO = Field(..., description="Portfolio rebalancing plan")
@@ -79,7 +82,7 @@ class TradeExecuted(BaseEvent):
     """
 
     # Override event_type with default
-    event_type: str = Field(default="TradeExecuted", description="Type of event")
+    event_type: str = Field(default="TradeExecuted", description=EVENT_TYPE_DESCRIPTION)
 
     # Trade execution fields
     execution_results: dict[str, Any] = Field(..., description="Trade execution results")
