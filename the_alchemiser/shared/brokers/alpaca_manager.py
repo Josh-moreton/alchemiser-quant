@@ -430,7 +430,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             position = self.get_position(symbol)
             if not position:
                 return qty
-                
             # Use qty_available if available, fallback to qty
             available_qty = getattr(position, "qty_available", None)
             if available_qty is not None:
