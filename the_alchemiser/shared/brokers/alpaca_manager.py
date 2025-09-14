@@ -1038,6 +1038,64 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         return self.get_positions_dict()
 
+    def _check_order_completion_status(self, order_id: str) -> str | None:
+        """Check if a single order has reached a final state.
+        
+        Args:
+            order_id: The order ID to check
+            
+        Returns:
+            Order status if completed, None if still pending or error occurred
+            
+        """
+        try:
+            order = self._trading_client.get_order_by_id(order_id)
+            order_status = getattr(order, "status", "").upper()
+            
+            # Check if order is in a final state
+            if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
+                return order_status
+            return None
+        except Exception as e:
+            logger.warning(f"Failed to check order {order_id} status: {e}")
+            return None
+
+    def _process_pending_orders(self, order_ids: list[str], completed_orders: list[str]) -> None:
+        """Process pending orders and update completed_orders list.
+        
+        Args:
+            order_ids: All order IDs to monitor
+            completed_orders: List of completed order IDs (modified in place)
+            
+        """
+        for order_id in order_ids:
+            if order_id not in completed_orders:
+                final_status = self._check_order_completion_status(order_id)
+                if final_status:
+                    completed_orders.append(order_id)
+                    logger.info(f"Order {order_id} completed with status: {final_status}")
+
+    def _should_continue_waiting(
+        self, completed_orders: list[str], order_ids: list[str], start_time: float, max_wait_seconds: int
+    ) -> bool:
+        """Check if we should continue waiting for order completion.
+        
+        Args:
+            completed_orders: List of completed order IDs
+            order_ids: All order IDs being monitored
+            start_time: When monitoring started
+            max_wait_seconds: Maximum wait time
+            
+        Returns:
+            True if should continue waiting, False otherwise
+            
+        """
+        import time
+        return (
+            len(completed_orders) < len(order_ids)
+            and (time.time() - start_time) < max_wait_seconds
+        )
+
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 30
     ) -> WebSocketResult:
@@ -1053,29 +1111,13 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         import time
 
-        completed_orders = []
+        completed_orders: list[str] = []
         start_time = time.time()
 
         try:
-            while (
-                len(completed_orders) < len(order_ids)
-                and (time.time() - start_time) < max_wait_seconds
-            ):
-                for order_id in order_ids:
-                    if order_id not in completed_orders:
-                        try:
-                            order = self._trading_client.get_order_by_id(order_id)
-                            order_status = getattr(order, "status", "").upper()
-
-                            # Check if order is in a final state
-                            if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
-                                completed_orders.append(order_id)
-                                logger.info(
-                                    f"Order {order_id} completed with status: {order_status}"
-                                )
-                        except Exception as e:
-                            logger.warning(f"Failed to check order {order_id} status: {e}")
-
+            while self._should_continue_waiting(completed_orders, order_ids, start_time, max_wait_seconds):
+                self._process_pending_orders(order_ids, completed_orders)
+                
                 # Sleep briefly between checks to avoid hammering the API
                 if len(completed_orders) < len(order_ids):
                     time.sleep(0.5)
