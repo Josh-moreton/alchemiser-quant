@@ -24,22 +24,24 @@ class PerformanceBuilder:
         return str(side).upper()
 
     @staticmethod
-    def _categorize_orders(orders: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    def _categorize_orders(
+        orders: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """Categorize orders into buy and sell lists."""
         buy_orders = []
         sell_orders = []
-        
+
         for order in orders:
             side = order.get("side")
             if not side:
                 continue
-                
+
             normalized_side = PerformanceBuilder._normalize_order_side(side)
             if normalized_side in ["BUY", "ORDERSIDE.BUY"]:
                 buy_orders.append(order)
             elif normalized_side in ["SELL", "ORDERSIDE.SELL"]:
                 sell_orders.append(order)
-                
+
         return buy_orders, sell_orders
 
     @staticmethod
@@ -83,9 +85,7 @@ class PerformanceBuilder:
             """
 
         # Generate order rows
-        orders_rows = "".join(
-            PerformanceBuilder._format_order_row(order) for order in orders[:10]
-        )
+        orders_rows = "".join(PerformanceBuilder._format_order_row(order) for order in orders[:10])
 
         # Calculate totals for summary
         buy_orders, sell_orders = PerformanceBuilder._categorize_orders(orders)

@@ -12,17 +12,10 @@ This is the V2 (enhanced) version of the MonkeyBusiness Simons approach.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import pandas as pd
 
 from the_alchemiser.shared.utils.common import ActionType
-
-if TYPE_CHECKING:
-    from the_alchemiser.shared.value_objects.core_types import KLMDecision
-else:
-    # Import for runtime use
-    from the_alchemiser.shared.value_objects.core_types import KLMDecision
+from the_alchemiser.shared.value_objects.core_types import KLMDecision
 
 from ..base_variant import BaseKLMVariant
 

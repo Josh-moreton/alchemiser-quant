@@ -25,13 +25,13 @@ SequenceLike = Sequence[Number] | Number
 
 def _extract_numeric_value(value: SequenceLike) -> Number:
     """Extract a numeric value from a sequence or number.
-    
+
     Args:
         value: Input value (number or sequence)
-        
+
     Returns:
         Extracted numeric value
-        
+
     Raises:
         ValueError: For empty sequences
         TypeError: For unsupported types
