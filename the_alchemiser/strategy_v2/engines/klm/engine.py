@@ -331,7 +331,7 @@ class KLMEngine(StrategyEngine):
         for variant in self.strategy_variants:
             try:
                 # Each variant has its own evaluate method
-                result = variant.evaluate(indicators, market_data)
+                result: Any = variant.evaluate(indicators, market_data)
 
                 # Validate the result structure - support both tuple and KLMDecision
                 if not self._is_valid_result(result):
@@ -360,6 +360,16 @@ class KLMEngine(StrategyEngine):
                 )
 
         return results
+
+    def create_klm_decision(
+        self, symbol_or_allocation: str | dict[str, float], action: str, reasoning: str
+    ) -> dict[str, str | dict[str, float]]:
+        """Create a KLMDecision for fallback cases in the engine."""
+        return {
+            "symbol": symbol_or_allocation,
+            "action": action,
+            "reasoning": reasoning,
+        }
 
     def _is_valid_result(self, result: Any) -> bool:
         """Validate result structure for both tuple and KLMDecision formats."""

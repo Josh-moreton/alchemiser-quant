@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: strategy | Status: current
 
 KLM Strategy Variant 1200/28 - "KMLM (43)".
 
@@ -12,9 +12,17 @@ Pattern: QQQE → VTV → VOX → TECL → VOOG → VOOV → XLP → TQQQ → XL
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pandas as pd
 
 from the_alchemiser.shared.utils.common import ActionType
+
+if TYPE_CHECKING:
+    from the_alchemiser.shared.value_objects.core_types import KLMDecision
+else:
+    # Import for runtime use
+    from the_alchemiser.shared.value_objects.core_types import KLMDecision
 
 from ..base_variant import BaseKLMVariant
 
@@ -34,92 +42,23 @@ class KlmVariant120028(BaseKLMVariant):
         self,
         indicators: dict[str, dict[str, float]],
         market_data: dict[str, pd.DataFrame] | None = None,
-    ) -> tuple[str | dict[str, float], str, str]:
+    ) -> KLMDecision:
         """Evaluate 1200/28 - same as 506/38 except KMLM Switcher."""
         # Step 1: Primary overbought checks → UVXY
-        symbol, reason = self.check_primary_overbought_conditions(indicators)
-        if symbol:
-            self.log_decision(symbol, ActionType.BUY.value, reason)
-            return symbol, ActionType.BUY.value, reason
+        overbought_result = self.check_primary_overbought_conditions(indicators)
+        if overbought_result:
+            self.log_klm_decision(overbought_result)
+            return overbought_result
 
         # Step 2: Single Popped KMLM logic (same as 506/38)
-        return self._evaluate_single_popped_kmlm(indicators)
-
-    def _evaluate_single_popped_kmlm(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | dict[str, float], str, str]:
-        """Single Popped KMLM logic - identical to 506/38."""
-        # Check UVXY RSI(21) for strategy branching
-        if "UVXY" in indicators:
-            uvxy_rsi_21 = indicators["UVXY"]["rsi_21"]
-
-            if uvxy_rsi_21 > 65:
-                # UVXY elevated - use BSC strategy
-                return self._evaluate_bsc_strategy(indicators)
-            # UVXY normal - use Combined Pop Bot
-            return self._evaluate_combined_pop_bot(indicators)
-
-        # Fallback if UVXY data unavailable
-        return self._evaluate_combined_pop_bot(indicators)
-
-    def _evaluate_bsc_strategy(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str, str, str]:
-        """BSC strategy - identical to 506/38."""
-        if "SPY" in indicators:
-            spy_rsi_21 = indicators["SPY"]["rsi_21"]
-
-            if spy_rsi_21 > 30:
-                result = ("VIXM", ActionType.BUY.value, "1200/28 BSC: SPY RSI(21) > 30 → VIXM")
-            else:
-                result = (
-                    "SPXL",
-                    ActionType.BUY.value,
-                    "1200/28 BSC: SPY oversold (RSI(21) <= 30) → SPXL",
-                )
-        else:
-            result = ("VIXM", ActionType.BUY.value, "1200/28 BSC: Default VIX position")
-
-        self.log_decision(result[0], result[1], result[2])
-        return result
-
-    def _evaluate_combined_pop_bot(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | dict[str, float], str, str]:
-        """Combined Pop Bot - identical to 506/38 (NO LABU)."""
-        # Priority 1: TQQQ oversold
-        if "TQQQ" in indicators and indicators["TQQQ"]["rsi_10"] < 30:
-            result = ("TECL", ActionType.BUY.value, "1200/28 Pop Bot: TQQQ RSI < 30 → TECL")
-            self.log_decision(result[0], result[1], result[2])
-            return result
-
-        # Priority 2: SOXL oversold
-        if "SOXL" in indicators and indicators["SOXL"]["rsi_10"] < 30:
-            result = ("SOXL", ActionType.BUY.value, "1200/28 Pop Bot: SOXL RSI < 30 → SOXL")
-            self.log_decision(result[0], result[1], result[2])
-            return result
-
-        # Priority 3: SPXL oversold
-        if "SPXL" in indicators and indicators["SPXL"]["rsi_10"] < 30:
-            result = ("SPXL", ActionType.BUY.value, "1200/28 Pop Bot: SPXL RSI < 30 → SPXL")
-            self.log_decision(result[0], result[1], result[2])
-            return result
-
-        # No oversold conditions - proceed to KMLM Switcher
-        return self.evaluate_core_kmlm_switcher(indicators)
+        return self.evaluate_single_popped_kmlm(indicators)
 
     def evaluate_core_kmlm_switcher(
         self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | dict[str, float], str, str]:
-        """Core KMLM switcher for variant 1200/28."""
-        return self._evaluate_kmlm_switcher_1200(indicators)
-
-    def _evaluate_kmlm_switcher_1200(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | dict[str, float], str, str]:
-        """1200/28 KMLM Switcher - KEY DIFFERENCE from 506/38.
-
-        Uses select-bottom 1 from TECL/SOXL/SVIX (not FNGU like 506/38)
+    ) -> KLMDecision:
+        """Core KMLM switcher for variant 1200/28.
+        
+        KEY DIFFERENCE from 506/38: Uses select-bottom 1 from TECL/SOXL/SVIX (not FNGU)
         """
         if "XLK" in indicators and "KMLM" in indicators:
             xlk_rsi = indicators["XLK"]["rsi_10"]
@@ -135,28 +74,24 @@ class KlmVariant120028(BaseKLMVariant):
 
                 if candidates:
                     # Select bottom 1 (lowest RSI)
-                    candidates.sort(key=lambda x: x[1])
-                    selected = candidates[0]
-                    result = (
-                        selected[0],
+                    bottom_1 = self.apply_select_bottom_filter(candidates, 1)
+                    selected_symbol = bottom_1[0][0]
+                    selected_rsi = bottom_1[0][1]
+                    result = self.create_klm_decision(
+                        selected_symbol,
                         ActionType.BUY.value,
-                        f"1200/28 KMLM Switcher: XLK > KMLM → {selected[0]} (lowest RSI: {selected[1]:.1f})",
+                        f"1200/28 KMLM Switcher: {selected_symbol} (lowest RSI: {selected_rsi:.1f})",
                     )
-                else:
-                    result = ("TECL", ActionType.BUY.value, "1200/28 KMLM Switcher: TECL fallback")
+                    self.log_klm_decision(result)
+                    return result
 
-                self.log_decision(result[0], result[1], result[2])
-                return result
-
-        # XLK <= KMLM → L/S Rotator (need to check CLJ for exact logic)
+        # XLK <= KMLM → L/S Rotator 
         return self._evaluate_ls_rotator_1200(indicators)
 
     def _evaluate_ls_rotator_1200(
         self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str, str, str]:
-        """1200/28 L/S Rotator - need to check if same as others or different
-        For now, assume similar to 1280/26 (SQQQ/TLT select-top 1).
-        """
+    ) -> KLMDecision:
+        """1200/28 L/S Rotator - uses SQQQ/TLT select-top 1."""
         candidates = []
         for symbol in ["SQQQ", "TLT"]:
             if symbol in indicators:
@@ -165,17 +100,19 @@ class KlmVariant120028(BaseKLMVariant):
 
         if candidates:
             # Select top 1 (highest RSI) - contrarian strategy
-            candidates.sort(key=lambda x: x[1], reverse=True)
-            top_candidate = candidates[0]
-            result = (
-                top_candidate[0],
+            top_1 = self.apply_select_top_filter(candidates, 1)
+            selected_symbol = top_1[0][0]
+            selected_rsi = top_1[0][1]
+            result = self.create_klm_decision(
+                selected_symbol,
                 ActionType.BUY.value,
-                f"1200/28 L/S Rotator: {top_candidate[0]} (highest RSI: {top_candidate[1]:.1f})",
+                f"1200/28 L/S Rotator: {selected_symbol} (highest RSI: {selected_rsi:.1f})",
             )
         else:
-            result = ("BIL", ActionType.BUY.value, "1200/28 L/S Rotator: BIL fallback")
+            # Fallback
+            result = self.create_klm_decision("TLT", ActionType.BUY.value, "1200/28 L/S Rotator: TLT fallback")
 
-        self.log_decision(result[0], result[1], result[2])
+        self.log_klm_decision(result)
         return result
 
     def get_required_symbols(self) -> list[str]:

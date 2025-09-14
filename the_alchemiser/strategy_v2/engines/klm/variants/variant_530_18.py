@@ -54,9 +54,7 @@ class KlmVariant53018(BaseKLMVariant):
         self,
         indicators: dict[str, dict[str, float]],
         market_data: dict[str, pd.DataFrame] | None = None,
-    ) -> (
-        tuple[str | dict[str, float], str, str] | KLMDecision
-    ):  # TODO: Phase 9 - Gradual migration to KLMDecision
+    ) -> KLMDecision:
         """Evaluate the complete 530/18 Scale-In variant exactly as in CLJ.
 
         This follows the exact nested structure from the CLJ file.
