@@ -15,6 +15,7 @@ Key Features:
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict
@@ -24,7 +25,7 @@ from the_alchemiser.shared.schemas.execution_summary import ExecutionSummary
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, StrategySignal
 
 if TYPE_CHECKING:
-    from decimal import Decimal
+    pass
 
 
 class MultiStrategyExecutionResultDTO(BaseModel):
