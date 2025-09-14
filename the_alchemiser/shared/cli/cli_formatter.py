@@ -257,9 +257,12 @@ def _create_signal_panel(strategy_type: Any, signal: dict[str, Any]) -> Panel:
     content_sections.append(formatted_reason)
     content = "\n\n".join(content_sections)
 
+    # Extract nested conditional expression into a statement
+    panel_title = strategy_type.value if hasattr(strategy_type, "value") else strategy_type
+
     return Panel(
         content,
-        title=f"{strategy_type.value if hasattr(strategy_type, 'value') else strategy_type}",
+        title=f"{panel_title}",
         style=style,
         padding=(1, 2),  # Add more padding for readability
         expand=False,
@@ -662,6 +665,47 @@ def _determine_dollar_color_and_sign(dollar_diff_float: float) -> tuple[str, str
     return "dim", ""
 
 
+def _process_symbol_allocation_row(
+    symbol: str,
+    target_portfolio: dict[str, float],
+    target_values: dict[str, Decimal],
+    current_values: dict[str, Decimal],
+    deltas: dict[str, Decimal],
+    portfolio_value: Decimal,
+) -> tuple[str, str, str, str, str]:
+    """Process a single symbol allocation row for the allocation table.
+    
+    Returns table row data: symbol, target_column, current_column, dollar_diff_column, action_column.
+    Extracted to reduce cognitive complexity of render_target_vs_current_allocations.
+    """
+    target_weight = target_portfolio.get(symbol, 0.0)
+    target_value = target_values.get(symbol, Decimal("0"))
+    current_value = current_values.get(symbol, Decimal("0"))
+
+    # Calculate current weight with Decimal precision
+    try:
+        current_weight = float(current_value / portfolio_value) if portfolio_value > 0 else 0.0
+    except Exception:
+        current_weight = 0.0
+
+    percent_diff = abs(target_weight - current_weight)
+    dollar_diff = deltas.get(symbol, Decimal("0"))
+    try:
+        dollar_diff_float = float(dollar_diff)
+    except Exception:
+        dollar_diff_float = 0.0
+
+    action = _determine_action(percent_diff, dollar_diff_float)
+    dollar_color, dollar_sign = _determine_dollar_color_and_sign(dollar_diff_float)
+
+    # Format the row columns
+    target_column = f"{target_weight:.1%}\n[dim]{_format_money(target_value)}[/dim]"
+    current_column = f"{current_weight:.1%}\n[dim]{_format_money(current_value)}[/dim]"
+    dollar_diff_column = f"[{dollar_color}]{dollar_sign}{_format_money(abs(dollar_diff_float))}[/{dollar_color}]"
+    
+    return symbol, target_column, current_column, dollar_diff_column, action
+
+
 def render_target_vs_current_allocations(
     target_portfolio: dict[str, float],
     account_info: dict[str, Any],
@@ -695,33 +739,10 @@ def render_target_vs_current_allocations(
 
     all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
     for symbol in sorted(all_symbols):
-        target_weight = target_portfolio.get(symbol, 0.0)
-        target_value = target_values.get(symbol, Decimal("0"))
-        current_value = current_values.get(symbol, Decimal("0"))
-
-        # Calculate current weight with Decimal precision
-        try:
-            current_weight = float(current_value / portfolio_value) if portfolio_value > 0 else 0.0
-        except Exception:
-            current_weight = 0.0
-
-        percent_diff = abs(target_weight - current_weight)
-        dollar_diff = deltas.get(symbol, Decimal("0"))
-        try:
-            dollar_diff_float = float(dollar_diff)
-        except Exception:
-            dollar_diff_float = 0.0
-
-        action = _determine_action(percent_diff, dollar_diff_float)
-        dollar_color, dollar_sign = _determine_dollar_color_and_sign(dollar_diff_float)
-
-        table.add_row(
-            symbol,
-            f"{target_weight:.1%}\n[dim]{_format_money(target_value)}[/dim]",
-            f"{current_weight:.1%}\n[dim]{_format_money(current_value)}[/dim]",
-            f"[{dollar_color}]{dollar_sign}{_format_money(abs(dollar_diff_float))}[/{dollar_color}]",
-            action,
+        symbol_data = _process_symbol_allocation_row(
+            symbol, target_portfolio, target_values, current_values, deltas, portfolio_value
         )
+        table.add_row(*symbol_data)
 
     c.print(table)
 
