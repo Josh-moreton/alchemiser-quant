@@ -174,8 +174,9 @@ class TradingOrchestrator:
                                 {
                                     "symbol": item.symbol,
                                     "action": item.action,
-                                    "shares": float(item.shares),
-                                    "trade_value": float(item.trade_value),
+                                    "trade_amount": float(item.trade_amount),
+                                    "target_value": float(item.target_value),
+                                    "current_value": float(item.current_value),
                                 }
                                 for item in rebalance_plan.items
                             ],
