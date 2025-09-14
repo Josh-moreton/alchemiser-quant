@@ -9,6 +9,7 @@ from dependency_injector import containers, providers
 
 from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
 from the_alchemiser.shared.events.bus import EventBus
+
 # - AccountService → Use AlpacaManager directly
 # - TradingServiceManager → Use ExecutionManager from execution_v2
 # - OrderService → Use execution_v2.core components
@@ -33,25 +34,3 @@ class ServiceProviders(containers.DeclarativeContainer):
         alpaca_manager=infrastructure.alpaca_manager,
     )
     # These will be replaced with v2 equivalents as they are migrated
-
-    # order_service = providers.Factory(OrderService, trading_repo=infrastructure.trading_repository)
-    # position_service = providers.Factory(
-    #     PositionService, trading_repo=infrastructure.trading_repository
-    # )
-    # market_data_service = providers.Factory(
-    #     MarketDataService, market_data_repo=infrastructure.market_data_repository
-    # )
-    # account_service = providers.Factory(
-    #     AccountService, account_repository=infrastructure.account_repository
-    # )
-    # trading_service_manager = providers.Factory(
-    #     TradingServiceManager,
-    #     api_key=config.alpaca_api_key,
-    #     secret_key=config.alpaca_secret_key,
-    #     paper=config.paper_trading,
-    # )
-    # klm_strategy_engine = providers.Factory(
-    #     KLMEngine,
-    #     market_data_port=infrastructure.market_data_service,
-    #     strategy_name="KLM_Ensemble",
-    # )
