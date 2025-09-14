@@ -560,7 +560,7 @@ def render_target_vs_current_allocations(
 
     if allocation_comparison:
         # Handle both AllocationComparisonDTO objects and dictionaries
-        if hasattr(allocation_comparison, 'target_values'):
+        if hasattr(allocation_comparison, "target_values"):
             # AllocationComparisonDTO object - use attributes directly
             target_values = allocation_comparison.target_values
             current_values = allocation_comparison.current_values
