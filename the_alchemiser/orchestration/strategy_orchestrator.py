@@ -231,14 +231,7 @@ class MultiStrategyOrchestrator:
 
         """
         # Group signals by symbol
-        signals_by_symbol: dict[str, list[tuple[StrategyType, StrategySignal]]] = {}
-
-        for strategy_type, signals in aggregated.signals_by_strategy.items():
-            for signal in signals:
-                symbol_str = signal.symbol.value
-                if symbol_str not in signals_by_symbol:
-                    signals_by_symbol[symbol_str] = []
-                signals_by_symbol[symbol_str].append((strategy_type, signal))
+        signals_by_symbol = self._group_signals_by_symbol(aggregated.signals_by_strategy)
 
         # Process each symbol
         for symbol_str, strategy_signals in signals_by_symbol.items():
@@ -253,16 +246,58 @@ class MultiStrategyOrchestrator:
                     aggregated.consolidated_signals.append(resolved_signal)
 
                 # Record the conflict for analysis
-                conflict = {
-                    "symbol": symbol_str,
-                    "strategies": [strategy.value for strategy, _ in strategy_signals],
-                    "actions": [signal.action for _, signal in strategy_signals],
-                    "confidences": [
-                        float(signal.confidence.value) for _, signal in strategy_signals
-                    ],
-                    "resolution": resolved_signal.action if resolved_signal else "NO_ACTION",
-                }
+                conflict = self._create_conflict_record(symbol_str, strategy_signals, resolved_signal)
                 aggregated.conflicts.append(conflict)
+
+    def _group_signals_by_symbol(
+        self, signals_by_strategy: dict[StrategyType, list[StrategySignal]]
+    ) -> dict[str, list[tuple[StrategyType, StrategySignal]]]:
+        """Group signals by symbol across all strategies.
+
+        Args:
+            signals_by_strategy: Signals grouped by strategy type
+
+        Returns:
+            Dictionary mapping symbol strings to lists of (strategy_type, signal) tuples
+
+        """
+        signals_by_symbol: dict[str, list[tuple[StrategyType, StrategySignal]]] = {}
+
+        for strategy_type, signals in signals_by_strategy.items():
+            for signal in signals:
+                symbol_str = signal.symbol.value
+                if symbol_str not in signals_by_symbol:
+                    signals_by_symbol[symbol_str] = []
+                signals_by_symbol[symbol_str].append((strategy_type, signal))
+
+        return signals_by_symbol
+
+    def _create_conflict_record(
+        self,
+        symbol_str: str,
+        strategy_signals: list[tuple[StrategyType, StrategySignal]],
+        resolved_signal: StrategySignal | None,
+    ) -> dict[str, Any]:
+        """Create a conflict record for analysis.
+
+        Args:
+            symbol_str: Symbol with conflicting signals
+            strategy_signals: List of conflicting signals from different strategies
+            resolved_signal: The resolved signal (if any)
+
+        Returns:
+            Dictionary containing conflict analysis data
+
+        """
+        return {
+            "symbol": symbol_str,
+            "strategies": [strategy.value for strategy, _ in strategy_signals],
+            "actions": [signal.action for _, signal in strategy_signals],
+            "confidences": [
+                float(signal.confidence.value) for _, signal in strategy_signals
+            ],
+            "resolution": resolved_signal.action if resolved_signal else "NO_ACTION",
+        }
 
     def _resolve_signal_conflict(
         self, symbol: str, strategy_signals: list[tuple[StrategyType, StrategySignal]]
