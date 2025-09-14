@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev clean run-signals run-trade run-trade-live status deploy format lint type-check import-check migration-check
+.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check
 
 # Default target
 help:
@@ -12,8 +12,7 @@ help:
 	@echo "  dev             Install with development dependencies"
 	@echo ""
 	@echo "Trading Commands:"
-	@echo "  run-signals     Show strategy signals (no trading)"
-	@echo "  run-trade       Execute trading (mode determined by stage)"
+	@echo "  run-trade       Execute trading (includes signal analysis)"
 	@echo "  status          Show account status"
 	@echo ""
 	@echo "Development:"
@@ -37,9 +36,7 @@ dev:
 	poetry install --with dev
 
 # Trading Commands (using the CLI)
-run-signals:
-	@echo "🎯 Running signal analysis mode (no trading)..."
-	poetry run alchemiser signal
+# run-signals command removed - signal analysis is now integrated into run-trade
 
 run-trade:
 	@echo "💰 Running trading (mode determined by stage)..."

@@ -1,6 +1,6 @@
 """Business Unit: shared | Status: current.
 
-Market Data Mappers - migrated from legacy location.
+Market Data Mappers.
 """
 
 from __future__ import annotations

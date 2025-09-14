@@ -3,7 +3,7 @@
 Base CLI functionality shared across CLI modules.
 
 Provides common display and formatting functionality to avoid code duplication
-between signal analyzer and trading executor CLI modules.
+between trading executor and other CLI modules.
 """
 
 from __future__ import annotations
@@ -48,8 +48,7 @@ class BaseCLI:
     ) -> None:
         """Display comprehensive analysis results including account info and strategy summary.
 
-        This method consolidates the display logic that was duplicated between
-        SignalAnalyzer and TradingExecutor.
+        This method consolidates the display logic for trading results.
 
         Args:
             strategy_signals: Strategy signal results
@@ -77,8 +76,8 @@ class BaseCLI:
     def _display_strategy_tracking(self, paper_trading: bool | None = None) -> None:
         """Display strategy tracking information from StrategyOrderTracker.
 
-        This method consolidates the strategy tracking display logic that was duplicated
-        across SignalAnalyzer, TradingExecutor, and the main CLI status command.
+        This method consolidates the strategy tracking display logic
+        across TradingExecutor and the main CLI status command.
 
         Args:
             paper_trading: Whether to use paper trading mode. If None, uses container config.

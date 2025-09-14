@@ -142,7 +142,6 @@ class NuclearEngine(StrategyEngine):
         Allows a one-off MarketDataPort override for this call.
         """
 
-        # TODO: Remove this deprecated mapping dependency
         # This should be replaced with direct DTO construction
         # For now, we'll implement the required functionality directly
         def symbol_str_to_symbol(symbol_str: str) -> Symbol:
@@ -226,7 +225,7 @@ class NuclearEngine(StrategyEngine):
         target_allocation_override: float | None = None,
         market_data: dict[str, Any] | None = None,
     ) -> StrategySignal:
-        """Convert legacy signal format to typed StrategySignal."""
+        """Convert signal format to typed StrategySignal."""
         # Normalize symbol - handle portfolio cases and invalid symbol names
         if symbol == "UVXY_BTAL_PORTFOLIO":
             signal_symbol = "UVXY"  # Primary symbol for portfolio signals

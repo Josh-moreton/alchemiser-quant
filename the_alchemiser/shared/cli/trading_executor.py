@@ -29,7 +29,6 @@ class TradingExecutor(BaseCLI):
         self,
         settings: Settings,
         container: ApplicationContainer,
-        live_trading: bool = False,  # DEPRECATED - determined by stage
         ignore_market_hours: bool = False,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
@@ -40,7 +39,7 @@ class TradingExecutor(BaseCLI):
 
         # Delegate orchestration to dedicated orchestrator
         self.orchestrator = TradingOrchestrator(
-            settings, container, live_trading, ignore_market_hours
+            settings, container, ignore_market_hours
         )
 
     def run(self) -> bool:
