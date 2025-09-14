@@ -16,7 +16,7 @@ Phase 3 Update: Moved to shared module to resolve architectural boundary violati
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
@@ -28,6 +28,11 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
+from the_alchemiser.shared.dto.broker_dto import (
+    OrderExecutionResult,
+    WebSocketResult,
+)
+from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
     MarketDataRepository,
@@ -35,19 +40,9 @@ from the_alchemiser.shared.protocols.repository import (
 )
 
 if TYPE_CHECKING:
-    from the_alchemiser.execution.orders.schemas import RawOrderEnvelope
-    from the_alchemiser.execution.strategies.smart_execution import DataProvider
+    from the_alchemiser.shared.types.market_data_port import MarketDataPort
 
 logger = logging.getLogger(__name__)
-
-
-# Import DTOs from shared module to maintain a single source of truth
-from the_alchemiser.shared.dto.broker_dto import (
-    OrderExecutionResult,
-    WebSocketResult,
-)
-
-# Use DTOs directly without aliases
 
 
 class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
@@ -136,8 +131,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 avg_fill_price = Decimal(str(avg_fill_price))
 
             # Simple timestamp handling
-            from datetime import UTC, datetime
-
             submitted_at = getattr(order, "submitted_at", None) or datetime.now(UTC)
             if isinstance(submitted_at, str):
                 # Handle ISO format strings
@@ -180,8 +173,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self, error: Exception, context: str = "Operation", order_id: str = "unknown"
     ) -> OrderExecutionResult:
         """Create an error OrderExecutionResult."""
-        from datetime import UTC
-
         return OrderExecutionResult(
             success=False,
             order_id=order_id,
@@ -258,42 +249,54 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get position for {symbol}: {e}")
             raise
 
-    def place_order(self, order_request: Any) -> RawOrderEnvelope:
-        """Place an order and return raw envelope with metadata."""
-        from datetime import UTC
-
-        from the_alchemiser.execution.orders.schemas import RawOrderEnvelope
-
-        request_timestamp = datetime.now(UTC)
-
+    def place_order(self, order_request: Any) -> ExecutedOrderDTO:
+        """Place an order and return execution details."""
         try:
             order = self._trading_client.submit_order(order_request)
-            response_timestamp = datetime.now(UTC)
 
             # Avoid attribute assumptions for mypy
-            order_id = getattr(order, "id", None)
-            order_symbol = getattr(order, "symbol", None)
+            order_id = str(getattr(order, "id", ""))
+            order_symbol = str(getattr(order, "symbol", ""))
+            order_qty = getattr(order, "qty", "0")
+            order_filled_qty = getattr(order, "filled_qty", "0")
+            order_filled_avg_price = getattr(order, "filled_avg_price", None)
+            order_side = getattr(order, "side", "")
+            order_status = getattr(order, "status", "SUBMITTED")
+            
             logger.info(f"Successfully placed order: {order_id} for {order_symbol}")
 
-            # Return raw envelope instead of mapped DTO
-            return RawOrderEnvelope(
-                raw_order=order,
-                original_request=order_request,
-                request_timestamp=request_timestamp,
-                response_timestamp=response_timestamp,
-                success=True,
-                error_message=None,
+            # Handle price - use filled_avg_price if available, otherwise estimate
+            price = Decimal("0.01")  # Default minimal price
+            if order_filled_avg_price:
+                price = Decimal(str(order_filled_avg_price))
+            elif hasattr(order_request, 'limit_price') and order_request.limit_price:
+                price = Decimal(str(order_request.limit_price))
+
+            return ExecutedOrderDTO(
+                order_id=order_id,
+                symbol=order_symbol,
+                action=str(order_side).upper(),
+                quantity=Decimal(str(order_qty)),
+                filled_quantity=Decimal(str(order_filled_qty)),
+                price=price,
+                total_value=Decimal(str(order_filled_qty)) * price,
+                status=str(order_status).upper(),
+                execution_timestamp=datetime.now(UTC),
             )
         except Exception as e:
             logger.error(f"Failed to place order: {e}")
-            response_timestamp = datetime.now(UTC)
-
-            return RawOrderEnvelope(
-                raw_order=None,
-                original_request=order_request,
-                request_timestamp=request_timestamp,
-                response_timestamp=response_timestamp,
-                success=False,
+            
+            # Return a failed order DTO
+            return ExecutedOrderDTO(
+                order_id="",
+                symbol=getattr(order_request, 'symbol', 'UNKNOWN'),
+                action="UNKNOWN",
+                quantity=Decimal("0"),
+                filled_quantity=Decimal("0"),
+                price=Decimal("0.01"),
+                total_value=Decimal("0"),
+                status="REJECTED",
+                execution_timestamp=datetime.now(UTC),
                 error_message=str(e),
             )
 
@@ -322,8 +325,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         side: str,
         qty: float | None = None,
         notional: float | None = None,
-    ) -> RawOrderEnvelope:
-        """Place a market order with validation and envelope return.
+    ) -> ExecutedOrderDTO:
+        """Place a market order with validation and execution result return.
 
         Args:
             symbol: Stock symbol (e.g., 'AAPL')
@@ -332,7 +335,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             notional: Dollar amount to trade (use either qty OR notional)
 
         Returns:
-            RawOrderEnvelope with raw order and metadata
+            ExecutedOrderDTO with execution details
 
         """
         try:
@@ -365,40 +368,38 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 time_in_force=TimeInForce.DAY,
             )
 
-            # Use the updated place_order method that returns RawOrderEnvelope
-            envelope = self.place_order(order_request)
-            return envelope
+            # Use the updated place_order method that returns ExecutedOrderDTO
+            result = self.place_order(order_request)
+            return result
 
         except ValueError as e:
             logger.error(f"Invalid order parameters: {e}")
-            # Return error envelope for consistency
-            from datetime import datetime
-
-            from the_alchemiser.execution.orders.schemas import RawOrderEnvelope
-
-            now = datetime.now()
-            return RawOrderEnvelope(
-                raw_order=None,
-                original_request=None,
-                request_timestamp=now,
-                response_timestamp=now,
-                success=False,
+            # Return error DTO for consistency
+            return ExecutedOrderDTO(
+                order_id="",
+                symbol=symbol.upper() if symbol else "UNKNOWN",
+                action=side.upper() if side else "UNKNOWN",
+                quantity=Decimal(str(qty)) if qty else Decimal("0"),
+                filled_quantity=Decimal("0"),
+                price=Decimal("0.01"),
+                total_value=Decimal("0"),
+                status="REJECTED",
+                execution_timestamp=datetime.now(UTC),
                 error_message=str(e),
             )
         except Exception as e:
             logger.error(f"Failed to place market order for {symbol}: {e}")
-            # Return error envelope for consistency
-            from datetime import datetime
-
-            from the_alchemiser.execution.orders.schemas import RawOrderEnvelope
-
-            now = datetime.now()
-            return RawOrderEnvelope(
-                raw_order=None,
-                original_request=None,
-                request_timestamp=now,
-                response_timestamp=now,
-                success=False,
+            # Return error DTO for consistency
+            return ExecutedOrderDTO(
+                order_id="",
+                symbol=symbol.upper() if symbol else "UNKNOWN",
+                action=side.upper() if side else "UNKNOWN",
+                quantity=Decimal(str(qty)) if qty else Decimal("0"),
+                filled_quantity=Decimal("0"),
+                price=Decimal("0.01"),
+                total_value=Decimal("0"),
+                status="REJECTED",
+                execution_timestamp=datetime.now(UTC),
                 error_message=str(e),
             )
 
@@ -923,7 +924,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     # OrderExecutor protocol implementation methods
 
     def place_smart_sell_order(self, symbol: str, qty: float) -> str | None:
-        """Place a smart sell order using canonical executor.
+        """Place a smart sell order using execution manager.
 
         Args:
             symbol: Symbol to sell
@@ -933,27 +934,17 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             Order ID if successful, None if failed
 
         """
-        from decimal import Decimal
-
-        from the_alchemiser.execution.core.executor import CanonicalOrderExecutor
-        from the_alchemiser.execution.orders.order_types import OrderType, Side
-        from the_alchemiser.execution.orders.schemas import OrderRequest
-        from the_alchemiser.shared.types.quantity import Quantity
-        from the_alchemiser.shared.types.time_in_force import TimeInForce
-        from the_alchemiser.shared.value_objects.symbol import Symbol
-
         try:
-            order_request = OrderRequest(
-                symbol=Symbol(symbol),
-                side=Side("sell"),
-                quantity=Quantity(Decimal(str(qty))),
-                order_type=OrderType("market"),
-                time_in_force=TimeInForce("day"),
-                limit_price=None,
-            )
-            executor = CanonicalOrderExecutor(self)
-            result = executor.execute(order_request)
-            return result.order_id if result.success else None
+            # Use the place_market_order method which now returns ExecutedOrderDTO
+            result = self.place_market_order(symbol, "sell", qty=qty)
+            
+            # Check if the order was successful and return order_id
+            if result.status not in ["REJECTED", "CANCELED"] and result.order_id:
+                return result.order_id
+            else:
+                logger.error(f"Smart sell order failed for {symbol}: {result.error_message}")
+                return None
+                
         except Exception as e:
             logger.error(f"Smart sell order failed for {symbol}: {e}")
             return None
@@ -972,7 +963,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 30
     ) -> WebSocketResult:
-        """Wait for orders to reach a final state.
+        """Wait for orders to reach a final state using polling.
 
         Args:
             order_ids: List of order IDs to monitor
@@ -982,22 +973,53 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             WebSocketResult with completion status and completed order IDs
 
         """
-        from the_alchemiser.execution.monitoring.websocket_order_monitor import (
-            OrderCompletionMonitor,
-        )
-
-        monitor = OrderCompletionMonitor(
-            trading_client=self._trading_client,
-            api_key=self._api_key,
-            secret_key=self._secret_key,
-        )
-        return monitor.wait_for_order_completion(order_ids, max_wait_seconds)
+        import time
+        
+        completed_orders = []
+        start_time = time.time()
+        
+        try:
+            while len(completed_orders) < len(order_ids) and (time.time() - start_time) < max_wait_seconds:
+                for order_id in order_ids:
+                    if order_id not in completed_orders:
+                        try:
+                            order = self._trading_client.get_order_by_id(order_id)
+                            order_status = getattr(order, "status", "").upper()
+                            
+                            # Check if order is in a final state
+                            if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
+                                completed_orders.append(order_id)
+                                logger.info(f"Order {order_id} completed with status: {order_status}")
+                        except Exception as e:
+                            logger.warning(f"Failed to check order {order_id} status: {e}")
+                
+                # Sleep briefly between checks to avoid hammering the API
+                if len(completed_orders) < len(order_ids):
+                    time.sleep(0.5)
+            
+            success = len(completed_orders) == len(order_ids)
+            
+            return WebSocketResult(
+                success=success,
+                message=f"Completed {len(completed_orders)}/{len(order_ids)} orders",
+                completed_order_ids=completed_orders,
+                metadata={"total_wait_time": time.time() - start_time}
+            )
+            
+        except Exception as e:
+            logger.error(f"Error monitoring order completion: {e}")
+            return WebSocketResult(
+                success=False,
+                message=f"Error monitoring orders: {e}",
+                completed_order_ids=completed_orders,
+                metadata={"error": str(e)}
+            )
 
     @property
-    def data_provider(self) -> DataProvider:
-        """Get data provider interface for OrderExecutor protocol.
+    def data_provider(self) -> MarketDataPort:
+        """Get data provider interface for market data access.
 
-        Returns self since AlpacaManager implements DataProvider methods.
+        Returns self since AlpacaManager implements MarketDataPort methods.
         """
         return self
 

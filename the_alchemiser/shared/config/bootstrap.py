@@ -12,11 +12,9 @@ from __future__ import annotations
 import logging
 from typing import Any, TypedDict
 
-# Legacy imports commented out to remove fallback dependencies
-# from the_alchemiser.execution.brokers.account_service import AccountService as TypedAccountService
-# from the_alchemiser.execution.core.trading_services_facade import (
-#     TradingServicesFacade as TradingServiceManager,
-# )
+# Legacy imports migrated to v2 architecture:
+# - AccountService → Use AlpacaManager from shared.brokers
+# - TradingServiceManager → Use ExecutionManager from execution_v2.core
 from the_alchemiser.shared.brokers import AlpacaManager
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.types.exceptions import ConfigurationError
@@ -24,9 +22,8 @@ from the_alchemiser.shared.types.exceptions import ConfigurationError
 
 def _get_market_data_service():
     """Lazy import MarketDataService to avoid circular imports."""
-    # Legacy import commented out to remove fallback dependencies
-    # from the_alchemiser.strategy.data.market_data_service import MarketDataService
-    # return MarketDataService
+    # Legacy import migrated to v2 architecture:
+    # Use strategy_v2.data.market_data_service.MarketDataService instead
     raise ConfigurationError("Legacy MarketDataService not available - use v2 modules instead")
 
 
@@ -39,12 +36,12 @@ class TradingBootstrapContext(TypedDict):
     DEPRECATED: This context is being migrated to use execution_v2.
     """
 
-    # account_service: TypedAccountService  # Legacy - commented out
-    # market_data_port: Any  # MarketDataService  # Legacy - commented out
-    # data_provider: Any  # Market data service with DataFrame compatibility  # Legacy
+    # account_service: Use AlpacaManager instead (migrated to shared.brokers)
+    # market_data_port: Use strategy_v2.data.market_data_service instead
+    # data_provider: Use strategy_v2.data providers instead
     alpaca_manager: AlpacaManager
     trading_client: Any  # Alpaca TradingClient
-    # trading_service_manager: TradingServiceManager | None  # Legacy - commented out
+    # trading_service_manager: Use ExecutionManager from execution_v2 instead
     paper_trading: bool
     config_dict: dict[str, Any]
 

@@ -16,8 +16,8 @@ Note: We intentionally avoid re-exporting concrete classes at the package root
 to prevent import-time side effects and circular import issues. Import directly
 from the relevant subpackage, for example:
 
-    from the_alchemiser.execution.brokers.account_service import AccountService
-    from the_alchemiser.execution.core.trading_services_facade import TradingServicesFacade as TradingServiceManager
+    from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
+    from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 """
 
 from __future__ import annotations

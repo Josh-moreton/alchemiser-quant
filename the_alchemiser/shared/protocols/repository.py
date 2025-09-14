@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from the_alchemiser.execution.orders.schemas import RawOrderEnvelope
+    from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
 
 
 class AccountRepository(Protocol):
@@ -92,14 +92,14 @@ class TradingRepository(Protocol):
         """
         ...
 
-    def place_order(self, order_request: Any) -> RawOrderEnvelope:  # noqa: ANN401  # External broker SDK order request object
+    def place_order(self, order_request: Any) -> ExecutedOrderDTO:  # noqa: ANN401  # External broker SDK order request object
         """Place an order.
 
         Args:
             order_request: Order request object (currently Alpaca order request)
 
         Returns:
-            RawOrderEnvelope with execution details and status.
+            ExecutedOrderDTO with execution details and status.
 
         """
         ...
@@ -110,7 +110,7 @@ class TradingRepository(Protocol):
         side: str,
         qty: float | None = None,
         notional: float | None = None,
-    ) -> RawOrderEnvelope:
+    ) -> ExecutedOrderDTO:
         """Place a market order.
 
         Args:
@@ -120,7 +120,7 @@ class TradingRepository(Protocol):
             notional: Dollar amount to trade (use either qty OR notional)
 
         Returns:
-            RawOrderEnvelope with execution details and status.
+            ExecutedOrderDTO with execution details and status.
 
         """
         ...
