@@ -14,17 +14,15 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
+from the_alchemiser.shared.cli.base_cli import BaseCLI
 from the_alchemiser.shared.cli.cli_formatter import (
-    render_comprehensive_trading_results,
     render_footer,
     render_header,
-    render_strategy_summary,
 )
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.logging.logging_utils import get_logger
 
 
-class TradingExecutor:
+class TradingExecutor(BaseCLI):
     """Thin CLI wrapper for trading execution workflow."""
 
     def __init__(
@@ -36,11 +34,9 @@ class TradingExecutor:
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
     ) -> None:
-        self.settings = settings
-        self.container = container
+        super().__init__(settings, container)
         self.show_tracking = show_tracking
         self.export_tracking_json = export_tracking_json
-        self.logger = get_logger(__name__)
 
         # Delegate orchestration to dedicated orchestrator
         self.orchestrator = TradingOrchestrator(
@@ -71,7 +67,7 @@ class TradingExecutor:
 
         # Display strategy signals and comprehensive portfolio information
         if strategy_signals or consolidated_portfolio or account_info:
-            self._display_trading_results(
+            self._display_comprehensive_results(
                 strategy_signals,
                 consolidated_portfolio,
                 account_info,
@@ -99,30 +95,6 @@ class TradingExecutor:
 
         return success
 
-    def _display_trading_results(
-        self,
-        strategy_signals: dict[str, Any],
-        consolidated_portfolio: dict[str, float],
-        account_info: dict[str, Any] | None = None,
-        current_positions: dict[str, Any] | None = None,
-        allocation_comparison: dict[str, Any] | None = None,
-        open_orders: list[dict[str, Any]] | None = None,
-    ) -> None:
-        """Display comprehensive trading strategy results including account info and allocations."""
-        # Use shared display function to avoid code duplication
-        render_comprehensive_trading_results(
-            strategy_signals,
-            consolidated_portfolio,
-            account_info,
-            current_positions,
-            allocation_comparison,
-            open_orders,
-        )
-
-        # Display strategy summary
-        allocations = self.settings.strategy.default_strategy_allocations
-        render_strategy_summary(strategy_signals, consolidated_portfolio, allocations)
-
     def _display_execution_results(
         self,
         orders_executed: list[dict[str, Any]],
@@ -134,6 +106,9 @@ class TradingExecutor:
         try:
             # Display orders executed using existing formatter
             render_orders_executed(orders_executed)
+
+            # Display detailed order status information
+            self._display_order_status_details(orders_executed)
 
             # Display execution summary if available
             if execution_result:
@@ -157,7 +132,8 @@ class TradingExecutor:
                     summary_content = [
                         f"[bold green]Execution Success Rate:[/bold green] {success_rate:.1%}",
                         f"[bold blue]Orders Placed:[/bold blue] {execution_result.orders_placed}",
-                        f"[bold green]Orders Succeeded:[/bold green] {execution_result.orders_succeeded}",
+                        f"[bold green]Orders Succeeded:[/bold green] "
+                        f"{execution_result.orders_succeeded}",
                         f"[bold yellow]Total Trade Value:[/bold yellow] ${float(total_value):,.2f}",
                     ]
 
@@ -183,25 +159,81 @@ class TradingExecutor:
         except Exception as e:
             self.logger.warning(f"Failed to display execution results: {e}")
 
+    def _display_order_status_details(self, orders_executed: list[dict[str, Any]]) -> None:
+        """Display detailed order status information including order IDs and errors.
+
+        Args:
+            orders_executed: List of order execution results
+
+        """
+        try:
+            from rich.console import Console
+            from rich.table import Table
+
+            console = Console()
+
+            if not orders_executed:
+                return
+
+            # Create detailed status table
+            status_table = Table(title="Order Execution Details", show_lines=True)
+            status_table.add_column("Symbol", style="cyan", justify="center")
+            status_table.add_column("Action", style="bold", justify="center")
+            status_table.add_column("Status", style="bold", justify="center")
+            status_table.add_column("Order ID", style="dim", justify="center")
+            status_table.add_column("Error Details", style="red", justify="left")
+
+            for order in orders_executed:
+                status = order.get("status", "UNKNOWN")
+                order_id = order.get("order_id") or "N/A"
+                error = order.get("error") or ""
+
+                # Style status
+                if status == "FILLED":
+                    status_display = "[bold green]✅ FILLED[/bold green]"
+                elif status == "FAILED":
+                    status_display = "[bold red]❌ FAILED[/bold red]"
+                else:
+                    status_display = f"[yellow]{status}[/yellow]"
+
+                # Style action
+                action = order.get("side", "").upper()
+                if action == "BUY":
+                    action_display = "[green]BUY[/green]"
+                elif action == "SELL":
+                    action_display = "[red]SELL[/red]"
+                else:
+                    action_display = action
+
+                status_table.add_row(
+                    order.get("symbol", "N/A"),
+                    action_display,
+                    status_display,
+                    order_id,
+                    error[:50] + "..." if len(error) > 50 else error,
+                )
+
+            console.print(status_table)
+
+        except Exception as e:
+            self.logger.warning(f"Failed to display order status details: {e}")
+
     def _display_post_execution_tracking(self) -> None:
         """Display strategy performance tracking after execution."""
         try:
             from rich.console import Console
-            from rich.panel import Panel
-
-            from the_alchemiser.shared.cli.signal_analyzer import SignalAnalyzer
 
             console = Console()
             console.print("\n")
 
-            # Create a signal analyzer instance to reuse the tracking display logic
-            analyzer = SignalAnalyzer(self.settings, self.container)
-            analyzer._display_strategy_tracking()
+            # Use the shared tracking display method from BaseCLI
+            self._display_strategy_tracking(paper_trading=not self.orchestrator.live_trading)
 
         except Exception as e:
             self.logger.warning(f"Failed to display post-execution tracking: {e}")
             try:
                 from rich.console import Console
+                from rich.panel import Panel
 
                 Console().print(
                     Panel(
@@ -311,7 +343,8 @@ class TradingExecutor:
                 from rich.console import Console
 
                 Console().print(
-                    f"[bold red]Failed to export tracking summary to {self.export_tracking_json}: {e}[/bold red]"
+                    f"[bold red]Failed to export tracking summary to "
+                    f"{self.export_tracking_json}: {e}[/bold red]"
                 )
             except ImportError:
                 pass

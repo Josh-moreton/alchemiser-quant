@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 from the_alchemiser.orchestration.strategy_orchestrator import StrategyOrchestrator
 from the_alchemiser.shared.config.config import Settings
+from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
 from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
 from the_alchemiser.shared.events import EventBus, SignalGenerated
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -40,8 +41,13 @@ class SignalOrchestrator:
         # Get event bus from container for dual-path emission
         self.event_bus: EventBus = container.services.event_bus()
 
-    def generate_signals(self) -> tuple[dict[str, Any], dict[str, float]]:
-        """Generate strategy signals."""
+    def generate_signals(self) -> tuple[dict[str, Any], ConsolidatedPortfolioDTO]:
+        """Generate strategy signals and consolidated portfolio allocation.
+
+        Returns:
+            Tuple of (strategy_signals dict, ConsolidatedPortfolioDTO)
+
+        """
         # Use strategy orchestrator for signal generation
         market_data_port = self.container.infrastructure.market_data_service()
         strategy_allocations = get_strategy_allocations(self.settings)
@@ -56,7 +62,7 @@ class SignalOrchestrator:
         for strategy_type, signals in aggregated_signals.get_signals_by_strategy().items():
             if signals:
                 signal = signals[0]  # Take first signal for each strategy
-                strategy_signals[strategy_type] = {
+                strategy_signals[str(strategy_type)] = {
                     "symbol": signal.symbol.value,
                     "action": signal.action,
                     "confidence": float(signal.confidence.value),
@@ -64,17 +70,31 @@ class SignalOrchestrator:
                 }
 
         # Create consolidated portfolio from signals
-        consolidated_portfolio = {}
+        consolidated_portfolio_dict = {}
+        contributing_strategies = []
         for signal in aggregated_signals.consolidated_signals:
             if signal.action == "BUY":
-                consolidated_portfolio[signal.symbol.value] = float(signal.target_allocation or 0.1)
+                consolidated_portfolio_dict[signal.symbol.value] = float(
+                    signal.target_allocation or 0.1
+                )
+
+        # Get strategy names that contributed
+        for strategy_type in aggregated_signals.get_signals_by_strategy().keys():
+            contributing_strategies.append(str(strategy_type))
+
+        # Create ConsolidatedPortfolioDTO
+        consolidated_portfolio = ConsolidatedPortfolioDTO.from_dict_allocation(
+            allocation_dict=consolidated_portfolio_dict,
+            correlation_id=f"signal_orchestrator_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
+            source_strategies=contributing_strategies,
+        )
 
         return strategy_signals, consolidated_portfolio
 
     def validate_signal_quality(
         self,
         strategy_signals: dict[str, Any],
-        consolidated_portfolio: dict[str, float],
+        consolidated_portfolio: ConsolidatedPortfolioDTO,
     ) -> bool:
         """Validate that signal analysis produced meaningful results.
 
@@ -82,11 +102,11 @@ class SignalOrchestrator:
         to get market data. The system should not operate on partial information.
 
         Args:
-            strategy_signals: Generated strategy signals
-            consolidated_portfolio: Consolidated portfolio allocation
+            strategy_signals: Strategy signal results
+            consolidated_portfolio: Consolidated portfolio allocation DTO
 
         Returns:
-            True if analysis appears valid, False if it should be considered a failure
+            True if signals are valid and meaningful, False if it should be considered a failure
 
         """
         if not strategy_signals:
@@ -212,10 +232,12 @@ class SignalOrchestrator:
                 return None
 
             # DUAL-PATH: Emit SignalGenerated event for event-driven consumers
-            self._emit_signal_generated_event(strategy_signals, consolidated_portfolio)
+            self._emit_signal_generated_event(
+                strategy_signals, consolidated_portfolio.to_dict_allocation()
+            )
 
             # Return traditional response for backwards compatibility
-            return strategy_signals, consolidated_portfolio
+            return strategy_signals, consolidated_portfolio.to_dict_allocation()
 
         except DataProviderError as e:
             self.logger.error(f"Signal analysis failed: {e}")
@@ -255,11 +277,11 @@ class SignalOrchestrator:
                 signal_dtos.append(signal_dto)
 
             # Convert strategy allocations to Decimal for event
-            strategy_allocations = {}
+            strategy_allocations: dict[str, Decimal] = {}
             allocations = get_strategy_allocations(self.settings)
-            for strategy_type, allocation in allocations.items():
+            for strategy_type_enum, allocation in allocations.items():
                 # Convert StrategyType enum to string for event schema compatibility
-                strategy_name = strategy_type.value
+                strategy_name = str(strategy_type_enum)
                 strategy_allocations[strategy_name] = Decimal(str(allocation))
 
             # Convert consolidated portfolio to Decimal for event
