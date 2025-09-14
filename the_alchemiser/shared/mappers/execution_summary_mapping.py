@@ -155,3 +155,33 @@ def dict_to_portfolio_state_dto(data: dict[str, Any]) -> PortfolioStateDTO:
         portfolio_id="main_portfolio",
         metrics=metrics,
     )
+
+
+def allocation_comparison_to_dict(allocation_comparison: Any) -> dict[str, Any]:
+    """Convert allocation comparison DTO to dictionary format.
+
+    Args:
+        allocation_comparison: Allocation comparison DTO or similar object
+
+    Returns:
+        Dictionary with target_values, current_values, and deltas keys
+
+    """
+    # Handle case where allocation_comparison is already a dict
+    if isinstance(allocation_comparison, dict):
+        return allocation_comparison
+
+    # Handle DTO objects with attributes
+    try:
+        return {
+            "target_values": getattr(allocation_comparison, "target_values", {}),
+            "current_values": getattr(allocation_comparison, "current_values", {}),
+            "deltas": getattr(allocation_comparison, "deltas", {}),
+        }
+    except Exception:
+        # Fallback for unexpected types
+        return {
+            "target_values": {},
+            "current_values": {},
+            "deltas": {},
+        }
