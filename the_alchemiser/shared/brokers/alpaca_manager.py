@@ -641,6 +641,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         Returns the mid price between bid and ask, or None if not available.
         Uses centralized price discovery utility for consistent calculation.
+
+        TODO: Consider migrating callers to use structured pricing types:
+        - RealTimePricingService.get_quote_data() for bid/ask spreads with market depth
+        - RealTimePricingService.get_price_data() for volume and enhanced trade data
+        - Enhanced price discovery with QuoteModel and PriceDataModel
         """
         from the_alchemiser.shared.utils.price_discovery_utils import get_current_price_from_quote
 
