@@ -46,7 +46,7 @@ class AggregatedSignals:
         return self.signals_by_strategy.copy()
 
 
-class StrategyOrchestrator:
+class MultiStrategyOrchestrator:
     """Orchestrates multiple strategies and handles signal aggregation.
 
     This orchestrator coordinates typed strategy engines and aggregates their signals
@@ -94,7 +94,7 @@ class StrategyOrchestrator:
         self._initialize_typed_engines()
 
         self.logger.info(
-            f"StrategyOrchestrator initialized with allocations: {self.strategy_allocations}"
+            f"MultiStrategyOrchestrator initialized with allocations: {self.strategy_allocations}"
         )
 
     def _initialize_typed_engines(self) -> None:

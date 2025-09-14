@@ -44,7 +44,7 @@ strategy_v2/
 ## Usage
 
 ```python
-from the_alchemiser.strategy_v2.core.orchestrator import StrategyOrchestrator
+from the_alchemiser.strategy_v2.core.orchestrator import SingleStrategyOrchestrator
 from the_alchemiser.strategy_v2.models.context import StrategyContext
 from datetime import datetime
 
@@ -56,7 +56,7 @@ context = StrategyContext(
 )
 
 # Run strategy
-orchestrator = StrategyOrchestrator()
+orchestrator = SingleStrategyOrchestrator()
 allocation = orchestrator.run("nuclear", context)
 
 print(f"Target weights: {allocation.target_weights}")

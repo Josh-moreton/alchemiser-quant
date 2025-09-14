@@ -22,7 +22,7 @@ from ..models.context import StrategyContext
 logger = logging.getLogger(__name__)
 
 
-class StrategyOrchestrator:
+class SingleStrategyOrchestrator:
     """Orchestrates strategy execution and DTO conversion.
 
     Coordinates between market data adapters, strategy engines, and output

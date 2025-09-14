@@ -11,10 +11,10 @@ from __future__ import annotations
 
 from ...shared.brokers.alpaca_manager import AlpacaManager
 from ..adapters.market_data_adapter import StrategyMarketDataAdapter
-from .orchestrator import StrategyOrchestrator
+from .orchestrator import SingleStrategyOrchestrator
 
 
-def create_orchestrator(api_key: str, secret_key: str, paper: bool = True) -> StrategyOrchestrator:
+def create_orchestrator(api_key: str, secret_key: str, paper: bool = True) -> SingleStrategyOrchestrator:
     """Create a strategy orchestrator with Alpaca market data.
 
     Args:
@@ -33,12 +33,12 @@ def create_orchestrator(api_key: str, secret_key: str, paper: bool = True) -> St
     market_data_adapter = StrategyMarketDataAdapter(alpaca_manager)
 
     # Create orchestrator
-    return StrategyOrchestrator(market_data_adapter)
+    return SingleStrategyOrchestrator(market_data_adapter)
 
 
 def create_orchestrator_with_adapter(
     market_data_adapter: StrategyMarketDataAdapter,
-) -> StrategyOrchestrator:
+) -> SingleStrategyOrchestrator:
     """Create a strategy orchestrator with existing adapter.
 
     Args:
@@ -48,4 +48,4 @@ def create_orchestrator_with_adapter(
         Strategy orchestrator
 
     """
-    return StrategyOrchestrator(market_data_adapter)
+    return SingleStrategyOrchestrator(market_data_adapter)
