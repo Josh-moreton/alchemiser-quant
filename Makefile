@@ -63,7 +63,7 @@ lint:
 
 type-check:
 	@echo "🔍 Running MyPy type checking on modular structure..."
-	poetry run mypy the_alchemiser/shared/ the_alchemiser/strategy/ the_alchemiser/portfolio/ the_alchemiser/execution/ --no-error-summary
+	poetry run mypy the_alchemiser/shared/ the_alchemiser/strategy_v2/ the_alchemiser/portfolio_v2/ the_alchemiser/execution_v2/ --no-error-summary
 
 import-check:
 	@echo "🔍 Checking module dependency rules..."
