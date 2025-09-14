@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 try:
     # Import directly from errors.py to avoid pydantic dependency in __init__.py
     import importlib.util
-    import sys
     from pathlib import Path
 
     # Get path to errors.py
@@ -283,8 +282,8 @@ class TradingSystemErrorHandler:
         self.errors: list[ErrorDetails] = []
         self.logger = logging.getLogger(__name__)
 
-    def categorize_error(self, error: Exception, context: str = "") -> str:
-        """Categorize error based on type and context."""
+    def _categorize_by_exception_type(self, error: Exception) -> str | None:
+        """Categorize error based purely on exception type."""
         if isinstance(
             error, InsufficientFundsError | OrderExecutionError | PositionValidationError
         ):
@@ -297,23 +296,39 @@ class TradingSystemErrorHandler:
             return ErrorCategory.CONFIGURATION
         if isinstance(error, NotificationError):
             return ErrorCategory.NOTIFICATION
-        if isinstance(error, TradingClientError):
-            # Could be trading or data depending on context
-            if "order" in context.lower() or "position" in context.lower():
-                return ErrorCategory.TRADING
-            return ErrorCategory.DATA
         if isinstance(error, AlchemiserError):
             return ErrorCategory.CRITICAL
-        # Non-Alchemiser exceptions - categorize by context
-        if "trading" in context.lower() or "order" in context.lower():
+        return None
+
+    def _categorize_by_context(self, context: str) -> str:
+        """Categorize error based on context keywords."""
+        context_lower = context.lower()
+        if "trading" in context_lower or "order" in context_lower:
             return ErrorCategory.TRADING
-        if "data" in context.lower() or "price" in context.lower():
+        if "data" in context_lower or "price" in context_lower:
             return ErrorCategory.DATA
-        if "strategy" in context.lower() or "signal" in context.lower():
+        if "strategy" in context_lower or "signal" in context_lower:
             return ErrorCategory.STRATEGY
-        if "config" in context.lower() or "auth" in context.lower():
+        if "config" in context_lower or "auth" in context_lower:
             return ErrorCategory.CONFIGURATION
         return ErrorCategory.CRITICAL
+
+    def categorize_error(self, error: Exception, context: str = "") -> str:
+        """Categorize error based on type and context."""
+        # First try categorization by exception type
+        category = self._categorize_by_exception_type(error)
+        if category:
+            return category
+        
+        # Handle TradingClientError with context dependency
+        if isinstance(error, TradingClientError):
+            context_lower = context.lower()
+            if "order" in context_lower or "position" in context_lower:
+                return ErrorCategory.TRADING
+            return ErrorCategory.DATA
+        
+        # For non-Alchemiser exceptions, categorize by context
+        return self._categorize_by_context(context)
 
     def get_suggested_action(self, error: Exception, category: str) -> str:
         """Get suggested action based on error type and category."""
@@ -343,7 +358,6 @@ class TradingSystemErrorHandler:
         context: str,
         component: str,
         additional_data: dict[str, Any] | None = None,
-        should_continue: bool = True,
     ) -> ErrorDetails:
         """Handle an error with detailed logging and categorization."""
         category = self.categorize_error(error, context)
@@ -376,7 +390,6 @@ class TradingSystemErrorHandler:
         self,
         error: Exception,
         context: ErrorContextData,
-        should_continue: bool = True,
     ) -> ErrorDetails:
         """Handle error with structured context."""
         return self.handle_error(
@@ -384,7 +397,6 @@ class TradingSystemErrorHandler:
             context=context.operation,
             component=context.component,
             additional_data=context.to_dict(),
-            should_continue=should_continue,
         )
 
     def has_critical_errors(self) -> bool:
@@ -468,6 +480,32 @@ class TradingSystemErrorHandler:
         ]
         return len(non_notification_errors) > 0
 
+    def _format_error_entry(self, error: dict[str, Any]) -> str:
+        """Format a single error entry for the report."""
+        entry = f"**Component:** {error['component']}\n"
+        entry += f"**Context:** {error['context']}\n"
+        entry += f"**Error:** {error['error_message']}\n"
+        entry += f"**Action:** {error['suggested_action']}\n"
+        if error["additional_data"]:
+            entry += f"**Additional Data:** {error['additional_data']}\n"
+        entry += "\n"
+        return entry
+
+    def _add_error_section(self, report: str, category_data: dict[str, Any] | None,
+                          title: str, description: str = "") -> str:
+        """Add an error section to the report if the category has errors."""
+        if category_data is None:
+            return report
+        
+        section = f"## {title}\n"
+        if description:
+            section += f"{description}\n\n"
+        
+        for error in category_data["errors"]:
+            section += self._format_error_entry(error)
+        
+        return report + section
+
     def generate_error_report(self) -> str:
         """Generate a detailed error report for email notification."""
         if not self.errors:
@@ -475,70 +513,23 @@ class TradingSystemErrorHandler:
 
         summary = self.get_error_summary()
 
-        # Build report
+        # Build report header
         report = "# Trading System Error Report\n\n"
         report += f"**Execution Time:** {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
         report += f"**Total Errors:** {len(self.errors)}\n\n"
 
-        # Critical errors first
-        if summary["critical"] is not None:
-            report += "## 🚨 CRITICAL ERRORS\n"
-            report += "These errors stopped system execution and require immediate attention:\n\n"
-            for error in summary["critical"]["errors"]:
-                report += f"**Component:** {error['component']}\n"
-                report += f"**Context:** {error['context']}\n"
-                report += f"**Error:** {error['error_message']}\n"
-                report += f"**Action:** {error['suggested_action']}\n"
-                if error["additional_data"]:
-                    report += f"**Additional Data:** {error['additional_data']}\n"
-                report += "\n"
-
-        # Trading errors
-        if summary["trading"] is not None:
-            report += "## 💰 TRADING ERRORS\n"
-            report += "These errors affected trade execution:\n\n"
-            for error in summary["trading"]["errors"]:
-                report += f"**Component:** {error['component']}\n"
-                report += f"**Context:** {error['context']}\n"
-                report += f"**Error:** {error['error_message']}\n"
-                report += f"**Action:** {error['suggested_action']}\n"
-                if error["additional_data"]:
-                    report += f"**Additional Data:** {error['additional_data']}\n"
-                report += "\n"
-
-        # Other categories
-        if summary["data"] is not None:
-            report += "## 📊 DATA ERRORS\n"
-            for error in summary["data"]["errors"]:
-                report += f"**Component:** {error['component']}\n"
-                report += f"**Context:** {error['context']}\n"
-                report += f"**Error:** {error['error_message']}\n"
-                report += f"**Action:** {error['suggested_action']}\n"
-                if error["additional_data"]:
-                    report += f"**Additional Data:** {error['additional_data']}\n"
-                report += "\n"
-
-        if summary["strategy"] is not None:
-            report += "## 🧠 STRATEGY ERRORS\n"
-            for error in summary["strategy"]["errors"]:
-                report += f"**Component:** {error['component']}\n"
-                report += f"**Context:** {error['context']}\n"
-                report += f"**Error:** {error['error_message']}\n"
-                report += f"**Action:** {error['suggested_action']}\n"
-                if error["additional_data"]:
-                    report += f"**Additional Data:** {error['additional_data']}\n"
-                report += "\n"
-
-        if summary["configuration"] is not None:
-            report += "## ⚙️ CONFIGURATION ERRORS\n"
-            for error in summary["configuration"]["errors"]:
-                report += f"**Component:** {error['component']}\n"
-                report += f"**Context:** {error['context']}\n"
-                report += f"**Error:** {error['error_message']}\n"
-                report += f"**Action:** {error['suggested_action']}\n"
-                if error["additional_data"]:
-                    report += f"**Additional Data:** {error['additional_data']}\n"
-                report += "\n"
+        # Add error sections in priority order
+        report = self._add_error_section(
+            report, summary["critical"], "🚨 CRITICAL ERRORS",
+            "These errors stopped system execution and require immediate attention:"
+        )
+        report = self._add_error_section(
+            report, summary["trading"], "💰 TRADING ERRORS",
+            "These errors affected trade execution:"
+        )
+        report = self._add_error_section(report, summary["data"], "📊 DATA ERRORS")
+        report = self._add_error_section(report, summary["strategy"], "🧠 STRATEGY ERRORS")
+        report = self._add_error_section(report, summary["configuration"], "⚙️ CONFIGURATION ERRORS")
 
         return report
 
