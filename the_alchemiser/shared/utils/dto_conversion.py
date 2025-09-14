@@ -55,7 +55,6 @@ def convert_string_to_decimal(
         
     Raises:
         ValueError: If decimal string is invalid
-
     """
     try:
         return Decimal(decimal_str)
