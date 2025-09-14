@@ -219,13 +219,21 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         """
         # Build symbol->qty mapping from positions
+        # Use qty_available to account for shares tied up in open orders
         result: dict[str, float] = {}
         try:
             for pos in self.get_positions():
                 symbol = getattr(pos, "symbol", None) or (
                     pos.get("symbol") if isinstance(pos, dict) else None
                 )
-                qty_raw = getattr(pos, "qty", None) if not isinstance(pos, dict) else pos.get("qty")
+                # Use qty_available if available, fallback to qty for compatibility
+                qty_available = getattr(pos, "qty_available", None) if not isinstance(pos, dict) else pos.get("qty_available")
+                if qty_available is not None:
+                    qty_raw = qty_available
+                else:
+                    # Fallback to total qty if qty_available is not available
+                    qty_raw = getattr(pos, "qty", None) if not isinstance(pos, dict) else pos.get("qty")
+                
                 if symbol and qty_raw is not None:
                     try:
                         result[str(symbol)] = float(qty_raw)

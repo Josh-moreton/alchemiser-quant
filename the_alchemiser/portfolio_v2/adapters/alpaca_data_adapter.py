@@ -56,13 +56,20 @@ class AlpacaDataAdapter:
 
         try:
             # Get positions from AlpacaManager
-            raw_positions = self._alpaca_manager.get_all_positions()
+            raw_positions = self._alpaca_manager.get_positions()
 
             # Convert to symbol -> quantity mapping with Decimal precision
+            # Use qty_available instead of qty to account for shares tied up in open orders
             positions = {}
             for position in raw_positions:
                 symbol = str(position.symbol).upper()
-                quantity = Decimal(str(position.qty))
+                # Use qty_available if available, fallback to qty for compatibility
+                available_qty = getattr(position, 'qty_available', None)
+                if available_qty is not None:
+                    quantity = Decimal(str(available_qty))
+                else:
+                    # Fallback to total qty if qty_available is not available
+                    quantity = Decimal(str(position.qty))
                 positions[symbol] = quantity
 
             log_with_context(
