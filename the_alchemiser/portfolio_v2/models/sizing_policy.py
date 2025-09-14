@@ -1,4 +1,4 @@
-"""Business Unit: portfolio | Status: current
+"""Business Unit: portfolio | Status: current.
 
 Portfolio state management and rebalancing logic.
 
@@ -26,6 +26,16 @@ class SizingPolicy:
 
     Defines how to round trade amounts and apply minimum thresholds
     to avoid micro-trades and transaction costs.
+    
+    Sizing Modes:
+    - DOLLAR_AMOUNT: Trade by dollar amount (supports fractional shares)
+    - WHOLE_SHARES: Trade by whole shares only (requires price info in calculator)
+    - LOT_SIZE: Trade by lot sizes (requires price info in calculator)
+    
+    Note: WHOLE_SHARES and LOT_SIZE modes currently fall back to dollar-based
+    rounding since the SizingPolicy operates at the dollar level. For proper
+    share/lot-based sizing, price information must be handled at the calculator
+    level where symbol prices are available.
     """
 
     min_trade_amount: Decimal = Decimal("10.00")  # Minimum dollar amount to trade
@@ -71,13 +81,17 @@ class SizingPolicy:
             return trade_amount.quantize(Decimal("0.1") ** self.rounding_precision)
 
         if self.sizing_mode == SizingMode.WHOLE_SHARES:
-            # This would require price information, so just round dollars for now
-            # TODO: Implement proper share-based sizing in calculator
+            # WHOLE_SHARES mode requires price information not available at policy level.
+            # For proper share-based sizing, use RebalancePlanCalculator with enhanced
+            # methods that accept price information, or use DOLLAR_AMOUNT mode.
+            # Currently falling back to dollar-based rounding for backward compatibility.
             return trade_amount.quantize(Decimal("0.1") ** self.rounding_precision)
 
         if self.sizing_mode == SizingMode.LOT_SIZE:
-            # This would require price information, so just round dollars for now
-            # TODO: Implement proper lot-based sizing in calculator
+            # LOT_SIZE mode requires price information not available at policy level.
+            # For proper lot-based sizing, use RebalancePlanCalculator with enhanced
+            # methods that accept price information, or use DOLLAR_AMOUNT mode.
+            # Currently falling back to dollar-based rounding for backward compatibility.
             return trade_amount.quantize(Decimal("0.1") ** self.rounding_precision)
 
         raise ValueError(f"Unknown sizing mode: {self.sizing_mode}")
