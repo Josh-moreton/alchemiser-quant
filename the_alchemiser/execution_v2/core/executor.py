@@ -114,19 +114,16 @@ class Executor:
             price_decimal = Decimal(str(price))
             shares = abs(item.trade_amount) / price_decimal
 
-            # Place market order
+            # Place market order - returns ExecutedOrderDTO
             side = item.action.lower()  # "BUY" -> "buy", "SELL" -> "sell"
-            envelope = self.alpaca_manager.place_market_order(
+            executed_order = self.alpaca_manager.place_market_order(
                 symbol=item.symbol, side=side, qty=float(shares)
             )
 
-            # Extract order ID from envelope
-            order_id = None
-            if envelope.success and envelope.raw_order:
-                order_id = getattr(envelope.raw_order, "id", None)
-
-            success = envelope.success and order_id is not None
-            error_message = envelope.error_message if not success else None
+            # Extract results from ExecutedOrderDTO
+            order_id = executed_order.order_id if executed_order.order_id != "FAILED" and executed_order.order_id != "INVALID" else None
+            success = executed_order.status not in ["REJECTED", "FAILED"] and order_id is not None
+            error_message = executed_order.error_message if not success else None
 
             if success:
                 logger.info(
