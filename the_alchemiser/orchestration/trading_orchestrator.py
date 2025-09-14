@@ -421,8 +421,8 @@ class TradingOrchestrator:
                     action = "BUY" if delta_decimal > 0 else "SELL"
 
                     # Calculate weights
-                    target_val = target_values.get(symbol, Decimal("0"))
-                    current_val = current_values.get(symbol, Decimal("0"))
+                    target_val = Decimal(str(target_values.get(symbol, 0)))
+                    current_val = Decimal(str(current_values.get(symbol, 0)))
 
                     target_weight = (
                         target_val / portfolio_value_decimal
