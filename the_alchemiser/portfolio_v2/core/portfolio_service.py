@@ -1,4 +1,4 @@
-"""Business Unit: portfolio | Status: current
+"""Business Unit: portfolio | Status: current.
 
 Portfolio state management and rebalancing logic.
 
@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
 
 from ..adapters.alpaca_data_adapter import AlpacaDataAdapter
-from ..models.sizing_policy import DEFAULT_SIZING_POLICY, SizingPolicy
 from .planner import RebalancePlanCalculator
 from .state_reader import PortfolioStateReader
 
@@ -36,20 +35,16 @@ class PortfolioServiceV2:
     4. Returning clean RebalancePlanDTO for execution module
     """
 
-    def __init__(
-        self, alpaca_manager: AlpacaManager, sizing_policy: SizingPolicy | None = None
-    ) -> None:
+    def __init__(self, alpaca_manager: AlpacaManager) -> None:
         """Initialize portfolio service with dependencies.
 
         Args:
             alpaca_manager: Shared AlpacaManager for market data access
-            sizing_policy: Optional sizing policy for trade calculations.
-                          If None, uses DEFAULT_SIZING_POLICY.
 
         """
         self._data_adapter = AlpacaDataAdapter(alpaca_manager)
         self._state_reader = PortfolioStateReader(self._data_adapter)
-        self._planner = RebalancePlanCalculator(sizing_policy or DEFAULT_SIZING_POLICY)
+        self._planner = RebalancePlanCalculator()
 
     def create_rebalance_plan_dto(
         self, strategy: StrategyAllocationDTO, correlation_id: str

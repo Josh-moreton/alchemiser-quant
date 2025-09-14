@@ -1,4 +1,4 @@
-"""Business Unit: portfolio | Status: current
+"""Business Unit: portfolio | Status: current.
 
 Portfolio state management and rebalancing logic.
 
@@ -20,7 +20,6 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
 
 from ..models.portfolio_snapshot import PortfolioSnapshot
-from ..models.sizing_policy import DEFAULT_SIZING_POLICY, SizingPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -29,18 +28,11 @@ class RebalancePlanCalculator:
     """Core calculator for rebalance plans.
 
     Translates strategy allocation weights into concrete trade plans
-    using current portfolio snapshot and sizing policies.
+    using current portfolio snapshot.
     """
 
-    def __init__(self, sizing_policy: SizingPolicy | None = None) -> None:
-        """Initialize calculator with sizing policy.
-
-        Args:
-            sizing_policy: Policy for trade sizing and thresholds.
-                          If None, uses DEFAULT_SIZING_POLICY.
-
-        """
-        self._sizing_policy = sizing_policy or DEFAULT_SIZING_POLICY
+    def __init__(self) -> None:
+        """Initialize calculator."""
 
     def build_plan(
         self, strategy: StrategyAllocationDTO, snapshot: PortfolioSnapshot, correlation_id: str
@@ -88,7 +80,7 @@ class RebalancePlanCalculator:
             if not trade_items:
                 # Create a dummy HOLD item if no trades are needed
                 dummy_symbol = (
-                    list(strategy.target_weights.keys())[0] if strategy.target_weights else "CASH"
+                    next(iter(strategy.target_weights.keys())) if strategy.target_weights else "CASH"
                 )
                 trade_items = [
                     RebalancePlanItemDTO(
@@ -231,8 +223,16 @@ class RebalancePlanCalculator:
             # Calculate raw trade amount
             raw_trade_amount = target_value - current_value
 
-            # Apply sizing policy
-            final_trade_amount, action = self._sizing_policy.apply_sizing_rules(raw_trade_amount)
+            # Use raw trade amount directly - no sizing policy filtering
+            final_trade_amount = raw_trade_amount
+
+            # Determine action based on sign and magnitude
+            if final_trade_amount > Decimal("0"):
+                action = "BUY"
+            elif final_trade_amount < Decimal("0"):
+                action = "SELL"
+            else:
+                action = "HOLD"
 
             # Calculate weights (handle division by zero)
             current_weight = Decimal("0")
