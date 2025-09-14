@@ -80,7 +80,10 @@ class TradingSystem:
             
             # Initialize portfolio event handler for event-driven portfolio workflows
             from the_alchemiser.orchestration.portfolio_event_handler import PortfolioEventHandler
+            from the_alchemiser.orchestration.signal_event_handler import SignalEventHandler
+            
             self.portfolio_event_handler = PortfolioEventHandler(self.container)
+            self.signal_event_handler = SignalEventHandler(self.settings, self.container)
             
             self.logger.info("Event-driven orchestration system initialized")
 

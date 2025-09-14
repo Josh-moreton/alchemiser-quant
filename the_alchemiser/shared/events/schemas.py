@@ -39,6 +39,23 @@ class StartupEvent(BaseEvent):
     )
 
 
+class SignalGenerationRequested(BaseEvent):
+    """Event emitted to request signal generation from strategies.
+
+    Triggers the signal generation workflow.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="SignalGenerationRequested", description="Type of event")
+
+    # Signal request specific fields
+    workflow_id: str = Field(..., description="Workflow ID for correlation")
+    analysis_mode: str = Field(default="comprehensive", description="Type of signal analysis")
+    strategy_filters: list[str] | None = Field(
+        default=None, description="Optional strategy filters"
+    )
+
+
 class SignalGenerated(BaseEvent):
     """Event emitted when strategy signals are generated.
 

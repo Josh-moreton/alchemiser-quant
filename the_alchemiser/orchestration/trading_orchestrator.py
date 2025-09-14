@@ -30,6 +30,7 @@ from the_alchemiser.shared.events import (
     PortfolioAnalysisRequested,
     RebalancePlanned,
     SignalGenerated,
+    SignalGenerationRequested,
     TradeExecuted,
     TradingWorkflowRequested,
 )
@@ -224,35 +225,36 @@ class TradingOrchestrator(EventHandler):
             self._fail_workflow(workflow_id, "Market is closed")
             return
             
-        # Trigger signal generation by requesting from SignalOrchestrator
-        # The SignalOrchestrator will emit SignalGenerated events when complete
+        # Trigger signal generation by emitting SignalGenerationRequested event
         self._request_signal_generation(event)
 
     def _request_signal_generation(self, workflow_event: TradingWorkflowRequested) -> None:
-        """Request signal generation from SignalOrchestrator."""
-        # Import here to avoid circular dependencies
-        from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
+        """Request signal generation via SignalGenerationRequested event."""
         
-        signal_orchestrator = SignalOrchestrator(self.settings, self.container)
+        # Create signal generation request event
+        signal_request_event = SignalGenerationRequested(
+            correlation_id=workflow_event.correlation_id,
+            causation_id=workflow_event.event_id,
+            event_id=f"signal-request-{workflow_event.event_id}",
+            timestamp=datetime.now(UTC),
+            source_module="orchestration",
+            source_component="TradingOrchestrator",
+            workflow_id=workflow_event.event_id,
+            analysis_mode="comprehensive",
+            strategy_filters=None,
+        )
         
-        # Execute signal generation in thread pool to avoid blocking
-        future = self.executor.submit(signal_orchestrator.generate_signals)
+        # Emit the signal generation request
+        self.event_bus.publish(signal_request_event)
         
-        def handle_signal_completion(fut: Any) -> None:
-            try:
-                result = fut.result()
-                if not result:
-                    self._fail_workflow(
-                        workflow_event.event_id, 
-                        "Signal generation failed"
-                    )
-            except Exception as e:
-                self._fail_workflow(
-                    workflow_event.event_id,
-                    f"Signal generation error: {e}"
-                )
-                
-        future.add_done_callback(handle_signal_completion)
+        self.logger.info(
+            f"📊 Requested signal generation for workflow {workflow_event.event_id}",
+            extra={
+                "workflow_id": workflow_event.event_id,
+                "correlation_id": workflow_event.correlation_id,
+                "signal_request_id": signal_request_event.event_id,
+            }
+        )
 
     def _handle_rebalance_planned(self, event: RebalancePlanned) -> None:
         """Handle rebalance plan completion for workflow tracking."""

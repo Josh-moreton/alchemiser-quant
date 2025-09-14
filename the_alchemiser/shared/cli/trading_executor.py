@@ -23,7 +23,7 @@ from the_alchemiser.shared.config.config import Settings
 
 
 class TradingExecutor(BaseCLI):
-    """Thin CLI wrapper for trading execution workflow."""
+    """Event-driven CLI wrapper for trading execution workflow."""
 
     def __init__(
         self,
@@ -37,32 +37,34 @@ class TradingExecutor(BaseCLI):
         super().__init__(settings, container)
         self.show_tracking = show_tracking
         self.export_tracking_json = export_tracking_json
+        self.ignore_market_hours = ignore_market_hours
 
-        # Delegate orchestration to dedicated orchestrator
+        # Use event-driven orchestrator instead of direct method calls
         self.orchestrator = TradingOrchestrator(
-            settings, container, live_trading, ignore_market_hours
+            settings, container, ignore_market_hours
         )
 
     def run(self) -> bool:
-        """Execute trading strategy."""
+        """Execute trading strategy via event-driven workflow."""
         render_header("Analyzing market conditions...", "Multi-Strategy Trading")
 
-        # Delegate to orchestration layer
-        result = self.orchestrator.execute_trading_workflow_with_details()
+        # Use event-driven orchestration instead of direct method calls
+        result = self.orchestrator.execute_strategy_signals_with_trading()
 
         if result is None:
             render_footer("Trading execution failed - check logs for details")
             return False
 
         # Extract signal data for display
-        strategy_signals = result.get("strategy_signals", {})
+        strategy_signals = result.get("signals", {})
         consolidated_portfolio = result.get("consolidated_portfolio", {})
-        account_info = result.get("account_info")
-        current_positions = result.get("current_positions")
-        allocation_comparison = result.get("allocation_comparison")
+        portfolio_analysis = result.get("portfolio_analysis", {})
+        account_info = portfolio_analysis.get("account_data", {}).get("account_info")
+        current_positions = portfolio_analysis.get("account_data", {}).get("current_positions")
+        allocation_comparison = portfolio_analysis.get("allocation_comparison")
         orders_executed = result.get("orders_executed", [])
-        execution_result = result.get("execution_result")
-        open_orders = result.get("open_orders", [])
+        execution_results = result.get("execution_results")
+        open_orders = portfolio_analysis.get("account_data", {}).get("open_orders", [])
         success = bool(result.get("success", False))
 
         # Display strategy signals and comprehensive portfolio information
@@ -78,7 +80,7 @@ class TradingExecutor(BaseCLI):
 
         # Display execution results if trades were made
         if orders_executed:
-            self._display_execution_results(orders_executed, execution_result)
+            self._display_execution_results(orders_executed, execution_results)
 
         # Display tracking if requested
         if self.show_tracking:
