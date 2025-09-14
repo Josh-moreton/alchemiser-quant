@@ -119,9 +119,7 @@ class TradingOrchestrator:
                 return None
 
             # Validate signal quality before proceeding
-            if not self.signal_orchestrator.validate_signal_quality(
-                strategy_signals, consolidated_portfolio_dto
-            ):
+            if not self.signal_orchestrator.validate_signal_quality(strategy_signals):
                 self.logger.error(
                     "Signal analysis failed validation - no meaningful data available"
                 )

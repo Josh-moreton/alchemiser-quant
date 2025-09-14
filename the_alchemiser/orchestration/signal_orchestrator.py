@@ -34,6 +34,7 @@ class SignalOrchestrator:
     """Orchestrates signal analysis workflow."""
 
     def __init__(self, settings: Settings, container: ApplicationContainer) -> None:
+        """Initialize signal orchestrator with settings and dependency container."""
         self.settings = settings
         self.container = container
         self.logger = get_logger(__name__)
@@ -58,6 +59,23 @@ class SignalOrchestrator:
         aggregated_signals = strategy_orch.generate_all_signals(datetime.now(UTC))
 
         # Convert aggregated signals to display format
+        strategy_signals = self._convert_signals_to_display_format(aggregated_signals)
+
+        # Create consolidated portfolio from signals with proper scaling
+        consolidated_portfolio_dict, contributing_strategies = self._build_consolidated_portfolio(
+            aggregated_signals, typed_allocations
+        )
+
+        # Create ConsolidatedPortfolioDTO
+        consolidated_portfolio = ConsolidatedPortfolioDTO.from_dict_allocation(
+            allocation_dict=consolidated_portfolio_dict,
+            correlation_id=f"signal_orchestrator_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
+            source_strategies=contributing_strategies,
+        )
+
+        return strategy_signals, consolidated_portfolio
+    def _convert_signals_to_display_format(self, aggregated_signals: Any) -> dict[str, Any]:
+        """Convert aggregated signals to display format."""
         strategy_signals = {}
         for strategy_type, signals in aggregated_signals.get_signals_by_strategy().items():
             if signals:
@@ -68,8 +86,12 @@ class SignalOrchestrator:
                     "confidence": float(signal.confidence.value),
                     "reasoning": signal.reasoning,
                 }
+        return strategy_signals
 
-        # Create consolidated portfolio from signals with proper scaling
+    def _build_consolidated_portfolio(
+        self, aggregated_signals: Any, typed_allocations: dict[Any, float]
+    ) -> tuple[dict[str, float], list[str]]:
+        """Build consolidated portfolio from signals with proper scaling."""
         consolidated_portfolio_dict: dict[str, float] = {}
         contributing_strategies = []
 
@@ -78,15 +100,7 @@ class SignalOrchestrator:
             strategy_allocation = typed_allocations.get(strategy_type, 0.0)
             for signal in signals:
                 if signal.action == "BUY":
-                    # Scale target allocation by strategy's portfolio allocation
-                    if signal.target_allocation:
-                        # Handle both Percentage objects and raw Decimal values
-                        if hasattr(signal.target_allocation, "value"):
-                            signal_allocation = float(signal.target_allocation.value)
-                        else:
-                            signal_allocation = float(signal.target_allocation)
-                    else:
-                        signal_allocation = 0.1
+                    signal_allocation = self._extract_signal_allocation(signal)
                     portfolio_allocation = signal_allocation * strategy_allocation
 
                     # Handle potential conflicts - if symbol already exists, sum allocations
@@ -99,19 +113,20 @@ class SignalOrchestrator:
         for strategy_type in aggregated_signals.get_signals_by_strategy():
             contributing_strategies.append(str(strategy_type))
 
-        # Create ConsolidatedPortfolioDTO
-        consolidated_portfolio = ConsolidatedPortfolioDTO.from_dict_allocation(
-            allocation_dict=consolidated_portfolio_dict,
-            correlation_id=f"signal_orchestrator_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
-            source_strategies=contributing_strategies,
-        )
+        return consolidated_portfolio_dict, contributing_strategies
 
-        return strategy_signals, consolidated_portfolio
+    def _extract_signal_allocation(self, signal: Any) -> float:
+        """Extract signal allocation, handling both Percentage objects and raw Decimal values."""
+        if signal.target_allocation:
+            # Handle both Percentage objects and raw Decimal values
+            if hasattr(signal.target_allocation, "value"):
+                return float(signal.target_allocation.value)
+            return float(signal.target_allocation)
+        return 0.1
 
     def validate_signal_quality(
         self,
         strategy_signals: dict[str, Any],
-        consolidated_portfolio: ConsolidatedPortfolioDTO,
     ) -> bool:
         """Validate that signal analysis produced meaningful results.
 
@@ -120,7 +135,6 @@ class SignalOrchestrator:
 
         Args:
             strategy_signals: Strategy signal results
-            consolidated_portfolio: Consolidated portfolio allocation DTO
 
         Returns:
             True if signals are valid and meaningful, False if it should be considered a failure
@@ -139,50 +153,61 @@ class SignalOrchestrator:
             return False
 
         # Count strategies that failed due to data issues
-        failed_strategies = []
-        fallback_strategies = []  # Strategies using fallback/default signals
-
-        for strategy_type, signal in strategy_signals.items():
-            reasoning = signal.get("reasoning", "")
-
-            # Check for explicit failure indicators
-            if reasoning and ("no signal produced" in reasoning.lower()):
-                strategy_name = (
-                    strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
-                )
-                failed_strategies.append(strategy_name)
-            # Check for fallback/default behavior due to data issues
-            elif reasoning and ("no market data available" in reasoning.lower()):
-                strategy_name = (
-                    strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
-                )
-                fallback_strategies.append(strategy_name)
+        failed_strategies, fallback_strategies = self._categorize_strategy_failures(strategy_signals)
 
         # If all strategies either failed completely or are using fallback defaults,
         # consider this a system failure
         total_affected = len(failed_strategies) + len(fallback_strategies)
-
         if total_affected == len(strategy_signals):
-            if failed_strategies and not fallback_strategies:
-                # All strategies failed completely
-                self.logger.error(
-                    f"All strategies failed due to market data issues: {failed_strategies}"
-                )
-            elif fallback_strategies and not failed_strategies:
-                # All strategies using fallback due to market data issues
-                self.logger.error(
-                    f"All strategies using fallback signals due to market data issues: {fallback_strategies}"
-                )
-            else:
-                # Mixed failure/fallback
-                self.logger.error(
-                    f"All strategies affected by market data issues - "
-                    f"failed: {failed_strategies}, fallback: {fallback_strategies}"
-                )
+            self._log_all_strategies_affected(failed_strategies, fallback_strategies)
             return False
 
         return True
 
+    def _categorize_strategy_failures(
+        self, strategy_signals: dict[str, Any]
+    ) -> tuple[list[str], list[str]]:
+        """Categorize strategies into failed and fallback groups based on reasoning."""
+        failed_strategies = []
+        fallback_strategies = []
+
+        for strategy_type, signal in strategy_signals.items():
+            reasoning = signal.get("reasoning", "")
+            strategy_name = self._extract_strategy_name(strategy_type)
+
+            # Check for explicit failure indicators
+            if reasoning and ("no signal produced" in reasoning.lower()):
+                failed_strategies.append(strategy_name)
+            # Check for fallback/default behavior due to data issues
+            elif reasoning and ("no market data available" in reasoning.lower()):
+                fallback_strategies.append(strategy_name)
+
+        return failed_strategies, fallback_strategies
+
+    def _extract_strategy_name(self, strategy_type: Any) -> str:
+        """Extract strategy name from strategy type."""
+        return strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
+
+    def _log_all_strategies_affected(
+        self, failed_strategies: list[str], fallback_strategies: list[str]
+    ) -> None:
+        """Log appropriate error message when all strategies are affected."""
+        if failed_strategies and not fallback_strategies:
+            # All strategies failed completely
+            self.logger.error(
+                f"All strategies failed due to market data issues: {failed_strategies}"
+            )
+        elif fallback_strategies and not failed_strategies:
+            # All strategies using fallback due to market data issues
+            self.logger.error(
+                f"All strategies using fallback signals due to market data issues: {fallback_strategies}"
+            )
+        else:
+            # Mixed failure/fallback
+            self.logger.error(
+                f"All strategies affected by market data issues - "
+                f"failed: {failed_strategies}, fallback: {fallback_strategies}"
+            )
     def _has_data_fetch_failures(self) -> bool:
         """Check if any data fetch failures occurred during signal generation.
 
@@ -206,7 +231,7 @@ class SignalOrchestrator:
             # should be handled by individual strategy error handling
             return False
 
-        except (socket.gaierror, OSError):
+        except OSError:
             # Cannot resolve hostname - indicates network restrictions
             # This means any data-dependent operations will fail
             self.logger.warning(
@@ -214,12 +239,6 @@ class SignalOrchestrator:
                 "This indicates data fetch operations will fail."
             )
             return True
-
-        except Exception as e:
-            # If we can't determine connectivity, be conservative
-            # In production this should rarely happen
-            self.logger.debug(f"Could not determine network connectivity: {e}")
-            return False
 
     def analyze_signals(self) -> tuple[dict[str, Any], dict[str, float]] | None:
         """Run complete signal analysis workflow.
@@ -242,7 +261,7 @@ class SignalOrchestrator:
                 return None
 
             # Check if analysis produced meaningful results
-            if not self.validate_signal_quality(strategy_signals, consolidated_portfolio):
+            if not self.validate_signal_quality(strategy_signals):
                 self.logger.error(
                     "Signal analysis failed validation - no meaningful data available"
                 )
@@ -333,41 +352,14 @@ class SignalOrchestrator:
         consolidated_portfolio: dict[str, float],
     ) -> int:
         """Count positions for a specific strategy."""
-        # Convert strategy name to strategy type key
-        strategy_key = strategy_name.upper()
-        signal = None
-
-        # Find signal for this strategy
-        for key, sig in strategy_signals.items():
-            key_name = key.value if hasattr(key, "value") else str(key)
-            if key_name.upper() == strategy_key:
-                signal = sig
-                break
-
+        signal = self._find_signal_for_strategy(strategy_name, strategy_signals)
         if not signal:
             return 0
 
         symbol = signal.get("symbol")
 
         if strategy_name.upper() == "NUCLEAR":
-            # Nuclear strategy can have multiple positions
-            if signal.get("action") == "BUY":
-                if symbol == "UVXY_BTAL_PORTFOLIO":
-                    return 2  # UVXY and BTAL
-                if symbol == "UVXY":
-                    return 1  # Just UVXY
-                # For NUCLEAR_PORTFOLIO, count actual symbols in consolidated portfolio
-                if isinstance(symbol, str) and "NUCLEAR_PORTFOLIO" in symbol:
-                    # Extract symbols from format like "NUCLEAR_PORTFOLIO (SMR, BWXT, LEU)"
-                    # Use regex for robust parsing to handle edge cases
-                    match = re.search(r"\(([^)]+)\)", symbol)
-                    if match:
-                        symbols_part = match.group(1)
-                        nuclear_symbols = [s.strip() for s in symbols_part.split(",")]
-                        return len([s for s in nuclear_symbols if s in consolidated_portfolio])
-                    # Fallback: count nuclear symbols in consolidated portfolio
-                    return len([s for s in NUCLEAR_SYMBOLS if s in consolidated_portfolio])
-            return 0
+            return self._count_nuclear_positions(signal, symbol, consolidated_portfolio)
         if strategy_name.upper() in ["TECL", "KLM"]:
             # Single position strategies
             return 1 if signal.get("action") == "BUY" else 0
@@ -375,6 +367,48 @@ class SignalOrchestrator:
         strategy_symbols = self._get_symbols_for_strategy(strategy_name, strategy_signals)
         return len([s for s in strategy_symbols if s in consolidated_portfolio])
 
+    def _find_signal_for_strategy(
+        self, strategy_name: str, strategy_signals: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        """Find signal for a specific strategy by name."""
+        strategy_key = strategy_name.upper()
+        for key, sig in strategy_signals.items():
+            key_name = key.value if hasattr(key, "value") else str(key)
+            if key_name.upper() == strategy_key:
+                return sig  # type: ignore[no-any-return]
+        return None
+
+    def _count_nuclear_positions(
+        self, signal: dict[str, Any], symbol: Any, consolidated_portfolio: dict[str, float]
+    ) -> int:
+        """Count positions for nuclear strategy based on signal and symbol."""
+        if signal.get("action") != "BUY":
+            return 0
+
+        if symbol == "UVXY_BTAL_PORTFOLIO":
+            return 2  # UVXY and BTAL
+        if symbol == "UVXY":
+            return 1  # Just UVXY
+        
+        # For NUCLEAR_PORTFOLIO, count actual symbols in consolidated portfolio
+        if isinstance(symbol, str) and "NUCLEAR_PORTFOLIO" in symbol:
+            return self._count_nuclear_portfolio_symbols(symbol, consolidated_portfolio)
+        
+        return 0
+
+    def _count_nuclear_portfolio_symbols(
+        self, symbol: str, consolidated_portfolio: dict[str, float]
+    ) -> int:
+        """Count nuclear symbols from portfolio symbol string."""
+        # Extract symbols from format like "NUCLEAR_PORTFOLIO (SMR, BWXT, LEU)"
+        # Use regex for robust parsing to handle edge cases
+        match = re.search(r"\(([^)]+)\)", symbol)
+        if match:
+            symbols_part = match.group(1)
+            nuclear_symbols = [s.strip() for s in symbols_part.split(",")]
+            return len([s for s in nuclear_symbols if s in consolidated_portfolio])
+        # Fallback: count nuclear symbols in consolidated portfolio
+        return len([s for s in NUCLEAR_SYMBOLS if s in consolidated_portfolio])
     def _get_symbols_for_strategy(
         self,
         strategy_name: str,
