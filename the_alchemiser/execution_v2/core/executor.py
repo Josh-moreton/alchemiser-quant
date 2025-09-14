@@ -134,7 +134,7 @@ class Executor:
                     price=price_decimal,
                     order_id=None,
                     success=False,
-                    error_message=validation_result.error_message,
+                    error_message=f"Pre-trade validation failed: {validation_result.error_message}",
                     timestamp=timestamp,
                 )
 
