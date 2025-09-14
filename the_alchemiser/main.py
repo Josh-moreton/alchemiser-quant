@@ -77,7 +77,12 @@ class TradingSystem:
 
             # Initialize event-driven orchestrator
             self.event_driven_orchestrator = EventDrivenOrchestrator(self.container)
-            self.logger.info("Event-driven orchestration initialized")
+            
+            # Initialize portfolio event handler for event-driven portfolio workflows
+            from the_alchemiser.orchestration.portfolio_event_handler import PortfolioEventHandler
+            self.portfolio_event_handler = PortfolioEventHandler(self.container)
+            
+            self.logger.info("Event-driven orchestration system initialized")
 
         except Exception as e:
             # Don't let event orchestration failure break the traditional system
