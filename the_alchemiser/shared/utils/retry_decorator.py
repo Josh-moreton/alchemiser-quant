@@ -22,12 +22,39 @@ P = ParamSpec("P")
 T = TypeVar("T")
 
 
+def _calculate_retry_delay(
+    attempt: int, base_delay: float, backoff_factor: float, max_delay: float, *, jitter: bool = True
+) -> float:
+    """Calculate delay for retry attempt with exponential backoff and optional jitter."""
+    delay = min(base_delay * (backoff_factor**attempt), max_delay)
+    if jitter:
+        delay *= 0.5 + random.random() * 0.5  # Add 50% jitter
+    return delay
+
+
+def _log_retry_attempt(
+    func_name: str, attempt: int, max_retries: int, error: Exception, delay: float
+) -> None:
+    """Log retry attempt with details."""
+    logger.warning(
+        f"Attempt {attempt + 1}/{max_retries + 1} failed for {func_name}: {error}. "
+        f"Retrying in {delay:.2f}s..."
+    )
+
+
+def _add_retry_context_to_exception(exception: Exception, attempt: int) -> None:
+    """Add retry context metadata to exception."""
+    # Dynamically add retry_count attribute to track retry attempts
+    exception.retry_count = attempt  # type: ignore[attr-defined]
+
+
 def retry_with_backoff(
     exceptions: tuple[type[Exception], ...] = (Exception,),
     max_retries: int = 3,
     base_delay: float = 1.0,
     max_delay: float = 60.0,
     backoff_factor: float = 2.0,
+    *,
     jitter: bool = True,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Retry decorator with exponential backoff and jitter.
@@ -61,21 +88,14 @@ def retry_with_backoff(
                 except exceptions as e:
                     last_exception = e
 
+                    # If this is the final attempt, add context and raise
                     if attempt == max_retries:
-                        # Add retry context to exception
-                        if hasattr(e, "retry_count"):
-                            e.retry_count = attempt
+                        _add_retry_context_to_exception(e, attempt)
                         raise
 
-                    # Calculate delay with exponential backoff
-                    delay = min(base_delay * (backoff_factor**attempt), max_delay)
-                    if jitter:
-                        delay *= 0.5 + random.random() * 0.5  # Add 50% jitter
-
-                    logger.warning(
-                        f"Attempt {attempt + 1}/{max_retries + 1} failed for {func.__name__}: {e}. "
-                        f"Retrying in {delay:.2f}s..."
-                    )
+                    # Calculate delay and log retry attempt
+                    delay = _calculate_retry_delay(attempt, base_delay, backoff_factor, max_delay, jitter=jitter)
+                    _log_retry_attempt(func.__name__, attempt, max_retries, e, delay)
                     time.sleep(delay)
 
             # This should never be reached due to the raise in the except block
