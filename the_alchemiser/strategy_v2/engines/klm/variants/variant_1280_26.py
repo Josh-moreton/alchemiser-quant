@@ -125,7 +125,7 @@ class KlmVariant128026(BaseKLMVariant):
                     # Select bottom 2 (lowest RSI)
                     candidates.sort(key=lambda x: x[1])
                     bottom_2 = candidates[:2]
-                    allocation = {symbol: 0.5 for symbol, _ in bottom_2}
+                    allocation = dict.fromkeys([symbol for symbol, _ in bottom_2], 0.5)
                     symbols = [s[0] for s in bottom_2]
                     result = (
                         allocation,
