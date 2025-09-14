@@ -194,6 +194,65 @@ class FeaturePipeline:
         tol = tolerance if tolerance is not None else self._tolerance
         return math.isclose(a, b, abs_tol=tol)
 
+    def _compute_ma_ratio(self, closes: list[float], lookback_window: int) -> float:
+        """Compute moving average ratio feature.
+        
+        Args:
+            closes: List of closing prices
+            lookback_window: Window for moving average calculation
+            
+        Returns:
+            Ratio of current price to moving average (1.0 if insufficient data)
+
+        """
+        if len(closes) >= lookback_window:
+            ma = self.compute_moving_average(closes, lookback_window)
+            return (
+                closes[-1] / ma[-1] if ma and not self.is_close(ma[-1], 0.0) else 1.0
+            )
+        return 1.0
+
+    def _compute_price_position(
+        self, bars: list[dict[str, Any]], current_close: float, lookback_window: int
+    ) -> float:
+        """Compute price position within high-low range.
+        
+        Args:
+            bars: List of bar dictionaries
+            current_close: Current closing price
+            lookback_window: Window for high-low range calculation
+            
+        Returns:
+            Price position in range [0, 1] (0.5 if insufficient data or no range)
+
+        """
+        if len(bars) >= lookback_window:
+            recent_bars = bars[-lookback_window:]
+            max_high = max(float(bar["h"]) for bar in recent_bars)
+            min_low = min(float(bar["l"]) for bar in recent_bars)
+
+            # If there is a price range (max_high != min_low), calculate price_position;
+            # otherwise, use the default value of 0.5 when no price range exists.
+            if not self.is_close(max_high, min_low):
+                return (current_close - min_low) / (max_high - min_low)
+        return 0.5
+
+    def _compute_volume_ratio(self, volumes: list[float], lookback_window: int) -> float:
+        """Compute volume ratio feature.
+        
+        Args:
+            volumes: List of volume values
+            lookback_window: Window for average volume calculation
+            
+        Returns:
+            Ratio of current volume to average volume (1.0 if insufficient data)
+
+        """
+        if len(volumes) >= lookback_window:
+            avg_volume = sum(volumes[-lookback_window:]) / lookback_window
+            return volumes[-1] / avg_volume if not self.is_close(avg_volume, 0.0) else 1.0
+        return 1.0
+
     def extract_price_features(
         self, bars: list[dict[str, Any]], lookback_window: int = 20
     ) -> dict[str, float]:
@@ -218,8 +277,6 @@ class FeaturePipeline:
         try:
             # Extract prices
             closes = [float(bar["c"]) for bar in bars]
-            highs = [float(bar["h"]) for bar in bars]
-            lows = [float(bar["l"]) for bar in bars]
             volumes = [float(bar["v"]) for bar in bars]
 
             # Current price
@@ -230,38 +287,15 @@ class FeaturePipeline:
             features["volatility"] = self.compute_volatility(returns, window=lookback_window)
 
             # Moving averages
-            if len(closes) >= lookback_window:
-                ma = self.compute_moving_average(closes, lookback_window)
-                features["ma_ratio"] = (
-                    closes[-1] / ma[-1] if ma and not self.is_close(ma[-1], 0.0) else 1.0
-                )
-            else:
-                features["ma_ratio"] = 1.0
+            features["ma_ratio"] = self._compute_ma_ratio(closes, lookback_window)
 
             # High-low range (normalized by close)
-            if len(bars) >= lookback_window:
-                recent_bars = bars[-lookback_window:]
-                max_high = max(float(bar["h"]) for bar in recent_bars)
-                min_low = min(float(bar["l"]) for bar in recent_bars)
-                current_close = closes[-1]
-
-                # If there is a price range (max_high != min_low), calculate price_position;
-                # otherwise, use the default value of 0.5 when no price range exists.
-                if not self.is_close(max_high, min_low):
-                    features["price_position"] = (current_close - min_low) / (max_high - min_low)
-                else:
-                    features["price_position"] = 0.5
-            else:
-                features["price_position"] = 0.5
+            features["price_position"] = self._compute_price_position(
+                bars, closes[-1], lookback_window
+            )
 
             # Volume features
-            if len(volumes) >= lookback_window:
-                avg_volume = sum(volumes[-lookback_window:]) / lookback_window
-                features["volume_ratio"] = (
-                    volumes[-1] / avg_volume if not self.is_close(avg_volume, 0.0) else 1.0
-                )
-            else:
-                features["volume_ratio"] = 1.0
+            features["volume_ratio"] = self._compute_volume_ratio(volumes, lookback_window)
 
         except Exception as e:
             self._logger.warning(f"Error extracting price features: {e}")

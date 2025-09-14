@@ -17,6 +17,9 @@ from ...shared.brokers.alpaca_manager import AlpacaManager
 
 logger = logging.getLogger(__name__)
 
+# Component identifier for logging
+_COMPONENT = "strategy_v2.adapters.market_data_adapter"
+
 
 class MarketDataProvider(Protocol):
     """Protocol for market data providers."""
@@ -101,7 +104,7 @@ class StrategyMarketDataAdapter:
             except Exception as e:
                 self._logger.warning(
                     f"Failed to fetch bars for {symbol}: {e}",
-                    extra={"component": "strategy_v2.adapters.market_data_adapter"},
+                    extra={"component": _COMPONENT},
                 )
                 result[symbol] = []
 
@@ -139,7 +142,7 @@ class StrategyMarketDataAdapter:
             except Exception as e:
                 self._logger.warning(
                     f"Failed to get current price for {symbol}: {e}",
-                    extra={"component": "strategy_v2.adapters.market_data_adapter"},
+                    extra={"component": _COMPONENT},
                 )
                 result[symbol] = 0.0
 
@@ -157,6 +160,6 @@ class StrategyMarketDataAdapter:
         except Exception as e:
             self._logger.error(
                 f"Market data connection validation failed: {e}",
-                extra={"component": "strategy_v2.adapters.market_data_adapter"},
+                extra={"component": _COMPONENT},
             )
             return False
