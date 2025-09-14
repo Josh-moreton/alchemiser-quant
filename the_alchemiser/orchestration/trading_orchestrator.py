@@ -42,7 +42,6 @@ class TradingOrchestrator:
         self.settings = settings
         self.container = container
         self.logger = get_logger(__name__)
-        
         # Get trading mode from container (ignore deprecated parameter)
         self.live_trading = not self.container.config.paper_trading()
 
