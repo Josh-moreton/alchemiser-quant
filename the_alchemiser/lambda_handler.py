@@ -34,6 +34,132 @@ from the_alchemiser.shared.types.exceptions import (
 logger = logging.getLogger(__name__)
 
 
+def _determine_trading_mode(mode: str) -> str:
+    """Determine trading mode based on endpoint configuration.
+    
+    Args:
+        mode: The execution mode (trade, bot, etc.)
+        
+    Returns:
+        Trading mode string (paper, live, or n/a)
+
+    """
+    if mode != "trade":
+        return "n/a"
+        
+    from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+    
+    _, _, endpoint = get_alpaca_keys()
+    return "paper" if endpoint and "paper" in endpoint.lower() else "live"
+
+
+def _build_response_message(mode: str, trading_mode: str, *, result: bool) -> str:
+    """Build response message based on mode and result.
+    
+    Args:
+        mode: Execution mode
+        trading_mode: Trading mode (paper/live/n/a)
+        result: Execution result
+        
+    Returns:
+        Formatted response message
+
+    """
+    if mode == "bot":
+        return "Signal analysis completed successfully" if result else "Signal analysis failed"
+    
+    mode_str = trading_mode.title()
+    return (
+        f"{mode_str} trading completed successfully" 
+        if result 
+        else f"{mode_str} trading failed"
+    )
+
+
+def _handle_trading_error(
+    error: Exception,
+    event: LambdaEventDTO | None,
+    request_id: str,
+    command_args: list[str] | None = None,
+) -> None:
+    """Handle trading-related errors with detailed reporting.
+    
+    Args:
+        error: The exception that occurred
+        event: Original Lambda event
+        request_id: Request correlation ID
+        command_args: Parsed command arguments (optional)
+
+    """
+    try:
+        from the_alchemiser.shared.errors.error_handler import (
+            handle_trading_error,
+            send_error_notification_if_needed,
+        )
+
+        handle_trading_error(
+            error=error,
+            context="lambda function execution",
+            component="lambda_handler.lambda_handler",
+            additional_data={
+                "event": event,
+                "request_id": request_id,
+                "parsed_command": command_args,
+            },
+        )
+
+        send_error_notification_if_needed()
+
+    except NotificationError as notification_error:
+        logger.warning("Failed to send error notification: %s", notification_error)
+
+
+def _handle_critical_error(
+    error: Exception,
+    event: LambdaEventDTO | None,
+    request_id: str,
+    command_args: list[str] | None = None,
+) -> None:
+    """Handle critical system errors with detailed reporting.
+    
+    Args:
+        error: The exception that occurred
+        event: Original Lambda event
+        request_id: Request correlation ID
+        command_args: Parsed command arguments (optional)
+
+    """
+    try:
+        from the_alchemiser.shared.errors.error_handler import (
+            handle_trading_error,
+            send_error_notification_if_needed,
+        )
+
+        handle_trading_error(
+            error=error,
+            context="lambda function execution - unexpected error",
+            component="lambda_handler.lambda_handler",
+            additional_data={
+                "event": event,
+                "request_id": request_id,
+                "parsed_command": command_args,
+                "original_error": type(error).__name__,
+            },
+        )
+
+        send_error_notification_if_needed()
+
+    except (
+        NotificationError,
+        ImportError,
+        AttributeError,
+        ValueError,
+        KeyError,
+        TypeError,
+    ) as notification_error:
+        logger.warning("Failed to send error notification: %s", notification_error)
+
+
 def parse_event_mode(
     event: LambdaEventDTO | dict[str, Any],
 ) -> list[str]:  # Lambda event can be flexible dict or TypedDict
@@ -182,13 +308,7 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
         mode = command_args[0] if command_args else "unknown"
 
         # Determine trading mode based on endpoint URL
-        from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
-
-        _, _, endpoint = get_alpaca_keys()
-        if mode == "trade":
-            trading_mode = "paper" if endpoint and "paper" in endpoint.lower() else "live"
-        else:
-            trading_mode = "n/a"
+        trading_mode = _determine_trading_mode(mode)
 
         logger.info(f"Executing command: {' '.join(command_args)}")
 
@@ -199,17 +319,7 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
         result = main(command_args)
 
         # Build response message
-        if mode == "bot":
-            message = (
-                "Signal analysis completed successfully" if result else "Signal analysis failed"
-            )
-        else:
-            mode_str = trading_mode.title()
-            message = (
-                f"{mode_str} trading completed successfully"
-                if result
-                else f"{mode_str} trading failed"
-            )
+        message = _build_response_message(mode, trading_mode, result=result)
 
         response = {
             "status": "success" if result else "failed",
@@ -230,6 +340,7 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
         # Safely get variables that might not be defined
         mode = locals().get("mode", "unknown")
         trading_mode = locals().get("trading_mode", "unknown")
+        parsed_command_args = locals().get("command_args")  # type: list[str] | None
 
         error_message = f"Lambda execution error ({type(e).__name__}): {e!s}"
         log_error_with_context(
@@ -245,28 +356,7 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
         logger.error(error_message, exc_info=True)
 
         # Enhanced error handling with detailed reporting
-        try:
-            from the_alchemiser.shared.errors.error_handler import (
-                handle_trading_error,
-                send_error_notification_if_needed,
-            )
-
-            handle_trading_error(
-                error=e,
-                context="lambda function execution",
-                component="lambda_handler.lambda_handler",
-                additional_data={
-                    "event": event,
-                    "request_id": request_id,
-                    "parsed_command": locals().get("command_args", None),
-                },
-            )
-
-            # Send detailed error notification if needed
-            send_error_notification_if_needed()
-
-        except NotificationError as notification_error:
-            logger.warning("Failed to send error notification: %s", notification_error)
+        _handle_trading_error(e, event, request_id, parsed_command_args)
 
         return {
             "status": "failed",
@@ -279,6 +369,8 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
         from the_alchemiser.shared.logging.logging_utils import (
             log_error_with_context,
         )
+
+        critical_command_args = locals().get("command_args")  # type: list[str] | None
 
         error_message = f"Lambda execution critical error: {e!s}"
         log_error_with_context(
@@ -293,36 +385,7 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
         logger.error(error_message, exc_info=True)
 
         # Enhanced error handling with detailed reporting
-        try:
-            from the_alchemiser.shared.errors.error_handler import (
-                handle_trading_error,
-                send_error_notification_if_needed,
-            )
-
-            handle_trading_error(
-                error=e,
-                context="lambda function execution - unexpected error",
-                component="lambda_handler.lambda_handler",
-                additional_data={
-                    "event": event,
-                    "request_id": request_id,
-                    "parsed_command": locals().get("command_args", None),
-                    "original_error": type(e).__name__,
-                },
-            )
-
-            # Send detailed error notification if needed
-            send_error_notification_if_needed()
-
-        except (
-            NotificationError,
-            ImportError,
-            AttributeError,
-            ValueError,
-            KeyError,
-            TypeError,
-        ) as notification_error:
-            logger.warning("Failed to send error notification: %s", notification_error)
+        _handle_critical_error(e, event, request_id, critical_command_args)
 
         return {
             "status": "failed",
