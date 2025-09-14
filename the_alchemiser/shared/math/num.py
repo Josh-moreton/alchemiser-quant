@@ -23,6 +23,29 @@ Number = float | int | Decimal
 SequenceLike = Sequence[Number] | Number
 
 
+def _extract_numeric_value(value: SequenceLike) -> Number:
+    """Extract a numeric value from a sequence or number.
+    
+    Args:
+        value: Input value (number or sequence)
+        
+    Returns:
+        Extracted numeric value
+        
+    Raises:
+        ValueError: For empty sequences
+        TypeError: For unsupported types
+
+    """
+    if isinstance(value, Sequence) and not isinstance(value, str | bytes):
+        if len(value) == 0:
+            raise ValueError("Cannot compare empty sequence")
+        return value[0]
+    if isinstance(value, Number):
+        return value
+    raise TypeError(f"Unsupported type for comparison: {type(value)}")
+
+
 def floats_equal(
     a: SequenceLike, b: SequenceLike, rel_tol: float = 1e-9, abs_tol: float = 1e-12
 ) -> bool:
@@ -48,26 +71,8 @@ def floats_equal(
     ):  # pragma: no cover - fall back to scalar comparison
         pass
 
-    # Handle sequence types by comparing first elements or raise error for invalid sequences
-    a_val: Number
-    b_val: Number
-
-    if isinstance(a, Sequence) and not isinstance(a, str | bytes):
-        if len(a) == 0:
-            raise ValueError("Cannot compare empty sequence")
-        a_val = a[0]
-    elif isinstance(a, Number):
-        a_val = a
-    else:
-        raise TypeError(f"Unsupported type for comparison: {type(a)}")
-
-    if isinstance(b, Sequence) and not isinstance(b, str | bytes):
-        if len(b) == 0:
-            raise ValueError("Cannot compare empty sequence")
-        b_val = b[0]
-    elif isinstance(b, Number):
-        b_val = b
-    else:
-        raise TypeError(f"Unsupported type for comparison: {type(b)}")
+    # Handle sequence types by extracting numeric values
+    a_val = _extract_numeric_value(a)
+    b_val = _extract_numeric_value(b)
 
     return isclose(float(a_val), float(b_val), rel_tol=rel_tol, abs_tol=abs_tol)

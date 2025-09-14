@@ -139,6 +139,31 @@ def calculate_percentage_change(current_value: float, previous_value: float) -> 
     return ((current_value - previous_value) / previous_value) * 100
 
 
+def _get_fallback_value_for_metric(data: pd.Series, metric: str) -> float:
+    """Get fallback value when insufficient data for rolling calculation.
+    
+    Args:
+        data: Input data series
+        metric: Statistical metric type
+        
+    Returns:
+        Appropriate fallback value for the metric type
+
+    """
+    if len(data) == 0:
+        return 0.1 if metric == "std" else 0.0
+    
+    fallback_handlers = {
+        "mean": lambda: float(data.mean()),
+        "std": lambda: 0.1,  # Default volatility
+        "min": lambda: float(data.min()),
+        "max": lambda: float(data.max()),
+    }
+    
+    handler = fallback_handlers.get(metric)
+    return handler() if handler else 0.0
+
+
 def calculate_rolling_metric(data: pd.Series, window: int, metric: str = "mean") -> float:
     """Calculate a rolling statistical metric with error handling.
 
@@ -152,15 +177,7 @@ def calculate_rolling_metric(data: pd.Series, window: int, metric: str = "mean")
 
     """
     if len(data) < window:
-        if metric == "mean":
-            return float(data.mean()) if len(data) > 0 else 0.0
-        if metric == "std":
-            return 0.1  # Default volatility
-        if metric == "min":
-            return float(data.min()) if len(data) > 0 else 0.0
-        if metric == "max":
-            return float(data.max()) if len(data) > 0 else 0.0
-        return 0.0
+        return _get_fallback_value_for_metric(data, metric)
 
     try:
         rolling_result = getattr(data.rolling(window=window), metric)()

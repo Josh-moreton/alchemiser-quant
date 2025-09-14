@@ -27,6 +27,330 @@ from typing import Any
 # from the_alchemiser.shared.value_objects.core_types import BacktestResult, PerformanceMetrics, TradeAnalysis
 
 
+def _calculate_midpoint_price(bid: float, ask: float, side_is_buy: bool) -> float:
+    """Calculate midpoint price with fallback logic.
+    
+    Args:
+        bid: Bid price
+        ask: Ask price  
+        side_is_buy: Whether this is a buy order
+        
+    Returns:
+        Calculated midpoint or appropriate fallback
+
+    """
+    if bid > 0 and ask > 0:
+        return (bid + ask) / 2
+    return bid if side_is_buy else ask
+
+
+def _calculate_precision_from_tick_size(tick_size_decimal: Any) -> int:
+    """Calculate precision from tick size decimal.
+    
+    Args:
+        tick_size_decimal: Decimal tick size object
+        
+    Returns:
+        Precision level (minimum 2)
+
+    """
+    try:
+        exponent = tick_size_decimal.as_tuple().exponent
+        if isinstance(exponent, int):
+            return max(2, -exponent)
+    except (AttributeError, TypeError):
+        pass
+    return 2
+
+
+def _log_enhanced_threshold_analysis(
+    symbol: str,
+    target_weight: float,
+    current_value: float,
+    total_portfolio_value: float,
+    target_value: float,
+    trade_amount: float,
+    weight_diff: float,
+    current_weight: float,
+    min_trade_threshold: float,
+    needs_rebalance: bool,
+    logger: Any,
+) -> None:
+    """Log enhanced threshold analysis for debugging.
+    
+    Args:
+        symbol: Trading symbol
+        target_weight: Target allocation weight
+        current_value: Current position value
+        total_portfolio_value: Total portfolio value
+        target_value: Target dollar value
+        trade_amount: Calculated trade amount
+        weight_diff: Weight difference
+        current_weight: Current allocation weight
+        min_trade_threshold: Minimum trade threshold
+        needs_rebalance: Whether rebalancing is needed
+        logger: Logger instance
+
+    """
+    logger.info(f"=== ENHANCED THRESHOLD ANALYSIS: {symbol} ===")
+    logger.info(f"TARGET_WEIGHT_RAW: {target_weight}")
+    logger.info(f"CURRENT_VALUE_RAW: {current_value}")
+    logger.info(f"TOTAL_PORTFOLIO_VALUE_RAW: {total_portfolio_value}")
+    logger.info(f"CALCULATED_TARGET_VALUE: ${target_value}")
+    logger.info(f"CALCULATED_TRADE_AMOUNT: ${trade_amount}")
+    logger.info(f"WEIGHT_DIFF_ABS: {abs(weight_diff)}")
+    logger.info(f"MIN_TRADE_THRESHOLD: {min_trade_threshold}")
+    logger.info(
+        f"THRESHOLD_CHECK_RESULT: {abs(weight_diff)} >= {min_trade_threshold} = {needs_rebalance}"
+    )
+
+    # Show percentage calculations for clarity
+    logger.info(f"CURRENT_WEIGHT_PERCENT: {current_weight * 100:.3f}%")
+    logger.info(f"TARGET_WEIGHT_PERCENT: {target_weight * 100:.3f}%")
+    logger.info(f"WEIGHT_DIFF_PERCENT: {weight_diff * 100:.3f}%")
+    logger.info(f"THRESHOLD_PERCENT: {min_trade_threshold * 100:.3f}%")
+
+    # Calculate what the portfolio value should be based on current holdings
+    if current_value > 0 and target_weight > 0:
+        implied_portfolio_value = current_value / target_weight
+        logger.info(f"IMPLIED_PORTFOLIO_VALUE_FROM_{symbol}: ${implied_portfolio_value:.2f}")
+
+    # Flag potential data issues
+    if total_portfolio_value <= 0:
+        logger.error(f"❌ INVALID_PORTFOLIO_VALUE: {total_portfolio_value}")
+    if current_value < 0:
+        logger.error(f"❌ NEGATIVE_CURRENT_VALUE_{symbol}: {current_value}")
+    if target_weight < 0 or target_weight > 1:
+        logger.error(f"❌ INVALID_TARGET_WEIGHT_{symbol}: {target_weight}")
+
+    # Additional debug info for threshold failures
+    if not needs_rebalance and abs(weight_diff) > 0:
+        logger.warning(
+            f"⚠️ {symbol}_BELOW_THRESHOLD: Need {abs(weight_diff) * 100:.3f}% change but threshold is {min_trade_threshold * 100:.3f}%"
+        )
+    elif needs_rebalance:
+        logger.info(
+            f"✅ {symbol}_ABOVE_THRESHOLD: Need {abs(weight_diff) * 100:.3f}% change, threshold is {min_trade_threshold * 100:.3f}%"
+        )
+
+
+def _log_critical_bug_detection(
+    symbol: str,
+    target_weight: float,
+    weight_diff: float,
+    needs_rebalance: bool,
+    trade_amount: float,
+    target_value: float,
+    current_value: float,
+    total_portfolio_value: float,
+    logger: Any,
+) -> None:
+    """Log critical bug detection for debugging trade calculation issues.
+    
+    Args:
+        symbol: Trading symbol
+        target_weight: Target allocation weight
+        weight_diff: Weight difference 
+        needs_rebalance: Whether rebalancing is needed
+        trade_amount: Calculated trade amount
+        target_value: Target dollar value
+        current_value: Current dollar value
+        total_portfolio_value: Total portfolio value
+        logger: Logger instance
+
+    """
+    # Detect potential critical bugs that would cause trade loss
+    if target_weight > 0.01 and abs(weight_diff) > 0.05 and not needs_rebalance:
+        logger.error(
+            f"🚨 CRITICAL_BUG_DETECTED_{symbol}: Large target weight ({target_weight * 100:.1f}%) with large diff ({abs(weight_diff) * 100:.1f}%) but needs_rebalance=False"
+        )
+        logger.error("🚨 This indicates a threshold calculation bug that will cause trade loss")
+
+    if math.isclose(trade_amount, 0.0, abs_tol=1e-10) and target_weight > 0.01:
+        logger.error(
+            f"🚨 ZERO_TRADE_AMOUNT_BUG_{symbol}: Target weight {target_weight * 100:.1f}% but trade_amount=0"
+        )
+        logger.error(
+            f"🚨 This suggests target_value ({target_value}) equals current_value ({current_value})"
+        )
+
+    # CRITICAL: Detect the portfolio value = 0 bug that causes all trade_amounts to be 0
+    if total_portfolio_value <= 0.0 and needs_rebalance:
+        logger.error(
+            f"🚨 ZERO_PORTFOLIO_VALUE_CAUSES_ZERO_TRADES_{symbol}: portfolio_value={total_portfolio_value}, needs_rebalance={needs_rebalance}, trade_amount={trade_amount}"
+        )
+        logger.error(
+            "🚨 ROOT CAUSE: Portfolio value is 0 or negative, making all trades impossible"
+        )
+        logger.error(
+            "🚨 FIX: Ensure portfolio value reflects cash balance for fresh accounts or fix API data fetching"
+        )
+
+    if total_portfolio_value == 0 and target_weight > 0:
+        logger.error(
+            "🚨 ZERO_PORTFOLIO_VALUE_BUG: Cannot calculate trades with zero portfolio value"
+        )
+
+
+def _log_rebalance_summary(
+    all_symbols: set[str],
+    symbols_needing_rebalance: int, 
+    min_trade_threshold: float,
+    total_portfolio_value: float,
+    rebalance_plan: dict[str, dict[str, float]],
+    logger: Any,
+) -> None:
+    """Log comprehensive summary of rebalancing calculation results.
+    
+    Args:
+        all_symbols: Set of all symbols processed
+        symbols_needing_rebalance: Count of symbols requiring rebalancing
+        min_trade_threshold: Threshold used for rebalancing decisions
+        total_portfolio_value: Total portfolio value
+        rebalance_plan: Complete rebalancing plan
+        logger: Logger instance
+    """
+    import logging
+    
+    # Add comprehensive summary logging
+    logging.info("=== REBALANCE CALCULATION SUMMARY ===")
+    logging.info(f"Total symbols processed: {len(all_symbols)}")
+    logging.info(f"Symbols needing rebalance: {symbols_needing_rebalance}")
+    logging.info(f"Symbols NOT needing rebalance: {len(all_symbols) - symbols_needing_rebalance}")
+    logging.info(f"Threshold used: {min_trade_threshold:.4f} ({min_trade_threshold * 100:.1f}%)")
+    logging.info(f"Portfolio value: ${total_portfolio_value:,.2f}")
+
+    # Log which symbols need rebalancing
+    symbols_to_rebalance = [
+        symbol for symbol, plan in rebalance_plan.items() if plan["needs_rebalance"]
+    ]
+    symbols_to_skip = [
+        symbol for symbol, plan in rebalance_plan.items() if not plan["needs_rebalance"]
+    ]
+
+    if symbols_to_rebalance:
+        logging.info(f"Symbols TO REBALANCE: {symbols_to_rebalance}")
+    else:
+        logging.warning(
+            "NO SYMBOLS NEED REBALANCING - portfolio already balanced or all diffs below threshold"
+        )
+
+    if symbols_to_skip:
+        logging.info(f"Symbols to SKIP (below threshold): {symbols_to_skip}")
+
+    logger.debug(
+        f"Rebalance calculation complete: {symbols_needing_rebalance}/{len(all_symbols)} symbols need rebalancing"
+    )
+
+def _process_symbol_rebalance(
+    symbol: str,
+    target_weights: dict[str, float],
+    current_values: dict[str, float],
+    total_portfolio_value: float,
+    min_trade_threshold: float,
+    logger: Any,
+) -> tuple[dict[str, float], bool]:
+    """Process rebalancing calculation for a single symbol.
+    
+    Args:
+        symbol: Trading symbol to process
+        target_weights: Dictionary of target weights
+        current_values: Dictionary of current values
+        total_portfolio_value: Total portfolio value
+        min_trade_threshold: Minimum threshold for rebalancing
+        logger: Logger instance
+        
+    Returns:
+        Tuple of (symbol_plan, needs_rebalance)
+    """
+    import logging
+    
+    logger.info(f"=== PROCESSING SYMBOL: {symbol} ===")
+
+    target_weight = target_weights.get(symbol, 0.0)
+    current_value = current_values.get(symbol, 0.0)
+
+    logger.info(f"SYMBOL_TARGET_WEIGHT: {target_weight}")
+    logger.info(f"SYMBOL_CURRENT_VALUE: {current_value}")
+
+    # Ensure current_value is a float
+    try:
+        current_value = float(current_value)
+    except (ValueError, TypeError):
+        logger.warning(f"Invalid current_value for {symbol}: {current_value}, using 0.0")
+        current_value = 0.0
+
+    current_weight, weight_diff = calculate_allocation_discrepancy(
+        target_weight, current_value, total_portfolio_value
+    )
+
+    logger.info(f"CALCULATED_CURRENT_WEIGHT: {current_weight}")
+    logger.info(f"CALCULATED_WEIGHT_DIFF: {weight_diff}")
+
+    target_value = total_portfolio_value * target_weight
+    trade_amount = target_value - current_value
+    needs_rebalance = abs(weight_diff) >= min_trade_threshold
+
+    # Enhanced threshold analysis for debugging
+    _log_enhanced_threshold_analysis(
+        symbol, target_weight, current_value, total_portfolio_value,
+        target_value, trade_amount, weight_diff, current_weight,
+        min_trade_threshold, needs_rebalance, logger
+    )
+
+    # Critical bug detection
+    _log_critical_bug_detection(
+        symbol, target_weight, weight_diff, needs_rebalance,
+        trade_amount, target_value, current_value, total_portfolio_value, logger
+    )
+
+    logger.info(f"CALCULATED_TARGET_VALUE: ${target_value}")
+    logger.info(f"CALCULATED_TRADE_AMOUNT: ${trade_amount}")
+    logger.info(f"WEIGHT_DIFF_ABS: {abs(weight_diff)}")
+    logger.info(
+        f"THRESHOLD_CHECK: {abs(weight_diff)} >= {min_trade_threshold} = {needs_rebalance}"
+    )
+
+    # Add detailed threshold logging for all symbols (using debug level for verbose output)
+    logger.debug(f"=== THRESHOLD CHECK: {symbol} ===")
+    logger.debug(
+        f"{symbol}: Current {current_weight:.3f}% ({current_weight * 100:.1f}%), Target {target_weight:.3f}% ({target_weight * 100:.1f}%)"
+    )
+    logger.debug(f"{symbol}: Weight difference {weight_diff:.3f}% ({weight_diff * 100:.1f}%)")
+    logger.debug(
+        f"{symbol}: Threshold {min_trade_threshold:.3f}% ({min_trade_threshold * 100:.1f}%)"
+    )
+    logger.debug(
+        f"{symbol}: Needs rebalance: {needs_rebalance} (diff {abs(weight_diff):.6f} {'≥' if needs_rebalance else '<'} threshold {min_trade_threshold:.6f})"
+    )
+    logger.debug(f"{symbol}: Trade amount: ${trade_amount:.2f}")
+
+    if needs_rebalance:
+        logger.info(f"{symbol}: ✅ TRADE REQUIRED - will be included in rebalancing plan")
+    else:
+        logger.debug(f"{symbol}: ❌ NO TRADE NEEDED - below threshold")
+
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(
+            f"Symbol {symbol}: weight_diff={weight_diff:.4f}, "
+            f"threshold={min_trade_threshold:.4f}, needs_rebalance={needs_rebalance}"
+        )
+
+    symbol_plan = {
+        "current_weight": current_weight,
+        "target_weight": target_weight,
+        "weight_diff": weight_diff,
+        "target_value": target_value,
+        "current_value": current_value,
+        "trade_amount": trade_amount,
+        "needs_rebalance": needs_rebalance,
+    }
+
+    logger.info(f"SYMBOL_PLAN_CREATED: {symbol} -> {symbol_plan}")
+    
+    return symbol_plan, needs_rebalance
+
+
 def calculate_position_size(
     current_price: float, portfolio_weight: float, account_value: float
 ) -> float:
@@ -118,7 +442,7 @@ def calculate_dynamic_limit_price(
         in the OrderManager class for limit order placement.
 
     """
-    mid = (bid + ask) / 2 if bid > 0 and ask > 0 else bid if side_is_buy else ask
+    mid = _calculate_midpoint_price(bid, ask, side_is_buy)
 
     if step > max_steps:
         return round(ask if side_is_buy else bid, 2)
@@ -155,7 +479,7 @@ def calculate_dynamic_limit_price_with_symbol(
             Defaults to 0.
         max_steps (int, optional): Maximum steps before using market price.
             Defaults to 5.
-    tick_size_provider (Any | None): Optional injected tick size provider (must expose get_tick_size).
+        tick_size_provider (Any | None): Optional injected tick size provider (must expose get_tick_size).
 
     Returns:
         float: Calculated limit price with appropriate precision.
@@ -173,20 +497,16 @@ def calculate_dynamic_limit_price_with_symbol(
         DynamicTickSizeService,
     )
 
-    mid_price = (bid + ask) / 2 if bid > 0 and ask > 0 else bid if side_is_buy else ask
+    mid_price = _calculate_midpoint_price(bid, ask, side_is_buy)
 
     # Get dynamic tick size for this symbol and price
     service = tick_size_provider or DynamicTickSizeService()
     tick_size_decimal = service.get_tick_size(symbol, Decimal(str(mid_price)))
     tick_size = float(tick_size_decimal)
 
+    precision = _calculate_precision_from_tick_size(tick_size_decimal)
+
     if step > max_steps:
-        # Handle special Decimal cases (infinity, NaN) by falling back to 2 decimal places
-        exponent = tick_size_decimal.as_tuple().exponent
-        if isinstance(exponent, int):
-            precision = max(2, -exponent)
-        else:
-            precision = 2
         return round(ask if side_is_buy else bid, precision)
 
     if side_is_buy:
@@ -194,12 +514,6 @@ def calculate_dynamic_limit_price_with_symbol(
     else:
         price = max(mid_price - step * tick_size, bid if bid > 0 else mid_price)
 
-    # Use appropriate precision based on tick size
-    exponent = tick_size_decimal.as_tuple().exponent
-    if isinstance(exponent, int):
-        precision = max(2, -exponent)
-    else:
-        precision = 2
     return round(price, precision)
 
 
@@ -365,183 +679,20 @@ def calculate_rebalance_amounts(
     symbols_needing_rebalance = 0
 
     for symbol in all_symbols:
-        logger.info(f"=== PROCESSING SYMBOL: {symbol} ===")
-
-        target_weight = target_weights.get(symbol, 0.0)
-        current_value = current_values.get(symbol, 0.0)
-
-        logger.info(f"SYMBOL_TARGET_WEIGHT: {target_weight}")
-        logger.info(f"SYMBOL_CURRENT_VALUE: {current_value}")
-
-        # Ensure current_value is a float
-        try:
-            current_value = float(current_value)
-        except (ValueError, TypeError):
-            logger.warning(f"Invalid current_value for {symbol}: {current_value}, using 0.0")
-            current_value = 0.0
-
-        current_weight, weight_diff = calculate_allocation_discrepancy(
-            target_weight, current_value, total_portfolio_value
+        symbol_plan, needs_rebalance = _process_symbol_rebalance(
+            symbol, target_weights, current_values, total_portfolio_value, 
+            min_trade_threshold, logger
         )
-
-        logger.info(f"CALCULATED_CURRENT_WEIGHT: {current_weight}")
-        logger.info(f"CALCULATED_WEIGHT_DIFF: {weight_diff}")
-
-        target_value = total_portfolio_value * target_weight
-        trade_amount = target_value - current_value
-        needs_rebalance = abs(weight_diff) >= min_trade_threshold
-
-        # === ENHANCED THRESHOLD ANALYSIS FOR DEBUGGING ===
-        logger.info(f"=== ENHANCED THRESHOLD ANALYSIS: {symbol} ===")
-        logger.info(f"TARGET_WEIGHT_RAW: {target_weight}")
-        logger.info(f"CURRENT_VALUE_RAW: {current_value}")
-        logger.info(f"TOTAL_PORTFOLIO_VALUE_RAW: {total_portfolio_value}")
-        logger.info(f"CALCULATED_TARGET_VALUE: ${target_value}")
-        logger.info(f"CALCULATED_TRADE_AMOUNT: ${trade_amount}")
-        logger.info(f"WEIGHT_DIFF_ABS: {abs(weight_diff)}")
-        logger.info(f"MIN_TRADE_THRESHOLD: {min_trade_threshold}")
-        logger.info(
-            f"THRESHOLD_CHECK_RESULT: {abs(weight_diff)} >= {min_trade_threshold} = {needs_rebalance}"
-        )
-
-        # Show percentage calculations for clarity
-        logger.info(f"CURRENT_WEIGHT_PERCENT: {current_weight * 100:.3f}%")
-        logger.info(f"TARGET_WEIGHT_PERCENT: {target_weight * 100:.3f}%")
-        logger.info(f"WEIGHT_DIFF_PERCENT: {weight_diff * 100:.3f}%")
-        logger.info(f"THRESHOLD_PERCENT: {min_trade_threshold * 100:.3f}%")
-
-        # Calculate what the portfolio value should be based on current holdings
-        if current_value > 0 and target_weight > 0:
-            implied_portfolio_value = current_value / target_weight
-            logger.info(f"IMPLIED_PORTFOLIO_VALUE_FROM_{symbol}: ${implied_portfolio_value:.2f}")
-
-        # Flag potential data issues
-        if total_portfolio_value <= 0:
-            logger.error(f"❌ INVALID_PORTFOLIO_VALUE: {total_portfolio_value}")
-        if current_value < 0:
-            logger.error(f"❌ NEGATIVE_CURRENT_VALUE_{symbol}: {current_value}")
-        if target_weight < 0 or target_weight > 1:
-            logger.error(f"❌ INVALID_TARGET_WEIGHT_{symbol}: {target_weight}")
-
-        # Additional debug info for threshold failures
-        if not needs_rebalance and abs(weight_diff) > 0:
-            logger.warning(
-                f"⚠️ {symbol}_BELOW_THRESHOLD: Need {abs(weight_diff) * 100:.3f}% change but threshold is {min_trade_threshold * 100:.3f}%"
-            )
-        elif needs_rebalance:
-            logger.info(
-                f"✅ {symbol}_ABOVE_THRESHOLD: Need {abs(weight_diff) * 100:.3f}% change, threshold is {min_trade_threshold * 100:.3f}%"
-            )
-
-        # === CRITICAL BUG DETECTION ===
-        # Detect potential critical bugs that would cause trade loss
-        if target_weight > 0.01 and abs(weight_diff) > 0.05 and not needs_rebalance:
-            logger.error(
-                f"🚨 CRITICAL_BUG_DETECTED_{symbol}: Large target weight ({target_weight * 100:.1f}%) with large diff ({abs(weight_diff) * 100:.1f}%) but needs_rebalance=False"
-            )
-            logger.error("🚨 This indicates a threshold calculation bug that will cause trade loss")
-
-        if math.isclose(trade_amount, 0.0, abs_tol=1e-10) and target_weight > 0.01:
-            logger.error(
-                f"🚨 ZERO_TRADE_AMOUNT_BUG_{symbol}: Target weight {target_weight * 100:.1f}% but trade_amount=0"
-            )
-            logger.error(
-                f"🚨 This suggests target_value ({target_value}) equals current_value ({current_value})"
-            )
-
-        # CRITICAL: Detect the portfolio value = 0 bug that causes all trade_amounts to be 0
-        if total_portfolio_value <= 0.0 and needs_rebalance:
-            logger.error(
-                f"🚨 ZERO_PORTFOLIO_VALUE_CAUSES_ZERO_TRADES_{symbol}: portfolio_value={total_portfolio_value}, needs_rebalance={needs_rebalance}, trade_amount={trade_amount}"
-            )
-            logger.error(
-                "🚨 ROOT CAUSE: Portfolio value is 0 or negative, making all trades impossible"
-            )
-            logger.error(
-                "🚨 FIX: Ensure portfolio value reflects cash balance for fresh accounts or fix API data fetching"
-            )
-
-        if total_portfolio_value == 0 and target_weight > 0:
-            logger.error(
-                "🚨 ZERO_PORTFOLIO_VALUE_BUG: Cannot calculate trades with zero portfolio value"
-            )
-
-        logger.info(f"CALCULATED_TARGET_VALUE: ${target_value}")
-        logger.info(f"CALCULATED_TRADE_AMOUNT: ${trade_amount}")
-        logger.info(f"WEIGHT_DIFF_ABS: {abs(weight_diff)}")
-        logger.info(
-            f"THRESHOLD_CHECK: {abs(weight_diff)} >= {min_trade_threshold} = {needs_rebalance}"
-        )
-
-        # Add detailed threshold logging for all symbols (using debug level for verbose output)
-        logger.debug(f"=== THRESHOLD CHECK: {symbol} ===")
-        logger.debug(
-            f"{symbol}: Current {current_weight:.3f}% ({current_weight * 100:.1f}%), Target {target_weight:.3f}% ({target_weight * 100:.1f}%)"
-        )
-        logger.debug(f"{symbol}: Weight difference {weight_diff:.3f}% ({weight_diff * 100:.1f}%)")
-        logger.debug(
-            f"{symbol}: Threshold {min_trade_threshold:.3f}% ({min_trade_threshold * 100:.1f}%)"
-        )
-        logger.debug(
-            f"{symbol}: Needs rebalance: {needs_rebalance} (diff {abs(weight_diff):.6f} {'≥' if needs_rebalance else '<'} threshold {min_trade_threshold:.6f})"
-        )
-        logger.debug(f"{symbol}: Trade amount: ${trade_amount:.2f}")
-
+        
+        rebalance_plan[symbol] = symbol_plan
+        
         if needs_rebalance:
             symbols_needing_rebalance += 1
-            logger.info(f"{symbol}: ✅ TRADE REQUIRED - will be included in rebalancing plan")
-        else:
-            logger.debug(f"{symbol}: ❌ NO TRADE NEEDED - below threshold")
 
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(
-                f"Symbol {symbol}: weight_diff={weight_diff:.4f}, "
-                f"threshold={min_trade_threshold:.4f}, needs_rebalance={needs_rebalance}"
-            )
-
-        rebalance_plan[symbol] = {
-            "current_weight": current_weight,
-            "target_weight": target_weight,
-            "weight_diff": weight_diff,
-            "target_value": target_value,
-            "current_value": current_value,
-            "trade_amount": trade_amount,
-            "needs_rebalance": needs_rebalance,
-        }
-
-        logger.info(f"SYMBOL_PLAN_CREATED: {symbol} -> {rebalance_plan[symbol]}")
-
-    # Add comprehensive summary logging
-    logging.info("=== REBALANCE CALCULATION SUMMARY ===")
-    logging.info(f"Total symbols processed: {len(all_symbols)}")
-    logging.info(f"Symbols needing rebalance: {symbols_needing_rebalance}")
-    logging.info(f"Symbols NOT needing rebalance: {len(all_symbols) - symbols_needing_rebalance}")
-    logging.info(f"Threshold used: {min_trade_threshold:.4f} ({min_trade_threshold * 100:.1f}%)")
-    logging.info(f"Portfolio value: ${total_portfolio_value:,.2f}")
-
-    # Log which symbols need rebalancing
-    symbols_to_rebalance = [
-        symbol for symbol, plan in rebalance_plan.items() if plan["needs_rebalance"]
-    ]
-    symbols_to_skip = [
-        symbol for symbol, plan in rebalance_plan.items() if not plan["needs_rebalance"]
-    ]
-
-    if symbols_to_rebalance:
-        logging.info(f"Symbols TO REBALANCE: {symbols_to_rebalance}")
-    else:
-        logging.warning(
-            "NO SYMBOLS NEED REBALANCING - portfolio already balanced or all diffs below threshold"
-        )
-
-    if symbols_to_skip:
-        logging.info(f"Symbols to SKIP (below threshold): {symbols_to_skip}")
-
-    logger.debug(
-        f"Rebalance calculation complete: {symbols_needing_rebalance}/{len(all_symbols)} symbols need rebalancing"
+    # Log comprehensive summary
+    _log_rebalance_summary(
+        all_symbols, symbols_needing_rebalance, min_trade_threshold,
+        total_portfolio_value, rebalance_plan, logger
     )
-
-    logger.info("=== TRADING_MATH CALCULATION COMPLETE ===")
-    logger.info(f"RETURNING_PLAN_WITH: {len(rebalance_plan)} symbols")
 
     return rebalance_plan
