@@ -377,10 +377,7 @@ def status() -> None:
         account_info: dict[str, Any] = dict(trader.get_account_info())
 
         # Always use basic account info instead of enriched typed summary
-        # Legacy TradingServiceManager import commented out to remove fallback dependencies
-        # from the_alchemiser.execution.core.trading_services_facade import (
-        #     TradingServicesFacade as TradingServiceManager,
-        # )
+        # Legacy TradingServiceManager migrated to execution_v2.ExecutionManager
 
         # Use basic account info from TradingEngine instead of legacy enriched summary
         # This removes dependency on legacy execution modules
