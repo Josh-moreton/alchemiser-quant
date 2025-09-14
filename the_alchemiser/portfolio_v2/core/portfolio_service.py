@@ -25,6 +25,9 @@ from .state_reader import PortfolioStateReader
 
 logger = logging.getLogger(__name__)
 
+# Module name constant for consistent logging
+MODULE_NAME = "portfolio_v2.core.portfolio_service"
+
 
 class PortfolioServiceV2:
     """Portfolio service V2 - main facade for portfolio rebalancing.
@@ -74,7 +77,7 @@ class PortfolioServiceV2:
             logger,
             logging.INFO,
             "Creating rebalance plan",
-            module="portfolio_v2.core.portfolio_service",
+            module=MODULE_NAME,
             action="create_rebalance_plan",
             correlation_id=correlation_id,
             target_symbols=sorted(strategy.target_weights.keys()),
@@ -92,7 +95,7 @@ class PortfolioServiceV2:
                 logger,
                 logging.DEBUG,
                 "Building portfolio snapshot",
-                module="portfolio_v2.core.portfolio_service",
+                module=MODULE_NAME,
                 action="build_snapshot",
                 correlation_id=correlation_id,
                 target_symbols=sorted(target_symbols),
@@ -105,7 +108,7 @@ class PortfolioServiceV2:
                 logger,
                 logging.DEBUG,
                 "Calculating rebalance plan",
-                module="portfolio_v2.core.portfolio_service",
+                module=MODULE_NAME,
                 action="calculate_plan",
                 correlation_id=correlation_id,
                 snapshot_total_value=str(snapshot.total_value),
@@ -123,7 +126,7 @@ class PortfolioServiceV2:
                 logger,
                 logging.INFO,
                 "Rebalance plan created successfully",
-                module="portfolio_v2.core.portfolio_service",
+                module=MODULE_NAME,
                 action="create_rebalance_plan",
                 correlation_id=correlation_id,
                 total_items=len(plan.items),
@@ -139,7 +142,7 @@ class PortfolioServiceV2:
                 logger,
                 logging.ERROR,
                 f"Failed to create rebalance plan: {e}",
-                module="portfolio_v2.core.portfolio_service",
+                module=MODULE_NAME,
                 action="create_rebalance_plan",
                 correlation_id=correlation_id,
                 error=str(e),
