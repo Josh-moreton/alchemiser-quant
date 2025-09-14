@@ -20,7 +20,9 @@ from typing import Any
 _S3_PROTOCOL_PREFIX = "s3://"
 
 # S3 logging configuration constants
+# Set of string values that, when present in configuration, indicate S3 logging should be enabled.
 _S3_ENABLED_VALUES = frozenset(["1", "true", "yes", "on"])
+# Set of environment variable names that, if present, indicate the code is running in an AWS Lambda environment.
 _LAMBDA_ENV_VARS = frozenset(["AWS_EXECUTION_ENV", "AWS_LAMBDA_RUNTIME_API", "LAMBDA_RUNTIME_DIR"])
 
 # Context variables for request tracking
