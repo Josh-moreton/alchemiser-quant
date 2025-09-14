@@ -269,32 +269,51 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             price = Decimal("0.01")  # Default minimal price
             if order_filled_avg_price:
                 price = Decimal(str(order_filled_avg_price))
-            elif hasattr(order_request, 'limit_price') and order_request.limit_price:
+            elif hasattr(order_request, "limit_price") and order_request.limit_price:
                 price = Decimal(str(order_request.limit_price))
 
+            # Extract enum values properly
+            action_value = order_side.value.upper() if hasattr(order_side, "value") else str(order_side).upper()
+            status_value = order_status.value.upper() if hasattr(order_status, "value") else str(order_status).upper()
+            
             return ExecutedOrderDTO(
                 order_id=order_id,
                 symbol=order_symbol,
-                action=str(order_side).upper(),
+                action=action_value,
                 quantity=Decimal(str(order_qty)),
                 filled_quantity=Decimal(str(order_filled_qty)),
                 price=price,
                 total_value=Decimal(str(order_filled_qty)) * price,
-                status=str(order_status).upper(),
+                status=status_value,
                 execution_timestamp=datetime.now(UTC),
             )
         except Exception as e:
             logger.error(f"Failed to place order: {e}")
             
-            # Return a failed order DTO
+            # Return a failed order DTO with valid values
+            symbol = getattr(order_request, "symbol", "UNKNOWN")
+            side = getattr(order_request, "side", None)
+            
+            # Extract action from order request
+            action = "BUY"  # Default fallback
+            if side:
+                if hasattr(side, "value"):
+                    action = side.value.upper()
+                else:
+                    side_str = str(side).upper()
+                    if "SELL" in side_str:
+                        action = "SELL"
+                    elif "BUY" in side_str:
+                        action = "BUY"
+            
             return ExecutedOrderDTO(
-                order_id="",
-                symbol=getattr(order_request, 'symbol', 'UNKNOWN'),
-                action="UNKNOWN",
-                quantity=Decimal("0"),
+                order_id="FAILED",  # Must be non-empty
+                symbol=symbol,
+                action=action,
+                quantity=Decimal("0.01"),  # Must be > 0
                 filled_quantity=Decimal("0"),
                 price=Decimal("0.01"),
-                total_value=Decimal("0"),
+                total_value=Decimal("0.01"),  # Must be > 0
                 status="REJECTED",
                 execution_timestamp=datetime.now(UTC),
                 error_message=str(e),
@@ -374,30 +393,30 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         except ValueError as e:
             logger.error(f"Invalid order parameters: {e}")
-            # Return error DTO for consistency
+            # Return error DTO for consistency with valid values
             return ExecutedOrderDTO(
-                order_id="",
+                order_id="INVALID",  # Must be non-empty
                 symbol=symbol.upper() if symbol else "UNKNOWN",
-                action=side.upper() if side else "UNKNOWN",
-                quantity=Decimal(str(qty)) if qty else Decimal("0"),
+                action=side.upper() if side and side.upper() in ["BUY", "SELL"] else "BUY",
+                quantity=Decimal(str(qty)) if qty and qty > 0 else Decimal("0.01"),
                 filled_quantity=Decimal("0"),
                 price=Decimal("0.01"),
-                total_value=Decimal("0"),
+                total_value=Decimal("0.01"),  # Must be > 0
                 status="REJECTED",
                 execution_timestamp=datetime.now(UTC),
                 error_message=str(e),
             )
         except Exception as e:
             logger.error(f"Failed to place market order for {symbol}: {e}")
-            # Return error DTO for consistency
+            # Return error DTO for consistency with valid values
             return ExecutedOrderDTO(
-                order_id="",
+                order_id="FAILED",  # Must be non-empty
                 symbol=symbol.upper() if symbol else "UNKNOWN",
-                action=side.upper() if side else "UNKNOWN",
-                quantity=Decimal(str(qty)) if qty else Decimal("0"),
+                action=side.upper() if side and side.upper() in ["BUY", "SELL"] else "BUY",
+                quantity=Decimal(str(qty)) if qty and qty > 0 else Decimal("0.01"),
                 filled_quantity=Decimal("0"),
                 price=Decimal("0.01"),
-                total_value=Decimal("0"),
+                total_value=Decimal("0.01"),  # Must be > 0
                 status="REJECTED",
                 execution_timestamp=datetime.now(UTC),
                 error_message=str(e),
@@ -941,9 +960,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             # Check if the order was successful and return order_id
             if result.status not in ["REJECTED", "CANCELED"] and result.order_id:
                 return result.order_id
-            else:
-                logger.error(f"Smart sell order failed for {symbol}: {result.error_message}")
-                return None
+            logger.error(f"Smart sell order failed for {symbol}: {result.error_message}")
+            return None
                 
         except Exception as e:
             logger.error(f"Smart sell order failed for {symbol}: {e}")

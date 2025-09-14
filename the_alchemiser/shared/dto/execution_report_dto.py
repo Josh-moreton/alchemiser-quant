@@ -63,7 +63,7 @@ class ExecutedOrderDTO(BaseModel):
     @classmethod
     def validate_status(cls, v: str) -> str:
         """Validate order status."""
-        valid_statuses = {"FILLED", "PARTIAL", "REJECTED", "CANCELLED", "PENDING", "FAILED"}
+        valid_statuses = {"FILLED", "PARTIAL", "REJECTED", "CANCELLED", "PENDING", "FAILED", "ACCEPTED"}
         status_upper = v.strip().upper()
         if status_upper not in valid_statuses:
             raise ValueError(f"Status must be one of {valid_statuses}, got {status_upper}")
