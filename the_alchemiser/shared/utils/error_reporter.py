@@ -37,6 +37,7 @@ class ErrorReporter:
         self.notification_manager = notification_manager
         self.error_counts: dict[str, int] = defaultdict(int)
         self.critical_errors: list[dict[str, Any]] = []
+        self.error_rate_threshold = 10  # Max errors per operation type before alerting
 
     def report_error(
         self,
@@ -91,8 +92,21 @@ class ErrorReporter:
 
     def _check_error_rates(self) -> None:
         """Check for high error rates and alert."""
-        # Implementation for error rate monitoring
-        # TODO: Implement error rate thresholds and alerting
+        for error_key, count in self.error_counts.items():
+            if count >= self.error_rate_threshold:
+                logger.warning(
+                    "High error rate detected",
+                    extra={
+                        "error_type": error_key,
+                        "count": count,
+                        "threshold": self.error_rate_threshold,
+                    },
+                )
+                if self.notification_manager:
+                    self.notification_manager.send_warning_alert(
+                        f"High error rate: {error_key}",
+                        {"count": count, "threshold": self.error_rate_threshold},
+                    )
 
     def get_error_summary(self) -> dict[str, Any]:
         """Get summary of recent errors for dashboard."""
