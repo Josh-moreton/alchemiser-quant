@@ -148,7 +148,7 @@ class KLMVariantResult(TypedDict):
 
 # Phase 9: KLM Variants Types
 class KLMDecision(TypedDict):
-    symbol: str
+    symbol: str | dict[str, float]  # Single symbol or allocation dict
     action: Literal["BUY", "SELL", "HOLD"]
     reasoning: str
 
