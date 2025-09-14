@@ -138,7 +138,6 @@ def convert_nested_order_data(order_data: dict[str, Any]) -> dict[str, Any]:
         
     Returns:
         Modified dictionary with converted fields
-
     """
     # Convert execution timestamp in order
     if "execution_timestamp" in order_data and isinstance(
