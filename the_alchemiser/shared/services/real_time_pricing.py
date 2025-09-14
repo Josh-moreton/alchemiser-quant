@@ -39,8 +39,9 @@ from the_alchemiser.shared.brokers.alpaca_utils import (
     create_stock_data_stream,
 )
 
-# TODO: Phase 11 - Types available for future migration to structured pricing data
-# from the_alchemiser.shared.value_objects.core_types import PriceData, QuoteData
+# Phase 11 - Types available for future migration to structured pricing data
+# Note: PriceData and QuoteData types are defined but not yet implemented.
+# Current implementation uses RealTimeQuote dataclass for simplicity.
 
 
 @dataclass
@@ -203,7 +204,6 @@ class RealTimePricingService:
         """Run the WebSocket stream with automatic reconnection and exponential backoff."""
         reconnect_delay = 2.0  # Start with 2 seconds
         max_reconnect_delay = 60.0  # Cap at 1 minute
-        successful_connections = 0
 
         while self._should_reconnect:
             try:
@@ -211,7 +211,6 @@ class RealTimePricingService:
                     logging.info("📡 Starting real-time data stream...")
                     self._connected = True
                     self._stats["last_heartbeat"] = datetime.now(UTC)
-                    successful_connections += 1
                     # Reset reconnect delay on successful connection
                     reconnect_delay = 2.0
                     self._stream.run()
@@ -233,7 +232,7 @@ class RealTimePricingService:
                     jitter = secrets.randbelow(500) / 1000.0  # 0.0 to 0.5 seconds
                     reconnect_delay += jitter
 
-    async def _on_quote(self, quote: Any) -> None:
+    def _on_quote(self, quote: Any) -> None:
         """Handle incoming quote updates from Alpaca stream."""
         try:
             # Handle both Quote objects and dictionary format
@@ -281,7 +280,7 @@ class RealTimePricingService:
             )
             logging.error(f"Error processing quote for {symbol_str}: {e}")
 
-    async def _on_trade(self, trade: Any) -> None:
+    def _on_trade(self, trade: Any) -> None:
         """Handle incoming trade updates from Alpaca stream."""
         try:
             # Handle both Trade objects and dictionary format
@@ -675,13 +674,13 @@ class RealTimePricingManager:
 
         # Create fallback provider wrapper if available
         fallback_provider = None
-        if self._fallback_provider:
+        if self._fallback_provider is not None:
             fallback_provider = type(
                 "FallbackProvider",
                 (),
                 {
                     "get_current_price": lambda _, sym: self._fallback_provider(sym)
-                    if self._fallback_provider
+                    if self._fallback_provider is not None
                     else None
                 },
             )()
@@ -734,7 +733,7 @@ class RealTimePricingManager:
             return price
 
         # Fallback to standard real-time or REST
-        if self._fallback_provider:
+        if self._fallback_provider is not None:
             return self._fallback_provider(symbol)
 
         return None
