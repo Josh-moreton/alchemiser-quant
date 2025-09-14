@@ -222,21 +222,18 @@ class TradingExecutor(BaseCLI):
         """Display strategy performance tracking after execution."""
         try:
             from rich.console import Console
-            from rich.panel import Panel
-
-            from the_alchemiser.shared.cli.signal_analyzer import SignalAnalyzer
 
             console = Console()
             console.print("\n")
 
-            # Create a signal analyzer instance to reuse the tracking display logic
-            analyzer = SignalAnalyzer(self.settings, self.container)
-            analyzer._display_strategy_tracking()
+            # Use the shared tracking display method from BaseCLI
+            self._display_strategy_tracking(paper_trading=not self.orchestrator.live_trading)
 
         except Exception as e:
             self.logger.warning(f"Failed to display post-execution tracking: {e}")
             try:
                 from rich.console import Console
+                from rich.panel import Panel
 
                 Console().print(
                     Panel(

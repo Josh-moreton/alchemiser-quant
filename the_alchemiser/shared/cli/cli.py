@@ -426,86 +426,11 @@ def status() -> None:
 
         # Display strategy tracking information
         try:
-            from the_alchemiser.portfolio.pnl.strategy_order_tracker import (
-                StrategyOrderTracker,
+            from the_alchemiser.shared.cli.strategy_tracking_utils import (
+                display_detailed_strategy_positions,
             )
 
-            tracker = StrategyOrderTracker(paper_trading=paper_trading)
-
-            # Get positions summary using new DTO methods
-            positions_summary = tracker.get_positions_summary()
-
-            if positions_summary:
-                strategy_table = Table(
-                    title="Strategy Positions (Tracked)", show_lines=True, expand=True
-                )
-                strategy_table.add_column("Strategy", style=STYLE_BOLD_MAGENTA)
-                strategy_table.add_column("Symbol", style=STYLE_BOLD_CYAN)
-                strategy_table.add_column("Qty", justify="right")
-                strategy_table.add_column("Avg Cost", justify="right")
-                strategy_table.add_column("Total Cost", justify="right")
-                strategy_table.add_column("Last Updated", justify="center")
-
-                for position in positions_summary:
-                    # Format timestamp for display
-                    last_updated = position.last_updated.strftime("%m/%d %H:%M")
-
-                    strategy_table.add_row(
-                        position.strategy,
-                        position.symbol,
-                        f"{float(position.quantity):.4f}",
-                        f"${float(position.average_cost):.2f}",
-                        f"${float(position.total_cost):.2f}",
-                        last_updated,
-                    )
-
-                console.print()
-                console.print(strategy_table)
-
-                # Show P&L summary for each strategy with positions
-                strategy_pnl_table = Table(
-                    title="Strategy P&L Summary", show_lines=True, expand=True
-                )
-                strategy_pnl_table.add_column("Strategy", style=STYLE_BOLD_MAGENTA)
-                strategy_pnl_table.add_column("Realized P&L", justify="right")
-                strategy_pnl_table.add_column("Unrealized P&L", justify="right")
-                strategy_pnl_table.add_column("Total P&L", justify="right")
-                strategy_pnl_table.add_column("Return %", justify="right")
-
-                strategies_with_data = {pos.strategy for pos in positions_summary}
-                for strategy_name in strategies_with_data:
-                    try:
-                        pnl_summary = tracker.get_pnl_summary(strategy_name)
-
-                        # Color code P&L
-                        total_pnl = float(pnl_summary.total_pnl)
-                        pnl_color = "green" if total_pnl >= 0 else "red"
-                        pnl_sign = "+" if total_pnl >= 0 else ""
-
-                        return_pct = float(pnl_summary.total_return_pct)
-                        return_color = "green" if return_pct >= 0 else "red"
-                        return_sign = "+" if return_pct >= 0 else ""
-
-                        strategy_pnl_table.add_row(
-                            strategy_name,
-                            f"${float(pnl_summary.realized_pnl):.2f}",
-                            f"${float(pnl_summary.unrealized_pnl):.2f}",
-                            f"[{pnl_color}]{pnl_sign}${total_pnl:.2f}[/{pnl_color}]",
-                            f"[{return_color}]{return_sign}{return_pct:.2f}%[/{return_color}]",
-                        )
-                    except Exception as e:
-                        console.print(
-                            f"[dim yellow]Error getting P&L for {strategy_name}: {e}[/dim yellow]"
-                        )
-
-                if strategy_pnl_table.rows:
-                    console.print()
-                    console.print(strategy_pnl_table)
-            else:
-                console.print()
-                console.print(
-                    "[dim yellow]No strategy positions found in tracking system[/dim yellow]"
-                )
+            display_detailed_strategy_positions(paper_trading=paper_trading)
 
         except Exception as e:  # Non-fatal UI enhancement
             console.print(f"[dim yellow]Strategy tracking unavailable: {e}[/dim yellow]")
