@@ -197,6 +197,86 @@ def trade(
         raise typer.Exit(1)
 
 
+def _determine_trading_mode() -> tuple[bool, bool, str]:
+    """Determine trading mode from endpoint configuration.
+    
+    Returns:
+        Tuple of (is_live, paper_trading, mode_display)
+    """
+    from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+
+    _, _, endpoint = get_alpaca_keys()
+    is_live = bool(endpoint and "paper" not in endpoint.lower())
+    paper_trading = not is_live
+    mode_display = "[bold red]LIVE[/bold red]" if is_live else "[bold blue]PAPER[/bold blue]"
+    
+    return is_live, paper_trading, mode_display
+
+
+def _show_live_warning(is_live: bool) -> None:
+    """Display warning panel for live trading accounts."""
+    if is_live:
+        console.print(
+            Panel(
+                "[bold red]⚠️  LIVE ACCOUNT STATUS[/bold red]\n\n"
+                "You are viewing your LIVE trading account with real money.\n"
+                "This shows actual positions and P&L from your live account.",
+                style="bold red",
+                expand=False,
+            )
+        )
+
+
+def _display_positions(alpaca_manager: Any) -> None:
+    """Display account positions in a formatted table.
+    
+    Args:
+        alpaca_manager: AlpacaManager instance from DI container
+    """
+    try:
+        positions = alpaca_manager.get_all_positions()
+        if positions:
+            table = Table(title="Open Positions", show_lines=True, expand=True)
+            table.add_column("Symbol", style=STYLE_BOLD_CYAN)
+            table.add_column("Qty", justify="right")
+            table.add_column("Avg Price", justify="right")
+            table.add_column("Current", justify="right")
+            table.add_column("Mkt Value", justify="right")
+            table.add_column("Unrlzd P&L", justify="right")
+
+            for position in positions[:50]:  # Cap display to avoid huge tables
+                table.add_row(
+                    str(position.symbol),
+                    f"{float(position.qty):.4f}",
+                    f"${float(position.avg_entry_price):.2f}",
+                    f"${float(position.current_price or 0.0):.2f}",
+                    f"${float(position.market_value or 0.0):.2f}",
+                    f"${float(position.unrealized_pl or 0.0):.2f} ({float(position.unrealized_plpc or 0.0):.2%})",
+                )
+
+            console.print()
+            console.print(table)
+    except Exception as e:  # Non-fatal UI enhancement
+        console.print(f"[dim yellow]Positions display unavailable: {e}[/dim yellow]")
+
+
+def _display_strategy_tracking(paper_trading: bool) -> None:
+    """Display strategy tracking information.
+    
+    Args:
+        paper_trading: Whether using paper trading mode
+    """
+    try:
+        from the_alchemiser.shared.cli.strategy_tracking_utils import (
+            display_detailed_strategy_positions,
+        )
+
+        display_detailed_strategy_positions(paper_trading=paper_trading)
+
+    except Exception as e:  # Non-fatal UI enhancement
+        console.print(f"[dim yellow]Strategy tracking unavailable: {e}[/dim yellow]")
+
+
 @app.command()
 def status() -> None:
     """📈 [bold blue]Show account status and positions[/bold blue].
@@ -209,24 +289,11 @@ def status() -> None:
     # Initialize error handler
     error_handler = TradingSystemErrorHandler()
 
-    # Determine trading mode from endpoint URL
-    from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
-
-    _, _, endpoint = get_alpaca_keys()
-    is_live = endpoint and "paper" not in endpoint.lower()
-    paper_trading = not is_live
-    mode_display = "[bold red]LIVE[/bold red]" if is_live else "[bold blue]PAPER[/bold blue]"
-
-    if is_live:
-        console.print(
-            Panel(
-                "[bold red]⚠️  LIVE ACCOUNT STATUS[/bold red]\n\n"
-                "You are viewing your LIVE trading account with real money.\n"
-                "This shows actual positions and P&L from your live account.",
-                style="bold red",
-                expand=False,
-            )
-        )
+    # Determine trading mode
+    is_live, paper_trading, mode_display = _determine_trading_mode()
+    
+    # Show warning for live accounts
+    _show_live_warning(is_live)
 
     console.print(f"[bold yellow]Fetching {mode_display} account status...[/bold yellow]")
 
@@ -251,51 +318,16 @@ def status() -> None:
         alpaca_manager = container.infrastructure.alpaca_manager()
         account_info: dict[str, Any] = dict(alpaca_manager.get_account())
 
-        # AccountInfo is always returned (never None), so this check is always true
-        # Cast to dict[str, Any] for render_account_info compatibility
+        # Display account information
         render_account_info(dict(account_info))
 
-        # Basic positions display through AlpacaManager (enriched positions feature removed)
-        try:
-            positions = alpaca_manager.get_all_positions()
-            if positions:
-                table = Table(title="Open Positions", show_lines=True, expand=True)
-                table.add_column("Symbol", style=STYLE_BOLD_CYAN)
-                table.add_column("Qty", justify="right")
-                table.add_column("Avg Price", justify="right")
-                table.add_column("Current", justify="right")
-                table.add_column("Mkt Value", justify="right")
-                table.add_column("Unrlzd P&L", justify="right")
-
-                for position in positions[:50]:  # Cap display to avoid huge tables
-                    table.add_row(
-                        str(position.symbol),
-                        f"{float(position.qty):.4f}",
-                        f"${float(position.avg_entry_price):.2f}",
-                        f"${float(position.current_price or 0.0):.2f}",
-                        f"${float(position.market_value or 0.0):.2f}",
-                        f"${float(position.unrealized_pl or 0.0):.2f} ({float(position.unrealized_plpc or 0.0):.2%})",
-                    )
-
-                console.print()
-                console.print(table)
-        except Exception as e:  # Non-fatal UI enhancement
-            console.print(f"[dim yellow]Positions display unavailable: {e}[/dim yellow]")
+        # Display positions
+        _display_positions(alpaca_manager)
 
         # Display strategy tracking information
-        try:
-            from the_alchemiser.shared.cli.strategy_tracking_utils import (
-                display_detailed_strategy_positions,
-            )
-
-            display_detailed_strategy_positions(paper_trading=paper_trading)
-
-        except Exception as e:  # Non-fatal UI enhancement
-            console.print(f"[dim yellow]Strategy tracking unavailable: {e}[/dim yellow]")
+        _display_strategy_tracking(paper_trading)
 
         console.print("[bold green]Account status retrieved successfully![/bold green]")
-
-        # Order lifecycle display removed - legacy feature that used undefined TradingServiceManager
 
     except TradingClientError as e:
         error_handler.handle_error(
