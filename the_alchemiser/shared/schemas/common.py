@@ -16,16 +16,13 @@ Key Features:
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
 from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
 from the_alchemiser.shared.schemas.execution_summary import ExecutionSummary
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, StrategySignal
-
-if TYPE_CHECKING:
-    pass
 
 
 class MultiStrategyExecutionResultDTO(BaseModel):
