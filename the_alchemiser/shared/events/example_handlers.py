@@ -148,13 +148,13 @@ class OrchestrationEventHandler:
         # - Coordinate reconciliation
         # - Monitor system health
 
-    def can_handle(self, event_type: str) -> bool:
+    def can_handle(self, _event_type: str) -> bool:
         """Check if handler can handle a specific event type.
 
         This is a global handler that monitors all events for orchestration.
 
         Args:
-            event_type: The type of event to check
+            _event_type: The type of event to check (unused - monitors all events)
 
         Returns:
             Always True since this monitors all events
