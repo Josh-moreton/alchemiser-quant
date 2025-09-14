@@ -20,7 +20,54 @@ class SignalsBuilder:
     """Builds signals-related HTML content for emails."""
 
     @staticmethod
-    def build_signal_information(signal: Any) -> str:
+    def _get_rsi_color(rsi_value: float) -> str:
+        """Get color for RSI value based on thresholds."""
+        if rsi_value > 80:
+            return "#EF4444"  # Red - Overbought
+        if rsi_value > 70:
+            return "#F59E0B"  # Orange - Warning
+        return "#10B981"  # Green - Normal
+
+    @staticmethod
+    def _get_price_vs_ma_info(current_price: float, ma_200: float) -> tuple[str, str]:
+        """Get price vs moving average comparison info."""
+        if current_price > ma_200:
+            return "Above", "#10B981"
+        return "Below", "#EF4444"
+
+    @staticmethod
+    def _format_indicator_row(symbol: str, indicators: dict[str, Any]) -> str:
+        """Format a single indicator row for technical indicators table."""
+        rsi_10 = indicators.get("rsi_10", 0)
+        rsi_20 = indicators.get("rsi_20", 0)
+        current_price = indicators.get("current_price", 0)
+        ma_200 = indicators.get("ma_200", 0)
+
+        rsi_color = SignalsBuilder._get_rsi_color(rsi_10)
+        price_vs_ma, price_color = SignalsBuilder._get_price_vs_ma_info(current_price, ma_200)
+
+        return f"""
+        <tr>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
+                {symbol}
+            </td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {rsi_color}; font-weight: 600;">
+                {rsi_10:.1f}
+            </td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
+                {rsi_20:.1f}
+            </td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
+                ${current_price:.2f}
+            </td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {price_color};">
+                {price_vs_ma}
+            </td>
+        </tr>
+        """
+
+    @staticmethod
+    def build_signal_information(signal: Any) -> str:  # noqa: ANN401
         """Build HTML for signal information section.
 
         Args:
@@ -65,39 +112,11 @@ class SignalsBuilder:
 
             strategy_name = str(strategy_type).replace(_STRATEGY_TYPE_PREFIX, "")
 
-            indicators_rows = ""
-            for symbol, indicators in technical_indicators.items():
-                rsi_10 = indicators.get("rsi_10", 0)
-                rsi_20 = indicators.get("rsi_20", 0)
-                current_price = indicators.get("current_price", 0)
-                ma_200 = indicators.get("ma_200", 0)
-
-                # Color coding for RSI
-                rsi_color = "#EF4444" if rsi_10 > 80 else "#F59E0B" if rsi_10 > 70 else "#10B981"
-
-                # Price vs MA comparison
-                price_vs_ma = "Above" if current_price > ma_200 else "Below"
-                price_color = "#10B981" if current_price > ma_200 else "#EF4444"
-
-                indicators_rows += f"""
-                <tr>
-                    <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
-                        {symbol}
-                    </td>
-                    <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {rsi_color}; font-weight: 600;">
-                        {rsi_10:.1f}
-                    </td>
-                    <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
-                        {rsi_20:.1f}
-                    </td>
-                    <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
-                        ${current_price:.2f}
-                    </td>
-                    <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: {price_color};">
-                        {price_vs_ma}
-                    </td>
-                </tr>
-                """
+            # Generate indicator rows using helper method
+            indicators_rows = "".join(
+                SignalsBuilder._format_indicator_row(symbol, indicators)
+                for symbol, indicators in technical_indicators.items()
+            )
 
             if indicators_rows:
                 indicators_html += f"""

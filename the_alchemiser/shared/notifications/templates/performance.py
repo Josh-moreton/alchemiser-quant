@@ -12,12 +12,64 @@ from typing import Any
 
 from .base import BaseEmailTemplate
 
-# TODO: Phase 12 - Types available for future migration to structured performance reports
-# from the_alchemiser.shared.value_objects.core_types import BacktestResult, PerformanceMetrics, TradeAnalysis
-
 
 class PerformanceBuilder:
     """Builds performance-related HTML content for emails."""
+
+    @staticmethod
+    def _normalize_order_side(side: Any) -> str:  # noqa: ANN401
+        """Normalize order side to uppercase string."""
+        if hasattr(side, "value") and side.value:
+            return str(side.value).upper()
+        return str(side).upper()
+
+    @staticmethod
+    def _categorize_orders(orders: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Categorize orders into buy and sell lists."""
+        buy_orders = []
+        sell_orders = []
+        
+        for order in orders:
+            side = order.get("side")
+            if not side:
+                continue
+                
+            normalized_side = PerformanceBuilder._normalize_order_side(side)
+            if normalized_side in ["BUY", "ORDERSIDE.BUY"]:
+                buy_orders.append(order)
+            elif normalized_side in ["SELL", "ORDERSIDE.SELL"]:
+                sell_orders.append(order)
+                
+        return buy_orders, sell_orders
+
+    @staticmethod
+    def _format_order_row(order: dict[str, Any]) -> str:
+        """Format a single order as an HTML table row."""
+        side = order.get("side", "N/A")
+        symbol = order.get("symbol", "N/A")
+        qty = order.get("qty", 0)
+        estimated_value = order.get("estimated_value", 0)
+
+        side_str = PerformanceBuilder._normalize_order_side(side)
+        side_color = "#10B981" if side_str == "BUY" else "#EF4444"
+        side_emoji = "🟢" if side_str == "BUY" else "🔴"
+
+        return f"""
+        <tr>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
+                <span style="color: {side_color}; font-weight: 600;">{side_emoji} {side_str}</span>
+            </td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
+                {symbol}
+            </td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
+                {qty:.6f}
+            </td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: #059669; font-weight: 600;">
+                ${estimated_value:,.2f}
+            </td>
+        </tr>
+        """
 
     @staticmethod
     def build_trading_activity(orders: list[dict[str, Any]] | None = None) -> str:
@@ -30,52 +82,13 @@ class PerformanceBuilder:
             </div>
             """
 
-        orders_rows = ""
-        for order in orders[:10]:  # Show up to 10 orders
-            side = order.get("side", "N/A")
-            symbol = order.get("symbol", "N/A")
-            qty = order.get("qty", 0)
-            estimated_value = order.get("estimated_value", 0)
-
-            # Handle both string and enum values for side
-            side_str = side.value.upper() if hasattr(side, "value") else str(side).upper()
-
-            side_color = "#10B981" if side_str == "BUY" else "#EF4444"
-            side_emoji = "🟢" if side_str == "BUY" else "🔴"
-
-            orders_rows += f"""
-            <tr>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
-                    <span style="color: {side_color}; font-weight: 600;">{side_emoji} {side_str}</span>
-                </td>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
-                    {symbol}
-                </td>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
-                    {qty:.6f}
-                </td>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right; color: #059669; font-weight: 600;">
-                    ${estimated_value:,.2f}
-                </td>
-            </tr>
-            """
+        # Generate order rows
+        orders_rows = "".join(
+            PerformanceBuilder._format_order_row(order) for order in orders[:10]
+        )
 
         # Calculate totals for summary
-        buy_orders = []
-        sell_orders = []
-
-        for o in orders:
-            side = o.get("side")
-            if side:
-                if hasattr(side, "value") and side.value and side.value.upper() == "BUY":
-                    buy_orders.append(o)
-                elif hasattr(side, "value") and side.value and side.value.upper() == "SELL":
-                    sell_orders.append(o)
-                elif str(side).upper() in ["BUY", "OrderSide.BUY"]:
-                    buy_orders.append(o)
-                elif str(side).upper() in ["SELL", "OrderSide.SELL"]:
-                    sell_orders.append(o)
-
+        buy_orders, sell_orders = PerformanceBuilder._categorize_orders(orders)
         total_buy_value = sum(o.get("estimated_value", 0) for o in buy_orders)
         total_sell_value = sum(o.get("estimated_value", 0) for o in sell_orders)
 
@@ -222,6 +235,34 @@ class PerformanceBuilder:
     # ====== NEUTRAL MODE FUNCTIONS (NO DOLLAR VALUES/PERCENTAGES) ======
 
     @staticmethod
+    def _format_order_row_neutral(order: dict[str, Any]) -> str:
+        """Format a single order as an HTML table row for neutral mode."""
+        side = order.get("side", "N/A")
+        symbol = order.get("symbol", "N/A")
+        qty = order.get("qty", 0)
+
+        side_str = PerformanceBuilder._normalize_order_side(side)
+        side_color = "#10B981" if side_str == "BUY" else "#EF4444"
+        side_emoji = "🟢" if side_str == "BUY" else "🔴"
+
+        return f"""
+        <tr>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
+                <span style="color: {side_color}; font-weight: 600;">{side_emoji} {side_str}</span>
+            </td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
+                {symbol}
+            </td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
+                {qty:.6f} shares
+            </td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: center; color: #10B981;">
+                ✅ Executed
+            </td>
+        </tr>
+        """
+
+    @staticmethod
     def build_trading_activity_neutral(orders: list[dict[str, Any]] | None = None) -> str:
         """Build HTML for trading activity section without dollar values."""
         if not orders or len(orders) == 0:
@@ -232,50 +273,13 @@ class PerformanceBuilder:
             </div>
             """
 
-        orders_rows = ""
-        for order in orders[:10]:  # Show up to 10 orders
-            side = order.get("side", "N/A")
-            symbol = order.get("symbol", "N/A")
-            qty = order.get("qty", 0)
-
-            # Handle both string and enum values for side
-            side_str = side.value.upper() if hasattr(side, "value") else str(side).upper()
-
-            side_color = "#10B981" if side_str == "BUY" else "#EF4444"
-            side_emoji = "🟢" if side_str == "BUY" else "🔴"
-
-            orders_rows += f"""
-            <tr>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
-                    <span style="color: {side_color}; font-weight: 600;">{side_emoji} {side_str}</span>
-                </td>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
-                    {symbol}
-                </td>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
-                    {qty:.6f} shares
-                </td>
-                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: center; color: #10B981;">
-                    ✅ Executed
-                </td>
-            </tr>
-            """
+        # Generate order rows
+        orders_rows = "".join(
+            PerformanceBuilder._format_order_row_neutral(order) for order in orders[:10]
+        )
 
         # Calculate totals for summary (count only, no dollar amounts)
-        buy_orders = []
-        sell_orders = []
-
-        for o in orders:
-            side = o.get("side")
-            if side:
-                if hasattr(side, "value") and side.value and side.value.upper() == "BUY":
-                    buy_orders.append(o)
-                elif hasattr(side, "value") and side.value and side.value.upper() == "SELL":
-                    sell_orders.append(o)
-                elif str(side).upper() in ["BUY", "OrderSide.BUY"]:
-                    buy_orders.append(o)
-                elif str(side).upper() in ["SELL", "OrderSide.SELL"]:
-                    sell_orders.append(o)
+        buy_orders, sell_orders = PerformanceBuilder._categorize_orders(orders)
 
         return f"""
         <div style="margin: 24px 0;">

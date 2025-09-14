@@ -80,6 +80,85 @@ class PortfolioBuilder:
     """Builds portfolio-related HTML content for emails."""
 
     @staticmethod
+    def _extract_current_positions(data: dict[str, Any]) -> dict[str, Any]:
+        """Extract current positions from execution result data."""
+        # Use account_after open_positions from Alpaca Pydantic models
+        account_after = data.get("account_info_after", {})
+        if isinstance(account_after, dict) and account_after.get("open_positions"):
+            open_positions = account_after.get("open_positions", [])
+            current_positions = {}
+            if isinstance(open_positions, list):
+                for pos in open_positions:
+                    if isinstance(pos, dict) and pos.get("symbol"):
+                        current_positions[pos["symbol"]] = pos
+            return current_positions
+        return {}
+
+    @staticmethod
+    def _extract_portfolio_value(data: dict[str, Any]) -> float:
+        """Extract portfolio value from account data."""
+        account_after = data.get("account_info_after", {})
+        
+        if not isinstance(account_after, dict):
+            raise ValueError("account_after is not a dict, cannot extract portfolio value")
+        
+        # Direct extraction from Alpaca account data
+        portfolio_value_raw = account_after.get("portfolio_value") or account_after.get("equity")
+        if portfolio_value_raw is None:
+            raise ValueError("Portfolio value not available in account_after")
+        
+        try:
+            return float(portfolio_value_raw)
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                f"Unable to extract valid portfolio value from account_after: {e}. "
+                "Portfolio value is required for allocation comparison display."
+            ) from e
+
+    @staticmethod
+    def _extract_current_values(current_positions: dict[str, Any]) -> dict[str, float]:
+        """Extract current market values from positions."""
+        current_values: dict[str, float] = {}
+        for symbol, pos in current_positions.items():
+            if isinstance(pos, dict):
+                try:
+                    current_values[symbol] = float(pos.get("market_value", 0))
+                except (ValueError, TypeError):
+                    current_values[symbol] = 0.0
+        return current_values
+
+    @staticmethod
+    def _get_order_action_info(side: str) -> tuple[str, str]:
+        """Get color and emoji for order action."""
+        side_upper = side.upper()
+        if side_upper == "BUY":
+            return "#10B981", "📈"  # Green
+        if side_upper == "SELL":
+            return "#EF4444", "📉"  # Red
+        return "#6B7280", "📊"  # Gray
+
+    @staticmethod
+    def _get_order_status_info(status: str) -> tuple[str, str]:
+        """Get color and display string for order status."""
+        status_upper = status.upper()
+        if status_upper in ["FILLED", "COMPLETE"]:
+            return "#10B981", f"✅ {status_upper}"  # Green
+        if status_upper in ["PARTIAL", "PARTIALLY_FILLED"]:
+            return "#F59E0B", f"🔄 {status_upper}"  # Orange
+        if status_upper in ["PENDING", "NEW", "ACCEPTED"]:
+            return "#3B82F6", f"⏳ {status_upper}"  # Blue
+        if status_upper in ["CANCELLED", "CANCELED", "REJECTED"]:
+            return "#EF4444", f"❌ {status_upper}"  # Red
+        return "#6B7280", f"i {status_upper}"  # Gray
+
+    @staticmethod
+    def _format_quantity_display(qty: Any) -> str:  # noqa: ANN401
+        """Format quantity for display."""
+        if isinstance(qty, int | float) and qty != 0:
+            return f"{qty:.2f}" if qty >= 1 else f"{qty:.6f}".rstrip("0").rstrip(".")
+        return "—"
+
+    @staticmethod
     def build_positions_table(open_positions: list[PositionInfo]) -> str:
         """Build HTML table for open positions."""
         if not open_positions:
@@ -203,37 +282,20 @@ class PortfolioBuilder:
 
     @staticmethod
     def build_portfolio_allocation(result: ExecutionLike) -> str:
-        """Build HTML display of portfolio allocation.
-
-        Precedence:
-        1. final_portfolio_state.allocations.current_percent
-        2. top-level consolidated_portfolio (MultiStrategyExecutionResultDTO)
-        3. execution_summary.consolidated_portfolio
-        """
+        """Build HTML display of portfolio allocation using direct data access."""
         data = _normalise_result(result)
         try:
-            final_portfolio_state = data.get("final_portfolio_state") or {}
-            if final_portfolio_state:
-                allocations = final_portfolio_state.get("allocations", {})
-                portfolio_lines: list[str] = []
-                for symbol, info in allocations.items():
-                    current_percent = info.get("current_percent", 0)
-                    if current_percent and current_percent > 0.1:
-                        portfolio_lines.append(
-                            f"<span style='font-weight: 600;'>{symbol}:</span> {current_percent:.1f}%"
-                        )
-                if portfolio_lines:
-                    return "<br>".join(portfolio_lines)
-
-            top_consolidated = data.get("consolidated_portfolio", {}) or {}
-            if top_consolidated:
+            # Use top-level consolidated_portfolio directly from execution result
+            consolidated_portfolio = data.get("consolidated_portfolio", {})
+            if consolidated_portfolio:
                 return "<br>".join(
                     [
                         f"<span style='font-weight: 600;'>{symbol}:</span> {weight:.1%}"
-                        for symbol, weight in list(top_consolidated.items())[:5]
+                        for symbol, weight in list(consolidated_portfolio.items())[:5]
                     ]
                 )
-
+            
+            # Fallback to execution_summary if needed
             exec_summary = data.get("execution_summary", {}) or {}
             summary_consolidated = exec_summary.get("consolidated_portfolio", {})
             if summary_consolidated:
@@ -243,6 +305,7 @@ class PortfolioBuilder:
                         for symbol, weight in list(summary_consolidated.items())[:5]
                     ]
                 )
+            
             return "<span style='color: #6B7280; font-style: italic;'>Portfolio data unavailable</span>"
         except Exception as e:  # pragma: no cover - defensive path
             return f"<span style='color: #EF4444;'>Error loading portfolio: {e}</span>"
@@ -436,64 +499,10 @@ class PortfolioBuilder:
             if not target_portfolio:
                 return "<p>No target portfolio data available</p>"
 
-            # Try multiple sources for positions and account data
-            account_after = data.get("account_info_after", {})
-            final_portfolio_state = data.get("final_portfolio_state")
-
-            # Try different methods to get current positions data
-            current_positions: dict[str, Any] = {}
-
-            # Method 1: Fresh positions data
-            if final_portfolio_state and final_portfolio_state.get("current_positions"):
-                current_positions = final_portfolio_state["current_positions"]
-
-            # Method 2: account_after open_positions
-            elif isinstance(account_after, dict) and account_after.get("open_positions"):
-                open_positions = account_after.get("open_positions", [])
-                current_positions = {}
-                if isinstance(open_positions, list):
-                    for pos in open_positions:
-                        if isinstance(pos, dict) and pos.get("symbol"):
-                            current_positions[pos["symbol"]] = pos
-
-            # Method 3: final_positions attribute
-            elif data.get("final_positions"):
-                current_positions = data["final_positions"]
-
-            # Method 4: positions attribute
-            elif data.get("positions"):
-                current_positions = data["positions"]
-
-            # Method 5: execution_summary positions
-            elif execution_summary and "positions" in execution_summary:
-                current_positions = execution_summary["positions"]
-
-            if isinstance(account_after, dict):
-                try:
-                    portfolio_value_raw = account_after.get("portfolio_value") or account_after.get(
-                        "equity"
-                    )
-                    if portfolio_value_raw is None:
-                        raise ValueError("Portfolio value not available in account_after")
-                    portfolio_value = float(portfolio_value_raw)
-                except (TypeError, ValueError) as e:
-                    raise ValueError(
-                        f"Unable to extract valid portfolio value from account_after: {e}. "
-                        "Portfolio value is required for allocation comparison display."
-                    ) from e
-            else:
-                raise ValueError("account_after is not a dict, cannot extract portfolio value")
-
-            # If we have positions, extract current values
-            current_values: dict[str, float] = {}
-            if current_positions:
-                # Manual extraction of position values
-                for symbol, pos in current_positions.items():
-                    if isinstance(pos, dict):
-                        try:
-                            current_values[symbol] = float(pos.get("market_value", 0))
-                        except (ValueError, TypeError):
-                            current_values[symbol] = 0.0
+            # Extract data using helper methods
+            current_positions = PortfolioBuilder._extract_current_positions(data)
+            portfolio_value = PortfolioBuilder._extract_portfolio_value(data)
+            current_values = PortfolioBuilder._extract_current_values(current_positions)
 
             # Calculate total portfolio value from positions if not available
             # Avoid direct float equality; treat very small portfolio_value as zero
@@ -571,9 +580,6 @@ class PortfolioBuilder:
             debug_info = (
                 f'<div style="font-size: 12px; color: #666; margin: 10px 0;"><strong>Debug Information:</strong><br/>'
                 f"• Target portfolio: {bool(target_portfolio)}<br/>"
-                f"• account_after: {bool(account_after)}<br/>"
-                f"• execution_summary: {bool(execution_summary)}<br/>"
-                f"• final_portfolio_state: {bool(final_portfolio_state)}<br/>"
                 f"• Error: {e}</div>"
             )
             return f"<p>Error loading portfolio data. Check logs for details.</p>{debug_info}"
@@ -680,49 +686,20 @@ class PortfolioBuilder:
 
         for order in orders:
             # Extract order details safely
-            side = str(order.get("side", "")).upper()
+            side = str(order.get("side", ""))
             symbol = str(order.get("symbol", ""))
             qty = order.get("qty", 0)
-            status = str(order.get("status", "unknown")).upper()
+            status = str(order.get("status", "unknown"))
 
-            # Determine colors and formatting
-            if side == "BUY":
-                action_color = "#10B981"  # Green
-                action_emoji = "📈"
-            elif side == "SELL":
-                action_color = "#EF4444"  # Red
-                action_emoji = "📉"
-            else:
-                action_color = "#6B7280"  # Gray
-                action_emoji = "📊"
-
-            # Status colors
-            if status in ["FILLED", "COMPLETE"]:
-                status_color = "#10B981"  # Green
-                status_display = f"✅ {status}"
-            elif status in ["PARTIAL", "PARTIALLY_FILLED"]:
-                status_color = "#F59E0B"  # Orange
-                status_display = f"🔄 {status}"
-            elif status in ["PENDING", "NEW", "ACCEPTED"]:
-                status_color = "#3B82F6"  # Blue
-                status_display = f"⏳ {status}"
-            elif status in ["CANCELLED", "CANCELED", "REJECTED"]:
-                status_color = "#EF4444"  # Red
-                status_display = f"❌ {status}"
-            else:
-                status_color = "#6B7280"  # Gray
-                status_display = f"i {status}"
-
-            # Format quantity display
-            if isinstance(qty, int | float) and qty != 0:
-                qty_display = f"{qty:.2f}" if qty >= 1 else f"{qty:.6f}".rstrip("0").rstrip(".")
-            else:
-                qty_display = "—"
+            # Use helper methods for formatting
+            action_color, action_emoji = PortfolioBuilder._get_order_action_info(side)
+            status_color, status_display = PortfolioBuilder._get_order_status_info(status)
+            qty_display = PortfolioBuilder._format_quantity_display(qty)
 
             table_html += f"""
                 <tr>
                     <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; font-weight: 600; color: {action_color};">
-                        {action_emoji} {side}
+                        {action_emoji} {side.upper()}
                     </td>
                     <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; font-weight: 600; color: #1F2937;">
                         {symbol}
