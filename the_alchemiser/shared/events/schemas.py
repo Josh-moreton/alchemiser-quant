@@ -88,3 +88,57 @@ class TradeExecuted(BaseEvent):
     )
     success: bool = Field(..., description="Whether execution was successful")
     error_message: str | None = Field(default=None, description="Error message if execution failed")
+
+
+class TradingWorkflowRequested(BaseEvent):
+    """Event emitted to request a complete trading workflow execution.
+
+    This replaces direct orchestrator instantiation and method calls.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="TradingWorkflowRequested", description="Type of event")
+
+    # Trading workflow specific fields
+    workflow_mode: str = Field(..., description="Workflow mode: 'signal_only' or 'full_trading'")
+    ignore_market_hours: bool = Field(default=False, description="Whether to ignore market hours")
+    execution_parameters: dict[str, Any] | None = Field(
+        default=None, description="Additional execution parameters"
+    )
+
+
+class PortfolioAnalysisRequested(BaseEvent):
+    """Event emitted to request portfolio analysis.
+
+    Replaces direct PortfolioOrchestrator method calls.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="PortfolioAnalysisRequested", description="Type of event")
+
+    # Portfolio analysis specific fields
+    trigger_event_id: str = Field(..., description="ID of event that triggered this analysis")
+    target_allocations: dict[str, Decimal] | None = Field(
+        default=None, description="Target allocation percentages"
+    )
+    analysis_type: str = Field(
+        default="comprehensive", description="Type of analysis: 'state', 'comparison', 'comprehensive'"
+    )
+
+
+class PortfolioAnalysisCompleted(BaseEvent):
+    """Event emitted when portfolio analysis is completed.
+
+    Contains portfolio analysis results for consumption by other handlers.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="PortfolioAnalysisCompleted", description="Type of event")
+
+    # Portfolio analysis results
+    portfolio_state: dict[str, Any] = Field(..., description="Current portfolio state")
+    account_data: dict[str, Any] = Field(..., description="Comprehensive account data")
+    allocation_comparison: dict[str, Any] | None = Field(
+        default=None, description="Target vs current allocation comparison"
+    )
+    analysis_timestamp: str = Field(..., description="ISO timestamp of analysis completion")
