@@ -64,22 +64,22 @@ def _build_closed_positions_pnl_email_html(account_info: AccountInfo | EnrichedA
 
 
 def _build_technical_indicators_email_html(
-    strategy_signals: Any,
-) -> str:  # TODO: Phase 10 - Add proper signal types
+    strategy_signals: dict[Any, Any],
+) -> str:
     """Backward compatibility function."""
     return SignalsBuilder.build_technical_indicators(strategy_signals)
 
 
 def _build_detailed_strategy_signals_email_html(
-    strategy_signals: Any, strategy_summary: Any
-) -> str:  # TODO: Phase 10 - Add proper types
+    strategy_signals: dict[Any, Any], strategy_summary: dict[str, Any]
+) -> str:
     """Backward compatibility function."""
     return SignalsBuilder.build_detailed_strategy_signals(strategy_signals, strategy_summary)
 
 
 def _build_enhanced_trading_summary_email_html(
-    trading_summary: Any,
-) -> str:  # TODO: Phase 10 - Add proper trading summary type
+    trading_summary: dict[str, Any],
+) -> str:
     """Backward compatibility function."""
     return PerformanceBuilder.build_trading_summary(trading_summary)
 
