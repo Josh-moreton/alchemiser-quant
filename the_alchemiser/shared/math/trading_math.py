@@ -20,6 +20,7 @@ ensuring predictable behavior and easy testing.
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 # TODO: Phase 12 - Types available for future migration to structured trading calculations
@@ -440,7 +441,7 @@ def calculate_rebalance_amounts(
             )
             logger.error("🚨 This indicates a threshold calculation bug that will cause trade loss")
 
-        if trade_amount == 0.0 and target_weight > 0.01:
+        if math.isclose(trade_amount, 0.0, abs_tol=1e-10) and target_weight > 0.01:
             logger.error(
                 f"🚨 ZERO_TRADE_AMOUNT_BUG_{symbol}: Target weight {target_weight * 100:.1f}% but trade_amount=0"
             )

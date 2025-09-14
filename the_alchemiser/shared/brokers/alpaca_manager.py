@@ -16,7 +16,7 @@ Phase 3 Update: Moved to shared module to resolve architectural boundary violati
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
@@ -28,6 +28,11 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
+from the_alchemiser.shared.dto.broker_dto import (
+    OrderExecutionResult,
+    WebSocketResult,
+)
+from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
     MarketDataRepository,
@@ -35,19 +40,9 @@ from the_alchemiser.shared.protocols.repository import (
 )
 
 if TYPE_CHECKING:
-    from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
     from the_alchemiser.shared.types.market_data_port import MarketDataPort
 
 logger = logging.getLogger(__name__)
-
-
-# Import DTOs from shared module to maintain a single source of truth
-from the_alchemiser.shared.dto.broker_dto import (
-    OrderExecutionResult,
-    WebSocketResult,
-)
-
-# Use DTOs directly without aliases
 
 
 class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
@@ -136,8 +131,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 avg_fill_price = Decimal(str(avg_fill_price))
 
             # Simple timestamp handling
-            from datetime import UTC, datetime
-
             submitted_at = getattr(order, "submitted_at", None) or datetime.now(UTC)
             if isinstance(submitted_at, str):
                 # Handle ISO format strings
@@ -180,8 +173,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self, error: Exception, context: str = "Operation", order_id: str = "unknown"
     ) -> OrderExecutionResult:
         """Create an error OrderExecutionResult."""
-        from datetime import UTC
-
         return OrderExecutionResult(
             success=False,
             order_id=order_id,
@@ -260,11 +251,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def place_order(self, order_request: Any) -> ExecutedOrderDTO:
         """Place an order and return execution details."""
-        from datetime import UTC
-        from decimal import Decimal
-
-        from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
-
         try:
             order = self._trading_client.submit_order(order_request)
 
@@ -389,11 +375,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         except ValueError as e:
             logger.error(f"Invalid order parameters: {e}")
             # Return error DTO for consistency
-            from datetime import UTC
-            from decimal import Decimal
-
-            from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
-
             return ExecutedOrderDTO(
                 order_id="",
                 symbol=symbol.upper() if symbol else "UNKNOWN",
@@ -409,11 +390,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         except Exception as e:
             logger.error(f"Failed to place market order for {symbol}: {e}")
             # Return error DTO for consistency
-            from datetime import UTC
-            from decimal import Decimal
-
-            from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
-
             return ExecutedOrderDTO(
                 order_id="",
                 symbol=symbol.upper() if symbol else "UNKNOWN",
