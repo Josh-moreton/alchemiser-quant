@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.orchestration.strategy_orchestrator import StrategyOrchestrator
+from the_alchemiser.orchestration.strategy_orchestrator import MultiStrategyOrchestrator
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
 from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
@@ -54,7 +54,7 @@ class SignalOrchestrator:
 
         # Strategy allocations are already in the correct format (StrategyType -> float)
         typed_allocations = strategy_allocations
-        strategy_orch = StrategyOrchestrator(market_data_port, typed_allocations)
+        strategy_orch = MultiStrategyOrchestrator(market_data_port, typed_allocations)
         aggregated_signals = strategy_orch.generate_all_signals(datetime.now(UTC))
 
         # Convert aggregated signals to display format

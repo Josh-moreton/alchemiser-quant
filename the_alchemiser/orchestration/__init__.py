@@ -12,7 +12,7 @@ for a modern, decoupled, and extensible architecture.
 Exports:
     - SignalOrchestrator: Signal analysis workflow orchestration
     - TradingOrchestrator: Trading execution workflow orchestration
-    - StrategyOrchestrator: Multi-strategy coordination
+    - MultiStrategyOrchestrator: Multi-strategy coordination
     - PortfolioOrchestrator: Portfolio rebalancing workflow orchestration
     - EventDrivenOrchestrator: Event-driven workflow orchestration (NEW)
 """
@@ -20,13 +20,13 @@ Exports:
 from .event_driven_orchestrator import EventDrivenOrchestrator
 from .portfolio_orchestrator import PortfolioOrchestrator
 from .signal_orchestrator import SignalOrchestrator
-from .strategy_orchestrator import StrategyOrchestrator
+from .strategy_orchestrator import MultiStrategyOrchestrator
 from .trading_orchestrator import TradingOrchestrator
 
 __all__ = [
     "EventDrivenOrchestrator",
     "PortfolioOrchestrator",
     "SignalOrchestrator",
-    "StrategyOrchestrator",
+    "MultiStrategyOrchestrator",
     "TradingOrchestrator",
 ]

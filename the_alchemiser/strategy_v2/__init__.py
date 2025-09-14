@@ -9,7 +9,7 @@ This module provides a clean, boundary-enforcing strategy system that:
 - Maintains strict separation from portfolio and execution concerns
 
 Public API:
-- StrategyOrchestrator: Main entry point for running strategies
+- SingleStrategyOrchestrator: Main entry point for running strategies
 - get_strategy: Registry access for strategy engines
 - StrategyContext: Input context for strategy execution
 """
@@ -17,7 +17,7 @@ Public API:
 from __future__ import annotations
 
 # Core imports
-from .core.orchestrator import StrategyOrchestrator
+from .core.orchestrator import SingleStrategyOrchestrator
 from .core.registry import get_strategy, list_strategies, register_strategy
 from .models.context import StrategyContext
 
@@ -25,7 +25,7 @@ from .models.context import StrategyContext
 __all__ = [
     # Core components
     "StrategyContext",
-    "StrategyOrchestrator",
+    "SingleStrategyOrchestrator",
     "get_strategy",
     "list_strategies",
     "register_strategy",

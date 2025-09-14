@@ -10,11 +10,11 @@ mapping strategy names to their implementations.
 from __future__ import annotations
 
 from .factory import create_orchestrator, create_orchestrator_with_adapter
-from .orchestrator import StrategyOrchestrator
+from .orchestrator import SingleStrategyOrchestrator
 from .registry import get_strategy, list_strategies, register_strategy
 
 __all__ = [
-    "StrategyOrchestrator",
+    "SingleStrategyOrchestrator",
     "create_orchestrator",
     "create_orchestrator_with_adapter",
     "get_strategy",
