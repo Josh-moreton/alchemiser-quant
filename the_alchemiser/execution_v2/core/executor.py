@@ -114,10 +114,20 @@ class Executor:
             price_decimal = Decimal(str(price))
             shares = abs(item.trade_amount) / price_decimal
 
+            # Check if this is a complete exit (target_weight = 0 and selling)
+            is_complete_exit = (
+                item.action == "SELL" and 
+                hasattr(item, "target_weight") and 
+                item.target_weight == Decimal("0")
+            )
+
             # Place market order - returns ExecutedOrderDTO
             side = item.action.lower()  # "BUY" -> "buy", "SELL" -> "sell"
             executed_order = self.alpaca_manager.place_market_order(
-                symbol=item.symbol, side=side, qty=float(shares)
+                symbol=item.symbol, 
+                side=side, 
+                qty=float(shares),
+                is_complete_exit=is_complete_exit
             )
 
             # Extract results from ExecutedOrderDTO
