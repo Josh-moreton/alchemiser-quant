@@ -44,13 +44,10 @@ class ModularConfig:
         self._config[key] = value
 
 
-def load_module_config(module_name: str) -> ModularConfig:
+def load_module_config() -> ModularConfig:
     """Load configuration for a specific module.
 
     Placeholder implementation. Will be enhanced in Phase 2.
-
-    Args:
-        module_name: Name of the module
 
     Returns:
         Module configuration
