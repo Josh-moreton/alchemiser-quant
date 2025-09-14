@@ -4,7 +4,6 @@ Tick size service for backward compatibility.
 """
 
 from decimal import Decimal
-from typing import Any
 
 
 class DynamicTickSizeService:
@@ -19,6 +18,7 @@ class DynamicTickSizeService:
             
         Returns:
             Tick size as Decimal
+
         """
         # Default to 0.01 (1 cent) for most stocks
         return Decimal("0.01")
@@ -32,6 +32,7 @@ class DynamicTickSizeService:
             
         Returns:
             Price rounded to valid tick size
+
         """
         tick_size = self.get_tick_size(symbol, price)
         return (price / tick_size).quantize(Decimal("1")) * tick_size

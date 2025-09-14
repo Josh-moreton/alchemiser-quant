@@ -3,7 +3,7 @@
 WebSocket order monitoring for backward compatibility.
 """
 
-from typing import Any, List
+from typing import Any
 
 from the_alchemiser.shared.dto.broker_dto import WebSocketResult
 
@@ -18,12 +18,13 @@ class OrderCompletionMonitor:
             trading_client: Alpaca trading client
             api_key: API key
             secret_key: Secret key
+
         """
         self.trading_client = trading_client
         self.api_key = api_key
         self.secret_key = secret_key
     
-    def wait_for_order_completion(self, order_ids: List[str], max_wait_seconds: int = 60) -> WebSocketResult:
+    def wait_for_order_completion(self, order_ids: list[str], max_wait_seconds: int = 60) -> WebSocketResult:
         """Wait for order completion.
         
         Args:
@@ -32,6 +33,7 @@ class OrderCompletionMonitor:
             
         Returns:
             WebSocketResult with completion status
+
         """
         # This is a minimal implementation that returns a basic result
         # In practice, this should implement actual WebSocket monitoring
