@@ -24,6 +24,9 @@ from ..models.sizing_policy import DEFAULT_SIZING_POLICY, SizingPolicy
 
 logger = logging.getLogger(__name__)
 
+# Module name constant for consistent logging
+MODULE_NAME = "portfolio_v2.core.planner"
+
 
 class RebalancePlanCalculator:
     """Core calculator for rebalance plans.
@@ -63,7 +66,7 @@ class RebalancePlanCalculator:
             logger,
             logging.INFO,
             "Building rebalance plan",
-            module="portfolio_v2.core.planner",
+            module=MODULE_NAME,
             action="build_plan",
             correlation_id=correlation_id,
             target_symbols=sorted(strategy.target_weights.keys()),
@@ -124,7 +127,7 @@ class RebalancePlanCalculator:
                     "portfolio_value": str(portfolio_value),
                     "cash_balance": str(snapshot.cash),
                     "position_count": len(snapshot.positions),
-                    "module": "portfolio_v2.core.planner",
+                    "module": MODULE_NAME,
                 },
             )
 
@@ -132,7 +135,7 @@ class RebalancePlanCalculator:
                 logger,
                 logging.INFO,
                 "Rebalance plan built successfully",
-                module="portfolio_v2.core.planner",
+                module=MODULE_NAME,
                 action="build_plan",
                 correlation_id=correlation_id,
                 item_count=len(trade_items),
@@ -146,7 +149,7 @@ class RebalancePlanCalculator:
                 logger,
                 logging.ERROR,
                 f"Failed to build rebalance plan: {e}",
-                module="portfolio_v2.core.planner",
+                module=MODULE_NAME,
                 action="build_plan",
                 correlation_id=correlation_id,
                 error=str(e),

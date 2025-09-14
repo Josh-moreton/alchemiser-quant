@@ -19,6 +19,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Module name constant for consistent logging
+MODULE_NAME = "portfolio_v2.adapters.alpaca_data_adapter"
+
 
 class AlpacaDataAdapter:
     """Adapter for accessing portfolio data via shared AlpacaManager.
@@ -50,7 +53,7 @@ class AlpacaDataAdapter:
             logger,
             logging.INFO,
             "Fetching current positions",
-            module="portfolio_v2.adapters.alpaca_data_adapter",
+            module=MODULE_NAME,
             action="get_positions",
         )
 
@@ -76,7 +79,7 @@ class AlpacaDataAdapter:
                 logger,
                 logging.INFO,
                 f"Retrieved {len(positions)} positions",
-                module="portfolio_v2.adapters.alpaca_data_adapter",
+                module=MODULE_NAME,
                 action="get_positions",
                 position_count=len(positions),
                 symbols=sorted(positions.keys()),
@@ -89,7 +92,7 @@ class AlpacaDataAdapter:
                 logger,
                 logging.ERROR,
                 f"Failed to retrieve positions: {e}",
-                module="portfolio_v2.adapters.alpaca_data_adapter",
+                module=MODULE_NAME,
                 action="get_positions",
                 error=str(e),
             )
@@ -115,7 +118,7 @@ class AlpacaDataAdapter:
             logger,
             logging.INFO,
             f"Fetching current prices for {len(symbols)} symbols",
-            module="portfolio_v2.adapters.alpaca_data_adapter",
+            module=MODULE_NAME,
             action="get_current_prices",
             symbols=sorted(symbols),
         )
@@ -137,7 +140,7 @@ class AlpacaDataAdapter:
                 logger,
                 logging.INFO,
                 f"Retrieved prices for {len(prices)} symbols",
-                module="portfolio_v2.adapters.alpaca_data_adapter",
+                module=MODULE_NAME,
                 action="get_current_prices",
                 symbol_count=len(prices),
             )
@@ -149,7 +152,7 @@ class AlpacaDataAdapter:
                 logger,
                 logging.ERROR,
                 f"Failed to retrieve prices: {e}",
-                module="portfolio_v2.adapters.alpaca_data_adapter",
+                module=MODULE_NAME,
                 action="get_current_prices",
                 error=str(e),
             )
@@ -169,7 +172,7 @@ class AlpacaDataAdapter:
             logger,
             logging.INFO,
             "Fetching account cash balance",
-            module="portfolio_v2.adapters.alpaca_data_adapter",
+            module=MODULE_NAME,
             action="get_account_cash",
         )
 
@@ -181,7 +184,7 @@ class AlpacaDataAdapter:
                 logger,
                 logging.INFO,
                 f"Retrieved cash balance: ${cash}",
-                module="portfolio_v2.adapters.alpaca_data_adapter",
+                module=MODULE_NAME,
                 action="get_account_cash",
                 cash_balance=str(cash),
             )
@@ -193,7 +196,7 @@ class AlpacaDataAdapter:
                 logger,
                 logging.ERROR,
                 f"Failed to retrieve cash balance: {e}",
-                module="portfolio_v2.adapters.alpaca_data_adapter",
+                module=MODULE_NAME,
                 action="get_account_cash",
                 error=str(e),
             )

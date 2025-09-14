@@ -20,6 +20,9 @@ from ..models.portfolio_snapshot import PortfolioSnapshot
 
 logger = logging.getLogger(__name__)
 
+# Module name constant for consistent logging
+MODULE_NAME = "portfolio_v2.core.state_reader"
+
 
 class PortfolioStateReader:
     """Builds immutable portfolio snapshots from live market data.
@@ -55,7 +58,7 @@ class PortfolioStateReader:
             logger,
             logging.INFO,
             "Building portfolio snapshot",
-            module="portfolio_v2.core.state_reader",
+            module=MODULE_NAME,
             action="build_snapshot",
             requested_symbols=sorted(symbols) if symbols else None,
         )
@@ -103,7 +106,7 @@ class PortfolioStateReader:
                     logger,
                     logging.WARNING,
                     "Snapshot total value validation failed - continuing anyway",
-                    module="portfolio_v2.core.state_reader",
+                    module=MODULE_NAME,
                     action="build_snapshot",
                     calculated_total=str(snapshot.get_total_position_value() + snapshot.cash),
                     snapshot_total=str(snapshot.total_value),
@@ -113,7 +116,7 @@ class PortfolioStateReader:
                 logger,
                 logging.INFO,
                 "Portfolio snapshot built successfully",
-                module="portfolio_v2.core.state_reader",
+                module=MODULE_NAME,
                 action="build_snapshot",
                 position_count=len(positions),
                 price_count=len(prices),
@@ -129,7 +132,7 @@ class PortfolioStateReader:
                 logger,
                 logging.ERROR,
                 f"Failed to build portfolio snapshot: {e}",
-                module="portfolio_v2.core.state_reader",
+                module=MODULE_NAME,
                 action="build_snapshot",
                 error=str(e),
             )
