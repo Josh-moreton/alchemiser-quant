@@ -373,19 +373,19 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self, symbol: str, side: str, qty: float | None, notional: float | None
     ) -> tuple[str, str]:
         """Validate market order parameters.
-        
+
         Args:
             symbol: Stock symbol
-            side: 'buy' or 'sell'  
+            side: 'buy' or 'sell'
             qty: Quantity to trade
             notional: Dollar amount to trade
-            
+
         Returns:
             Tuple of (normalized_symbol, normalized_side)
-            
+
         Raises:
             ValueError: If validation fails
-            
+
         """
         if not symbol or not symbol.strip():
             raise ValueError("Symbol cannot be empty")
@@ -405,27 +405,27 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         side_normalized = side.lower().strip()
         if side_normalized not in ["buy", "sell"]:
             raise ValueError("Side must be 'buy' or 'sell'")
-            
+
         return symbol.upper(), side_normalized
 
     def _adjust_quantity_for_complete_exit(
         self, symbol: str, side: str, qty: float | None, is_complete_exit: bool
     ) -> float | None:
         """Adjust quantity for complete exit if needed.
-        
+
         Args:
             symbol: Stock symbol
             side: Order side
             qty: Original quantity
             is_complete_exit: Whether this is a complete exit
-            
+
         Returns:
             Adjusted quantity or original quantity
-            
+
         """
         if not (is_complete_exit and side == "sell" and qty is not None):
             return qty
-            
+
         try:
             position = self.get_position(symbol)
             if not position:
@@ -439,7 +439,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                     f"{final_qty} instead of calculated {qty}"
                 )
                 return final_qty
-            
+
             # Fallback to total qty if qty_available not available
             total_qty = getattr(position, "qty", None)
             if total_qty is not None:
@@ -451,24 +451,24 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 return final_qty
         except Exception as e:
             logger.warning(f"Failed to get position for complete exit of {symbol}: {e}")
-            
+
         return qty
 
     def _create_error_dto(
         self, order_id: str, symbol: str, side: str, qty: float | None, error_message: str
     ) -> ExecutedOrderDTO:
         """Create error ExecutedOrderDTO for failed orders.
-        
+
         Args:
             order_id: Error order ID
-            symbol: Stock symbol  
+            symbol: Stock symbol
             side: Order side
             qty: Order quantity
             error_message: Error description
-            
+
         Returns:
             ExecutedOrderDTO with error details
-            
+
         """
         return ExecutedOrderDTO(
             order_id=order_id,
@@ -506,8 +506,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         try:
             # Validation
-            normalized_symbol, side_normalized = self._validate_market_order_params(symbol, side, qty, notional)
-            
+            normalized_symbol, side_normalized = self._validate_market_order_params(
+                symbol, side, qty, notional
+            )
+
             # Adjust quantity for complete exits
             final_qty = self._adjust_quantity_for_complete_exit(
                 normalized_symbol, side_normalized, qty, is_complete_exit
@@ -1090,18 +1092,18 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def _check_order_completion_status(self, order_id: str) -> str | None:
         """Check if a single order has reached a final state.
-        
+
         Args:
             order_id: The order ID to check
-            
+
         Returns:
             Order status if completed, None if still pending or error occurred
-            
+
         """
         try:
             order = self._trading_client.get_order_by_id(order_id)
             order_status = getattr(order, "status", "").upper()
-            
+
             # Check if order is in a final state
             if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
                 return order_status
@@ -1112,11 +1114,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def _process_pending_orders(self, order_ids: list[str], completed_orders: list[str]) -> None:
         """Process pending orders and update completed_orders list.
-        
+
         Args:
             order_ids: All order IDs to monitor
             completed_orders: List of completed order IDs (modified in place)
-            
+
         """
         for order_id in order_ids:
             if order_id not in completed_orders:
@@ -1126,24 +1128,28 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                     logger.info(f"Order {order_id} completed with status: {final_status}")
 
     def _should_continue_waiting(
-        self, completed_orders: list[str], order_ids: list[str], start_time: float, max_wait_seconds: int
+        self,
+        completed_orders: list[str],
+        order_ids: list[str],
+        start_time: float,
+        max_wait_seconds: int,
     ) -> bool:
         """Check if we should continue waiting for order completion.
-        
+
         Args:
             completed_orders: List of completed order IDs
             order_ids: All order IDs being monitored
             start_time: When monitoring started
             max_wait_seconds: Maximum wait time
-            
+
         Returns:
             True if should continue waiting, False otherwise
-            
+
         """
         import time
+
         return (
-            len(completed_orders) < len(order_ids)
-            and (time.time() - start_time) < max_wait_seconds
+            len(completed_orders) < len(order_ids) and (time.time() - start_time) < max_wait_seconds
         )
 
     def wait_for_order_completion(
@@ -1165,9 +1171,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         start_time = time.time()
 
         try:
-            while self._should_continue_waiting(completed_orders, order_ids, start_time, max_wait_seconds):
+            while self._should_continue_waiting(
+                completed_orders, order_ids, start_time, max_wait_seconds
+            ):
                 self._process_pending_orders(order_ids, completed_orders)
-                
+
                 # Sleep briefly between checks to avoid hammering the API
                 if len(completed_orders) < len(order_ids):
                     time.sleep(0.5)

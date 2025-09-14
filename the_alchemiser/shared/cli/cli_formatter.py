@@ -674,7 +674,7 @@ def _process_symbol_allocation_row(
     portfolio_value: Decimal,
 ) -> tuple[str, str, str, str, str]:
     """Process a single symbol allocation row for the allocation table.
-    
+
     Returns table row data: symbol, target_column, current_column, dollar_diff_column, action_column.
     Extracted to reduce cognitive complexity of render_target_vs_current_allocations.
     """
@@ -701,8 +701,10 @@ def _process_symbol_allocation_row(
     # Format the row columns
     target_column = f"{target_weight:.1%}\n[dim]{_format_money(target_value)}[/dim]"
     current_column = f"{current_weight:.1%}\n[dim]{_format_money(current_value)}[/dim]"
-    dollar_diff_column = f"[{dollar_color}]{dollar_sign}{_format_money(abs(dollar_diff_float))}[/{dollar_color}]"
-    
+    dollar_diff_column = (
+        f"[{dollar_color}]{dollar_sign}{_format_money(abs(dollar_diff_float))}[/{dollar_color}]"
+    )
+
     return symbol, target_column, current_column, dollar_diff_column, action
 
 

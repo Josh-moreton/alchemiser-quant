@@ -29,12 +29,12 @@ from typing import Any
 
 def _calculate_midpoint_price(bid: float, ask: float, side_is_buy: bool) -> float:
     """Calculate midpoint price with fallback logic.
-    
+
     Args:
         bid: Bid price
-        ask: Ask price  
+        ask: Ask price
         side_is_buy: Whether this is a buy order
-        
+
     Returns:
         Calculated midpoint or appropriate fallback
 
@@ -46,10 +46,10 @@ def _calculate_midpoint_price(bid: float, ask: float, side_is_buy: bool) -> floa
 
 def _calculate_precision_from_tick_size(tick_size_decimal: Any) -> int:
     """Calculate precision from tick size decimal.
-    
+
     Args:
         tick_size_decimal: Decimal tick size object
-        
+
     Returns:
         Precision level (minimum 2)
 
@@ -77,7 +77,7 @@ def _log_enhanced_threshold_analysis(
     logger: Any,
 ) -> None:
     """Log enhanced threshold analysis for debugging.
-    
+
     Args:
         symbol: Trading symbol
         target_weight: Target allocation weight
@@ -146,11 +146,11 @@ def _log_critical_bug_detection(
     logger: Any,
 ) -> None:
     """Log critical bug detection for debugging trade calculation issues.
-    
+
     Args:
         symbol: Trading symbol
         target_weight: Target allocation weight
-        weight_diff: Weight difference 
+        weight_diff: Weight difference
         needs_rebalance: Whether rebalancing is needed
         trade_amount: Calculated trade amount
         target_value: Target dollar value
@@ -194,14 +194,14 @@ def _log_critical_bug_detection(
 
 def _log_rebalance_summary(
     all_symbols: set[str],
-    symbols_needing_rebalance: int, 
+    symbols_needing_rebalance: int,
     min_trade_threshold: float,
     total_portfolio_value: float,
     rebalance_plan: dict[str, dict[str, float]],
     logger: Any,
 ) -> None:
     """Log comprehensive summary of rebalancing calculation results.
-    
+
     Args:
         all_symbols: Set of all symbols processed
         symbols_needing_rebalance: Count of symbols requiring rebalancing
@@ -209,9 +209,10 @@ def _log_rebalance_summary(
         total_portfolio_value: Total portfolio value
         rebalance_plan: Complete rebalancing plan
         logger: Logger instance
+
     """
     import logging
-    
+
     # Add comprehensive summary logging
     logging.info("=== REBALANCE CALCULATION SUMMARY ===")
     logging.info(f"Total symbols processed: {len(all_symbols)}")
@@ -242,6 +243,7 @@ def _log_rebalance_summary(
         f"Rebalance calculation complete: {symbols_needing_rebalance}/{len(all_symbols)} symbols need rebalancing"
     )
 
+
 def _process_symbol_rebalance(
     symbol: str,
     target_weights: dict[str, float],
@@ -251,7 +253,7 @@ def _process_symbol_rebalance(
     logger: Any,
 ) -> tuple[dict[str, float], bool]:
     """Process rebalancing calculation for a single symbol.
-    
+
     Args:
         symbol: Trading symbol to process
         target_weights: Dictionary of target weights
@@ -259,12 +261,13 @@ def _process_symbol_rebalance(
         total_portfolio_value: Total portfolio value
         min_trade_threshold: Minimum threshold for rebalancing
         logger: Logger instance
-        
+
     Returns:
         Tuple of (symbol_plan, needs_rebalance)
+
     """
     import logging
-    
+
     logger.info(f"=== PROCESSING SYMBOL: {symbol} ===")
 
     target_weight = target_weights.get(symbol, 0.0)
@@ -293,23 +296,36 @@ def _process_symbol_rebalance(
 
     # Enhanced threshold analysis for debugging
     _log_enhanced_threshold_analysis(
-        symbol, target_weight, current_value, total_portfolio_value,
-        target_value, trade_amount, weight_diff, current_weight,
-        min_trade_threshold, needs_rebalance, logger
+        symbol,
+        target_weight,
+        current_value,
+        total_portfolio_value,
+        target_value,
+        trade_amount,
+        weight_diff,
+        current_weight,
+        min_trade_threshold,
+        needs_rebalance,
+        logger,
     )
 
     # Critical bug detection
     _log_critical_bug_detection(
-        symbol, target_weight, weight_diff, needs_rebalance,
-        trade_amount, target_value, current_value, total_portfolio_value, logger
+        symbol,
+        target_weight,
+        weight_diff,
+        needs_rebalance,
+        trade_amount,
+        target_value,
+        current_value,
+        total_portfolio_value,
+        logger,
     )
 
     logger.info(f"CALCULATED_TARGET_VALUE: ${target_value}")
     logger.info(f"CALCULATED_TRADE_AMOUNT: ${trade_amount}")
     logger.info(f"WEIGHT_DIFF_ABS: {abs(weight_diff)}")
-    logger.info(
-        f"THRESHOLD_CHECK: {abs(weight_diff)} >= {min_trade_threshold} = {needs_rebalance}"
-    )
+    logger.info(f"THRESHOLD_CHECK: {abs(weight_diff)} >= {min_trade_threshold} = {needs_rebalance}")
 
     # Add detailed threshold logging for all symbols (using debug level for verbose output)
     logger.debug(f"=== THRESHOLD CHECK: {symbol} ===")
@@ -347,7 +363,7 @@ def _process_symbol_rebalance(
     }
 
     logger.info(f"SYMBOL_PLAN_CREATED: {symbol} -> {symbol_plan}")
-    
+
     return symbol_plan, needs_rebalance
 
 
@@ -680,19 +696,27 @@ def calculate_rebalance_amounts(
 
     for symbol in all_symbols:
         symbol_plan, needs_rebalance = _process_symbol_rebalance(
-            symbol, target_weights, current_values, total_portfolio_value, 
-            min_trade_threshold, logger
+            symbol,
+            target_weights,
+            current_values,
+            total_portfolio_value,
+            min_trade_threshold,
+            logger,
         )
-        
+
         rebalance_plan[symbol] = symbol_plan
-        
+
         if needs_rebalance:
             symbols_needing_rebalance += 1
 
     # Log comprehensive summary
     _log_rebalance_summary(
-        all_symbols, symbols_needing_rebalance, min_trade_threshold,
-        total_portfolio_value, rebalance_plan, logger
+        all_symbols,
+        symbols_needing_rebalance,
+        min_trade_threshold,
+        total_portfolio_value,
+        rebalance_plan,
+        logger,
     )
 
     return rebalance_plan
