@@ -140,7 +140,7 @@ class LocalFileHandler:
             logging.error(f"Error checking if {uri} exists: {e}")
             return False
 
-    def create_bucket_if_not_exists(self, bucket_name: str, region: str = "us-east-1") -> bool:
+    def create_bucket_if_not_exists(self, bucket_name: str) -> bool:
         """Create bucket directory if it doesn't exist (local equivalent)."""
         try:
             bucket_path = self.base_path / bucket_name
