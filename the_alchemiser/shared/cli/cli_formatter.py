@@ -1003,8 +1003,6 @@ def _render_account_summary(execution_result: MultiStrategyExecutionResultDTO, e
 
 def _render_closed_pnl_table(enriched_account: dict[str, Any], console: Console) -> None:
     """Render recent closed positions P&L table."""
-    from rich.table import Table
-
     closed_pnl = enriched_account.get("recent_closed_pnl", [])
     if not closed_pnl:
         return
