@@ -110,6 +110,7 @@ class TradingRepository(Protocol):
         side: str,
         qty: float | None = None,
         notional: float | None = None,
+        is_complete_exit: bool = False,
     ) -> ExecutedOrderDTO:
         """Place a market order.
 
@@ -118,6 +119,7 @@ class TradingRepository(Protocol):
             side: "buy" or "sell"
             qty: Quantity to trade (use either qty OR notional)
             notional: Dollar amount to trade (use either qty OR notional)
+            is_complete_exit: If True and side is 'sell', use actual available quantity
 
         Returns:
             ExecutedOrderDTO with execution details and status.

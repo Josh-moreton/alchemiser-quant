@@ -284,14 +284,23 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             action_value = order_side.value.upper() if hasattr(order_side, "value") else str(order_side).upper()
             status_value = order_status.value.upper() if hasattr(order_status, "value") else str(order_status).upper()
             
+            # Calculate total_value: use filled_quantity if > 0, otherwise use order quantity
+            # This ensures total_value > 0 for DTO validation even for unfilled orders
+            filled_qty_decimal = Decimal(str(order_filled_qty))
+            order_qty_decimal = Decimal(str(order_qty))
+            if filled_qty_decimal > 0:
+                total_value = filled_qty_decimal * price
+            else:
+                total_value = order_qty_decimal * price
+            
             return ExecutedOrderDTO(
                 order_id=order_id,
                 symbol=order_symbol,
                 action=action_value,
-                quantity=Decimal(str(order_qty)),
-                filled_quantity=Decimal(str(order_filled_qty)),
+                quantity=order_qty_decimal,
+                filled_quantity=filled_qty_decimal,
                 price=price,
-                total_value=Decimal(str(order_filled_qty)) * price,
+                total_value=total_value,
                 status=status_value,
                 execution_timestamp=datetime.now(UTC),
             )
@@ -352,6 +361,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         side: str,
         qty: float | None = None,
         notional: float | None = None,
+        is_complete_exit: bool = False,
     ) -> ExecutedOrderDTO:
         """Place a market order with validation and execution result return.
 
@@ -360,6 +370,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             side: 'buy' or 'sell'
             qty: Quantity to trade (use either qty OR notional)
             notional: Dollar amount to trade (use either qty OR notional)
+            is_complete_exit: If True and side is 'sell', use Alpaca's available quantity
 
         Returns:
             ExecutedOrderDTO with execution details
@@ -386,10 +397,37 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             if side_normalized not in ["buy", "sell"]:
                 raise ValueError("Side must be 'buy' or 'sell'")
 
+            # For complete exits (0% allocation), use Alpaca's available quantity
+            final_qty = qty
+            if is_complete_exit and side_normalized == "sell" and qty is not None:
+                try:
+                    position = self.get_position(symbol)
+                    if position:
+                        # Use qty_available if available, fallback to qty
+                        available_qty = getattr(position, "qty_available", None)
+                        if available_qty is not None:
+                            final_qty = float(available_qty)
+                            logger.info(
+                                f"Complete exit detected for {symbol}: using Alpaca's available quantity "
+                                f"{final_qty} instead of calculated {qty}"
+                            )
+                        else:
+                            # Fallback to total qty if qty_available not available
+                            total_qty = getattr(position, "qty", None)
+                            if total_qty is not None:
+                                final_qty = float(total_qty)
+                                logger.info(
+                                    f"Complete exit detected for {symbol}: using total quantity "
+                                    f"{final_qty} instead of calculated {qty}"
+                                )
+                except Exception as e:
+                    logger.warning(f"Failed to get position for complete exit of {symbol}: {e}")
+                    # Continue with original quantity
+
             # Create order request
             order_request = MarketOrderRequest(
                 symbol=symbol.upper(),
-                qty=qty,
+                qty=final_qty,
                 notional=notional,
                 side=OrderSide.BUY if side_normalized == "buy" else OrderSide.SELL,
                 time_in_force=TimeInForce.DAY,
