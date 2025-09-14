@@ -12,14 +12,13 @@ from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
 from the_alchemiser.shared.events.bus import EventBus
 
 # Legacy imports removed to eliminate fallback dependencies
-# from the_alchemiser.execution.brokers.account_service import AccountService
-# from the_alchemiser.execution.core.trading_services_facade import (
-#     TradingServicesFacade as TradingServiceManager,
-# )
-# from the_alchemiser.execution.orders.service import OrderService
-# from the_alchemiser.portfolio.holdings.position_service import PositionService
-# from the_alchemiser.strategy.data.market_data_service import MarketDataService
-# from the_alchemiser.strategy.engines.klm.engine import KLMEngine
+# These have been migrated to the new v2 architecture:
+# - AccountService → Use AlpacaManager directly
+# - TradingServiceManager → Use ExecutionManager from execution_v2
+# - OrderService → Use execution_v2.core components
+# - PositionService → Use portfolio_v2 components
+# - MarketDataService → Use strategy_v2.data components
+# - KLMEngine → Use strategy_v2.engines components
 
 
 class ServiceProviders(containers.DeclarativeContainer):
