@@ -135,6 +135,9 @@ class TradingExecutor:
             # Display orders executed using existing formatter
             render_orders_executed(orders_executed)
 
+            # Display detailed order status information
+            self._display_order_status_details(orders_executed)
+
             # Display execution summary if available
             if execution_result:
                 try:
@@ -182,6 +185,66 @@ class TradingExecutor:
 
         except Exception as e:
             self.logger.warning(f"Failed to display execution results: {e}")
+
+    def _display_order_status_details(self, orders_executed: list[dict[str, Any]]) -> None:
+        """Display detailed order status information including order IDs and errors.
+
+        Args:
+            orders_executed: List of order execution results
+
+        """
+        try:
+            from rich.console import Console
+            from rich.panel import Panel
+            from rich.table import Table
+
+            console = Console()
+
+            if not orders_executed:
+                return
+
+            # Create detailed status table
+            status_table = Table(title="Order Execution Details", show_lines=True)
+            status_table.add_column("Symbol", style="cyan", justify="center")
+            status_table.add_column("Action", style="bold", justify="center")
+            status_table.add_column("Status", style="bold", justify="center")
+            status_table.add_column("Order ID", style="dim", justify="center")
+            status_table.add_column("Error Details", style="red", justify="left")
+
+            for order in orders_executed:
+                status = order.get("status", "UNKNOWN")
+                order_id = order.get("order_id") or "N/A"
+                error = order.get("error") or ""
+
+                # Style status
+                if status == "FILLED":
+                    status_display = "[bold green]✅ FILLED[/bold green]"
+                elif status == "FAILED":
+                    status_display = "[bold red]❌ FAILED[/bold red]"
+                else:
+                    status_display = f"[yellow]{status}[/yellow]"
+
+                # Style action
+                action = order.get("side", "").upper()
+                if action == "BUY":
+                    action_display = "[green]BUY[/green]"
+                elif action == "SELL":
+                    action_display = "[red]SELL[/red]"
+                else:
+                    action_display = action
+
+                status_table.add_row(
+                    order.get("symbol", "N/A"),
+                    action_display,
+                    status_display,
+                    order_id,
+                    error[:50] + "..." if len(error) > 50 else error
+                )
+
+            console.print(status_table)
+
+        except Exception as e:
+            self.logger.warning(f"Failed to display order status details: {e}")
 
     def _display_post_execution_tracking(self) -> None:
         """Display strategy performance tracking after execution."""
