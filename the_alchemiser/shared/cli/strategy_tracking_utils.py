@@ -22,7 +22,10 @@ BOLD_MAGENTA_STYLE = "bold magenta"
 
 
 def _add_strategy_row(
-    tracking_table: Table, tracker: Any, strategy_name: str, logger: logging.Logger  # noqa: ANN401
+    tracking_table: Table,
+    tracker: Any,
+    strategy_name: str,
+    logger: logging.Logger,
 ) -> None:
     """Add a single strategy row to tracking table.
 
@@ -67,7 +70,10 @@ def _add_strategy_row(
 
 
 def _add_strategy_pnl_row(
-    strategy_pnl_table: Table, tracker: Any, strategy_name: str, console: Console  # noqa: ANN401
+    strategy_pnl_table: Table,
+    tracker: Any,
+    strategy_name: str,
+    console: Console,
 ) -> None:
     """Add a single strategy P&L row to table.
 
@@ -100,9 +106,7 @@ def _add_strategy_pnl_row(
             f"[{return_color}]{return_sign}{return_pct:.2f}%[/{return_color}]",
         )
     except Exception as e:
-        console.print(
-            f"[dim yellow]Error getting P&L for {strategy_name}: {e}[/dim yellow]"
-        )
+        console.print(f"[dim yellow]Error getting P&L for {strategy_name}: {e}[/dim yellow]")
 
 
 def display_strategy_tracking(*, paper_trading: bool) -> None:

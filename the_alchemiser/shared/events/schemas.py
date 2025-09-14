@@ -123,8 +123,12 @@ class PortfolioStateChanged(BaseEvent):
     event_type: str = Field(default="PortfolioStateChanged", description=EVENT_TYPE_DESCRIPTION)
 
     # Portfolio state change fields
-    portfolio_state_before: PortfolioStateDTO = Field(..., description="Portfolio state before change")
-    portfolio_state_after: PortfolioStateDTO = Field(..., description="Portfolio state after change")
+    portfolio_state_before: PortfolioStateDTO = Field(
+        ..., description="Portfolio state before change"
+    )
+    portfolio_state_after: PortfolioStateDTO = Field(
+        ..., description="Portfolio state after change"
+    )
     change_type: str = Field(..., description="Type of change (rebalance, trade, etc.)")
     change_summary: dict[str, Any] = Field(
         default_factory=dict, description="Summary of changes made"
@@ -138,12 +142,18 @@ class AllocationComparisonCompleted(BaseEvent):
     """
 
     # Override event_type with default
-    event_type: str = Field(default="AllocationComparisonCompleted", description=EVENT_TYPE_DESCRIPTION)
+    event_type: str = Field(
+        default="AllocationComparisonCompleted", description=EVENT_TYPE_DESCRIPTION
+    )
 
     # Allocation comparison fields
     target_allocations: dict[str, Decimal] = Field(..., description="Target allocation percentages")
-    current_allocations: dict[str, Decimal] = Field(..., description="Current allocation percentages")
-    allocation_differences: dict[str, Decimal] = Field(..., description="Differences requiring rebalancing")
+    current_allocations: dict[str, Decimal] = Field(
+        ..., description="Current allocation percentages"
+    )
+    allocation_differences: dict[str, Decimal] = Field(
+        ..., description="Differences requiring rebalancing"
+    )
     rebalancing_required: bool = Field(..., description="Whether rebalancing is needed")
     comparison_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional comparison analysis data"

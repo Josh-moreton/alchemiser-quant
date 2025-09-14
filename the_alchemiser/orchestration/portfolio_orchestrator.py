@@ -19,9 +19,9 @@ if TYPE_CHECKING:
 
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
-from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO, PortfolioMetricsDTO
+from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioMetricsDTO, PortfolioStateDTO
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
-from the_alchemiser.shared.events import EventBus, RebalancePlanned, AllocationComparisonCompleted
+from the_alchemiser.shared.events import AllocationComparisonCompleted, EventBus, RebalancePlanned
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 
@@ -224,28 +224,34 @@ class PortfolioOrchestrator:
                     symbol: Decimal(str(allocation))
                     for symbol, allocation in consolidated_portfolio.to_dict_allocation().items()
                 }
-                
+
                 # Calculate current allocations from positions
                 total_portfolio_value = float(account_info.portfolio_value)
                 current_allocations_decimal = {}
                 differences_decimal = {}
-                
+
                 for symbol, market_value in positions_dict.items():
-                    current_allocation = market_value / total_portfolio_value if total_portfolio_value > 0 else 0
+                    current_allocation = (
+                        market_value / total_portfolio_value if total_portfolio_value > 0 else 0
+                    )
                     current_allocations_decimal[symbol] = Decimal(str(current_allocation))
-                    
+
                     # Calculate difference
                     target_allocation = target_allocations_decimal.get(symbol, Decimal("0"))
-                    differences_decimal[symbol] = target_allocation - Decimal(str(current_allocation))
-                
+                    differences_decimal[symbol] = target_allocation - Decimal(
+                        str(current_allocation)
+                    )
+
                 # Determine if rebalancing is required (significant differences)
-                rebalancing_required = any(abs(diff) > Decimal("0.05") for diff in differences_decimal.values())
-                
+                rebalancing_required = any(
+                    abs(diff) > Decimal("0.05") for diff in differences_decimal.values()
+                )
+
                 self._emit_allocation_comparison_completed_event(
                     target_allocations_decimal,
                     current_allocations_decimal,
                     differences_decimal,
-                    rebalancing_required
+                    rebalancing_required,
                 )
             except Exception as e:
                 self.logger.warning(f"Failed to emit allocation comparison event: {e}")
@@ -380,17 +386,17 @@ class PortfolioOrchestrator:
             self.logger.warning(f"Failed to emit RebalancePlanned event: {e}")
 
     def _emit_allocation_comparison_completed_event(
-        self, 
-        target_allocations: dict[str, Decimal], 
+        self,
+        target_allocations: dict[str, Decimal],
         current_allocations: dict[str, Decimal],
         differences: dict[str, Decimal],
-        rebalancing_required: bool
+        rebalancing_required: bool,
     ) -> None:
         """Emit AllocationComparisonCompleted event for event-driven architecture.
 
         Args:
             target_allocations: Target allocation percentages
-            current_allocations: Current allocation percentages  
+            current_allocations: Current allocation percentages
             differences: Allocation differences
             rebalancing_required: Whether rebalancing is needed
 
