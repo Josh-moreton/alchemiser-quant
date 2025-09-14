@@ -30,7 +30,6 @@ def convert_string_to_datetime(
         
     Raises:
         ValueError: If timestamp string is invalid
-
     """
     try:
         # Handle 'Z' suffix (Zulu time = UTC)
