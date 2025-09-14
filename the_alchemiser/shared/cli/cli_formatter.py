@@ -594,8 +594,7 @@ def _compute_allocation_values_from_dto(allocation_comparison: AllocationCompari
                 raise ValueError("Portfolio value is 0 or not available")
             portfolio_value = Decimal(str(pv_from_account))
         else:
-            # Ensure portfolio_value is Decimal type
-            portfolio_value = Decimal(str(portfolio_value))
+            portfolio_value = portfolio_value
     except Exception as e:
         pv_from_account = account_info.get("portfolio_value")
         if pv_from_account is None:
