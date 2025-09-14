@@ -27,18 +27,15 @@ class SecretsManager:
         # region_name is kept for compatibility
         logger.info("Initialized SecretsManager with simple environment detection")
 
-    def get_secret(self, secret_name: str) -> dict[str, str] | None:
+    def get_secret(self) -> dict[str, str] | None:
         """Retrieve a secret - not implemented in simple approach."""
         logger.warning(
             "get_secret() is not implemented in the simple approach. Use specific methods like get_alpaca_keys()."
         )
         return None
 
-    def get_alpaca_keys(self, paper_trading: bool = True) -> tuple[str, str] | tuple[None, None]:
+    def get_alpaca_keys(self) -> tuple[str, str] | tuple[None, None]:
         """Get Alpaca API keys from the appropriate source.
-
-        Args:
-            paper_trading: Ignored - trading mode determined by credential storage location
 
         Returns:
             Tuple of (api_key, secret_key) or (None, None) if not found
