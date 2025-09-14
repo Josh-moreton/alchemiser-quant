@@ -319,14 +319,14 @@ class TradingSystemErrorHandler:
         category = self._categorize_by_exception_type(error)
         if category:
             return category
-        
+
         # Handle TradingClientError with context dependency
         if isinstance(error, TradingClientError):
             context_lower = context.lower()
             if "order" in context_lower or "position" in context_lower:
                 return ErrorCategory.TRADING
             return ErrorCategory.DATA
-        
+
         # For non-Alchemiser exceptions, categorize by context
         return self._categorize_by_context(context)
 
@@ -491,19 +491,20 @@ class TradingSystemErrorHandler:
         entry += "\n"
         return entry
 
-    def _add_error_section(self, report: str, category_data: dict[str, Any] | None,
-                          title: str, description: str = "") -> str:
+    def _add_error_section(
+        self, report: str, category_data: dict[str, Any] | None, title: str, description: str = ""
+    ) -> str:
         """Add an error section to the report if the category has errors."""
         if category_data is None:
             return report
-        
+
         section = f"## {title}\n"
         if description:
             section += f"{description}\n\n"
-        
+
         for error in category_data["errors"]:
             section += self._format_error_entry(error)
-        
+
         return report + section
 
     def generate_error_report(self) -> str:
@@ -520,12 +521,16 @@ class TradingSystemErrorHandler:
 
         # Add error sections in priority order
         report = self._add_error_section(
-            report, summary["critical"], "🚨 CRITICAL ERRORS",
-            "These errors stopped system execution and require immediate attention:"
+            report,
+            summary["critical"],
+            "🚨 CRITICAL ERRORS",
+            "These errors stopped system execution and require immediate attention:",
         )
         report = self._add_error_section(
-            report, summary["trading"], "💰 TRADING ERRORS",
-            "These errors affected trade execution:"
+            report,
+            summary["trading"],
+            "💰 TRADING ERRORS",
+            "These errors affected trade execution:",
         )
         report = self._add_error_section(report, summary["data"], "📊 DATA ERRORS")
         report = self._add_error_section(report, summary["strategy"], "🧠 STRATEGY ERRORS")
