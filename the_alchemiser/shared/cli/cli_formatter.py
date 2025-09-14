@@ -839,7 +839,6 @@ def render_enriched_order_summaries(
 
 def _render_orders_executed_table(execution_result: MultiStrategyExecutionResultDTO, console: Console) -> None:
     """Render the orders executed table for multi-strategy summary."""
-    from rich.table import Table
 
     orders_table = Table(
         title=f"Orders Executed ({len(execution_result.orders_executed)})", show_lines=False
