@@ -7,5 +7,4 @@ from __future__ import annotations
 
 __all__: list[str] = []
 from .core_types import *
-
 from .symbol import *

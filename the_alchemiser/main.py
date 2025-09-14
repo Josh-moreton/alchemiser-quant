@@ -252,8 +252,6 @@ Examples:
         "--ignore-market-hours", action="store_true", help="Override market hours check"
     )
 
-
-
     parser.add_argument(
         "--show-tracking",
         action="store_true",

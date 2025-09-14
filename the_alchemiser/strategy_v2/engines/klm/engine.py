@@ -173,7 +173,7 @@ class KLMEngine(StrategyEngine):
 
         # This should be replaced with direct DTO construction
         # For now, we'll implement the required functionality directly
-        def symbol_str_to_symbol(symbol_str: str):
+        def symbol_str_to_symbol(symbol_str: str) -> Symbol:
             from the_alchemiser.shared.value_objects.symbol import Symbol
 
             return Symbol(symbol_str)
@@ -267,10 +267,8 @@ class KLMEngine(StrategyEngine):
         if best_result is None or best_variant is None:
             return "BIL", ActionType.HOLD.value, "No valid variant result", "Default"
 
-        # Extract result components
-        symbol_or_allocation = best_result[0]
-        action = best_result[1]
-        reason = best_result[2] if len(best_result) > 2 else "KLM Ensemble Selection"
+        # Extract result components with support for both tuple and KLMDecision formats
+        symbol_or_allocation, action, reason = self._extract_result_components(best_result)
 
         # Validate the result components before proceeding
         if symbol_or_allocation is None:
@@ -295,6 +293,33 @@ class KLMEngine(StrategyEngine):
 
         return symbol_or_allocation, action, detailed_reason, best_variant.name
 
+    def _extract_result_components(self, result: Any) -> tuple[str | dict[str, float], str, str]:
+        """Extract components from either tuple or KLMDecision format.
+
+        Supports migration period where variants may return either format.
+        """
+        from the_alchemiser.shared.value_objects.core_types import KLMDecision
+
+        # Check if it's a KLMDecision (TypedDict)
+        if isinstance(result, dict) and "symbol" in result and "action" in result:
+            klm_decision: KLMDecision = result  # type: ignore[assignment]
+            return (
+                klm_decision["symbol"],
+                klm_decision["action"],
+                klm_decision.get("reasoning", "KLM Decision"),
+            )
+
+        # Legacy tuple format
+        if hasattr(result, "__len__") and len(result) >= 2:
+            symbol_or_allocation = result[0]
+            action = result[1]
+            reason = result[2] if len(result) > 2 else "KLM Ensemble Selection"
+            return symbol_or_allocation, action, reason
+
+        # Invalid format
+        self.logger.warning(f"Invalid result format: {result}")
+        return "BIL", ActionType.HOLD.value, "Invalid result format"
+
     def _evaluate_all_variants(
         self, indicators: dict[str, dict[str, float]], market_data: dict[str, pd.DataFrame]
     ) -> list[tuple[BaseKLMVariant, Any, float]]:
@@ -304,17 +329,14 @@ class KLMEngine(StrategyEngine):
         for variant in self.strategy_variants:
             try:
                 # Each variant has its own evaluate method
-                result = variant.evaluate(indicators, market_data)
+                result: Any = variant.evaluate(indicators, market_data)
 
-                # Validate the result structure
-                if not result or not hasattr(result, "__len__") or len(result) < 2:
+                # Validate the result structure - support both tuple and KLMDecision
+                if not self._is_valid_result(result):
                     self.logger.warning(
                         f"Variant {variant.name} returned invalid result structure: {result}"
                     )
                     result = ("BIL", ActionType.HOLD.value, f"Invalid result from {variant.name}")
-                elif result[0] is None or result[1] is None:
-                    self.logger.warning(f"Variant {variant.name} returned None values: {result}")
-                    result = ("BIL", ActionType.HOLD.value, f"None values from {variant.name}")
 
                 # Calculate performance metric for ensemble selection
                 performance = self._calculate_variant_performance(variant)
@@ -322,21 +344,7 @@ class KLMEngine(StrategyEngine):
                 results.append((variant, result, performance))
 
                 # Format symbol/allocation for logging
-                symbol_str = "unknown"
-                try:
-                    # Safely access the first element without assuming specific TypedDict structure
-                    if (
-                        hasattr(result, "__getitem__")
-                        and hasattr(result, "__len__")
-                        and len(result) > 0
-                    ):
-                        first_element: Any = result[0]  # type: ignore[literal-required]
-                        if isinstance(first_element, dict):
-                            symbol_str = f"allocation:{len(first_element)} symbols"
-                        else:
-                            symbol_str = str(first_element)
-                except (IndexError, TypeError, AttributeError):
-                    symbol_str = "unknown"
+                symbol_str = self._format_result_for_logging(result)
 
                 self.logger.debug(
                     f"Variant {variant.name}: {symbol_str} (performance: {performance:.4f})"
@@ -350,6 +358,57 @@ class KLMEngine(StrategyEngine):
                 )
 
         return results
+
+    def create_klm_decision(
+        self, symbol_or_allocation: str | dict[str, float], action: str, reasoning: str
+    ) -> dict[str, str | dict[str, float]]:
+        """Create a KLMDecision for fallback cases in the engine."""
+        return {
+            "symbol": symbol_or_allocation,
+            "action": action,
+            "reasoning": reasoning,
+        }
+
+    def _is_valid_result(self, result: Any) -> bool:
+        """Validate result structure for both tuple and KLMDecision formats."""
+        # KLMDecision format
+        if isinstance(result, dict):
+            return (
+                "symbol" in result
+                and "action" in result
+                and result["symbol"] is not None
+                and result["action"] is not None
+            )
+
+        # Tuple format
+        return (
+            hasattr(result, "__len__")
+            and len(result) >= 2
+            and result[0] is not None
+            and result[1] is not None
+        )
+
+    def _format_result_for_logging(self, result: Any) -> str:
+        """Format result for logging, supporting both tuple and KLMDecision formats."""
+        try:
+            # KLMDecision format
+            if isinstance(result, dict) and "symbol" in result:
+                symbol = result["symbol"]
+                if isinstance(symbol, dict):
+                    return f"allocation:{len(symbol)} symbols"
+                return str(symbol)
+
+            # Tuple format
+            if hasattr(result, "__len__") and len(result) > 0:
+                first_element = result[0]
+                if isinstance(first_element, dict):
+                    return f"allocation:{len(first_element)} symbols"
+                return str(first_element)
+
+        except (IndexError, TypeError, AttributeError, KeyError):
+            pass
+
+        return "unknown"
 
     def _select_best_variant(
         self,
@@ -502,7 +561,7 @@ class KLMEngine(StrategyEngine):
 
                     signal = StrategySignal(
                         symbol=symbol,
-                        action=action,  # type: ignore  # action already validated by variants
+                        action=action,
                         confidence=confidence,
                         target_allocation=target_allocation,
                         reasoning=f"{reasoning} (Variant: {variant_name}, Weight: {weight:.1%})",
@@ -527,7 +586,7 @@ class KLMEngine(StrategyEngine):
 
                 signal = StrategySignal(
                     symbol=symbol,
-                    action=action,  # type: ignore  # action already validated by variants
+                    action=action,
                     confidence=confidence,
                     target_allocation=target_allocation,
                     reasoning=f"{reasoning} (Variant: {variant_name})",

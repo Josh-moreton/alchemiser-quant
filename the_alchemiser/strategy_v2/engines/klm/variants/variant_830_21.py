@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: current.
+"""Business Unit: strategy | Status: current
 
 KLM Strategy Variant 830/21 - "MonkeyBusiness Simons variant V2".
 
@@ -12,9 +12,17 @@ This is the V2 (enhanced) version of the MonkeyBusiness Simons approach.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pandas as pd
 
 from the_alchemiser.shared.utils.common import ActionType
+
+if TYPE_CHECKING:
+    from the_alchemiser.shared.value_objects.core_types import KLMDecision
+else:
+    # Import for runtime use
+    from the_alchemiser.shared.value_objects.core_types import KLMDecision
 
 from ..base_variant import BaseKLMVariant
 
@@ -36,91 +44,21 @@ class KlmVariant83021(BaseKLMVariant):
         self,
         indicators: dict[str, dict[str, float]],
         market_data: dict[str, pd.DataFrame] | None = None,
-    ) -> tuple[str | dict[str, float], str, str]:
+    ) -> KLMDecision:
         """Evaluate 830/21 - same as other variants except KMLM Switcher and Bond Check."""
         # Step 1: Primary overbought checks → UVXY
-        symbol, reason = self.check_primary_overbought_conditions(indicators)
-        if symbol:
-            self.log_decision(symbol, ActionType.BUY.value, reason)
-            return symbol, ActionType.BUY.value, reason
+        overbought_result = self.check_primary_overbought_conditions(indicators)
+        if overbought_result:
+            self.log_klm_decision(overbought_result)
+            return overbought_result
 
         # Step 2: Single Popped KMLM logic (same as others)
-        return self._evaluate_single_popped_kmlm(indicators)
+        return self.evaluate_single_popped_kmlm(indicators)
 
-    def _evaluate_single_popped_kmlm(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | dict[str, float], str, str]:
-        """Single Popped KMLM logic - identical to other variants."""
-        # Check UVXY RSI(21) for strategy branching
-        if "UVXY" in indicators:
-            uvxy_rsi_21 = indicators["UVXY"]["rsi_21"]
+    def evaluate_core_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+        """Core KMLM switcher for variant 830/21.
 
-            if uvxy_rsi_21 > 65:
-                # UVXY elevated - use BSC strategy
-                return self._evaluate_bsc_strategy(indicators)
-            # UVXY normal - use Combined Pop Bot
-            return self._evaluate_combined_pop_bot(indicators)
-
-        # Fallback if UVXY data unavailable
-        return self._evaluate_combined_pop_bot(indicators)
-
-    def _evaluate_bsc_strategy(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str, str, str]:
-        """BSC strategy - identical to other variants."""
-        if "SPY" in indicators:
-            spy_rsi_21 = indicators["SPY"]["rsi_21"]
-
-            if spy_rsi_21 > 30:
-                result = ("VIXM", ActionType.BUY.value, "830/21 BSC: SPY RSI(21) > 30 → VIXM")
-            else:
-                result = (
-                    "SPXL",
-                    ActionType.BUY.value,
-                    "830/21 BSC: SPY oversold (RSI(21) <= 30) → SPXL",
-                )
-        else:
-            result = ("VIXM", ActionType.BUY.value, "830/21 BSC: Default VIX position")
-
-        self.log_decision(result[0], result[1], result[2])
-        return result
-
-    def _evaluate_combined_pop_bot(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | dict[str, float], str, str]:
-        """Combined Pop Bot - identical to others (NO LABU)."""
-        # Priority 1: TQQQ oversold
-        if "TQQQ" in indicators and indicators["TQQQ"]["rsi_10"] < 30:
-            result = ("TECL", ActionType.BUY.value, "830/21 Pop Bot: TQQQ RSI < 30 → TECL")
-            self.log_decision(result[0], result[1], result[2])
-            return result
-
-        # Priority 2: SOXL oversold
-        if "SOXL" in indicators and indicators["SOXL"]["rsi_10"] < 30:
-            result = ("SOXL", ActionType.BUY.value, "830/21 Pop Bot: SOXL RSI < 30 → SOXL")
-            self.log_decision(result[0], result[1], result[2])
-            return result
-
-        # Priority 3: SPXL oversold
-        if "SPXL" in indicators and indicators["SPXL"]["rsi_10"] < 30:
-            result = ("SPXL", ActionType.BUY.value, "830/21 Pop Bot: SPXL RSI < 30 → SPXL")
-            self.log_decision(result[0], result[1], result[2])
-            return result
-
-        # No oversold conditions - proceed to KMLM Switcher
-        return self.evaluate_core_kmlm_switcher(indicators)
-
-    def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | dict[str, float], str, str]:
-        """Core KMLM switcher for variant 830/21."""
-        return self._evaluate_kmlm_switcher_830(indicators)
-
-    def _evaluate_kmlm_switcher_830(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | dict[str, float], str, str]:
-        """830/21 KMLM Switcher - KEY DIFFERENCE: select-TOP 1 (highest RSI).
-
+        KEY DIFFERENCE: select-TOP 1 (highest RSI).
         CLJ shows: select-top 1 from TECL/SOXL/SVIX (opposite of other variants)
         """
         if "XLK" in indicators and "KMLM" in indicators:
@@ -136,82 +74,83 @@ class KlmVariant83021(BaseKLMVariant):
                         candidates.append((symbol, rsi))
 
                 if candidates:
-                    # Select TOP 1 (highest RSI) - opposite of other variants
-                    candidates.sort(key=lambda x: x[1], reverse=True)
-                    selected = candidates[0]
-                    result = (
-                        selected[0],
+                    # Select top 1 (highest RSI) - opposite of other variants
+                    top_1 = self.apply_select_top_filter(candidates, 1)
+                    selected_symbol = top_1[0][0]
+                    selected_rsi = top_1[0][1]
+                    result = self.create_klm_decision(
+                        selected_symbol,
                         ActionType.BUY.value,
-                        f"830/21 KMLM Switcher: XLK > KMLM → {selected[0]} (highest RSI: {selected[1]:.1f})",
+                        f"830/21 KMLM Switcher: {selected_symbol} (highest RSI: {selected_rsi:.1f})",
                     )
-                else:
-                    result = ("TECL", ActionType.BUY.value, "830/21 KMLM Switcher: TECL fallback")
+                    self.log_klm_decision(result)
+                    return result
 
-                self.log_decision(result[0], result[1], result[2])
-                return result
-
-        # XLK <= KMLM → Bond Check
+        # Fallback to Bond Check logic if XLK <= KMLM or missing data
         return self._evaluate_bond_check(indicators)
 
-    def _evaluate_bond_check(self, indicators: dict[str, dict[str, float]]) -> tuple[str, str, str]:
-        """830/21 Bond Check - UNIQUE: BND moving-average-return determines path.
+    def _evaluate_bond_check(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+        """830/21 Bond Check - uses BND moving-average-return logic."""
+        # Check BND moving average return (window 20)
+        if "BND" in indicators and "ma_return_90" in indicators["BND"]:
+            bnd_ma_return = indicators["BND"]["ma_return_90"]
 
-        CLJ logic:
-        - If BND MA(20) > 0: select-bottom 1 from KMLM/SPLV
-        - Else: select-top 1 from TLT/LABD/TZA
-        """
-        # Check BND moving-average-return(20)
-        bnd_ma_return = indicators.get("BND", {}).get("moving_average_return_20", 0)
+            if bnd_ma_return > 0:
+                # Positive BND return → KMLM/SPLV path
+                return self._evaluate_kmlm_splv_path(indicators)
+            # Negative/zero BND return → TLT/LABD/TZA path
+            return self._evaluate_tlt_path(indicators)
 
-        if bnd_ma_return > 0:
-            # Positive bond momentum: select-bottom 1 from KMLM/SPLV
-            candidates = []
-            for symbol in ["KMLM", "SPLV"]:
-                if symbol in indicators:
-                    rsi = indicators[symbol]["rsi_10"]
-                    candidates.append((symbol, rsi))
+        # Fallback if BND data unavailable
+        return self.create_klm_decision(
+            "KMLM", ActionType.BUY.value, "830/21 Bond Check: KMLM fallback"
+        )
 
-            if candidates:
-                # Select bottom 1 (lowest RSI)
-                candidates.sort(key=lambda x: x[1])
-                selected = candidates[0]
-                result = (
-                    selected[0],
-                    ActionType.BUY.value,
-                    f"830/21 Bond Check: BND MA(20) {bnd_ma_return:.2f}% > 0 → {selected[0]} (lowest RSI)",
-                )
-            else:
-                result = (
-                    "KMLM",
-                    ActionType.BUY.value,
-                    "830/21 Bond Check: KMLM fallback (positive bonds)",
-                )
-        else:
-            # Negative/zero bond momentum: select-top 1 from TLT/LABD/TZA
-            candidates = []
-            for symbol in ["TLT", "LABD", "TZA"]:
-                if symbol in indicators:
-                    rsi = indicators[symbol]["rsi_10"]
-                    candidates.append((symbol, rsi))
+    def _evaluate_kmlm_splv_path(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+        """KMLM/SPLV path when BND MA return > 0."""
+        # Select between KMLM and SPLV using volatility filter
+        candidates = []
+        for symbol in ["KMLM", "SPLV"]:
+            if symbol in indicators and "stdev_return_6" in indicators[symbol]:
+                stdev = indicators[symbol]["stdev_return_6"]
+                candidates.append((symbol, stdev))
 
-            if candidates:
-                # Select top 1 (highest RSI)
-                candidates.sort(key=lambda x: x[1], reverse=True)
-                selected = candidates[0]
-                result = (
-                    selected[0],
-                    ActionType.BUY.value,
-                    f"830/21 Bond Check: BND MA(20) {bnd_ma_return:.2f}% ≤ 0 → {selected[0]} (highest RSI)",
-                )
-            else:
-                result = (
-                    "TLT",
-                    ActionType.BUY.value,
-                    "830/21 Bond Check: TLT fallback (negative bonds)",
-                )
+        if candidates:
+            # Select bottom 1 (lowest volatility)
+            bottom_1 = self.apply_select_bottom_filter(candidates, 1)
+            selected_symbol = bottom_1[0][0]
+            selected_stdev = bottom_1[0][1]
+            return self.create_klm_decision(
+                selected_symbol,
+                ActionType.BUY.value,
+                f"830/21 KMLM/SPLV: {selected_symbol} (lowest volatility: {selected_stdev:.3f})",
+            )
+        return self.create_klm_decision(
+            "KMLM", ActionType.BUY.value, "830/21 KMLM/SPLV: KMLM fallback"
+        )
 
-        self.log_decision(result[0], result[1], result[2])
-        return result
+    def _evaluate_tlt_path(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+        """TLT/LABD/TZA path when BND MA return <= 0."""
+        # Select from TLT, LABD, TZA using volatility filter
+        candidates = []
+        for symbol in ["TLT", "LABD", "TZA"]:
+            if symbol in indicators and "stdev_return_6" in indicators[symbol]:
+                stdev = indicators[symbol]["stdev_return_6"]
+                candidates.append((symbol, stdev))
+
+        if candidates:
+            # Select bottom 1 (lowest volatility)
+            bottom_1 = self.apply_select_bottom_filter(candidates, 1)
+            selected_symbol = bottom_1[0][0]
+            selected_stdev = bottom_1[0][1]
+            return self.create_klm_decision(
+                selected_symbol,
+                ActionType.BUY.value,
+                f"830/21 TLT path: {selected_symbol} (lowest volatility: {selected_stdev:.3f})",
+            )
+        return self.create_klm_decision(
+            "TLT", ActionType.BUY.value, "830/21 TLT path: TLT fallback"
+        )
 
     def get_required_symbols(self) -> list[str]:
         """830/21 Required symbols - unique Bond Check symbols."""

@@ -170,7 +170,7 @@ def _create_directory_if_needed(file_path: str) -> None:
     """Create directory for log file if it doesn't exist."""
     log_path = Path(file_path)
     # Only create if parent directory is specified (not just the current directory)
-    if str(log_path.parent) != '.':
+    if str(log_path.parent) != ".":
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
 

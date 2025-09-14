@@ -19,6 +19,9 @@ from the_alchemiser.shared.utils.common import ActionType
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.value_objects.core_types import KLMDecision
+else:
+    # Import for runtime use
+    from the_alchemiser.shared.value_objects.core_types import KLMDecision
 
 
 class BaseKLMVariant(ABC):
@@ -40,7 +43,7 @@ class BaseKLMVariant(ABC):
         self,
         indicators: dict[str, dict[str, float]],
         market_data: dict[str, pd.DataFrame] | None = None,
-    ) -> tuple[str | dict[str, float], str, str] | KLMDecision:
+    ) -> KLMDecision:
         """Evaluate the strategy variant and return trading decision.
 
         Args:
@@ -48,14 +51,11 @@ class BaseKLMVariant(ABC):
             market_data: Raw market data (optional)
 
         Returns:
-            Tuple of (symbol_or_allocation, action, reason) OR structured KLMDecision
-            - symbol_or_allocation: Single symbol string OR dict of {symbol: weight}
-            - action: Action type (BUY, SELL, HOLD)
-            - reason: Human-readable explanation
+            Structured KLMDecision object with symbol, action, and reasoning
 
         Note:
-            Phase 9 migration: Supports both legacy tuple and new KLMDecision formats.
-            Variants can gradually migrate to KLMDecision as needed.
+            Phase 9 migration complete: All variants now return KLMDecision format.
+            Legacy tuple support maintained in engine during transition.
 
         """
 
@@ -106,18 +106,18 @@ class BaseKLMVariant(ABC):
         """
         filtered = []
         rsi_key = f"rsi_{window}"
-        
+
         for symbol in candidates:
             if symbol in indicators and rsi_key in indicators[symbol]:
                 rsi_value = indicators[symbol][rsi_key]
                 # Ensure RSI value is valid (between 0 and 100)
                 if isinstance(rsi_value, int | float) and 0 <= rsi_value <= 100:
                     filtered.append(symbol)
-        
+
         return filtered
 
     def create_klm_decision(
-        self, symbol: str, action: str, reasoning: str
+        self, symbol_or_allocation: str | dict[str, float], action: str, reasoning: str
     ) -> KLMDecision:
         """Create a structured KLMDecision from individual components.
 
@@ -125,7 +125,7 @@ class BaseKLMVariant(ABC):
         from tuple returns to structured KLMDecision objects.
 
         Args:
-            symbol: Single symbol string (not dict allocation)
+            symbol_or_allocation: Single symbol string or allocation dict
             action: Action type (BUY, SELL, HOLD)
             reasoning: Human-readable explanation
 
@@ -134,7 +134,7 @@ class BaseKLMVariant(ABC):
 
         """
         return {
-            "symbol": symbol,
+            "symbol": symbol_or_allocation,
             "action": action,  # type: ignore[typeddict-item]
             "reasoning": reasoning,
         }
@@ -163,64 +163,62 @@ class BaseKLMVariant(ABC):
     # Common RSI overbought checks
     def check_primary_overbought_conditions(
         self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | None, str]:
+    ) -> KLMDecision | None:
         """Complete 11-step overbought detection chain from CLJ.
         ALL standard variants follow this exact sequence before "Single Popped KMLM".
 
         Sequence: QQQE → VTV → VOX → TECL → VOOG → VOOV → XLP → TQQQ → XLY → FAS → SPY
 
-        Returns (symbol, reason) or (None, "") if no conditions met.
+        Returns KLMDecision if overbought condition met, None otherwise.
         """
         # Step 1: QQQE RSI(10) > 79
         if "QQQE" in indicators and indicators["QQQE"].get("rsi_10", 0) > 79:
-            return ("UVXY", "QQQE RSI(10) > 79 → UVXY")
+            return self.create_klm_decision("UVXY", "BUY", "QQQE RSI(10) > 79 → UVXY")
 
         # Step 2: VTV RSI(10) > 79
         if "VTV" in indicators and indicators["VTV"].get("rsi_10", 0) > 79:
-            return ("UVXY", "VTV RSI(10) > 79 → UVXY")
+            return self.create_klm_decision("UVXY", "BUY", "VTV RSI(10) > 79 → UVXY")
 
         # Step 3: VOX RSI(10) > 79
         if "VOX" in indicators and indicators["VOX"].get("rsi_10", 0) > 79:
-            return ("UVXY", "VOX RSI(10) > 79 → UVXY")
+            return self.create_klm_decision("UVXY", "BUY", "VOX RSI(10) > 79 → UVXY")
 
         # Step 4: TECL RSI(10) > 79
         if "TECL" in indicators and indicators["TECL"].get("rsi_10", 0) > 79:
-            return ("UVXY", "TECL RSI(10) > 79 → UVXY")
+            return self.create_klm_decision("UVXY", "BUY", "TECL RSI(10) > 79 → UVXY")
 
         # Step 5: VOOG RSI(10) > 79
         if "VOOG" in indicators and indicators["VOOG"].get("rsi_10", 0) > 79:
-            return ("UVXY", "VOOG RSI(10) > 79 → UVXY")
+            return self.create_klm_decision("UVXY", "BUY", "VOOG RSI(10) > 79 → UVXY")
 
         # Step 6: VOOV RSI(10) > 79
         if "VOOV" in indicators and indicators["VOOV"].get("rsi_10", 0) > 79:
-            return ("UVXY", "VOOV RSI(10) > 79 → UVXY")
+            return self.create_klm_decision("UVXY", "BUY", "VOOV RSI(10) > 79 → UVXY")
 
         # Step 7: XLP RSI(10) > 75 (different threshold!)
         if "XLP" in indicators and indicators["XLP"].get("rsi_10", 0) > 75:
-            return ("UVXY", "XLP RSI(10) > 75 → UVXY")
+            return self.create_klm_decision("UVXY", "BUY", "XLP RSI(10) > 75 → UVXY")
 
         # Step 8: TQQQ RSI(10) > 79
         if "TQQQ" in indicators and indicators["TQQQ"].get("rsi_10", 0) > 79:
-            return ("UVXY", "TQQQ RSI(10) > 79 → UVXY")
+            return self.create_klm_decision("UVXY", "BUY", "TQQQ RSI(10) > 79 → UVXY")
 
         # Step 9: XLY RSI(10) > 80 (different threshold!)
         if "XLY" in indicators and indicators["XLY"].get("rsi_10", 0) > 80:
-            return ("UVXY", "XLY RSI(10) > 80 → UVXY")
+            return self.create_klm_decision("UVXY", "BUY", "XLY RSI(10) > 80 → UVXY")
 
         # Step 10: FAS RSI(10) > 80
         if "FAS" in indicators and indicators["FAS"].get("rsi_10", 0) > 80:
-            return ("UVXY", "FAS RSI(10) > 80 → UVXY")
+            return self.create_klm_decision("UVXY", "BUY", "FAS RSI(10) > 80 → UVXY")
 
         # Step 11: SPY RSI(10) > 80
         if "SPY" in indicators and indicators["SPY"].get("rsi_10", 0) > 80:
-            return ("UVXY", "SPY RSI(10) > 80 → UVXY")
+            return self.create_klm_decision("UVXY", "BUY", "SPY RSI(10) > 80 → UVXY")
 
         # No overbought conditions met - proceed to Single Popped KMLM
-        return (None, "")
+        return None
 
-    def evaluate_single_popped_kmlm(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | dict[str, float], str, str]:
+    def evaluate_single_popped_kmlm(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Single Popped KMLM logic - common across most standard variants.
 
         Logic:
@@ -240,9 +238,7 @@ class BaseKLMVariant(ABC):
         # Fallback if UVXY data unavailable
         return self.evaluate_combined_pop_bot(indicators)
 
-    def evaluate_bsc_strategy(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str, str, str]:
+    def evaluate_bsc_strategy(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """BSC (Bond/Stock/Commodity) strategy when UVXY RSI(21) > 65.
 
         Logic from CLJ:
@@ -253,27 +249,27 @@ class BaseKLMVariant(ABC):
             spy_rsi_21 = indicators["SPY"].get("rsi_21", 50)
 
             if spy_rsi_21 > 30:
-                result = (
+                result = self.create_klm_decision(
                     "VIXM",
                     ActionType.BUY.value,
                     f"BSC: SPY RSI(21) {spy_rsi_21:.1f} > 30 → VIXM",
                 )
             else:
-                result = (
+                result = self.create_klm_decision(
                     "SPXL",
                     ActionType.BUY.value,
                     f"BSC: SPY RSI(21) {spy_rsi_21:.1f} ≤ 30 → SPXL",
                 )
         else:
             # Fallback
-            result = ("VIXM", ActionType.BUY.value, "BSC: Default VIXM (no SPY data)")
+            result = self.create_klm_decision(
+                "VIXM", ActionType.BUY.value, "BSC: Default VIXM (no SPY data)"
+            )
 
-        self.log_decision(result[0], result[1], result[2])
+        self.log_klm_decision(result)
         return result
 
-    def evaluate_combined_pop_bot(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | dict[str, float], str, str]:
+    def evaluate_combined_pop_bot(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Combined Pop Bot strategy - standard across most variants.
 
         Sequence (from CLJ):
@@ -286,45 +282,43 @@ class BaseKLMVariant(ABC):
         if "TQQQ" in indicators:
             tqqq_rsi = indicators["TQQQ"].get("rsi_10", 50)
             if tqqq_rsi < 30:
-                result = (
+                result = self.create_klm_decision(
                     "TECL",
                     ActionType.BUY.value,
                     f"Pop Bot: TQQQ RSI(10) {tqqq_rsi:.1f} < 30 → TECL",
                 )
-                self.log_decision(result[0], result[1], result[2])
+                self.log_klm_decision(result)
                 return result
 
         # Priority 2: SOXL oversold check
         if "SOXL" in indicators:
             soxl_rsi = indicators["SOXL"].get("rsi_10", 50)
             if soxl_rsi < 30:
-                result = (
+                result = self.create_klm_decision(
                     "SOXL",
                     ActionType.BUY.value,
                     f"Pop Bot: SOXL RSI(10) {soxl_rsi:.1f} < 30 → SOXL",
                 )
-                self.log_decision(result[0], result[1], result[2])
+                self.log_klm_decision(result)
                 return result
 
         # Priority 3: SPXL oversold check
         if "SPXL" in indicators:
             spxl_rsi = indicators["SPXL"].get("rsi_10", 50)
             if spxl_rsi < 30:
-                result = (
+                result = self.create_klm_decision(
                     "SPXL",
                     ActionType.BUY.value,
                     f"Pop Bot: SPXL RSI(10) {spxl_rsi:.1f} < 30 → SPXL",
                 )
-                self.log_decision(result[0], result[1], result[2])
+                self.log_klm_decision(result)
                 return result
 
         # No oversold conditions - proceed to variant-specific KMLM switcher
         return self.evaluate_core_kmlm_switcher(indicators)
 
     @abstractmethod
-    def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | dict[str, float], str, str]:
+    def evaluate_core_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Core KMLM switcher - each variant implements its own logic.
         This is where variants differ after the common overbought/pop bot logic.
         """
@@ -338,6 +332,13 @@ class BaseKLMVariant(ABC):
             self.logger.info(f"{self.name}: {action} {symbols} - {reason}")
         else:
             self.logger.info(f"{self.name}: {action} {symbol_or_allocation} - {reason}")
+
+    def log_klm_decision(self, decision: KLMDecision) -> None:
+        """Log KLMDecision with context."""
+        symbol = decision["symbol"]
+        action = decision["action"]
+        reason = decision["reasoning"]
+        self.log_decision(symbol, action, reason)
 
     def get_base_required_symbols(self) -> list[str]:
         """Base symbols required by the standard 11-step overbought chain and pop bot logic.

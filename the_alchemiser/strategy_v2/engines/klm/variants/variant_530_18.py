@@ -54,9 +54,7 @@ class KlmVariant53018(BaseKLMVariant):
         self,
         indicators: dict[str, dict[str, float]],
         market_data: dict[str, pd.DataFrame] | None = None,
-    ) -> (
-        tuple[str | dict[str, float], str, str] | KLMDecision
-    ):  # TODO: Phase 9 - Gradual migration to KLMDecision
+    ) -> KLMDecision:
         """Evaluate the complete 530/18 Scale-In variant exactly as in CLJ.
 
         This follows the exact nested structure from the CLJ file.
@@ -104,9 +102,7 @@ class KlmVariant53018(BaseKLMVariant):
         # Step 9: "10. KMLM Switcher | Holy Grail" - the final complex branch
         return self._evaluate_holy_grail_kmlm_switcher(indicators)
 
-    def _evaluate_spy_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[dict[str, float], str, str] | None:
+    def _evaluate_spy_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """SPY Scale-In | VIX+ -> VIX++ (CLJ lines 782-796)."""
         if "SPY" not in indicators:
             return None
@@ -117,7 +113,7 @@ class KlmVariant53018(BaseKLMVariant):
             if spy_rsi > 82.5:
                 # VIX Blend++ - Double UVXY weight
                 allocation = self.vix_blend_plus_plus  # {UVXY: 0.667, VIXM: 0.333}
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"SPY Scale-In: RSI {spy_rsi:.1f} > 82.5 → VIX Blend++",
@@ -125,20 +121,18 @@ class KlmVariant53018(BaseKLMVariant):
             else:
                 # VIX Blend+ - Equal VIX allocation
                 allocation = self.vix_blend_plus  # {UVXY: 0.333, VXX: 0.333, VIXM: 0.333}
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"SPY Scale-In: RSI {spy_rsi:.1f} > 80 → VIX Blend+",
                 )
 
-            self.log_decision(result[0], result[1], result[2])
+            self.log_klm_decision(result)
             return result
 
         return None
 
-    def _evaluate_ioo_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[dict[str, float], str, str] | None:
+    def _evaluate_ioo_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """IOO Scale-In | VIX+ -> VIX++ (identical pattern to SPY)."""
         if "IOO" not in indicators:
             return None
@@ -148,27 +142,25 @@ class KlmVariant53018(BaseKLMVariant):
         if ioo_rsi > 80:
             if ioo_rsi > 82.5:
                 allocation = self.vix_blend_plus_plus
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"IOO Scale-In: RSI {ioo_rsi:.1f} > 82.5 → VIX Blend++",
                 )
             else:
                 allocation = self.vix_blend_plus
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"IOO Scale-In: RSI {ioo_rsi:.1f} > 80 → VIX Blend+",
                 )
 
-            self.log_decision(result[0], result[1], result[2])
+            self.log_klm_decision(result)
             return result
 
         return None
 
-    def _evaluate_qqq_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[dict[str, float], str, str] | None:
+    def _evaluate_qqq_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """QQQ Scale-In | VIX+ -> VIX++ (threshold 79 vs 80)."""
         if "QQQ" not in indicators:
             return None
@@ -178,27 +170,25 @@ class KlmVariant53018(BaseKLMVariant):
         if qqq_rsi > 79:  # Different threshold!
             if qqq_rsi > 82.5:
                 allocation = self.vix_blend_plus_plus
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"QQQ Scale-In: RSI {qqq_rsi:.1f} > 82.5 → VIX Blend++",
                 )
             else:
                 allocation = self.vix_blend_plus
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"QQQ Scale-In: RSI {qqq_rsi:.1f} > 79 → VIX Blend+",
                 )
 
-            self.log_decision(result[0], result[1], result[2])
+            self.log_klm_decision(result)
             return result
 
         return None
 
-    def _evaluate_vtv_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[dict[str, float], str, str] | None:
+    def _evaluate_vtv_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """VTV Scale-In | VIX -> VIX+ (different pattern - uses VIXY)."""
         if "VTV" not in indicators:
             return None
@@ -208,27 +198,25 @@ class KlmVariant53018(BaseKLMVariant):
         if vtv_rsi > 79:
             if vtv_rsi > 85:  # Higher threshold for VIX+
                 allocation = self.vix_blend_plus
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"VTV Scale-In: RSI {vtv_rsi:.1f} > 85 → VIX Blend+",
                 )
             else:
                 allocation = self.vix_blend  # Uses VIXY instead of UVXY
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"VTV Scale-In: RSI {vtv_rsi:.1f} > 79 → VIX Blend",
                 )
 
-            self.log_decision(result[0], result[1], result[2])
+            self.log_klm_decision(result)
             return result
 
         return None
 
-    def _evaluate_xlp_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[dict[str, float], str, str] | None:
+    def _evaluate_xlp_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """XLP Scale-In | VIX -> VIX+ (threshold 77, same pattern as VTV)."""
         if "XLP" not in indicators:
             return None
@@ -238,27 +226,25 @@ class KlmVariant53018(BaseKLMVariant):
         if xlp_rsi > 77:  # Different threshold
             if xlp_rsi > 85:
                 allocation = self.vix_blend_plus
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"XLP Scale-In: RSI {xlp_rsi:.1f} > 85 → VIX Blend+",
                 )
             else:
                 allocation = self.vix_blend
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"XLP Scale-In: RSI {xlp_rsi:.1f} > 77 → VIX Blend",
                 )
 
-            self.log_decision(result[0], result[1], result[2])
+            self.log_klm_decision(result)
             return result
 
         return None
 
-    def _evaluate_xlf_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[dict[str, float], str, str] | None:
+    def _evaluate_xlf_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """XLF Scale-In | VIX -> VIX+ (threshold 81, same pattern)."""
         if "XLF" not in indicators:
             return None
@@ -268,27 +254,27 @@ class KlmVariant53018(BaseKLMVariant):
         if xlf_rsi > 81:
             if xlf_rsi > 85:
                 allocation = self.vix_blend_plus
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"XLF Scale-In: RSI {xlf_rsi:.1f} > 85 → VIX Blend+",
                 )
             else:
                 allocation = self.vix_blend
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"XLF Scale-In: RSI {xlf_rsi:.1f} > 81 → VIX Blend",
                 )
 
-            self.log_decision(result[0], result[1], result[2])
+            self.log_klm_decision(result)
             return result
 
         return None
 
     def _evaluate_retl_scale_in(
         self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[dict[str, float], str, str] | None:
+    ) -> KLMDecision | None:
         """RETL Scale-In | BTAL -> VIX (introduces BTAL/BIL path)."""
         if "RETL" not in indicators:
             return None
@@ -298,27 +284,27 @@ class KlmVariant53018(BaseKLMVariant):
         if retl_rsi > 82:
             if retl_rsi > 85:
                 allocation = self.vix_blend
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"RETL Scale-In: RSI {retl_rsi:.1f} > 85 → VIX Blend",
                 )
             else:
                 allocation = self.btal_bil  # {BTAL: 0.5, BIL: 0.5}
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"RETL Scale-In: RSI {retl_rsi:.1f} > 82 → BTAL/BIL",
                 )
 
-            self.log_decision(result[0], result[1], result[2])
+            self.log_klm_decision(result)
             return result
 
         return None
 
     def _evaluate_spy_rsi_70_overbought_logic(
         self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | dict[str, float], str, str] | None:
+    ) -> KLMDecision | None:
         """SPY RSI(70) > 63 "Overbought" branch with AGG vs QQQ comparison.
         This is where 530/18 gets extremely complex with commodity allocations.
         """
@@ -335,7 +321,7 @@ class KlmVariant53018(BaseKLMVariant):
             if agg_rsi_15 > qqq_rsi_15:
                 # "All 3x Tech" allocation
                 allocation = {"TQQQ": 0.2, "SPXL": 0.2, "SOXL": 0.2, "FNGU": 0.2, "ERX": 0.2}
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"Overbought: AGG RSI(15) {agg_rsi_15:.1f} > QQQ RSI(15) {qqq_rsi_15:.1f} → All 3x Tech",
@@ -343,20 +329,20 @@ class KlmVariant53018(BaseKLMVariant):
             else:
                 # "GLD/SLV/PDBC" commodity allocation
                 allocation = {"GLD": 0.5, "SLV": 0.25, "PDBC": 0.25}
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"Overbought: AGG RSI(15) {agg_rsi_15:.1f} ≤ QQQ RSI(15) {qqq_rsi_15:.1f} → Commodities",
                 )
 
-            self.log_decision(result[0], result[1], result[2])
+            self.log_klm_decision(result)
             return result
 
         return None
 
     def _evaluate_holy_grail_kmlm_switcher(
         self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | dict[str, float], str, str]:
+    ) -> KLMDecision:
         """ "10. KMLM Switcher | Holy Grail" - The final complex branch.
 
         This includes:
@@ -370,19 +356,21 @@ class KlmVariant53018(BaseKLMVariant):
         # Check VOX overbought
         if "VOX" in indicators and indicators["VOX"].get("rsi_10", 0) > 79:
             allocation = self.vix_blend
-            result = (allocation, ActionType.BUY.value, "Holy Grail: VOX RSI(10) > 79 → VIX Blend")
-            self.log_decision(result[0], result[1], result[2])
+            result = self.create_klm_decision(
+                allocation, ActionType.BUY.value, "Holy Grail: VOX RSI(10) > 79 → VIX Blend"
+            )
+            self.log_klm_decision(result)
             return result
 
         # Check XLP overbought
         if "XLP" in indicators and indicators["XLP"].get("rsi_10", 0) > 75:
             allocation = self.vix_blend
-            xlp_result = (
+            xlp_result = self.create_klm_decision(
                 allocation,
                 ActionType.BUY.value,
                 "Holy Grail: XLP RSI(10) > 75 → VIX Blend",
             )
-            self.log_decision(xlp_result[0], xlp_result[1], xlp_result[2])
+            self.log_klm_decision(xlp_result)
             return xlp_result
 
         # TQQQ cumulative return check (< -12% over 6 periods)
@@ -392,7 +380,7 @@ class KlmVariant53018(BaseKLMVariant):
             tqqq_daily_return = indicators.get("TQQQ", {}).get("cumulative_return_1", 0)
             if tqqq_daily_return > 5.5:
                 allocation = self.vix_blend_plus
-                tqqq_result: tuple[str | dict[str, float], str, str] = (
+                tqqq_result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"Holy Grail: TQQQ 6d return {tqqq_cum_return:.1f}% < -12%, daily {tqqq_daily_return:.1f}% > 5.5% → VIX Blend+",
@@ -401,34 +389,38 @@ class KlmVariant53018(BaseKLMVariant):
                 # Pop bot logic
                 tqqq_result = self._evaluate_holy_grail_pop_bot(indicators)
 
-            self.log_decision(tqqq_result[0], tqqq_result[1], tqqq_result[2])
+            self.log_klm_decision(tqqq_result)
             return tqqq_result
 
         # Default to complex KMLM switcher logic
         return self._evaluate_kmlm_switcher_plus_fngu(indicators)
 
-    def _evaluate_holy_grail_pop_bot(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | dict[str, float], str, str]:
+    def _evaluate_holy_grail_pop_bot(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Pop bot logic within Holy Grail branch."""
         # TQQQ oversold (< 31, different from standard < 30)
         if "TQQQ" in indicators and indicators["TQQQ"].get("rsi_10", 50) < 31:
-            return ("TECL", ActionType.BUY.value, "Holy Grail Pop Bot: TQQQ RSI < 31 → TECL")
+            return self.create_klm_decision(
+                "TECL", ActionType.BUY.value, "Holy Grail Pop Bot: TQQQ RSI < 31 → TECL"
+            )
 
         # SOXL oversold
         if "SOXL" in indicators and indicators["SOXL"].get("rsi_10", 50) < 30:
-            return ("SOXL", ActionType.BUY.value, "Holy Grail Pop Bot: SOXL RSI < 30 → SOXL")
+            return self.create_klm_decision(
+                "SOXL", ActionType.BUY.value, "Holy Grail Pop Bot: SOXL RSI < 30 → SOXL"
+            )
 
         # SPXL oversold
         if "SPXL" in indicators and indicators["SPXL"].get("rsi_10", 50) < 30:
-            return ("SPXL", ActionType.BUY.value, "Holy Grail Pop Bot: SPXL RSI < 30 → SPXL")
+            return self.create_klm_decision(
+                "SPXL", ActionType.BUY.value, "Holy Grail Pop Bot: SPXL RSI < 30 → SPXL"
+            )
 
         # Fall through to KMLM Switcher + FNGU
         return self._evaluate_kmlm_switcher_plus_fngu(indicators)
 
     def _evaluate_kmlm_switcher_plus_fngu(
         self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | dict[str, float], str, str]:
+    ) -> KLMDecision:
         """ "KMLM Switcher + FNGU" with complex 50/50 FNGU logic.
 
         This is the most sophisticated KMLM switcher in the ensemble.
@@ -465,26 +457,26 @@ class KlmVariant53018(BaseKLMVariant):
                     # 50/50 allocation between FNGU and best candidate
                     if best_candidate[0] != "FNGU":
                         allocation = {"FNGU": 0.5, best_candidate[0]: 0.5}
-                        result = (
+                        result = self.create_klm_decision(
                             allocation,
                             ActionType.BUY.value,
                             f"KMLM Switcher: 50% FNGU / 50% {best_candidate[0]} (best MA return)",
                         )
                     else:
-                        result = (  # type: ignore[assignment] # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
+                        result = self.create_klm_decision(
                             "FNGU",
                             ActionType.BUY.value,
                             "KMLM Switcher: 100% FNGU (best MA return)",
                         )
                 else:
-                    result = (  # type: ignore[assignment]
+                    result = self.create_klm_decision(
                         "FNGU",
                         ActionType.BUY.value,
                         "KMLM Switcher: FNGU fallback",
-                    )  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
+                    )
             else:
                 # Simple tech selection
-                result = (  # type: ignore[assignment] # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
+                result = self.create_klm_decision(
                     candidates[0][0],
                     ActionType.BUY.value,
                     f"KMLM Switcher: {candidates[0][0]} (lowest RSI: {candidates[0][1]:.1f})",
@@ -503,7 +495,7 @@ class KlmVariant53018(BaseKLMVariant):
                 selected = rotator_candidates[:3]
                 allocation = {symbol: 1.0 / 3 for symbol, _ in selected}
                 symbols = ", ".join([s[0] for s in selected])
-                result = (
+                result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
                     f"L/S Rotator: {symbols} (lowest volatility)",
@@ -511,20 +503,20 @@ class KlmVariant53018(BaseKLMVariant):
             elif rotator_candidates:
                 # Less than 3 available
                 best = min(rotator_candidates, key=lambda x: x[1])
-                result = (  # type: ignore[assignment] # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
+                result = self.create_klm_decision(
                     best[0],
                     ActionType.BUY.value,
                     f"L/S Rotator: {best[0]} (lowest volatility)",
                 )
             else:
                 # Ultimate fallback
-                result = (  # type: ignore[assignment]
+                result = self.create_klm_decision(
                     "KMLM",
                     ActionType.BUY.value,
                     "L/S Rotator: KMLM fallback",
-                )  # TODO: Phase 9 - Remove type ignore after converting to KLMDecision
+                )
 
-        self.log_decision(result[0], result[1], result[2])
+        self.log_klm_decision(result)
         return result
 
     def get_required_symbols(self) -> list[str]:
@@ -572,9 +564,7 @@ class KlmVariant53018(BaseKLMVariant):
         return list(set(all_symbols))
 
     # Override the base class method since 530/18 doesn't use standard pattern
-    def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> tuple[str | dict[str, float], str, str]:
+    def evaluate_core_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """530/18 doesn't use the standard core KMLM switcher pattern.
         It has its own complex Holy Grail logic.
         """
