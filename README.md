@@ -32,10 +32,7 @@ export PYTHONPATH="${PWD}:${PWD}/the_alchemiser:${PYTHONPATH}"
 ### Basic Usage
 
 ```bash
-# Generate trading signals (analysis mode)
-make run-signals
-
-# Execute trading (mode automatically determined by deployment stage)
+# Execute trading (includes integrated signal analysis)
 make run-trade
 
 # Check account status
@@ -51,26 +48,17 @@ make status
 The system provides a rich command-line interface:
 
 ```bash
-# Signal generation and analysis
-poetry run alchemiser signal
-
-# Multi-strategy trading execution  
+# Multi-strategy trading execution (includes signal analysis)
 poetry run alchemiser trade
 
 # Account status and positions
 poetry run alchemiser status
-
-# DSL strategy validation
-poetry run alchemiser dsl-count
 
 # AWS Lambda deployment
 poetry run alchemiser deploy
 
 # System information
 poetry run alchemiser version
-
-# Technical indicator validation
-poetry run alchemiser validate-indicators
 ```
 
 ## 🏗️ Architecture

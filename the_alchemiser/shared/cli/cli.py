@@ -32,7 +32,6 @@ from the_alchemiser.shared.logging.logging_utils import (
     log_error_with_context,
 )
 from the_alchemiser.shared.types.exceptions import (
-    AlchemiserError,
     TradingClientError,
 )
 
@@ -89,118 +88,8 @@ def show_welcome() -> None:
     console.print()
 
 
-@app.command()
-def signal(
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Enable verbose output with detailed logs"
-    ),
-    strategy: str = typer.Option(
-        "all",
-        "--strategy",
-        "-s",
-        help="Strategy to run: nuclear, tecl, klm, or all (default)",
-    ),
-    dsl_strategy: str | None = typer.Option(
-        None,
-        "--DSL",
-        "--dsl",
-        help="Path (or name) of DSL .clj strategy file to evaluate (uses new DSL engine)",
-    ),
-    show_trace: bool = typer.Option(
-        False,
-        "--trace",
-        help="Display evaluation trace when using --DSL",
-    ),
-    save_trace: str | None = typer.Option(
-        None,
-        "--save-trace",
-        help="Save evaluation trace JSON to file when using --DSL",
-    ),
-    tracking: bool = typer.Option(
-        False,
-        "--tracking",
-        help="Include strategy performance tracking table (opt-in; default off)",
-    ),
-) -> None:
-    """🧠 Generate strategy signals.
-
-    Default: legacy multi-strategy signal analysis via main engine.
-    With --DSL: evaluate a standalone DSL (.clj) strategy file and display portfolio weights.
-    """
-    # Initialize error handler
-    error_handler = TradingSystemErrorHandler()
-
-    try:
-        # DSL mode path -----------------------------------------------------
-        if dsl_strategy:
-            # TODO: DSL functionality temporarily disabled due to deprecated module removal
-            console.print(
-                "[bold red]DSL mode temporarily disabled during migration to strategy_v2[/bold red]"
-            )
-            console.print("Please use the default signal analysis mode.")
-            raise typer.Exit(1)
-
-        # Legacy multi-strategy signal path ----------------------------------
-        show_welcome()
-
-        # Show deprecation warning for --tracking in signal mode
-        if tracking:
-            console.print(
-                "[dim yellow]⚠️  --tracking flag in signal mode is deprecated. "
-                "Use 'alchemiser trade --show-tracking' to see performance data after trade execution.[/dim yellow]"
-            )
-
-        with Progress(
-            SpinnerColumn(),
-            TextColumn(PROGRESS_DESCRIPTION_FORMAT),
-            console=console,
-        ) as progress:
-            task = progress.add_task("[cyan]Analyzing market conditions...", total=None)
-            time.sleep(0.5)  # Brief pause for UX
-
-            progress.update(task, description="[cyan]📊 Generating strategy signals...")
-
-            # Use the main entry point to ensure proper DI initialization
-            from the_alchemiser.main import main
-
-            # Build argv for main function - signal mode
-            argv = ["signal"]
-            if tracking:
-                argv.append("--tracking")
-
-            success = main(argv=argv)
-
-        if success:
-            console.print("\n[bold green]Signal analysis completed successfully![/bold green]")
-        else:
-            console.print("\n[bold red]Signal analysis failed![/bold red]")
-            raise typer.Exit(1)
-    except AlchemiserError as e:
-        error_handler.handle_error(
-            error=e,
-            context="CLI signal command - application error",
-            component="cli.signal",
-            additional_data={"verbose": verbose, "error_type": type(e).__name__},
-        )
-        console.print(f"\n[bold red]Application error: {e}[/bold red]")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
-    except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
-        error_handler.handle_error(
-            error=e,
-            context="CLI signal command - unexpected system error",
-            component="cli.signal",
-            additional_data={
-                "verbose": verbose,
-                "error_type": "unexpected_error",
-                "original_error": type(e).__name__,
-            },
-        )
-        console.print(f"\n[bold red]Unexpected error: {e}[/bold red]")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
+# Signal command removed as part of CLI simplification.
+# Use 'alchemiser trade' for strategy execution with integrated signal analysis.
 
 
 @app.command()
@@ -510,32 +399,8 @@ def status() -> None:
         raise typer.Exit(1)
 
 
-@app.command("dsl-count")
-def dsl_count(
-    dsl_strategy: str = typer.Argument(..., help="Path (or name) of DSL .clj strategy file"),
-    max_nodes: int | None = typer.Option(
-        None,
-        "--max-nodes",
-        help="Override max node cap for counting (None disables cap)",
-    ),
-    max_depth: int | None = typer.Option(
-        None,
-        "--max-depth",
-        help="Override max depth cap for counting (None disables cap)",
-    ),
-) -> None:
-    """🔍 Dry-run parse a DSL strategy and report AST size (node count & depth).
-
-    This does NOT evaluate indicators or fetch market data; it only parses the file
-    and reports structural complexity so large strategies can be optimized before
-    full evaluation.
-    """
-    # TODO: DSL functionality temporarily disabled due to deprecated module removal
-    console = Console()
-    console.print(
-        "[bold red]DSL functionality temporarily disabled during migration to strategy_v2[/bold red]"
-    )
-    raise typer.Exit(1)
+# DSL count command removed as part of CLI simplification.
+# DSL functionality has been fully removed from the system.
 
 
 @app.command()
@@ -604,132 +469,8 @@ def version() -> None:
     console.print(Panel(version_info, title="[bold]Version Info[/bold]", border_style="cyan"))
 
 
-@app.command()
-def validate_indicators(
-    mode: str = typer.Option("core", help="Validation mode: quick, core, or full"),
-    symbols: str | None = typer.Option(None, "--symbols", help="Comma-separated symbols to test"),
-    save_file: str | None = typer.Option(None, "--save", help="Save results to JSON file"),
-    verbose_validation: bool = typer.Option(
-        False, "--verbose-validation", help="Enable verbose validation logging"
-    ),
-) -> None:
-    """🔬 [bold blue]Validate technical indicators against TwelveData API[/bold blue].
-
-    This command runs a comprehensive validation suite that tests all technical
-    indicators used by our trading strategies against TwelveData API values.
-
-    Examples:
-      alchemiser validate-indicators --mode quick
-      alchemiser validate-indicators --symbols SPY,TQQQ --save results.json
-      alchemiser validate-indicators --mode full
-
-    Modes:
-    • quick: Test core symbols (SPY, QQQ) with main indicators
-    • core: Test all strategy symbols with key indicators
-    • full: Comprehensive test of all symbols and indicators
-
-    TwelveData API key is automatically retrieved from AWS Secrets Manager.
-
-    """
-    show_welcome()
-
-    try:
-        # Get API key from secrets manager
-        from the_alchemiser.shared.config.secrets_manager import (
-            secrets_manager,
-        )
-
-        api_key = secrets_manager.get_twelvedata_api_key()
-
-        if not api_key:
-            console.print("[red]Error: TwelveData API key not found in AWS Secrets Manager.[/red]")
-            console.print("Please add TWELVEDATA_KEY to the 'the-alchemiser-secrets' secret.")
-            console.print("Get a free API key at: https://twelvedata.com")
-            raise typer.Exit(1)
-
-        # Import the validation suite
-        from the_alchemiser.strategy.validation.indicator_validator import (
-            IndicatorValidationSuite,
-        )
-
-        # Validate mode
-        if mode not in ["quick", "core", "full"]:
-            console.print(f"[red]Error: Invalid mode '{mode}'. Must be: quick, core, or full[/red]")
-            raise typer.Exit(1)
-
-        # Initialize validation suite
-        validator = IndicatorValidationSuite(api_key, console)
-
-        # Determine symbols to test
-        symbols_list: list[str]
-        if symbols:
-            symbols_list = [s.strip().upper() for s in symbols.split(",")]
-        else:
-            if mode == "quick":
-                symbols_list = ["SPY", "QQQ"]
-            elif mode == "core":
-                symbols_list = validator.strategy_symbols["core"]
-            else:  # full
-                symbols_list = []
-                for category in validator.strategy_symbols.values():
-                    symbols_list.extend(category)
-                symbols_list = list(set(symbols_list))  # Remove duplicates
-
-        console.print(
-            f"[bold blue]🔬 Running indicator validation in {mode.upper()} mode...[/bold blue]"
-        )
-        console.print(
-            f"Testing {len(symbols_list)} symbols: {', '.join(symbols_list[:5])}{' ...' if len(symbols_list) > 5 else ''}"
-        )
-
-        # Run validation
-        summary = validator.run_validation_suite(symbols_list, mode)
-        validator.generate_report(summary)
-
-        if save_file:
-            validator.save_results(save_file)
-
-        if summary["failed_tests"] == 0:
-            console.print("\n[bold green]✅ All indicators validated successfully![/bold green]")
-        else:
-            console.print(
-                f"\n[bold yellow]⚠️  Validation completed with {summary['failed_tests']} failures[/bold yellow]"
-            )
-            console.print("Check the detailed report above for specific issues.")
-
-    except ImportError as e:
-        console.print("[red]Error: Could not import validation suite.[/red]")
-        console.print(f"Details: {e}")
-        raise typer.Exit(1)
-    except AlchemiserError as e:
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "cli_validation_application_error",
-            function="validate",
-            command="validate",
-            error_type=type(e).__name__,
-        )
-        console.print(f"[red]Application error during validation: {e}[/red]")
-        if verbose_validation:
-            console.print_exception()
-        raise typer.Exit(1)
-    except (AttributeError, ValueError, KeyError, TypeError, OSError) as e:
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "cli_validation_unexpected_error",
-            function="validate",
-            command="validate",
-            error_type="unexpected_error",
-            original_error=type(e).__name__,
-        )
-        console.print(f"[red]Unexpected error running validation: {e}[/red]")
-        if verbose_validation:
-            console.print_exception()
-        raise typer.Exit(1)
+# Indicator validation command removed as part of CLI simplification.
+# Technical indicators are tested through standard unit tests instead.
 
 
 @app.callback()

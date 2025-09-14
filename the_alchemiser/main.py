@@ -18,7 +18,8 @@ from the_alchemiser.orchestration.event_driven_orchestrator import EventDrivenOr
 
 # CLI formatter imports (moved from function-level)
 from the_alchemiser.shared.cli.cli_formatter import render_footer, render_header
-from the_alchemiser.shared.cli.signal_analyzer import SignalAnalyzer
+
+# Signal analyzer import removed - signal functionality integrated into trading workflow
 from the_alchemiser.shared.config.config import Settings, load_settings
 
 # DI imports (required for v2 architecture)
@@ -36,7 +37,6 @@ from the_alchemiser.shared.logging.logging_utils import (
 )
 from the_alchemiser.shared.types.exceptions import (
     ConfigurationError,
-    DataProviderError,
     StrategyExecutionError,
     TradingClientError,
 )
@@ -126,27 +126,7 @@ class TradingSystem:
             # Don't let startup event emission failure break the system
             self.logger.warning(f"Failed to emit StartupEvent: {e}")
 
-    def analyze_signals(self, show_tracking: bool = False) -> bool:
-        """Generate and display strategy signals without trading.
-
-        Args:
-            show_tracking: When True include performance tracking table (opt-in to preserve
-                legacy minimal output by default).
-
-        """
-        try:
-            if self.container is None:
-                raise RuntimeError("DI container not initialized")
-            analyzer = SignalAnalyzer(self.settings, self.container)
-            return analyzer.run(show_tracking=show_tracking)
-        except (DataProviderError, StrategyExecutionError) as e:
-            self.error_handler.handle_error(
-                error=e,
-                context="signal analysis operation",
-                component="TradingSystem.analyze_signals",
-                additional_data={"settings_loaded": True},
-            )
-            return False
+    # Signal analysis method removed - use execute_trading() instead which includes signal analysis
 
     def execute_trading(
         self,
@@ -251,15 +231,14 @@ def create_argument_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  alchemiser signal                    # Analyze signals
   alchemiser trade                     # Execute trading (mode determined by stage)
         """,
     )
 
     parser.add_argument(
         "mode",
-        choices=["signal", "trade"],
-        help="Operation mode: signal (analyze only) or trade (execute)",
+        choices=["trade"],
+        help="Operation mode: trade (execute trading with integrated signal analysis)",
     )
 
     # Remove --live flag - trading mode now determined by deployment stage
@@ -273,11 +252,12 @@ Examples:
         "--ignore-market-hours", action="store_true", help="Override market hours check"
     )
 
-    parser.add_argument(
-        "--tracking",
-        action="store_true",
-        help="Include strategy performance tracking table (signal mode - deprecated)",
-    )
+    # Remove signal mode related tracking argument since signal mode is removed
+    # parser.add_argument(
+    #     "--tracking",
+    #     action="store_true",
+    #     help="Include strategy performance tracking table (signal mode - deprecated)",
+    # )
 
     parser.add_argument(
         "--show-tracking",
@@ -330,18 +310,16 @@ def main(argv: list[str] | None = None) -> bool:
             is_live = endpoint and "paper" not in endpoint.lower()
             mode_label = "LIVE TRADING ⚠️" if is_live else "Paper Trading"
             render_header("The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}")
-        else:
-            render_header("The Alchemiser Trading System", f"{args.mode.upper()}")
 
-        if args.mode == "signal":
-            success = system.analyze_signals(show_tracking=getattr(args, "tracking", False))
-        elif args.mode == "trade":
+        # Execute trading with integrated signal analysis
+        if args.mode == "trade":
             success = system.execute_trading(
                 ignore_market_hours=args.ignore_market_hours,
                 show_tracking=getattr(args, "show_tracking", False),
                 export_tracking_json=getattr(args, "export_tracking_json", None),
             )
         else:
+            # This should never happen since we only accept "trade" mode now
             success = False
 
         # Display result
