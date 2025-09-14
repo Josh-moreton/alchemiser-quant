@@ -91,3 +91,60 @@ class TradeExecuted(BaseEvent):
     )
     success: bool = Field(..., description="Whether execution was successful")
     error_message: str | None = Field(default=None, description="Error message if execution failed")
+
+
+class TradeExecutionStarted(BaseEvent):
+    """Event emitted when trade execution begins.
+
+    Contains the trading plan and execution parameters.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="TradeExecutionStarted", description=EVENT_TYPE_DESCRIPTION)
+
+    # Execution startup fields
+    execution_plan: dict[str, Any] = Field(..., description="Trading execution plan")
+    portfolio_state_before: PortfolioStateDTO | None = Field(
+        default=None, description="Portfolio state before execution"
+    )
+    trade_mode: str = Field(..., description="Trading mode (live/paper)")
+    market_conditions: dict[str, Any] | None = Field(
+        default=None, description="Market conditions at execution start"
+    )
+
+
+class PortfolioStateChanged(BaseEvent):
+    """Event emitted when portfolio state changes significantly.
+
+    Contains before and after portfolio states for comparison.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="PortfolioStateChanged", description=EVENT_TYPE_DESCRIPTION)
+
+    # Portfolio state change fields
+    portfolio_state_before: PortfolioStateDTO = Field(..., description="Portfolio state before change")
+    portfolio_state_after: PortfolioStateDTO = Field(..., description="Portfolio state after change")
+    change_type: str = Field(..., description="Type of change (rebalance, trade, etc.)")
+    change_summary: dict[str, Any] = Field(
+        default_factory=dict, description="Summary of changes made"
+    )
+
+
+class AllocationComparisonCompleted(BaseEvent):
+    """Event emitted when allocation comparison analysis is completed.
+
+    Contains target vs current allocation analysis results.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="AllocationComparisonCompleted", description=EVENT_TYPE_DESCRIPTION)
+
+    # Allocation comparison fields
+    target_allocations: dict[str, Decimal] = Field(..., description="Target allocation percentages")
+    current_allocations: dict[str, Decimal] = Field(..., description="Current allocation percentages")
+    allocation_differences: dict[str, Decimal] = Field(..., description="Differences requiring rebalancing")
+    rebalancing_required: bool = Field(..., description="Whether rebalancing is needed")
+    comparison_metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional comparison analysis data"
+    )

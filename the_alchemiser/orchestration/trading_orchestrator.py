@@ -23,7 +23,7 @@ from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO, PortfolioMetricsDTO
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO, RebalancePlanItemDTO
-from the_alchemiser.shared.events import EventBus, TradeExecuted
+from the_alchemiser.shared.events import EventBus, TradeExecuted, TradeExecutionStarted
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 from the_alchemiser.shared.types.exceptions import (
@@ -164,6 +164,24 @@ class TradingOrchestrator:
                         self.logger.info(
                             f"📋 Generated rebalance plan with {len(rebalance_plan.items)} items"
                         )
+
+                        # DUAL-PATH: Emit TradeExecutionStarted event for event-driven consumers
+                        execution_plan = {
+                            "plan_id": rebalance_plan.plan_id,
+                            "trade_count": len(rebalance_plan.items),
+                            "total_trade_value": float(rebalance_plan.total_trade_value),
+                            "trades": [
+                                {
+                                    "symbol": item.symbol,
+                                    "action": item.action,
+                                    "shares": float(item.shares),
+                                    "trade_value": float(item.trade_value),
+                                }
+                                for item in rebalance_plan.items
+                            ],
+                        }
+                        mode_str = "LIVE" if self.live_trading else "PAPER"
+                        self._emit_trade_execution_started_event(execution_plan, mode_str)
 
                         # Get ExecutionManager from container
                         execution_manager = self.container.services.execution_manager()
@@ -639,3 +657,38 @@ class TradingOrchestrator:
         except Exception as e:
             # Don't let event emission failure break the traditional workflow
             self.logger.warning(f"Failed to emit TradeExecuted event: {e}")
+
+    def _emit_trade_execution_started_event(
+        self, execution_plan: dict[str, Any], trade_mode: str
+    ) -> None:
+        """Emit TradeExecutionStarted event for event-driven architecture.
+
+        Args:
+            execution_plan: The trading execution plan
+            trade_mode: Trading mode (LIVE/PAPER)
+
+        """
+        try:
+            correlation_id = str(uuid.uuid4())
+            causation_id = f"trade-execution-start-{datetime.now(UTC).isoformat()}"
+
+            # Create and emit the event
+            event = TradeExecutionStarted(
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+                event_id=f"trade-start-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="orchestration",
+                source_component="TradingOrchestrator",
+                execution_plan=execution_plan,
+                portfolio_state_before=None,  # Would be populated from portfolio analysis
+                trade_mode=trade_mode,
+                market_conditions=None,  # Would be populated from market data
+            )
+
+            self.event_bus.publish(event)
+            self.logger.debug(f"Emitted TradeExecutionStarted event {event.event_id}")
+
+        except Exception as e:
+            # Don't let event emission failure break the traditional workflow
+            self.logger.warning(f"Failed to emit TradeExecutionStarted event: {e}")
