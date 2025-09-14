@@ -1,4 +1,4 @@
-"""Business Unit: orchestration | Status: current
+"""Business Unit: orchestration | Status: current.
 
 Trading execution orchestration workflow.
 
@@ -96,16 +96,38 @@ class TradingOrchestrator:
 
     def execute_strategy_signals_with_trading(self) -> dict[str, Any] | None:
         """Generate strategy signals AND execute trades, returning comprehensive execution data."""
+        return self._execute_strategy_signals_internal(execute_trades=True)
+
+    def execute_strategy_signals(self) -> dict[str, Any] | None:
+        """Generate strategy signals and return comprehensive execution data (signal mode)."""
+        return self._execute_strategy_signals_internal(execute_trades=False)
+
+    def _execute_strategy_signals_internal(self, execute_trades: bool) -> dict[str, Any] | None:
+        """Generate strategy signals with optional trade execution.
+
+        Args:
+            execute_trades: Whether to execute actual trades or just analyze signals
+
+        Returns:
+            Dictionary with strategy signals, portfolio, and execution data, or None if failed
+
+        """
         try:
             # Generate signals using signal orchestrator with direct DTO access
-            strategy_signals, consolidated_portfolio_dto = self.signal_orchestrator.generate_signals()
+            strategy_signals, consolidated_portfolio_dto = (
+                self.signal_orchestrator.generate_signals()
+            )
             if not strategy_signals:
                 self.logger.error("Failed to generate strategy signals")
                 return None
 
             # Validate signal quality before proceeding
-            if not self.signal_orchestrator.validate_signal_quality(strategy_signals, consolidated_portfolio_dto):
-                self.logger.error("Signal analysis failed validation - no meaningful data available")
+            if not self.signal_orchestrator.validate_signal_quality(
+                strategy_signals, consolidated_portfolio_dto
+            ):
+                self.logger.error(
+                    "Signal analysis failed validation - no meaningful data available"
+                )
                 return None
 
             # Get comprehensive account data using portfolio orchestrator
@@ -132,8 +154,8 @@ class TradingOrchestrator:
                     if allocation_comparison:
                         self.logger.info("Generated allocation comparison analysis")
 
-                # NOW DO ACTUAL TRADING: Use proper ExecutionManager to place trades
-                if allocation_comparison and account_info:
+                # Execute trades if requested and data is available
+                if execute_trades and allocation_comparison and account_info:
                     self.logger.info("🚀 EXECUTING ACTUAL TRADES")
 
                     # Convert allocation comparison to RebalancePlanDTO
@@ -166,12 +188,24 @@ class TradingOrchestrator:
                         self.logger.info(
                             "📊 No significant trades needed - portfolio already balanced"
                         )
-                else:
+                elif execute_trades:
                     self.logger.warning(
                         "Could not calculate trades - missing allocation comparison data"
                     )
             else:
-                self.logger.warning("Could not retrieve account data for trading")
+                warning_msg = (
+                    "Could not retrieve account data for trading"
+                    if execute_trades
+                    else "Could not retrieve account data - continuing with basic signal data"
+                )
+                self.logger.warning(warning_msg)
+
+            # Determine success message based on mode
+            success_message = (
+                "Strategy execution with trading completed successfully"
+                if execute_trades
+                else "Signal generation completed successfully with account integration"
+            )
 
             return {
                 "strategy_signals": strategy_signals,
@@ -183,66 +217,12 @@ class TradingOrchestrator:
                 "execution_result": execution_result,
                 "open_orders": open_orders,
                 "success": True,
-                "message": "Strategy execution with trading completed successfully",
+                "message": success_message,
             }
 
         except Exception as e:
-            self.logger.error(f"Strategy execution with trading failed: {e}")
-            return None
-
-    def execute_strategy_signals(self) -> dict[str, Any] | None:
-        """Generate strategy signals and return comprehensive execution data (signal mode)."""
-        try:
-            # Generate signals using signal orchestrator with direct DTO access
-            strategy_signals, consolidated_portfolio_dto = self.signal_orchestrator.generate_signals()
-            if not strategy_signals:
-                self.logger.error("Failed to generate strategy signals")
-                return None
-
-            # Validate signal quality before proceeding
-            if not self.signal_orchestrator.validate_signal_quality(strategy_signals, consolidated_portfolio_dto):
-                self.logger.error("Signal analysis failed validation - no meaningful data available")
-                return None
-
-            # Get comprehensive account data using portfolio orchestrator
-            account_data = self.portfolio_orchestrator.get_comprehensive_account_data()
-            account_info = None
-            current_positions = {}
-            allocation_comparison = None
-            open_orders = []
-
-            if account_data:
-                account_info = account_data.get("account_info")
-                current_positions = account_data.get("current_positions", {})
-                open_orders = account_data.get("open_orders", [])
-
-                # Calculate allocation comparison if we have the necessary data
-                if account_info and consolidated_portfolio_dto:
-                    allocation_comparison = (
-                        self.portfolio_orchestrator.analyze_allocation_comparison(
-                            consolidated_portfolio_dto
-                        )
-                    )
-                    if allocation_comparison:
-                        self.logger.info("Generated allocation comparison analysis")
-            else:
-                self.logger.warning(
-                    "Could not retrieve account data - continuing with basic signal data"
-                )
-
-            return {
-                "strategy_signals": strategy_signals,
-                "consolidated_portfolio": consolidated_portfolio_dto.to_dict_allocation(),
-                "account_info": account_info,
-                "current_positions": current_positions,
-                "allocation_comparison": allocation_comparison,
-                "open_orders": open_orders,
-                "success": True,
-                "message": "Signal generation completed successfully with account integration",
-            }
-
-        except Exception as e:
-            self.logger.error(f"Strategy signal execution failed: {e}")
+            error_context = "with trading" if execute_trades else "signal execution"
+            self.logger.error(f"Strategy execution {error_context} failed: {e}")
             return None
 
     def send_trading_notification(self, result: dict[str, Any], mode_str: str) -> None:
@@ -466,7 +446,7 @@ class TradingOrchestrator:
             correlation_id = str(uuid.uuid4())
             plan_id = f"rebalance-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}"
 
-            rebalance_plan = RebalancePlanDTO(
+            return RebalancePlanDTO(
                 correlation_id=correlation_id,
                 causation_id=f"trading-orchestrator-{correlation_id}",
                 timestamp=datetime.now(UTC),
@@ -476,8 +456,6 @@ class TradingOrchestrator:
                 total_trade_value=total_trade_value,
                 execution_urgency="NORMAL",
             )
-
-            return rebalance_plan
 
         except Exception as e:
             self.logger.error(f"Failed to create rebalance plan: {e}")

@@ -14,17 +14,15 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
+from the_alchemiser.shared.cli.base_cli import BaseCLI
 from the_alchemiser.shared.cli.cli_formatter import (
-    render_comprehensive_trading_results,
     render_footer,
     render_header,
-    render_strategy_summary,
 )
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.logging.logging_utils import get_logger
 
 
-class TradingExecutor:
+class TradingExecutor(BaseCLI):
     """Thin CLI wrapper for trading execution workflow."""
 
     def __init__(
@@ -36,11 +34,9 @@ class TradingExecutor:
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
     ) -> None:
-        self.settings = settings
-        self.container = container
+        super().__init__(settings, container)
         self.show_tracking = show_tracking
         self.export_tracking_json = export_tracking_json
-        self.logger = get_logger(__name__)
 
         # Delegate orchestration to dedicated orchestrator
         self.orchestrator = TradingOrchestrator(
@@ -71,7 +67,7 @@ class TradingExecutor:
 
         # Display strategy signals and comprehensive portfolio information
         if strategy_signals or consolidated_portfolio or account_info:
-            self._display_trading_results(
+            self._display_comprehensive_results(
                 strategy_signals,
                 consolidated_portfolio,
                 account_info,
@@ -98,30 +94,6 @@ class TradingExecutor:
             render_footer("Trading execution failed - check logs for details")
 
         return success
-
-    def _display_trading_results(
-        self,
-        strategy_signals: dict[str, Any],
-        consolidated_portfolio: dict[str, float],
-        account_info: dict[str, Any] | None = None,
-        current_positions: dict[str, Any] | None = None,
-        allocation_comparison: dict[str, Any] | None = None,
-        open_orders: list[dict[str, Any]] | None = None,
-    ) -> None:
-        """Display comprehensive trading strategy results including account info and allocations."""
-        # Use shared display function to avoid code duplication
-        render_comprehensive_trading_results(
-            strategy_signals,
-            consolidated_portfolio,
-            account_info,
-            current_positions,
-            allocation_comparison,
-            open_orders,
-        )
-
-        # Display strategy summary
-        allocations = self.settings.strategy.default_strategy_allocations
-        render_strategy_summary(strategy_signals, consolidated_portfolio, allocations)
 
     def _display_execution_results(
         self,

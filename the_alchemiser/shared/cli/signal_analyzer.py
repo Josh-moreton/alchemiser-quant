@@ -8,57 +8,32 @@ Thin CLI wrapper that delegates to orchestration layer for signal analysis workf
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
+from the_alchemiser.shared.cli.base_cli import BaseCLI
 from the_alchemiser.shared.cli.cli_formatter import (
-    render_comprehensive_trading_results,
     render_footer,
     render_header,
-    render_strategy_summary,
 )
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.logging.logging_utils import get_logger
 
 
-class SignalAnalyzer:
+class SignalAnalyzer(BaseCLI):
     """Thin CLI wrapper for signal analysis workflow."""
 
     def __init__(self, settings: Settings, container: ApplicationContainer) -> None:
-        self.settings = settings
-        self.container = container
-        self.logger = get_logger(__name__)
+        super().__init__(settings, container)
 
         # Delegate orchestration to dedicated orchestrator
         self.orchestrator = SignalOrchestrator(settings, container)
 
         # Also create trading orchestrator for enhanced signal analysis with account info
         self.trading_orchestrator = TradingOrchestrator(settings, container, live_trading=False)
-
-    def _display_results(
-        self,
-        strategy_signals: dict[str, Any],
-        consolidated_portfolio: dict[str, float],
-        show_tracking: bool,
-        account_info: dict[str, Any] | None = None,
-        current_positions: dict[str, Any] | None = None,
-        allocation_comparison: dict[str, Any] | None = None,
-        open_orders: list[dict[str, Any]] | None = None,
-    ) -> None:
-        """Display comprehensive signal analysis results including account info."""
-        # Use shared display function to avoid code duplication
-        render_comprehensive_trading_results(
-            strategy_signals,
-            consolidated_portfolio,
-            account_info,
-            current_positions,
-            allocation_comparison,
-            open_orders,
-        )
 
     def _display_strategy_tracking(self) -> None:
         """Display strategy tracking information from StrategyOrderTracker."""
@@ -151,16 +126,6 @@ class SignalAnalyzer:
             # Non-fatal - tracking is enhancement, not critical
             self.logger.warning(f"Strategy tracking display unavailable: {e}")
 
-    def _display_strategy_summary(
-        self,
-        strategy_signals: dict[str, Any],
-        consolidated_portfolio: dict[str, float],
-    ) -> None:
-        """Display strategy allocation summary."""
-        # Use shared function to avoid code duplication
-        allocations = self.settings.strategy.default_strategy_allocations
-        render_strategy_summary(strategy_signals, consolidated_portfolio, allocations)
-
     def run(self, show_tracking: bool = False) -> bool:
         """Run signal analysis with enhanced account information display.
 
@@ -187,18 +152,14 @@ class SignalAnalyzer:
         open_orders = result.get("open_orders", [])
 
         # Display results with enhanced account information
-        self._display_results(
+        self._display_comprehensive_results(
             strategy_signals,
             consolidated_portfolio,
-            show_tracking,
             account_info,
             current_positions,
             allocation_comparison,
             open_orders,
         )
-
-        # Display strategy summary
-        self._display_strategy_summary(strategy_signals, consolidated_portfolio)
 
         # Display tracking if requested
         if show_tracking:
