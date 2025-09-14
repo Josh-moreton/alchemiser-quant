@@ -587,7 +587,8 @@ def render_target_vs_current_allocations(
             )
         portfolio_value = Decimal(str(pv_from_account))
         target_values = {
-            symbol: portfolio_value * Decimal(str(weight)) for symbol, weight in target_portfolio.items()
+            symbol: portfolio_value * Decimal(str(weight))
+            for symbol, weight in target_portfolio.items()
         }
         current_values = {}
         for symbol, pos in current_positions.items():
