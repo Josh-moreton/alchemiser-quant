@@ -513,9 +513,13 @@ class TradingOrchestrator:
         """
         for order in execution_result.orders:
             if order.success:
+                shares_price_str = (
+                    f"{float(order.shares):.4f} shares @ ${float(order.price):.2f}"
+                    if order.shares is not None and order.price is not None
+                    else "shares/price unavailable"
+                )
                 self.logger.info(
-                    f"✅ {order.action} {order.symbol}: "
-                    f"{order.shares:.4f} shares @ ${order.price:.2f} "
+                    f"✅ {order.action} {order.symbol}: {shares_price_str} "
                     f"(Order ID: {order.order_id})"
                 )
             else:
