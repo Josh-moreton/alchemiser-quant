@@ -580,7 +580,6 @@ def render_footer(message: str, success: bool = True, console: Console | None = 
 
 def _compute_allocation_values_from_dto(allocation_comparison: AllocationComparisonDTO, account_info: dict[str, Any]) -> tuple[dict[str, Decimal], dict[str, Decimal], dict[str, Decimal], Decimal]:
     """Compute allocation values from AllocationComparisonDTO."""
-    from decimal import Decimal
     
     target_values = allocation_comparison.target_values
     current_values = allocation_comparison.current_values
