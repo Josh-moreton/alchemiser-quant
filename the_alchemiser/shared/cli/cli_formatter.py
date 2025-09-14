@@ -1065,8 +1065,7 @@ def render_comprehensive_trading_results(
 ) -> None:
     """Render comprehensive trading results including signals, account info, and allocations.
 
-    This function consolidates the display logic that was duplicated between
-    signal_analyzer.py and trading_executor.py.
+    This function consolidates the display logic for trading results.
 
     Args:
         strategy_signals: Strategy signals dictionary

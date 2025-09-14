@@ -17,7 +17,7 @@ def get_strategy_allocations(settings: Settings) -> dict[StrategyType, float]:
     """Extract strategy allocations from configuration with safe defaults.
 
     This function consolidates the strategy allocation extraction logic that was
-    previously duplicated across main.py, trading_executor.py, and signal_analyzer.py.
+    previously duplicated across main.py and trading_executor.py.
 
     Uses .get() with fallback defaults to handle missing configuration keys gracefully,
     ensuring consistent behavior across all callers.
