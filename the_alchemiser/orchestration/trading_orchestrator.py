@@ -263,7 +263,6 @@ class TradingOrchestrator:
             # DUAL-PATH: Emit TradeExecuted event for failure case
             if execute_trades:
                 try:
-                    from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
                     
                     failed_result = ExecutionResultDTO(
                         success=False,
