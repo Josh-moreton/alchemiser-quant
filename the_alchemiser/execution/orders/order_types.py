@@ -8,6 +8,7 @@ from enum import Enum
 
 class OrderType(str, Enum):
     """Order types for backward compatibility."""
+
     MARKET = "market"
     LIMIT = "limit"
     
@@ -17,6 +18,7 @@ class OrderType(str, Enum):
 
 class Side(str, Enum):
     """Order sides for backward compatibility."""
+
     BUY = "buy"
     SELL = "sell"
     
