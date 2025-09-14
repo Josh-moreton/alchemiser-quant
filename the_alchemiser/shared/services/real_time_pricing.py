@@ -20,7 +20,7 @@ KEY FEATURES:
 ============
 1. Real-time quote updates with market depth (bid/ask sizes)
 2. Enhanced trade data with volume information
-3. Structured data types (QuoteModel, PriceDataModel) 
+3. Structured data types (QuoteModel, PriceDataModel)
 4. Backward compatibility with legacy RealTimeQuote
 5. Automatic symbol subscription management
 6. Thread-safe price storage
@@ -101,7 +101,7 @@ class RealTimePricingService:
         # Real-time quote storage (thread-safe) - migrating to structured types
         self._quotes: dict[str, RealTimeQuote] = {}  # Legacy storage - deprecated
         self._price_data: dict[str, PriceDataModel] = {}  # New price storage
-        self._quote_data: dict[str, QuoteModel] = {}  # New quote storage  
+        self._quote_data: dict[str, QuoteModel] = {}  # New quote storage
         self._quotes_lock = threading.RLock()
 
         # Subscription management
@@ -333,7 +333,7 @@ class RealTimePricingService:
             with self._quotes_lock:
                 current_quote = self._quotes.get(symbol)
                 current_quote_data = self._quote_data.get(symbol)
-                
+
                 # Legacy RealTimeQuote storage (for backward compatibility)
                 if current_quote:
                     # Update existing quote with new trade price
@@ -355,7 +355,7 @@ class RealTimePricingService:
                 # New structured PriceDataModel storage
                 bid_price = current_quote_data.bid_price if current_quote_data else None
                 ask_price = current_quote_data.ask_price if current_quote_data else None
-                
+
                 self._price_data[symbol] = PriceDataModel(
                     symbol=symbol,
                     price=float(price or 0),
@@ -422,12 +422,14 @@ class RealTimePricingService:
 
         Warning:
             This method is deprecated. Use get_quote_data() for new code.
+
         """
         import warnings
+
         warnings.warn(
             "get_real_time_quote() is deprecated. Use get_quote_data() for new code.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         with self._quotes_lock:
             return self._quotes.get(symbol)
@@ -440,6 +442,7 @@ class RealTimePricingService:
 
         Returns:
             QuoteModel object with bid/ask prices and sizes, or None if not available
+
         """
         with self._quotes_lock:
             return self._quote_data.get(symbol)
@@ -452,6 +455,7 @@ class RealTimePricingService:
 
         Returns:
             PriceDataModel object with price, bid/ask, and volume, or None if not available
+
         """
         with self._quotes_lock:
             return self._price_data.get(symbol)
@@ -471,19 +475,19 @@ class RealTimePricingService:
         # Try structured data first (preferred)
         price_data = self.get_price_data(symbol)
         quote_data = self.get_quote_data(symbol)
-        
+
         if quote_data and quote_data.bid_price > 0 and quote_data.ask_price > 0:
             return quote_data.mid_price
-        
+
         if price_data and price_data.price > 0:
             return price_data.price
-            
+
         if quote_data and quote_data.bid_price > 0:
             return quote_data.bid_price
-            
+
         if quote_data and quote_data.ask_price > 0:
             return quote_data.ask_price
-        
+
         # Fallback to legacy quote (for backward compatibility)
         quote = self.get_real_time_quote(symbol)
         if not quote:
@@ -523,7 +527,7 @@ class RealTimePricingService:
                 )
                 return None
             return quote_data.bid_price, quote_data.ask_price
-        
+
         # Fallback to legacy quote
         quote = self.get_real_time_quote(symbol)
         if not quote or quote.bid <= 0 or quote.ask <= 0:
@@ -629,7 +633,7 @@ class RealTimePricingService:
                 # Remove quote data from both legacy and structured storage
                 with self._quotes_lock:
                     self._quotes.pop(symbol, None)  # Legacy storage
-                    self._price_data.pop(symbol, None)  # New price storage 
+                    self._price_data.pop(symbol, None)  # New price storage
                     self._quote_data.pop(symbol, None)  # New quote storage
                     self._last_update.pop(symbol, None)
 
