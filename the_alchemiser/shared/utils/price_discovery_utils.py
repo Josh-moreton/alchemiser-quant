@@ -77,6 +77,10 @@ def calculate_midpoint_price(bid: float, ask: float) -> float | None:
         >>> calculate_midpoint_price(0.0, 101.0)  # Invalid bid
         None
 
+    TODO: Consider enhancing with QuoteModel support from structured types
+    to leverage bid_size/ask_size for volume-weighted midpoint calculations
+    and improved market depth analysis.
+
     """
     try:
         if bid > 0 and ask > 0 and ask >= bid:

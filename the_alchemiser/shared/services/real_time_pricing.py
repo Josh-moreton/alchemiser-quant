@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared; Status: current.
 
-Real-time WebSocket Price Streaming for Alpaca Trading.
+Real-time WebSocket Price Streaming for Alpaca Trading with Structured Data Types.
 
 This module provides real-time stock price updates via Alpaca's WebSocket streams
 to ensure accurate limit order pricing. It maintains current bid/ask quotes and
-last trade prices for symbols used in trading strategies.
+last trade prices for symbols used in trading strategies using structured data types.
 
 DESIGN PHILOSOPHY:
 =================
@@ -14,15 +14,26 @@ DESIGN PHILOSOPHY:
 - Thread-safe quote storage with automatic cleanup
 - Graceful fallback to REST API when needed
 - Subscribe only to symbols being actively traded
+- Rich market data capture with volume and market depth
 
 KEY FEATURES:
 ============
-1. Real-time quote updates (bid/ask/last price)
-2. Automatic symbol subscription management
-3. Thread-safe price storage
-4. Connection health monitoring
-5. Smart reconnection logic
-6. Memory-efficient quote caching
+1. Real-time quote updates with market depth (bid/ask sizes)
+2. Enhanced trade data with volume information
+3. Structured data types (QuoteModel, PriceDataModel)
+4. Backward compatibility with legacy RealTimeQuote
+5. Automatic symbol subscription management
+6. Thread-safe price storage
+7. Connection health monitoring
+8. Smart reconnection logic
+9. Memory-efficient quote caching
+
+MIGRATION NOTES:
+===============
+- New code should use get_quote_data() and get_price_data()
+- Legacy get_real_time_quote() still supported with deprecation warnings
+- Enhanced data capture includes bid_size, ask_size, and volume
+- Structured types provide better type safety and richer market data
 """
 
 from __future__ import annotations
@@ -38,10 +49,11 @@ from typing import Any
 from the_alchemiser.shared.brokers.alpaca_utils import (
     create_stock_data_stream,
 )
+from the_alchemiser.shared.types.market_data import PriceDataModel, QuoteModel
 
-# Phase 11 - Types available for future migration to structured pricing data
-# Note: PriceData and QuoteData types are defined but not yet implemented.
-# Current implementation uses RealTimeQuote dataclass for simplicity.
+# Phase 11 - Migration to structured pricing data in progress
+# Both RealTimeQuote (legacy) and structured types (PriceDataModel, QuoteModel) are available
+# New implementation uses structured types with backward compatibility for RealTimeQuote
 
 
 @dataclass
@@ -86,8 +98,10 @@ class RealTimePricingService:
         self.secret_key = secret_key
         self.paper_trading = paper_trading
 
-        # Real-time quote storage (thread-safe)
-        self._quotes: dict[str, RealTimeQuote] = {}
+        # Real-time quote storage (thread-safe) - migrating to structured types
+        self._quotes: dict[str, RealTimeQuote] = {}  # Legacy storage - deprecated
+        self._price_data: dict[str, PriceDataModel] = {}  # New price storage
+        self._quote_data: dict[str, QuoteModel] = {}  # New quote storage
         self._quotes_lock = threading.RLock()
 
         # Subscription management
@@ -240,25 +254,40 @@ class RealTimePricingService:
                 symbol = quote.get("symbol")
                 bid_price = quote.get("bid_price", 0)
                 ask_price = quote.get("ask_price", 0)
+                bid_size = quote.get("bid_size", 0)  # New field for structured types
+                ask_size = quote.get("ask_size", 0)  # New field for structured types
                 timestamp = quote.get("timestamp", datetime.now(UTC))
             else:
                 symbol = quote.symbol
                 bid_price = quote.bid_price
                 ask_price = quote.ask_price
+                bid_size = getattr(quote, "bid_size", 0)  # New field for structured types
+                ask_size = getattr(quote, "ask_size", 0)  # New field for structured types
                 timestamp = quote.timestamp
 
             if not symbol:
                 return
 
-            # Update quote data
+            # Update quote data with both legacy and structured storage
             with self._quotes_lock:
                 current_quote = self._quotes.get(symbol)
                 last_price = current_quote.last_price if current_quote else 0.0
 
+                # Legacy RealTimeQuote storage (for backward compatibility)
                 self._quotes[symbol] = RealTimeQuote(
                     bid=float(bid_price or 0),
                     ask=float(ask_price or 0),
                     last_price=last_price,  # Keep existing last price from trades
+                    timestamp=timestamp or datetime.now(UTC),
+                )
+
+                # New structured QuoteModel storage
+                self._quote_data[symbol] = QuoteModel(
+                    symbol=symbol,
+                    bid_price=float(bid_price or 0),
+                    ask_price=float(ask_price or 0),
+                    bid_size=float(bid_size or 0),
+                    ask_size=float(ask_size or 0),
                     timestamp=timestamp or datetime.now(UTC),
                 )
 
@@ -288,19 +317,24 @@ class RealTimePricingService:
                 symbol = trade.get("symbol")
                 price = trade.get("price", 0)
                 size = trade.get("size", 0)
+                volume = trade.get("volume", size)  # New field for structured types
                 timestamp = trade.get("timestamp", datetime.now(UTC))
             else:
                 symbol = trade.symbol
                 price = trade.price
                 size = trade.size
+                volume = getattr(trade, "volume", size)  # New field for structured types
                 timestamp = trade.timestamp
 
             if not symbol:
                 return
 
-            # Update last trade price
+            # Update last trade price with both legacy and structured storage
             with self._quotes_lock:
                 current_quote = self._quotes.get(symbol)
+                current_quote_data = self._quote_data.get(symbol)
+
+                # Legacy RealTimeQuote storage (for backward compatibility)
                 if current_quote:
                     # Update existing quote with new trade price
                     self._quotes[symbol] = RealTimeQuote(
@@ -317,6 +351,19 @@ class RealTimePricingService:
                         last_price=float(price or 0),
                         timestamp=timestamp or datetime.now(UTC),
                     )
+
+                # New structured PriceDataModel storage
+                bid_price = current_quote_data.bid_price if current_quote_data else None
+                ask_price = current_quote_data.ask_price if current_quote_data else None
+
+                self._price_data[symbol] = PriceDataModel(
+                    symbol=symbol,
+                    price=float(price or 0),
+                    timestamp=timestamp or datetime.now(UTC),
+                    bid=bid_price,
+                    ask=ask_price,
+                    volume=int(volume or 0) if volume else None,
+                )
 
                 self._last_update[symbol] = datetime.now(UTC)
                 self._stats["trades_received"] += 1
@@ -353,7 +400,9 @@ class RealTimePricingService:
                     ]
 
                     for symbol in symbols_to_remove:
-                        self._quotes.pop(symbol, None)
+                        self._quotes.pop(symbol, None)  # Legacy storage
+                        self._price_data.pop(symbol, None)  # New price storage
+                        self._quote_data.pop(symbol, None)  # New quote storage
                         self._last_update.pop(symbol, None)
 
                     if symbols_to_remove:
@@ -371,9 +420,45 @@ class RealTimePricingService:
         Returns:
             RealTimeQuote object or None if not available
 
+        Warning:
+            This method is deprecated. Use get_quote_data() for new code.
+
         """
+        import warnings
+
+        warnings.warn(
+            "get_real_time_quote() is deprecated. Use get_quote_data() for new code.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         with self._quotes_lock:
             return self._quotes.get(symbol)
+
+    def get_quote_data(self, symbol: str) -> QuoteModel | None:
+        """Get structured quote data for a symbol.
+
+        Args:
+            symbol: Stock symbol
+
+        Returns:
+            QuoteModel object with bid/ask prices and sizes, or None if not available
+
+        """
+        with self._quotes_lock:
+            return self._quote_data.get(symbol)
+
+    def get_price_data(self, symbol: str) -> PriceDataModel | None:
+        """Get structured price data for a symbol.
+
+        Args:
+            symbol: Stock symbol
+
+        Returns:
+            PriceDataModel object with price, bid/ask, and volume, or None if not available
+
+        """
+        with self._quotes_lock:
+            return self._price_data.get(symbol)
 
     def get_real_time_price(self, symbol: str) -> float | None:
         """Get the best available real-time price for a symbol.
@@ -387,6 +472,23 @@ class RealTimePricingService:
             Current price or None if not available
 
         """
+        # Try structured data first (preferred)
+        price_data = self.get_price_data(symbol)
+        quote_data = self.get_quote_data(symbol)
+
+        if quote_data and quote_data.bid_price > 0 and quote_data.ask_price > 0:
+            return quote_data.mid_price
+
+        if price_data and price_data.price > 0:
+            return price_data.price
+
+        if quote_data and quote_data.bid_price > 0:
+            return quote_data.bid_price
+
+        if quote_data and quote_data.ask_price > 0:
+            return quote_data.ask_price
+
+        # Fallback to legacy quote (for backward compatibility)
         quote = self.get_real_time_quote(symbol)
         if not quote:
             return None
@@ -415,6 +517,18 @@ class RealTimePricingService:
             Tuple of (bid, ask) or None if not available
 
         """
+        # Try structured data first (preferred)
+        quote_data = self.get_quote_data(symbol)
+        if quote_data and quote_data.bid_price > 0 and quote_data.ask_price > 0:
+            # Additional validation: ensure ask > bid for a reasonable spread
+            if quote_data.ask_price <= quote_data.bid_price:
+                logging.warning(
+                    f"Invalid spread for {symbol}: bid={quote_data.bid_price}, ask={quote_data.ask_price} (ask <= bid)"
+                )
+                return None
+            return quote_data.bid_price, quote_data.ask_price
+
+        # Fallback to legacy quote
         quote = self.get_real_time_quote(symbol)
         if not quote or quote.bid <= 0 or quote.ask <= 0:
             return None
@@ -437,7 +551,10 @@ class RealTimePricingService:
         return {
             **self._stats,
             "connected": self._connected,
-            "symbols_tracked": len(self._quotes),
+            "symbols_tracked": len(self._quotes),  # Legacy count for compatibility
+            "symbols_tracked_legacy": len(self._quotes),
+            "symbols_tracked_structured_prices": len(self._price_data),
+            "symbols_tracked_structured_quotes": len(self._quote_data),
             "uptime_seconds": (
                 (datetime.now(UTC) - self._stats["last_heartbeat"]).total_seconds()
                 if self._stats["last_heartbeat"]
@@ -513,9 +630,11 @@ class RealTimePricingService:
                 self._subscribed_symbols.remove(symbol)
                 self._subscription_priority.pop(symbol, None)
 
-                # Remove quote data
+                # Remove quote data from both legacy and structured storage
                 with self._quotes_lock:
-                    self._quotes.pop(symbol, None)
+                    self._quotes.pop(symbol, None)  # Legacy storage
+                    self._price_data.pop(symbol, None)  # New price storage
+                    self._quote_data.pop(symbol, None)  # New quote storage
                     self._last_update.pop(symbol, None)
 
                 logging.info(f"📴 Unsubscribed from real-time data for {symbol}")

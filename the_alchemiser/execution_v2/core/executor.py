@@ -96,6 +96,9 @@ class Executor:
 
         try:
             # Get current price
+            # TODO: Migrate to enhanced pricing with real-time quotes for better execution
+            # Consider using get_quote_data() for bid/ask spreads and market depth
+            # or get_price_data() for volume-weighted pricing from structured types
             price = self.alpaca_manager.get_current_price(item.symbol)
             if price is None:
                 return OrderResultDTO(
