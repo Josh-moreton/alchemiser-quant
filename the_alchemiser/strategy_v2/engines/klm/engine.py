@@ -171,7 +171,6 @@ class KLMEngine(StrategyEngine):
         Allows a one-off MarketDataPort override for this call.
         """
 
-        # TODO: Remove this deprecated mapping dependency
         # This should be replaced with direct DTO construction
         # For now, we'll implement the required functionality directly
         def symbol_str_to_symbol(symbol_str: str):

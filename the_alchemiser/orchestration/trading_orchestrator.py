@@ -37,20 +37,12 @@ class TradingOrchestrator:
         self,
         settings: Settings,
         container: ApplicationContainer,
-        live_trading: bool = False,  # DEPRECATED - determined by stage
         ignore_market_hours: bool = False,
     ) -> None:
         self.settings = settings
         self.container = container
         self.logger = get_logger(__name__)
-        # Get trading mode from container (ignore deprecated parameter)
         self.live_trading = not self.container.config.paper_trading()
-
-        if live_trading != self.live_trading:
-            self.logger.warning(
-                f"live_trading parameter ({live_trading}) ignored. "
-                f"Using endpoint-determined mode: {'live' if self.live_trading else 'paper'}"
-            )
 
         self.ignore_market_hours = ignore_market_hours
 

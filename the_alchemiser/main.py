@@ -252,12 +252,7 @@ Examples:
         "--ignore-market-hours", action="store_true", help="Override market hours check"
     )
 
-    # Remove signal mode related tracking argument since signal mode is removed
-    # parser.add_argument(
-    #     "--tracking",
-    #     action="store_true",
-    #     help="Include strategy performance tracking table (signal mode - deprecated)",
-    # )
+
 
     parser.add_argument(
         "--show-tracking",

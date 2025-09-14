@@ -41,8 +41,7 @@ from the_alchemiser.shared.types.exceptions import (
 # from the_alchemiser.strategy.dsl.parser import DSLParser
 # from the_alchemiser.strategy.dsl.strategy_loader import StrategyLoader
 # Import domain models for type annotations
-# TODO: BarModel was removed with deprecated strategy module
-# from the_alchemiser.strategy.types.bar import BarModel
+
 
 # Constants to avoid duplication
 STYLE_BOLD_CYAN = "bold cyan"
@@ -248,28 +247,9 @@ def status() -> None:
             # Non-fatal; container may not expose override in some DI test contexts
             pass  # pragma: no cover
 
-        # Create trader using modern bootstrap approach
-        from the_alchemiser.shared.config.bootstrap import (
-            bootstrap_from_container,
-        )
-
-        bootstrap_context = bootstrap_from_container(container)
-        from the_alchemiser.strategy.engines.core.trading_engine import TradingEngine
-
-        trader = TradingEngine(
-            bootstrap_context=bootstrap_context,
-            strategy_allocations={},  # Not needed for status display
-            ignore_market_hours=True,  # Status should work anytime
-        )
-        trader.paper_trading = paper_trading
-
-        account_info: dict[str, Any] = dict(trader.get_account_info())
-
-        # Always use basic account info instead of enriched typed summary
-        # Legacy TradingServiceManager migrated to execution_v2.ExecutionManager
-
-        # Use basic account info from TradingEngine instead of legacy enriched summary
-        # This removes dependency on legacy execution modules
+        # Get account info directly from AlpacaManager
+        alpaca_manager = container.infrastructure.alpaca_manager()
+        account_info: dict[str, Any] = dict(alpaca_manager.get_account())
 
         # AccountInfo is always returned (never None), so this check is always true
         # Cast to dict[str, Any] for render_account_info compatibility

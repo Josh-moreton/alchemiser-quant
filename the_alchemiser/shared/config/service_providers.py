@@ -7,12 +7,8 @@ from __future__ import annotations
 
 from dependency_injector import containers, providers
 
-# Using execution_v2 instead of legacy execution
 from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
 from the_alchemiser.shared.events.bus import EventBus
-
-# Legacy imports removed to eliminate fallback dependencies
-# These have been migrated to the new v2 architecture:
 # - AccountService → Use AlpacaManager directly
 # - TradingServiceManager → Use ExecutionManager from execution_v2
 # - OrderService → Use execution_v2.core components
@@ -31,13 +27,11 @@ class ServiceProviders(containers.DeclarativeContainer):
     # Event bus (singleton for the application)
     event_bus = providers.Singleton(EventBus)
 
-    # V2 execution manager (replaces legacy TradingServiceManager)
+    # V2 execution manager
     execution_manager = providers.Factory(
         ExecutionManager,
         alpaca_manager=infrastructure.alpaca_manager,
     )
-
-    # Legacy services commented out to remove fallback dependencies
     # These will be replaced with v2 equivalents as they are migrated
 
     # order_service = providers.Factory(OrderService, trading_repo=infrastructure.trading_repository)

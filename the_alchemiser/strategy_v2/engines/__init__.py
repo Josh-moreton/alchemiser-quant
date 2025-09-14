@@ -3,8 +3,7 @@
 
 Strategy engines (Nuclear, KLM, TECL).
 
-Contains strategy engines moved verbatim from the legacy strategy module.
-These engines preserve their original logic and are accessed through
+Contains strategy engines with their core trading logic accessible through
 thin adapter wrappers.
 """
 

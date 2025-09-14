@@ -87,7 +87,6 @@ class TECLEngine(StrategyEngine):
     def get_market_data(self) -> dict[str, Any]:
         """Fetch data for all symbols."""
 
-        # TODO: Remove this deprecated mapping dependency
         # This should be replaced with direct DTO construction
         # For now, we'll implement the required functionality directly
         def symbol_str_to_symbol(symbol_str: str) -> Symbol:

@@ -3,7 +3,6 @@
 Multi-strategy coordination orchestration.
 
 Coordinates strategy allocation and signal aggregation across multiple strategies.
-Extracted from deprecated /strategy/managers/typed_strategy_manager.py.
 """
 
 from __future__ import annotations
