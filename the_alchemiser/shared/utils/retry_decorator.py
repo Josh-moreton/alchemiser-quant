@@ -45,7 +45,8 @@ def _log_retry_attempt(
 def _add_retry_context_to_exception(exception: Exception, attempt: int) -> None:
     """Add retry context metadata to exception."""
     # Dynamically add retry_count attribute to track retry attempts
-    exception.retry_count = attempt  # type: ignore[attr-defined]
+    if not hasattr(exception, "retry_count"):
+        exception.retry_count = attempt  # type: ignore[attr-defined]
 
 
 def retry_with_backoff(
