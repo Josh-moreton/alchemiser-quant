@@ -238,7 +238,7 @@ class TradingExecutor:
                     action_display,
                     status_display,
                     order_id,
-                    error[:50] + "..." if len(error) > 50 else error
+                    error[:50] + "..." if len(error) > 50 else error,
                 )
 
             console.print(status_table)

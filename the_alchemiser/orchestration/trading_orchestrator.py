@@ -21,8 +21,10 @@ from the_alchemiser.execution_v2.models.execution_result import ExecutionResultD
 from the_alchemiser.orchestration.portfolio_orchestrator import PortfolioOrchestrator
 from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.config.config import Settings
+from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO, RebalancePlanItemDTO
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 from the_alchemiser.shared.types.exceptions import (
     NotificationError,
     TradingClientError,
@@ -102,7 +104,14 @@ class TradingOrchestrator:
                 self.logger.error("Failed to generate strategy signals")
                 return None
 
-            strategy_signals, consolidated_portfolio = result
+            strategy_signals, consolidated_portfolio_dict = result
+
+            # Convert dict back to DTO for portfolio orchestrator compatibility
+            consolidated_portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
+                allocation_dict=consolidated_portfolio_dict,
+                correlation_id=f"trading_orchestrator_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
+                source_strategies=None,  # We don't have this info at this level
+            )
 
             # Get comprehensive account data using portfolio orchestrator
             account_data = self.portfolio_orchestrator.get_comprehensive_account_data()
@@ -119,12 +128,13 @@ class TradingOrchestrator:
                 open_orders = account_data.get("open_orders", [])
 
                 # Calculate allocation comparison if we have the necessary data
-                if account_info and consolidated_portfolio:
-                    allocation_analysis = self.portfolio_orchestrator.analyze_allocation_comparison(
-                        consolidated_portfolio
+                if account_info and consolidated_portfolio_dto:
+                    allocation_comparison = (
+                        self.portfolio_orchestrator.analyze_allocation_comparison(
+                            consolidated_portfolio_dto
+                        )
                     )
-                    if allocation_analysis:
-                        allocation_comparison = allocation_analysis.get("comparison")
+                    if allocation_comparison:
                         self.logger.info("Generated allocation comparison analysis")
 
                 # NOW DO ACTUAL TRADING: Use proper ExecutionManager to place trades
@@ -170,7 +180,7 @@ class TradingOrchestrator:
 
             return {
                 "strategy_signals": strategy_signals,
-                "consolidated_portfolio": consolidated_portfolio,
+                "consolidated_portfolio": consolidated_portfolio_dict,
                 "account_info": account_info,
                 "current_positions": current_positions,
                 "allocation_comparison": allocation_comparison,
@@ -194,7 +204,14 @@ class TradingOrchestrator:
                 self.logger.error("Failed to generate strategy signals")
                 return None
 
-            strategy_signals, consolidated_portfolio = result
+            strategy_signals, consolidated_portfolio_dict = result
+
+            # Convert dict back to DTO for portfolio orchestrator compatibility
+            consolidated_portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
+                allocation_dict=consolidated_portfolio_dict,
+                correlation_id=f"trading_orchestrator_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
+                source_strategies=None,  # We don't have this info at this level
+            )
 
             # Get comprehensive account data using portfolio orchestrator
             account_data = self.portfolio_orchestrator.get_comprehensive_account_data()
@@ -209,12 +226,13 @@ class TradingOrchestrator:
                 open_orders = account_data.get("open_orders", [])
 
                 # Calculate allocation comparison if we have the necessary data
-                if account_info and consolidated_portfolio:
-                    allocation_analysis = self.portfolio_orchestrator.analyze_allocation_comparison(
-                        consolidated_portfolio
+                if account_info and consolidated_portfolio_dto:
+                    allocation_comparison = (
+                        self.portfolio_orchestrator.analyze_allocation_comparison(
+                            consolidated_portfolio_dto
+                        )
                     )
-                    if allocation_analysis:
-                        allocation_comparison = allocation_analysis.get("comparison")
+                    if allocation_comparison:
                         self.logger.info("Generated allocation comparison analysis")
             else:
                 self.logger.warning(
@@ -223,7 +241,7 @@ class TradingOrchestrator:
 
             return {
                 "strategy_signals": strategy_signals,
-                "consolidated_portfolio": consolidated_portfolio,
+                "consolidated_portfolio": consolidated_portfolio_dict,
                 "account_info": account_info,
                 "current_positions": current_positions,
                 "allocation_comparison": allocation_comparison,
@@ -384,12 +402,12 @@ class TradingOrchestrator:
             return None
 
     def _create_rebalance_plan_from_allocation(
-        self, allocation_comparison: dict[str, Any], account_info: dict[str, Any]
+        self, allocation_comparison: AllocationComparisonDTO, account_info: dict[str, Any]
     ) -> RebalancePlanDTO | None:
-        """Convert allocation comparison data to RebalancePlanDTO.
+        """Convert allocation comparison DTO to RebalancePlanDTO.
 
         Args:
-            allocation_comparison: Allocation comparison data with target/current values, deltas
+            allocation_comparison: AllocationComparisonDTO with target/current values, deltas
             account_info: Account information including portfolio_value
 
         Returns:
@@ -397,10 +415,10 @@ class TradingOrchestrator:
 
         """
         try:
-            # Extract allocation comparison data
-            target_values = allocation_comparison.get("target_values", {})
-            current_values = allocation_comparison.get("current_values", {})
-            deltas = allocation_comparison.get("deltas", {})
+            # Extract allocation comparison data directly from DTO
+            target_values = allocation_comparison.target_values
+            current_values = allocation_comparison.current_values
+            deltas = allocation_comparison.deltas
 
             if not target_values or not deltas:
                 self.logger.warning("Missing allocation comparison data")
@@ -415,14 +433,14 @@ class TradingOrchestrator:
             portfolio_value_decimal = Decimal(str(portfolio_value))
 
             for symbol, delta in deltas.items():
-                delta_decimal = Decimal(str(delta))
-                if abs(delta_decimal) >= min_trade_amount:
+                # delta is already a Decimal from the DTO
+                if abs(delta) >= min_trade_amount:
                     # Determine action
-                    action = "BUY" if delta_decimal > 0 else "SELL"
+                    action = "BUY" if delta > 0 else "SELL"
 
-                    # Calculate weights
-                    target_val = Decimal(str(target_values.get(symbol, 0)))
-                    current_val = Decimal(str(current_values.get(symbol, 0)))
+                    # Get values directly from DTO (already Decimal)
+                    target_val = target_values.get(symbol, Decimal("0"))
+                    current_val = current_values.get(symbol, Decimal("0"))
 
                     target_weight = (
                         target_val / portfolio_value_decimal
@@ -442,12 +460,12 @@ class TradingOrchestrator:
                         weight_diff=target_weight - current_weight,
                         target_value=target_val,
                         current_value=current_val,
-                        trade_amount=delta_decimal,
+                        trade_amount=delta,  # delta is already Decimal
                         action=action,
                         priority=1,  # All trades have equal priority for now
                     )
                     plan_items.append(plan_item)
-                    total_trade_value += abs(delta_decimal)
+                    total_trade_value += abs(delta)
 
             if not plan_items:
                 self.logger.info("No significant trades needed - all deltas below threshold")
@@ -523,9 +541,7 @@ class TradingOrchestrator:
                     f"(Order ID: {order.order_id})"
                 )
             else:
-                self.logger.error(
-                    f"❌ {order.action} {order.symbol} FAILED: {order.error_message}"
-                )
+                self.logger.error(f"❌ {order.action} {order.symbol} FAILED: {order.error_message}")
 
         # Log summary
         self.logger.info(

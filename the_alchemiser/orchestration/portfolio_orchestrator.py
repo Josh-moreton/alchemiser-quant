@@ -15,7 +15,9 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.shared.config.config import Settings
+from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 
 
 class PortfolioOrchestrator:
@@ -66,12 +68,12 @@ class PortfolioOrchestrator:
             return None
 
     def generate_rebalancing_plan(
-        self, target_allocations: dict[str, float]
+        self, target_allocations: ConsolidatedPortfolioDTO
     ) -> dict[str, Any] | None:
         """Generate rebalancing plan based on target allocations.
 
         Args:
-            target_allocations: Target allocation percentages by symbol
+            target_allocations: Consolidated portfolio allocation DTO
 
         Returns:
             Rebalancing plan or None if generation failed
@@ -79,24 +81,19 @@ class PortfolioOrchestrator:
         """
         try:
             # Use portfolio_v2 for rebalancing plan calculation
-            from datetime import datetime
-            from decimal import Decimal
 
             from the_alchemiser.portfolio_v2 import RebalancePlanCalculator
             from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
 
-            # Convert float allocations to Decimal for portfolio_v2
-            target_weights = {
-                symbol: Decimal(str(allocation))
-                for symbol, allocation in target_allocations.items()
-            }
+            # Convert ConsolidatedPortfolioDTO to target weights for portfolio_v2
+            target_weights = target_allocations.target_allocations
 
             # Create strategy allocation DTO
             allocation_dto = StrategyAllocationDTO(
                 target_weights=target_weights,
-                correlation_id="portfolio_orchestrator",
-                as_of=datetime.now(),
-                constraints={"orchestrator": "portfolio"},
+                correlation_id=target_allocations.correlation_id,
+                as_of=target_allocations.timestamp,
+                constraints=target_allocations.constraints,
             )
 
             # Get data adapter
@@ -121,7 +118,7 @@ class PortfolioOrchestrator:
                 "plan": rebalance_plan,
                 "trade_count": len(rebalance_plan.trades),
                 "total_trade_value": float(rebalance_plan.total_trade_value),
-                "target_allocations": target_allocations,
+                "target_allocations": target_allocations.to_dict_allocation(),
                 "plan_timestamp": rebalance_plan.timestamp,
             }
 
@@ -130,15 +127,15 @@ class PortfolioOrchestrator:
             return None
 
     def analyze_allocation_comparison(
-        self, consolidated_portfolio: dict[str, float]
-    ) -> dict[str, Any] | None:
+        self, consolidated_portfolio: ConsolidatedPortfolioDTO
+    ) -> AllocationComparisonDTO | None:
         """Analyze target vs current allocations.
 
         Args:
-            consolidated_portfolio: Target portfolio allocation
+            consolidated_portfolio: Consolidated portfolio allocation DTO
 
         Returns:
-            Allocation comparison analysis or None if failed
+            AllocationComparisonDTO or None if analysis failed
 
         """
         try:
@@ -167,18 +164,21 @@ class PortfolioOrchestrator:
                 "buying_power": account_info.buying_power,
             }
 
-            allocation_comparison = build_allocation_comparison(
-                consolidated_portfolio, account_dict, positions_dict
+            # Convert ConsolidatedPortfolioDTO to dict for existing utility function
+            allocation_comparison_data = build_allocation_comparison(
+                consolidated_portfolio.to_dict_allocation(), account_dict, positions_dict
+            )
+
+            # Create AllocationComparisonDTO from the calculation result
+            allocation_comparison_dto = AllocationComparisonDTO(
+                target_values=allocation_comparison_data["target_values"],
+                current_values=allocation_comparison_data["current_values"],
+                deltas=allocation_comparison_data["deltas"],
             )
 
             self.logger.info("Generated allocation comparison analysis")
 
-            return {
-                "comparison": allocation_comparison,
-                "current_positions": positions_dict,
-                "target_allocations": consolidated_portfolio,
-                "account_info": account_dict,
-            }
+            return allocation_comparison_dto
 
         except Exception as e:
             self.logger.error(f"Allocation comparison analysis failed: {e}")
