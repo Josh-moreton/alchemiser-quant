@@ -32,7 +32,72 @@ The smart execution strategy implements canonical order placement for swing trad
 - Non-blocking execution for multiple concurrent orders
 - Event-driven architecture compatible
 
-## Configuration
+## Quick Start
+
+### Default Behavior (Smart Execution Enabled)
+
+Smart execution is enabled by default. When you run:
+
+```bash
+alchemiser trade
+```
+
+The system will automatically use the new liquidity-aware smart execution strategy with volume analysis.
+
+### Checking Current Configuration
+
+To verify that smart execution is enabled, check your logs. You should see messages like:
+- "🧠 Using smart execution with liquidity analysis"
+- "📊 Volume analysis: [details about bid/ask sizes]"
+- "💡 Price adjustment based on volume: [pricing decisions]"
+
+If you see messages like "Using legacy market order execution", then smart execution is disabled.
+
+### Temporarily Disabling Smart Execution
+
+If you need to disable smart execution for troubleshooting, set the environment variable:
+
+```bash
+export EXECUTION__ENABLE_SMART_EXECUTION=false
+alchemiser trade
+```
+
+### Configuration
+
+### Enabling/Disabling Smart Execution
+
+Smart execution is enabled by default. To control this behavior:
+
+**Using Configuration File (.env or environment variable):**
+```bash
+# Enable smart execution (default)
+EXECUTION__ENABLE_SMART_EXECUTION=true
+
+# Disable smart execution (fallback to market orders)
+EXECUTION__ENABLE_SMART_EXECUTION=false
+```
+
+**Programmatically:**
+```python
+from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
+from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
+
+# With smart execution enabled (default)
+manager = ExecutionManager.create_with_config(
+    api_key="your_key",
+    secret_key="your_secret",
+    enable_smart_execution=True  # Default
+)
+
+# Disable smart execution (legacy market orders)
+manager = ExecutionManager.create_with_config(
+    api_key="your_key", 
+    secret_key="your_secret",
+    enable_smart_execution=False
+)
+```
+
+### Smart Execution Parameters
 
 ```python
 from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
