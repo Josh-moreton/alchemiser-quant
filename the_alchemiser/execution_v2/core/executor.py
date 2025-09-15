@@ -52,10 +52,9 @@ class Executor:
         if sell_items and buy_items:
             logger.info(f"📊 Using phased execution: {len(sell_items)} SELL orders → monitor buying power → {len(buy_items)} BUY orders")
             return self._execute_phased_plan(plan, sell_items, buy_items)
-        else:
-            # No mixed orders - use original sequential execution
-            logger.info(f"📦 Using sequential execution for {len(plan.items)} items")
-            return self._execute_sequential_plan(plan)
+        # No mixed orders - use original sequential execution
+        logger.info(f"📦 Using sequential execution for {len(plan.items)} items")
+        return self._execute_sequential_plan(plan)
 
     def _execute_sequential_plan(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
         """Execute rebalance plan using original sequential strategy.
@@ -153,7 +152,7 @@ class Executor:
             )
             
             if websocket_result.status.value == "completed":
-                logger.info(f"✅ All SELL orders completed successfully")
+                logger.info("✅ All SELL orders completed successfully")
                 
                 # Monitor buying power increase
                 self._wait_for_buying_power_increase(initial_buying_power, buy_items)
@@ -222,7 +221,7 @@ class Executor:
             Total dollar amount needed for all BUY orders
 
         """
-        return sum(abs(item.trade_amount) for item in buy_items)
+        return sum((abs(item.trade_amount) for item in buy_items), Decimal("0"))
 
     def _wait_for_buying_power_increase(
         self, 

@@ -148,4 +148,4 @@ def report_error_globally(
 ) -> None:
     """Report errors globally."""
     reporter = get_error_reporter()
-    reporter.report_error(error, context, is_critical)
+    reporter.report_error(error, context, is_critical=is_critical)

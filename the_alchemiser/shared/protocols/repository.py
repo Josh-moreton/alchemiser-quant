@@ -88,7 +88,7 @@ class TradingRepository(Protocol):
 
     def place_order(
         self, order_request: Any
-    ) -> ExecutedOrderDTO:  # noqa: ANN401  # External broker SDK order request object
+    ) -> ExecutedOrderDTO:  # External broker SDK order request object
         """Place an order.
 
         Args:

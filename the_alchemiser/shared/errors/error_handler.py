@@ -121,14 +121,13 @@ except ImportError:
         return exception.__class__.__name__
 
 
-try:
-    from the_alchemiser.strategy.errors.strategy_errors import (
-        StrategyExecutionError,  # type: ignore[import-untyped]
-    )
-except ImportError:
+def _is_strategy_execution_error(err: Exception) -> bool:
+    """Detect strategy execution errors without cross-module imports.
 
-    class StrategyExecutionError(Exception):  # type: ignore[no-redef]
-        """Fallback StrategyExecutionError."""
+    We avoid importing from `strategy_v2` inside `shared` to respect
+    module boundaries. Instead, we detect by class name to categorize.
+    """
+    return err.__class__.__name__ == "StrategyExecutionError"
 
 
 try:
@@ -319,7 +318,7 @@ class TradingSystemErrorHandler:
             return ErrorCategory.TRADING
         if isinstance(error, MarketDataError | DataProviderError):
             return ErrorCategory.DATA
-        if isinstance(error, StrategyExecutionError):
+        if _is_strategy_execution_error(error):
             return ErrorCategory.STRATEGY
         if isinstance(error, ConfigurationError):
             return ErrorCategory.CONFIGURATION
@@ -371,7 +370,7 @@ class TradingSystemErrorHandler:
             return "Check API connectivity and data provider status"
         if isinstance(error, ConfigurationError):
             return "Verify configuration settings and API credentials"
-        if isinstance(error, StrategyExecutionError):
+        if _is_strategy_execution_error(error):
             return "Review strategy logic and input data for calculation errors"
         if category == ErrorCategory.DATA:
             return "Check market data sources, API limits, and network connectivity"
@@ -940,7 +939,7 @@ def categorize_error_severity(error: Exception) -> str:
         error, InsufficientFundsError | (OrderExecutionError | PositionValidationError)
     ):
         return ErrorSeverity.HIGH
-    if isinstance(error, MarketDataError | DataProviderError | StrategyExecutionError):
+    if isinstance(error, MarketDataError | DataProviderError) or _is_strategy_execution_error(error):
         return ErrorSeverity.MEDIUM
     if isinstance(error, ConfigurationError):
         return ErrorSeverity.HIGH
