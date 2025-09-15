@@ -22,6 +22,7 @@ from the_alchemiser.shared.schemas.common import (
     MultiStrategyExecutionResultDTO,
     MultiStrategySummaryDTO,
 )
+from the_alchemiser.strategy_v2.engines.nuclear import NUCLEAR_SYMBOLS
 
 """Console formatting utilities for quantitative trading system output using rich."""
 
@@ -1435,11 +1436,10 @@ def _count_positions_for_strategy(
             # Check if this is a multi-symbol strategy by looking at consolidated portfolio
             # For nuclear strategy, check known nuclear symbols in the portfolio
             if strategy_name.upper() == "NUCLEAR":
-                nuclear_symbols = ["SMR", "BWXT", "LEU", "EXC", "NLR", "OKLO"]
                 nuclear_positions = sum(
                     1
                     for symbol in consolidated_portfolio
-                    if symbol in nuclear_symbols and consolidated_portfolio[symbol] > 0
+                    if symbol in NUCLEAR_SYMBOLS and consolidated_portfolio[symbol] > 0
                 )
                 return nuclear_positions if nuclear_positions > 0 else 1
             return 1

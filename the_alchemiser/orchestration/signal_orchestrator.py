@@ -24,9 +24,10 @@ from the_alchemiser.shared.events import EventBus, SignalGenerated
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types.exceptions import DataProviderError
 from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
+from the_alchemiser.strategy_v2.engines.nuclear import NUCLEAR_SYMBOLS
 
 # Nuclear strategy symbol constants
-NUCLEAR_SYMBOLS = ["SMR", "BWXT", "LEU", "EXC", "NLR", "OKLO"]
+# Moved to strategy_v2.engines.nuclear.constants for shared access
 
 
 class SignalOrchestrator:
