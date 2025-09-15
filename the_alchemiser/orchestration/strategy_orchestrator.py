@@ -87,7 +87,9 @@ class MultiStrategyOrchestrator:
         # Validate allocations sum to 1.0
         total_allocation = sum(self.strategy_allocations.values())
         if abs(total_allocation - 1.0) > 0.01:
-            raise ValueError(f"Strategy allocations must sum to 1.0, got {total_allocation}")
+            raise ValueError(
+                f"Strategy allocations must sum to 1.0, got {total_allocation}"
+            )
 
         # Initialize typed strategy engines
         self.strategy_engines: dict[StrategyType, StrategyEngine] = {}
@@ -110,7 +112,9 @@ class MultiStrategyOrchestrator:
                     f"{self.strategy_allocations[strategy_type]:.1%} allocation"
                 )
             except Exception as e:
-                self.logger.error(f"Failed to initialize {strategy_type.value} typed engine: {e}")
+                self.logger.error(
+                    f"Failed to initialize {strategy_type.value} typed engine: {e}"
+                )
                 # Collect failed strategies for removal after iteration
                 failed_strategies.append(strategy_type)
 
@@ -137,7 +141,9 @@ class MultiStrategyOrchestrator:
             return TECLEngine(self.market_data_port)
         raise ValueError(f"Unknown strategy type: {strategy_type}")
 
-    def generate_all_signals(self, timestamp: datetime | None = None) -> AggregatedSignals:
+    def generate_all_signals(
+        self, timestamp: datetime | None = None
+    ) -> AggregatedSignals:
         """Generate signals from all enabled strategies.
 
         Args:
@@ -158,7 +164,9 @@ class MultiStrategyOrchestrator:
         # Generate signals from each strategy
         for strategy_type, engine in self.strategy_engines.items():
             try:
-                self.logger.info(f"Generating signals from {strategy_type.value} strategy")
+                self.logger.info(
+                    f"Generating signals from {strategy_type.value} strategy"
+                )
 
                 if hasattr(engine, "generate_signals"):
                     # All engines now use new constructor injection interface
@@ -174,11 +182,15 @@ class MultiStrategyOrchestrator:
                     engine.validate_signals(signals)
 
                 aggregated.add_strategy_signals(strategy_type, signals)
-                self.logger.info(f"{strategy_type.value} generated {len(signals)} signals")
+                self.logger.info(
+                    f"{strategy_type.value} generated {len(signals)} signals"
+                )
 
             except Exception as e:
                 # Log error and determine if this is a critical failure
-                self.logger.error(f"Error generating signals for {strategy_type.value}: {e}")
+                self.logger.error(
+                    f"Error generating signals for {strategy_type.value}: {e}"
+                )
 
                 # Critical errors that should fail the entire operation
                 error_message = str(e)
@@ -231,7 +243,9 @@ class MultiStrategyOrchestrator:
 
         """
         # Group signals by symbol
-        signals_by_symbol = self._group_signals_by_symbol(aggregated.signals_by_strategy)
+        signals_by_symbol = self._group_signals_by_symbol(
+            aggregated.signals_by_strategy
+        )
 
         # Process each symbol
         for symbol_str, strategy_signals in signals_by_symbol.items():
@@ -241,12 +255,16 @@ class MultiStrategyOrchestrator:
                 aggregated.consolidated_signals.append(signal)
             else:
                 # Multiple strategies have opinions on this symbol - resolve conflict
-                resolved_signal = self._resolve_signal_conflict(symbol_str, strategy_signals)
+                resolved_signal = self._resolve_signal_conflict(
+                    symbol_str, strategy_signals
+                )
                 if resolved_signal:
                     aggregated.consolidated_signals.append(resolved_signal)
 
                 # Record the conflict for analysis
-                conflict = self._create_conflict_record(symbol_str, strategy_signals, resolved_signal)
+                conflict = self._create_conflict_record(
+                    symbol_str, strategy_signals, resolved_signal
+                )
                 aggregated.conflicts.append(conflict)
 
     def _group_signals_by_symbol(
@@ -312,7 +330,9 @@ class MultiStrategyOrchestrator:
             Resolved StrategySignal or None if no resolution possible
 
         """
-        self.logger.info(f"Resolving conflict for {symbol} with {len(strategy_signals)} signals")
+        self.logger.info(
+            f"Resolving conflict for {symbol} with {len(strategy_signals)} signals"
+        )
 
         # Use ALL signals - no confidence threshold filtering
         # Strategy signals are concrete and should not be filtered by confidence
@@ -341,8 +361,6 @@ class MultiStrategyOrchestrator:
         # Strategies disagree - use highest weighted confidence with tie-breaking
         return self._select_highest_confidence_signal(symbol, valid_signals)
 
-
-
     def _combine_agreeing_signals(
         self, symbol: str, strategy_signals: list[tuple[StrategyType, StrategySignal]]
     ) -> StrategySignal:
@@ -370,10 +388,14 @@ class MultiStrategyOrchestrator:
 
         # Average confidence weighted by strategy allocation
         final_confidence = (
-            total_weighted_confidence / total_weight if total_weight > 0 else Decimal("0.5")
+            total_weighted_confidence / total_weight
+            if total_weight > 0
+            else Decimal("0.5")
         )
 
-        combined_reasoning += f"• Final confidence: {final_confidence:.2f} (weighted average)"
+        combined_reasoning += (
+            f"• Final confidence: {final_confidence:.2f} (weighted average)"
+        )
 
         return StrategySignal(
             symbol=Symbol(symbol),
@@ -390,7 +412,7 @@ class MultiStrategyOrchestrator:
         """Select signal with highest weighted confidence when strategies disagree.
 
         Implements explicit tie-breaking rules for deterministic behavior.
-        Optionally applies dynamic confidence adjustments based on recent performance.
+        Applies confidence-based weight adjustment up to 10% boost/reduction for high/low confidence strategies.
         """
         best_score = Decimal("-1")
         best_signals: list[tuple[StrategyType, StrategySignal]] = []
@@ -399,20 +421,19 @@ class MultiStrategyOrchestrator:
 
         # Calculate weighted scores for all signals
         for strategy_type, signal in strategy_signals:
-            weight = Decimal(str(self.strategy_allocations[strategy_type]))
+            base_weight = Decimal(str(self.strategy_allocations[strategy_type]))
             confidence_value = signal.confidence.value
-            
-            # Apply dynamic confidence adjustment if enabled
-            if self.confidence_config.aggregation.enable_dynamic_priority:
-                confidence_adjustment = self._calculate_dynamic_confidence_adjustment(strategy_type)
-                confidence_value += confidence_adjustment
-                confidence_value = max(Decimal("0.01"), min(Decimal("1.00"), confidence_value))
-            
-            weighted_score = confidence_value * weight
+
+            # Apply confidence-based weight adjustment (up to 10% boost/reduction)
+            confidence_adjusted_weight = self._apply_confidence_weighting(
+                base_weight, confidence_value, strategy_signals
+            )
+
+            weighted_score = confidence_value * confidence_adjusted_weight
 
             reasoning += (
                 f"• {strategy_type.value}: {signal.action} "
-                f"(confidence: {confidence_value:.2f}, weight: {weight:.1%}, "
+                f"(confidence: {confidence_value:.2f}, weight: {confidence_adjusted_weight:.1%}, "
                 f"score: {weighted_score:.3f})\n"
             )
 
@@ -424,15 +445,17 @@ class MultiStrategyOrchestrator:
 
         # Handle ties with explicit tie-breaking rules
         if len(best_signals) > 1:
-            reasoning += (
-                f"• Tie detected with {len(best_signals)} signals at score {best_score:.3f}\n"
-            )
+            reasoning += f"• Tie detected with {len(best_signals)} signals at score {best_score:.3f}\n"
             best_strategy, best_signal = self._break_tie(best_signals)
-            reasoning += f"• Tie-breaker: {best_strategy.value} (priority order + allocation)\n"
+            reasoning += (
+                f"• Tie-breaker: {best_strategy.value} (priority order + allocation)\n"
+            )
         else:
             best_strategy, best_signal = best_signals[0]
 
-        reasoning += f"• Winner: {best_strategy.value} with weighted score {best_score:.3f}"
+        reasoning += (
+            f"• Winner: {best_strategy.value} with weighted score {best_score:.3f}"
+        )
 
         # Create new signal with combined reasoning
         return StrategySignal(
@@ -443,21 +466,45 @@ class MultiStrategyOrchestrator:
             reasoning=reasoning,
             timestamp=best_signal.timestamp,
         )
-    
-    def _calculate_dynamic_confidence_adjustment(self, strategy_type: StrategyType) -> Decimal:
-        """Calculate dynamic confidence adjustment based on recent strategy performance.
-        
-        This is a placeholder implementation for future enhancement.
-        Real implementation would analyze recent strategy performance.
+
+    def _apply_confidence_weighting(
+        self,
+        base_weight: Decimal,
+        confidence: Decimal,
+        all_signals: list[tuple[StrategyType, StrategySignal]],
+    ) -> Decimal:
+        """Apply confidence-based weight adjustment up to 10% boost/reduction.
+
+        High confidence strategies get up to 10% additional weighting vs low confidence.
+        This provides gentle weighting between strategies based on their conviction.
         """
-        # For now, return zero adjustment (no performance data available)
-        # Future implementation could:
-        # 1. Track strategy performance over time
-        # 2. Calculate recent win/loss ratios
-        # 3. Adjust confidence based on recent performance trends
-        # 4. Apply market regime considerations
-        
-        return Decimal("0.00")
+        if len(all_signals) <= 1:
+            return base_weight
+
+        # Get confidence values from all strategies
+        confidences = [signal.confidence.value for _, signal in all_signals]
+        min_confidence = min(confidences)
+        max_confidence = max(confidences)
+
+        # If all strategies have same confidence, no adjustment needed
+        if max_confidence == min_confidence:
+            return base_weight
+
+        # Calculate relative confidence position (0.0 to 1.0)
+        confidence_range = max_confidence - min_confidence
+        relative_confidence = (confidence - min_confidence) / confidence_range
+
+        # Apply up to 10% weight adjustment
+        max_adjustment = (
+            self.confidence_config.aggregation.max_confidence_weight_adjustment
+        )
+        weight_adjustment = (relative_confidence - Decimal("0.5")) * max_adjustment * 2
+
+        # Apply adjustment to base weight
+        adjusted_weight = base_weight * (Decimal("1.0") + weight_adjustment)
+
+        # Ensure weight stays positive and reasonable
+        return max(Decimal("0.01"), adjusted_weight)
 
     def _break_tie(
         self, tied_signals: list[tuple[StrategyType, StrategySignal]]
@@ -471,7 +518,9 @@ class MultiStrategyOrchestrator:
         """
 
         # Sort by allocation (descending), then by priority order
-        def tie_break_key(item: tuple[StrategyType, StrategySignal]) -> tuple[float, int]:
+        def tie_break_key(
+            item: tuple[StrategyType, StrategySignal],
+        ) -> tuple[float, int]:
             strategy_type, _ = item
             allocation = self.strategy_allocations[strategy_type]
 
@@ -480,9 +529,14 @@ class MultiStrategyOrchestrator:
             try:
                 priority_index = priority_order.index(strategy_type.value)
             except ValueError:
-                priority_index = len(priority_order)  # Unknown strategies get lowest priority
+                priority_index = len(
+                    priority_order
+                )  # Unknown strategies get lowest priority
 
-            return (-allocation, priority_index)  # Negative allocation for descending sort
+            return (
+                -allocation,
+                priority_index,
+            )  # Negative allocation for descending sort
 
         tied_signals.sort(key=tie_break_key)
         return tied_signals[0]

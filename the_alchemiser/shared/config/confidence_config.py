@@ -1,11 +1,11 @@
-"""Business Unit: shared | Status: current
+"""Business Unit: shared | Status: current.
 
 Confidence calculation configuration for strategy engines.
-Centralizes all confidence parameters, thresholds, and mappings.
+Centralizes all confidence parameters for strategy weighting.
 
-NOTE: Confidence thresholds for signal filtering have been DEPRECATED.
-Strategy signals are concrete and should not be filtered by confidence.
-Confidence is now ONLY used for weighting between strategies during conflict resolution.
+NOTE: Confidence is ONLY used for weighting between strategies during conflict resolution.
+Strategy signals are concrete and preserved intact. High confidence strategies get up to 
+10% additional weighting vs low confidence strategies for gentle weighting adjustments.
 """
 
 from __future__ import annotations
@@ -13,9 +13,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import ClassVar
-
-
-
 
 
 @dataclass(frozen=True)
@@ -54,7 +51,7 @@ class NuclearConfidenceConfig:
     extreme_overbought_confidence: Decimal = Decimal("0.85")  # Reduced from 0.90
     oversold_buy_confidence: Decimal = Decimal("0.80")  # Reduced from 0.85
     volatility_hedge_confidence: Decimal = Decimal("0.75")  # Reduced from 0.80
-    market_regime_confidence: Decimal = Decimal("0.70")  
+    market_regime_confidence: Decimal = Decimal("0.70")
     hold_confidence: Decimal = Decimal("0.50")  # Reduced from 0.60
 
     # RSI thresholds for confidence tiers (standardized with TECL)
@@ -72,7 +69,7 @@ class KLMConfidenceConfig:
     base_confidence: Decimal = Decimal("0.60")  # Consistent with TECL base
     max_confidence: Decimal = Decimal("0.90")
     min_confidence: Decimal = Decimal("0.45")  # Higher floor than before
-    
+
     # Weight-based adjustments (much gentler scaling)
     weight_adjustment_factor: Decimal = Decimal("0.15")  # Reduced from 0.40
     high_weight_threshold: Decimal = Decimal("0.75")  # Weight > 75% = high confidence
@@ -86,8 +83,9 @@ class KLMConfidenceConfig:
 @dataclass(frozen=True)
 class AggregationConfig:
     """Configuration for signal aggregation and conflict resolution.
-    
+
     Confidence is only used for weighting between strategies during conflict resolution.
+    High confidence strategies get up to 10% additional weighting vs low confidence.
     """
 
     # Tie-breaking priority order (first = highest priority)
@@ -95,11 +93,9 @@ class AggregationConfig:
 
     # Whether to blend allocations when strategies agree (conservative: False)
     blend_agreeing_allocations: bool = False
-    
-    # Dynamic priority adjustments (advanced features)
-    enable_dynamic_priority: bool = False  # Enable performance-based priority adjustments
-    priority_adjustment_window: int = 30  # Days to look back for performance
-    max_priority_adjustment: Decimal = Decimal("0.10")  # Max confidence adjustment based on performance
+
+    # Maximum confidence-based weight adjustment (10% boost/reduction)
+    max_confidence_weight_adjustment: Decimal = Decimal("0.10")
 
 
 @dataclass(frozen=True)
