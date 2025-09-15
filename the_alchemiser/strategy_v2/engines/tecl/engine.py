@@ -388,10 +388,10 @@ class TECLEngine(StrategyEngine):
         config = self.confidence_config.tecl
         confidence = config.base_confidence
 
-        # Check for defensive/hold positions (lower confidence)
+        # Check for defensive/hold positions (adjustment rather than penalty)
         is_defensive = symbol in ["BIL", "BSV"] or "defensive" in reasoning.lower()
         if is_defensive or action == "HOLD":
-            confidence -= config.defensive_penalty
+            confidence -= config.defensive_adjustment
 
         # RSI-based confidence adjustments
         rsi_boost = self._calculate_rsi_confidence_boost(indicators, config)

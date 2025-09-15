@@ -15,70 +15,52 @@ from decimal import Decimal
 from typing import ClassVar
 
 
-@dataclass(frozen=True)
-class ConfidenceThresholds:
-    """DEPRECATED: Minimum confidence thresholds - no longer used for filtering.
-    
-    Strategy signals are concrete and should not be filtered by confidence.
-    Confidence is only used for weighting between strategies.
-    Kept for backward compatibility only.
-    """
 
-    buy_min: Decimal = Decimal("0.00")  # No filtering
-    sell_min: Decimal = Decimal("0.00")  # No filtering
-    hold_min: Decimal = Decimal("0.00")  # No filtering
-
-    def get_threshold(self, action: str) -> Decimal:
-        """DEPRECATED: Get minimum confidence threshold for an action.
-        
-        Always returns 0.00 since filtering is disabled.
-        """
-        return Decimal("0.00")  # No filtering - all signals are valid
 
 
 @dataclass(frozen=True)
 class TECLConfidenceConfig:
     """TECL strategy confidence calculation parameters."""
 
-    # Base confidence levels
+    # Base confidence levels (standardized range)
     base_confidence: Decimal = Decimal("0.60")
     max_confidence: Decimal = Decimal("0.90")
-    min_confidence: Decimal = Decimal("0.40")
+    min_confidence: Decimal = Decimal("0.45")  # Increased floor for consistency
 
-    # RSI-based adjustments
+    # RSI-based adjustments (standardized)
     rsi_extreme_threshold: Decimal = Decimal("80.0")  # RSI > 80 or < 20 = extreme
     rsi_moderate_threshold: Decimal = Decimal("70.0")  # RSI > 70 or < 30 = moderate
-    rsi_extreme_boost: Decimal = Decimal("0.20")  # +0.20 for extreme RSI
-    rsi_moderate_boost: Decimal = Decimal("0.10")  # +0.10 for moderate RSI
+    rsi_extreme_boost: Decimal = Decimal("0.15")  # Reduced from 0.20
+    rsi_moderate_boost: Decimal = Decimal("0.08")  # Reduced from 0.10
 
-    # Moving average distance adjustments
+    # Moving average distance adjustments (standardized)
     ma_distance_threshold: Decimal = Decimal("0.05")  # 5% distance from MA
-    ma_distance_boost: Decimal = Decimal("0.10")  # +0.10 for significant MA distance
+    ma_distance_boost: Decimal = Decimal("0.08")  # Reduced from 0.10
 
-    # Defensive position penalties
-    defensive_penalty: Decimal = Decimal("0.15")  # -0.15 for defensive/hold positions
+    # Defensive position adjustments (balanced)
+    defensive_adjustment: Decimal = Decimal("0.08")  # Reduced from 0.15
 
 
 @dataclass(frozen=True)
 class NuclearConfidenceConfig:
     """Nuclear strategy confidence calculation parameters."""
 
-    # Base confidence levels
-    base_confidence: Decimal = Decimal("0.50")
+    # Base confidence levels (standardized range)
+    base_confidence: Decimal = Decimal("0.60")  # Increased from 0.50 for consistency
     max_confidence: Decimal = Decimal("0.90")
-    min_confidence: Decimal = Decimal("0.40")
+    min_confidence: Decimal = Decimal("0.45")  # Increased floor for consistency
 
-    # Indicator-based confidence tiers
-    extreme_overbought_confidence: Decimal = Decimal("0.90")  # RSI > 85
-    oversold_buy_confidence: Decimal = Decimal("0.85")  # RSI < 25 + BUY
-    volatility_hedge_confidence: Decimal = Decimal("0.80")  # High VIX conditions
-    market_regime_confidence: Decimal = Decimal("0.70")  # Bull/bear regime signals
-    hold_confidence: Decimal = Decimal("0.60")  # Default HOLD confidence
+    # Indicator-based confidence tiers (more balanced)
+    extreme_overbought_confidence: Decimal = Decimal("0.85")  # Reduced from 0.90
+    oversold_buy_confidence: Decimal = Decimal("0.80")  # Reduced from 0.85
+    volatility_hedge_confidence: Decimal = Decimal("0.75")  # Reduced from 0.80
+    market_regime_confidence: Decimal = Decimal("0.70")  
+    hold_confidence: Decimal = Decimal("0.50")  # Reduced from 0.60
 
-    # RSI thresholds for confidence tiers
-    rsi_extreme_overbought: Decimal = Decimal("85.0")
+    # RSI thresholds for confidence tiers (standardized with TECL)
+    rsi_extreme_overbought: Decimal = Decimal("80.0")  # Reduced from 85.0
     rsi_oversold: Decimal = Decimal("25.0")
-    rsi_moderate_overbought: Decimal = Decimal("75.0")
+    rsi_moderate_overbought: Decimal = Decimal("70.0")  # Reduced from 75.0
     rsi_moderate_oversold: Decimal = Decimal("35.0")
 
 
@@ -86,38 +68,38 @@ class NuclearConfidenceConfig:
 class KLMConfidenceConfig:
     """KLM strategy confidence calculation parameters."""
 
-    # Action-based base confidence
-    buy_base: Decimal = Decimal("0.50")
-    buy_weight_multiplier: Decimal = Decimal("0.40")  # weight * 0.40
-    buy_max: Decimal = Decimal("0.90")
-
-    sell_confidence: Decimal = Decimal("0.70")
-    hold_confidence: Decimal = Decimal("0.30")
-
-    # Weight-based adjustments
+    # Base confidence levels (more balanced approach)
+    base_confidence: Decimal = Decimal("0.60")  # Consistent with TECL base
+    max_confidence: Decimal = Decimal("0.90")
+    min_confidence: Decimal = Decimal("0.45")  # Higher floor than before
+    
+    # Weight-based adjustments (much gentler scaling)
+    weight_adjustment_factor: Decimal = Decimal("0.15")  # Reduced from 0.40
     high_weight_threshold: Decimal = Decimal("0.75")  # Weight > 75% = high confidence
     high_weight_boost: Decimal = Decimal("0.05")  # +0.05 for high weight positions
+
+    # Action-based modifiers
+    sell_confidence: Decimal = Decimal("0.70")
+    hold_confidence: Decimal = Decimal("0.45")  # Increased from 0.30
 
 
 @dataclass(frozen=True)
 class AggregationConfig:
     """Configuration for signal aggregation and conflict resolution.
     
-    Note: Confidence thresholds are deprecated. All strategy signals are preserved
-    and confidence is only used for weighting between strategies.
+    Confidence is only used for weighting between strategies during conflict resolution.
     """
-
-    # DEPRECATED: Confidence thresholds (kept for backward compatibility)
-    thresholds: ConfidenceThresholds = ConfidenceThresholds()
 
     # Tie-breaking priority order (first = highest priority)
     strategy_priority: ClassVar[list[str]] = ["NUCLEAR", "TECL", "KLM"]
 
-    # Minimum confidence to win a conflict (deprecated, not used)
-    min_winning_confidence: Decimal = Decimal("0.00")
-
     # Whether to blend allocations when strategies agree (conservative: False)
     blend_agreeing_allocations: bool = False
+    
+    # Dynamic priority adjustments (advanced features)
+    enable_dynamic_priority: bool = False  # Enable performance-based priority adjustments
+    priority_adjustment_window: int = 30  # Days to look back for performance
+    max_priority_adjustment: Decimal = Decimal("0.10")  # Max confidence adjustment based on performance
 
 
 @dataclass(frozen=True)

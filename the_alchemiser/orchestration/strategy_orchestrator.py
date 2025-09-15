@@ -390,6 +390,7 @@ class MultiStrategyOrchestrator:
         """Select signal with highest weighted confidence when strategies disagree.
 
         Implements explicit tie-breaking rules for deterministic behavior.
+        Optionally applies dynamic confidence adjustments based on recent performance.
         """
         best_score = Decimal("-1")
         best_signals: list[tuple[StrategyType, StrategySignal]] = []
@@ -400,6 +401,13 @@ class MultiStrategyOrchestrator:
         for strategy_type, signal in strategy_signals:
             weight = Decimal(str(self.strategy_allocations[strategy_type]))
             confidence_value = signal.confidence.value
+            
+            # Apply dynamic confidence adjustment if enabled
+            if self.confidence_config.aggregation.enable_dynamic_priority:
+                confidence_adjustment = self._calculate_dynamic_confidence_adjustment(strategy_type)
+                confidence_value += confidence_adjustment
+                confidence_value = max(Decimal("0.01"), min(Decimal("1.00"), confidence_value))
+            
             weighted_score = confidence_value * weight
 
             reasoning += (
@@ -435,6 +443,21 @@ class MultiStrategyOrchestrator:
             reasoning=reasoning,
             timestamp=best_signal.timestamp,
         )
+    
+    def _calculate_dynamic_confidence_adjustment(self, strategy_type: StrategyType) -> Decimal:
+        """Calculate dynamic confidence adjustment based on recent strategy performance.
+        
+        This is a placeholder implementation for future enhancement.
+        Real implementation would analyze recent strategy performance.
+        """
+        # For now, return zero adjustment (no performance data available)
+        # Future implementation could:
+        # 1. Track strategy performance over time
+        # 2. Calculate recent win/loss ratios
+        # 3. Adjust confidence based on recent performance trends
+        # 4. Apply market regime considerations
+        
+        return Decimal("0.00")
 
     def _break_tie(
         self, tied_signals: list[tuple[StrategyType, StrategySignal]]

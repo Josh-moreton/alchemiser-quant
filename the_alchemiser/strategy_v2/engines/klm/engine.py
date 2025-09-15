@@ -604,7 +604,11 @@ class KLMEngine(StrategyEngine):
         return signals if signals else self._create_hold_signal("No valid signals generated", now)
 
     def _calculate_confidence(self, action: str, weight: float) -> Confidence:
-        """Calculate confidence based on action and allocation weight."""
+        """Calculate confidence based on action and allocation weight.
+        
+        Uses a more balanced approach that reduces dramatic confidence variations
+        based on allocation weight, providing more stable confidence levels.
+        """
         config = self.confidence_config.klm
 
         # Validate weight is a valid number
@@ -615,22 +619,28 @@ class KLMEngine(StrategyEngine):
             weight = 0.0
 
         if action == "BUY":
-            # Higher weight = higher confidence (configurable formula)
-            confidence_value = min(
-                float(config.buy_max),
-                float(config.buy_base) + (weight * float(config.buy_weight_multiplier)),
-            )
-
+            # Start with base confidence and apply gentler weight adjustment
+            confidence_value = float(config.base_confidence)
+            
+            # Apply weight adjustment (much gentler than before)
+            weight_adjustment = weight * float(config.weight_adjustment_factor)
+            confidence_value += weight_adjustment
+            
             # Boost for high-weight positions
             if weight >= float(config.high_weight_threshold):
                 confidence_value += float(config.high_weight_boost)
-                confidence_value = min(float(config.buy_max), confidence_value)
+            
+            # Clamp to valid range
+            confidence_value = max(
+                float(config.min_confidence), 
+                min(float(config.max_confidence), confidence_value)
+            )
 
         elif action == "SELL":
             # Sell signals have moderate confidence (configurable)
             confidence_value = float(config.sell_confidence)
         else:  # HOLD
-            # Hold signals have lower confidence (configurable)
+            # Hold signals have moderate confidence (increased from 0.30)
             confidence_value = float(config.hold_confidence)
 
         # Ensure confidence_value is valid before Decimal conversion
