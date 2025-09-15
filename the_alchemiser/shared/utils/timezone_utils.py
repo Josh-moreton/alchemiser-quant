@@ -82,7 +82,7 @@ def normalize_timestamp_to_utc(timestamp: datetime | str | int | float) -> datet
     if isinstance(timestamp, datetime):
         # Handle datetime objects
         # ensure_timezone_aware returns datetime for datetime input
-        return ensure_timezone_aware(timestamp)  # type: ignore[return-value]
+        return ensure_timezone_aware(timestamp)
 
     if isinstance(timestamp, str):
         # Handle ISO format strings

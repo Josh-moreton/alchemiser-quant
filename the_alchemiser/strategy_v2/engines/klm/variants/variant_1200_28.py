@@ -27,8 +27,10 @@ class KlmVariant120028(BaseKLMVariant):
     """
 
     def __init__(self) -> None:
+        """Initialize 1200/28 variant with name and description."""
         super().__init__(
-            name="1200/28", description="KMLM (43) - Standard pattern with TECL/SOXL/SVIX switcher"
+            name="1200/28",
+            description="KMLM (43) - Standard pattern with TECL/SOXL/SVIX switcher",
         )
 
     def evaluate(
@@ -46,7 +48,9 @@ class KlmVariant120028(BaseKLMVariant):
         # Step 2: Single Popped KMLM logic (same as 506/38)
         return self.evaluate_single_popped_kmlm(indicators)
 
-    def evaluate_core_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def evaluate_core_kmlm_switcher(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> KLMDecision:
         """Core KMLM switcher for variant 1200/28.
 
         KEY DIFFERENCE from 506/38: Uses select-bottom 1 from TECL/SOXL/SVIX (not FNGU)
@@ -79,7 +83,9 @@ class KlmVariant120028(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator
         return self._evaluate_ls_rotator_1200(indicators)
 
-    def _evaluate_ls_rotator_1200(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def _evaluate_ls_rotator_1200(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> KLMDecision:
         """1200/28 L/S Rotator - uses SQQQ/TLT select-top 1."""
         candidates = []
         for symbol in ["SQQQ", "TLT"]:

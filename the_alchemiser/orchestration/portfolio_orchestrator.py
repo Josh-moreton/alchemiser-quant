@@ -1,4 +1,4 @@
-"""Business Unit: orchestration | Status: current
+"""Business Unit: orchestration | Status: current.
 
 Portfolio rebalancing orchestration workflow.
 
@@ -18,18 +18,29 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
-from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioMetricsDTO, PortfolioStateDTO
+from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
+    ConsolidatedPortfolioDTO,
+)
+from the_alchemiser.shared.dto.portfolio_state_dto import (
+    PortfolioMetricsDTO,
+    PortfolioStateDTO,
+)
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
-from the_alchemiser.shared.events import AllocationComparisonCompleted, EventBus, RebalancePlanned
+from the_alchemiser.shared.events import (
+    AllocationComparisonCompleted,
+    EventBus,
+    RebalancePlanned,
+)
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
+from the_alchemiser.portfolio_v2 import PortfolioServiceV2
 
 
 class PortfolioOrchestrator:
-    """Orchestrates portfolio rebalancing workflow."""
+    """Orchestrate portfolio rebalancing workflow."""
 
     def __init__(self, settings: Settings, container: ApplicationContainer) -> None:
+        """Initialize orchestrator with settings and DI container."""
         self.settings = settings
         self.container = container
         self.logger = get_logger(__name__)
@@ -50,11 +61,13 @@ class PortfolioOrchestrator:
 
             # Get portfolio service from container
             portfolio_service = PortfolioServiceV2(
-                data_adapter=self.container.infrastructure.alpaca_manager()
+                alpaca_manager=self.container.infrastructure.alpaca_manager()
             )
 
-            # Get current portfolio snapshot
-            portfolio_snapshot = portfolio_service.get_portfolio_snapshot()
+            # Get current portfolio snapshot via state reader
+            portfolio_snapshot = (
+                portfolio_service._state_reader.build_portfolio_snapshot()
+            )
 
             if not portfolio_snapshot:
                 self.logger.warning("Could not retrieve portfolio snapshot")
@@ -67,7 +80,7 @@ class PortfolioOrchestrator:
 
             return {
                 "snapshot": portfolio_snapshot,
-                "analysis_timestamp": portfolio_snapshot.timestamp,
+                "analysis_timestamp": getattr(portfolio_snapshot, "timestamp", None),
                 "position_count": len(portfolio_snapshot.positions),
                 "total_value": float(portfolio_snapshot.total_value),
             }
@@ -90,9 +103,9 @@ class PortfolioOrchestrator:
         """
         try:
             # Use portfolio_v2 for rebalancing plan calculation
-
-            from the_alchemiser.portfolio_v2 import RebalancePlanCalculator
-            from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
+            from the_alchemiser.shared.dto.strategy_allocation_dto import (
+                StrategyAllocationDTO,
+            )
 
             # Convert ConsolidatedPortfolioDTO to target weights for portfolio_v2
             target_weights = target_allocations.target_allocations
@@ -105,21 +118,22 @@ class PortfolioOrchestrator:
                 constraints=target_allocations.constraints,
             )
 
-            # Get data adapter
-            data_adapter = self.container.infrastructure.alpaca_manager()
+            # Get portfolio service from container
+            portfolio_service = PortfolioServiceV2(
+                alpaca_manager=self.container.infrastructure.alpaca_manager()
+            )
 
-            # Create rebalance plan calculator
-            calculator = RebalancePlanCalculator(data_adapter)
-
-            # Generate rebalancing plan
-            rebalance_plan = calculator.calculate_rebalance_plan(allocation_dto)
+            # Generate rebalancing plan using the service
+            rebalance_plan = portfolio_service.create_rebalance_plan_dto(
+                allocation_dto, target_allocations.correlation_id
+            )
 
             if not rebalance_plan:
                 self.logger.warning("Could not generate rebalancing plan")
                 return None
 
             self.logger.info(
-                f"Generated rebalancing plan: {len(rebalance_plan.trades)} trades, "
+                f"Generated rebalancing plan: {len(rebalance_plan.items)} items, "
                 f"${rebalance_plan.total_trade_value:.2f} total trade value"
             )
 
@@ -155,7 +169,7 @@ class PortfolioOrchestrator:
             # Return traditional response for backwards compatibility
             return {
                 "plan": rebalance_plan,
-                "trade_count": len(rebalance_plan.trades),
+                "trade_count": len(rebalance_plan.items),
                 "total_trade_value": float(rebalance_plan.total_trade_value),
                 "target_allocations": target_allocations.to_dict_allocation(),
                 "plan_timestamp": rebalance_plan.timestamp,
@@ -189,7 +203,9 @@ class PortfolioOrchestrator:
 
             # Get current positions
             current_positions = alpaca_manager.get_positions()
-            positions_dict = {pos.symbol: float(pos.market_value) for pos in current_positions}
+            positions_dict = {
+                pos.symbol: float(pos.market_value) for pos in current_positions
+            }
 
             # Use shared utilities for allocation comparison
             from the_alchemiser.shared.utils.portfolio_calculations import (
@@ -205,7 +221,9 @@ class PortfolioOrchestrator:
 
             # Convert ConsolidatedPortfolioDTO to dict for existing utility function
             allocation_comparison_data = build_allocation_comparison(
-                consolidated_portfolio.to_dict_allocation(), account_dict, positions_dict
+                consolidated_portfolio.to_dict_allocation(),
+                account_dict,
+                positions_dict,
             )
 
             # Create AllocationComparisonDTO from the calculation result
@@ -232,12 +250,18 @@ class PortfolioOrchestrator:
 
                 for symbol, market_value in positions_dict.items():
                     current_allocation = (
-                        market_value / total_portfolio_value if total_portfolio_value > 0 else 0
+                        market_value / total_portfolio_value
+                        if total_portfolio_value > 0
+                        else 0
                     )
-                    current_allocations_decimal[symbol] = Decimal(str(current_allocation))
+                    current_allocations_decimal[symbol] = Decimal(
+                        str(current_allocation)
+                    )
 
                     # Calculate difference
-                    target_allocation = target_allocations_decimal.get(symbol, Decimal("0"))
+                    target_allocation = target_allocations_decimal.get(
+                        symbol, Decimal("0")
+                    )
                     differences_decimal[symbol] = target_allocation - Decimal(
                         str(current_allocation)
                     )
@@ -311,7 +335,9 @@ class PortfolioOrchestrator:
                     }
                     for pos in positions_list
                 }
-                self.logger.info(f"Retrieved {len(current_positions)} current positions")
+                self.logger.info(
+                    f"Retrieved {len(current_positions)} current positions"
+                )
 
             # Get open orders
             open_orders = []
@@ -322,13 +348,15 @@ class PortfolioOrchestrator:
                         {
                             "id": getattr(order, "id", "unknown"),
                             "symbol": getattr(order, "symbol", "unknown"),
-                            "type": str(getattr(order, "order_type", "unknown")).replace(
-                                "OrderType.", ""
-                            ),
+                            "type": str(
+                                getattr(order, "order_type", "unknown")
+                            ).replace("OrderType.", ""),
                             "qty": float(getattr(order, "qty", 0)),
-                            "limit_price": float(getattr(order, "limit_price", 0))
-                            if order.limit_price
-                            else None,
+                            "limit_price": (
+                                float(getattr(order, "limit_price", 0))
+                                if order.limit_price
+                                else None
+                            ),
                             "status": str(getattr(order, "status", "unknown")).replace(
                                 "OrderStatus.", ""
                             ),
@@ -424,11 +452,15 @@ class PortfolioOrchestrator:
             )
 
             self.event_bus.publish(event)
-            self.logger.debug(f"Emitted AllocationComparisonCompleted event {event.event_id}")
+            self.logger.debug(
+                f"Emitted AllocationComparisonCompleted event {event.event_id}"
+            )
 
         except Exception as e:
             # Don't let event emission failure break the traditional workflow
-            self.logger.warning(f"Failed to emit AllocationComparisonCompleted event: {e}")
+            self.logger.warning(
+                f"Failed to emit AllocationComparisonCompleted event: {e}"
+            )
 
     def execute_portfolio_workflow(
         self, target_allocations: dict[str, float]
@@ -443,18 +475,42 @@ class PortfolioOrchestrator:
 
         """
         try:
+            # Convert float dict to ConsolidatedPortfolioDTO
+            import uuid
+            from datetime import UTC, datetime
+            from decimal import Decimal
+
+            from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
+                ConsolidatedPortfolioDTO,
+            )
+
+            target_allocations_decimal = {
+                symbol: Decimal(str(weight))
+                for symbol, weight in target_allocations.items()
+            }
+
+            consolidated_portfolio = ConsolidatedPortfolioDTO(
+                target_allocations=target_allocations_decimal,
+                correlation_id=str(uuid.uuid4()),
+                timestamp=datetime.now(UTC),
+                strategy_count=1,
+                source_strategies=["manual"],
+            )
+
             # Analyze current portfolio state
             portfolio_state = self.analyze_portfolio_state()
             if not portfolio_state:
                 return None
 
             # Generate rebalancing plan
-            rebalancing_plan = self.generate_rebalancing_plan(target_allocations)
+            rebalancing_plan = self.generate_rebalancing_plan(consolidated_portfolio)
             if not rebalancing_plan:
                 return None
 
             # Analyze allocation comparison
-            allocation_analysis = self.analyze_allocation_comparison(target_allocations)
+            allocation_analysis = self.analyze_allocation_comparison(
+                consolidated_portfolio
+            )
             if not allocation_analysis:
                 return None
 

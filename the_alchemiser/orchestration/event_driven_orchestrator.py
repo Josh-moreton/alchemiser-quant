@@ -9,7 +9,7 @@ with event-driven workflows for better decoupling and extensibility.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -49,7 +49,7 @@ class EventDrivenOrchestrator:
         self._register_handlers()
 
         # Track workflow state for recovery and reconciliation
-        self.workflow_state = {
+        self.workflow_state: dict[str, Any] = {
             "startup_completed": False,
             "signal_generation_in_progress": False,
             "rebalancing_in_progress": False,
@@ -84,7 +84,9 @@ class EventDrivenOrchestrator:
             elif isinstance(event, TradeExecuted):
                 self._handle_trade_executed(event)
             else:
-                self.logger.debug(f"Orchestrator ignoring event type: {event.event_type}")
+                self.logger.debug(
+                    f"Orchestrator ignoring event type: {event.event_type}"
+                )
 
         except Exception as e:
             self.logger.error(
@@ -229,7 +231,9 @@ class EventDrivenOrchestrator:
 
         """
         success = event.success
-        self.logger.info(f"🎯 Trade execution orchestration completed: {'✅' if success else '❌'}")
+        self.logger.info(
+            f"🎯 Trade execution orchestration completed: {'✅' if success else '❌'}"
+        )
 
         # Update workflow state
         self.workflow_state.update(
@@ -239,13 +243,17 @@ class EventDrivenOrchestrator:
         )
 
         if success:
-            self.logger.info("Orchestration: Full trading workflow completed successfully")
+            self.logger.info(
+                "Orchestration: Full trading workflow completed successfully"
+            )
             self.workflow_state["last_successful_workflow"] = "trading"
 
             # Perform post-trade reconciliation
             self._perform_reconciliation(event)
         else:
-            self.logger.error(f"Orchestration: Trading workflow failed - {event.error_message}")
+            self.logger.error(
+                f"Orchestration: Trading workflow failed - {event.error_message}"
+            )
 
             # Trigger recovery workflow
             self._trigger_recovery_workflow(event)
@@ -296,12 +304,14 @@ class EventDrivenOrchestrator:
             self.logger.info("Recovery: Preparing system alerts")
 
             # For now, log the recovery intent
-            self.logger.info("Recovery workflow prepared (full implementation in Phase 7)")
+            self.logger.info(
+                "Recovery workflow prepared (full implementation in Phase 7)"
+            )
 
         except Exception as e:
             self.logger.error(f"Recovery workflow failed: {e}")
 
-    def get_workflow_status(self) -> dict[str, any]:
+    def get_workflow_status(self) -> dict[str, Any]:
         """Get current workflow status for monitoring.
 
         Returns:

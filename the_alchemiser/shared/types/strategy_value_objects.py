@@ -1,4 +1,4 @@
-"""Business Unit: shared | Status: current
+"""Business Unit: shared | Status: current.
 
 Strategy value objects used across modules.
 
@@ -7,7 +7,7 @@ Core domain objects for strategy signals and confidence levels.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -23,7 +23,8 @@ class Confidence(BaseModel):
     value: Decimal
 
     def __init__(self, value: Decimal | float | str) -> None:
-        if isinstance(value, (float, str)):
+        """Initialize a confidence wrapper from Decimal, float, or string."""
+        if isinstance(value, float | str):
             value = Decimal(str(value))
         super().__init__(value=value)
 
@@ -48,6 +49,7 @@ class StrategySignal(BaseModel):
         timestamp: datetime | None = None,
         **kwargs: Any,
     ) -> None:
+        """Build a normalized `StrategySignal` from flexible input types."""
         if isinstance(symbol, str):
             symbol = Symbol(symbol)
         if not isinstance(confidence, Confidence):
@@ -58,7 +60,7 @@ class StrategySignal(BaseModel):
             else:
                 target_allocation = Decimal(str(target_allocation))
         if timestamp is None:
-            timestamp = datetime.now()
+            timestamp = datetime.now(UTC)
 
         super().__init__(
             symbol=symbol,

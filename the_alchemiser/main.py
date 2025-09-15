@@ -14,7 +14,9 @@ import logging
 import os
 import sys
 
-from the_alchemiser.orchestration.event_driven_orchestrator import EventDrivenOrchestrator
+from the_alchemiser.orchestration.event_driven_orchestrator import (
+    EventDrivenOrchestrator,
+)
 
 # CLI formatter imports (moved from function-level)
 from the_alchemiser.shared.cli.cli_formatter import render_footer, render_header
@@ -51,6 +53,7 @@ class TradingSystem:
     """Main trading system orchestrator."""
 
     def __init__(self, settings: Settings | None = None) -> None:
+        """Initialize trading system with optional settings."""
         self.settings = settings or load_settings()
         self.logger = get_logger(__name__)
         self.error_handler = TradingSystemErrorHandler()
@@ -64,7 +67,9 @@ class TradingSystem:
         global _di_container
 
         self.container = ApplicationContainer()
-        _di_container = self.container  # Keep global for backward compatibility during transition
+        _di_container = (
+            self.container
+        )  # Keep global for backward compatibility during transition
         ServiceFactory.initialize(self.container)
         self.logger.info("Dependency injection initialized")
 
@@ -72,7 +77,9 @@ class TradingSystem:
         """Initialize event-driven orchestration system."""
         try:
             if self.container is None:
-                self.logger.warning("Cannot initialize event orchestration: DI container not ready")
+                self.logger.warning(
+                    "Cannot initialize event orchestration: DI container not ready"
+                )
                 return
 
             # Initialize event-driven orchestrator
@@ -84,7 +91,9 @@ class TradingSystem:
             self.logger.warning(f"Failed to initialize event orchestration: {e}")
             self.event_driven_orchestrator = None
 
-    def _emit_startup_event(self, startup_mode: str, ignore_market_hours: bool = False) -> None:
+    def _emit_startup_event(
+        self, startup_mode: str, ignore_market_hours: bool = False
+    ) -> None:
         """Emit StartupEvent to trigger event-driven workflows.
 
         Args:
@@ -94,7 +103,9 @@ class TradingSystem:
         """
         try:
             if self.container is None:
-                self.logger.warning("Cannot emit StartupEvent: DI container not initialized")
+                self.logger.warning(
+                    "Cannot emit StartupEvent: DI container not initialized"
+                )
                 return
 
             # Get event bus from container
@@ -120,7 +131,9 @@ class TradingSystem:
 
             # Emit the event
             event_bus.publish(event)
-            self.logger.debug(f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}")
+            self.logger.debug(
+                f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}"
+            )
 
         except Exception as e:
             # Don't let startup event emission failure break the system
@@ -293,7 +306,9 @@ def main(argv: list[str] | None = None) -> bool:
         system = TradingSystem()
 
         # PHASE 6: Emit StartupEvent to trigger event-driven workflows
-        system._emit_startup_event(args.mode, getattr(args, "ignore_market_hours", False))
+        system._emit_startup_event(
+            args.mode, getattr(args, "ignore_market_hours", False)
+        )
 
         # Display header with simple trading mode detection
         if args.mode == "trade":
@@ -302,7 +317,9 @@ def main(argv: list[str] | None = None) -> bool:
             _, _, endpoint = get_alpaca_keys()
             is_live = endpoint and "paper" not in endpoint.lower()
             mode_label = "LIVE TRADING ⚠️" if is_live else "Paper Trading"
-            render_header("The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}")
+            render_header(
+                "The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}"
+            )
 
         # Execute trading with integrated signal analysis
         if args.mode == "trade":

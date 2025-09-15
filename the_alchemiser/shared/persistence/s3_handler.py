@@ -21,7 +21,7 @@ class S3Handler:
 
     def __init__(self) -> None:
         """Initialize an S3 client using environment configuration."""
-        import boto3  # type: ignore[import-not-found]
+        import boto3
 
         self._s3 = boto3.client("s3")
 
@@ -67,8 +67,10 @@ class S3Handler:
             bucket, key = self._parse_s3_uri(uri)
             obj = self._s3.get_object(Bucket=bucket, Key=key)
             body = obj["Body"].read()
-            return body.decode("utf-8")
-        except self._s3.exceptions.NoSuchKey:  # type: ignore[attr-defined]
+            if isinstance(body, bytes):
+                return body.decode("utf-8")
+            return str(body)
+        except self._s3.exceptions.NoSuchKey:
             logging.debug(f"S3 object not found: {uri}")
             return None
         except Exception as e:
@@ -114,7 +116,7 @@ class S3Handler:
             bucket, key = self._parse_s3_uri(uri)
             self._s3.head_object(Bucket=bucket, Key=key)
             return True
-        except self._s3.exceptions.NoSuchKey:  # type: ignore[attr-defined]
+        except self._s3.exceptions.NoSuchKey:
             return False
         except Exception:
             # HeadObject can raise 404 via ClientError; treat any error as non-existence

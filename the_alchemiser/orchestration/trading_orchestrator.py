@@ -21,8 +21,14 @@ from the_alchemiser.execution_v2.models.execution_result import ExecutionResultD
 from the_alchemiser.orchestration.portfolio_orchestrator import PortfolioOrchestrator
 from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioMetricsDTO, PortfolioStateDTO
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO, RebalancePlanItemDTO
+from the_alchemiser.shared.dto.portfolio_state_dto import (
+    PortfolioMetricsDTO,
+    PortfolioStateDTO,
+)
+from the_alchemiser.shared.dto.rebalance_plan_dto import (
+    RebalancePlanDTO,
+    RebalancePlanItemDTO,
+)
 from the_alchemiser.shared.events import EventBus, TradeExecuted, TradeExecutionStarted
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
@@ -45,6 +51,7 @@ class TradingOrchestrator:
         container: ApplicationContainer,
         ignore_market_hours: bool = False,
     ) -> None:
+        """Initialize trading orchestrator with settings and container."""
         self.settings = settings
         self.container = container
         self.logger = get_logger(__name__)
@@ -103,7 +110,9 @@ class TradingOrchestrator:
         """Generate strategy signals and return comprehensive execution data (signal mode)."""
         return self._execute_strategy_signals_internal(execute_trades=False)
 
-    def _execute_strategy_signals_internal(self, execute_trades: bool) -> dict[str, Any] | None:
+    def _execute_strategy_signals_internal(
+        self, execute_trades: bool
+    ) -> dict[str, Any] | None:
         """Generate strategy signals with optional trade execution.
 
         Args:
@@ -171,7 +180,9 @@ class TradingOrchestrator:
                         execution_plan = {
                             "plan_id": rebalance_plan.plan_id,
                             "trade_count": len(rebalance_plan.items),
-                            "total_trade_value": float(rebalance_plan.total_trade_value),
+                            "total_trade_value": float(
+                                rebalance_plan.total_trade_value
+                            ),
                             "trades": [
                                 {
                                     "symbol": item.symbol,
@@ -184,16 +195,22 @@ class TradingOrchestrator:
                             ],
                         }
                         mode_str = "LIVE" if self.live_trading else "PAPER"
-                        self._emit_trade_execution_started_event(execution_plan, mode_str)
+                        self._emit_trade_execution_started_event(
+                            execution_plan, mode_str
+                        )
 
                         # Get ExecutionManager from container
                         execution_manager = self.container.services.execution_manager()
 
                         # Execute the rebalance plan
-                        execution_result = execution_manager.execute_rebalance_plan(rebalance_plan)
+                        execution_result = execution_manager.execute_rebalance_plan(
+                            rebalance_plan
+                        )
 
                         # Convert ExecutionResultDTO to format expected by CLI
-                        orders_executed = self._convert_execution_result_to_orders(execution_result)
+                        orders_executed = self._convert_execution_result_to_orders(
+                            execution_result
+                        )
 
                         self.logger.info(
                             f"✅ Execution completed: {execution_result.orders_succeeded}/"
@@ -203,9 +220,12 @@ class TradingOrchestrator:
                         # DUAL-PATH: Emit TradeExecuted event for event-driven consumers
                         execution_success = (
                             execution_result.orders_succeeded > 0
-                            and execution_result.orders_succeeded == execution_result.orders_placed
+                            and execution_result.orders_succeeded
+                            == execution_result.orders_placed
                         )
-                        self._emit_trade_executed_event(execution_result, execution_success)
+                        self._emit_trade_executed_event(
+                            execution_result, execution_success
+                        )
 
                         # Log detailed execution results
                         self._log_detailed_execution_results(execution_result)
@@ -351,7 +371,9 @@ class TradingOrchestrator:
             send_error_notification_if_needed()
 
         except NotificationError as notification_error:
-            self.logger.warning(f"Failed to send error notification: {notification_error}")
+            self.logger.warning(
+                f"Failed to send error notification: {notification_error}"
+            )
 
     def execute_trading_workflow(self) -> bool:
         """Execute complete trading workflow.
@@ -433,7 +455,9 @@ class TradingOrchestrator:
             return None
 
     def _create_rebalance_plan_from_allocation(
-        self, allocation_comparison: AllocationComparisonDTO, account_info: dict[str, Any]
+        self,
+        allocation_comparison: AllocationComparisonDTO,
+        account_info: dict[str, Any],
     ) -> RebalancePlanDTO | None:
         """Convert allocation comparison DTO to RebalancePlanDTO.
 
@@ -463,7 +487,9 @@ class TradingOrchestrator:
             )
 
             if not plan_items:
-                self.logger.info("No significant trades needed - all deltas below threshold")
+                self.logger.info(
+                    "No significant trades needed - all deltas below threshold"
+                )
                 return None
 
             # Create final rebalance plan
@@ -477,7 +503,9 @@ class TradingOrchestrator:
 
     def _extract_portfolio_value(self, account_info: dict[str, Any]) -> Decimal:
         """Extract portfolio value from account info."""
-        portfolio_value = account_info.get("portfolio_value", account_info.get("equity", 0))
+        portfolio_value = account_info.get(
+            "portfolio_value", account_info.get("equity", 0)
+        )
         return Decimal(str(portfolio_value))
 
     def _create_plan_items(
@@ -495,7 +523,11 @@ class TradingOrchestrator:
             # Only include trades above minimum threshold
             if abs(delta) >= MIN_TRADE_AMOUNT_USD:
                 plan_item = self._create_single_plan_item(
-                    symbol, delta, target_values, current_values, portfolio_value_decimal
+                    symbol,
+                    delta,
+                    target_values,
+                    current_values,
+                    portfolio_value_decimal,
                 )
                 plan_items.append(plan_item)
                 total_trade_value += abs(delta)
@@ -536,7 +568,10 @@ class TradingOrchestrator:
         )
 
     def _calculate_weights(
-        self, target_val: Decimal, current_val: Decimal, portfolio_value_decimal: Decimal
+        self,
+        target_val: Decimal,
+        current_val: Decimal,
+        portfolio_value_decimal: Decimal,
     ) -> tuple[Decimal, Decimal]:
         """Calculate target and current weights safely."""
         if portfolio_value_decimal > 0:
@@ -589,7 +624,9 @@ class TradingOrchestrator:
                 "symbol": order.symbol,
                 "side": order.action,
                 "qty": float(order.shares) if order.shares else 0,
-                "filled_qty": float(order.shares) if order.success and order.shares else 0,
+                "filled_qty": (
+                    float(order.shares) if order.success and order.shares else 0
+                ),
                 "filled_avg_price": float(order.price) if order.price else 0,
                 "estimated_value": float(abs(order.trade_amount)),
                 "order_id": order.order_id,
@@ -600,7 +637,9 @@ class TradingOrchestrator:
 
         return orders_executed
 
-    def _log_detailed_execution_results(self, execution_result: ExecutionResultDTO) -> None:
+    def _log_detailed_execution_results(
+        self, execution_result: ExecutionResultDTO
+    ) -> None:
         """Log detailed execution results for each order.
 
         Args:
@@ -619,7 +658,9 @@ class TradingOrchestrator:
                     f"(Order ID: {order.order_id})"
                 )
             else:
-                self.logger.error(f"❌ {order.action} {order.symbol} FAILED: {order.error_message}")
+                self.logger.error(
+                    f"❌ {order.action} {order.symbol} FAILED: {order.error_message}"
+                )
 
         # Log summary
         self.logger.info(
@@ -629,7 +670,10 @@ class TradingOrchestrator:
         )
 
     def _emit_trade_executed_event(
-        self, execution_result: ExecutionResultDTO, success: bool, error_message: str | None = None
+        self,
+        execution_result: ExecutionResultDTO,
+        success: bool,
+        error_message: str | None = None,
     ) -> None:
         """Emit TradeExecuted event for event-driven architecture.
 
@@ -647,26 +691,36 @@ class TradingOrchestrator:
 
             # Create execution results dictionary
             execution_data = {
-                "orders_placed": execution_result.orders_placed if execution_result else 0,
-                "orders_succeeded": execution_result.orders_succeeded if execution_result else 0,
-                "total_trade_value": float(execution_result.total_trade_value)
-                if execution_result
-                else 0.0,
-                "orders": [
-                    {
-                        "symbol": order.symbol,
-                        "action": order.action,
-                        "shares": float(order.shares) if order.shares else 0.0,
-                        "price": float(order.price) if order.price else 0.0,
-                        "trade_amount": float(order.trade_amount) if order.trade_amount else 0.0,
-                        "success": order.success,
-                        "error_message": order.error_message,
-                        "order_id": order.order_id,
-                    }
-                    for order in execution_result.orders
-                ]
-                if execution_result
-                else [],
+                "orders_placed": (
+                    execution_result.orders_placed if execution_result else 0
+                ),
+                "orders_succeeded": (
+                    execution_result.orders_succeeded if execution_result else 0
+                ),
+                "total_trade_value": (
+                    float(execution_result.total_trade_value)
+                    if execution_result
+                    else 0.0
+                ),
+                "orders": (
+                    [
+                        {
+                            "symbol": order.symbol,
+                            "action": order.action,
+                            "shares": float(order.shares) if order.shares else 0.0,
+                            "price": float(order.price) if order.price else 0.0,
+                            "trade_amount": (
+                                float(order.trade_amount) if order.trade_amount else 0.0
+                            ),
+                            "success": order.success,
+                            "error_message": order.error_message,
+                            "order_id": order.order_id,
+                        }
+                        for order in execution_result.orders
+                    ]
+                    if execution_result
+                    else []
+                ),
             }
 
             # Create portfolio state after execution (minimal for now)
