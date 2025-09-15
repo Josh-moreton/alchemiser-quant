@@ -65,7 +65,7 @@ class TradingExecutor(BaseCLI):
         self.export_tracking_json = export_tracking_json
 
         # Delegate orchestration to dedicated orchestrator
-        self.orchestrator = TradingOrchestrator(settings, container, ignore_market_hours)
+        self.orchestrator = TradingOrchestrator(settings, container, ignore_market_hours=ignore_market_hours)
 
     def run(self) -> bool:
         """Execute trading strategy."""
