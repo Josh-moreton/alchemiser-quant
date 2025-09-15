@@ -130,5 +130,5 @@ def to_iso_string(timestamp: datetime | None) -> str | None:
 
     # Ensure timezone awareness before converting
     # ensure_timezone_aware returns datetime for datetime input
-    aware_timestamp = ensure_timezone_aware(timestamp)  # type: ignore[assignment]
+    aware_timestamp = ensure_timezone_aware(timestamp)
     return aware_timestamp.isoformat()
