@@ -56,7 +56,7 @@ def create_error_context(
     function_name: str | None = None,
     **kwargs: Any,
 ) -> ErrorContextData:
-    """Factory function to create standardized error context."""
+    """Create standardized error context."""
     return ErrorContextData(
         operation=operation,
         component=component,

@@ -281,7 +281,7 @@ Examples:
 
 
 def main(argv: list[str] | None = None) -> bool:
-    """Main entry point for The Alchemiser Trading System.
+    """Run the main entry point for The Alchemiser Trading System.
 
     Args:
         argv: Command line arguments (uses sys.argv if None)

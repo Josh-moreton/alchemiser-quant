@@ -28,7 +28,7 @@ def translate_service_errors(
     error_types: dict[type[Exception], type[Exception]] | None = None,
     default_return: Any = None,  # noqa: ANN401  # Flexible default return for any function type
 ) -> Callable[[F], F]:
-    """Decorator to translate service errors without logging.
+    """Translate service errors without logging.
 
     This decorator only translates exceptions - no logging is performed.
     Orchestrators/services should use the handler explicitly for logging.

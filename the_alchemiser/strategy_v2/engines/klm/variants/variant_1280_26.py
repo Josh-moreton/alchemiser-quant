@@ -1,4 +1,4 @@
-"""Business Unit: strategy | Status: current
+"""Business Unit: strategy | Status: current.
 
 KLM Strategy Variant 1280/26 - "KMLM (50)".
 

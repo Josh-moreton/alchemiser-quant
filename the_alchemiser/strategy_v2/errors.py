@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: strategy | Status: current
+"""Business Unit: strategy | Status: current.
 
 Strategy_v2 error types and exceptions.
 

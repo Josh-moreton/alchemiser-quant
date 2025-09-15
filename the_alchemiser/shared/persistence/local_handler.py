@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: shared | Status: current
+"""Business Unit: shared | Status: current.
 
 Local File Handler for Paper Trading Persistence.
 

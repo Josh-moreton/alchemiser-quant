@@ -147,6 +147,6 @@ def report_error_globally(
     context: dict[str, Any] | None = None,
     is_critical: bool = False,
 ) -> None:
-    """Convenience function to report errors globally."""
+    """Report errors globally."""
     reporter = get_error_reporter()
     reporter.report_error(error, context, is_critical)

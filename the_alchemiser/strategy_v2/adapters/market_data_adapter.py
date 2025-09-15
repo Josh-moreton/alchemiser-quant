@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: strategy | Status: current
+"""Business Unit: strategy | Status: current.
 
 Market data adapter for strategy execution.
 
