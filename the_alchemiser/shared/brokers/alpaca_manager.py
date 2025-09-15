@@ -1,4 +1,4 @@
-"""Business Unit: shared | Status: current.
+"""Business Unit: shared | Status: current
 
 Alpaca broker adapter (moved from execution module for architectural compliance).
 
