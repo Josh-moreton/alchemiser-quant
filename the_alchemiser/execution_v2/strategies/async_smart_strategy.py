@@ -58,6 +58,7 @@ class AsyncSmartExecutionStrategy(SmartLimitExecutionStrategy):
             
         Returns:
             Dictionary mapping symbols to execution results
+
         """
         logger.info(f"🚀 Async execution starting for plan {plan.plan_id}")
         
@@ -115,6 +116,7 @@ class AsyncSmartExecutionStrategy(SmartLimitExecutionStrategy):
         
         Args:
             symbols: List of symbols to subscribe to
+
         """
         logger.info(f"📡 Starting real-time pricing for {len(symbols)} symbols")
         
@@ -140,6 +142,7 @@ class AsyncSmartExecutionStrategy(SmartLimitExecutionStrategy):
             
         Returns:
             Execution result
+
         """
         symbol = item.symbol
         logger.info(f"🎯 Starting async execution: {item.action} {symbol}")
@@ -155,7 +158,7 @@ class AsyncSmartExecutionStrategy(SmartLimitExecutionStrategy):
             quantity = float(abs(item.trade_amount) / price)
             
             # Execute using the smart strategy
-            result = await self.execute_smart_limit_order(symbol, item.action.lower(), quantity)
+            result = self.execute_smart_limit_order(symbol, item.action.lower(), quantity)
             
             # Start concurrent monitoring if order was placed successfully
             if result.order_id and result.order_id not in ["FAILED", "DELAYED"]:
@@ -181,6 +184,7 @@ class AsyncSmartExecutionStrategy(SmartLimitExecutionStrategy):
             
         Returns:
             Current price or None
+
         """
         try:
             # Try real-time price first
@@ -196,7 +200,7 @@ class AsyncSmartExecutionStrategy(SmartLimitExecutionStrategy):
             )
             return price
             
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(f"⏰ Price lookup timeout for {symbol}")
             return None
         except Exception as e:
@@ -210,6 +214,7 @@ class AsyncSmartExecutionStrategy(SmartLimitExecutionStrategy):
             order_id: Order ID to monitor
             symbol: Stock symbol
             side: Order side
+
         """
         logger.info(f"📊 Starting enhanced monitoring for order {order_id}")
         
@@ -268,6 +273,7 @@ class AsyncSmartExecutionStrategy(SmartLimitExecutionStrategy):
             
         Returns:
             Dictionary of execution results
+
         """
         logger.info(f"🌊 Starting streaming execution for plan {plan.plan_id}")
         
@@ -293,6 +299,7 @@ class AsyncSmartExecutionStrategy(SmartLimitExecutionStrategy):
         
         Returns:
             Dictionary with execution statistics
+
         """
         return {
             "active_executions": len(self._active_executions),

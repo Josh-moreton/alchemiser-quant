@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime, time, timedelta
 from typing import NamedTuple
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
@@ -46,13 +47,14 @@ class MarketTimingUtils:
             
         Returns:
             MarketSession with current market state
+
         """
         if now is None:
             now = datetime.now(UTC)
             
-        # Convert to ET (simplified - assumes EST UTC-5)
-        # TODO: Add proper timezone handling with DST
-        et_time = now - timedelta(hours=5)
+        # Convert to ET with proper DST handling
+        et_timezone = ZoneInfo("America/New_York")
+        et_time = now.astimezone(et_timezone)
         current_time = et_time.time()
         
         # Determine session state
@@ -79,6 +81,7 @@ class MarketTimingUtils:
             
         Returns:
             True if orders should be delayed
+
         """
         session = cls.get_market_session(now)
         return session.is_opening_period
@@ -92,6 +95,7 @@ class MarketTimingUtils:
             
         Returns:
             Time until safe execution, or None if already safe
+
         """
         if now is None:
             now = datetime.now(UTC)
@@ -117,6 +121,7 @@ class MarketTimingUtils:
             
         Returns:
             True if market is open
+
         """
         session = cls.get_market_session(now)
         return session.is_open

@@ -18,8 +18,8 @@ from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionResultDTO,
     OrderResultDTO,
 )
-from the_alchemiser.execution_v2.strategies.smart_limit_strategy import SmartLimitExecutionStrategy
 from the_alchemiser.execution_v2.strategies.async_smart_strategy import AsyncSmartExecutionStrategy
+from the_alchemiser.execution_v2.strategies.smart_limit_strategy import SmartLimitExecutionStrategy
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO, RebalancePlanItemDTO
@@ -71,12 +71,11 @@ class Executor:
         if self.async_strategy and len(plan.items) > 1 and self.config.use_async_execution:
             logger.info("Using async smart execution strategy for concurrent execution")
             return asyncio.run(self._execute_plan_with_async_strategy(plan))
-        elif self.smart_strategy:
+        if self.smart_strategy:
             logger.info("Using smart limit execution strategy")
             return asyncio.run(self._execute_plan_async(plan))
-        else:
-            logger.info("Using legacy market order execution")
-            return self._execute_plan_legacy(plan)
+        logger.info("Using legacy market order execution")
+        return self._execute_plan_legacy(plan)
 
     async def _execute_plan_with_async_strategy(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
         """Execute plan using enhanced async strategy with full concurrency."""
@@ -143,7 +142,7 @@ class Executor:
             # Execute using smart strategy
             price_fallback = self._get_current_price_fallback(item.symbol)
             quantity = float(abs(item.trade_amount) / price_fallback)
-            executed_order = await self.smart_strategy.execute_smart_limit_order(
+            executed_order = self.smart_strategy.execute_smart_limit_order(
                 symbol=item.symbol,
                 side=item.action.lower(),
                 quantity=quantity
@@ -319,22 +318,22 @@ class Executor:
         timestamp = datetime.now(UTC)
         
         # Handle different types of executed order results
-        if hasattr(executed_order, 'order_id'):
+        if hasattr(executed_order, "order_id"):
             order_id = (
                 executed_order.order_id 
                 if executed_order.order_id not in ["FAILED", "DELAYED"] 
                 else None
             )
             success = executed_order.status not in ["REJECTED", "FAILED", "DELAYED"]
-            error_message = getattr(executed_order, 'error_message', None)
+            error_message = getattr(executed_order, "error_message", None)
             price = (
                 executed_order.price 
-                if hasattr(executed_order, 'price') 
+                if hasattr(executed_order, "price") 
                 else Decimal("0")
             )
             shares = (
                 executed_order.quantity 
-                if hasattr(executed_order, 'quantity') 
+                if hasattr(executed_order, "quantity") 
                 else Decimal("0")
             )
         else:
@@ -370,6 +369,7 @@ class Executor:
         
         Returns:
             Dictionary with execution capability information
+
         """
         capabilities = {
             "smart_execution_enabled": self.config.use_smart_limit_execution,

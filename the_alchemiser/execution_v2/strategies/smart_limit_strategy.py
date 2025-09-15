@@ -52,6 +52,7 @@ class SmartLimitExecutionStrategy:
             alpaca_manager: Broker interface for order placement
             pricing_service: Real-time pricing data provider
             config: Execution configuration settings
+
         """
         self.alpaca_manager = alpaca_manager
         self.pricing_service = pricing_service
@@ -68,6 +69,7 @@ class SmartLimitExecutionStrategy:
         
         Returns:
             True if orders should be delayed due to market open timing
+
         """
         try:
             # Use the centralized market timing utilities
@@ -97,6 +99,7 @@ class SmartLimitExecutionStrategy:
             
         Returns:
             True if spread is acceptable, False otherwise
+
         """
         try:
             if quote.bid_price <= 0 or quote.ask_price <= 0:
@@ -131,6 +134,7 @@ class SmartLimitExecutionStrategy:
             
         Returns:
             True if adequate volume exists, False otherwise
+
         """
         try:
             if side.lower() == "buy":
@@ -171,6 +175,7 @@ class SmartLimitExecutionStrategy:
             
         Returns:
             Optimal limit price anchored to liquidity
+
         """
         try:
             tick_size = self.config.tick_size
@@ -191,7 +196,7 @@ class SmartLimitExecutionStrategy:
             # Fallback to mid-price
             return quote.mid_price
 
-    async def execute_smart_limit_order(
+    def execute_smart_limit_order(
         self,
         symbol: str,
         side: str,
@@ -206,6 +211,7 @@ class SmartLimitExecutionStrategy:
             
         Returns:
             ExecutedOrderDTO with execution results
+
         """
         logger.info(f"🎯 Smart limit execution: {side} {quantity} {symbol}")
         
@@ -267,6 +273,7 @@ class SmartLimitExecutionStrategy:
             order_id: Order ID to monitor
             symbol: Stock symbol
             side: 'buy' or 'sell'
+
         """
         try:
             repeg_count = 0
@@ -285,13 +292,13 @@ class SmartLimitExecutionStrategy:
                     continue
                     
                 # Check if market has moved significantly
-                if self._should_repeg_order(quote, side, repeg_count):
+                if self._should_repeg_order(quote, side):
                     if repeg_count >= max_repegs:
                         logger.warning(f"Max re-pegs reached for {order_id}, no more re-pegging")
                         break
                         
                     # Cancel existing order and place new one
-                    success = await self._repeg_order(order_id, symbol, side, quote)
+                    success = self._repeg_order(order_id, symbol, side, quote)
                     if success:
                         repeg_count += 1
                         self._repeg_counts[order_id] = repeg_count
@@ -309,16 +316,16 @@ class SmartLimitExecutionStrategy:
             if order_id in self._monitoring_tasks:
                 del self._monitoring_tasks[order_id]
 
-    def _should_repeg_order(self, quote: QuoteModel, side: str, repeg_count: int) -> bool:
+    def _should_repeg_order(self, quote: QuoteModel, side: str) -> bool:
         """Determine if order should be re-pegged based on market movement.
         
         Args:
             quote: Current market quote
             side: Order side
-            repeg_count: Current number of re-pegs
             
         Returns:
             True if order should be re-pegged
+
         """
         # Simple implementation: re-peg if market moves > 0.1%
         # This would need more sophisticated logic in production
@@ -326,7 +333,7 @@ class SmartLimitExecutionStrategy:
         # Real implementation would track original order price and compare
         return False
 
-    async def _repeg_order(self, order_id: str, symbol: str, side: str, quote: QuoteModel) -> bool:
+    def _repeg_order(self, order_id: str, symbol: str, side: str, quote: QuoteModel) -> bool:
         """Cancel existing order and place new one at better price.
         
         Args:
@@ -337,6 +344,7 @@ class SmartLimitExecutionStrategy:
             
         Returns:
             True if re-peg was successful
+
         """
         try:
             # Cancel existing order
@@ -405,5 +413,5 @@ class SmartLimitExecutionStrategy:
             total_value=Decimal(str(quantity)) * Decimal(str(result.avg_fill_price or 0.01)),
             status=result.status.upper() if result.status else "UNKNOWN",
             execution_timestamp=result.submitted_at or datetime.now(UTC),
-            error_message=getattr(result, 'error', None),
+            error_message=getattr(result, "error", None),
         )
