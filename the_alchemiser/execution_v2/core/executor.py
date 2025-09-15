@@ -19,6 +19,7 @@ from the_alchemiser.execution_v2.models.execution_result import (
     OrderResultDTO,
 )
 from the_alchemiser.execution_v2.strategies.smart_limit_strategy import SmartLimitExecutionStrategy
+from the_alchemiser.execution_v2.strategies.async_smart_strategy import AsyncSmartExecutionStrategy
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO, RebalancePlanItemDTO
@@ -37,9 +38,18 @@ class Executor:
         
         # Initialize smart execution strategy if enabled
         self.smart_strategy: SmartLimitExecutionStrategy | None = None
+        self.async_strategy: AsyncSmartExecutionStrategy | None = None
+        
         if self.config.use_smart_limit_execution:
             pricing_service = RealTimePricingService()
             self.smart_strategy = SmartLimitExecutionStrategy(
+                alpaca_manager=alpaca_manager,
+                pricing_service=pricing_service,
+                config=self.config
+            )
+            
+            # Also create async strategy for enhanced concurrent execution
+            self.async_strategy = AsyncSmartExecutionStrategy(
                 alpaca_manager=alpaca_manager,
                 pricing_service=pricing_service,
                 config=self.config
@@ -57,13 +67,65 @@ class Executor:
         """
         logger.info(f"🚀 Executing rebalance plan {plan.plan_id} with {len(plan.items)} items")
 
-        # Use async execution if smart strategy is enabled
-        if self.smart_strategy:
+        # Use async execution if smart strategy is enabled and plan has multiple items
+        if self.async_strategy and len(plan.items) > 1 and self.config.use_async_execution:
+            logger.info("Using async smart execution strategy for concurrent execution")
+            return asyncio.run(self._execute_plan_with_async_strategy(plan))
+        elif self.smart_strategy:
             logger.info("Using smart limit execution strategy")
             return asyncio.run(self._execute_plan_async(plan))
         else:
             logger.info("Using legacy market order execution")
             return self._execute_plan_legacy(plan)
+
+    async def _execute_plan_with_async_strategy(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
+        """Execute plan using enhanced async strategy with full concurrency."""
+        logger.info(f"🌊 Concurrent async execution for {len(plan.items)} items")
+        
+        # Execute with full async capabilities
+        execution_results = await self.async_strategy.execute_rebalance_plan_async(plan)
+        
+        # Convert to ExecutionResultDTO format
+        orders: list[OrderResultDTO] = []
+        total_trade_value = Decimal("0")
+        
+        for symbol, executed_order in execution_results.items():
+            # Find corresponding plan item
+            plan_item = next(
+                (item for item in plan.items if item.symbol == symbol), 
+                None
+            )
+            if not plan_item:
+                continue
+                
+            order_result = self._convert_executed_order_to_result(executed_order, plan_item)
+            orders.append(order_result)
+            
+            if order_result.success:
+                total_trade_value += abs(plan_item.trade_amount)
+        
+        # Calculate summary
+        orders_placed = len(orders)
+        orders_succeeded = sum(1 for order in orders if order.success)
+        overall_success = orders_succeeded == orders_placed if orders_placed > 0 else True
+        
+        result = ExecutionResultDTO(
+            success=overall_success,
+            plan_id=plan.plan_id,
+            correlation_id=plan.correlation_id,
+            orders=orders,
+            orders_placed=orders_placed,
+            orders_succeeded=orders_succeeded,
+            total_trade_value=total_trade_value,
+            execution_timestamp=datetime.now(UTC),
+        )
+        
+        logger.info(
+            f"✅ Async execution complete: {orders_succeeded}/{orders_placed} orders succeeded "
+            f"(${total_trade_value} traded)"
+        )
+        
+        return result
 
     async def _execute_plan_async(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
         """Execute plan using async smart limit strategy."""
@@ -302,3 +364,24 @@ class Executor:
             return price if price and price > 0 else 1.0  # Fallback to $1 to avoid division by zero
         except Exception:
             return 1.0  # Safe fallback
+
+    def get_execution_capabilities(self) -> dict[str, Any]:
+        """Get information about current execution capabilities.
+        
+        Returns:
+            Dictionary with execution capability information
+        """
+        capabilities = {
+            "smart_execution_enabled": self.config.use_smart_limit_execution,
+            "async_execution_enabled": self.config.use_async_execution,
+            "legacy_execution_available": True,
+            "market_timing_aware": True,
+            "spread_validation": True,
+            "volume_validation": True,
+            "re_pegging_supported": True,
+        }
+        
+        if self.async_strategy:
+            capabilities.update(self.async_strategy.get_execution_statistics())
+        
+        return capabilities

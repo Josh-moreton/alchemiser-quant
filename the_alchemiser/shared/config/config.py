@@ -115,6 +115,7 @@ class ExecutionSettings(BaseModel):
     
     # Smart execution settings
     use_smart_limit_execution: bool = True
+    use_async_execution: bool = True  # Enable concurrent async execution
     market_open_delay_minutes: int = 5  # Wait 5 minutes after 9:30 ET
     max_spread_pct: float = 0.25  # Max spread as percentage of mid-price
     min_volume_shares: int = 100  # Minimum volume required at price level

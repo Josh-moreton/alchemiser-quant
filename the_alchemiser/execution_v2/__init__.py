@@ -14,6 +14,7 @@ from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
 from the_alchemiser.execution_v2.core.executor import Executor
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
 from the_alchemiser.execution_v2.strategies.smart_limit_strategy import SmartLimitExecutionStrategy
+from the_alchemiser.execution_v2.strategies.async_smart_strategy import AsyncSmartExecutionStrategy
 from the_alchemiser.execution_v2.utils.market_timing import MarketTimingUtils
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
     "Executor", 
     "ExecutionResultDTO",
     "SmartLimitExecutionStrategy",
+    "AsyncSmartExecutionStrategy",
     "MarketTimingUtils",
 ]
