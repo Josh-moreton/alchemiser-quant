@@ -1,4 +1,4 @@
-"""Business Unit: strategy | Status: current
+"""Business Unit: strategy | Status: current.
 
 KLM Strategy Variant 520/22 - "KMLM (23) - Original".
 
@@ -30,7 +30,8 @@ class KlmVariant52022(BaseKLMVariant):
 
     def __init__(self) -> None:
         super().__init__(
-            name="520/22", description="KMLM (23) - Original baseline with TECL/SVIX switcher"
+            name="520/22",
+            description="KMLM (23) - Original baseline with TECL/SVIX switcher",
         )
 
     def evaluate(
@@ -48,7 +49,9 @@ class KlmVariant52022(BaseKLMVariant):
         # Step 2: Single Popped KMLM logic (same as 506/38)
         return self.evaluate_single_popped_kmlm(indicators)
 
-    def evaluate_core_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def evaluate_core_kmlm_switcher(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> KLMDecision:
         """Core KMLM switcher for variant 520/22.
 
         KEY DIFFERENCE: TECL/SVIX only (no SOXL).
@@ -82,7 +85,9 @@ class KlmVariant52022(BaseKLMVariant):
         # Fallback to L/S Rotator if XLK <= KMLM or missing data
         return self._evaluate_long_short_rotator(indicators)
 
-    def _evaluate_long_short_rotator(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def _evaluate_long_short_rotator(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> KLMDecision:
         """520/22 L/S Rotator - uses FTLS/KMLM/SSO/UUP (like 410/38)."""
         rotator_symbols = ["FTLS", "KMLM", "SSO", "UUP"]
 

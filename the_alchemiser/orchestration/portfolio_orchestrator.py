@@ -1,4 +1,4 @@
-"""Business Unit: orchestration | Status: current
+"""Business Unit: orchestration | Status: current.
 
 Portfolio rebalancing orchestration workflow.
 
@@ -18,10 +18,19 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
-from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioMetricsDTO, PortfolioStateDTO
+from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
+    ConsolidatedPortfolioDTO,
+)
+from the_alchemiser.shared.dto.portfolio_state_dto import (
+    PortfolioMetricsDTO,
+    PortfolioStateDTO,
+)
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
-from the_alchemiser.shared.events import AllocationComparisonCompleted, EventBus, RebalancePlanned
+from the_alchemiser.shared.events import (
+    AllocationComparisonCompleted,
+    EventBus,
+    RebalancePlanned,
+)
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 
@@ -92,7 +101,9 @@ class PortfolioOrchestrator:
             # Use portfolio_v2 for rebalancing plan calculation
 
             from the_alchemiser.portfolio_v2 import RebalancePlanCalculator
-            from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
+            from the_alchemiser.shared.dto.strategy_allocation_dto import (
+                StrategyAllocationDTO,
+            )
 
             # Convert ConsolidatedPortfolioDTO to target weights for portfolio_v2
             target_weights = target_allocations.target_allocations
@@ -189,7 +200,9 @@ class PortfolioOrchestrator:
 
             # Get current positions
             current_positions = alpaca_manager.get_positions()
-            positions_dict = {pos.symbol: float(pos.market_value) for pos in current_positions}
+            positions_dict = {
+                pos.symbol: float(pos.market_value) for pos in current_positions
+            }
 
             # Use shared utilities for allocation comparison
             from the_alchemiser.shared.utils.portfolio_calculations import (
@@ -205,7 +218,9 @@ class PortfolioOrchestrator:
 
             # Convert ConsolidatedPortfolioDTO to dict for existing utility function
             allocation_comparison_data = build_allocation_comparison(
-                consolidated_portfolio.to_dict_allocation(), account_dict, positions_dict
+                consolidated_portfolio.to_dict_allocation(),
+                account_dict,
+                positions_dict,
             )
 
             # Create AllocationComparisonDTO from the calculation result
@@ -232,12 +247,18 @@ class PortfolioOrchestrator:
 
                 for symbol, market_value in positions_dict.items():
                     current_allocation = (
-                        market_value / total_portfolio_value if total_portfolio_value > 0 else 0
+                        market_value / total_portfolio_value
+                        if total_portfolio_value > 0
+                        else 0
                     )
-                    current_allocations_decimal[symbol] = Decimal(str(current_allocation))
+                    current_allocations_decimal[symbol] = Decimal(
+                        str(current_allocation)
+                    )
 
                     # Calculate difference
-                    target_allocation = target_allocations_decimal.get(symbol, Decimal("0"))
+                    target_allocation = target_allocations_decimal.get(
+                        symbol, Decimal("0")
+                    )
                     differences_decimal[symbol] = target_allocation - Decimal(
                         str(current_allocation)
                     )
@@ -311,7 +332,9 @@ class PortfolioOrchestrator:
                     }
                     for pos in positions_list
                 }
-                self.logger.info(f"Retrieved {len(current_positions)} current positions")
+                self.logger.info(
+                    f"Retrieved {len(current_positions)} current positions"
+                )
 
             # Get open orders
             open_orders = []
@@ -322,13 +345,15 @@ class PortfolioOrchestrator:
                         {
                             "id": getattr(order, "id", "unknown"),
                             "symbol": getattr(order, "symbol", "unknown"),
-                            "type": str(getattr(order, "order_type", "unknown")).replace(
-                                "OrderType.", ""
-                            ),
+                            "type": str(
+                                getattr(order, "order_type", "unknown")
+                            ).replace("OrderType.", ""),
                             "qty": float(getattr(order, "qty", 0)),
-                            "limit_price": float(getattr(order, "limit_price", 0))
-                            if order.limit_price
-                            else None,
+                            "limit_price": (
+                                float(getattr(order, "limit_price", 0))
+                                if order.limit_price
+                                else None
+                            ),
                             "status": str(getattr(order, "status", "unknown")).replace(
                                 "OrderStatus.", ""
                             ),
@@ -424,11 +449,15 @@ class PortfolioOrchestrator:
             )
 
             self.event_bus.publish(event)
-            self.logger.debug(f"Emitted AllocationComparisonCompleted event {event.event_id}")
+            self.logger.debug(
+                f"Emitted AllocationComparisonCompleted event {event.event_id}"
+            )
 
         except Exception as e:
             # Don't let event emission failure break the traditional workflow
-            self.logger.warning(f"Failed to emit AllocationComparisonCompleted event: {e}")
+            self.logger.warning(
+                f"Failed to emit AllocationComparisonCompleted event: {e}"
+            )
 
     def execute_portfolio_workflow(
         self, target_allocations: dict[str, float]
