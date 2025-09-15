@@ -281,6 +281,7 @@ Examples:
 
 
 def main(argv: list[str] | None = None) -> bool:
+
     """Serve as main entry point for The Alchemiser Trading System.
 
     Args:
