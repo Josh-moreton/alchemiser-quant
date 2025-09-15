@@ -1,4 +1,4 @@
-"""Business Unit: orchestration | Status: current
+"""Business Unit: orchestration | Status: current.
 
 Multi-strategy coordination orchestration.
 
@@ -24,6 +24,7 @@ class AggregatedSignals:
     """Aggregated strategy signals with conflict resolution."""
 
     def __init__(self) -> None:
+        """Initialize containers for per-strategy and consolidated signals."""
         self.signals_by_strategy: dict[StrategyType, list[StrategySignal]] = {}
         self.consolidated_signals: list[StrategySignal] = []
         self.conflicts: list[dict[str, Any]] = []
@@ -311,9 +312,7 @@ class MultiStrategyOrchestrator:
             "symbol": symbol_str,
             "strategies": [strategy.value for strategy, _ in strategy_signals],
             "actions": [signal.action for _, signal in strategy_signals],
-            "confidences": [
-                float(signal.confidence.value) for _, signal in strategy_signals
-            ],
+            "confidences": [float(signal.confidence.value) for _, signal in strategy_signals],
             "resolution": resolved_signal.action if resolved_signal else "NO_ACTION",
         }
 

@@ -116,9 +116,10 @@ def build_trading_report_html(
     # Account summary using existing portfolio builder
     if account_info:
         account_html = BaseEmailTemplate.create_section(
-            "💰 Account Summary", PortfolioBuilder.build_account_summary(
+            "💰 Account Summary",
+            PortfolioBuilder.build_account_summary(
                 cast(AccountInfo | EnrichedAccountInfo, account_info)
-            )
+            ),
         )
         content_sections.append(account_html)
 

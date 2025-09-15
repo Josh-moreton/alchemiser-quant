@@ -64,6 +64,7 @@ class KLMEngine(StrategyEngine):
     """
 
     def __init__(self, market_data_port: MarketDataPort) -> None:
+        """Wire dependencies and initialize variants, symbols, and config."""
         self.market_data_port = market_data_port
         self.strategy_name = "KLM_Ensemble"
         self.logger = logging.getLogger(f"Strategy.{self.strategy_name}")
@@ -608,14 +609,8 @@ class KLMEngine(StrategyEngine):
             for symbol_str, weight in symbol_or_allocation.items():
                 try:
                     # Validate weight is a valid number
-                    if (
-                        weight is None
-                        or not isinstance(weight, (int, float))
-                        or math.isnan(weight)
-                    ):
-                        self.logger.warning(
-                            f"Invalid weight for {symbol_str}: {weight}, skipping"
-                        )
+                    if weight is None or not isinstance(weight, int | float) or math.isnan(weight):
+                        self.logger.warning(f"Invalid weight for {symbol_str}: {weight}, skipping")
                         continue
 
                     symbol = Symbol(symbol_str)
@@ -681,7 +676,7 @@ class KLMEngine(StrategyEngine):
         config = self.confidence_config.klm
 
         # Validate weight is a valid number
-        if weight is None or not isinstance(weight, (int, float)) or math.isnan(weight):
+        if weight is None or not isinstance(weight, int | float) or math.isnan(weight):
             self.logger.warning(
                 f"Invalid weight for confidence calculation: {weight}, using default"
             )
@@ -715,7 +710,7 @@ class KLMEngine(StrategyEngine):
         # Ensure confidence_value is valid before Decimal conversion
         if (
             confidence_value is None
-            or not isinstance(confidence_value, (int, float))
+            or not isinstance(confidence_value, int | float)
             or math.isnan(confidence_value)
         ):
             self.logger.warning(
@@ -743,3 +738,19 @@ class KLMEngine(StrategyEngine):
             timestamp=now,
         )
         return [signal]
+
+    def validate_signals(self, signals: list[StrategySignal]) -> None:
+        """Validate generated signals.
+
+        Args:
+            signals: List of signals to validate
+
+        Raises:
+            ValueError: If signals are invalid
+
+        """
+        for signal in signals:
+            if not isinstance(signal, StrategySignal):
+                raise ValueError(f"Invalid signal type: {type(signal)}")
+            if signal.confidence.value < 0 or signal.confidence.value > 1:
+                raise ValueError(f"Invalid confidence value: {signal.confidence.value}")

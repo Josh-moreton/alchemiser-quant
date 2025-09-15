@@ -22,6 +22,7 @@ from the_alchemiser.shared.schemas.common import (
     MultiStrategyExecutionResultDTO,
     MultiStrategySummaryDTO,
 )
+from the_alchemiser.strategy_v2.engines.nuclear import NUCLEAR_SYMBOLS
 
 """Console formatting utilities for quantitative trading system output using rich."""
 
@@ -36,16 +37,16 @@ STYLE_BOLD_GREEN = "bold green"
 
 class StrategyType(Protocol):
     """Protocol for strategy type that may have value attribute."""
-    
+
     def __str__(self) -> str: ...
-    
+
     @property
     def value(self) -> str: ...
 
 
 class MoneyLike(Protocol):
     """Protocol for money-like objects."""
-    
+
     amount: Decimal
     currency: str
 
@@ -258,6 +259,9 @@ def _create_signal_panel(strategy_type: str | StrategyType, signal: dict[str, An
     """Create a Rich panel for a single strategy signal."""
     action = signal.get("action", "HOLD")
     symbol = signal.get("symbol", "N/A")
+    is_multi_symbol = signal.get("is_multi_symbol", False)
+    symbols = signal.get("symbols", [])
+
     # Support both legacy 'reason' and typed 'reasoning'
     reason = signal.get("reason", signal.get("reasoning", "No reason provided"))
     # Prefer new canonical fractional field; fallback to legacy alias
@@ -265,7 +269,14 @@ def _create_signal_panel(strategy_type: str | StrategyType, signal: dict[str, An
     confidence = signal.get("confidence")
 
     style, indicator = _determine_action_style(action)
-    header = f"[bold]{indicator} {symbol}[/bold]"
+
+    # Handle multi-symbol display for portfolio strategies
+    if is_multi_symbol and symbols:
+        # For multi-symbol strategies, show all symbols
+        header = f"[bold]{indicator} {' + '.join(symbols)}[/bold]"
+    else:
+        header = f"[bold]{indicator} {symbol}[/bold]"
+
     details_lines = _build_signal_details(allocation, confidence, symbol, action)
 
     # Format the detailed explanation with better spacing
@@ -437,7 +448,7 @@ def _format_string_value(value: str) -> str | None:
     """Format a string representation of a number."""
     if not value.replace(".", "").replace("-", "").isdigit():
         return None
-    
+
     try:
         decimal_value = Decimal(value)
         return f"${float(decimal_value):,.2f}"
@@ -487,7 +498,7 @@ def _format_money(value: float | int | Decimal | str | MoneyLike) -> str:
         result = _format_numeric_value(value)
         if result is not None:
             return result
-    
+
     return "-"
 
 
@@ -1413,12 +1424,25 @@ def _count_positions_for_strategy(
         Number of positions for the strategy
 
     """
-    # Simple position counting logic
-    # This could be enhanced to use actual position tracking
-    positions = 0
-    for _symbol, allocation in consolidated_portfolio.items():
-        if allocation > 0:
-            positions += 1
-    # For now, distribute positions evenly across enabled strategies
-    enabled_strategies = sum(1 for alloc in allocations.values() if alloc > 0)
-    return positions // max(enabled_strategies, 1)
+    # Count positions actually allocated to this strategy by examining
+    # the strategy signal and how many symbols it targets
+    strategy_key = strategy_name.upper()
+
+    # Look for this strategy in the signals
+    for signal_key, signal_data in strategy_signals.items():
+        if (
+            signal_key.upper() == strategy_key or strategy_key in signal_key.upper()
+        ) and signal_data.get("action") == "BUY":
+            # Check if this is a multi-symbol strategy by looking at consolidated portfolio
+            # For nuclear strategy, check known nuclear symbols in the portfolio
+            if strategy_name.upper() == "NUCLEAR":
+                nuclear_positions = sum(
+                    1
+                    for symbol in consolidated_portfolio
+                    if symbol in NUCLEAR_SYMBOLS and consolidated_portfolio[symbol] > 0
+                )
+                return nuclear_positions if nuclear_positions > 0 else 1
+            return 1
+
+    # Fallback: if strategy not found in signals, return 0
+    return 0

@@ -42,9 +42,7 @@ def _parse_ts(value: datetime | str | int | float | None) -> datetime | None:
     return None
 
 
-def bars_to_domain(
-    rows: Iterable[dict[str, Any]], symbol: str | None = None
-) -> list[BarModel]:
+def bars_to_domain(rows: Iterable[dict[str, Any]], symbol: str | None = None) -> list[BarModel]:
     """Convert raw bar data dictionaries to domain BarModel objects.
 
     Args:
@@ -80,9 +78,7 @@ def bars_to_domain(
                 )
             )
         except Exception as exc:
-            logging.getLogger(__name__).debug(
-                "Failed to map bar row to domain: %s", exc
-            )
+            logging.getLogger(__name__).debug("Failed to map bar row to domain: %s", exc)
             continue
     return out
 

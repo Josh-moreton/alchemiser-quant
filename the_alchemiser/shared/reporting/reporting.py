@@ -10,7 +10,7 @@ from typing import Any
 
 from the_alchemiser.shared.types.exceptions import DataProviderError, TradingClientError
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, PositionsDict
-from the_alchemiser.strategy.registry.strategy_registry import StrategyType
+from the_alchemiser.strategy.registry.strategy_registry import StrategyType  # type: ignore[import-untyped]
 
 
 def create_execution_summary(
@@ -24,7 +24,7 @@ def create_execution_summary(
     account_after: AccountInfo,
 ) -> dict[str, Any]:  # TODO: Phase 10 - ReportingData structure needs alignment
     """Create execution summary using helper utilities."""
-    from the_alchemiser.portfolio.pnl.portfolio_pnl_utils import (
+    from the_alchemiser.portfolio.pnl.portfolio_pnl_utils import (  # type: ignore[import-untyped]
         build_allocation_summary,
         build_strategy_summary,
         calculate_strategy_pnl_summary,
@@ -86,14 +86,20 @@ def save_dashboard_data(
         )
         from the_alchemiser.shared.persistence import create_persistence_handler
 
-        persistence_handler = create_persistence_handler(paper_trading=engine.paper_trading)
+        persistence_handler = create_persistence_handler(
+            paper_trading=engine.paper_trading
+        )
         dashboard_data = build_basic_dashboard_structure(engine.paper_trading)
         dashboard_data["success"] = execution_result.success
 
         if execution_result.account_info_after:
-            portfolio_metrics = extract_portfolio_metrics(execution_result.account_info_after)
+            portfolio_metrics = extract_portfolio_metrics(
+                execution_result.account_info_after
+            )
             dashboard_data["portfolio"].update(portfolio_metrics)
-            open_positions = execution_result.account_info_after.get("open_positions", [])
+            open_positions = execution_result.account_info_after.get(
+                "open_positions", []
+            )
             dashboard_data["positions"] = extract_positions_data(open_positions)
 
         dashboard_data["strategies"] = extract_strategies_data(
@@ -102,7 +108,9 @@ def save_dashboard_data(
         )
         dashboard_data["signals"] = {
             (
-                strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
+                strategy_type.value
+                if hasattr(strategy_type, "value")
+                else str(strategy_type)
             ): signal_data
             for strategy_type, signal_data in execution_result.strategy_signals.items()
         }
@@ -144,7 +152,9 @@ def build_portfolio_state_data(
     try:
         portfolio_value = float(portfolio_value_raw)
     except (ValueError, TypeError) as e:
-        raise ValueError(f"Invalid portfolio value format: {portfolio_value_raw}") from e
+        raise ValueError(
+            f"Invalid portfolio value format: {portfolio_value_raw}"
+        ) from e
 
     # Calculate target values (simple implementation)
     target_values = {

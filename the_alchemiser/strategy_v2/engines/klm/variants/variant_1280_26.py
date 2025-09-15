@@ -33,6 +33,7 @@ class KlmVariant128026(BaseKLMVariant):
     """
 
     def __init__(self) -> None:
+        """Initialize 1280/26 variant with name and description."""
         super().__init__(
             name="1280/26", description="KMLM (50) - Direct to Combined Pop Bot variant"
         )
@@ -59,9 +60,10 @@ class KlmVariant128026(BaseKLMVariant):
     def _evaluate_combined_pop_bot_with_labu(
         self, indicators: dict[str, dict[str, float]]
     ) -> KLMDecision:
-        """Combined Pop Bot for 1280/26 - includes LABU with RSI < 25.
+        """Evaluate combined Pop Bot for 1280/26.
 
-        Order: TQQQ < 30 → SOXL < 30 → SPXL < 30 → LABU < 25 → KMLM Switcher
+        Order: TQQQ < 30 → SOXL < 30 → SPXL < 30 → LABU < 25 → KMLM Switcher.
+        Includes LABU when RSI < 25.
         """
         # Priority 1: TQQQ oversold
         if "TQQQ" in indicators and indicators["TQQQ"]["rsi_10"] < 30:
@@ -98,11 +100,13 @@ class KlmVariant128026(BaseKLMVariant):
         # No oversold conditions - proceed to KMLM Switcher
         return self.evaluate_core_kmlm_switcher(indicators)
 
-    def evaluate_core_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
-        """Core KMLM switcher for variant 1280/26.
+    def evaluate_core_kmlm_switcher(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> KLMDecision:
+        """Evaluate core KMLM switcher for variant 1280/26.
 
-        select-bottom 2 from TECL/SOXL/SVIX (NOT FNGU) creates equal-weight allocation.
-        CLJ lines 331-350: When XLK > KMLM → select-bottom 2 from [TECL, SOXL, SVIX]
+        Select bottom 2 from TECL/SOXL/SVIX (NOT FNGU) to create an equal-weight allocation.
+        CLJ lines 331-350: When XLK > KMLM → select bottom 2 from [TECL, SOXL, SVIX].
         """
         if "XLK" in indicators and "KMLM" in indicators:
             xlk_rsi = indicators["XLK"]["rsi_10"]
@@ -143,8 +147,10 @@ class KlmVariant128026(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator
         return self._evaluate_ls_rotator_1280(indicators)
 
-    def _evaluate_ls_rotator_1280(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
-        """1280/26 L/S Rotator - uses SQQQ/TLT select-top 1."""
+    def _evaluate_ls_rotator_1280(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> KLMDecision:
+        """Evaluate 1280/26 L/S Rotator using SQQQ/TLT select-top 1."""
         candidates = []
         for symbol in ["SQQQ", "TLT"]:
             if symbol in indicators:
@@ -171,7 +177,7 @@ class KlmVariant128026(BaseKLMVariant):
         return result
 
     def get_required_symbols(self) -> list[str]:
-        """1280/26 Required symbols - completely different from 506/38."""
+        """List required symbols for variant 1280/26."""
         # Standard overbought detection
         overbought_symbols = [
             "QQQE",

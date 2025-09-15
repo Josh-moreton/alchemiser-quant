@@ -31,8 +31,10 @@ class KLMVariantNova(BaseKLMVariant):
     """
 
     def __init__(self) -> None:
+        """Initialize Nova variant with experimental stock-selection setup."""
         super().__init__(
-            name="Nova", description="Nerfed 2900/8 (373) - Nova - Short BT with individual stocks"
+            name="Nova",
+            description="Nerfed 2900/8 (373) - Nova - Short BT with individual stocks",
         )
 
     def evaluate(
@@ -67,7 +69,9 @@ class KLMVariantNova(BaseKLMVariant):
         # Fallback if UVIX data unavailable
         return self.evaluate_combined_pop_bot(indicators)
 
-    def evaluate_core_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def evaluate_core_kmlm_switcher(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> KLMDecision:
         """Core KMLM switcher for variant Nova.
 
         COMPLETELY DIFFERENT: Individual stocks with RSI(11).
@@ -79,7 +83,15 @@ class KLMVariantNova(BaseKLMVariant):
 
             if xlk_rsi > kmlm_rsi:
                 # Individual stock selection with RSI(11) and select-top 1
-                stock_symbols = ["FNGO", "TSLA", "MSFT", "AAPL", "NVDA", "GOOGL", "AMZN"]
+                stock_symbols = [
+                    "FNGO",
+                    "TSLA",
+                    "MSFT",
+                    "AAPL",
+                    "NVDA",
+                    "GOOGL",
+                    "AMZN",
+                ]
                 candidates = []
 
                 for symbol in stock_symbols:
@@ -109,7 +121,9 @@ class KLMVariantNova(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator (same as 520/22)
         return self._evaluate_ls_rotator_nova(indicators)
 
-    def _evaluate_ls_rotator_nova(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def _evaluate_ls_rotator_nova(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> KLMDecision:
         """Nova L/S Rotator - same as 520/22 (FTLS/KMLM/SSO/UUP)."""
         # Volatility filter candidates: FTLS, KMLM, SSO, UUP
         rotator_symbols = ["FTLS", "KMLM", "SSO", "UUP"]

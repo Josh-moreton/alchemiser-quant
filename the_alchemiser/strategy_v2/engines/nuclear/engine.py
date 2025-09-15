@@ -15,7 +15,10 @@ from typing import Any
 
 import pandas as pd
 
-from the_alchemiser.shared.config.confidence_config import ConfidenceConfig, NuclearConfidenceConfig
+from the_alchemiser.shared.config.confidence_config import (
+    ConfidenceConfig,
+    NuclearConfidenceConfig,
+)
 from the_alchemiser.shared.logging.logging_utils import get_trading_logger
 from the_alchemiser.shared.types import Confidence, StrategyEngine, StrategySignal
 from the_alchemiser.shared.types.exceptions import StrategyExecutionError
@@ -26,6 +29,7 @@ from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy_v2.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
 
+from .constants import NUCLEAR_SYMBOLS
 from .logic import evaluate_nuclear_strategy
 
 
@@ -52,7 +56,7 @@ class NuclearEngine(StrategyEngine):
         self.volatility_symbols = ["UVXY", "BTAL"]
         self.tech_symbols = ["QQQ", "SQQQ", "PSQ", "UPRO"]
         self.bond_symbols = ["TLT", "IEF"]
-        self.nuclear_symbols = ["SMR", "BWXT", "LEU", "EXC", "NLR", "OKLO"]
+        self.nuclear_symbols = NUCLEAR_SYMBOLS
 
         # All required symbols
         self._all_symbols = (
@@ -115,7 +119,9 @@ class NuclearEngine(StrategyEngine):
                 return []
 
             # Evaluate strategy using existing logic
-            symbol, action, reason = self._evaluate_nuclear_strategy(indicators, market_data)
+            symbol, action, reason = self._evaluate_nuclear_strategy(
+                indicators, market_data
+            )
 
             # Expand portfolio recommendations to multiple per-symbol signals
             if symbol == "UVXY_BTAL_PORTFOLIO" and action == "BUY":
@@ -132,7 +138,9 @@ class NuclearEngine(StrategyEngine):
             return [signal]
 
         except Exception as e:
-            raise StrategyExecutionError(f"Nuclear strategy generation failed: {e}") from e
+            raise StrategyExecutionError(
+                f"Nuclear strategy generation failed: {e}"
+            ) from e
 
     def _fetch_market_data(
         self, market_data_port: MarketDataPort | None = None
@@ -168,7 +176,9 @@ class NuclearEngine(StrategyEngine):
 
         return market_data
 
-    def _calculate_indicators(self, market_data: dict[str, pd.DataFrame]) -> dict[str, Any]:
+    def _calculate_indicators(
+        self, market_data: dict[str, pd.DataFrame]
+    ) -> dict[str, Any]:
         """Calculate technical indicators for all symbols."""
         indicators = {}
         for symbol, df in market_data.items():
@@ -178,19 +188,27 @@ class NuclearEngine(StrategyEngine):
             try:
                 # Check if Close column exists before accessing it
                 if "Close" not in df.columns:
-                    self.logger.warning(f"Missing 'Close' column for {symbol}, skipping indicators")
+                    self.logger.warning(
+                        f"Missing 'Close' column for {symbol}, skipping indicators"
+                    )
                     continue
 
                 close = df["Close"]
                 if close.empty:
-                    self.logger.warning(f"Empty 'Close' data for {symbol}, skipping indicators")
+                    self.logger.warning(
+                        f"Empty 'Close' data for {symbol}, skipping indicators"
+                    )
                     continue
 
                 indicators[symbol] = {
                     "rsi_10": safe_get_indicator(close, self.indicators.rsi, 10),
                     "rsi_20": safe_get_indicator(close, self.indicators.rsi, 20),
-                    "ma_200": safe_get_indicator(close, self.indicators.moving_average, 200),
-                    "ma_20": safe_get_indicator(close, self.indicators.moving_average, 20),
+                    "ma_200": safe_get_indicator(
+                        close, self.indicators.moving_average, 200
+                    ),
+                    "ma_20": safe_get_indicator(
+                        close, self.indicators.moving_average, 20
+                    ),
                     "ma_return_90": safe_get_indicator(
                         close, self.indicators.moving_average_return, 90
                     ),
@@ -240,7 +258,9 @@ class NuclearEngine(StrategyEngine):
             signal_symbol = symbol
 
         # Determine confidence based on signal strength
-        confidence = self._calculate_confidence(symbol, action, reasoning, market_data=market_data)
+        confidence = self._calculate_confidence(
+            symbol, action, reasoning, market_data=market_data
+        )
 
         # Determine target allocation based on signal type, unless overridden
         if target_allocation_override is not None:
@@ -258,7 +278,11 @@ class NuclearEngine(StrategyEngine):
         )
 
     def _calculate_confidence(
-        self, symbol: str, action: str, reasoning: str, market_data: dict[str, Any] | None = None
+        self,
+        symbol: str,
+        action: str,
+        reasoning: str,
+        market_data: dict[str, Any] | None = None,
     ) -> Confidence:
         """Calculate confidence based on market indicators and signal characteristics.
 
@@ -285,7 +309,9 @@ class NuclearEngine(StrategyEngine):
 
         # Calculate indicator-based confidence if market data available
         if market_data:
-            confidence = self._calculate_indicator_confidence(symbol, action, market_data, config)
+            confidence = self._calculate_indicator_confidence(
+                symbol, action, market_data, config
+            )
         else:
             # Fallback to enhanced reasoning-based calculation
             confidence = self._calculate_reasoning_confidence(action, reasoning, config)
@@ -296,14 +322,20 @@ class NuclearEngine(StrategyEngine):
         return Confidence(confidence)
 
     def _calculate_indicator_confidence(
-        self, symbol: str, action: str, market_data: dict[str, Any], config: NuclearConfidenceConfig
+        self,
+        symbol: str,
+        action: str,
+        market_data: dict[str, Any],
+        config: NuclearConfidenceConfig,
     ) -> Decimal:
         """Calculate confidence based on actual market indicators."""
         confidence = config.base_confidence
 
         # Check key market symbols for regime and RSI conditions
         key_symbols = (
-            ["SPY", "TQQQ", "QQQ", symbol] if symbol in market_data else ["SPY", "TQQQ", "QQQ"]
+            ["SPY", "TQQQ", "QQQ", symbol]
+            if symbol in market_data
+            else ["SPY", "TQQQ", "QQQ"]
         )
 
         for check_symbol in key_symbols:
@@ -335,13 +367,20 @@ class NuclearEngine(StrategyEngine):
                 break
 
             # Check for volatility hedge conditions (VIX-related symbols)
-            if check_symbol in ["UVXY", "VIX"] and current_price > 0 and current_price > 15:
+            if (
+                check_symbol in ["UVXY", "VIX"]
+                and current_price > 0
+                and current_price > 15
+            ):
                 # Assume volatility hedge if UVXY price is elevated
                 confidence = config.volatility_hedge_confidence
                 break
 
             # Market regime confidence (moderate overbought/oversold)
-            if rsi_val > config.rsi_moderate_overbought or rsi_val < config.rsi_moderate_oversold:
+            if (
+                rsi_val > config.rsi_moderate_overbought
+                or rsi_val < config.rsi_moderate_oversold
+            ):
                 confidence = max(confidence, config.market_regime_confidence)
 
         return confidence
@@ -380,7 +419,9 @@ class NuclearEngine(StrategyEngine):
 
     # --- Portfolio expansion helpers ---
 
-    def _expand_uvxy_btal_portfolio(self, reason: str, now: datetime) -> list[StrategySignal]:
+    def _expand_uvxy_btal_portfolio(
+        self, reason: str, now: datetime
+    ) -> list[StrategySignal]:
         """Expand UVXY/BTAL defensive portfolio into two signals with fixed weights 75%/25%."""
         return [
             self._create_strategy_signal(
@@ -513,7 +554,11 @@ class NuclearEngine(StrategyEngine):
         if qqq_cr60 is not None and qqq_cr60 < -10.0:
             tlt_rsi20 = self._get(indicators, "TLT", "rsi_20")
             psq_rsi20 = self._get(indicators, "PSQ", "rsi_20")
-            if tlt_rsi20 is not None and psq_rsi20 is not None and tlt_rsi20 > psq_rsi20:
+            if (
+                tlt_rsi20 is not None
+                and psq_rsi20 is not None
+                and tlt_rsi20 > psq_rsi20
+            ):
                 return "TQQQ"
             return "PSQ"
         tqqq_price = self._get(indicators, "TQQQ", "current_price")
@@ -521,7 +566,11 @@ class NuclearEngine(StrategyEngine):
         if tqqq_price is not None and tqqq_ma20 is not None and tqqq_price > tqqq_ma20:
             tlt_rsi20 = self._get(indicators, "TLT", "rsi_20")
             psq_rsi20 = self._get(indicators, "PSQ", "rsi_20")
-            if tlt_rsi20 is not None and psq_rsi20 is not None and tlt_rsi20 > psq_rsi20:
+            if (
+                tlt_rsi20 is not None
+                and psq_rsi20 is not None
+                and tlt_rsi20 > psq_rsi20
+            ):
                 return "TQQQ"
             return "SQQQ"
         ief_rsi10 = self._get(indicators, "IEF", "rsi_10")
@@ -542,7 +591,11 @@ class NuclearEngine(StrategyEngine):
         if tqqq_price is not None and tqqq_ma20 is not None and tqqq_price > tqqq_ma20:
             tlt_rsi20 = self._get(indicators, "TLT", "rsi_20")
             psq_rsi20 = self._get(indicators, "PSQ", "rsi_20")
-            if tlt_rsi20 is not None and psq_rsi20 is not None and tlt_rsi20 > psq_rsi20:
+            if (
+                tlt_rsi20 is not None
+                and psq_rsi20 is not None
+                and tlt_rsi20 > psq_rsi20
+            ):
                 return "TQQQ"
             return "SQQQ"
         tlt_rsi20 = self._get(indicators, "TLT", "rsi_20")
@@ -550,3 +603,19 @@ class NuclearEngine(StrategyEngine):
         if tlt_rsi20 is not None and psq_rsi20 is not None and tlt_rsi20 > psq_rsi20:
             return "QQQ"
         return "SQQQ"
+
+    def validate_signals(self, signals: list[StrategySignal]) -> None:
+        """Validate generated signals.
+
+        Args:
+            signals: List of signals to validate
+
+        Raises:
+            ValueError: If signals are invalid
+
+        """
+        for signal in signals:
+            if not isinstance(signal, StrategySignal):
+                raise ValueError(f"Invalid signal type: {type(signal)}")
+            if signal.confidence.value < 0 or signal.confidence.value > 1:
+                raise ValueError(f"Invalid confidence value: {signal.confidence.value}")
