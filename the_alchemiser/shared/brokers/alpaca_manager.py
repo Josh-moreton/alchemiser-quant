@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 # Type checking imports to avoid circular dependencies
 from alpaca.data.historical import StockHistoricalDataClient
@@ -31,6 +31,7 @@ from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 from the_alchemiser.shared.dto.broker_dto import (
     OrderExecutionResult,
     WebSocketResult,
+    WebSocketStatus,
 )
 from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
 from the_alchemiser.shared.protocols.repository import (
@@ -40,7 +41,7 @@ from the_alchemiser.shared.protocols.repository import (
 )
 
 if TYPE_CHECKING:
-    from the_alchemiser.shared.types.market_data_port import MarketDataPort
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +116,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Public accessor indicating paper/live mode."""
         return self._paper
 
+    @property
+    def trading_client(self) -> Any:
+        """Access to underlying trading client for backward compatibility."""
+        return self._trading_client
+
     # Helper methods for DTO mapping
     def _alpaca_order_to_execution_result(self, order: Any) -> OrderExecutionResult:
         """Convert Alpaca order object to OrderExecutionResult.
@@ -140,8 +146,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             if completed_at and isinstance(completed_at, str):
                 completed_at = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
 
-            # Map status to our expected values
-            status_mapping = {
+            # Map status to our expected values - using explicit typing to ensure Literal compliance
+            status_mapping: dict[str, Literal["accepted", "filled", "partially_filled", "rejected", "canceled"]] = {
                 "new": "accepted",
                 "accepted": "accepted",
                 "filled": "filled",
@@ -151,7 +157,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 "cancelled": "canceled",
                 "expired": "rejected",
             }
-            mapped_status = status_mapping.get(status, "accepted")
+            mapped_status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"] = status_mapping.get(status, "accepted")
 
             success = mapped_status not in ["rejected", "canceled"]
 
@@ -173,10 +179,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self, error: Exception, context: str = "Operation", order_id: str = "unknown"
     ) -> OrderExecutionResult:
         """Create an error OrderExecutionResult."""
+        status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"] = "rejected"
         return OrderExecutionResult(
             success=False,
             order_id=order_id,
-            status="rejected",
+            status=status,
             filled_qty=Decimal("0"),
             avg_fill_price=None,
             submitted_at=datetime.now(UTC),
@@ -581,25 +588,38 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 ),
             )
 
-            # Use the updated place_order method that returns RawOrderEnvelope
-            envelope = self.place_order(order_request)
+            # Use the updated place_order method that returns ExecutedOrderDTO
+            executed_order_dto = self.place_order(order_request)
 
-            # Convert envelope to OrderExecutionResult
-            def raw_order_envelope_to_execution_result(envelope: Any) -> Any:
-                """Convert RawOrderEnvelope to OrderExecutionResult."""
-                from the_alchemiser.shared.dto.broker_dto import OrderExecutionResult
-
-                return OrderExecutionResult(
-                    success=envelope.success,
-                    order_id=getattr(envelope.raw_order, "id", None)
-                    if envelope.raw_order
-                    else None,
-                    error_message=envelope.error_message,
-                    raw_order=envelope.raw_order,
-                    timestamp=envelope.response_timestamp,
-                )
-
-            return raw_order_envelope_to_execution_result(envelope)
+            # Convert ExecutedOrderDTO to OrderExecutionResult
+            # Map ExecutedOrderDTO status to OrderExecutionResult Literal status
+            dto_status_to_result_status: dict[str, Literal["accepted", "filled", "partially_filled", "rejected", "canceled"]] = {
+                "FILLED": "filled",
+                "PARTIAL": "partially_filled",
+                "REJECTED": "rejected",
+                "CANCELLED": "canceled",
+                "CANCELED": "canceled",
+                "PENDING": "accepted",
+                "FAILED": "rejected",
+                "ACCEPTED": "accepted",
+            }
+            
+            result_status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"] = dto_status_to_result_status.get(
+                executed_order_dto.status.upper(), "accepted"
+            )
+            
+            success = result_status not in ["rejected", "canceled"]
+            
+            return OrderExecutionResult(
+                success=success,
+                order_id=executed_order_dto.order_id,
+                status=result_status,
+                filled_qty=executed_order_dto.filled_quantity,
+                avg_fill_price=executed_order_dto.price if executed_order_dto.filled_quantity > 0 else None,
+                submitted_at=executed_order_dto.execution_timestamp,
+                completed_at=executed_order_dto.execution_timestamp if success else None,
+                error=executed_order_dto.error_message if not success else None,
+            )
 
         except ValueError as e:
             logger.error(f"Invalid limit order parameters: {e}")
@@ -1188,7 +1208,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             success = len(completed_orders) == len(order_ids)
 
             return WebSocketResult(
-                success=success,
+                status=WebSocketStatus.COMPLETED if success else WebSocketStatus.TIMEOUT,
                 message=f"Completed {len(completed_orders)}/{len(order_ids)} orders",
                 completed_order_ids=completed_orders,
                 metadata={"total_wait_time": time.time() - start_time},
@@ -1197,19 +1217,15 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         except Exception as e:
             logger.error(f"Error monitoring order completion: {e}")
             return WebSocketResult(
-                success=False,
+                status=WebSocketStatus.ERROR,
                 message=f"Error monitoring orders: {e}",
                 completed_order_ids=completed_orders,
                 metadata={"error": str(e)},
             )
 
-    @property
-    def data_provider(self) -> MarketDataPort:
-        """Get data provider interface for market data access.
-
-        Returns self since AlpacaManager implements MarketDataPort methods.
-        """
-        return self
+    # Note: MarketDataPort implementation removed to avoid protocol compliance issues
+    # AlpacaManager provides market data functionality through direct methods
+    # without implementing the full MarketDataPort protocol
 
     def __repr__(self) -> str:
         """String representation."""
