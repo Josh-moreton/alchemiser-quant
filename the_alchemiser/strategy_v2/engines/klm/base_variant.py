@@ -265,7 +265,7 @@ class BaseKLMVariant(ABC):
         return result
 
     def evaluate_combined_pop_bot(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
-        """Combined Pop Bot strategy - standard across most variants.
+        """Evaluate Combined Pop Bot strategy - standard across most variants.
 
         Sequence (from CLJ):
         1. TQQQ RSI(10) < 30 → TECL
@@ -336,7 +336,7 @@ class BaseKLMVariant(ABC):
         self.log_decision(symbol, action, reason)
 
     def get_base_required_symbols(self) -> list[str]:
-        """Base symbols required by the standard 11-step overbought chain and pop bot logic.
+        """Get base symbols required by the standard 11-step overbought chain and pop bot logic.
         Variants should extend this list with their specific requirements.
         """
         return [

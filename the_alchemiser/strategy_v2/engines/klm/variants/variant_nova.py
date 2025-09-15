@@ -1,4 +1,4 @@
-"""Business Unit: strategy | Status: current
+"""Business Unit: strategy | Status: current.
 
 KLM Strategy Variant Nova - "Nerfed 2900/8 (373) - Nova - Short BT".
 

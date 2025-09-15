@@ -1285,7 +1285,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     # without implementing the full MarketDataPort protocol
 
     def __repr__(self) -> str:
-        """String representation."""
+        """Return string representation."""
         return f"AlpacaManager(paper={self._paper})"
 
 
@@ -1293,7 +1293,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 def create_alpaca_manager(
     api_key: str, secret_key: str, paper: bool = True, base_url: str | None = None
 ) -> AlpacaManager:
-    """Factory function to create an AlpacaManager instance.
+    """Create an AlpacaManager instance.
 
     This function provides a clean way to create AlpacaManager instances
     and can be easily extended with additional configuration options.

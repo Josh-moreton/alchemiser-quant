@@ -1,4 +1,4 @@
-"""Business Unit: shared | Status: current
+"""Business Unit: shared | Status: current.
 
 Strategy type enumeration for orchestration.
 
