@@ -92,7 +92,7 @@ class TradingSystem:
             self.event_driven_orchestrator = None
 
     def _emit_startup_event(
-        self, startup_mode: str, ignore_market_hours: bool = False
+        self, startup_mode: str, *, ignore_market_hours: bool = False
     ) -> None:
         """Emit StartupEvent to trigger event-driven workflows.
 
@@ -143,6 +143,7 @@ class TradingSystem:
 
     def execute_trading(
         self,
+        *,
         ignore_market_hours: bool = False,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
@@ -178,7 +179,7 @@ class TradingSystem:
             return False
 
 
-def _resolve_log_level(is_production: bool) -> int:
+def _resolve_log_level(*, is_production: bool) -> int:
     """Resolve the desired log level from environment or settings."""
     # Environment override first
     level_str = os.getenv("LOGGING__LEVEL")

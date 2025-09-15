@@ -15,7 +15,7 @@ from .orchestrator import SingleStrategyOrchestrator
 
 
 def create_orchestrator(
-    api_key: str, secret_key: str, paper: bool = True
+    api_key: str, secret_key: str, *, paper: bool = True
 ) -> SingleStrategyOrchestrator:
     """Create a strategy orchestrator with Alpaca market data.
 

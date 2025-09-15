@@ -64,6 +64,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self,
         api_key: str,
         secret_key: str,
+        *,
         paper: bool = True,
         base_url: str | None = None,
     ) -> None:
@@ -435,7 +436,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         return symbol.upper(), side_normalized
 
     def _adjust_quantity_for_complete_exit(
-        self, symbol: str, side: str, qty: float | None, is_complete_exit: bool
+        self, symbol: str, side: str, qty: float | None, *, is_complete_exit: bool
     ) -> float | None:
         """Adjust quantity for complete exit if needed.
 
@@ -520,6 +521,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         side: str,
         qty: float | None = None,
         notional: float | None = None,
+        *,
         is_complete_exit: bool = False,
     ) -> ExecutedOrderDTO:
         """Place a market order with validation and execution result return.
@@ -543,7 +545,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             # Adjust quantity for complete exits
             final_qty = self._adjust_quantity_for_complete_exit(
-                normalized_symbol, side_normalized, qty, is_complete_exit
+                normalized_symbol, side_normalized, qty, is_complete_exit=is_complete_exit
             )
 
             # Create order request
@@ -1291,7 +1293,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
 # Factory function for easy creation
 def create_alpaca_manager(
-    api_key: str, secret_key: str, paper: bool = True, base_url: str | None = None
+    api_key: str, secret_key: str, *, paper: bool = True, base_url: str | None = None
 ) -> AlpacaManager:
     """Factory function to create an AlpacaManager instance.
 

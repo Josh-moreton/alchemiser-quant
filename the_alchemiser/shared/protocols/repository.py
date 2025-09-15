@@ -110,6 +110,7 @@ class TradingRepository(Protocol):
         side: str,
         qty: float | None = None,
         notional: float | None = None,
+        *,
         is_complete_exit: bool = False,
     ) -> ExecutedOrderDTO:
         """Place a market order.

@@ -49,6 +49,7 @@ class TradingOrchestrator:
         self,
         settings: Settings,
         container: ApplicationContainer,
+        *,
         ignore_market_hours: bool = False,
     ) -> None:
         """Initialize trading orchestrator with settings and container."""
@@ -111,7 +112,7 @@ class TradingOrchestrator:
         return self._execute_strategy_signals_internal(execute_trades=False)
 
     def _execute_strategy_signals_internal(
-        self, execute_trades: bool
+        self, *, execute_trades: bool
     ) -> dict[str, Any] | None:
         """Generate strategy signals with optional trade execution.
 
@@ -248,7 +249,7 @@ class TradingOrchestrator:
                             execution_timestamp=datetime.now(UTC),
                             metadata={"scenario": "no_trades_needed"},
                         )
-                        self._emit_trade_executed_event(no_trade_result, True)
+                        self._emit_trade_executed_event(no_trade_result, success=True)
                 elif execute_trades:
                     self.logger.warning(
                         "Could not calculate trades - missing allocation comparison data"
@@ -299,7 +300,7 @@ class TradingOrchestrator:
                         execution_timestamp=datetime.now(UTC),
                         metadata={"error": str(e)},
                     )
-                    self._emit_trade_executed_event(failed_result, False, str(e))
+                    self._emit_trade_executed_event(failed_result, success=False, error_message=str(e))
                 except Exception as emit_error:
                     self.logger.warning(f"Failed to emit failure event: {emit_error}")
 
@@ -672,6 +673,7 @@ class TradingOrchestrator:
     def _emit_trade_executed_event(
         self,
         execution_result: ExecutionResultDTO,
+        *,
         success: bool,
         error_message: str | None = None,
     ) -> None:

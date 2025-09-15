@@ -73,7 +73,7 @@ class BaseCLI:
         allocations = self.settings.strategy.default_strategy_allocations
         render_strategy_summary(strategy_signals, consolidated_portfolio, allocations)
 
-    def _display_strategy_tracking(self, paper_trading: bool | None = None) -> None:
+    def _display_strategy_tracking(self, *, paper_trading: bool | None = None) -> None:
         """Display strategy tracking information from StrategyOrderTracker.
 
         This method consolidates the strategy tracking display logic
@@ -91,7 +91,7 @@ class BaseCLI:
 
         display_strategy_tracking(paper_trading=paper_trading)
 
-    def _display_detailed_strategy_positions(self, paper_trading: bool | None = None) -> None:
+    def _display_detailed_strategy_positions(self, *, paper_trading: bool | None = None) -> None:
         """Display detailed strategy positions and P&L summary.
 
         This method shows individual positions and aggregated P&L data,

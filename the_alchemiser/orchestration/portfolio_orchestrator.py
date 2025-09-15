@@ -418,6 +418,7 @@ class PortfolioOrchestrator:
         target_allocations: dict[str, Decimal],
         current_allocations: dict[str, Decimal],
         differences: dict[str, Decimal],
+        *,
         rebalancing_required: bool,
     ) -> None:
         """Emit AllocationComparisonCompleted event for event-driven architecture.
