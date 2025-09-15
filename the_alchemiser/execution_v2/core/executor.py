@@ -17,7 +17,10 @@ from the_alchemiser.execution_v2.models.execution_result import (
     OrderResultDTO,
 )
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO, RebalancePlanItemDTO
+from the_alchemiser.shared.dto.rebalance_plan_dto import (
+    RebalancePlanDTO,
+    RebalancePlanItemDTO,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,14 +46,18 @@ class Executor:
             ExecutionResultDTO with order results and success status
 
         """
-        logger.info(f"🚀 Executing rebalance plan {plan.plan_id} with {len(plan.items)} items")
+        logger.info(
+            f"🚀 Executing rebalance plan {plan.plan_id} with {len(plan.items)} items"
+        )
 
         # Check if we have both SELL and BUY orders - if so, use phased execution
         sell_items = [item for item in plan.items if item.action == "SELL"]
         buy_items = [item for item in plan.items if item.action == "BUY"]
-        
+
         if sell_items and buy_items:
-            logger.info(f"📊 Using phased execution: {len(sell_items)} SELL orders → monitor buying power → {len(buy_items)} BUY orders")
+            logger.info(
+                f"📊 Using phased execution: {len(sell_items)} SELL orders → monitor buying power → {len(buy_items)} BUY orders"
+            )
             return self._execute_phased_plan(plan, sell_items, buy_items)
         # No mixed orders - use original sequential execution
         logger.info(f"📦 Using sequential execution for {len(plan.items)} items")
@@ -75,7 +82,9 @@ class Executor:
                 logger.debug(f"⏭️ Skipping HOLD action for {item.symbol}")
                 continue
 
-            logger.info(f"📦 Processing {item.action} ${item.trade_amount} {item.symbol}")
+            logger.info(
+                f"📦 Processing {item.action} ${item.trade_amount} {item.symbol}"
+            )
 
             # Execute the trade
             order_result = self._execute_trade_item(item)
@@ -87,7 +96,9 @@ class Executor:
         # Calculate summary statistics
         orders_placed = len(orders)
         orders_succeeded = sum(1 for order in orders if order.success)
-        overall_success = orders_succeeded == orders_placed if orders_placed > 0 else True
+        overall_success = (
+            orders_succeeded == orders_placed if orders_placed > 0 else True
+        )
 
         result = ExecutionResultDTO(
             success=overall_success,
@@ -108,10 +119,10 @@ class Executor:
         return result
 
     def _execute_phased_plan(
-        self, 
-        plan: RebalancePlanDTO, 
-        sell_items: list[RebalancePlanItemDTO], 
-        buy_items: list[RebalancePlanItemDTO]
+        self,
+        plan: RebalancePlanDTO,
+        sell_items: list[RebalancePlanItemDTO],
+        buy_items: list[RebalancePlanItemDTO],
     ) -> ExecutionResultDTO:
         """Execute rebalance plan using phased strategy: SELL → monitor → BUY.
 
@@ -128,14 +139,16 @@ class Executor:
         total_trade_value = Decimal("0")
 
         # Phase 1: Execute SELL orders to release buying power
-        logger.info(f"🔴 Phase 1: Executing {len(sell_items)} SELL orders to release buying power")
+        logger.info(
+            f"🔴 Phase 1: Executing {len(sell_items)} SELL orders to release buying power"
+        )
         sell_order_ids = []
-        
+
         for item in sell_items:
             logger.info(f"📦 Processing SELL ${item.trade_amount} {item.symbol}")
             order_result = self._execute_trade_item(item)
             all_orders.append(order_result)
-            
+
             if order_result.success:
                 total_trade_value += abs(item.trade_amount)
                 if order_result.order_id:
@@ -143,38 +156,46 @@ class Executor:
 
         # Phase 2: Monitor SELL order completion and buying power
         if sell_order_ids:
-            logger.info(f"⏱️ Phase 2: Monitoring {len(sell_order_ids)} SELL orders for completion")
+            logger.info(
+                f"⏱️ Phase 2: Monitoring {len(sell_order_ids)} SELL orders for completion"
+            )
             initial_buying_power = self._get_current_buying_power()
-            
+
             # Wait for SELL orders to complete (max 60 seconds)
             websocket_result = self.alpaca_manager.wait_for_order_completion(
                 sell_order_ids, max_wait_seconds=60
             )
-            
+
             if websocket_result.status.value == "completed":
                 logger.info("✅ All SELL orders completed successfully")
-                
+
                 # Monitor buying power increase
                 self._wait_for_buying_power_increase(initial_buying_power, buy_items)
             else:
-                logger.warning(f"⚠️ SELL order monitoring completed with status: {websocket_result.status.value}")
-                logger.warning(f"Completed {len(websocket_result.completed_order_ids)}/{len(sell_order_ids)} orders")
+                logger.warning(
+                    f"⚠️ SELL order monitoring completed with status: {websocket_result.status.value}"
+                )
+                logger.warning(
+                    f"Completed {len(websocket_result.completed_order_ids)}/{len(sell_order_ids)} orders"
+                )
 
         # Phase 3: Execute BUY orders with available buying power
         logger.info(f"🟢 Phase 3: Executing {len(buy_items)} BUY orders")
-        
+
         for item in buy_items:
             logger.info(f"📦 Processing BUY ${item.trade_amount} {item.symbol}")
             order_result = self._execute_trade_item(item)
             all_orders.append(order_result)
-            
+
             if order_result.success:
                 total_trade_value += abs(item.trade_amount)
 
         # Calculate combined results
         orders_placed = len(all_orders)
         orders_succeeded = sum(1 for order in all_orders if order.success)
-        overall_success = orders_succeeded == orders_placed if orders_placed > 0 else True
+        overall_success = (
+            orders_succeeded == orders_placed if orders_placed > 0 else True
+        )
 
         result = ExecutionResultDTO(
             success=overall_success,
@@ -185,7 +206,7 @@ class Executor:
             orders_succeeded=orders_succeeded,
             total_trade_value=total_trade_value,
             execution_timestamp=datetime.now(UTC),
-            metadata={"execution_strategy": "phased_sell_first"}
+            metadata={"execution_strategy": "phased_sell_first"},
         )
 
         logger.info(
@@ -211,7 +232,9 @@ class Executor:
             logger.warning(f"Failed to get buying power: {e}")
             return Decimal("0")
 
-    def _calculate_required_buying_power(self, buy_items: list[RebalancePlanItemDTO]) -> Decimal:
+    def _calculate_required_buying_power(
+        self, buy_items: list[RebalancePlanItemDTO]
+    ) -> Decimal:
         """Calculate total buying power required for BUY orders.
 
         Args:
@@ -224,10 +247,10 @@ class Executor:
         return sum((abs(item.trade_amount) for item in buy_items), Decimal("0"))
 
     def _wait_for_buying_power_increase(
-        self, 
-        initial_buying_power: Decimal, 
+        self,
+        initial_buying_power: Decimal,
         buy_items: list[RebalancePlanItemDTO],
-        max_wait_seconds: int = 30
+        max_wait_seconds: int = 30,
     ) -> bool:
         """Wait for buying power to increase after SELL order completion.
 
@@ -241,34 +264,47 @@ class Executor:
 
         """
         required_buying_power = self._calculate_required_buying_power(buy_items)
-        logger.info(f"💰 Monitoring buying power increase (need ${required_buying_power})")
-        
+        logger.info(
+            f"💰 Monitoring buying power increase (need ${required_buying_power})"
+        )
+
         import time
+
         start_time = time.time()
         check_interval = 2  # Check every 2 seconds
-        
+
         while (time.time() - start_time) < max_wait_seconds:
             current_buying_power = self._get_current_buying_power()
             buying_power_increase = current_buying_power - initial_buying_power
-            
-            logger.debug(f"💰 Buying power: ${current_buying_power} (increase: ${buying_power_increase})")
-            
+
+            logger.debug(
+                f"💰 Buying power: ${current_buying_power} (increase: ${buying_power_increase})"
+            )
+
             # Check if we have sufficient buying power for all BUY orders
             if current_buying_power >= required_buying_power:
-                logger.info(f"✅ Sufficient buying power available: ${current_buying_power} >= ${required_buying_power}")
+                logger.info(
+                    f"✅ Sufficient buying power available: ${current_buying_power} >= ${required_buying_power}"
+                )
                 return True
-            
+
             # Also check if buying power increased significantly (SELL proceeds available)
-            if buying_power_increase > Decimal("100"):  # At least $100 increase suggests SELL completion
-                logger.info(f"✅ Buying power increased by ${buying_power_increase}, proceeding with BUY orders")
+            if buying_power_increase > Decimal(
+                "100"
+            ):  # At least $100 increase suggests SELL completion
+                logger.info(
+                    f"✅ Buying power increased by ${buying_power_increase}, proceeding with BUY orders"
+                )
                 return True
-            
+
             time.sleep(check_interval)
-        
+
         current_buying_power = self._get_current_buying_power()
         logger.warning(f"⚠️ Buying power monitoring timeout after {max_wait_seconds}s")
-        logger.warning(f"💰 Final buying power: ${current_buying_power}, required: ${required_buying_power}")
-        
+        logger.warning(
+            f"💰 Final buying power: ${current_buying_power}, required: ${required_buying_power}"
+        )
+
         return False
 
     def _execute_trade_item(self, item: RebalancePlanItemDTO) -> OrderResultDTO:
@@ -316,16 +352,23 @@ class Executor:
             # Place market order - returns ExecutedOrderDTO
             side = item.action.lower()  # "BUY" -> "buy", "SELL" -> "sell"
             executed_order = self.alpaca_manager.place_market_order(
-                symbol=item.symbol, side=side, qty=float(shares), is_complete_exit=is_complete_exit
+                symbol=item.symbol,
+                side=side,
+                qty=float(shares),
+                is_complete_exit=is_complete_exit,
             )
 
             # Extract results from ExecutedOrderDTO
             order_id = (
                 executed_order.order_id
-                if executed_order.order_id != "FAILED" and executed_order.order_id != "INVALID"
+                if executed_order.order_id != "FAILED"
+                and executed_order.order_id != "INVALID"
                 else None
             )
-            success = executed_order.status not in ["REJECTED", "FAILED"] and order_id is not None
+            success = (
+                executed_order.status not in ["REJECTED", "FAILED"]
+                and order_id is not None
+            )
             error_message = executed_order.error_message if not success else None
 
             if success:
@@ -333,7 +376,9 @@ class Executor:
                     f"✅ Order placed: {item.action} {shares:.4f} shares {item.symbol} → {order_id}"
                 )
             else:
-                logger.error(f"❌ Order failed: {item.action} {item.symbol} - {error_message}")
+                logger.error(
+                    f"❌ Order failed: {item.action} {item.symbol} - {error_message}"
+                )
 
             return OrderResultDTO(
                 symbol=item.symbol,
@@ -348,7 +393,9 @@ class Executor:
             )
 
         except Exception as e:
-            logger.error(f"❌ Unexpected error executing {item.action} {item.symbol}: {e}")
+            logger.error(
+                f"❌ Unexpected error executing {item.action} {item.symbol}: {e}"
+            )
             return OrderResultDTO(
                 symbol=item.symbol,
                 action=item.action,

@@ -78,7 +78,10 @@ class ErrorReporter:
         """Determine if an error is critical based on type."""
         return isinstance(
             error,
-            InsufficientFundsError | SecurityError | OrderExecutionError | MarketClosedError,
+            InsufficientFundsError
+            | SecurityError
+            | OrderExecutionError
+            | MarketClosedError,
         )
 
     def _handle_critical_error(self, error_data: dict[str, Any]) -> None:

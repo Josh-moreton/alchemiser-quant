@@ -939,7 +939,9 @@ def categorize_error_severity(error: Exception) -> str:
         error, InsufficientFundsError | (OrderExecutionError | PositionValidationError)
     ):
         return ErrorSeverity.HIGH
-    if isinstance(error, MarketDataError | DataProviderError) or _is_strategy_execution_error(error):
+    if isinstance(
+        error, MarketDataError | DataProviderError
+    ) or _is_strategy_execution_error(error):
         return ErrorSeverity.MEDIUM
     if isinstance(error, ConfigurationError):
         return ErrorSeverity.HIGH
@@ -1085,7 +1087,11 @@ def get_global_error_reporter() -> EnhancedErrorReporter:
 
 
 def handle_errors_with_retry(
-    operation: str, *, critical: bool = False, reraise: bool = True, max_retries: int = 0
+    operation: str,
+    *,
+    critical: bool = False,
+    reraise: bool = True,
+    max_retries: int = 0,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Combine error handling with optional retry logic.
 
