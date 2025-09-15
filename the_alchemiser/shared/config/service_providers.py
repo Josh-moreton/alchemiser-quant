@@ -32,6 +32,9 @@ class ServiceProviders(containers.DeclarativeContainer):
     execution_manager = providers.Factory(
         ExecutionManager,
         alpaca_manager=infrastructure.alpaca_manager,
-        enable_smart_execution=config.execution.enable_smart_execution,
+        enable_smart_execution=providers.Factory(
+            lambda exec_settings: exec_settings.enable_smart_execution,
+            exec_settings=config.execution,
+        ),
     )
     # These will be replaced with v2 equivalents as they are migrated
