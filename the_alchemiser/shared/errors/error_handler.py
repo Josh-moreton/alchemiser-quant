@@ -18,50 +18,39 @@ from collections import defaultdict
 from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import wraps
-from typing import TYPE_CHECKING, Any, TypedDict
-
-if TYPE_CHECKING:
-    pass  # We'll import dynamically where needed
+from typing import Any, TypedDict
 
 
-# Import error types from shared schemas to avoid duplication
-try:
-    # Import directly from errors.py to avoid pydantic dependency in __init__.py
-    import importlib.util
-    from pathlib import Path
+# Error schema types
+class ErrorDetailInfo(TypedDict):
+    """Error detail information."""
 
-    # Get path to errors.py
-    current_dir = Path(__file__).parent.parent
-    errors_path = current_dir / "schemas" / "errors.py"
+    error_type: str
+    error_message: str
 
-    spec = importlib.util.spec_from_file_location("errors", errors_path)
-    errors_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(errors_module)
 
-    ErrorDetailInfo = errors_module.ErrorDetailInfo
-    ErrorSummaryData = errors_module.ErrorSummaryData
-    ErrorReportSummary = errors_module.ErrorReportSummary
-    ErrorNotificationData = errors_module.ErrorNotificationData
+class ErrorSummaryData(TypedDict):
+    """Error summary data."""
 
-except (ImportError, AttributeError, FileNotFoundError):
-    # Minimal fallback definitions if direct import fails
-    from typing import Any, TypedDict
+    count: int
+    errors: list[dict[str, Any]]
 
-    class ErrorDetailInfo(TypedDict):
-        error_type: str
-        error_message: str
 
-    class ErrorSummaryData(TypedDict):
-        count: int
-        errors: list[ErrorDetailInfo]
+class ErrorReportSummary(TypedDict):
+    """Error report summary."""
 
-    class ErrorReportSummary(TypedDict):
-        critical: ErrorSummaryData | None
-        trading: ErrorSummaryData | None
+    critical: dict[str, Any] | None
+    trading: dict[str, Any] | None
 
-    class ErrorNotificationData(TypedDict):
-        severity: str
-        priority: str
+
+class ErrorNotificationData(TypedDict):
+    """Error notification data."""
+
+    severity: str
+    priority: str
+    title: str
+    error_report: str
+    html_content: str
 
 
 # Import exceptions
@@ -79,32 +68,32 @@ try:
     )
 except ImportError:
     # Minimal fallback stubs (to avoid circular imports)
-    class AlchemiserError(Exception):
-        pass
+    class AlchemiserError(Exception):  # type: ignore[no-redef]
+        """Fallback AlchemiserError."""
 
-    class ConfigurationError(AlchemiserError):
-        pass
+    class ConfigurationError(AlchemiserError):  # type: ignore[no-redef]
+        """Fallback ConfigurationError."""
 
-    class DataProviderError(AlchemiserError):
-        pass
+    class DataProviderError(AlchemiserError):  # type: ignore[no-redef]
+        """Fallback DataProviderError."""
 
-    class InsufficientFundsError(AlchemiserError):
-        pass
+    class InsufficientFundsError(AlchemiserError):  # type: ignore[no-redef]
+        """Fallback InsufficientFundsError."""
 
-    class MarketDataError(AlchemiserError):
-        pass
+    class MarketDataError(AlchemiserError):  # type: ignore[no-redef]
+        """Fallback MarketDataError."""
 
-    class NotificationError(AlchemiserError):
-        pass
+    class NotificationError(AlchemiserError):  # type: ignore[no-redef]
+        """Fallback NotificationError."""
 
-    class OrderExecutionError(AlchemiserError):
-        pass
+    class OrderExecutionError(AlchemiserError):  # type: ignore[no-redef]
+        """Fallback OrderExecutionError."""
 
-    class PositionValidationError(AlchemiserError):
-        pass
+    class PositionValidationError(AlchemiserError):  # type: ignore[no-redef]
+        """Fallback PositionValidationError."""
 
-    class TradingClientError(AlchemiserError):
-        pass
+    class TradingClientError(AlchemiserError):  # type: ignore[no-redef]
+        """Fallback TradingClientError."""
 
 
 # Import additional error types
@@ -115,27 +104,62 @@ try:
     )
 except ImportError:
 
-    class OrderError(Exception):
-        pass
+    class OrderError(Exception):  # type: ignore[no-redef]
+        """Fallback OrderError."""
 
-    def classify_exception(exc: Exception) -> str:
-        return exc.__class__.__name__
+        def __init__(self, message: str = "Unknown order error") -> None:
+            """Initialize OrderError."""
+            super().__init__(message)
+            self.message = message
+            self.category = type("Category", (), {"value": "UNKNOWN"})()
+            self.code = type("Code", (), {"value": "UNKNOWN"})()
+            self.is_transient = False
+            self.order_id: str | None = None
+
+    def classify_exception(exception: Exception) -> str:
+        """Fallback classify_exception."""
+        return exception.__class__.__name__
 
 
 try:
-    from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError
+    from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError  # type: ignore[import-untyped]
 except ImportError:
 
-    class StrategyExecutionError(Exception):
-        pass
+    class StrategyExecutionError(Exception):  # type: ignore[no-redef]
+        """Fallback StrategyExecutionError."""
 
 
 try:
     from .context import ErrorContextData
 except ImportError:
 
-    class ErrorContextData:
-        pass
+    class ErrorContextData:  # type: ignore[no-redef]
+        """Fallback ErrorContextData class."""
+
+        def __init__(
+            self,
+            module: str | None = None,
+            function: str | None = None,
+            operation: str | None = None,
+            correlation_id: str | None = None,
+            additional_data: dict[str, Any] | None = None,
+        ) -> None:
+            """Initialize ErrorContextData."""
+            self.module = module
+            self.function = function
+            self.operation = operation
+            self.correlation_id = correlation_id
+            self.additional_data = additional_data
+
+        def to_dict(self) -> dict[str, Any]:
+            """Convert to dictionary."""
+            return {
+                "module": self.module,
+                "function": self.function,
+                "operation": self.operation,
+                "correlation_id": self.correlation_id,
+                "additional_data": self.additional_data or {},
+            }
 
 
 class ErrorSeverity:
@@ -181,7 +205,7 @@ class ErrorDetails:
         self.timestamp = datetime.now(UTC)
         self.traceback = traceback.format_exc()
 
-    def to_dict(self) -> ErrorDetailInfo:
+    def to_dict(self) -> dict[str, Any]:
         """Convert error details to dictionary for serialization."""
         return {
             "error_type": type(self.error).__name__,
@@ -408,8 +432,8 @@ class TradingSystemErrorHandler:
         """Handle error with structured context."""
         return self.handle_error(
             error=error,
-            context=context.operation,
-            component=context.component,
+            context=context.operation or "unknown",
+            component=context.module or "unknown",
             additional_data=context.to_dict(),
         )
 
@@ -421,10 +445,10 @@ class TradingSystemErrorHandler:
         """Check if any trading-related errors occurred."""
         return any(error.category == ErrorCategory.TRADING for error in self.errors)
 
-    def get_error_summary(self) -> ErrorReportSummary:
+    def get_error_summary(self) -> dict[str, Any]:
         """Get a summary of all errors by category."""
         # Initialize summary with all categories as None
-        summary: ErrorReportSummary = {
+        summary: dict[str, Any] = {
             "critical": None,
             "trading": None,
             "data": None,
@@ -606,23 +630,22 @@ class TradingSystemErrorHandler:
         }
 
         # Use the domain error classifier
-        order_error = classify_exception(
-            error,
-            order_id=typed_order_id,
-            additional_context=context_with_trading,
-        )
+        error_classification = classify_exception(error)
 
         # Log the classified error for monitoring
         self.logger.info(
-            f"Classified order error: [{order_error.category.value}|{order_error.code.value}] {order_error.message}",
+            f"Classified order error: {error_classification}",
             extra={
-                "order_error_category": order_error.category.value,
-                "order_error_code": order_error.code.value,
-                "is_transient": order_error.is_transient,
-                "order_id": str(order_error.order_id) if order_error.order_id else None,
+                "order_error_category": error_classification,
+                "order_error_code": "UNKNOWN",
+                "is_transient": False,
+                "order_id": typed_order_id,
             },
         )
 
+        # Create a simple OrderError object for return
+        order_error = OrderError(str(error))
+        order_error.order_id = typed_order_id
         return order_error
 
     def clear_errors(self) -> None:
