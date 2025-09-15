@@ -587,6 +587,22 @@ class TECLEngine(StrategyEngine):
         - Select highest RSI candidate
         """
 
+    def validate_signals(self, signals: list[StrategySignal]) -> None:
+        """Validate generated signals.
+
+        Args:
+            signals: List of signals to validate
+
+        Raises:
+            ValueError: If signals are invalid
+
+        """
+        for signal in signals:
+            if not isinstance(signal, StrategySignal):
+                raise ValueError(f"Invalid signal type: {type(signal)}")
+            if signal.confidence.value < 0 or signal.confidence.value > 1:
+                raise ValueError(f"Invalid confidence value: {signal.confidence.value}")
+
 
 def main() -> None:
     """Test the TECL strategy engine."""

@@ -33,6 +33,7 @@ from the_alchemiser.shared.events import (
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
+from the_alchemiser.portfolio_v2 import PortfolioServiceV2
 
 
 class PortfolioOrchestrator:
@@ -60,11 +61,11 @@ class PortfolioOrchestrator:
 
             # Get portfolio service from container
             portfolio_service = PortfolioServiceV2(
-                data_adapter=self.container.infrastructure.alpaca_manager()
+                alpaca_manager=self.container.infrastructure.alpaca_manager()
             )
 
-            # Get current portfolio snapshot
-            portfolio_snapshot = portfolio_service.get_portfolio_snapshot()
+            # Get current portfolio snapshot via state reader
+            portfolio_snapshot = portfolio_service._state_reader.build_portfolio_snapshot()
 
             if not portfolio_snapshot:
                 self.logger.warning("Could not retrieve portfolio snapshot")
@@ -77,7 +78,7 @@ class PortfolioOrchestrator:
 
             return {
                 "snapshot": portfolio_snapshot,
-                "analysis_timestamp": portfolio_snapshot.timestamp,
+                "analysis_timestamp": getattr(portfolio_snapshot, "timestamp", None),
                 "position_count": len(portfolio_snapshot.positions),
                 "total_value": float(portfolio_snapshot.total_value),
             }
@@ -100,8 +101,6 @@ class PortfolioOrchestrator:
         """
         try:
             # Use portfolio_v2 for rebalancing plan calculation
-
-            from the_alchemiser.portfolio_v2 import RebalancePlanCalculator
             from the_alchemiser.shared.dto.strategy_allocation_dto import (
                 StrategyAllocationDTO,
             )
@@ -117,14 +116,15 @@ class PortfolioOrchestrator:
                 constraints=target_allocations.constraints,
             )
 
-            # Get data adapter
-            data_adapter = self.container.infrastructure.alpaca_manager()
+            # Get portfolio service from container
+            portfolio_service = PortfolioServiceV2(
+                alpaca_manager=self.container.infrastructure.alpaca_manager()
+            )
 
-            # Create rebalance plan calculator
-            calculator = RebalancePlanCalculator(data_adapter)
-
-            # Generate rebalancing plan
-            rebalance_plan = calculator.calculate_rebalance_plan(allocation_dto)
+            # Generate rebalancing plan using the service
+            rebalance_plan = portfolio_service.create_rebalance_plan_dto(
+                allocation_dto, target_allocations.correlation_id
+            )
 
             if not rebalance_plan:
                 self.logger.warning("Could not generate rebalancing plan")
