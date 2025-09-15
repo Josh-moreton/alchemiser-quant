@@ -17,7 +17,7 @@ from typing import Any
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, PositionInfo
 
 
-def build_basic_dashboard_structure(paper_trading: bool) -> dict[str, Any]:
+def build_basic_dashboard_structure(*, paper_trading: bool) -> dict[str, Any]:
     """Build basic dashboard data structure.
 
     Args:
@@ -184,7 +184,7 @@ def extract_recent_trades_data(
     return recent_trades
 
 
-def build_s3_paths(paper_trading: bool) -> tuple[str, str]:
+def build_s3_paths(*, paper_trading: bool) -> tuple[str, str]:
     """Build S3 paths for dashboard data storage.
 
     Args:

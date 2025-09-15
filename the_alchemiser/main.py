@@ -92,7 +92,7 @@ class TradingSystem:
             self.event_driven_orchestrator = None
 
     def _emit_startup_event(
-        self, startup_mode: str, ignore_market_hours: bool = False
+        self, startup_mode: str, *, ignore_market_hours: bool = False
     ) -> None:
         """Emit StartupEvent to trigger event-driven workflows.
 
@@ -143,6 +143,7 @@ class TradingSystem:
 
     def execute_trading(
         self,
+        *,
         ignore_market_hours: bool = False,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
@@ -178,7 +179,7 @@ class TradingSystem:
             return False
 
 
-def _resolve_log_level(is_production: bool) -> int:
+def _resolve_log_level(*, is_production: bool) -> int:
     """Resolve the desired log level from environment or settings."""
     # Environment override first
     level_str = os.getenv("LOGGING__LEVEL")
@@ -215,7 +216,7 @@ def configure_application_logging() -> None:
     if root_logger.hasHandlers() and not is_production:
         return
 
-    resolved_level = _resolve_log_level(is_production)
+    resolved_level = _resolve_log_level(is_production=is_production)
 
     if is_production:
         log_file = None
@@ -308,7 +309,7 @@ def main(argv: list[str] | None = None) -> bool:
 
         # PHASE 6: Emit StartupEvent to trigger event-driven workflows
         system._emit_startup_event(
-            args.mode, getattr(args, "ignore_market_hours", False)
+            args.mode, ignore_market_hours=getattr(args, "ignore_market_hours", False)
         )
 
         # Display header with simple trading mode detection

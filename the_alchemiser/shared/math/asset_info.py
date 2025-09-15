@@ -78,7 +78,7 @@ class FractionabilityDetector:
             logging.warning(f"⚠️ Provider error for {symbol}: {e}")
             return None
 
-    def is_fractionable(self, symbol: str, use_cache: bool = True) -> bool:
+    def is_fractionable(self, symbol: str, *, use_cache: bool = True) -> bool:
         """Determine if an asset supports fractional shares using provider.
 
         Args:

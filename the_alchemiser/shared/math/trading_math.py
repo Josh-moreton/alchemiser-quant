@@ -27,7 +27,7 @@ from typing import Any
 # from the_alchemiser.shared.value_objects.core_types import BacktestResult, PerformanceMetrics, TradeAnalysis
 
 
-def _calculate_midpoint_price(bid: float, ask: float, side_is_buy: bool) -> float:
+def _calculate_midpoint_price(bid: float, ask: float, *, side_is_buy: bool) -> float:
     """Calculate midpoint price with fallback logic.
 
     Args:
@@ -73,6 +73,7 @@ def _log_enhanced_threshold_analysis(
     weight_diff: float,
     current_weight: float,
     min_trade_threshold: float,
+    *,
     needs_rebalance: bool,
     logger: Any,
 ) -> None:
@@ -138,6 +139,7 @@ def _log_critical_bug_detection(
     symbol: str,
     target_weight: float,
     weight_diff: float,
+    *,
     needs_rebalance: bool,
     trade_amount: float,
     target_value: float,
@@ -305,8 +307,8 @@ def _process_symbol_rebalance(
         weight_diff,
         current_weight,
         min_trade_threshold,
-        needs_rebalance,
-        logger,
+        needs_rebalance=needs_rebalance,
+        logger=logger,
     )
 
     # Critical bug detection
@@ -314,12 +316,12 @@ def _process_symbol_rebalance(
         symbol,
         target_weight,
         weight_diff,
-        needs_rebalance,
-        trade_amount,
-        target_value,
-        current_value,
-        total_portfolio_value,
-        logger,
+        needs_rebalance=needs_rebalance,
+        trade_amount=trade_amount,
+        target_value=target_value,
+        current_value=current_value,
+        total_portfolio_value=total_portfolio_value,
+        logger=logger,
     )
 
     logger.info(f"CALCULATED_TARGET_VALUE: ${target_value}")
@@ -408,6 +410,7 @@ def calculate_position_size(
 
 
 def calculate_dynamic_limit_price(
+    *,
     side_is_buy: bool,
     bid: float,
     ask: float,
@@ -458,7 +461,7 @@ def calculate_dynamic_limit_price(
         in the OrderManager class for limit order placement.
 
     """
-    mid = _calculate_midpoint_price(bid, ask, side_is_buy)
+    mid = _calculate_midpoint_price(bid, ask, side_is_buy=side_is_buy)
 
     if step > max_steps:
         return round(ask if side_is_buy else bid, 2)
@@ -472,13 +475,13 @@ def calculate_dynamic_limit_price(
 
 
 def calculate_dynamic_limit_price_with_symbol(
+    *,
     side_is_buy: bool,
     bid: float,
     ask: float,
     symbol: str,
     step: int = 0,
     max_steps: int = 5,
-    *,
     tick_size_provider: Any | None = None,
 ) -> float:
     """Calculate a limit price using dynamic tick size resolution.
@@ -513,7 +516,7 @@ def calculate_dynamic_limit_price_with_symbol(
         DynamicTickSizeService,
     )
 
-    mid_price = _calculate_midpoint_price(bid, ask, side_is_buy)
+    mid_price = _calculate_midpoint_price(bid, ask, side_is_buy=side_is_buy)
 
     # Get dynamic tick size for this symbol and price
     service = tick_size_provider or DynamicTickSizeService()

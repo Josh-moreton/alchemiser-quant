@@ -74,7 +74,7 @@ class FeaturePipeline:
         return returns
 
     def compute_volatility(
-        self, returns: list[float], window: int | None = None, annualize: bool = True
+        self, returns: list[float], window: int | None = None, *, annualize: bool = True
     ) -> float:
         """Compute volatility from returns.
 
