@@ -264,17 +264,17 @@ class ExecutionReportDTO(BaseModel):
     @classmethod
     def _convert_orders_from_dict(cls, orders: list[Any]) -> list[ExecutedOrderDTO]:
         """Convert orders list from dictionary format.
-        
+
         Args:
             orders: List of order data (dicts or DTOs)
-            
+
         Returns:
             List of ExecutedOrderDTO instances
 
         """
         if not isinstance(orders, list):
             return []
-        
+
         orders_data = []
         for order_data in orders:
             if isinstance(order_data, dict):
@@ -282,5 +282,5 @@ class ExecutionReportDTO(BaseModel):
                 orders_data.append(ExecutedOrderDTO(**converted_order))
             else:
                 orders_data.append(order_data)  # Assume already a DTO
-        
+
         return orders_data

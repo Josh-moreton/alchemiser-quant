@@ -20,16 +20,17 @@ def convert_string_to_datetime(
     field_name: str = "timestamp",
 ) -> datetime:
     """Convert string timestamp to datetime with proper error handling.
-    
+
     Args:
         timestamp_str: String timestamp to convert
         field_name: Name of field for error messages
-        
+
     Returns:
         Parsed datetime object
-        
+
     Raises:
         ValueError: If timestamp string is invalid
+
     """
     try:
         # Handle 'Z' suffix (Zulu time = UTC)
@@ -45,16 +46,17 @@ def convert_string_to_decimal(
     field_name: str = "decimal_field",
 ) -> Decimal:
     """Convert string to Decimal with proper error handling.
-    
+
     Args:
         decimal_str: String decimal value to convert
         field_name: Name of field for error messages
-        
+
     Returns:
         Parsed Decimal object
-        
+
     Raises:
         ValueError: If decimal string is invalid
+
     """
     try:
         return Decimal(decimal_str)
@@ -67,7 +69,7 @@ def convert_datetime_fields_from_dict(
     datetime_fields: list[str],
 ) -> None:
     """Convert string datetime fields to datetime objects in-place.
-    
+
     Args:
         data: Dictionary to modify
         datetime_fields: List of field names that should be converted
@@ -83,7 +85,7 @@ def convert_decimal_fields_from_dict(
     decimal_fields: list[str],
 ) -> None:
     """Convert string decimal fields to Decimal objects in-place.
-    
+
     Args:
         data: Dictionary to modify
         decimal_fields: List of field names that should be converted
@@ -103,7 +105,7 @@ def convert_datetime_fields_to_dict(
     datetime_fields: list[str],
 ) -> None:
     """Convert datetime fields to ISO strings in-place.
-    
+
     Args:
         data: Dictionary to modify
         datetime_fields: List of field names that should be converted
@@ -119,7 +121,7 @@ def convert_decimal_fields_to_dict(
     decimal_fields: list[str],
 ) -> None:
     """Convert Decimal fields to strings in-place.
-    
+
     Args:
         data: Dictionary to modify
         decimal_fields: List of field names that should be converted
@@ -132,17 +134,16 @@ def convert_decimal_fields_to_dict(
 
 def convert_nested_order_data(order_data: dict[str, Any]) -> dict[str, Any]:
     """Convert order data fields for ExecutedOrderDTO.
-    
+
     Args:
         order_data: Dictionary containing order data
-        
+
     Returns:
         Modified dictionary with converted fields
+
     """
     # Convert execution timestamp in order
-    if "execution_timestamp" in order_data and isinstance(
-        order_data["execution_timestamp"], str
-    ):
+    if "execution_timestamp" in order_data and isinstance(order_data["execution_timestamp"], str):
         order_data["execution_timestamp"] = convert_string_to_datetime(
             order_data["execution_timestamp"], "execution_timestamp"
         )
@@ -150,25 +151,26 @@ def convert_nested_order_data(order_data: dict[str, Any]) -> dict[str, Any]:
     # Convert Decimal fields in order
     order_decimal_fields = [
         "quantity",
-        "filled_quantity", 
+        "filled_quantity",
         "price",
         "total_value",
         "commission",
         "fees",
     ]
     convert_decimal_fields_from_dict(order_data, order_decimal_fields)
-    
+
     return order_data
 
 
 def convert_nested_rebalance_item_data(item_data: dict[str, Any]) -> dict[str, Any]:
     """Convert rebalance item data fields for RebalancePlanItemDTO.
-    
+
     Args:
         item_data: Dictionary containing rebalance item data
-        
+
     Returns:
         Modified dictionary with converted fields
+
     """
     # Convert Decimal fields in items
     item_decimal_fields = [
@@ -180,5 +182,5 @@ def convert_nested_rebalance_item_data(item_data: dict[str, Any]) -> dict[str, A
         "trade_amount",
     ]
     convert_decimal_fields_from_dict(item_data, item_decimal_fields)
-    
+
     return item_data

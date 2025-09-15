@@ -21,7 +21,7 @@ from the_alchemiser.execution_v2.models.execution_result import ExecutionResultD
 from the_alchemiser.orchestration.portfolio_orchestrator import PortfolioOrchestrator
 from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO, PortfolioMetricsDTO
+from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioMetricsDTO, PortfolioStateDTO
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO, RebalancePlanItemDTO
 from the_alchemiser.shared.events import EventBus, TradeExecuted, TradeExecutionStarted
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -119,9 +119,7 @@ class TradingOrchestrator:
                 return None
 
             # Validate signal quality before proceeding
-            if not self.signal_orchestrator.validate_signal_quality(
-                strategy_signals, consolidated_portfolio_dto
-            ):
+            if not self.signal_orchestrator.validate_signal_quality(strategy_signals):
                 self.logger.error(
                     "Signal analysis failed validation - no meaningful data available"
                 )
@@ -199,7 +197,10 @@ class TradingOrchestrator:
                         )
 
                         # DUAL-PATH: Emit TradeExecuted event for event-driven consumers
-                        execution_success = execution_result.orders_succeeded > 0 and execution_result.orders_succeeded == execution_result.orders_placed
+                        execution_success = (
+                            execution_result.orders_succeeded > 0
+                            and execution_result.orders_succeeded == execution_result.orders_placed
+                        )
                         self._emit_trade_executed_event(execution_result, execution_success)
 
                         # Log detailed execution results
@@ -208,10 +209,10 @@ class TradingOrchestrator:
                         self.logger.info(
                             "📊 No significant trades needed - portfolio already balanced"
                         )
-                        
+
                         # DUAL-PATH: Emit TradeExecuted event for successful no-trade scenario
                         # Create empty execution result to represent successful no-op
-                        
+
                         no_trade_result = ExecutionResultDTO(
                             success=True,
                             plan_id=f"no-trade-{uuid.uuid4()}",
@@ -259,11 +260,10 @@ class TradingOrchestrator:
         except Exception as e:
             error_context = "with trading" if execute_trades else "signal execution"
             self.logger.error(f"Strategy execution {error_context} failed: {e}")
-            
+
             # DUAL-PATH: Emit TradeExecuted event for failure case
             if execute_trades:
                 try:
-                    
                     failed_result = ExecutionResultDTO(
                         success=False,
                         plan_id=f"failed-{uuid.uuid4()}",
@@ -278,7 +278,7 @@ class TradingOrchestrator:
                     self._emit_trade_executed_event(failed_result, False, str(e))
                 except Exception as emit_error:
                     self.logger.warning(f"Failed to emit failure event: {emit_error}")
-            
+
             return None
 
     def send_trading_notification(self, result: dict[str, Any], mode_str: str) -> None:
@@ -596,7 +596,9 @@ class TradingOrchestrator:
             execution_data = {
                 "orders_placed": execution_result.orders_placed if execution_result else 0,
                 "orders_succeeded": execution_result.orders_succeeded if execution_result else 0,
-                "total_trade_value": float(execution_result.total_trade_value) if execution_result else 0.0,
+                "total_trade_value": float(execution_result.total_trade_value)
+                if execution_result
+                else 0.0,
                 "orders": [
                     {
                         "symbol": order.symbol,
@@ -609,7 +611,9 @@ class TradingOrchestrator:
                         "order_id": order.order_id,
                     }
                     for order in execution_result.orders
-                ] if execution_result else [],
+                ]
+                if execution_result
+                else [],
             }
 
             # Create portfolio state after execution (minimal for now)

@@ -199,17 +199,17 @@ class RebalancePlanDTO(BaseModel):
     @classmethod
     def _convert_items_from_dict(cls, items: list[Any]) -> list[RebalancePlanItemDTO]:
         """Convert items list from dictionary format.
-        
+
         Args:
             items: List of item data (dicts or DTOs)
-            
+
         Returns:
             List of RebalancePlanItemDTO instances
 
         """
         if not isinstance(items, list):
             return []
-        
+
         items_data = []
         for item_data in items:
             if isinstance(item_data, dict):
@@ -217,5 +217,5 @@ class RebalancePlanDTO(BaseModel):
                 items_data.append(RebalancePlanItemDTO(**converted_item))
             else:
                 items_data.append(item_data)  # Assume already a DTO
-        
+
         return items_data

@@ -199,9 +199,10 @@ def trade(
 
 def _determine_trading_mode() -> tuple[bool, bool, str]:
     """Determine trading mode from endpoint configuration.
-    
+
     Returns:
         Tuple of (is_live, paper_trading, mode_display)
+
     """
     from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
 
@@ -209,7 +210,7 @@ def _determine_trading_mode() -> tuple[bool, bool, str]:
     is_live = bool(endpoint and "paper" not in endpoint.lower())
     paper_trading = not is_live
     mode_display = "[bold red]LIVE[/bold red]" if is_live else "[bold blue]PAPER[/bold blue]"
-    
+
     return is_live, paper_trading, mode_display
 
 
@@ -229,9 +230,10 @@ def _show_live_warning(is_live: bool) -> None:
 
 def _display_positions(alpaca_manager: Any) -> None:
     """Display account positions in a formatted table.
-    
+
     Args:
         alpaca_manager: AlpacaManager instance from DI container
+
     """
     try:
         positions = alpaca_manager.get_all_positions()
@@ -262,9 +264,10 @@ def _display_positions(alpaca_manager: Any) -> None:
 
 def _display_strategy_tracking(paper_trading: bool) -> None:
     """Display strategy tracking information.
-    
+
     Args:
         paper_trading: Whether using paper trading mode
+
     """
     try:
         from the_alchemiser.shared.cli.strategy_tracking_utils import (
@@ -291,7 +294,7 @@ def status() -> None:
 
     # Determine trading mode
     is_live, paper_trading, mode_display = _determine_trading_mode()
-    
+
     # Show warning for live accounts
     _show_live_warning(is_live)
 
