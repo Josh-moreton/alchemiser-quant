@@ -389,7 +389,6 @@ class SignalOrchestrator:
             return 2  # UVXY and BTAL
         if symbol == "UVXY":
             return 1  # Just UVXY
-        
         # For NUCLEAR_PORTFOLIO, count actual symbols in consolidated portfolio
         if isinstance(symbol, str) and "NUCLEAR_PORTFOLIO" in symbol:
             return self._count_nuclear_portfolio_symbols(symbol, consolidated_portfolio)
