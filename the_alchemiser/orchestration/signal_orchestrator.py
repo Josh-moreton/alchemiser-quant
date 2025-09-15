@@ -19,7 +19,9 @@ if TYPE_CHECKING:
 
 from the_alchemiser.orchestration.strategy_orchestrator import MultiStrategyOrchestrator
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
+from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
+    ConsolidatedPortfolioDTO,
+)
 from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
 from the_alchemiser.shared.events import EventBus, SignalGenerated
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -62,8 +64,8 @@ class SignalOrchestrator:
         strategy_signals = self._convert_signals_to_display_format(aggregated_signals)
 
         # Create consolidated portfolio from signals with proper scaling
-        consolidated_portfolio_dict, contributing_strategies = self._build_consolidated_portfolio(
-            aggregated_signals, typed_allocations
+        consolidated_portfolio_dict, contributing_strategies = (
+            self._build_consolidated_portfolio(aggregated_signals, typed_allocations)
         )
 
         # Create ConsolidatedPortfolioDTO
@@ -74,10 +76,16 @@ class SignalOrchestrator:
         )
 
         return strategy_signals, consolidated_portfolio
-    def _convert_signals_to_display_format(self, aggregated_signals: Any) -> dict[str, Any]:
+
+    def _convert_signals_to_display_format(
+        self, aggregated_signals: Any
+    ) -> dict[str, Any]:
         """Convert aggregated signals to display format."""
         strategy_signals = {}
-        for strategy_type, signals in aggregated_signals.get_signals_by_strategy().items():
+        for (
+            strategy_type,
+            signals,
+        ) in aggregated_signals.get_signals_by_strategy().items():
             if signals:
                 signal = signals[0]  # Take first signal for each strategy
                 strategy_signals[str(strategy_type)] = {
@@ -96,7 +104,10 @@ class SignalOrchestrator:
         contributing_strategies = []
 
         # Process signals by strategy to preserve allocation context
-        for strategy_type, signals in aggregated_signals.get_signals_by_strategy().items():
+        for (
+            strategy_type,
+            signals,
+        ) in aggregated_signals.get_signals_by_strategy().items():
             strategy_allocation = typed_allocations.get(strategy_type, 0.0)
             for signal in signals:
                 if signal.action == "BUY":
@@ -105,9 +116,13 @@ class SignalOrchestrator:
 
                     # Handle potential conflicts - if symbol already exists, sum allocations
                     if signal.symbol.value in consolidated_portfolio_dict:
-                        consolidated_portfolio_dict[signal.symbol.value] += portfolio_allocation
+                        consolidated_portfolio_dict[
+                            signal.symbol.value
+                        ] += portfolio_allocation
                     else:
-                        consolidated_portfolio_dict[signal.symbol.value] = portfolio_allocation
+                        consolidated_portfolio_dict[signal.symbol.value] = (
+                            portfolio_allocation
+                        )
 
         # Get strategy names that contributed
         for strategy_type in aggregated_signals.get_signals_by_strategy():
@@ -153,7 +168,9 @@ class SignalOrchestrator:
             return False
 
         # Count strategies that failed due to data issues
-        failed_strategies, fallback_strategies = self._categorize_strategy_failures(strategy_signals)
+        failed_strategies, fallback_strategies = self._categorize_strategy_failures(
+            strategy_signals
+        )
 
         # If all strategies either failed completely or are using fallback defaults,
         # consider this a system failure
@@ -186,7 +203,11 @@ class SignalOrchestrator:
 
     def _extract_strategy_name(self, strategy_type: Any) -> str:
         """Extract strategy name from strategy type."""
-        return strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
+        return (
+            strategy_type.value
+            if hasattr(strategy_type, "value")
+            else str(strategy_type)
+        )
 
     def _log_all_strategies_affected(
         self, failed_strategies: list[str], fallback_strategies: list[str]
@@ -208,6 +229,7 @@ class SignalOrchestrator:
                 f"All strategies affected by market data issues - "
                 f"failed: {failed_strategies}, fallback: {fallback_strategies}"
             )
+
     def _has_data_fetch_failures(self) -> bool:
         """Check if any data fetch failures occurred during signal generation.
 
@@ -297,7 +319,9 @@ class SignalOrchestrator:
 
             for strategy_type, signal_data in strategy_signals.items():
                 strategy_name = (
-                    strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
+                    strategy_type.value
+                    if hasattr(strategy_type, "value")
+                    else str(strategy_type)
                 )
                 signal_dto = StrategySignalDTO(
                     correlation_id=correlation_id,
@@ -364,7 +388,9 @@ class SignalOrchestrator:
             # Single position strategies
             return 1 if signal.get("action") == "BUY" else 0
         # Count from consolidated portfolio if possible
-        strategy_symbols = self._get_symbols_for_strategy(strategy_name, strategy_signals)
+        strategy_symbols = self._get_symbols_for_strategy(
+            strategy_name, strategy_signals
+        )
         return len([s for s in strategy_symbols if s in consolidated_portfolio])
 
     def _find_signal_for_strategy(
@@ -379,7 +405,10 @@ class SignalOrchestrator:
         return None
 
     def _count_nuclear_positions(
-        self, signal: dict[str, Any], symbol: Any, consolidated_portfolio: dict[str, float]
+        self,
+        signal: dict[str, Any],
+        symbol: Any,
+        consolidated_portfolio: dict[str, float],
     ) -> int:
         """Count positions for nuclear strategy based on signal and symbol."""
         if signal.get("action") != "BUY":
@@ -407,6 +436,7 @@ class SignalOrchestrator:
             return len([s for s in nuclear_symbols if s in consolidated_portfolio])
         # Fallback: count nuclear symbols in consolidated portfolio
         return len([s for s in NUCLEAR_SYMBOLS if s in consolidated_portfolio])
+
     def _get_symbols_for_strategy(
         self,
         strategy_name: str,

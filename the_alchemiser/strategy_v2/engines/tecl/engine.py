@@ -31,7 +31,10 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.shared.config.confidence_config import ConfidenceConfig, TECLConfidenceConfig
+from the_alchemiser.shared.config.confidence_config import (
+    ConfidenceConfig,
+    TECLConfidenceConfig,
+)
 from the_alchemiser.shared.logging.logging_utils import get_trading_logger
 from the_alchemiser.shared.types import Confidence, StrategyEngine, StrategySignal
 from the_alchemiser.shared.types.market_data import bars_to_dataframe
@@ -58,7 +61,9 @@ class TECLEngine(StrategyEngine):
         self.data_provider = (
             market_data_port  # Keep for backward compatibility with existing methods
         )
-        self.logger = get_trading_logger(__name__, strategy="TECL", module="strategy.engines.tecl")
+        self.logger = get_trading_logger(
+            __name__, strategy="TECL", module="strategy.engines.tecl"
+        )
         self.indicators = TechnicalIndicators()
         self.confidence_config = ConfidenceConfig.default()
 
@@ -101,7 +106,9 @@ class TECLEngine(StrategyEngine):
         for symbol in self.all_symbols:
             try:
                 symbol_obj = symbol_str_to_symbol(symbol)
-                bars = self.data_provider.get_bars(symbol_obj, period="1y", timeframe="1day")
+                bars = self.data_provider.get_bars(
+                    symbol_obj, period="1y", timeframe="1day"
+                )
                 data = bars_to_dataframe(bars)
                 if not data.empty:
                     market_data[symbol] = data
@@ -121,20 +128,28 @@ class TECLEngine(StrategyEngine):
             try:
                 # Check if Close column exists before accessing it
                 if "Close" not in df.columns:
-                    self.logger.warning(f"Missing 'Close' column for {symbol}, skipping indicators")
+                    self.logger.warning(
+                        f"Missing 'Close' column for {symbol}, skipping indicators"
+                    )
                     continue
 
                 close = df["Close"]
                 if close.empty:
-                    self.logger.warning(f"Empty 'Close' data for {symbol}, skipping indicators")
+                    self.logger.warning(
+                        f"Empty 'Close' data for {symbol}, skipping indicators"
+                    )
                     continue
 
                 indicators[symbol] = {
                     "rsi_9": safe_get_indicator(close, self.indicators.rsi, 9),
                     "rsi_10": safe_get_indicator(close, self.indicators.rsi, 10),
                     "rsi_20": safe_get_indicator(close, self.indicators.rsi, 20),
-                    "ma_200": safe_get_indicator(close, self.indicators.moving_average, 200),
-                    "ma_20": safe_get_indicator(close, self.indicators.moving_average, 20),
+                    "ma_200": safe_get_indicator(
+                        close, self.indicators.moving_average, 200
+                    ),
+                    "ma_20": safe_get_indicator(
+                        close, self.indicators.moving_average, 20
+                    ),
                     "current_price": float(close.iloc[-1]),
                 }
             except Exception as e:
@@ -164,7 +179,9 @@ class TECLEngine(StrategyEngine):
         spy_rsi = indicators["SPY"]["rsi_10"]
 
         market_analysis = "Market Regime Analysis:\n"
-        market_analysis += f"• SPY Price: ${spy_price:.2f} vs 200MA: ${spy_ma_200:.2f}\n"
+        market_analysis += (
+            f"• SPY Price: ${spy_price:.2f} vs 200MA: ${spy_ma_200:.2f}\n"
+        )
         market_analysis += f"• SPY RSI(10): {spy_rsi:.1f}\n"
 
         if spy_price > spy_ma_200:
@@ -186,7 +203,9 @@ class TECLEngine(StrategyEngine):
             reasoning += f"• TQQQ RSI(10): {tqqq_rsi:.1f} > 79 (overbought threshold)\n"
             reasoning += "• Strategy: Defensive hedge against tech weakness\n"
             reasoning += "• Allocation: UVXY 25% (volatility) + BIL 75% (cash)\n"
-            reasoning += "• Rationale: Tech strength may reverse, partial protection needed"
+            reasoning += (
+                "• Rationale: Tech strength may reverse, partial protection needed"
+            )
 
             return {"UVXY": 0.25, "BIL": 0.75}, ActionType.BUY.value, reasoning
 
@@ -194,7 +213,9 @@ class TECLEngine(StrategyEngine):
         if indicators["SPY"]["rsi_10"] > 80:
             spy_rsi = indicators["SPY"]["rsi_10"]
             reasoning = f"{market_analysis}\n\nMarket Overbought Signal:\n"
-            reasoning += f"• SPY RSI(10): {spy_rsi:.1f} > 80 (high overbought threshold)\n"
+            reasoning += (
+                f"• SPY RSI(10): {spy_rsi:.1f} > 80 (high overbought threshold)\n"
+            )
             reasoning += "• Strategy: Broad market protection in bull market\n"
             reasoning += "• Allocation: UVXY 25% (volatility) + BIL 75% (cash)\n"
             reasoning += "• Rationale: Market stretched, preparing for pullback"
@@ -215,7 +236,9 @@ class TECLEngine(StrategyEngine):
             reasoning += f"• TQQQ RSI(10): {tqqq_rsi:.1f} < 31 (oversold)\n"
             reasoning += "• Strategy: Counter-trend tech dip buying in bear market\n"
             reasoning += "• Target: TECL (3x leveraged tech) for maximum bounce\n"
-            reasoning += "• Rationale: Tech oversold provides opportunity even in bear market"
+            reasoning += (
+                "• Rationale: Tech oversold provides opportunity even in bear market"
+            )
 
             return "TECL", ActionType.BUY.value, reasoning
 
@@ -240,7 +263,9 @@ class TECLEngine(StrategyEngine):
                 reasoning += f"• UVXY RSI(10): {uvxy_rsi:.1f} > 84 (extreme spike)\n"
                 reasoning += "• Strategy: Volatility momentum + defensive cash\n"
                 reasoning += "• Allocation: UVXY 15% (volatility) + BIL 85% (cash)\n"
-                reasoning += "• Rationale: Ride volatility spike while staying defensive"
+                reasoning += (
+                    "• Rationale: Ride volatility spike while staying defensive"
+                )
 
                 return {"UVXY": 0.15, "BIL": 0.85}, ActionType.BUY.value, reasoning
             if uvxy_rsi > 74:
@@ -248,7 +273,9 @@ class TECLEngine(StrategyEngine):
                 reasoning = f"{market_analysis}\n\nHigh Volatility Environment:\n"
                 reasoning += f"• UVXY RSI(10): {uvxy_rsi:.1f} > 74 (elevated)\n"
                 reasoning += "• Strategy: Full defensive positioning\n"
-                reasoning += "• Target: BIL (cash equivalent) for capital preservation\n"
+                reasoning += (
+                    "• Target: BIL (cash equivalent) for capital preservation\n"
+                )
                 reasoning += "• Rationale: High volatility suggests more downside risk"
 
                 return "BIL", ActionType.BUY.value, reasoning
@@ -286,19 +313,27 @@ class TECLEngine(StrategyEngine):
 
         if xlk_rsi > kmlm_rsi:
             # Technology (XLK) is stronger than materials (KMLM)
-            switcher_analysis += "• Sector Comparison: Technology STRONGER than Materials\n"
+            switcher_analysis += (
+                "• Sector Comparison: Technology STRONGER than Materials\n"
+            )
 
             if xlk_rsi > 81:
                 # XLK extremely overbought - defensive
-                reasoning = f"{switcher_analysis}• XLK Status: Extremely overbought (>81)\n"
+                reasoning = (
+                    f"{switcher_analysis}• XLK Status: Extremely overbought (>81)\n"
+                )
                 reasoning += "• Strategy: Defensive despite tech strength\n"
                 reasoning += "• Target: BIL (cash) - tech too extended for entry\n"
-                reasoning += "• Rationale: Tech leadership unsustainable at extreme levels"
+                reasoning += (
+                    "• Rationale: Tech leadership unsustainable at extreme levels"
+                )
 
                 self.logger.debug(f"XLK extremely overbought: {xlk_rsi:.2f} > 81")
                 return "BIL", ActionType.BUY.value, reasoning
             # XLK strong but not extreme - buy technology
-            reasoning = f"{switcher_analysis}• XLK Status: Strong but sustainable (<81)\n"
+            reasoning = (
+                f"{switcher_analysis}• XLK Status: Strong but sustainable (<81)\n"
+            )
             reasoning += "• Strategy: Technology momentum play\n"
             reasoning += "• Target: TECL (3x leveraged tech) for sector strength\n"
             reasoning += "• Rationale: Tech outperforming materials, trend continuation"
@@ -311,24 +346,34 @@ class TECLEngine(StrategyEngine):
 
         if xlk_rsi < 29:
             # XLK oversold - buy the dip
-            reasoning = f"{switcher_analysis}• XLK Status: Oversold (<29) despite weakness\n"
+            reasoning = (
+                f"{switcher_analysis}• XLK Status: Oversold (<29) despite weakness\n"
+            )
             reasoning += "• Strategy: Counter-trend tech dip buying\n"
             reasoning += "• Target: TECL (3x leveraged tech) for oversold bounce\n"
-            reasoning += "• Rationale: Tech oversold creates opportunity despite sector weakness"
+            reasoning += (
+                "• Rationale: Tech oversold creates opportunity despite sector weakness"
+            )
 
             self.logger.debug(f"XLK oversold: {xlk_rsi:.2f} < 29")
             return "TECL", ActionType.BUY.value, reasoning
         # XLK weak - return BIL directly in bull market, use selection in bear market
         self.logger.debug(f"KMLM stronger than XLK: {kmlm_rsi:.2f} > {xlk_rsi:.2f}")
         if market_regime == "Bull market":
-            reasoning = f"{switcher_analysis}• Tech Status: Weak relative to materials\n"
+            reasoning = (
+                f"{switcher_analysis}• Tech Status: Weak relative to materials\n"
+            )
             reasoning += "• Strategy: Defensive positioning in bull market\n"
             reasoning += "• Target: BIL (cash) - avoid weak tech sector\n"
-            reasoning += "• Rationale: Materials strength suggests rotation away from tech"
+            reasoning += (
+                "• Rationale: Materials strength suggests rotation away from tech"
+            )
 
             return "BIL", ActionType.BUY.value, reasoning
         # Bear market - use bond vs short selection
-        return self._evaluate_bond_vs_short_selection(indicators, switcher_analysis, market_regime)
+        return self._evaluate_bond_vs_short_selection(
+            indicators, switcher_analysis, market_regime
+        )
 
     def _evaluate_bond_vs_short_selection(
         self, indicators: dict[str, Any], switcher_analysis: str, market_regime: str
@@ -347,10 +392,14 @@ class TECLEngine(StrategyEngine):
             candidates.append(("BSV", indicators["BSV"]["rsi_9"]))
 
         if not candidates:
-            reasoning = f"{switcher_analysis}• Final Selection: No SQQQ/BSV data available\n"
+            reasoning = (
+                f"{switcher_analysis}• Final Selection: No SQQQ/BSV data available\n"
+            )
             reasoning += "• Strategy: Default to cash position\n"
             reasoning += "• Target: BIL (cash equivalent)\n"
-            reasoning += "• Rationale: Cannot execute bond vs short selection without data"
+            reasoning += (
+                "• Rationale: Cannot execute bond vs short selection without data"
+            )
 
             return "BIL", ActionType.BUY.value, reasoning
 
@@ -358,9 +407,13 @@ class TECLEngine(StrategyEngine):
         best_candidate = max(candidates, key=lambda x: x[1])
         symbol, rsi_value = best_candidate
 
-        candidate_desc = ", ".join([f"{sym} (RSI9: {rsi:.1f})" for sym, rsi in candidates])
+        candidate_desc = ", ".join(
+            [f"{sym} (RSI9: {rsi:.1f})" for sym, rsi in candidates]
+        )
 
-        reasoning = f"{switcher_analysis}• Final Selection Process: Bond vs Short Selection\n"
+        reasoning = (
+            f"{switcher_analysis}• Final Selection Process: Bond vs Short Selection\n"
+        )
         reasoning += f"• Candidates: {candidate_desc}\n"
         reasoning += "• Selection Rule: Highest RSI(9) value\n"
         reasoning += f"• Winner: {symbol} with RSI(9) {rsi_value:.1f}\n"

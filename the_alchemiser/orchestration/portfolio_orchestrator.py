@@ -65,7 +65,9 @@ class PortfolioOrchestrator:
             )
 
             # Get current portfolio snapshot via state reader
-            portfolio_snapshot = portfolio_service._state_reader.build_portfolio_snapshot()
+            portfolio_snapshot = (
+                portfolio_service._state_reader.build_portfolio_snapshot()
+            )
 
             if not portfolio_snapshot:
                 self.logger.warning("Could not retrieve portfolio snapshot")
@@ -131,7 +133,7 @@ class PortfolioOrchestrator:
                 return None
 
             self.logger.info(
-                f"Generated rebalancing plan: {len(rebalance_plan.trades)} trades, "
+                f"Generated rebalancing plan: {len(rebalance_plan.items)} items, "
                 f"${rebalance_plan.total_trade_value:.2f} total trade value"
             )
 
@@ -167,7 +169,7 @@ class PortfolioOrchestrator:
             # Return traditional response for backwards compatibility
             return {
                 "plan": rebalance_plan,
-                "trade_count": len(rebalance_plan.trades),
+                "trade_count": len(rebalance_plan.items),
                 "total_trade_value": float(rebalance_plan.total_trade_value),
                 "target_allocations": target_allocations.to_dict_allocation(),
                 "plan_timestamp": rebalance_plan.timestamp,
@@ -473,18 +475,42 @@ class PortfolioOrchestrator:
 
         """
         try:
+            # Convert float dict to ConsolidatedPortfolioDTO
+            import uuid
+            from datetime import UTC, datetime
+            from decimal import Decimal
+
+            from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
+                ConsolidatedPortfolioDTO,
+            )
+
+            target_allocations_decimal = {
+                symbol: Decimal(str(weight))
+                for symbol, weight in target_allocations.items()
+            }
+
+            consolidated_portfolio = ConsolidatedPortfolioDTO(
+                target_allocations=target_allocations_decimal,
+                correlation_id=str(uuid.uuid4()),
+                timestamp=datetime.now(UTC),
+                strategy_count=1,
+                source_strategies=["manual"],
+            )
+
             # Analyze current portfolio state
             portfolio_state = self.analyze_portfolio_state()
             if not portfolio_state:
                 return None
 
             # Generate rebalancing plan
-            rebalancing_plan = self.generate_rebalancing_plan(target_allocations)
+            rebalancing_plan = self.generate_rebalancing_plan(consolidated_portfolio)
             if not rebalancing_plan:
                 return None
 
             # Analyze allocation comparison
-            allocation_analysis = self.analyze_allocation_comparison(target_allocations)
+            allocation_analysis = self.analyze_allocation_comparison(
+                consolidated_portfolio
+            )
             if not allocation_analysis:
                 return None
 
