@@ -192,6 +192,7 @@ def _create_local_file_handler(
     log_file: str,
     formatter: logging.Formatter,
     log_level: int,
+    *,
     enable_file_rotation: bool,
     max_file_size_mb: int,
 ) -> logging.Handler:
@@ -242,6 +243,7 @@ def setup_logging(
     log_level: int = logging.INFO,
     log_file: str | None = None,
     console_level: int | None = None,
+    *,
     suppress_third_party: bool = True,
     structured_format: bool = False,
     enable_file_rotation: bool = False,
@@ -303,7 +305,9 @@ def setup_logging(
         else:
             # Local file logging
             file_handler = _create_local_file_handler(
-                log_file, formatter, log_level, enable_file_rotation, max_file_size_mb
+                log_file, formatter, log_level, 
+                enable_file_rotation=enable_file_rotation, 
+                max_file_size_mb=max_file_size_mb
             )
         handlers.append(file_handler)
 
