@@ -9,7 +9,9 @@ serve as wrappers around the existing template builder classes.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
+
+from the_alchemiser.shared.value_objects.core_types import AccountInfo, EnrichedAccountInfo
 
 # Import the base template and builder classes
 from .base import BaseEmailTemplate
@@ -114,7 +116,9 @@ def build_trading_report_html(
     # Account summary using existing portfolio builder
     if account_info:
         account_html = BaseEmailTemplate.create_section(
-            "💰 Account Summary", PortfolioBuilder.build_account_summary(account_info)
+            "💰 Account Summary", PortfolioBuilder.build_account_summary(
+                cast(AccountInfo | EnrichedAccountInfo, account_info)
+            )
         )
         content_sections.append(account_html)
 
