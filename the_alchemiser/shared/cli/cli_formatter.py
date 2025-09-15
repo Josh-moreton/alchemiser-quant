@@ -6,14 +6,15 @@ CLI formatting utilities for the trading system.
 from __future__ import annotations
 
 import logging
-from decimal import Decimal
-from typing import Any
+from decimal import Decimal, InvalidOperation
+from typing import Any, Protocol
 
 from rich.align import Align
 from rich.console import Console
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
+from rich.text import Text
 
 from the_alchemiser.shared.math.num import floats_equal
 from the_alchemiser.shared.schemas.common import (
@@ -31,6 +32,22 @@ logger = logging.getLogger(__name__)
 STYLE_BOLD_CYAN = "bold cyan"
 STYLE_BOLD_WHITE = "bold white"
 STYLE_BOLD_GREEN = "bold green"
+
+
+class StrategyType(Protocol):
+    """Protocol for strategy type that may have value attribute."""
+    
+    def __str__(self) -> str: ...
+    
+    @property
+    def value(self) -> str: ...
+
+
+class MoneyLike(Protocol):
+    """Protocol for money-like objects."""
+    
+    amount: Decimal
+    currency: str
 
 
 def _truncate_table_data(data: list[Any], max_rows: int = 50) -> tuple[list[Any], bool]:
@@ -206,23 +223,27 @@ def _determine_action_style(action: str) -> tuple[str, str]:
     return "yellow", "HOLD"
 
 
-def _build_signal_details(allocation: Any, confidence: Any, symbol: str, action: str) -> list[str]:
+def _build_signal_details(
+    allocation: float | int | None, confidence: float | int | None, symbol: str, action: str
+) -> list[str]:
     """Build details lines for signal display."""
     details_lines: list[str] = []
 
     # Add allocation if valid
-    try:
-        if isinstance(allocation, int | float):
-            details_lines.append(f"Target Allocation: {float(allocation):.1%}")
-    except Exception:
-        pass
+    if allocation is not None:
+        try:
+            if isinstance(allocation, int | float):
+                details_lines.append(f"Target Allocation: {float(allocation):.1%}")
+        except (ValueError, TypeError) as e:
+            logger.debug(f"Failed to format allocation {allocation}: {e}")
 
     # Add confidence if valid
-    try:
-        if isinstance(confidence, int | float) and 0 <= float(confidence) <= 1:
-            details_lines.append(f"Confidence: {float(confidence):.0%}")
-    except Exception:
-        pass
+    if confidence is not None:
+        try:
+            if isinstance(confidence, int | float) and 0 <= float(confidence) <= 1:
+                details_lines.append(f"Confidence: {float(confidence):.0%}")
+        except (ValueError, TypeError) as e:
+            logger.debug(f"Failed to format confidence {confidence}: {e}")
 
     # Expand well-known portfolio symbols for clarity
     if str(symbol) == "UVXY_BTAL_PORTFOLIO" and action == "BUY":
@@ -233,7 +254,7 @@ def _build_signal_details(allocation: Any, confidence: Any, symbol: str, action:
     return details_lines
 
 
-def _create_signal_panel(strategy_type: Any, signal: dict[str, Any]) -> Panel:
+def _create_signal_panel(strategy_type: str | StrategyType, signal: dict[str, Any]) -> Panel:
     """Create a Rich panel for a single strategy signal."""
     action = signal.get("action", "HOLD")
     symbol = signal.get("symbol", "N/A")
@@ -391,7 +412,50 @@ def render_orders_executed(
         c.print(detail_table)
 
 
-def _format_money(value: Any) -> str:
+def _format_money_object(value: MoneyLike) -> str | None:
+    """Format a Money domain object with amount and currency."""
+    try:
+        amt = float(value.amount)  # Only for formatting, preserve precision
+        cur = str(value.currency)
+        symbol = "$" if cur == "USD" else f"{cur} "
+        return f"{symbol}{amt:,.2f}"
+    except (ValueError, TypeError, AttributeError) as e:
+        logger.debug(f"Failed to format Money object {value}: {e}")
+        return None
+
+
+def _format_decimal_value(value: Decimal) -> str | None:
+    """Format a Decimal value for money display."""
+    try:
+        return f"${float(value):,.2f}"
+    except (ValueError, TypeError) as e:
+        logger.debug(f"Failed to format Decimal {value}: {e}")
+        return None
+
+
+def _format_string_value(value: str) -> str | None:
+    """Format a string representation of a number."""
+    if not value.replace(".", "").replace("-", "").isdigit():
+        return None
+    
+    try:
+        decimal_value = Decimal(value)
+        return f"${float(decimal_value):,.2f}"
+    except (ValueError, TypeError, InvalidOperation) as e:
+        logger.debug(f"Failed to convert string to Decimal {value}: {e}")
+        return None
+
+
+def _format_numeric_value(value: int | float) -> str | None:
+    """Format a numeric value for money display."""
+    try:
+        return f"${float(value):,.2f}"
+    except (ValueError, TypeError) as e:
+        logger.debug(f"Failed to format numeric value {value}: {e}")
+        return None
+
+
+def _format_money(value: float | int | Decimal | str | MoneyLike) -> str:
     """Format value that may be a Money domain object, Decimal, or raw number.
 
     Handles:
@@ -400,39 +464,31 @@ def _format_money(value: Any) -> str:
     - Float/int values (legacy support)
     - String representations of numbers
     """
-    # Domain Money path
-    try:
-        # Money has amount (Decimal) and currency; access directly when present
-        if hasattr(value, "amount") and hasattr(value, "currency"):
-            # Use Decimal precision instead of converting to float
-            amt = float(value.amount)  # Only for formatting, preserve precision
-            cur = str(value.currency)
-            symbol = "$" if cur == "USD" else f"{cur} "
-            return f"{symbol}{amt:,.2f}"
-    except Exception:
-        pass
+    # Try Money domain object path
+    if hasattr(value, "amount") and hasattr(value, "currency"):
+        result = _format_money_object(value)
+        if result is not None:
+            return result
 
-    # Decimal path with full precision preservation
-    try:
-        if isinstance(value, Decimal):
-            # Format Decimal with 2 decimal places for money display
-            return f"${float(value):,.2f}"
-    except Exception:
-        pass
+    # Try Decimal path
+    if isinstance(value, Decimal):
+        result = _format_decimal_value(value)
+        if result is not None:
+            return result
 
-    # String to Decimal conversion path
-    try:
-        if isinstance(value, str) and value.replace(".", "").replace("-", "").isdigit():
-            decimal_value = Decimal(value)
-            return f"${float(decimal_value):,.2f}"
-    except Exception:
-        pass
+    # Try string conversion path
+    if isinstance(value, str):
+        result = _format_string_value(value)
+        if result is not None:
+            return result
 
-    # Legacy numeric path
-    try:
-        return f"${float(value):,.2f}"
-    except Exception:
-        return "-"
+    # Try numeric path
+    if isinstance(value, int | float):
+        result = _format_numeric_value(value)
+        if result is not None:
+            return result
+    
+    return "-"
 
 
 def render_account_info(account_info: dict[str, Any], console: Console | None = None) -> None:
@@ -568,7 +624,7 @@ def render_header(title: str, subtitle: str = "", console: Console | None = None
     c.print()
 
 
-def render_footer(message: str, success: bool = True, console: Console | None = None) -> None:
+def render_footer(message: str, *, success: bool = True, console: Console | None = None) -> None:
     """Render a footer message."""
     c = console or Console()
 
@@ -590,13 +646,16 @@ def _compute_allocation_values_from_dto(
     deltas = allocation_comparison.deltas
 
     # Derive portfolio_value from sum of target values if not present
+    portfolio_value: Decimal
     try:
-        portfolio_value = sum(target_values.values())
-        if portfolio_value <= 0:
+        calculated_value = sum(target_values.values(), Decimal("0"))
+        if calculated_value <= 0:
             pv_from_account = account_info.get("portfolio_value")
             if pv_from_account is None:
                 raise ValueError("Portfolio value is 0 or not available")
             portfolio_value = Decimal(str(pv_from_account))
+        else:
+            portfolio_value = calculated_value
     except Exception as e:
         pv_from_account = account_info.get("portfolio_value")
         if pv_from_account is None:
@@ -984,9 +1043,6 @@ def _extract_and_validate_financial_values(base_account: dict[str, Any]) -> tupl
     return pv, cash
 
 
-from rich.text import Text
-
-
 def _append_portfolio_history_to_content(
     base_account: dict[str, Any], account_content: Text
 ) -> None:
@@ -1201,6 +1257,62 @@ def render_multi_strategy_summary_dto(
     )
 
 
+def _render_account_section(
+    account_info: dict[str, Any] | None,
+    current_positions: dict[str, Any] | None,
+) -> None:
+    """Render account information section with error handling."""
+    if not account_info:
+        return
+
+    try:
+        render_account_info(
+            {
+                "account": account_info,
+                "open_positions": list(current_positions.values()) if current_positions else [],
+            }
+        )
+    except Exception as e:
+        logger.warning(f"Failed to display account info: {e}")
+
+
+def _render_allocation_section(
+    consolidated_portfolio: dict[str, float],
+    account_info: dict[str, Any] | None,
+    current_positions: dict[str, Any] | None,
+    allocation_comparison: AllocationComparisonDTO | None,
+) -> None:
+    """Render allocation comparison section with fallback logic."""
+    has_allocation_data = consolidated_portfolio and account_info and current_positions is not None
+
+    if has_allocation_data and account_info is not None and current_positions is not None:
+        try:
+            render_target_vs_current_allocations(
+                consolidated_portfolio,
+                account_info,
+                current_positions,
+                allocation_comparison=allocation_comparison,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to display allocation comparison: {e}")
+            # Fallback to basic portfolio allocation display
+            render_portfolio_allocation(consolidated_portfolio)
+    elif consolidated_portfolio:
+        # Fallback to basic portfolio allocation display
+        render_portfolio_allocation(consolidated_portfolio)
+
+
+def _render_orders_section(open_orders: list[dict[str, Any]] | None) -> None:
+    """Render open orders section with error handling."""
+    if not open_orders:
+        return
+
+    try:
+        render_enriched_order_summaries(open_orders)
+    except Exception as e:
+        logger.warning(f"Failed to display open orders: {e}")
+
+
 def render_comprehensive_trading_results(
     strategy_signals: dict[str, Any],
     consolidated_portfolio: dict[str, float],
@@ -1221,51 +1333,23 @@ def render_comprehensive_trading_results(
         current_positions: Current positions dictionary
         allocation_comparison: AllocationComparisonDTO for allocation comparison analysis
         open_orders: List of open orders
-        console: Rich console instance (created if None)
+        console: Rich console instance (unused - kept for API compatibility)
 
     """
-    if console is None:
-        console = Console()
-
     # Display strategy signals
     if strategy_signals:
-        render_strategy_signals(strategy_signals)
+        render_strategy_signals(strategy_signals, console)
 
-    # Display account information if available
-    if account_info:
-        try:
-            render_account_info(
-                {
-                    "account": account_info,
-                    "open_positions": list(current_positions.values()) if current_positions else [],
-                }
-            )
-        except Exception as e:
-            logger.warning(f"Failed to display account info: {e}")
+    # Display account information section
+    _render_account_section(account_info, current_positions)
 
-    # Display target vs current allocations comparison if available
-    if consolidated_portfolio and account_info and current_positions is not None:
-        try:
-            render_target_vs_current_allocations(
-                consolidated_portfolio,
-                account_info,
-                current_positions,
-                allocation_comparison=allocation_comparison,
-            )
-        except Exception as e:
-            logger.warning(f"Failed to display allocation comparison: {e}")
-            # Fallback to basic portfolio allocation display
-            render_portfolio_allocation(consolidated_portfolio)
-    elif consolidated_portfolio:
-        # Fallback to basic portfolio allocation display
-        render_portfolio_allocation(consolidated_portfolio)
+    # Display allocation comparison section
+    _render_allocation_section(
+        consolidated_portfolio, account_info, current_positions, allocation_comparison
+    )
 
-    # Display open orders if available
-    if open_orders:
-        try:
-            render_enriched_order_summaries(open_orders)
-        except Exception as e:
-            logger.warning(f"Failed to display open orders: {e}")
+    # Display open orders section
+    _render_orders_section(open_orders)
 
 
 def render_strategy_summary(
