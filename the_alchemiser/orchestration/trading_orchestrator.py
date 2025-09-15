@@ -78,30 +78,9 @@ class TradingOrchestrator:
         alpaca_manager = self.container.infrastructure.alpaca_manager()
         if not alpaca_manager.is_market_open():
             self.logger.warning("Market is closed. No trades will be placed.")
-            self._send_market_closed_notification()
             return False
 
         return True
-
-    def _send_market_closed_notification(self) -> None:
-        """Send market closed notification."""
-        try:
-            from the_alchemiser.shared.notifications.email_utils import (
-                build_error_email_html,
-                send_email_notification,
-            )
-
-            html_content = build_error_email_html(
-                "Market Closed Alert",
-                "Market is currently closed. No trades will be placed.",
-            )
-            send_email_notification(
-                subject="📈 The Alchemiser - Market Closed Alert",
-                html_content=html_content,
-                text_content="Market is CLOSED. No trades will be placed.",
-            )
-        except NotificationError as e:
-            self.logger.warning(f"Failed to send market closed notification: {e}")
 
     def execute_strategy_signals_with_trading(self) -> dict[str, Any] | None:
         """Generate strategy signals AND execute trades, returning comprehensive execution data."""
@@ -300,7 +279,9 @@ class TradingOrchestrator:
                         execution_timestamp=datetime.now(UTC),
                         metadata={"error": str(e)},
                     )
-                    self._emit_trade_executed_event(failed_result, success=False, error_message=str(e))
+                    self._emit_trade_executed_event(
+                        failed_result, success=False, error_message=str(e)
+                    )
                 except Exception as emit_error:
                     self.logger.warning(f"Failed to emit failure event: {emit_error}")
 
