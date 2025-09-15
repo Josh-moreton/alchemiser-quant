@@ -457,7 +457,6 @@ class TradingOrchestrator:
 
             # Calculate portfolio value once
             portfolio_value_decimal = self._extract_portfolio_value(account_info)
-            
             # Create plan items for significant trades
             plan_items, total_trade_value = self._create_plan_items(
                 deltas, target_values, current_values, portfolio_value_decimal
