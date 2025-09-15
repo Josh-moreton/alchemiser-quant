@@ -43,7 +43,6 @@ from the_alchemiser.shared.protocols.repository import (
 
 if TYPE_CHECKING:
     # Future imports for type checking can be added here as needed
-    from typing import TYPE_CHECKING as _TYPE_CHECKING  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
