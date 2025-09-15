@@ -112,6 +112,15 @@ class ExecutionSettings(BaseModel):
     )
     # Phase 1: Canonical order executor feature flag (enabled by default for consolidation)
     use_canonical_executor: bool = True
+    
+    # Smart execution settings
+    use_smart_limit_execution: bool = True
+    market_open_delay_minutes: int = 5  # Wait 5 minutes after 9:30 ET
+    max_spread_pct: float = 0.25  # Max spread as percentage of mid-price
+    min_volume_shares: int = 100  # Minimum volume required at price level
+    repeg_threshold_pct: float = 0.1  # Re-peg if market moves > 0.1%
+    order_monitoring_seconds: int = 30  # Monitor orders for this long
+    tick_size: float = 0.01  # Standard tick size for price improvements
 
 
 class Settings(BaseSettings):
