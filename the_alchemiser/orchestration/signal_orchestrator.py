@@ -77,7 +77,10 @@ class SignalOrchestrator:
         )
 
         return strategy_signals, consolidated_portfolio
-    def _convert_signals_to_display_format(self, aggregated_signals: Any) -> dict[str, Any]:
+
+    def _convert_signals_to_display_format(
+        self, aggregated_signals: Any
+    ) -> dict[str, Any]:
         """Convert aggregated signals to display format."""
         strategy_signals = {}
         for (
@@ -89,10 +92,18 @@ class SignalOrchestrator:
                 # combine them into a single display entry with all symbols
                 if len(signals) > 1:
                     # Multiple signals - show all symbols
-                    symbols = [signal.symbol.value for signal in signals if signal.action == "BUY"]
+                    symbols = [
+                        signal.symbol.value
+                        for signal in signals
+                        if signal.action == "BUY"
+                    ]
                     primary_signal = signals[0]  # Use first signal for other attributes
                     strategy_signals[str(strategy_type)] = {
-                        "symbol": ", ".join(symbols) if symbols else primary_signal.symbol.value,
+                        "symbol": (
+                            ", ".join(symbols)
+                            if symbols
+                            else primary_signal.symbol.value
+                        ),
                         "symbols": symbols,  # Keep individual symbols for other processing
                         "action": primary_signal.action,
                         "confidence": float(primary_signal.confidence.value),
@@ -403,7 +414,9 @@ class SignalOrchestrator:
             # Single position strategies
             return 1 if signal.get("action") == "BUY" else 0
         # Count from consolidated portfolio if possible
-        strategy_symbols = self._get_symbols_for_strategy(strategy_name, strategy_signals)
+        strategy_symbols = self._get_symbols_for_strategy(
+            strategy_name, strategy_signals
+        )
         return len([s for s in strategy_symbols if s in consolidated_portfolio])
 
     def _find_signal_for_strategy(
@@ -418,7 +431,10 @@ class SignalOrchestrator:
         return None
 
     def _count_nuclear_positions(
-        self, signal: dict[str, Any], symbol: Any, consolidated_portfolio: dict[str, float]
+        self,
+        signal: dict[str, Any],
+        symbol: Any,
+        consolidated_portfolio: dict[str, float],
     ) -> int:
         """Count positions for nuclear strategy based on signal and symbol."""
         if signal.get("action") != "BUY":
@@ -446,6 +462,7 @@ class SignalOrchestrator:
             return len([s for s in nuclear_symbols if s in consolidated_portfolio])
         # Fallback: count nuclear symbols in consolidated portfolio
         return len([s for s in NUCLEAR_SYMBOLS if s in consolidated_portfolio])
+
     def _get_symbols_for_strategy(
         self,
         strategy_name: str,
