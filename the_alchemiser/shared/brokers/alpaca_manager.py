@@ -43,6 +43,7 @@ from the_alchemiser.shared.protocols.repository import (
 
 if TYPE_CHECKING:
     # Future imports for type checking can be added here as needed
+    pass
 
 logger = logging.getLogger(__name__)
 
