@@ -14,6 +14,7 @@ from collections.abc import MutableMapping
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 # Constants
 _S3_PROTOCOL_PREFIX = "s3://"
@@ -493,11 +494,12 @@ def log_data_transfer_checkpoint(
 
     # Calculate data integrity metrics
     data_count = len(data) if data else 0
-    data_checksum = (
-        sum(data.values())
-        if data and all(isinstance(v, int | float) for v in data.values())
-        else 0
-    )
+    data_checksum: float = 0.0
+    if data and all(isinstance(v, int | float) for v in data.values()):
+        numeric_values: list[float] = []
+        for v in data.values():
+            numeric_values.append(float(cast(int | float, v)))
+        data_checksum = sum(numeric_values)
     data_type = type(data).__name__
 
     # Log checkpoint info
@@ -515,10 +517,6 @@ def log_data_transfer_checkpoint(
         # Log first few items for large datasets
         items = list(data.items())[:5] if hasattr(data, "items") else []
         logger.info(f"DATA_SAMPLE: {dict(items)} (showing first 5 of {data_count})")
-
-    # Log additional fields
-    for key, value in additional_fields.items():
-        logger.info(f"ADDITIONAL_{key.upper()}: {value}")
 
     # Data validation warnings
     if data_count == 0:
