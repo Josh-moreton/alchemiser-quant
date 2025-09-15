@@ -73,6 +73,7 @@ class SignalOrchestrator:
         )
 
         return strategy_signals, consolidated_portfolio
+
     def _convert_signals_to_display_format(self, aggregated_signals: Any) -> dict[str, Any]:
         """Convert aggregated signals to display format."""
         strategy_signals = {}
@@ -169,7 +170,9 @@ class SignalOrchestrator:
             return False
 
         # Count strategies that failed due to data issues
-        failed_strategies, fallback_strategies = self._categorize_strategy_failures(strategy_signals)
+        failed_strategies, fallback_strategies = self._categorize_strategy_failures(
+            strategy_signals
+        )
 
         # If all strategies either failed completely or are using fallback defaults,
         # consider this a system failure
@@ -224,6 +227,7 @@ class SignalOrchestrator:
                 f"All strategies affected by market data issues - "
                 f"failed: {failed_strategies}, fallback: {fallback_strategies}"
             )
+
     def _has_data_fetch_failures(self) -> bool:
         """Check if any data fetch failures occurred during signal generation.
 

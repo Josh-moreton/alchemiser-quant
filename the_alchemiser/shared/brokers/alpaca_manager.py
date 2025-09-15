@@ -147,7 +147,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 completed_at = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
 
             # Map status to our expected values - using explicit typing to ensure Literal compliance
-            status_mapping: dict[str, Literal["accepted", "filled", "partially_filled", "rejected", "canceled"]] = {
+            status_mapping: dict[
+                str, Literal["accepted", "filled", "partially_filled", "rejected", "canceled"]
+            ] = {
                 "new": "accepted",
                 "accepted": "accepted",
                 "pending_new": "accepted",
@@ -158,7 +160,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 "cancelled": "canceled",
                 "expired": "rejected",
             }
-            mapped_status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"] = status_mapping.get(status, "accepted")
+            mapped_status: Literal[
+                "accepted", "filled", "partially_filled", "rejected", "canceled"
+            ] = status_mapping.get(status, "accepted")
 
             success = mapped_status not in ["rejected", "canceled"]
 
@@ -180,7 +184,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self, error: Exception, context: str = "Operation", order_id: str = "unknown"
     ) -> OrderExecutionResult:
         """Create an error OrderExecutionResult."""
-        status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"] = "rejected"
+        status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"] = (
+            "rejected"
+        )
         return OrderExecutionResult(
             success=False,
             order_id=order_id,
@@ -594,7 +600,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             # Convert ExecutedOrderDTO to OrderExecutionResult
             # Map ExecutedOrderDTO status to OrderExecutionResult Literal status
-            dto_status_to_result_status: dict[str, Literal["accepted", "filled", "partially_filled", "rejected", "canceled"]] = {
+            dto_status_to_result_status: dict[
+                str, Literal["accepted", "filled", "partially_filled", "rejected", "canceled"]
+            ] = {
                 "FILLED": "filled",
                 "PARTIAL": "partially_filled",
                 "REJECTED": "rejected",
@@ -605,19 +613,21 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 "FAILED": "rejected",
                 "ACCEPTED": "accepted",
             }
-            
-            result_status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"] = dto_status_to_result_status.get(
-                executed_order_dto.status.upper(), "accepted"
-            )
-            
+
+            result_status: Literal[
+                "accepted", "filled", "partially_filled", "rejected", "canceled"
+            ] = dto_status_to_result_status.get(executed_order_dto.status.upper(), "accepted")
+
             success = result_status not in ["rejected", "canceled"]
-            
+
             return OrderExecutionResult(
                 success=success,
                 order_id=executed_order_dto.order_id,
                 status=result_status,
                 filled_qty=executed_order_dto.filled_quantity,
-                avg_fill_price=executed_order_dto.price if executed_order_dto.filled_quantity > 0 else None,
+                avg_fill_price=executed_order_dto.price
+                if executed_order_dto.filled_quantity > 0
+                else None,
                 submitted_at=executed_order_dto.execution_timestamp,
                 completed_at=executed_order_dto.execution_timestamp if success else None,
                 error=executed_order_dto.error_message if not success else None,

@@ -246,7 +246,9 @@ class MultiStrategyOrchestrator:
                     aggregated.consolidated_signals.append(resolved_signal)
 
                 # Record the conflict for analysis
-                conflict = self._create_conflict_record(symbol_str, strategy_signals, resolved_signal)
+                conflict = self._create_conflict_record(
+                    symbol_str, strategy_signals, resolved_signal
+                )
                 aggregated.conflicts.append(conflict)
 
     def _group_signals_by_symbol(
@@ -293,9 +295,7 @@ class MultiStrategyOrchestrator:
             "symbol": symbol_str,
             "strategies": [strategy.value for strategy, _ in strategy_signals],
             "actions": [signal.action for _, signal in strategy_signals],
-            "confidences": [
-                float(signal.confidence.value) for _, signal in strategy_signals
-            ],
+            "confidences": [float(signal.confidence.value) for _, signal in strategy_signals],
             "resolution": resolved_signal.action if resolved_signal else "NO_ACTION",
         }
 
