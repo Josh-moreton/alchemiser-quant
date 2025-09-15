@@ -145,7 +145,7 @@ class PortfolioBuilder:
             return "#10B981", f"✅ {status_upper}"  # Green
         if status_upper in ["PARTIAL", "PARTIALLY_FILLED"]:
             return "#F59E0B", f"🔄 {status_upper}"  # Orange
-        if status_upper in ["PENDING", "NEW", "ACCEPTED"]:
+        if status_upper in ["PENDING", "NEW", "ACCEPTED", "PENDING_NEW"]:
             return "#3B82F6", f"⏳ {status_upper}"  # Blue
         if status_upper in ["CANCELLED", "CANCELED", "REJECTED"]:
             return "#EF4444", f"❌ {status_upper}"  # Red
