@@ -3,13 +3,14 @@
 Smart execution strategy for canonical order placement and execution.
 
 This module implements intelligent limit order placement for swing trading with
-liquidity-aware anchoring, spread validation, volume awareness, and re-pegging logic.
-Designed for accuracy and queue priority without aggressive liquidity consumption.
+true liquidity-aware anchoring, spread validation, volume analysis, and re-pegging logic.
+Designed for accuracy and queue priority using sophisticated volume analysis.
 
 Key Features:
-- Liquidity-aware anchoring to best bid/ask
+- True liquidity-aware anchoring using volume analysis (not just bid/ask + offset)
+- Volume-weighted pricing based on order size vs available liquidity
 - Market timing awareness (avoids 9:30-9:35am placement)
-- Spread and volume validation before order placement  
+- Advanced spread and volume validation before order placement  
 - Re-pegging logic with configurable thresholds and limits
 - Async-friendly design leveraging existing real-time pricing
 """
@@ -22,6 +23,7 @@ from datetime import UTC, datetime, time
 from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.execution_v2.utils.liquidity_analysis import LiquidityAnalyzer
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 from the_alchemiser.shared.types.market_data import QuoteModel
@@ -83,7 +85,7 @@ class SmartOrderResult:
 
 
 class SmartExecutionStrategy:
-    """Smart execution strategy using liquidity-aware limit orders."""
+    """Smart execution strategy using truly liquidity-aware limit orders."""
     
     def __init__(
         self,
@@ -102,6 +104,12 @@ class SmartExecutionStrategy:
         self.alpaca_manager = alpaca_manager
         self.pricing_service = pricing_service
         self.config = config or ExecutionConfig()
+        
+        # Initialize liquidity analyzer for volume-aware pricing
+        self.liquidity_analyzer = LiquidityAnalyzer(
+            min_volume_threshold=float(self.config.min_bid_ask_size),
+            tick_size=float(self.config.bid_anchor_offset_cents)
+        )
         
         # Track active orders for re-pegging
         self._active_orders: dict[str, SmartOrderRequest] = {}
@@ -133,11 +141,12 @@ class SmartExecutionStrategy:
             
         return True
         
-    def get_quote_with_validation(self, symbol: str) -> QuoteModel | None:
-        """Get validated quote data for a symbol.
+    def get_quote_with_validation(self, symbol: str, order_size: float) -> QuoteModel | None:
+        """Get validated quote data for a symbol with liquidity analysis.
         
         Args:
             symbol: Stock symbol
+            order_size: Size of order to place (in shares)
             
         Returns:
             QuoteModel if valid quote available, None otherwise
@@ -173,37 +182,73 @@ class SmartExecutionStrategy:
             )
             return None
             
-        # Validate volume at bid/ask
-        if (quote.bid_size < float(self.config.min_bid_ask_size) or 
-            quote.ask_size < float(self.config.min_bid_ask_size)):
-            logger.warning(
-                f"Insufficient volume for {symbol}: bid_size={quote.bid_size}, ask_size={quote.ask_size}"
-            )
+        # Use liquidity analyzer for advanced volume validation
+        is_valid, reason = self.liquidity_analyzer.validate_liquidity_for_order(
+            quote, "buy", order_size  # Side doesn't matter for basic validation
+        )
+        if not is_valid:
+            logger.warning(f"Liquidity validation failed for {symbol}: {reason}")
             return None
             
         return quote
         
-    def calculate_anchor_price(self, quote: QuoteModel, side: str) -> Decimal:
-        """Calculate optimal anchor price for limit order.
+    def calculate_liquidity_aware_price(
+        self, quote: QuoteModel, side: str, order_size: float
+    ) -> tuple[Decimal, dict[str, Any]]:
+        """Calculate optimal price using advanced liquidity analysis.
         
         Args:
             quote: Valid quote data
             side: "BUY" or "SELL"
+            order_size: Size of order in shares
             
         Returns:
-            Anchor price for limit order
+            Tuple of (optimal_price, analysis_metadata)
 
         """
+        # Perform comprehensive liquidity analysis
+        analysis = self.liquidity_analyzer.analyze_liquidity(quote, order_size)
+        
+        # Get volume-aware pricing recommendation
         if side.upper() == "BUY":
-            # For buys: place just inside best bid for queue priority
-            anchor_price = Decimal(str(quote.bid_price)) + self.config.bid_anchor_offset_cents
-            logger.debug(f"Buy anchor: bid {quote.bid_price} + {self.config.bid_anchor_offset_cents} = {anchor_price}")
+            optimal_price = Decimal(str(analysis.recommended_bid_price))
+            volume_available = analysis.volume_at_recommended_bid
+            strategy_rec = self.liquidity_analyzer.get_execution_strategy_recommendation(
+                analysis, side.lower(), order_size
+            )
         else:
-            # For sells: place just inside best ask for queue priority  
-            anchor_price = Decimal(str(quote.ask_price)) - self.config.ask_anchor_offset_cents
-            logger.debug(f"Sell anchor: ask {quote.ask_price} - {self.config.ask_anchor_offset_cents} = {anchor_price}")
+            optimal_price = Decimal(str(analysis.recommended_ask_price))
+            volume_available = analysis.volume_at_recommended_ask
+            strategy_rec = self.liquidity_analyzer.get_execution_strategy_recommendation(
+                analysis, side.lower(), order_size
+            )
             
-        return anchor_price
+        # Create metadata for logging and monitoring
+        metadata = {
+            "liquidity_score": analysis.liquidity_score,
+            "volume_imbalance": analysis.volume_imbalance,
+            "confidence": analysis.confidence,
+            "volume_available": volume_available,
+            "volume_ratio": order_size / max(volume_available, 1.0),
+            "strategy_recommendation": strategy_rec,
+            "bid_volume": analysis.total_bid_volume,
+            "ask_volume": analysis.total_ask_volume
+        }
+        
+        logger.info(
+            f"🧠 Liquidity-aware pricing for {quote.symbol} {side}: "
+            f"price=${optimal_price} (score={analysis.liquidity_score:.1f}, "
+            f"confidence={analysis.confidence:.2f}, strategy={strategy_rec})"
+        )
+        
+        # Add detailed volume analysis to debug logs
+        logger.debug(
+            f"Volume analysis {quote.symbol}: bid_vol={analysis.total_bid_volume}, "
+            f"ask_vol={analysis.total_ask_volume}, imbalance={analysis.volume_imbalance:.3f}, "
+            f"order_vol_ratio={order_size / max(volume_available, 1.0):.2f}"
+        )
+        
+        return optimal_price, metadata
         
     async def place_smart_order(self, request: SmartOrderRequest) -> SmartOrderResult:
         """Place a smart limit order with liquidity anchoring.
@@ -233,8 +278,9 @@ class SmartExecutionStrategy:
             self.pricing_service.subscribe_for_order_placement(request.symbol)
             
         try:
-            # Get validated quote
-            quote = self.get_quote_with_validation(request.symbol)
+            # Get validated quote with order size
+            order_size = float(request.quantity)
+            quote = self.get_quote_with_validation(request.symbol, order_size)
             if not quote:
                 # Fallback to market order for high urgency
                 if request.urgency == "HIGH":
@@ -246,15 +292,17 @@ class SmartExecutionStrategy:
                     execution_strategy="smart_limit_failed"
                 )
                     
-            # Calculate anchor price
-            anchor_price = self.calculate_anchor_price(quote, request.side)
+            # Calculate liquidity-aware optimal price
+            optimal_price, analysis_metadata = self.calculate_liquidity_aware_price(
+                quote, request.side, order_size
+            )
             
-            # Place limit order
+            # Place limit order with optimal pricing
             result = self.alpaca_manager.place_limit_order(
                 symbol=request.symbol,
                 side=request.side.lower(),
                 quantity=float(request.quantity),
-                limit_price=float(anchor_price),
+                limit_price=float(optimal_price),
                 time_in_force="day"
             )
             
@@ -266,19 +314,21 @@ class SmartExecutionStrategy:
                 self._repeg_counts[result.order_id] = 0
                 
                 logger.info(
-                    f"✅ Smart limit order placed: {result.order_id} at ${anchor_price} "
-                    f"(bid/ask: ${quote.bid_price}/${quote.ask_price})"
+                    f"✅ Smart liquidity-aware order placed: {result.order_id} at ${optimal_price} "
+                    f"(strategy: {analysis_metadata['strategy_recommendation']}, "
+                    f"confidence: {analysis_metadata['confidence']:.2f})"
                 )
                 
                 return SmartOrderResult(
                     success=True,
                     order_id=result.order_id,
-                    final_price=anchor_price,
-                    anchor_price=anchor_price,
+                    final_price=optimal_price,
+                    anchor_price=optimal_price,
                     repegs_used=0,
-                    execution_strategy="smart_limit",
+                    execution_strategy=f"smart_liquidity_{analysis_metadata['strategy_recommendation']}",
                     placement_timestamp=placement_time,
                     metadata={
+                        **analysis_metadata,
                         "bid_price": quote.bid_price,
                         "ask_price": quote.ask_price,
                         "spread_percent": (quote.ask_price - quote.bid_price) / quote.bid_price * 100,
