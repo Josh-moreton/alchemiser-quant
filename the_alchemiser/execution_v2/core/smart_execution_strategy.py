@@ -273,14 +273,28 @@ class SmartExecutionStrategy:
                 execution_strategy="smart_limit_delayed"
             )
             
-        # Subscribe to real-time data for this symbol
+        # Subscribe to real-time data for this symbol and wait briefly for data
         if self.pricing_service:
             self.pricing_service.subscribe_for_order_placement(request.symbol)
             
+            # Brief wait to allow subscription to receive initial data
+            import asyncio
+            await asyncio.sleep(0.2)  # 200ms wait for initial quote data
+            
         try:
-            # Get validated quote with order size
+            # Get validated quote with order size, with retry logic
             order_size = float(request.quantity)
-            quote = self.get_quote_with_validation(request.symbol, order_size)
+            quote = None
+            
+            # Retry up to 3 times with increasing waits
+            for attempt in range(3):
+                quote = self.get_quote_with_validation(request.symbol, order_size)
+                if quote:
+                    break
+                    
+                if attempt < 2:  # Don't wait on last attempt
+                    await asyncio.sleep(0.3 * (attempt + 1))  # 300ms, 600ms waits
+                    
             if not quote:
                 # Fallback to market order for high urgency
                 if request.urgency == "HIGH":

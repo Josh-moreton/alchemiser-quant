@@ -246,7 +246,7 @@ class RealTimePricingService:
                     jitter = secrets.randbelow(500) / 1000.0  # 0.0 to 0.5 seconds
                     reconnect_delay += jitter
 
-    def _on_quote(self, quote: Any) -> None:
+    async def _on_quote(self, quote: Any) -> None:
         """Handle incoming quote updates from Alpaca stream."""
         try:
             # Handle both Quote objects and dictionary format
@@ -309,7 +309,7 @@ class RealTimePricingService:
             )
             logging.error(f"Error processing quote for {symbol_str}: {e}")
 
-    def _on_trade(self, trade: Any) -> None:
+    async def _on_trade(self, trade: Any) -> None:
         """Handle incoming trade updates from Alpaca stream."""
         try:
             # Handle both Trade objects and dictionary format
