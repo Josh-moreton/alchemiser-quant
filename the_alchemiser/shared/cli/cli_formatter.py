@@ -453,8 +453,8 @@ def _format_money(value: float | int | Decimal | str | MoneyLike) -> str:
     if isinstance(value, int | float):
         try:
             return f"${float(value):,.2f}"
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as e:
+            logger.debug(f"Failed to format numeric value {value}: {e}")
     
     return "-"
 
