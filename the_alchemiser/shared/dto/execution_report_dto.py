@@ -75,6 +75,7 @@ class ExecutedOrderDTO(BaseModel):
             "CANCELLED",
             "CANCELED",
             "PENDING",
+            "PENDING_NEW",
             "FAILED",
             "ACCEPTED",
         }
