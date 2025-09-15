@@ -59,6 +59,9 @@ class SmartLimitExecutionStrategy:
         
         # Track re-peg attempts per order
         self._repeg_counts: dict[str, int] = {}
+        
+        # Track monitoring tasks to prevent garbage collection
+        self._monitoring_tasks: dict[str, asyncio.Task[Any]] = {}
 
     def should_delay_for_market_open(self) -> bool:
         """Check if we should delay order placement due to market open timing.
@@ -245,7 +248,11 @@ class SmartLimitExecutionStrategy:
             
             if result.success and result.order_id:
                 # Start async monitoring for re-pegging if needed
-                asyncio.create_task(self._monitor_and_repeg_order(result.order_id, symbol, side))
+                monitoring_task = asyncio.create_task(
+                    self._monitor_and_repeg_order(result.order_id, symbol, side),
+                    name=f"monitor_{symbol}_{result.order_id}"
+                )
+                self._monitoring_tasks[result.order_id] = monitoring_task
                 
             return self._convert_order_result_to_dto(result, symbol, side, quantity)
             
@@ -297,6 +304,10 @@ class SmartLimitExecutionStrategy:
                         
         except Exception as e:
             logger.error(f"Error monitoring order {order_id}: {e}")
+        finally:
+            # Clean up the monitoring task reference
+            if order_id in self._monitoring_tasks:
+                del self._monitoring_tasks[order_id]
 
     def _should_repeg_order(self, quote: QuoteModel, side: str, repeg_count: int) -> bool:
         """Determine if order should be re-pegged based on market movement.

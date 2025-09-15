@@ -159,10 +159,11 @@ class AsyncSmartExecutionStrategy(SmartLimitExecutionStrategy):
             
             # Start concurrent monitoring if order was placed successfully
             if result.order_id and result.order_id not in ["FAILED", "DELAYED"]:
-                asyncio.create_task(
+                monitoring_task = asyncio.create_task(
                     self._enhanced_order_monitoring(result.order_id, symbol, item.action.lower()),
-                    name=f"monitor_{symbol}"
+                    name=f"monitor_{symbol}_{result.order_id}"
                 )
+                self._monitoring_tasks[result.order_id] = monitoring_task
             
             return result
             
@@ -249,6 +250,10 @@ class AsyncSmartExecutionStrategy(SmartLimitExecutionStrategy):
                 
         except Exception as e:
             logger.error(f"❌ Error monitoring order {order_id}: {e}")
+        finally:
+            # Clean up the monitoring task reference
+            if order_id in self._monitoring_tasks:
+                del self._monitoring_tasks[order_id]
 
     async def execute_with_streaming_updates(
         self, 
