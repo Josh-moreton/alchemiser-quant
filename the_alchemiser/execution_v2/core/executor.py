@@ -41,7 +41,11 @@ class Executor:
         self.async_strategy: AsyncSmartExecutionStrategy | None = None
         
         if self.config.use_smart_limit_execution:
-            pricing_service = RealTimePricingService()
+            pricing_service = RealTimePricingService(
+                api_key=alpaca_manager.api_key,
+                secret_key=alpaca_manager.secret_key,
+                paper_trading=alpaca_manager.paper
+            )
             self.smart_strategy = SmartLimitExecutionStrategy(
                 alpaca_manager=alpaca_manager,
                 pricing_service=pricing_service,
