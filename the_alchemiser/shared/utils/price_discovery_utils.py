@@ -206,7 +206,7 @@ def _get_price_from_provider(
     provider: PriceProvider | QuoteProvider,
     symbol: str,
 ) -> float | None:
-    """Internal helper to get price from either type of provider.
+    """Get price from either type of provider.
 
     Args:
         provider: Either a PriceProvider or QuoteProvider

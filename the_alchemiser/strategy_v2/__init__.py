@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: strategy | Status: current
+"""Business Unit: strategy | Status: current.
 
 Strategy_v2 module for signal generation and indicator calculation.
 
