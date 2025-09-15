@@ -18,7 +18,7 @@ from typing import Any
 
 
 def evaluate_nuclear_strategy(
-    indicators: dict[str, Any], market_data: dict[str, Any] | None = None
+    indicators: dict[str, Any]
 ) -> tuple[str, str, str]:
     """Evaluate the Nuclear strategy from indicators only.
 

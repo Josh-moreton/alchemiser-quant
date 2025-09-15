@@ -232,7 +232,7 @@ class NuclearEngine(StrategyEngine):
 
         """
         # Use the new pure evaluation helper
-        return evaluate_nuclear_strategy(indicators, market_data)
+        return evaluate_nuclear_strategy(indicators)
 
     def _create_strategy_signal(
         self,

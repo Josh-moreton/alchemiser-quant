@@ -138,7 +138,7 @@ class Settings(BaseSettings):
 
     @classmethod
     def settings_customise_sources(
-        _cls,
+        cls,
         _settings_cls: Any,
         init_settings: Any,
         env_settings: Any,

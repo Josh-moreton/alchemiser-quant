@@ -1393,7 +1393,7 @@ def render_strategy_summary(
             pct = int(allocation * 100)
             # Calculate positions from signals for each strategy
             positions = _count_positions_for_strategy(
-                strategy_name, strategy_signals, consolidated_portfolio, allocations
+                strategy_name, strategy_signals, consolidated_portfolio
             )
             strategy_lines.append(
                 f"[bold cyan]{strategy_name.upper()}:[/bold cyan] "
@@ -1414,7 +1414,6 @@ def _count_positions_for_strategy(
     strategy_name: str,
     strategy_signals: dict[str, Any],
     consolidated_portfolio: dict[str, float],
-    allocations: dict[str, float],
 ) -> int:
     """Count positions for a specific strategy.
 
@@ -1422,7 +1421,6 @@ def _count_positions_for_strategy(
         strategy_name: Name of the strategy
         strategy_signals: Strategy signals dictionary
         consolidated_portfolio: Target portfolio allocation
-        allocations: Strategy allocation percentages from config
 
     Returns:
         Number of positions for the strategy
