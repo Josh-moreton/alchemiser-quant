@@ -194,11 +194,10 @@ class AsyncSmartExecutionStrategy(SmartLimitExecutionStrategy):
                 
             # Fallback to alpaca manager with async timeout
             loop = asyncio.get_event_loop()
-            price = await asyncio.wait_for(
+            return await asyncio.wait_for(
                 loop.run_in_executor(None, self.alpaca_manager.get_current_price, symbol),
                 timeout=2.0
             )
-            return price
             
         except TimeoutError:
             logger.warning(f"⏰ Price lookup timeout for {symbol}")

@@ -17,11 +17,11 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
 
 from the_alchemiser.execution_v2.utils.market_timing import MarketTimingUtils
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.config.config import ExecutionSettings
+from the_alchemiser.shared.dto.broker_dto import OrderExecutionResult
 from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 from the_alchemiser.shared.types.market_data import QuoteModel
@@ -62,7 +62,7 @@ class SmartLimitExecutionStrategy:
         self._repeg_counts: dict[str, int] = {}
         
         # Track monitoring tasks to prevent garbage collection
-        self._monitoring_tasks: dict[str, asyncio.Task[Any]] = {}
+        self._monitoring_tasks: dict[str, asyncio.Task] = {}
 
     def should_delay_for_market_open(self) -> bool:
         """Check if we should delay order placement due to market open timing.
@@ -400,7 +400,7 @@ class SmartLimitExecutionStrategy:
         )
 
     def _convert_order_result_to_dto(
-        self, result: Any, symbol: str, side: str, quantity: float
+        self, result: OrderExecutionResult, symbol: str, side: str, quantity: float
     ) -> ExecutedOrderDTO:
         """Convert OrderExecutionResult to ExecutedOrderDTO."""
         return ExecutedOrderDTO(
