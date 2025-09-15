@@ -76,6 +76,16 @@ class StrategyPnLSummaryProtocol(Protocol):
         """Unrealized profit and loss."""
         ...
 
+    @property
+    def cost_basis(self) -> float:
+        """Cost basis for return calculation."""
+        ...
+
+    @property
+    def last_updated(self) -> datetime:
+        """Last update timestamp."""
+        ...
+
 
 @runtime_checkable
 class StrategyOrderProtocol(Protocol):

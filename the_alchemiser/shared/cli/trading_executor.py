@@ -21,22 +21,10 @@ from the_alchemiser.shared.cli.cli_formatter import (
     render_header,
 )
 from the_alchemiser.shared.config.config import Settings
-
-
-class StrategyOrderTrackerProtocol(Protocol):
-    """Protocol for strategy order tracker interface."""
-
-    def get_positions_summary(self) -> list[Any]:
-        """Get positions summary."""
-        ...
-
-    def get_pnl_summary(self, strategy_name: str) -> Any:
-        """Get PnL summary for strategy."""
-        ...
-
-    def get_orders_for_strategy(self, strategy_name: str) -> list[Any]:
-        """Get orders for strategy."""
-        ...
+from the_alchemiser.shared.protocols.strategy_tracking import (
+    StrategyOrderTrackerProtocol,
+    StrategyPnLSummaryProtocol,
+)
 
 
 class ExecutionResult(Protocol):
@@ -282,12 +270,12 @@ class TradingExecutor(BaseCLI):
     def _export_tracking_summary(self) -> None:
         """Export tracking summary to JSON file."""
         try:
-            from the_alchemiser.portfolio.pnl.strategy_order_tracker import (
-                StrategyOrderTracker,
+            from the_alchemiser.shared.cli.strategy_tracking_utils import (
+                _get_strategy_order_tracker,
             )
 
             # Create tracker using same mode as execution
-            tracker = StrategyOrderTracker(paper_trading=not self.orchestrator.live_trading)
+            tracker = _get_strategy_order_tracker(paper_trading=not self.orchestrator.live_trading)
 
             # Collect strategy data
             summary_data = self._collect_strategy_tracking_data(tracker)
@@ -364,7 +352,7 @@ class TradingExecutor(BaseCLI):
             else None,
         }
 
-    def _calculate_return_percentage(self, pnl_summary: Any, total_pnl: float) -> float:
+    def _calculate_return_percentage(self, pnl_summary: StrategyPnLSummaryProtocol, total_pnl: float) -> float:
         """Calculate return percentage from PnL summary.
         
         Args:
