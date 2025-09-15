@@ -27,9 +27,10 @@ from the_alchemiser.shared.events import EventBus, SignalGenerated
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types.exceptions import DataProviderError
 from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
+from the_alchemiser.strategy_v2.engines.nuclear import NUCLEAR_SYMBOLS
 
 # Nuclear strategy symbol constants
-NUCLEAR_SYMBOLS = ["SMR", "BWXT", "LEU", "EXC", "NLR", "OKLO"]
+# Moved to strategy_v2.engines.nuclear.constants for shared access
 
 
 class SignalOrchestrator:
@@ -76,10 +77,7 @@ class SignalOrchestrator:
         )
 
         return strategy_signals, consolidated_portfolio
-
-    def _convert_signals_to_display_format(
-        self, aggregated_signals: Any
-    ) -> dict[str, Any]:
+    def _convert_signals_to_display_format(self, aggregated_signals: Any) -> dict[str, Any]:
         """Convert aggregated signals to display format."""
         strategy_signals = {}
         for (
@@ -87,13 +85,30 @@ class SignalOrchestrator:
             signals,
         ) in aggregated_signals.get_signals_by_strategy().items():
             if signals:
-                signal = signals[0]  # Take first signal for each strategy
-                strategy_signals[str(strategy_type)] = {
-                    "symbol": signal.symbol.value,
-                    "action": signal.action,
-                    "confidence": float(signal.confidence.value),
-                    "reasoning": signal.reasoning,
-                }
+                # For strategies with multiple signals (like Nuclear portfolio expansion),
+                # combine them into a single display entry with all symbols
+                if len(signals) > 1:
+                    # Multiple signals - show all symbols
+                    symbols = [signal.symbol.value for signal in signals if signal.action == "BUY"]
+                    primary_signal = signals[0]  # Use first signal for other attributes
+                    strategy_signals[str(strategy_type)] = {
+                        "symbol": ", ".join(symbols) if symbols else primary_signal.symbol.value,
+                        "symbols": symbols,  # Keep individual symbols for other processing
+                        "action": primary_signal.action,
+                        "confidence": float(primary_signal.confidence.value),
+                        "reasoning": primary_signal.reasoning,
+                        "is_multi_symbol": True,
+                    }
+                else:
+                    # Single signal - existing behavior
+                    signal = signals[0]
+                    strategy_signals[str(strategy_type)] = {
+                        "symbol": signal.symbol.value,
+                        "action": signal.action,
+                        "confidence": float(signal.confidence.value),
+                        "reasoning": signal.reasoning,
+                        "is_multi_symbol": False,
+                    }
         return strategy_signals
 
     def _build_consolidated_portfolio(
@@ -388,9 +403,7 @@ class SignalOrchestrator:
             # Single position strategies
             return 1 if signal.get("action") == "BUY" else 0
         # Count from consolidated portfolio if possible
-        strategy_symbols = self._get_symbols_for_strategy(
-            strategy_name, strategy_signals
-        )
+        strategy_symbols = self._get_symbols_for_strategy(strategy_name, strategy_signals)
         return len([s for s in strategy_symbols if s in consolidated_portfolio])
 
     def _find_signal_for_strategy(
@@ -405,10 +418,7 @@ class SignalOrchestrator:
         return None
 
     def _count_nuclear_positions(
-        self,
-        signal: dict[str, Any],
-        symbol: Any,
-        consolidated_portfolio: dict[str, float],
+        self, signal: dict[str, Any], symbol: Any, consolidated_portfolio: dict[str, float]
     ) -> int:
         """Count positions for nuclear strategy based on signal and symbol."""
         if signal.get("action") != "BUY":
@@ -436,7 +446,6 @@ class SignalOrchestrator:
             return len([s for s in nuclear_symbols if s in consolidated_portfolio])
         # Fallback: count nuclear symbols in consolidated portfolio
         return len([s for s in NUCLEAR_SYMBOLS if s in consolidated_portfolio])
-
     def _get_symbols_for_strategy(
         self,
         strategy_name: str,

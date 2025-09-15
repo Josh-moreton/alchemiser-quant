@@ -312,9 +312,7 @@ class MultiStrategyOrchestrator:
             "symbol": symbol_str,
             "strategies": [strategy.value for strategy, _ in strategy_signals],
             "actions": [signal.action for _, signal in strategy_signals],
-            "confidences": [
-                float(signal.confidence.value) for _, signal in strategy_signals
-            ],
+            "confidences": [float(signal.confidence.value) for _, signal in strategy_signals],
             "resolution": resolved_signal.action if resolved_signal else "NO_ACTION",
         }
 

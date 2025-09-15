@@ -29,6 +29,7 @@ from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy_v2.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
 
+from .constants import NUCLEAR_SYMBOLS
 from .logic import evaluate_nuclear_strategy
 
 
@@ -55,7 +56,7 @@ class NuclearEngine(StrategyEngine):
         self.volatility_symbols = ["UVXY", "BTAL"]
         self.tech_symbols = ["QQQ", "SQQQ", "PSQ", "UPRO"]
         self.bond_symbols = ["TLT", "IEF"]
-        self.nuclear_symbols = ["SMR", "BWXT", "LEU", "EXC", "NLR", "OKLO"]
+        self.nuclear_symbols = NUCLEAR_SYMBOLS
 
         # All required symbols
         self._all_symbols = (
