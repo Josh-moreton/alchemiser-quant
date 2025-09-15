@@ -7,7 +7,6 @@ Thin CLI wrapper that delegates to orchestration layer for trading execution wor
 
 from __future__ import annotations
 
-import importlib
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -23,54 +22,10 @@ from the_alchemiser.shared.cli.cli_formatter import (
     render_header,
 )
 from the_alchemiser.shared.config.config import Settings
-
-
-class PositionSnapshot(Protocol):
-    """Protocol for position snapshot data."""
-
-    strategy: str
-    symbol: str
-    quantity: float
-    market_value: float
-
-
-class PnLSummary(Protocol):
-    """Protocol for PnL summary data."""
-
-    total_pnl: Decimal
-    realized_pnl: Decimal
-    unrealized_pnl: Decimal
-    cost_basis: Decimal
-    total_return_pct: Decimal
-    position_count: int
-    last_updated: datetime | None
-
-
-class OrderData(Protocol):
-    """Protocol for order data."""
-
-    symbol: str
-    side: str
-    quantity: float
-    order_id: str | None
-    status: str
-    timestamp: datetime
-
-
-class StrategyOrderTrackerProtocol(Protocol):
-    """Protocol for strategy order tracker interface."""
-
-    def get_positions_summary(self) -> list[PositionSnapshot]:
-        """Get positions summary."""
-        ...
-
-    def get_pnl_summary(self, strategy_name: str) -> PnLSummary:
-        """Get PnL summary for strategy."""
-        ...
-
-    def get_orders_for_strategy(self, strategy_name: str) -> list[OrderData]:
-        """Get orders for strategy."""
-        ...
+from the_alchemiser.shared.protocols.strategy_tracking import (
+    StrategyOrderTrackerProtocol,
+    StrategyPnLSummaryProtocol,
+)
 
 
 class ExecutionResult(Protocol):
@@ -317,21 +272,12 @@ class TradingExecutor(BaseCLI):
     def _export_tracking_summary(self) -> None:
         """Export tracking summary to JSON file."""
         try:
-            # Dynamic import to avoid mypy missing-stubs issues
-            try:
-                strategy_order_tracker_module = importlib.import_module(
-                    "the_alchemiser.portfolio.pnl.strategy_order_tracker"
-                )
-                StrategyOrderTracker = strategy_order_tracker_module.StrategyOrderTracker
-            except ModuleNotFoundError:
-                # Fallback - module doesn't exist in current codebase
-                self.logger.warning(
-                    "StrategyOrderTracker module not found - tracking export unavailable"
-                )
-                return
+            from the_alchemiser.shared.cli.strategy_tracking_utils import (
+                _get_strategy_order_tracker,
+            )
 
             # Create tracker using same mode as execution
-            tracker = StrategyOrderTracker(paper_trading=not self.orchestrator.live_trading)
+            tracker = _get_strategy_order_tracker(paper_trading=not self.orchestrator.live_trading)
 
             # Collect strategy data
             summary_data = self._collect_strategy_tracking_data(tracker)
@@ -367,7 +313,9 @@ class TradingExecutor(BaseCLI):
 
         return summary_data
 
-    def _get_single_strategy_data(self, tracker: StrategyOrderTrackerProtocol, strategy_name: str) -> dict[str, Any]:
+    def _get_single_strategy_data(
+        self, tracker: StrategyOrderTrackerProtocol, strategy_name: str
+    ) -> dict[str, Any]:
         """Get tracking data for a single strategy.
         
         Args:
@@ -408,7 +356,9 @@ class TradingExecutor(BaseCLI):
             else None,
         }
 
-    def _calculate_return_percentage(self, pnl_summary: PnLSummary, total_pnl: float) -> float:
+    def _calculate_return_percentage(
+        self, pnl_summary: StrategyPnLSummaryProtocol, total_pnl: float
+    ) -> float:
         """Calculate return percentage from PnL summary.
         
         Args:

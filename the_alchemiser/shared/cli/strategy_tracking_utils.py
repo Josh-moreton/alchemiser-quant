@@ -8,10 +8,14 @@ Eliminates code duplication between CLI components that need to show strategy pe
 
 from __future__ import annotations
 
+import importlib
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, cast
 
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.protocols.strategy_tracking import (
+    StrategyOrderTrackerProtocol,
+)
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -21,9 +25,39 @@ if TYPE_CHECKING:
 BOLD_MAGENTA_STYLE = "bold magenta"
 
 
+def _get_strategy_order_tracker(*, paper_trading: bool) -> StrategyOrderTrackerProtocol:
+    """Dynamically import and create StrategyOrderTracker instance.
+    
+    Uses dynamic import to avoid mypy missing-stubs warnings while maintaining
+    type safety through protocol interfaces.
+    
+    Args:
+        paper_trading: Whether to use paper trading mode
+        
+    Returns:
+        StrategyOrderTracker instance typed via protocol
+        
+    Raises:
+        ImportError: If the tracker module cannot be imported
+        
+    """
+    try:
+        # Dynamic import to avoid mypy missing-stubs warnings
+        tracker_module = importlib.import_module(
+            "the_alchemiser.portfolio.pnl.strategy_order_tracker"
+        )
+        tracker_class = tracker_module.StrategyOrderTracker
+        return cast(StrategyOrderTrackerProtocol, tracker_class(paper_trading=paper_trading))
+    except ImportError as e:
+        raise ImportError(
+            f"Failed to import StrategyOrderTracker: {e}. "
+            "This may indicate the portfolio module is not available."
+        ) from e
+
+
 def _add_strategy_row(
     tracking_table: Table,
-    tracker: Any,
+    tracker: StrategyOrderTrackerProtocol,
     strategy_name: str,
     logger: logging.Logger,
 ) -> None:
@@ -33,7 +67,7 @@ def _add_strategy_row(
 
     Args:
         tracking_table: Rich Table object to add row to
-        tracker: StrategyOrderTracker instance
+        tracker: StrategyOrderTracker instance (typed via protocol)
         strategy_name: Name of the strategy
         logger: Logger instance for error reporting
 
@@ -71,7 +105,7 @@ def _add_strategy_row(
 
 def _add_strategy_pnl_row(
     strategy_pnl_table: Table,
-    tracker: Any,
+    tracker: StrategyOrderTrackerProtocol,
     strategy_name: str,
     console: Console,
 ) -> None:
@@ -81,7 +115,7 @@ def _add_strategy_pnl_row(
 
     Args:
         strategy_pnl_table: Rich Table object to add row to
-        tracker: StrategyOrderTracker instance
+        tracker: StrategyOrderTracker instance (typed via protocol)
         strategy_name: Name of the strategy
         console: Rich Console instance for error display
 
@@ -126,14 +160,10 @@ def display_strategy_tracking(*, paper_trading: bool) -> None:
         from rich.panel import Panel
         from rich.table import Table
 
-        from the_alchemiser.portfolio.pnl.strategy_order_tracker import (
-            StrategyOrderTracker,
-        )
-
         console = Console()
 
-        # Create tracker
-        tracker = StrategyOrderTracker(paper_trading=paper_trading)
+        # Create tracker using dynamic import
+        tracker = _get_strategy_order_tracker(paper_trading=paper_trading)
 
         # Get all positions
         positions = tracker.get_positions_summary()
@@ -197,13 +227,10 @@ def display_detailed_strategy_positions(*, paper_trading: bool) -> None:
         from rich.console import Console
         from rich.table import Table
 
-        from the_alchemiser.portfolio.pnl.strategy_order_tracker import (
-            StrategyOrderTracker,
-        )
-
         console = Console()
 
-        tracker = StrategyOrderTracker(paper_trading=paper_trading)
+        # Create tracker using dynamic import
+        tracker = _get_strategy_order_tracker(paper_trading=paper_trading)
 
         # Get positions summary
         positions_summary = tracker.get_positions_summary()

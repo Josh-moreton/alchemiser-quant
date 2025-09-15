@@ -150,6 +150,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             status_mapping: dict[str, Literal["accepted", "filled", "partially_filled", "rejected", "canceled"]] = {
                 "new": "accepted",
                 "accepted": "accepted",
+                "pending_new": "accepted",
                 "filled": "filled",
                 "partially_filled": "partially_filled",
                 "rejected": "rejected",
@@ -600,6 +601,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 "CANCELLED": "canceled",
                 "CANCELED": "canceled",
                 "PENDING": "accepted",
+                "PENDING_NEW": "accepted",
                 "FAILED": "rejected",
                 "ACCEPTED": "accepted",
             }
