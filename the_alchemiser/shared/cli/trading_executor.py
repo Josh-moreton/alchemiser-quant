@@ -23,7 +23,7 @@ from the_alchemiser.shared.cli.cli_formatter import (
 from the_alchemiser.shared.config.config import Settings
 
 
-class StrategyOrderTracker(Protocol):
+class StrategyOrderTrackerProtocol(Protocol):
     """Protocol for strategy order tracker interface."""
 
     def get_positions_summary(self) -> list[Any]:
@@ -299,7 +299,7 @@ class TradingExecutor(BaseCLI):
             self._handle_export_error(e)
 
     def _collect_strategy_tracking_data(
-        self, tracker: StrategyOrderTracker
+        self, tracker: StrategyOrderTrackerProtocol
     ) -> list[dict[str, Any]]:
         """Collect tracking data for all strategies.
         
@@ -323,7 +323,7 @@ class TradingExecutor(BaseCLI):
 
         return summary_data
 
-    def _get_single_strategy_data(self, tracker: StrategyOrderTracker, strategy_name: str) -> dict[str, Any]:
+    def _get_single_strategy_data(self, tracker: StrategyOrderTrackerProtocol, strategy_name: str) -> dict[str, Any]:
         """Get tracking data for a single strategy.
         
         Args:
