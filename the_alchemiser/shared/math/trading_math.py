@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: order execution/placement; Status: current.
+"""Business Unit: shared | Status: current.
 
 Trading Math Utilities for The Alchemiser Quantitative Trading System.
 
@@ -20,10 +20,12 @@ ensuring predictable behavior and easy testing.
 
 from __future__ import annotations
 
+import logging
 import math
-from typing import Any
+from decimal import Decimal
+from typing import Protocol
 
-# TODO: Phase 12 - Types available for future migration to structured trading calculations
+# Note: Phase 12 - Types earmarked for future migration to structured trading calculations
 # from the_alchemiser.shared.value_objects.core_types import BacktestResult, PerformanceMetrics, TradeAnalysis
 
 
@@ -44,7 +46,7 @@ def _calculate_midpoint_price(bid: float, ask: float, *, side_is_buy: bool) -> f
     return bid if side_is_buy else ask
 
 
-def _calculate_precision_from_tick_size(tick_size_decimal: Any) -> int:
+def _calculate_precision_from_tick_size(tick_size_decimal: Decimal) -> int:
     """Calculate precision from tick size decimal.
 
     Args:
@@ -54,12 +56,9 @@ def _calculate_precision_from_tick_size(tick_size_decimal: Any) -> int:
         Precision level (minimum 2)
 
     """
-    try:
-        exponent = tick_size_decimal.as_tuple().exponent
-        if isinstance(exponent, int):
-            return max(2, -exponent)
-    except (AttributeError, TypeError):
-        pass
+    exponent = tick_size_decimal.as_tuple().exponent
+    if isinstance(exponent, int):
+        return max(2, -exponent)
     return 2
 
 
@@ -75,7 +74,7 @@ def _log_enhanced_threshold_analysis(
     min_trade_threshold: float,
     *,
     needs_rebalance: bool,
-    logger: Any,
+    logger: logging.Logger,
 ) -> None:
     """Log enhanced threshold analysis for debugging.
 
@@ -114,7 +113,9 @@ def _log_enhanced_threshold_analysis(
     # Calculate what the portfolio value should be based on current holdings
     if current_value > 0 and target_weight > 0:
         implied_portfolio_value = current_value / target_weight
-        logger.info(f"IMPLIED_PORTFOLIO_VALUE_FROM_{symbol}: ${implied_portfolio_value:.2f}")
+        logger.info(
+            f"IMPLIED_PORTFOLIO_VALUE_FROM_{symbol}: ${implied_portfolio_value:.2f}"
+        )
 
     # Flag potential data issues
     if total_portfolio_value <= 0:
@@ -145,7 +146,7 @@ def _log_critical_bug_detection(
     target_value: float,
     current_value: float,
     total_portfolio_value: float,
-    logger: Any,
+    logger: logging.Logger,
 ) -> None:
     """Log critical bug detection for debugging trade calculation issues.
 
@@ -166,7 +167,9 @@ def _log_critical_bug_detection(
         logger.error(
             f"🚨 CRITICAL_BUG_DETECTED_{symbol}: Large target weight ({target_weight * 100:.1f}%) with large diff ({abs(weight_diff) * 100:.1f}%) but needs_rebalance=False"
         )
-        logger.error("🚨 This indicates a threshold calculation bug that will cause trade loss")
+        logger.error(
+            "🚨 This indicates a threshold calculation bug that will cause trade loss"
+        )
 
     if math.isclose(trade_amount, 0.0, abs_tol=1e-10) and target_weight > 0.01:
         logger.error(
@@ -200,7 +203,7 @@ def _log_rebalance_summary(
     min_trade_threshold: float,
     total_portfolio_value: float,
     rebalance_plan: dict[str, dict[str, float]],
-    logger: Any,
+    logger: logging.Logger,
 ) -> None:
     """Log comprehensive summary of rebalancing calculation results.
 
@@ -213,14 +216,16 @@ def _log_rebalance_summary(
         logger: Logger instance
 
     """
-    import logging
-
     # Add comprehensive summary logging
     logging.info("=== REBALANCE CALCULATION SUMMARY ===")
     logging.info(f"Total symbols processed: {len(all_symbols)}")
     logging.info(f"Symbols needing rebalance: {symbols_needing_rebalance}")
-    logging.info(f"Symbols NOT needing rebalance: {len(all_symbols) - symbols_needing_rebalance}")
-    logging.info(f"Threshold used: {min_trade_threshold:.4f} ({min_trade_threshold * 100:.1f}%)")
+    logging.info(
+        f"Symbols NOT needing rebalance: {len(all_symbols) - symbols_needing_rebalance}"
+    )
+    logging.info(
+        f"Threshold used: {min_trade_threshold:.4f} ({min_trade_threshold * 100:.1f}%)"
+    )
     logging.info(f"Portfolio value: ${total_portfolio_value:,.2f}")
 
     # Log which symbols need rebalancing
@@ -252,7 +257,7 @@ def _process_symbol_rebalance(
     current_values: dict[str, float],
     total_portfolio_value: float,
     min_trade_threshold: float,
-    logger: Any,
+    logger: logging.Logger,
 ) -> tuple[dict[str, float], bool]:
     """Process rebalancing calculation for a single symbol.
 
@@ -268,8 +273,6 @@ def _process_symbol_rebalance(
         Tuple of (symbol_plan, needs_rebalance)
 
     """
-    import logging
-
     logger.info(f"=== PROCESSING SYMBOL: {symbol} ===")
 
     target_weight = target_weights.get(symbol, 0.0)
@@ -282,7 +285,9 @@ def _process_symbol_rebalance(
     try:
         current_value = float(current_value)
     except (ValueError, TypeError):
-        logger.warning(f"Invalid current_value for {symbol}: {current_value}, using 0.0")
+        logger.warning(
+            f"Invalid current_value for {symbol}: {current_value}, using 0.0"
+        )
         current_value = 0.0
 
     current_weight, weight_diff = calculate_allocation_discrepancy(
@@ -327,14 +332,18 @@ def _process_symbol_rebalance(
     logger.info(f"CALCULATED_TARGET_VALUE: ${target_value}")
     logger.info(f"CALCULATED_TRADE_AMOUNT: ${trade_amount}")
     logger.info(f"WEIGHT_DIFF_ABS: {abs(weight_diff)}")
-    logger.info(f"THRESHOLD_CHECK: {abs(weight_diff)} >= {min_trade_threshold} = {needs_rebalance}")
+    logger.info(
+        f"THRESHOLD_CHECK: {abs(weight_diff)} >= {min_trade_threshold} = {needs_rebalance}"
+    )
 
     # Add detailed threshold logging for all symbols (using debug level for verbose output)
     logger.debug(f"=== THRESHOLD CHECK: {symbol} ===")
     logger.debug(
         f"{symbol}: Current {current_weight:.3f}% ({current_weight * 100:.1f}%), Target {target_weight:.3f}% ({target_weight * 100:.1f}%)"
     )
-    logger.debug(f"{symbol}: Weight difference {weight_diff:.3f}% ({weight_diff * 100:.1f}%)")
+    logger.debug(
+        f"{symbol}: Weight difference {weight_diff:.3f}% ({weight_diff * 100:.1f}%)"
+    )
     logger.debug(
         f"{symbol}: Threshold {min_trade_threshold:.3f}% ({min_trade_threshold * 100:.1f}%)"
     )
@@ -344,7 +353,9 @@ def _process_symbol_rebalance(
     logger.debug(f"{symbol}: Trade amount: ${trade_amount:.2f}")
 
     if needs_rebalance:
-        logger.info(f"{symbol}: ✅ TRADE REQUIRED - will be included in rebalancing plan")
+        logger.info(
+            f"{symbol}: ✅ TRADE REQUIRED - will be included in rebalancing plan"
+        )
     else:
         logger.debug(f"{symbol}: ❌ NO TRADE NEEDED - below threshold")
 
@@ -474,6 +485,16 @@ def calculate_dynamic_limit_price(
     return round(price, 2)
 
 
+class TickSizeProvider(Protocol):
+    """Protocol for dynamic tick size providers.
+
+    Implementations return the appropriate tick size for a given symbol and price.
+    """
+
+    def get_tick_size(self, symbol: str, price: Decimal) -> Decimal:
+        """Return the tick size for `symbol` at `price`."""
+
+
 def calculate_dynamic_limit_price_with_symbol(
     *,
     side_is_buy: bool,
@@ -482,7 +503,7 @@ def calculate_dynamic_limit_price_with_symbol(
     symbol: str,
     step: int = 0,
     max_steps: int = 5,
-    tick_size_provider: Any | None = None,
+    tick_size_provider: TickSizeProvider | None = None,
 ) -> float:
     """Calculate a limit price using dynamic tick size resolution.
 
@@ -498,7 +519,9 @@ def calculate_dynamic_limit_price_with_symbol(
             Defaults to 0.
         max_steps (int, optional): Maximum steps before using market price.
             Defaults to 5.
-        tick_size_provider (Any | None): Optional injected tick size provider (must expose get_tick_size).
+        tick_size_provider (TickSizeProvider | None): Optional injected tick size
+            provider used to resolve symbol-specific tick sizes. Must expose
+            get_tick_size(symbol: str, price: Decimal) -> Decimal.
 
     Returns:
         float: Calculated limit price with appropriate precision.
@@ -510,8 +533,6 @@ def calculate_dynamic_limit_price_with_symbol(
         Initial buy limit: $100.05
 
     """
-    from decimal import Decimal
-
     from the_alchemiser.shared.services.tick_size_service import (
         DynamicTickSizeService,
     )
@@ -686,7 +707,9 @@ def calculate_rebalance_amounts(
         return {}
 
     if total_portfolio_value <= 0:
-        logger.error(f"❌ TRADING_MATH_RECEIVED_INVALID_PORTFOLIO_VALUE: {total_portfolio_value}")
+        logger.error(
+            f"❌ TRADING_MATH_RECEIVED_INVALID_PORTFOLIO_VALUE: {total_portfolio_value}"
+        )
         return {}
 
     rebalance_plan = {}

@@ -1229,7 +1229,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             True if should continue waiting, False otherwise
 
         """
-
         return (
             len(completed_orders) < len(order_ids)
             and (time.time() - start_time) < max_wait_seconds
@@ -1248,7 +1247,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             WebSocketResult with completion status and completed order IDs
 
         """
-
         completed_orders: list[str] = []
         start_time = time.time()
 

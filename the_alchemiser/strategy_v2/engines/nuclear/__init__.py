@@ -10,4 +10,4 @@ from __future__ import annotations
 from .constants import NUCLEAR_SYMBOLS
 from .engine import NuclearEngine
 
-__all__ = ["NuclearEngine", "NUCLEAR_SYMBOLS"]
+__all__ = ["NUCLEAR_SYMBOLS", "NuclearEngine"]

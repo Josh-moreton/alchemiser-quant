@@ -122,7 +122,9 @@ except ImportError:
 
 
 try:
-    from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError  # type: ignore[import-untyped]
+    from the_alchemiser.strategy.errors.strategy_errors import (
+        StrategyExecutionError,  # type: ignore[import-untyped]
+    )
 except ImportError:
 
     class StrategyExecutionError(Exception):  # type: ignore[no-redef]

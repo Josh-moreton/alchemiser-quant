@@ -1,4 +1,7 @@
-"""Business Unit: order execution/placement; Status: current."""
+"""Business Unit: shared | Status: current.
+
+DTOs and immutable value objects shared across modules.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +15,7 @@ class Symbol:
     value: str
 
     def __post_init__(self) -> None:  # pragma: no cover - trivial validation
+        """Validate and normalize the symbol after initialization."""
         if not self.value or not self.value.isalnum():
             raise ValueError("Symbol must be alphanumeric characters only")
         if len(self.value) > 5:

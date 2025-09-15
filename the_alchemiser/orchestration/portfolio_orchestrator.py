@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
+from the_alchemiser.portfolio_v2 import PortfolioServiceV2
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
     ConsolidatedPortfolioDTO,
@@ -33,7 +34,6 @@ from the_alchemiser.shared.events import (
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
-from the_alchemiser.portfolio_v2 import PortfolioServiceV2
 
 
 class PortfolioOrchestrator:
