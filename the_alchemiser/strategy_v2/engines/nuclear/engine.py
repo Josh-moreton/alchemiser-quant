@@ -300,9 +300,6 @@ class NuclearEngine(StrategyEngine):
         """
         config = self.confidence_config.nuclear
 
-        # Start with base confidence
-        confidence = config.base_confidence
-
         # HOLD actions get fixed confidence
         if action == "HOLD":
             return Confidence(config.hold_confidence)

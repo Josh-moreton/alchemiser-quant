@@ -124,7 +124,8 @@ class KlmVariant128026(BaseKLMVariant):
                     # Select bottom 2 (lowest RSI values)
                     bottom_2 = self.apply_select_bottom_filter(candidates, 2)
                     # Create equal weight allocation (50/50)
-                    allocation = {symbol: 0.5 for symbol, _ in bottom_2}
+                    symbols_for_allocation = [symbol for symbol, _ in bottom_2]
+                    allocation = dict.fromkeys(symbols_for_allocation, 0.5)
                     selected_symbols = [symbol for symbol, _ in bottom_2]
                     result = self.create_klm_decision(
                         allocation,

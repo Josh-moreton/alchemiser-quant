@@ -86,7 +86,7 @@ def _add_truncation_notice(table: Table, truncated_count: int, table_type: str) 
 def _extract_indicators_from_signals(strategy_signals: dict[Any, Any]) -> dict[str, dict[str, Any]]:
     """Extract all indicators from strategy signals."""
     all_indicators: dict[str, dict[str, Any]] = {}
-    for _, data in strategy_signals.items():
+    for data in strategy_signals.values():
         if data.get("indicators"):
             all_indicators.update(data["indicators"])
     return all_indicators

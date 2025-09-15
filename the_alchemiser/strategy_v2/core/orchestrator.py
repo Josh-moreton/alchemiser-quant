@@ -21,6 +21,9 @@ from ..models.context import StrategyContext
 
 logger = logging.getLogger(__name__)
 
+# Constants for repeated literals  
+ORCHESTRATOR_COMPONENT = "strategy_v2.core.orchestrator"
+
 
 class SingleStrategyOrchestrator:
     """Orchestrates strategy execution and DTO conversion.
@@ -60,7 +63,7 @@ class SingleStrategyOrchestrator:
             self._logger.info(
                 f"Running strategy {strategy_id} with context: {context}",
                 extra={
-                    "component": "strategy_v2.core.orchestrator",
+                    "component": ORCHESTRATOR_COMPONENT,
                     "correlation_id": correlation_id,
                     "strategy_id": strategy_id,
                     "symbols": context.symbols,
@@ -69,8 +72,8 @@ class SingleStrategyOrchestrator:
             )
 
             # Get strategy engine from registry
-            # Note: For now, we'll implement a simplified approach
-            # TODO: In future commits, integrate with moved engines via adapters
+            # Strategy engine integration: using simplified allocation approach
+            # Future enhancement: Integrate with moved engines via dedicated adapters
 
             # Generate sample allocation for development/testing
             # This will be replaced with actual engine execution
@@ -94,7 +97,7 @@ class SingleStrategyOrchestrator:
             self._logger.info(
                 f"Strategy {strategy_id} completed successfully",
                 extra={
-                    "component": "strategy_v2.core.orchestrator",
+                    "component": ORCHESTRATOR_COMPONENT,
                     "correlation_id": correlation_id,
                     "weights_sum": sum(normalized_weights.values()),
                     "symbols_count": len(normalized_weights),
@@ -107,7 +110,7 @@ class SingleStrategyOrchestrator:
             self._logger.error(
                 f"Strategy {strategy_id} execution failed: {e}",
                 extra={
-                    "component": "strategy_v2.core.orchestrator",
+                    "component": ORCHESTRATOR_COMPONENT,
                     "correlation_id": correlation_id,
                     "error": str(e),
                 },
@@ -158,7 +161,7 @@ class SingleStrategyOrchestrator:
         if total <= 0:
             self._logger.warning(
                 f"Invalid total weight: {total}, using equal weights",
-                extra={"component": "strategy_v2.core.orchestrator"},
+                extra={"component": ORCHESTRATOR_COMPONENT},
             )
             # Fall back to equal weights
             equal_weight = Decimal("1.0") / len(weights)

@@ -40,6 +40,7 @@ from the_alchemiser.shared.types.exceptions import (
 # Constants for repeated literals
 DECIMAL_ZERO = Decimal("0")
 MIN_TRADE_AMOUNT_USD = Decimal("100")
+MARKET_CLOSED_MESSAGE = "Market closed - no action taken"
 
 
 class TradingOrchestrator:
@@ -372,7 +373,7 @@ class TradingOrchestrator:
 
             # Check market hours
             if not self.check_market_hours():
-                self.logger.info("Market closed - no action taken")
+                self.logger.info(MARKET_CLOSED_MESSAGE)
                 return True  # Not an error, just market closed
 
             # Execute strategy signals with actual trading
@@ -409,12 +410,12 @@ class TradingOrchestrator:
 
             # Check market hours
             if not self.check_market_hours():
-                self.logger.info("Market closed - no action taken")
+                self.logger.info(MARKET_CLOSED_MESSAGE)
                 return {
                     "strategy_signals": {},
                     "consolidated_portfolio": {},
                     "success": True,
-                    "message": "Market closed - no action taken",
+                    "message": MARKET_CLOSED_MESSAGE,
                 }
 
             # Execute strategy signals with actual trading

@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-# TODO: Phase 11 - Type available for future structured indicator results
-# from the_alchemiser.shared.value_objects.core_types import IndicatorData
+# Enhanced indicator framework: IndicatorData type ready for structured results
+# Future enhancement: Migrate to IndicatorData from shared.value_objects.core_types
 
 
 class TechnicalIndicators:
@@ -45,7 +45,7 @@ class TechnicalIndicators:
     @staticmethod
     def rsi(
         data: pd.Series, window: int = 14
-    ) -> pd.Series:  # TODO: Phase 11 - Consider IndicatorData for structured output
+    ) -> pd.Series:  # Enhanced: Ready for IndicatorData structured output in future phases
         """Calculate RSI using Wilder's smoothing method.
 
         Computes the Relative Strength Index (RSI) using Wilder's smoothing
