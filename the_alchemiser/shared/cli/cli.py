@@ -103,7 +103,6 @@ def trade(
         False, "--verbose", "-v", help="Enable verbose output"
     ),
     no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
-    force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
     show_tracking: bool = typer.Option(
         False,
         "--show-tracking",

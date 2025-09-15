@@ -14,7 +14,10 @@ from __future__ import annotations
 
 import logging
 
-from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys, get_twelvedata_api_key
+from the_alchemiser.shared.config.secrets_adapter import (
+    get_alpaca_keys,
+    get_twelvedata_api_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +25,7 @@ logger = logging.getLogger(__name__)
 class SecretsManager:
     """Handles retrieving secrets with simple environment detection."""
 
-    def __init__(self, region_name: str | None = None) -> None:
+    def __init__(self, _region_name: str | None = None) -> None:
         """Initialize the Secrets Manager."""
         # region_name is kept for compatibility
         logger.info("Initialized SecretsManager with simple environment detection")
