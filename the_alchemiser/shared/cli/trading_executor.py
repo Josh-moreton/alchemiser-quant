@@ -421,7 +421,6 @@ class TradingExecutor(BaseCLI):
 
         """
         import json
-        from pathlib import Path
 
         if self.export_tracking_json is None:
             raise ValueError("Export path is None")
