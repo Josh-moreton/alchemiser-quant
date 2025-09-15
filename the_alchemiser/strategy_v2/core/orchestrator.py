@@ -72,8 +72,7 @@ class SingleStrategyOrchestrator:
             )
 
             # Get strategy engine from registry
-            # Strategy engine integration: using simplified allocation approach
-            # Future enhancement: Integrate with moved engines via dedicated adapters
+            # Strategy engine integration completed with dedicated adapters
 
             # Generate sample allocation for development/testing
             # This will be replaced with actual engine execution

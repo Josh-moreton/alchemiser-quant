@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-# Enhanced indicator framework: IndicatorData type ready for structured results
-# Future enhancement: Migrate to IndicatorData from shared.value_objects.core_types
+# Technical indicators framework optimized for strategy-specific use cases
+# Indicators are appropriately located within strategy module as they are strategy-specific
 
 
 class TechnicalIndicators:
