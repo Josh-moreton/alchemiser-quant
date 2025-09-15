@@ -416,7 +416,7 @@ class SmartExecutionStrategy:
                     continue
                     
                 # Get current quote
-                quote = self.get_quote_with_validation(request.symbol)
+                quote = self.get_quote_with_validation(request.symbol, float(request.quantity))
                 if not quote:
                     continue
                     
