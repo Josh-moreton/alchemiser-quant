@@ -195,7 +195,7 @@ class TradingExecutor(BaseCLI):
                     total_value = (
                         execution_result.total_trade_value
                         if hasattr(execution_result, "total_trade_value")
-                        else Decimal("0")
+                        else Decimal(0)
                     )
 
                     summary_content = [
