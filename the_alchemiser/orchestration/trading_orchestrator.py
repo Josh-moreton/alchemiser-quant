@@ -31,6 +31,10 @@ from the_alchemiser.shared.types.exceptions import (
     TradingClientError,
 )
 
+# Constants for repeated literals
+DECIMAL_ZERO = Decimal("0")
+MIN_TRADE_AMOUNT_USD = Decimal("100")
+
 
 class TradingOrchestrator:
     """Orchestrates trading execution workflow."""
@@ -220,7 +224,7 @@ class TradingOrchestrator:
                             orders=[],
                             orders_placed=0,
                             orders_succeeded=0,
-                            total_trade_value=Decimal("0"),
+                            total_trade_value=DECIMAL_ZERO,
                             execution_timestamp=datetime.now(UTC),
                             metadata={"scenario": "no_trades_needed"},
                         )
@@ -271,7 +275,7 @@ class TradingOrchestrator:
                         orders=[],
                         orders_placed=0,
                         orders_succeeded=0,
-                        total_trade_value=Decimal("0"),
+                        total_trade_value=DECIMAL_ZERO,
                         execution_timestamp=datetime.now(UTC),
                         metadata={"error": str(e)},
                     )
@@ -451,71 +455,120 @@ class TradingOrchestrator:
                 self.logger.warning("Missing allocation comparison data")
                 return None
 
-            # Filter for significant trades (> $100)
-            min_trade_amount = Decimal("100")
-            plan_items = []
-            total_trade_value = Decimal("0")
-
-            portfolio_value = account_info.get("portfolio_value", account_info.get("equity", 0))
-            portfolio_value_decimal = Decimal(str(portfolio_value))
-
-            for symbol, delta in deltas.items():
-                # delta is already a Decimal from the DTO
-                if abs(delta) >= min_trade_amount:
-                    # Determine action
-                    action = "BUY" if delta > 0 else "SELL"
-
-                    # Get values directly from DTO (already Decimal)
-                    target_val = target_values.get(symbol, Decimal("0"))
-                    current_val = current_values.get(symbol, Decimal("0"))
-
-                    target_weight = (
-                        target_val / portfolio_value_decimal
-                        if portfolio_value_decimal > 0
-                        else Decimal("0")
-                    )
-                    current_weight = (
-                        current_val / portfolio_value_decimal
-                        if portfolio_value_decimal > 0
-                        else Decimal("0")
-                    )
-
-                    plan_item = RebalancePlanItemDTO(
-                        symbol=symbol,
-                        current_weight=current_weight,
-                        target_weight=target_weight,
-                        weight_diff=target_weight - current_weight,
-                        target_value=target_val,
-                        current_value=current_val,
-                        trade_amount=delta,  # delta is already Decimal
-                        action=action,
-                        priority=1,  # All trades have equal priority for now
-                    )
-                    plan_items.append(plan_item)
-                    total_trade_value += abs(delta)
+            # Calculate portfolio value once
+            portfolio_value_decimal = self._extract_portfolio_value(account_info)
+            # Create plan items for significant trades
+            plan_items, total_trade_value = self._create_plan_items(
+                deltas, target_values, current_values, portfolio_value_decimal
+            )
 
             if not plan_items:
                 self.logger.info("No significant trades needed - all deltas below threshold")
                 return None
 
-            # Create correlation IDs
-            correlation_id = str(uuid.uuid4())
-            plan_id = f"rebalance-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}"
-
-            return RebalancePlanDTO(
-                correlation_id=correlation_id,
-                causation_id=f"trading-orchestrator-{correlation_id}",
-                timestamp=datetime.now(UTC),
-                plan_id=plan_id,
-                items=plan_items,
-                total_portfolio_value=portfolio_value_decimal,
-                total_trade_value=total_trade_value,
-                execution_urgency="NORMAL",
+            # Create final rebalance plan
+            return self._build_rebalance_plan_dto(
+                plan_items, total_trade_value, portfolio_value_decimal
             )
 
         except Exception as e:
             self.logger.error(f"Failed to create rebalance plan: {e}")
             return None
+
+    def _extract_portfolio_value(self, account_info: dict[str, Any]) -> Decimal:
+        """Extract portfolio value from account info."""
+        portfolio_value = account_info.get("portfolio_value", account_info.get("equity", 0))
+        return Decimal(str(portfolio_value))
+
+    def _create_plan_items(
+        self,
+        deltas: dict[str, Decimal],
+        target_values: dict[str, Decimal],
+        current_values: dict[str, Decimal],
+        portfolio_value_decimal: Decimal,
+    ) -> tuple[list[RebalancePlanItemDTO], Decimal]:
+        """Create plan items for symbols with significant deltas."""
+        plan_items = []
+        total_trade_value = DECIMAL_ZERO
+
+        for symbol, delta in deltas.items():
+            # Only include trades above minimum threshold
+            if abs(delta) >= MIN_TRADE_AMOUNT_USD:
+                plan_item = self._create_single_plan_item(
+                    symbol, delta, target_values, current_values, portfolio_value_decimal
+                )
+                plan_items.append(plan_item)
+                total_trade_value += abs(delta)
+
+        return plan_items, total_trade_value
+
+    def _create_single_plan_item(
+        self,
+        symbol: str,
+        delta: Decimal,
+        target_values: dict[str, Decimal],
+        current_values: dict[str, Decimal],
+        portfolio_value_decimal: Decimal,
+    ) -> RebalancePlanItemDTO:
+        """Create a single rebalance plan item."""
+        # Determine trade action
+        action = "BUY" if delta > 0 else "SELL"
+
+        # Get values directly from DTO (already Decimal)
+        target_val = target_values.get(symbol, DECIMAL_ZERO)
+        current_val = current_values.get(symbol, DECIMAL_ZERO)
+
+        # Calculate weights
+        target_weight, current_weight = self._calculate_weights(
+            target_val, current_val, portfolio_value_decimal
+        )
+
+        return RebalancePlanItemDTO(
+            symbol=symbol,
+            current_weight=current_weight,
+            target_weight=target_weight,
+            weight_diff=target_weight - current_weight,
+            target_value=target_val,
+            current_value=current_val,
+            trade_amount=delta,  # delta is already Decimal
+            action=action,
+            priority=1,  # All trades have equal priority for now
+        )
+
+    def _calculate_weights(
+        self, target_val: Decimal, current_val: Decimal, portfolio_value_decimal: Decimal
+    ) -> tuple[Decimal, Decimal]:
+        """Calculate target and current weights safely."""
+        if portfolio_value_decimal > 0:
+            target_weight = target_val / portfolio_value_decimal
+            current_weight = current_val / portfolio_value_decimal
+        else:
+            target_weight = DECIMAL_ZERO
+            current_weight = DECIMAL_ZERO
+        
+        return target_weight, current_weight
+
+    def _build_rebalance_plan_dto(
+        self,
+        plan_items: list[RebalancePlanItemDTO],
+        total_trade_value: Decimal,
+        portfolio_value_decimal: Decimal,
+    ) -> RebalancePlanDTO:
+        """Build the final RebalancePlanDTO."""
+        # Create correlation IDs
+        correlation_id = str(uuid.uuid4())
+        plan_id = f"rebalance-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}"
+
+        return RebalancePlanDTO(
+            correlation_id=correlation_id,
+            causation_id=f"trading-orchestrator-{correlation_id}",
+            timestamp=datetime.now(UTC),
+            plan_id=plan_id,
+            items=plan_items,
+            total_portfolio_value=portfolio_value_decimal,
+            total_trade_value=total_trade_value,
+            execution_urgency="NORMAL",
+        )
 
     def _convert_execution_result_to_orders(
         self, execution_result: ExecutionResultDTO
@@ -621,13 +674,13 @@ class TradingOrchestrator:
             if success and execution_result:
                 minimal_metrics = PortfolioMetricsDTO(
                     total_value=execution_result.total_trade_value,
-                    cash_value=Decimal("0"),
+                    cash_value=DECIMAL_ZERO,
                     equity_value=execution_result.total_trade_value,
-                    buying_power=Decimal("0"),
-                    day_pnl=Decimal("0"),
-                    day_pnl_percent=Decimal("0"),
-                    total_pnl=Decimal("0"),
-                    total_pnl_percent=Decimal("0"),
+                    buying_power=DECIMAL_ZERO,
+                    day_pnl=DECIMAL_ZERO,
+                    day_pnl_percent=DECIMAL_ZERO,
+                    total_pnl=DECIMAL_ZERO,
+                    total_pnl_percent=DECIMAL_ZERO,
                 )
 
                 portfolio_state_after = PortfolioStateDTO(
