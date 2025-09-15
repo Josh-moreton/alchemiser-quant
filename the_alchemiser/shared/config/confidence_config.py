@@ -4,7 +4,7 @@ Confidence calculation configuration for strategy engines.
 Centralizes all confidence parameters for strategy weighting.
 
 NOTE: Confidence is ONLY used for weighting between strategies during conflict resolution.
-Strategy signals are concrete and preserved intact. High confidence strategies get up to 
+Strategy signals are concrete and preserved intact. High confidence strategies get up to
 10% additional weighting vs low confidence strategies for gentle weighting adjustments.
 """
 
