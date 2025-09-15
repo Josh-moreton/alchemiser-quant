@@ -32,6 +32,10 @@
     "python.testing.unittestEnabled": false,
     // Type Checking
     "python.analysis.typeCheckingMode": "basic",
+    "python.defaultInterpreterPath": "./.venv/bin/python",
+    "mypy-type-checker.interpreter": [
+        "./.venv/bin/python"
+    ],
     // Disable Extensions Not Needed for This Project
     "prisma.showPrismaDataPlatformNotification": false,
     "prisma.prismaSchemaPath": "",
