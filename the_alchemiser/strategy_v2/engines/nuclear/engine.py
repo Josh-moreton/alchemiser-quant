@@ -544,40 +544,71 @@ class NuclearEngine(StrategyEngine):
             return None
 
     def _choose_bear1_asset(self, indicators: dict[str, Any]) -> str:
-        psq_rsi10 = self._get(indicators, "PSQ", "rsi_10")
-        if psq_rsi10 is not None and psq_rsi10 < 35.0:
+        """Choose the first bear market asset based on market conditions."""
+        # Early exit for PSQ oversold condition
+        if self._is_psq_oversold(indicators):
             return "SQQQ"
+        
+        # Check QQQ decline condition
+        if self._is_qqq_declined(indicators):
+            return self._choose_asset_for_qqq_decline(indicators)
+        
+        # Check TQQQ above MA condition
+        if self._is_tqqq_above_ma(indicators):
+            return self._choose_asset_for_tqqq_strength(indicators)
+        
+        # Final comparison checks
+        return self._choose_final_bear_asset(indicators)
+
+    def _is_psq_oversold(self, indicators: dict[str, Any]) -> bool:
+        """Check if PSQ is oversold (RSI < 35)."""
+        psq_rsi10 = self._get(indicators, "PSQ", "rsi_10")
+        return psq_rsi10 is not None and psq_rsi10 < 35.0
+
+    def _is_qqq_declined(self, indicators: dict[str, Any]) -> bool:
+        """Check if QQQ has declined significantly (60-day return < -10%)."""
         qqq_cr60 = self._get(indicators, "QQQ", "cum_return_60")
-        if qqq_cr60 is not None and qqq_cr60 < -10.0:
-            tlt_rsi20 = self._get(indicators, "TLT", "rsi_20")
-            psq_rsi20 = self._get(indicators, "PSQ", "rsi_20")
-            if (
-                tlt_rsi20 is not None
-                and psq_rsi20 is not None
-                and tlt_rsi20 > psq_rsi20
-            ):
-                return "TQQQ"
-            return "PSQ"
+        return qqq_cr60 is not None and qqq_cr60 < -10.0
+
+    def _is_tqqq_above_ma(self, indicators: dict[str, Any]) -> bool:
+        """Check if TQQQ is above its 20-day moving average."""
         tqqq_price = self._get(indicators, "TQQQ", "current_price")
         tqqq_ma20 = self._get(indicators, "TQQQ", "ma_20")
-        if tqqq_price is not None and tqqq_ma20 is not None and tqqq_price > tqqq_ma20:
-            tlt_rsi20 = self._get(indicators, "TLT", "rsi_20")
-            psq_rsi20 = self._get(indicators, "PSQ", "rsi_20")
-            if (
-                tlt_rsi20 is not None
-                and psq_rsi20 is not None
-                and tlt_rsi20 > psq_rsi20
-            ):
-                return "TQQQ"
-            return "SQQQ"
+        return (tqqq_price is not None and tqqq_ma20 is not None 
+                and tqqq_price > tqqq_ma20)
+
+    def _choose_asset_for_qqq_decline(self, indicators: dict[str, Any]) -> str:
+        """Choose asset when QQQ has declined significantly."""
+        if self._tlt_stronger_than_psq(indicators):
+            return "TQQQ"
+        return "PSQ"
+
+    def _choose_asset_for_tqqq_strength(self, indicators: dict[str, Any]) -> str:
+        """Choose asset when TQQQ is above MA."""
+        if self._tlt_stronger_than_psq(indicators):
+            return "TQQQ"
+        return "SQQQ"
+
+    def _choose_final_bear_asset(self, indicators: dict[str, Any]) -> str:
+        """Final asset selection logic."""
         ief_rsi10 = self._get(indicators, "IEF", "rsi_10")
         psq_rsi20 = self._get(indicators, "PSQ", "rsi_20")
-        if ief_rsi10 is not None and psq_rsi20 is not None and ief_rsi10 > psq_rsi20:
+        
+        if (ief_rsi10 is not None and psq_rsi20 is not None 
+            and ief_rsi10 > psq_rsi20):
             return "SQQQ"
-        tlt_rsi20 = self._get(indicators, "TLT", "rsi_20")
-        if tlt_rsi20 is not None and psq_rsi20 is not None and tlt_rsi20 > psq_rsi20:
+        
+        if self._tlt_stronger_than_psq(indicators):
             return "QQQ"
+        
         return "SQQQ"
+
+    def _tlt_stronger_than_psq(self, indicators: dict[str, Any]) -> bool:
+        """Check if TLT RSI is stronger than PSQ RSI."""
+        tlt_rsi20 = self._get(indicators, "TLT", "rsi_20")
+        psq_rsi20 = self._get(indicators, "PSQ", "rsi_20")
+        return (tlt_rsi20 is not None and psq_rsi20 is not None 
+                and tlt_rsi20 > psq_rsi20)
 
     def _choose_bear2_asset(self, indicators: dict[str, Any]) -> str:
         psq_rsi10 = self._get(indicators, "PSQ", "rsi_10")

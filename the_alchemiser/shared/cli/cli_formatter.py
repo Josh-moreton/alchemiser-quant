@@ -922,11 +922,17 @@ def render_enriched_order_summaries(
         status = str(s.get("status", "")).upper()
         created = str(s.get("created_at", ""))
 
-        status_color = (
-            "green"
-            if status == "FILLED"
-            else ("yellow" if status in {"NEW", "PARTIALLY_FILLED"} else "red")
-        )
+        # Determine status color based on order state
+        def _get_status_color(order_status: str) -> str:
+            """Get color for order status display."""
+            if order_status == "FILLED":
+                return "green"
+            elif order_status in {"NEW", "PARTIALLY_FILLED"}:
+                return "yellow"
+            else:
+                return "red"
+        
+        status_color = _get_status_color(status)
 
         table.add_row(
             short_id,
