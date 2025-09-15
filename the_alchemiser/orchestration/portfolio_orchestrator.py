@@ -39,6 +39,7 @@ class PortfolioOrchestrator:
     """Orchestrates portfolio rebalancing workflow."""
 
     def __init__(self, settings: Settings, container: ApplicationContainer) -> None:
+        """Initialize orchestrator with settings and DI container."""
         self.settings = settings
         self.container = container
         self.logger = get_logger(__name__)

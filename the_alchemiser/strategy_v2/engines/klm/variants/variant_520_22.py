@@ -29,6 +29,7 @@ class KlmVariant52022(BaseKLMVariant):
     """
 
     def __init__(self) -> None:
+        """Initialize the 520/22 KLM strategy variant."""
         super().__init__(
             name="520/22",
             description="KMLM (23) - Original baseline with TECL/SVIX switcher",

@@ -24,6 +24,7 @@ class AggregatedSignals:
     """Aggregated strategy signals with conflict resolution."""
 
     def __init__(self) -> None:
+        """Initialize containers for per-strategy and consolidated signals."""
         self.signals_by_strategy: dict[StrategyType, list[StrategySignal]] = {}
         self.consolidated_signals: list[StrategySignal] = []
         self.conflicts: list[dict[str, Any]] = []

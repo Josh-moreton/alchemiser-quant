@@ -33,6 +33,7 @@ class KlmVariant128026(BaseKLMVariant):
     """
 
     def __init__(self) -> None:
+        """Initialize 1280/26 variant with name and description."""
         super().__init__(
             name="1280/26", description="KMLM (50) - Direct to Combined Pop Bot variant"
         )
@@ -98,7 +99,9 @@ class KlmVariant128026(BaseKLMVariant):
         # No oversold conditions - proceed to KMLM Switcher
         return self.evaluate_core_kmlm_switcher(indicators)
 
-    def evaluate_core_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def evaluate_core_kmlm_switcher(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> KLMDecision:
         """Core KMLM switcher for variant 1280/26.
 
         select-bottom 2 from TECL/SOXL/SVIX (NOT FNGU) creates equal-weight allocation.
@@ -143,7 +146,9 @@ class KlmVariant128026(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator
         return self._evaluate_ls_rotator_1280(indicators)
 
-    def _evaluate_ls_rotator_1280(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def _evaluate_ls_rotator_1280(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> KLMDecision:
         """1280/26 L/S Rotator - uses SQQQ/TLT select-top 1."""
         candidates = []
         for symbol in ["SQQQ", "TLT"]:
