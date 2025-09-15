@@ -1,4 +1,4 @@
-"""Business Unit: shared | Status: current
+"""Business Unit: shared | Status: current.
 
 Strategy engine protocol definition.
 
@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Protocol, runtime_checkable
 
 from .market_data_port import MarketDataPort
+from .strategy_value_objects import StrategySignal
 
 
 @runtime_checkable
@@ -21,7 +22,7 @@ class StrategyEngine(Protocol):
         """Initialize strategy engine with market data port."""
         ...
 
-    def generate_signals(self, timestamp: datetime) -> list:
+    def generate_signals(self, timestamp: datetime) -> list[StrategySignal]:
         """Generate strategy signals for the given timestamp.
 
         Args:
@@ -33,7 +34,7 @@ class StrategyEngine(Protocol):
         """
         ...
 
-    def validate_signals(self, signals: list) -> None:
+    def validate_signals(self, signals: list[StrategySignal]) -> None:
         """Validate generated signals.
 
         Args:
