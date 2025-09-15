@@ -314,15 +314,16 @@ class MultiStrategyOrchestrator:
         """
         self.logger.info(f"Resolving conflict for {symbol} with {len(strategy_signals)} signals")
 
-        # Filter signals that meet minimum confidence thresholds
-        valid_signals = self._filter_by_confidence_thresholds(strategy_signals)
+        # Use ALL signals - no confidence threshold filtering
+        # Strategy signals are concrete and should not be filtered by confidence
+        valid_signals = strategy_signals
 
         if not valid_signals:
-            self.logger.warning(f"No signals for {symbol} meet minimum confidence thresholds")
+            self.logger.warning(f"No signals provided for {symbol}")
             return None
 
         if len(valid_signals) == 1:
-            # Only one signal meets thresholds
+            # Only one signal - use it directly
             _, signal = valid_signals[0]
             return signal
 
@@ -340,24 +341,7 @@ class MultiStrategyOrchestrator:
         # Strategies disagree - use highest weighted confidence with tie-breaking
         return self._select_highest_confidence_signal(symbol, valid_signals)
 
-    def _filter_by_confidence_thresholds(
-        self, strategy_signals: list[tuple[StrategyType, StrategySignal]]
-    ) -> list[tuple[StrategyType, StrategySignal]]:
-        """Filter signals that meet minimum confidence thresholds for their action."""
-        thresholds = self.confidence_config.aggregation.thresholds
-        valid_signals = []
 
-        for strategy_type, signal in strategy_signals:
-            min_threshold = thresholds.get_threshold(signal.action)
-            if signal.confidence.value >= min_threshold:
-                valid_signals.append((strategy_type, signal))
-            else:
-                self.logger.debug(
-                    f"Signal {strategy_type.value}:{signal.symbol.value}:{signal.action} "
-                    f"confidence {signal.confidence.value:.2f} below threshold {min_threshold:.2f}"
-                )
-
-        return valid_signals
 
     def _combine_agreeing_signals(
         self, symbol: str, strategy_signals: list[tuple[StrategyType, StrategySignal]]

@@ -2,6 +2,10 @@
 
 Confidence calculation configuration for strategy engines.
 Centralizes all confidence parameters, thresholds, and mappings.
+
+NOTE: Confidence thresholds for signal filtering have been DEPRECATED.
+Strategy signals are concrete and should not be filtered by confidence.
+Confidence is now ONLY used for weighting between strategies during conflict resolution.
 """
 
 from __future__ import annotations
@@ -13,22 +17,23 @@ from typing import ClassVar
 
 @dataclass(frozen=True)
 class ConfidenceThresholds:
-    """Minimum confidence thresholds for actions to participate in aggregation."""
+    """DEPRECATED: Minimum confidence thresholds - no longer used for filtering.
+    
+    Strategy signals are concrete and should not be filtered by confidence.
+    Confidence is only used for weighting between strategies.
+    Kept for backward compatibility only.
+    """
 
-    buy_min: Decimal = Decimal("0.55")
-    sell_min: Decimal = Decimal("0.55")
-    hold_min: Decimal = Decimal("0.35")
+    buy_min: Decimal = Decimal("0.00")  # No filtering
+    sell_min: Decimal = Decimal("0.00")  # No filtering
+    hold_min: Decimal = Decimal("0.00")  # No filtering
 
     def get_threshold(self, action: str) -> Decimal:
-        """Get minimum confidence threshold for an action."""
-        action_upper = action.upper()
-        if action_upper == "BUY":
-            return self.buy_min
-        if action_upper == "SELL":
-            return self.sell_min
-        if action_upper == "HOLD":
-            return self.hold_min
-        return Decimal("0.50")  # Default for unknown actions
+        """DEPRECATED: Get minimum confidence threshold for an action.
+        
+        Always returns 0.00 since filtering is disabled.
+        """
+        return Decimal("0.00")  # No filtering - all signals are valid
 
 
 @dataclass(frozen=True)
@@ -96,16 +101,20 @@ class KLMConfidenceConfig:
 
 @dataclass(frozen=True)
 class AggregationConfig:
-    """Configuration for signal aggregation and conflict resolution."""
+    """Configuration for signal aggregation and conflict resolution.
+    
+    Note: Confidence thresholds are deprecated. All strategy signals are preserved
+    and confidence is only used for weighting between strategies.
+    """
 
-    # Confidence thresholds
+    # DEPRECATED: Confidence thresholds (kept for backward compatibility)
     thresholds: ConfidenceThresholds = ConfidenceThresholds()
 
     # Tie-breaking priority order (first = highest priority)
     strategy_priority: ClassVar[list[str]] = ["NUCLEAR", "TECL", "KLM"]
 
-    # Minimum confidence to win a conflict
-    min_winning_confidence: Decimal = Decimal("0.50")
+    # Minimum confidence to win a conflict (deprecated, not used)
+    min_winning_confidence: Decimal = Decimal("0.00")
 
     # Whether to blend allocations when strategies agree (conservative: False)
     blend_agreeing_allocations: bool = False
