@@ -250,7 +250,7 @@ class NuclearEngine(StrategyEngine):
 
         return StrategySignal(
             symbol=Symbol(signal_symbol),
-            action=action,  # type: ignore  # Already validated by strategy logic
+            action=action,
             confidence=confidence,
             target_allocation=Percentage(Decimal(str(allocation_value))),
             reasoning=reasoning,
