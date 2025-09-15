@@ -110,30 +110,50 @@ class StrategyAllocationDTO(BaseModel):
             ValueError: If data is invalid or cannot be converted
 
         """
-        # Convert string weights to Decimal
-        if "target_weights" in data:
-            weights_data = data["target_weights"]
-            if isinstance(weights_data, dict):
-                converted_weights = {}
-                for symbol, weight in weights_data.items():
-                    if isinstance(weight, str):
-                        try:
-                            converted_weights[symbol] = Decimal(weight)
-                        except (ValueError, TypeError) as e:
-                            raise ValueError(f"Invalid weight value for {symbol}: {weight}") from e
-                    else:
-                        converted_weights[symbol] = Decimal(str(weight))
-                data["target_weights"] = converted_weights
+        converted_data = data.copy()
+        
+        # Convert target weights
+        if "target_weights" in converted_data:
+            converted_data["target_weights"] = cls._convert_target_weights(
+                converted_data["target_weights"]
+            )
+        
+        # Convert portfolio value
+        if "portfolio_value" in converted_data:
+            converted_data["portfolio_value"] = cls._convert_portfolio_value(
+                converted_data["portfolio_value"]
+            )
 
-        # Convert portfolio_value to Decimal if needed
-        if (
-            "portfolio_value" in data
-            and data["portfolio_value"] is not None
-            and isinstance(data["portfolio_value"], str)
-        ):
+        return cls(**converted_data)
+
+    @classmethod
+    def _convert_target_weights(cls, weights_data: Any) -> dict[str, Decimal]:
+        """Convert target weights to Decimal format."""
+        if not isinstance(weights_data, dict):
+            return weights_data
+        
+        converted_weights = {}
+        for symbol, weight in weights_data.items():
             try:
-                data["portfolio_value"] = Decimal(data["portfolio_value"])
+                if isinstance(weight, str):
+                    converted_weights[symbol] = Decimal(weight)
+                else:
+                    converted_weights[symbol] = Decimal(str(weight))
             except (ValueError, TypeError) as e:
-                raise ValueError(f"Invalid portfolio_value: {data['portfolio_value']}") from e
+                raise ValueError(f"Invalid weight value for {symbol}: {weight}") from e
+        
+        return converted_weights
 
-        return cls(**data)
+    @classmethod
+    def _convert_portfolio_value(cls, portfolio_value: Any) -> Decimal | None:
+        """Convert portfolio value to Decimal if needed."""
+        if portfolio_value is None:
+            return None
+        
+        if not isinstance(portfolio_value, str):
+            return portfolio_value
+        
+        try:
+            return Decimal(portfolio_value)
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid portfolio_value: {portfolio_value}") from e

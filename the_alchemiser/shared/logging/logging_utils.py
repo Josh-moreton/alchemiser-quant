@@ -472,7 +472,6 @@ def log_data_transfer_checkpoint(
     stage: str,
     data: dict[str, object] | None,
     context: str = "",
-    **additional_fields: object,
 ) -> None:
     """Log a data transfer checkpoint with integrity validation.
 
@@ -484,7 +483,6 @@ def log_data_transfer_checkpoint(
         stage: Name of the pipeline stage (e.g., "ExecutionManager→Engine")
         data: The data being transferred (typically portfolio allocation dict)
         context: Additional context description
-        **additional_fields: Additional fields to log
 
     """
     if data is None:

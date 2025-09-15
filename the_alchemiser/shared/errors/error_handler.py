@@ -624,13 +624,6 @@ class TradingSystemErrorHandler:
                     additional_context = {}
                 additional_context["raw_order_id"] = order_id
 
-        # Add trading context to help with classification
-        context_with_trading = {
-            "trading_context": True,
-            "order_related": True,
-            **(additional_context or {}),
-        }
-
         # Use the domain error classifier
         error_classification = classify_exception(error)
 

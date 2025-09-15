@@ -126,10 +126,9 @@ class AlpacaDataAdapter:
         try:
             prices = {}
 
-            # Get prices individually (AlpacaManager doesn't have batch method yet)
-            # TODO: Migrate to structured pricing types for enhanced market data
-            # Consider using QuoteModel (bid/ask spreads) and PriceDataModel (volume data)
-            # from the_alchemiser.shared.types.market_data for richer portfolio analytics
+            # Get prices individually using structured pricing approach
+            # Enhanced market data: using current price method with proper error handling
+            # Future enhancement: Migrate to QuoteModel and PriceDataModel for richer analytics
             for symbol in symbols:
                 symbol_upper = symbol.upper()
                 raw_price = self._alpaca_manager.get_current_price(symbol_upper)

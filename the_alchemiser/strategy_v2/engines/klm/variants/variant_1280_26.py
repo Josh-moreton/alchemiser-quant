@@ -108,44 +108,67 @@ class KlmVariant128026(BaseKLMVariant):
         Select bottom 2 from TECL/SOXL/SVIX (NOT FNGU) to create an equal-weight allocation.
         CLJ lines 331-350: When XLK > KMLM → select bottom 2 from [TECL, SOXL, SVIX].
         """
-        if "XLK" in indicators and "KMLM" in indicators:
-            xlk_rsi = indicators["XLK"]["rsi_10"]
-            kmlm_rsi = indicators["KMLM"]["rsi_10"]
-
-            if xlk_rsi > kmlm_rsi:
-                # select-bottom 2 from TECL, SOXL, SVIX
-                candidates = []
-                for symbol in ["TECL", "SOXL", "SVIX"]:
-                    if symbol in indicators:
-                        rsi = indicators[symbol]["rsi_10"]
-                        candidates.append((symbol, rsi))
-
-                if len(candidates) >= 2:
-                    # Select bottom 2 (lowest RSI values)
-                    bottom_2 = self.apply_select_bottom_filter(candidates, 2)
-                    # Create equal weight allocation (50/50)
-                    allocation = {symbol: 0.5 for symbol, _ in bottom_2}
-                    selected_symbols = [symbol for symbol, _ in bottom_2]
-                    result = self.create_klm_decision(
-                        allocation,
-                        ActionType.BUY.value,
-                        f"1280/26 KMLM Switcher: {', '.join(selected_symbols)} (bottom 2 RSI)",
-                    )
-                    self.log_klm_decision(result)
-                    return result
-                if candidates:
-                    # Only one candidate available, use it
-                    selected_symbol = candidates[0][0]
-                    result = self.create_klm_decision(
-                        selected_symbol,
-                        ActionType.BUY.value,
-                        f"1280/26 KMLM Switcher: {selected_symbol} (only candidate)",
-                    )
-                    self.log_klm_decision(result)
-                    return result
-
+        if self._should_use_kmlm_switcher(indicators):
+            return self._execute_kmlm_switcher_logic(indicators)
+        
         # XLK <= KMLM → L/S Rotator
         return self._evaluate_ls_rotator_1280(indicators)
+
+    def _should_use_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> bool:
+        """Check if XLK > KMLM condition is met for switcher logic."""
+        if "XLK" not in indicators or "KMLM" not in indicators:
+            return False
+        
+        xlk_rsi = indicators["XLK"]["rsi_10"]
+        kmlm_rsi = indicators["KMLM"]["rsi_10"]
+        return xlk_rsi > kmlm_rsi
+
+    def _execute_kmlm_switcher_logic(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+        """Execute the KMLM switcher selection logic."""
+        candidates = self._get_switcher_candidates(indicators)
+        
+        if len(candidates) >= 2:
+            return self._create_dual_allocation_decision(candidates)
+        elif candidates:
+            return self._create_single_allocation_decision(candidates[0])
+        else:
+            # Fallback to L/S Rotator if no candidates
+            return self._evaluate_ls_rotator_1280(indicators)
+
+    def _get_switcher_candidates(self, indicators: dict[str, dict[str, float]]) -> list[tuple[str, float]]:
+        """Get RSI candidates for switcher selection from TECL, SOXL, SVIX."""
+        candidates = []
+        for symbol in ["TECL", "SOXL", "SVIX"]:
+            if symbol in indicators:
+                rsi = indicators[symbol]["rsi_10"]
+                candidates.append((symbol, rsi))
+        return candidates
+
+    def _create_dual_allocation_decision(self, candidates: list[tuple[str, float]]) -> KLMDecision:
+        """Create decision for dual allocation (bottom 2 RSI)."""
+        bottom_2 = self.apply_select_bottom_filter(candidates, 2)
+        symbols_for_allocation = [symbol for symbol, _ in bottom_2]
+        allocation = dict.fromkeys(symbols_for_allocation, 0.5)
+        selected_symbols = [symbol for symbol, _ in bottom_2]
+        
+        result = self.create_klm_decision(
+            allocation,
+            ActionType.BUY.value,
+            f"1280/26 KMLM Switcher: {', '.join(selected_symbols)} (bottom 2 RSI)",
+        )
+        self.log_klm_decision(result)
+        return result
+
+    def _create_single_allocation_decision(self, candidate: tuple[str, float]) -> KLMDecision:
+        """Create decision for single allocation when only one candidate."""
+        selected_symbol = candidate[0]
+        result = self.create_klm_decision(
+            selected_symbol,
+            ActionType.BUY.value,
+            f"1280/26 KMLM Switcher: {selected_symbol} (only candidate)",
+        )
+        self.log_klm_decision(result)
+        return result
 
     def _evaluate_ls_rotator_1280(
         self, indicators: dict[str, dict[str, float]]

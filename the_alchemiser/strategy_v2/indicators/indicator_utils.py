@@ -38,59 +38,73 @@ def safe_get_indicator(
                error occurs or no valid data is found.
 
     """
-    try:
-        # Accept DataFrame inputs by extracting Close series when present
-        series: pd.Series
-        if isinstance(data, pd.DataFrame):
-            if "Close" in data.columns:
-                series = data["Close"]
-            else:
-                # Use the first numeric column as a fallback
-                numeric_cols = data.select_dtypes(include=["number"]).columns
-                series = data[numeric_cols[0]] if len(numeric_cols) > 0 else pd.Series(dtype=float)
-        else:
-            series = data
+    
+    def _extract_series_from_data(input_data: pd.Series | pd.DataFrame) -> pd.Series:
+        """Extract a pandas Series from the input data."""
+        if isinstance(input_data, pd.DataFrame):
+            if "Close" in input_data.columns:
+                return input_data["Close"]
+            # Use the first numeric column as a fallback
+            numeric_cols = input_data.select_dtypes(include=["number"]).columns
+            return input_data[numeric_cols[0]] if len(numeric_cols) > 0 else pd.Series(dtype=float)
+        return input_data
 
-        if series.empty:
-            logging.debug(
-                f"Insufficient data for indicator {indicator_func.__name__} (empty series)"
-            )
-            return 50.0
+    def _get_last_valid_value(result_series: pd.Series) -> float | None:
+        """Get the last valid (non-NaN) value from a series."""
+        if len(result_series) == 0:
+            return None
+        
+        last_value = result_series.iloc[-1]
+        if not pd.isna(last_value):
+            return float(last_value)
+        
+        # Find the last non-NaN value
+        valid_values = result_series.dropna()
+        if len(valid_values) > 0:
+            return float(valid_values.iloc[-1])
+        
+        return None
 
-        result = indicator_func(series, *args, **kwargs)
-        if hasattr(result, "iloc") and len(result) > 0:
-            value = result.iloc[-1]
-            # Check if value is NaN - if so, try to find the last valid value
-            if pd.isna(value):
-                # Find the last non-NaN value
-                valid_values = result.dropna()
-                if len(valid_values) > 0:
-                    value = valid_values.iloc[-1]
-                else:
-                    # Debug level for insufficient data - this is expected with limited historical data
-                    tail_repr = series.tail(1) if hasattr(series, "tail") else series
-                    logging.debug(
-                        f"No valid values for indicator {indicator_func.__name__} on data: {tail_repr}"
-                    )
-                    return 50.0  # Fallback only if no valid values
-            return float(value)
-        # Check if it's due to insufficient data (common with recent dates)
+    def _log_insufficient_data(func_name: str, series: pd.Series) -> None:
+        """Log insufficient data conditions."""
         if len(series) < 2:
-            logging.debug(
-                f"Insufficient data for indicator {indicator_func.__name__} (only {len(series)} points)"
-            )
+            logging.debug(f"Insufficient data for indicator {func_name} (only {len(series)} points)")
         else:
             tail_repr = series.tail(1) if hasattr(series, "tail") else series
-            logging.warning(
-                f"Indicator {indicator_func.__name__} returned no results for data: {tail_repr}"
-            )
-        return 50.0
-    except Exception as e:
+            logging.warning(f"Indicator {func_name} returned no results for data: {tail_repr}")
+
+    def _get_data_repr(input_data: pd.Series | pd.DataFrame) -> Any:
+        """Get a safe representation of data for logging."""
         try:
-            tail_repr = data.tail(1) if hasattr(data, "tail") else data
+            return input_data.tail(1) if hasattr(input_data, "tail") else input_data
         except Exception:
-            tail_repr = data
-        logging.error(
-            f"Exception in safe_get_indicator for {indicator_func.__name__}: {e}\nData: {tail_repr}"
-        )
-        return 50.0
+            return input_data
+
+    FALLBACK_VALUE = 50.0
+    
+    try:
+        series = _extract_series_from_data(data)
+        
+        if series.empty:
+            logging.debug(f"Insufficient data for indicator {indicator_func.__name__} (empty series)")
+            return FALLBACK_VALUE
+
+        result = indicator_func(series, *args, **kwargs)
+        
+        if not hasattr(result, "iloc") or len(result) == 0:
+            _log_insufficient_data(indicator_func.__name__, series)
+            return FALLBACK_VALUE
+        
+        last_valid = _get_last_valid_value(result)
+        if last_valid is not None:
+            return last_valid
+        
+        # No valid values found
+        tail_repr = series.tail(1) if hasattr(series, "tail") else series
+        logging.debug(f"No valid values for indicator {indicator_func.__name__} on data: {tail_repr}")
+        return FALLBACK_VALUE
+
+    except Exception as e:
+        data_repr = _get_data_repr(data)
+        logging.error(f"Exception in safe_get_indicator for {indicator_func.__name__}: {e}\nData: {data_repr}")
+        return FALLBACK_VALUE
