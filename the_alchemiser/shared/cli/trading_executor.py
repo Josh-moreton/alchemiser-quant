@@ -292,10 +292,10 @@ class TradingExecutor(BaseCLI):
         self, tracker: StrategyOrderTrackerProtocol
     ) -> list[dict[str, Any]]:
         """Collect tracking data for all strategies.
-        
+
         Args:
             tracker: Strategy order tracker instance
-            
+
         Returns:
             List of strategy tracking data dictionaries
 
@@ -317,17 +317,17 @@ class TradingExecutor(BaseCLI):
         self, tracker: StrategyOrderTrackerProtocol, strategy_name: str
     ) -> dict[str, Any]:
         """Get tracking data for a single strategy.
-        
+
         Args:
             tracker: Strategy order tracker instance
             strategy_name: Name of strategy to get data for
-            
+
         Returns:
             Strategy tracking data dictionary
 
         """
         positions = tracker.get_positions_summary()
-        
+
         if strategy_name.lower() not in [pos.strategy.lower() for pos in positions]:
             return self._create_empty_strategy_data(strategy_name)
 
@@ -336,8 +336,7 @@ class TradingExecutor(BaseCLI):
 
         # Calculate position count
         strategy_positions = [
-            pos for pos in positions
-            if pos.strategy.lower() == strategy_name.lower()
+            pos for pos in positions if pos.strategy.lower() == strategy_name.lower()
         ]
         position_count = len(strategy_positions)
 
@@ -360,11 +359,11 @@ class TradingExecutor(BaseCLI):
         self, pnl_summary: StrategyPnLSummaryProtocol, total_pnl: float
     ) -> float:
         """Calculate return percentage from PnL summary.
-        
+
         Args:
             pnl_summary: PnL summary object
             total_pnl: Total PnL value
-            
+
         Returns:
             Return percentage
 
@@ -375,10 +374,10 @@ class TradingExecutor(BaseCLI):
 
     def _create_empty_strategy_data(self, strategy_name: str) -> dict[str, Any]:
         """Create empty data structure for strategy with no positions.
-        
+
         Args:
             strategy_name: Name of strategy
-            
+
         Returns:
             Empty strategy data dictionary
 
@@ -394,11 +393,11 @@ class TradingExecutor(BaseCLI):
 
     def _create_error_strategy_data(self, strategy_name: str, error: Exception) -> dict[str, Any]:
         """Create error data structure for failed strategy data collection.
-        
+
         Args:
             strategy_name: Name of strategy
             error: Exception that occurred
-            
+
         Returns:
             Error strategy data dictionary
 
@@ -409,7 +408,7 @@ class TradingExecutor(BaseCLI):
 
     def _write_tracking_export(self, summary_data: list[dict[str, Any]]) -> None:
         """Write tracking summary to JSON file.
-        
+
         Args:
             summary_data: List of strategy tracking data
 
@@ -436,20 +435,21 @@ class TradingExecutor(BaseCLI):
 
     def _display_export_success(self, output_path: Path) -> None:
         """Display success message for export.
-        
+
         Args:
             output_path: Path where file was exported
 
         """
         try:
             from rich.console import Console
+
             Console().print(f"[dim]📄 Tracking summary exported to {output_path}[/dim]")
         except ImportError:
             pass
 
     def _handle_export_error(self, error: Exception) -> None:
         """Handle export error with logging and display.
-        
+
         Args:
             error: Exception that occurred during export
 
@@ -457,6 +457,7 @@ class TradingExecutor(BaseCLI):
         self.logger.error(f"Failed to export tracking summary: {error}")
         try:
             from rich.console import Console
+
             Console().print(
                 f"[bold red]Failed to export tracking summary to "
                 f"{self.export_tracking_json}: {error}[/bold red]"

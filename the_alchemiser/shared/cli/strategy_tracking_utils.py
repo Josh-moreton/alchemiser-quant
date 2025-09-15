@@ -27,19 +27,19 @@ BOLD_MAGENTA_STYLE = "bold magenta"
 
 def _get_strategy_order_tracker(*, paper_trading: bool) -> StrategyOrderTrackerProtocol:
     """Dynamically import and create StrategyOrderTracker instance.
-    
+
     Uses dynamic import to avoid mypy missing-stubs warnings while maintaining
     type safety through protocol interfaces.
-    
+
     Args:
         paper_trading: Whether to use paper trading mode
-        
+
     Returns:
         StrategyOrderTracker instance typed via protocol
-        
+
     Raises:
         ImportError: If the tracker module cannot be imported
-        
+
     """
     try:
         # Dynamic import to avoid mypy missing-stubs warnings

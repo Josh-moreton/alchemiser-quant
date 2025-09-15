@@ -545,7 +545,7 @@ class TradingOrchestrator:
         else:
             target_weight = DECIMAL_ZERO
             current_weight = DECIMAL_ZERO
-        
+
         return target_weight, current_weight
 
     def _build_rebalance_plan_dto(
