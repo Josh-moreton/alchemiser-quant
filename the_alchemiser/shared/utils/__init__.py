@@ -1,32 +1,39 @@
 """Utility functions and helpers.
 
-Currently under construction - no logic implemented yet.
+Business Unit: shared | Status: current
+
+Cross-cutting utilities and error handling.
 """
 
 from __future__ import annotations
 
-__all__: list[str] = []
-
-# Import from new locations where files were moved
-from ..types.exceptions import *
-
-# Cross-cutting utilities and error handling
-from .context import ErrorContextData, create_error_context
-from .error_reporter import *
-
-# Portfolio calculation utilities
-from .portfolio_calculations import build_allocation_comparison
-from .price_discovery_utils import (
-    PriceProvider,
-    QuoteProvider,
-    calculate_midpoint_price,
-    get_current_price_as_decimal,
-    get_current_price_from_quote,
-    get_current_price_with_fallback,
+# Core exception types - most commonly used
+from ..types.exceptions import (
+    AlchemiserError,
+    ConfigurationError,
+    DataProviderError,
+    OrderExecutionError,
+    PortfolioError,
+    StrategyExecutionError,
+    TradingClientError,
+    ValidationError,
 )
-from .serialization import ensure_serialized_dict, to_serializable
-from .timezone_utils import (
-    ensure_timezone_aware,
-    normalize_timestamp_to_utc,
-    to_iso_string,
-)
+
+# Error reporting utilities
+from .error_reporter import ErrorReporter, get_error_reporter, report_error_globally
+
+__all__ = [
+    # Core exceptions
+    "AlchemiserError",
+    "ConfigurationError",
+    "DataProviderError",
+    "OrderExecutionError",
+    "PortfolioError", 
+    "StrategyExecutionError",
+    "TradingClientError",
+    "ValidationError",
+    # Error reporting
+    "ErrorReporter",
+    "get_error_reporter", 
+    "report_error_globally",
+]
