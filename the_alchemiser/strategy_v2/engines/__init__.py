@@ -14,7 +14,7 @@ from __future__ import annotations
 # - klm: KLM strategy variants
 # - tecl: TECL strategy
 
-__all__ = [
+__all__: list[str] = [
     # Individual engines available via submodule imports
     # Example: from .nuclear.engine import NuclearEngine
 ]
