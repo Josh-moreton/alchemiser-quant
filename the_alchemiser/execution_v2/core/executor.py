@@ -12,7 +12,6 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
 
 from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionResultDTO,
@@ -22,6 +21,7 @@ from the_alchemiser.execution_v2.strategies.async_smart_strategy import AsyncSma
 from the_alchemiser.execution_v2.strategies.smart_limit_strategy import SmartLimitExecutionStrategy
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.config.config import load_settings
+from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO, RebalancePlanItemDTO
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 
@@ -87,9 +87,8 @@ class Executor:
             if self.async_strategy and len(plan.items) > 1 and self.config.use_async_execution:
                 logger.info("Using async smart execution strategy for concurrent execution")
                 return asyncio.run(self._execute_plan_with_async_strategy(plan))
-            else:
-                logger.info("Using smart limit execution strategy")
-                return asyncio.run(self._execute_plan_async(plan))
+            logger.info("Using smart limit execution strategy")
+            return asyncio.run(self._execute_plan_async(plan))
         
         # Fallback to sequential execution
         logger.info(f"📦 Using sequential execution for {len(plan.items)} items")
@@ -257,7 +256,7 @@ class Executor:
             )
             
             if websocket_result.status.value == "completed":
-                logger.info(f"✅ All SELL orders completed successfully")
+                logger.info("✅ All SELL orders completed successfully")
                 
                 # Monitor buying power increase
                 self._wait_for_buying_power_increase(initial_buying_power, buy_items)
@@ -480,7 +479,7 @@ class Executor:
             )
 
     def _convert_executed_order_to_result(
-        self, executed_order: Any, item: RebalancePlanItemDTO
+        self, executed_order: ExecutedOrderDTO, item: RebalancePlanItemDTO
     ) -> OrderResultDTO:
         """Convert ExecutedOrderDTO to OrderResultDTO for consistency."""
         timestamp = datetime.now(UTC)
@@ -532,7 +531,7 @@ class Executor:
         except Exception:
             return 1.0  # Safe fallback
 
-    def get_execution_capabilities(self) -> dict[str, Any]:
+    def get_execution_capabilities(self) -> dict[str, bool | int | float]:
         """Get information about current execution capabilities.
         
         Returns:
