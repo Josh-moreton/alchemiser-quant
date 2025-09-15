@@ -106,9 +106,10 @@ class MarketTimingUtils:
             return None
             
         # Calculate time until 9:35 ET
-        et_time = now - timedelta(hours=5)
-        safe_time = datetime.combine(et_time.date(), cls.OPENING_VOLATILITY_END)
-        safe_time_utc = safe_time + timedelta(hours=5)
+        et_zone = ZoneInfo("America/New_York")
+        et_time = now.astimezone(et_zone)
+        safe_time_et = datetime.combine(et_time.date(), cls.OPENING_VOLATILITY_END, tzinfo=et_zone)
+        safe_time_utc = safe_time_et.astimezone(UTC)
         
         return safe_time_utc - now
 
