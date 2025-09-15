@@ -297,7 +297,11 @@ def _process_symbol_rebalance(
     logger.info(f"CALCULATED_CURRENT_WEIGHT: {current_weight}")
     logger.info(f"CALCULATED_WEIGHT_DIFF: {weight_diff}")
 
-    target_value = total_portfolio_value * target_weight
+    # Apply 95% reduction to avoid buying power issues with broker constraints
+    # This ensures we don't try to use 100% of portfolio value which can
+    # exceed available buying power
+    effective_portfolio_value = total_portfolio_value * 0.95
+    target_value = effective_portfolio_value * target_weight
     trade_amount = target_value - current_value
     needs_rebalance = abs(weight_diff) >= min_trade_threshold
 

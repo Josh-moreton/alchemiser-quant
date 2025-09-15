@@ -694,8 +694,12 @@ def _compute_allocation_values_on_fly(
             "Cannot calculate target allocation values without portfolio value."
         )
     portfolio_value = Decimal(str(pv_from_account))
+    # Apply 95% reduction to avoid buying power issues with broker constraints
+    # This ensures we don't try to use 100% of portfolio value which can
+    # exceed available buying power
+    effective_portfolio_value = portfolio_value * Decimal("0.95")
     target_values = {
-        symbol: portfolio_value * Decimal(str(weight))
+        symbol: effective_portfolio_value * Decimal(str(weight))
         for symbol, weight in target_portfolio.items()
     }
     current_values = {}
