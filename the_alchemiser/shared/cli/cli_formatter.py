@@ -412,6 +412,49 @@ def render_orders_executed(
         c.print(detail_table)
 
 
+def _format_money_object(value: MoneyLike) -> str | None:
+    """Format a Money domain object with amount and currency."""
+    try:
+        amt = float(value.amount)  # Only for formatting, preserve precision
+        cur = str(value.currency)
+        symbol = "$" if cur == "USD" else f"{cur} "
+        return f"{symbol}{amt:,.2f}"
+    except (ValueError, TypeError, AttributeError) as e:
+        logger.debug(f"Failed to format Money object {value}: {e}")
+        return None
+
+
+def _format_decimal_value(value: Decimal) -> str | None:
+    """Format a Decimal value for money display."""
+    try:
+        return f"${float(value):,.2f}"
+    except (ValueError, TypeError) as e:
+        logger.debug(f"Failed to format Decimal {value}: {e}")
+        return None
+
+
+def _format_string_value(value: str) -> str | None:
+    """Format a string representation of a number."""
+    if not value.replace(".", "").replace("-", "").isdigit():
+        return None
+    
+    try:
+        decimal_value = Decimal(value)
+        return f"${float(decimal_value):,.2f}"
+    except (ValueError, TypeError, InvalidOperation) as e:
+        logger.debug(f"Failed to convert string to Decimal {value}: {e}")
+        return None
+
+
+def _format_numeric_value(value: int | float) -> str | None:
+    """Format a numeric value for money display."""
+    try:
+        return f"${float(value):,.2f}"
+    except (ValueError, TypeError) as e:
+        logger.debug(f"Failed to format numeric value {value}: {e}")
+        return None
+
+
 def _format_money(value: float | int | Decimal | str | MoneyLike) -> str:
     """Format value that may be a Money domain object, Decimal, or raw number.
 
@@ -421,40 +464,29 @@ def _format_money(value: float | int | Decimal | str | MoneyLike) -> str:
     - Float/int values (legacy support)
     - String representations of numbers
     """
-    # Domain Money path
+    # Try Money domain object path
     if hasattr(value, "amount") and hasattr(value, "currency"):
-        try:
-            # Money has amount (Decimal) and currency; access directly when present
-            # Use Decimal precision instead of converting to float
-            amt = float(value.amount)  # Only for formatting, preserve precision
-            cur = str(value.currency)
-            symbol = "$" if cur == "USD" else f"{cur} "
-            return f"{symbol}{amt:,.2f}"
-        except (ValueError, TypeError, AttributeError) as e:
-            logger.debug(f"Failed to format Money object {value}: {e}")
+        result = _format_money_object(value)
+        if result is not None:
+            return result
 
-    # Decimal path with full precision preservation
+    # Try Decimal path
     if isinstance(value, Decimal):
-        try:
-            # Format Decimal with 2 decimal places for money display
-            return f"${float(value):,.2f}"
-        except (ValueError, TypeError) as e:
-            logger.debug(f"Failed to format Decimal {value}: {e}")
+        result = _format_decimal_value(value)
+        if result is not None:
+            return result
 
-    # String to Decimal conversion path
-    if isinstance(value, str) and value.replace(".", "").replace("-", "").isdigit():
-        try:
-            decimal_value = Decimal(value)
-            return f"${float(decimal_value):,.2f}"
-        except (ValueError, TypeError, InvalidOperation) as e:
-            logger.debug(f"Failed to convert string to Decimal {value}: {e}")
+    # Try string conversion path
+    if isinstance(value, str):
+        result = _format_string_value(value)
+        if result is not None:
+            return result
 
-    # Legacy numeric path
+    # Try numeric path
     if isinstance(value, int | float):
-        try:
-            return f"${float(value):,.2f}"
-        except (ValueError, TypeError) as e:
-            logger.debug(f"Failed to format numeric value {value}: {e}")
+        result = _format_numeric_value(value)
+        if result is not None:
+            return result
     
     return "-"
 
@@ -1253,7 +1285,7 @@ def _render_allocation_section(
     """Render allocation comparison section with fallback logic."""
     has_allocation_data = consolidated_portfolio and account_info and current_positions is not None
 
-    if has_allocation_data:
+    if has_allocation_data and account_info is not None and current_positions is not None:
         try:
             render_target_vs_current_allocations(
                 consolidated_portfolio,
@@ -1301,15 +1333,12 @@ def render_comprehensive_trading_results(
         current_positions: Current positions dictionary
         allocation_comparison: AllocationComparisonDTO for allocation comparison analysis
         open_orders: List of open orders
-        console: Rich console instance (created if None)
+        console: Rich console instance (unused - kept for API compatibility)
 
     """
-    if console is None:
-        console = Console()
-
     # Display strategy signals
     if strategy_signals:
-        render_strategy_signals(strategy_signals)
+        render_strategy_signals(strategy_signals, console)
 
     # Display account information section
     _render_account_section(account_info, current_positions)
