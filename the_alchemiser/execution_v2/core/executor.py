@@ -56,7 +56,12 @@ class Executor:
             )
 
     def execute_rebalance_plan(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
-        """Execute rebalance plan by iterating items and placing orders.
+        """Execute rebalance plan using optimal strategy based on configuration and order mix.
+
+        Combines smart execution with phased execution strategy:
+        - For mixed SELL/BUY orders: Uses phased SELL-first strategy to prevent buying power issues
+        - For single-type orders: Uses smart execution if enabled, otherwise sequential execution
+        - Async execution available for concurrent processing when beneficial
 
         Args:
             plan: RebalancePlanDTO with items to execute
@@ -67,15 +72,28 @@ class Executor:
         """
         logger.info(f"🚀 Executing rebalance plan {plan.plan_id} with {len(plan.items)} items")
 
-        # Use async execution if smart strategy is enabled and plan has multiple items
-        if self.async_strategy and len(plan.items) > 1 and self.config.use_async_execution:
-            logger.info("Using async smart execution strategy for concurrent execution")
-            return asyncio.run(self._execute_plan_with_async_strategy(plan))
+        # Analyze order mix to determine optimal execution strategy
+        sell_items = [item for item in plan.items if item.action == "SELL"]
+        buy_items = [item for item in plan.items if item.action == "BUY"]
+        
+        # For mixed SELL/BUY orders, use phased execution to prevent buying power issues
+        if sell_items and buy_items:
+            logger.info(f"📊 Using phased execution: {len(sell_items)} SELL orders → monitor buying power → {len(buy_items)} BUY orders")
+            return self._execute_phased_plan(plan, sell_items, buy_items)
+        
+        # For single-type orders, use smart execution if available
         if self.smart_strategy:
-            logger.info("Using smart limit execution strategy")
-            return asyncio.run(self._execute_plan_async(plan))
-        logger.info("Using legacy market order execution")
-        return self._execute_plan_legacy(plan)
+            # Use async execution for multiple items if enabled and beneficial
+            if self.async_strategy and len(plan.items) > 1 and self.config.use_async_execution:
+                logger.info("Using async smart execution strategy for concurrent execution")
+                return asyncio.run(self._execute_plan_with_async_strategy(plan))
+            else:
+                logger.info("Using smart limit execution strategy")
+                return asyncio.run(self._execute_plan_async(plan))
+        
+        # Fallback to sequential execution
+        logger.info(f"📦 Using sequential execution for {len(plan.items)} items")
+        return self._execute_sequential_plan(plan)
 
     async def _execute_plan_with_async_strategy(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
         """Execute plan using enhanced async strategy with full concurrency."""
@@ -139,17 +157,20 @@ class Executor:
 
             logger.info(f"📦 Processing {item.action} ${item.trade_amount} {item.symbol}")
 
-            # Execute using smart strategy
-            price_fallback = self._get_current_price_fallback(item.symbol)
-            quantity = float(abs(item.trade_amount) / price_fallback)
-            executed_order = self.smart_strategy.execute_smart_limit_order(
-                symbol=item.symbol,
-                side=item.action.lower(),
-                quantity=quantity
-            )
-
-            # Convert to OrderResultDTO
-            order_result = self._convert_executed_order_to_result(executed_order, item)
+            # Execute using smart strategy if available, otherwise legacy execution
+            if self.smart_strategy:
+                price_fallback = self._get_current_price_fallback(item.symbol)
+                quantity = float(abs(item.trade_amount) / price_fallback)
+                executed_order = self.smart_strategy.execute_smart_limit_order(
+                    symbol=item.symbol,
+                    side=item.action.lower(),
+                    quantity=quantity
+                )
+                order_result = self._convert_executed_order_to_result(executed_order, item)
+            else:
+                # Use legacy market order execution
+                order_result = self._execute_trade_item(item)
+            
             orders.append(order_result)
 
             if order_result.success:
@@ -172,54 +193,201 @@ class Executor:
         )
 
         logger.info(
-            f"✅ Smart execution complete: {orders_succeeded}/{orders_placed} orders succeeded "
+            f"✅ Sequential execution complete: {orders_succeeded}/{orders_placed} orders succeeded "
             f"(${total_trade_value} traded)"
         )
 
         return result
 
-    def _execute_plan_legacy(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
-        """Execute plan using legacy market order strategy."""
-        orders: list[OrderResultDTO] = []
+    def _execute_phased_plan(
+        self, 
+        plan: RebalancePlanDTO, 
+        sell_items: list[RebalancePlanItemDTO], 
+        buy_items: list[RebalancePlanItemDTO]
+    ) -> ExecutionResultDTO:
+        """Execute rebalance plan using phased strategy: SELL → monitor → BUY.
+
+        Args:
+            plan: Original rebalance plan
+            sell_items: SELL order items to execute first
+            buy_items: BUY order items to execute after SELL completion
+
+        Returns:
+            ExecutionResultDTO with combined results from both phases
+
+        """
+        all_orders: list[OrderResultDTO] = []
         total_trade_value = Decimal("0")
 
-        for item in plan.items:
-            # Skip HOLD actions - only process trades
-            if item.action == "HOLD":
-                logger.debug(f"⏭️ Skipping HOLD action for {item.symbol}")
-                continue
+        # Phase 1: Execute SELL orders to release buying power
+        logger.info(f"🔴 Phase 1: Executing {len(sell_items)} SELL orders to release buying power")
+        sell_order_ids = []
+        
+        for item in sell_items:
+            logger.info(f"📦 Processing SELL ${item.trade_amount} {item.symbol}")
+            
+            # Use smart execution if available, otherwise legacy execution
+            if self.smart_strategy:
+                price_fallback = self._get_current_price_fallback(item.symbol)
+                quantity = float(abs(item.trade_amount) / price_fallback)
+                executed_order = self.smart_strategy.execute_smart_limit_order(
+                    symbol=item.symbol,
+                    side=item.action.lower(),
+                    quantity=quantity
+                )
+                order_result = self._convert_executed_order_to_result(executed_order, item)
+            else:
+                order_result = self._execute_trade_item(item)
+                
+            all_orders.append(order_result)
+            
+            if order_result.success:
+                total_trade_value += abs(item.trade_amount)
+                if order_result.order_id:
+                    sell_order_ids.append(order_result.order_id)
 
-            logger.info(f"📦 Processing {item.action} ${item.trade_amount} {item.symbol}")
+        # Phase 2: Monitor SELL order completion and buying power
+        if sell_order_ids:
+            logger.info(f"⏱️ Phase 2: Monitoring {len(sell_order_ids)} SELL orders for completion")
+            initial_buying_power = self._get_current_buying_power()
+            
+            # Wait for SELL orders to complete (max 60 seconds)
+            websocket_result = self.alpaca_manager.wait_for_order_completion(
+                sell_order_ids, max_wait_seconds=60
+            )
+            
+            if websocket_result.status.value == "completed":
+                logger.info(f"✅ All SELL orders completed successfully")
+                
+                # Monitor buying power increase
+                self._wait_for_buying_power_increase(initial_buying_power, buy_items)
+            else:
+                logger.warning(f"⚠️ SELL order monitoring completed with status: {websocket_result.status.value}")
+                logger.warning(f"Completed {len(websocket_result.completed_order_ids)}/{len(sell_order_ids)} orders")
 
-            # Execute the trade using legacy method
-            order_result = self._execute_trade_item(item)
-            orders.append(order_result)
-
+        # Phase 3: Execute BUY orders with available buying power
+        logger.info(f"🟢 Phase 3: Executing {len(buy_items)} BUY orders")
+        
+        for item in buy_items:
+            logger.info(f"📦 Processing BUY ${item.trade_amount} {item.symbol}")
+            
+            # Use smart execution if available, otherwise legacy execution
+            if self.smart_strategy:
+                price_fallback = self._get_current_price_fallback(item.symbol)
+                quantity = float(abs(item.trade_amount) / price_fallback)
+                executed_order = self.smart_strategy.execute_smart_limit_order(
+                    symbol=item.symbol,
+                    side=item.action.lower(),
+                    quantity=quantity
+                )
+                order_result = self._convert_executed_order_to_result(executed_order, item)
+            else:
+                order_result = self._execute_trade_item(item)
+                
+            all_orders.append(order_result)
+            
             if order_result.success:
                 total_trade_value += abs(item.trade_amount)
 
-        # Calculate summary statistics
-        orders_placed = len(orders)
-        orders_succeeded = sum(1 for order in orders if order.success)
+        # Calculate combined results
+        orders_placed = len(all_orders)
+        orders_succeeded = sum(1 for order in all_orders if order.success)
         overall_success = orders_succeeded == orders_placed if orders_placed > 0 else True
 
         result = ExecutionResultDTO(
             success=overall_success,
             plan_id=plan.plan_id,
             correlation_id=plan.correlation_id,
-            orders=orders,
+            orders=all_orders,
             orders_placed=orders_placed,
             orders_succeeded=orders_succeeded,
             total_trade_value=total_trade_value,
             execution_timestamp=datetime.now(UTC),
+            metadata={"execution_strategy": "phased_sell_first"}
         )
 
         logger.info(
-            f"✅ Legacy execution complete: {orders_succeeded}/{orders_placed} orders succeeded "
+            f"✅ Phased execution complete: {orders_succeeded}/{orders_placed} orders succeeded "
             f"(${total_trade_value} traded)"
         )
 
         return result
+
+    def _get_current_buying_power(self) -> Decimal:
+        """Get current buying power as Decimal for precise calculations.
+
+        Returns:
+            Current buying power, or 0 if unavailable
+
+        """
+        try:
+            buying_power = self.alpaca_manager.get_buying_power()
+            if buying_power is not None:
+                return Decimal(str(buying_power))
+            return Decimal("0")
+        except Exception as e:
+            logger.warning(f"Failed to get buying power: {e}")
+            return Decimal("0")
+
+    def _calculate_required_buying_power(self, buy_items: list[RebalancePlanItemDTO]) -> Decimal:
+        """Calculate total buying power required for BUY orders.
+
+        Args:
+            buy_items: List of BUY order items
+
+        Returns:
+            Total dollar amount needed for all BUY orders
+
+        """
+        return sum(abs(item.trade_amount) for item in buy_items)
+
+    def _wait_for_buying_power_increase(
+        self, 
+        initial_buying_power: Decimal, 
+        buy_items: list[RebalancePlanItemDTO],
+        max_wait_seconds: int = 30
+    ) -> bool:
+        """Wait for buying power to increase after SELL order completion.
+
+        Args:
+            initial_buying_power: Buying power before SELL orders
+            buy_items: BUY orders that will need buying power
+            max_wait_seconds: Maximum time to wait for buying power increase
+
+        Returns:
+            True if sufficient buying power is available, False if timeout
+
+        """
+        required_buying_power = self._calculate_required_buying_power(buy_items)
+        logger.info(f"💰 Monitoring buying power increase (need ${required_buying_power})")
+        
+        import time
+        start_time = time.time()
+        check_interval = 2  # Check every 2 seconds
+        
+        while (time.time() - start_time) < max_wait_seconds:
+            current_buying_power = self._get_current_buying_power()
+            buying_power_increase = current_buying_power - initial_buying_power
+            
+            logger.debug(f"💰 Buying power: ${current_buying_power} (increase: ${buying_power_increase})")
+            
+            # Check if we have sufficient buying power for all BUY orders
+            if current_buying_power >= required_buying_power:
+                logger.info(f"✅ Sufficient buying power available: ${current_buying_power} >= ${required_buying_power}")
+                return True
+            
+            # Also check if buying power increased significantly (SELL proceeds available)
+            if buying_power_increase > Decimal("100"):  # At least $100 increase suggests SELL completion
+                logger.info(f"✅ Buying power increased by ${buying_power_increase}, proceeding with BUY orders")
+                return True
+            
+            time.sleep(check_interval)
+        
+        current_buying_power = self._get_current_buying_power()
+        logger.warning(f"⚠️ Buying power monitoring timeout after {max_wait_seconds}s")
+        logger.warning(f"💰 Final buying power: ${current_buying_power}, required: ${required_buying_power}")
+        
+        return False
 
     def _execute_trade_item(self, item: RebalancePlanItemDTO) -> OrderResultDTO:
         """Execute a single trade item.

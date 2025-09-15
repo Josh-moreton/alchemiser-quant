@@ -1,12 +1,6 @@
-"""Business Unit: order execution/placement; Status: current.
+"""Business Unit: shared | Status: current.
 
-Trading Repository Interface.
-
-This interface defines the contract for all trading operations including order
-placement, position management, and portfolio operations.
-
-This interface is designed to support typed DTO returns while maintaining
-compatibility with current AlpacaManager usage patterns.
+Shared protocols and interfaces for trading and data access.
 """
 
 from __future__ import annotations
@@ -92,7 +86,9 @@ class TradingRepository(Protocol):
         """
         ...
 
-    def place_order(self, order_request: Any) -> ExecutedOrderDTO:  # noqa: ANN401  # External broker SDK order request object
+    def place_order(
+        self, order_request: Any
+    ) -> ExecutedOrderDTO:  # noqa: ANN401  # External broker SDK order request object
         """Place an order.
 
         Args:
@@ -110,6 +106,7 @@ class TradingRepository(Protocol):
         side: str,
         qty: float | None = None,
         notional: float | None = None,
+        *,
         is_complete_exit: bool = False,
     ) -> ExecutedOrderDTO:
         """Place a market order.
@@ -183,7 +180,9 @@ class TradingRepository(Protocol):
         ...
 
     @property
-    def trading_client(self) -> Any:  # noqa: ANN401  # External broker SDK trading client object
+    def trading_client(
+        self,
+    ) -> Any:  # noqa: ANN401  # External broker SDK trading client object
         """Access to underlying trading client for backward compatibility.
 
         Note: This property is for backward compatibility during migration.

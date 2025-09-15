@@ -85,7 +85,7 @@ class RealTimePricingService:
     active trading symbols.
     """
 
-    def __init__(self, api_key: str, secret_key: str, paper_trading: bool = True) -> None:
+    def __init__(self, api_key: str, secret_key: str, *, paper_trading: bool = True) -> None:
         """Initialize real-time pricing service.
 
         Args:
@@ -739,7 +739,7 @@ class RealTimePricingManager:
     existing trading systems while maintaining backward compatibility.
     """
 
-    def __init__(self, api_key: str, secret_key: str, paper_trading: bool = True) -> None:
+    def __init__(self, api_key: str, secret_key: str, *, paper_trading: bool = True) -> None:
         """Initialize real-time pricing manager.
 
         Args:
@@ -748,7 +748,7 @@ class RealTimePricingManager:
             paper_trading: Whether to use paper trading environment
 
         """
-        self.pricing_service = RealTimePricingService(api_key, secret_key, paper_trading)
+        self.pricing_service = RealTimePricingService(api_key, secret_key, paper_trading=paper_trading)
         self._fallback_provider: Callable[[str], float | None] | None = None
 
     def set_fallback_provider(self, provider: Callable[[str], float | None]) -> None:

@@ -122,7 +122,9 @@ except ImportError:
 
 
 try:
-    from the_alchemiser.strategy.errors.strategy_errors import StrategyExecutionError  # type: ignore[import-untyped]
+    from the_alchemiser.strategy.errors.strategy_errors import (
+        StrategyExecutionError,  # type: ignore[import-untyped]
+    )
 except ImportError:
 
     class StrategyExecutionError(Exception):  # type: ignore[no-redef]
@@ -228,6 +230,7 @@ class EnhancedAlchemiserError(AlchemiserError):
         message: str,
         context: ErrorContextData | dict[str, Any] | Any | None = None,
         severity: str = ErrorSeverity.MEDIUM,
+        *,
         recoverable: bool = True,
         retry_count: int = 0,
         max_retries: int = 3,
@@ -803,6 +806,7 @@ def retry_with_backoff(
     base_delay: float = 1.0,
     max_delay: float = 60.0,
     backoff_factor: float = 2.0,
+    *,
     jitter: bool = True,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Retry decorator with exponential backoff and jitter.
@@ -985,6 +989,7 @@ class EnhancedErrorReporter:
         self,
         error: Exception,
         context: dict[str, Any] | None = None,
+        *,
         is_critical: bool = False,
         operation: str | None = None,
     ) -> None:
@@ -1081,7 +1086,7 @@ def get_global_error_reporter() -> EnhancedErrorReporter:
 
 
 def handle_errors_with_retry(
-    operation: str, critical: bool = False, reraise: bool = True, max_retries: int = 0
+    operation: str, *, critical: bool = False, reraise: bool = True, max_retries: int = 0
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Combine error handling with optional retry logic.
 

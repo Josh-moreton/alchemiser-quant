@@ -186,11 +186,16 @@ class RebalancePlanCalculator:
 
         # Get all symbols we need to consider
         all_symbols = set(strategy.target_weights.keys()) | set(snapshot.positions.keys())
+        
+        # Apply 95% reduction to avoid buying power issues with broker constraints
+        # This ensures we don't try to use 100% of portfolio value which can
+        # exceed available buying power
+        effective_portfolio_value = portfolio_value * Decimal("0.95")
 
         for symbol in all_symbols:
-            # Calculate target value
+            # Calculate target value using effective portfolio value
             target_weight = strategy.target_weights.get(symbol, Decimal("0"))
-            target_values[symbol] = target_weight * portfolio_value
+            target_values[symbol] = target_weight * effective_portfolio_value
 
             # Calculate current value
             current_quantity = snapshot.positions.get(symbol, Decimal("0"))

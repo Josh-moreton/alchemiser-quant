@@ -1,4 +1,7 @@
-"""Business Unit: order execution/placement; Status: current."""
+"""Business Unit: shared | Status: current.
+
+Shared domain types with validation.
+"""
 
 from __future__ import annotations
 
@@ -15,4 +18,5 @@ class Quantity:
     value: Decimal
 
     def __post_init__(self) -> None:  # pragma: no cover - trivial validation
+        """Validate the quantity after initialization."""
         validate_non_negative_integer(self.value, "Quantity")

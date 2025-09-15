@@ -64,6 +64,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self,
         api_key: str,
         secret_key: str,
+        *,
         paper: bool = True,
         base_url: str | None = None,
     ) -> None:
@@ -435,7 +436,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         return symbol.upper(), side_normalized
 
     def _adjust_quantity_for_complete_exit(
-        self, symbol: str, side: str, qty: float | None, is_complete_exit: bool
+        self, symbol: str, side: str, qty: float | None, *, is_complete_exit: bool
     ) -> float | None:
         """Adjust quantity for complete exit if needed.
 
@@ -520,6 +521,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         side: str,
         qty: float | None = None,
         notional: float | None = None,
+        *,
         is_complete_exit: bool = False,
     ) -> ExecutedOrderDTO:
         """Place a market order with validation and execution result return.
@@ -543,7 +545,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             # Adjust quantity for complete exits
             final_qty = self._adjust_quantity_for_complete_exit(
-                normalized_symbol, side_normalized, qty, is_complete_exit
+                normalized_symbol, side_normalized, qty, is_complete_exit=is_complete_exit
             )
 
             # Create order request
@@ -1227,7 +1229,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             True if should continue waiting, False otherwise
 
         """
-
         return (
             len(completed_orders) < len(order_ids)
             and (time.time() - start_time) < max_wait_seconds
@@ -1246,7 +1247,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             WebSocketResult with completion status and completed order IDs
 
         """
-
         completed_orders: list[str] = []
         start_time = time.time()
 
@@ -1291,7 +1291,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
 # Factory function for easy creation
 def create_alpaca_manager(
-    api_key: str, secret_key: str, paper: bool = True, base_url: str | None = None
+    api_key: str, secret_key: str, *, paper: bool = True, base_url: str | None = None
 ) -> AlpacaManager:
     """Create an AlpacaManager instance.
 

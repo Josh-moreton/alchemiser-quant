@@ -46,7 +46,7 @@ def create_timeframe(amount: int, unit: str) -> Any:
 
 
 # Alpaca client factory functions
-def create_trading_client(api_key: str, secret_key: str, paper: bool = True) -> Any:
+def create_trading_client(api_key: str, secret_key: str, *, paper: bool = True) -> Any:
     """Create an Alpaca TradingClient."""
     from alpaca.trading.client import TradingClient
 
@@ -60,7 +60,7 @@ def create_data_client(api_key: str, secret_key: str) -> Any:
     return StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
 
 
-def create_trading_stream(api_key: str, secret_key: str, paper: bool = True) -> Any:
+def create_trading_stream(api_key: str, secret_key: str, *, paper: bool = True) -> Any:
     """Create an Alpaca TradingStream."""
     from alpaca.trading.stream import TradingStream
 

@@ -43,6 +43,7 @@ class ErrorReporter:
         self,
         error: Exception,
         context: dict[str, Any] | None = None,
+        *,
         is_critical: bool = False,
     ) -> None:
         """Report an error with context for monitoring."""
@@ -142,6 +143,7 @@ def get_error_reporter(notification_manager: Any = None) -> ErrorReporter:
 def report_error_globally(
     error: Exception,
     context: dict[str, Any] | None = None,
+    *,
     is_critical: bool = False,
 ) -> None:
     """Report errors globally."""

@@ -46,7 +46,7 @@ class ConfigService:
         """Get Alpaca live trading endpoint."""
         return self._config.alpaca.endpoint
 
-    def get_endpoint(self, paper_trading: bool) -> str:
+    def get_endpoint(self, *, paper_trading: bool) -> str:
         """Get the appropriate endpoint for the trading mode.
 
         Args:

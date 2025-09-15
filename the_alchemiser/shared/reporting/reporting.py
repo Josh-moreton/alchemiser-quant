@@ -10,7 +10,9 @@ from typing import Any
 
 from the_alchemiser.shared.types.exceptions import DataProviderError, TradingClientError
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, PositionsDict
-from the_alchemiser.strategy.registry.strategy_registry import StrategyType  # type: ignore[import-untyped]
+from the_alchemiser.strategy.registry.strategy_registry import (
+    StrategyType,  # type: ignore[import-untyped]
+)
 
 
 def create_execution_summary(

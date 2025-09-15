@@ -8,9 +8,9 @@ across multiple modules. All price discovery operations should use this centrali
 utility to ensure consistent pricing behavior and calculation methods.
 
 Consolidates the following duplicate implementations:
-- execution/brokers/alpaca/adapter.py: bid-ask midpoint calculation
-- execution/brokers/account_service.py: delegated price retrieval
-- strategy/data/market_data_client.py: quote-based pricing
+- execution_v2 brokers: bid-ask midpoint calculation
+- execution_v2 account services: delegated price retrieval
+- strategy_v2 market data clients: quote-based pricing
 - Multiple protocol definitions with similar interfaces
 
 Key Features:
@@ -92,12 +92,14 @@ def calculate_midpoint_price(bid: float, ask: float) -> float | None:
         return None
 
 
-def get_current_price_from_quote(quote_provider: QuoteProvider, symbol: str) -> float | None:
+def get_current_price_from_quote(
+    quote_provider: QuoteProvider, symbol: str
+) -> float | None:
     """Get current price from quote provider using bid-ask midpoint.
 
     This function consolidates the quote-based price discovery logic that was
-    duplicated across execution/brokers/alpaca/adapter.py and
-    strategy/data/market_data_client.py.
+    duplicated across execution_v2 broker adapters and
+    strategy_v2 market data clients.
 
     Args:
         quote_provider: Provider that can fetch bid-ask quotes
@@ -195,7 +197,9 @@ def get_current_price_as_decimal(
     try:
         price = _get_price_from_provider(provider, symbol)
         if price is not None:
-            return Decimal(str(price))  # Convert via string to avoid float precision issues
+            return Decimal(
+                str(price)
+            )  # Convert via string to avoid float precision issues
         return None
     except Exception as e:
         logger.error(f"Error getting decimal price for {symbol}: {e}")
@@ -223,7 +227,9 @@ def _get_price_from_provider(
         # Otherwise assume QuoteProvider interface
         if isinstance(provider, QuoteProvider):
             return get_current_price_from_quote(provider, symbol)
-        logger.error(f"Provider does not implement expected interface: {type(provider)}")
+        logger.error(
+            f"Provider does not implement expected interface: {type(provider)}"
+        )
         return None
     except Exception as e:
         logger.error(f"Error getting price from provider for {symbol}: {e}")
