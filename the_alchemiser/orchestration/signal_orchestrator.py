@@ -393,7 +393,6 @@ class SignalOrchestrator:
         if isinstance(symbol, str) and "NUCLEAR_PORTFOLIO" in symbol:
             return self._count_nuclear_portfolio_symbols(symbol, consolidated_portfolio)
         
-        return 0
 
     def _count_nuclear_portfolio_symbols(
         self, symbol: str, consolidated_portfolio: dict[str, float]
