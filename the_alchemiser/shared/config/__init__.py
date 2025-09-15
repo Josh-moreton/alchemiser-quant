@@ -3,6 +3,9 @@
 Configuration management for all modules.
 """
 
-from .config import *
+from .config import Settings, load_settings
 
-__all__ = ["Config"]
+# Backward compatibility alias
+Config = Settings
+
+__all__ = ["Config", "Settings", "load_settings"]
