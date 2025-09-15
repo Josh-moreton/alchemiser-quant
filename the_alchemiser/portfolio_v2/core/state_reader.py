@@ -1,4 +1,4 @@
-"""Business Unit: portfolio | Status: current
+"""Business Unit: portfolio | Status: current.
 
 Portfolio state management and rebalancing logic.
 
@@ -14,7 +14,9 @@ from typing import TYPE_CHECKING
 from the_alchemiser.shared.logging.logging_utils import log_with_context
 
 if TYPE_CHECKING:
-    from the_alchemiser.portfolio_v2.adapters.alpaca_data_adapter import AlpacaDataAdapter
+    from the_alchemiser.portfolio_v2.adapters.alpaca_data_adapter import (
+        AlpacaDataAdapter,
+    )
 
 from ..models.portfolio_snapshot import PortfolioSnapshot
 
@@ -25,7 +27,7 @@ MODULE_NAME = "portfolio_v2.core.state_reader"
 
 
 class PortfolioStateReader:
-    """Builds immutable portfolio snapshots from live market data.
+    """Build immutable portfolio snapshots from live market data.
 
     Coordinates data fetching from AlpacaDataAdapter and constructs
     consistent PortfolioSnapshot instances for rebalancing calculations.
@@ -40,7 +42,9 @@ class PortfolioStateReader:
         """
         self._data_adapter = data_adapter
 
-    def build_portfolio_snapshot(self, symbols: set[str] | None = None) -> PortfolioSnapshot:
+    def build_portfolio_snapshot(
+        self, symbols: set[str] | None = None
+    ) -> PortfolioSnapshot:
         """Build current portfolio snapshot with positions, prices, and cash.
 
         Args:
@@ -108,7 +112,9 @@ class PortfolioStateReader:
                     "Snapshot total value validation failed - continuing anyway",
                     module=MODULE_NAME,
                     action="build_snapshot",
-                    calculated_total=str(snapshot.get_total_position_value() + snapshot.cash),
+                    calculated_total=str(
+                        snapshot.get_total_position_value() + snapshot.cash
+                    ),
                     snapshot_total=str(snapshot.total_value),
                 )
 

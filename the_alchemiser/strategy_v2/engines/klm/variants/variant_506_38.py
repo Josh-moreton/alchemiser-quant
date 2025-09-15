@@ -1,4 +1,4 @@
-"""Business Unit: strategy | Status: current
+"""Business Unit: strategy | Status: current.
 
 KLM Strategy Variant 506/38 - "KMLM (13) - Longer BT".
 
@@ -63,7 +63,7 @@ class KlmVariant50638(BaseKLMVariant):
     def evaluate_core_kmlm_switcher(
         self, indicators: dict[str, dict[str, float]]
     ) -> KLMDecision:
-        """Core KMLM switcher logic - CORRECTED to match CLJ exactly:
+        """Core KMLM switcher logic - CORRECTED to match CLJ exactly.
 
         From CLJ lines 170-182: When XLK > KMLM, select FNGU with RSI filter (select-bottom 1)
         This was completely wrong before - it should be FNGU, not TECL/SOXL/SVIX!

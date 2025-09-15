@@ -711,7 +711,7 @@ def handle_trading_error(
     component: str,
     additional_data: dict[str, Any] | None = None,
 ) -> ErrorDetails:
-    """Convenience function to handle errors in trading operations."""
+    """Handle errors in trading operations (convenience wrapper)."""
     return _error_handler.handle_error(error, context, component, additional_data)
 
 
@@ -931,7 +931,7 @@ def create_enhanced_error(
     severity: str | None = None,
     **kwargs: Any,
 ) -> EnhancedAlchemiserError:
-    """Factory function to create enhanced errors with proper context."""
+    """Create enhanced errors with proper context."""
     if severity is None:
         # Auto-determine severity based on error type
         temp_error = error_type(message)
@@ -1040,7 +1040,7 @@ class EnhancedErrorReporter:
 
 # Factory function for enhanced error reporter
 def get_enhanced_error_reporter() -> EnhancedErrorReporter:
-    """Factory function to create a new EnhancedErrorReporter instance."""
+    """Create a new EnhancedErrorReporter instance."""
     return EnhancedErrorReporter()
 
 
@@ -1060,7 +1060,7 @@ def get_global_error_reporter() -> EnhancedErrorReporter:
 def handle_errors_with_retry(
     operation: str, critical: bool = False, reraise: bool = True, max_retries: int = 0
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """Decorator combining error handling with optional retry logic.
+    """Combine error handling with optional retry logic.
 
     Args:
         operation: Name of the operation for error context

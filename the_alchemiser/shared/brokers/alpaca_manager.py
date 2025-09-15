@@ -99,28 +99,28 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     @property
     def is_paper_trading(self) -> bool:
-        """Check if using paper trading."""
+        """Return True if using paper trading."""
         return self._paper
 
     # Public, read-only accessors for credentials and mode (for factories/streams)
     @property
     def api_key(self) -> str:
-        """Public accessor for the API key (read-only)."""
+        """Return the API key (read-only)."""
         return self._api_key
 
     @property
     def secret_key(self) -> str:
-        """Public accessor for the Secret key (read-only)."""
+        """Return the secret key (read-only)."""
         return self._secret_key
 
     @property
     def paper(self) -> bool:
-        """Public accessor indicating paper/live mode."""
+        """Return whether paper/live mode is enabled."""
         return self._paper
 
     @property
     def trading_client(self) -> Any:
-        """Access to underlying trading client for backward compatibility."""
+        """Return underlying trading client for backward compatibility."""
         return self._trading_client
 
     # Helper methods for DTO mapping

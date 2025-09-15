@@ -3,34 +3,34 @@
     "cell": null,
     "code": "FBT001",
     "end_location": {
-      "column": 73,
-      "row": 88
+      "column": 53,
+      "row": 95
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/main.py",
     "fix": null,
     "location": {
-      "column": 54,
-      "row": 88
+      "column": 34,
+      "row": 95
     },
     "message": "Boolean-typed positional argument in function definition",
-    "noqa_row": 88,
+    "noqa_row": 95,
     "url": "https://docs.astral.sh/ruff/rules/boolean-type-hint-positional-argument"
   },
   {
     "cell": null,
     "code": "FBT002",
     "end_location": {
-      "column": 73,
-      "row": 88
+      "column": 53,
+      "row": 95
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/main.py",
     "fix": null,
     "location": {
-      "column": 54,
-      "row": 88
+      "column": 34,
+      "row": 95
     },
     "message": "Boolean default positional argument in function definition",
-    "noqa_row": 88,
+    "noqa_row": 95,
     "url": "https://docs.astral.sh/ruff/rules/boolean-default-value-positional-argument"
   },
   {
@@ -38,16 +38,16 @@
     "code": "FBT001",
     "end_location": {
       "column": 28,
-      "row": 134
+      "row": 146
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/main.py",
     "fix": null,
     "location": {
       "column": 9,
-      "row": 134
+      "row": 146
     },
     "message": "Boolean-typed positional argument in function definition",
-    "noqa_row": 134,
+    "noqa_row": 146,
     "url": "https://docs.astral.sh/ruff/rules/boolean-type-hint-positional-argument"
   },
   {
@@ -55,16 +55,16 @@
     "code": "FBT002",
     "end_location": {
       "column": 28,
-      "row": 134
+      "row": 146
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/main.py",
     "fix": null,
     "location": {
       "column": 9,
-      "row": 134
+      "row": 146
     },
     "message": "Boolean default positional argument in function definition",
-    "noqa_row": 134,
+    "noqa_row": 146,
     "url": "https://docs.astral.sh/ruff/rules/boolean-default-value-positional-argument"
   },
   {
@@ -72,16 +72,16 @@
     "code": "FBT001",
     "end_location": {
       "column": 22,
-      "row": 135
+      "row": 147
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/main.py",
     "fix": null,
     "location": {
       "column": 9,
-      "row": 135
+      "row": 147
     },
     "message": "Boolean-typed positional argument in function definition",
-    "noqa_row": 135,
+    "noqa_row": 147,
     "url": "https://docs.astral.sh/ruff/rules/boolean-type-hint-positional-argument"
   },
   {
@@ -89,16 +89,16 @@
     "code": "FBT002",
     "end_location": {
       "column": 22,
-      "row": 135
+      "row": 147
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/main.py",
     "fix": null,
     "location": {
       "column": 9,
-      "row": 135
+      "row": 147
     },
     "message": "Boolean default positional argument in function definition",
-    "noqa_row": 135,
+    "noqa_row": 147,
     "url": "https://docs.astral.sh/ruff/rules/boolean-default-value-positional-argument"
   },
   {
@@ -106,16 +106,16 @@
     "code": "FBT001",
     "end_location": {
       "column": 37,
-      "row": 169
+      "row": 181
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/main.py",
     "fix": null,
     "location": {
       "column": 24,
-      "row": 169
+      "row": 181
     },
     "message": "Boolean-typed positional argument in function definition",
-    "noqa_row": 169,
+    "noqa_row": 181,
     "url": "https://docs.astral.sh/ruff/rules/boolean-type-hint-positional-argument"
   },
   {
@@ -123,16 +123,16 @@
     "code": "S110",
     "end_location": {
       "column": 17,
-      "row": 177
+      "row": 189
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/main.py",
     "fix": null,
     "location": {
       "column": 9,
-      "row": 176
+      "row": 188
     },
     "message": "`try`-`except`-`pass` detected, consider logging the exception",
-    "noqa_row": 176,
+    "noqa_row": 188,
     "url": "https://docs.astral.sh/ruff/rules/try-except-pass"
   },
   {
@@ -140,16 +140,16 @@
     "code": "S110",
     "end_location": {
       "column": 13,
-      "row": 186
+      "row": 198
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/main.py",
     "fix": null,
     "location": {
       "column": 5,
-      "row": 185
+      "row": 197
     },
     "message": "`try`-`except`-`pass` detected, consider logging the exception",
-    "noqa_row": 185,
+    "noqa_row": 197,
     "url": "https://docs.astral.sh/ruff/rules/try-except-pass"
   },
   {
@@ -157,16 +157,16 @@
     "code": "S110",
     "end_location": {
       "column": 17,
-      "row": 215
+      "row": 227
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/main.py",
     "fix": null,
     "location": {
       "column": 9,
-      "row": 214
+      "row": 226
     },
     "message": "`try`-`except`-`pass` detected, consider logging the exception",
-    "noqa_row": 214,
+    "noqa_row": 226,
     "url": "https://docs.astral.sh/ruff/rules/try-except-pass"
   },
   {
@@ -174,16 +174,16 @@
     "code": "D401",
     "end_location": {
       "column": 8,
-      "row": 280
+      "row": 292
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/main.py",
     "fix": null,
     "location": {
       "column": 5,
-      "row": 272
+      "row": 284
     },
     "message": "First line of docstring should be in imperative mood: \"Main entry point for The Alchemiser Trading System.\"",
-    "noqa_row": 280,
+    "noqa_row": 292,
     "url": "https://docs.astral.sh/ruff/rules/non-imperative-mood"
   },
   {
@@ -326,16 +326,16 @@
     "code": "FBT001",
     "end_location": {
       "column": 28,
-      "row": 46
+      "row": 52
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/orchestration/trading_orchestrator.py",
     "fix": null,
     "location": {
       "column": 9,
-      "row": 46
+      "row": 52
     },
     "message": "Boolean-typed positional argument in function definition",
-    "noqa_row": 46,
+    "noqa_row": 52,
     "url": "https://docs.astral.sh/ruff/rules/boolean-type-hint-positional-argument"
   },
   {
@@ -343,33 +343,33 @@
     "code": "FBT002",
     "end_location": {
       "column": 28,
-      "row": 46
+      "row": 52
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/orchestration/trading_orchestrator.py",
     "fix": null,
     "location": {
       "column": 9,
-      "row": 46
+      "row": 52
     },
     "message": "Boolean default positional argument in function definition",
-    "noqa_row": 46,
+    "noqa_row": 52,
     "url": "https://docs.astral.sh/ruff/rules/boolean-default-value-positional-argument"
   },
   {
     "cell": null,
     "code": "FBT001",
     "end_location": {
-      "column": 64,
-      "row": 107
+      "column": 29,
+      "row": 114
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/orchestration/trading_orchestrator.py",
     "fix": null,
     "location": {
-      "column": 50,
-      "row": 107
+      "column": 15,
+      "row": 114
     },
     "message": "Boolean-typed positional argument in function definition",
-    "noqa_row": 107,
+    "noqa_row": 114,
     "url": "https://docs.astral.sh/ruff/rules/boolean-type-hint-positional-argument"
   },
   {
@@ -377,16 +377,16 @@
     "code": "FBT003",
     "end_location": {
       "column": 78,
-      "row": 232
+      "row": 251
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/orchestration/trading_orchestrator.py",
     "fix": null,
     "location": {
       "column": 74,
-      "row": 232
+      "row": 251
     },
     "message": "Boolean positional value in function call",
-    "noqa_row": 232,
+    "noqa_row": 251,
     "url": "https://docs.astral.sh/ruff/rules/boolean-positional-value-in-call"
   },
   {
@@ -394,216 +394,51 @@
     "code": "FBT003",
     "end_location": {
       "column": 73,
-      "row": 283
+      "row": 302
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/orchestration/trading_orchestrator.py",
     "fix": null,
     "location": {
       "column": 68,
-      "row": 283
+      "row": 302
     },
     "message": "Boolean positional value in function call",
-    "noqa_row": 283,
+    "noqa_row": 302,
     "url": "https://docs.astral.sh/ruff/rules/boolean-positional-value-in-call"
   },
   {
     "cell": null,
     "code": "FBT001",
     "end_location": {
-      "column": 60,
-      "row": 633
+      "column": 16,
+      "row": 675
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/orchestration/trading_orchestrator.py",
     "fix": null,
     "location": {
-      "column": 53,
-      "row": 633
+      "column": 9,
+      "row": 675
     },
     "message": "Boolean-typed positional argument in function definition",
-    "noqa_row": 633,
+    "noqa_row": 675,
     "url": "https://docs.astral.sh/ruff/rules/boolean-type-hint-positional-argument"
-  },
-  {
-    "cell": null,
-    "code": "D400",
-    "end_location": {
-      "column": 4,
-      "row": 6
-    },
-    "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/portfolio_v2/core/state_reader.py",
-    "fix": {
-      "applicability": "unsafe",
-      "edits": [
-        {
-          "content": ".",
-          "end_location": {
-            "column": 46,
-            "row": 1
-          },
-          "location": {
-            "column": 46,
-            "row": 1
-          }
-        }
-      ],
-      "message": "Add period"
-    },
-    "location": {
-      "column": 1,
-      "row": 1
-    },
-    "message": "First line should end with a period",
-    "noqa_row": 6,
-    "url": "https://docs.astral.sh/ruff/rules/missing-trailing-period"
-  },
-  {
-    "cell": null,
-    "code": "D415",
-    "end_location": {
-      "column": 4,
-      "row": 6
-    },
-    "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/portfolio_v2/core/state_reader.py",
-    "fix": {
-      "applicability": "unsafe",
-      "edits": [
-        {
-          "content": ".",
-          "end_location": {
-            "column": 46,
-            "row": 1
-          },
-          "location": {
-            "column": 46,
-            "row": 1
-          }
-        }
-      ],
-      "message": "Add closing punctuation"
-    },
-    "location": {
-      "column": 1,
-      "row": 1
-    },
-    "message": "First line should end with a period, question mark, or exclamation point",
-    "noqa_row": 6,
-    "url": "https://docs.astral.sh/ruff/rules/missing-terminal-punctuation"
   },
   {
     "cell": null,
     "code": "SIM108",
     "end_location": {
       "column": 64,
-      "row": 77
+      "row": 81
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/portfolio_v2/core/state_reader.py",
     "fix": null,
     "location": {
       "column": 13,
-      "row": 72
+      "row": 76
     },
     "message": "Use ternary operator `price_symbols = position_symbols if symbols is None else symbols.union(position_symbols)` instead of `if`-`else`-block",
-    "noqa_row": 72,
-    "url": "https://docs.astral.sh/ruff/rules/if-else-block-instead-of-if-exp"
-  },
-  {
-    "cell": null,
-    "code": "D400",
-    "end_location": {
-      "column": 4,
-      "row": 6
-    },
-    "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/portfolio_v2/models/portfolio_snapshot.py",
-    "fix": {
-      "applicability": "unsafe",
-      "edits": [
-        {
-          "content": ".",
-          "end_location": {
-            "column": 46,
-            "row": 1
-          },
-          "location": {
-            "column": 46,
-            "row": 1
-          }
-        }
-      ],
-      "message": "Add period"
-    },
-    "location": {
-      "column": 1,
-      "row": 1
-    },
-    "message": "First line should end with a period",
-    "noqa_row": 6,
-    "url": "https://docs.astral.sh/ruff/rules/missing-trailing-period"
-  },
-  {
-    "cell": null,
-    "code": "D415",
-    "end_location": {
-      "column": 4,
-      "row": 6
-    },
-    "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/portfolio_v2/models/portfolio_snapshot.py",
-    "fix": {
-      "applicability": "unsafe",
-      "edits": [
-        {
-          "content": ".",
-          "end_location": {
-            "column": 46,
-            "row": 1
-          },
-          "location": {
-            "column": 46,
-            "row": 1
-          }
-        }
-      ],
-      "message": "Add closing punctuation"
-    },
-    "location": {
-      "column": 1,
-      "row": 1
-    },
-    "message": "First line should end with a period, question mark, or exclamation point",
-    "noqa_row": 6,
-    "url": "https://docs.astral.sh/ruff/rules/missing-terminal-punctuation"
-  },
-  {
-    "cell": null,
-    "code": "SIM118",
-    "end_location": {
-      "column": 92,
-      "row": 76
-    },
-    "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/portfolio_v2/models/portfolio_snapshot.py",
-    "fix": {
-      "applicability": "unsafe",
-      "edits": [
-        {
-          "content": "",
-          "end_location": {
-            "column": 92,
-            "row": 76
-          },
-          "location": {
-            "column": 85,
-            "row": 76
-          }
-        }
-      ],
-      "message": "Remove `.keys()`"
-    },
-    "location": {
-      "column": 61,
-      "row": 76
-    },
-    "message": "Use `key in dict` instead of `key in dict.keys()`",
     "noqa_row": 76,
-    "url": "https://docs.astral.sh/ruff/rules/in-dict-keys"
+    "url": "https://docs.astral.sh/ruff/rules/if-else-block-instead-of-if-exp"
   },
   {
     "cell": null,
@@ -2155,7 +1990,7 @@
     "code": "RET504",
     "end_location": {
       "column": 22,
-      "row": 540
+      "row": 569
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": {
@@ -2165,22 +2000,22 @@
           "content": "return",
           "end_location": {
             "column": 17,
-            "row": 538
+            "row": 565
           },
           "location": {
             "column": 9,
-            "row": 538
+            "row": 565
           }
         },
         {
           "content": "",
           "end_location": {
             "column": 1,
-            "row": 541
+            "row": 570
           },
           "location": {
             "column": 1,
-            "row": 540
+            "row": 569
           }
         }
       ],
@@ -2188,10 +2023,10 @@
     },
     "location": {
       "column": 16,
-      "row": 540
+      "row": 569
     },
     "message": "Unnecessary assignment to `report` before `return` statement",
-    "noqa_row": 540,
+    "noqa_row": 569,
     "url": "https://docs.astral.sh/ruff/rules/unnecessary-assign"
   },
   {
@@ -2199,16 +2034,16 @@
     "code": "ANN401",
     "end_location": {
       "column": 22,
-      "row": 617
+      "row": 646
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 19,
-      "row": 617
+      "row": 646
     },
     "message": "Dynamically typed expressions (typing.Any) are disallowed in `**kwargs`",
-    "noqa_row": 617,
+    "noqa_row": 646,
     "url": "https://docs.astral.sh/ruff/rules/any-type"
   },
   {
@@ -2216,50 +2051,33 @@
     "code": "ANN401",
     "end_location": {
       "column": 22,
-      "row": 649
+      "row": 678
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 19,
-      "row": 649
+      "row": 678
     },
     "message": "Dynamically typed expressions (typing.Any) are disallowed in `**kwargs`",
-    "noqa_row": 649,
+    "noqa_row": 678,
     "url": "https://docs.astral.sh/ruff/rules/any-type"
-  },
-  {
-    "cell": null,
-    "code": "D401",
-    "end_location": {
-      "column": 71,
-      "row": 685
-    },
-    "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
-    "fix": null,
-    "location": {
-      "column": 5,
-      "row": 685
-    },
-    "message": "First line of docstring should be in imperative mood: \"Convenience function to handle errors in trading operations.\"",
-    "noqa_row": 685,
-    "url": "https://docs.astral.sh/ruff/rules/non-imperative-mood"
   },
   {
     "cell": null,
     "code": "FBT001",
     "end_location": {
       "column": 11,
-      "row": 753
+      "row": 783
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 5,
-      "row": 753
+      "row": 783
     },
     "message": "Boolean-typed positional argument in function definition",
-    "noqa_row": 753,
+    "noqa_row": 783,
     "url": "https://docs.astral.sh/ruff/rules/boolean-type-hint-positional-argument"
   },
   {
@@ -2267,16 +2085,16 @@
     "code": "FBT002",
     "end_location": {
       "column": 11,
-      "row": 753
+      "row": 783
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 5,
-      "row": 753
+      "row": 783
     },
     "message": "Boolean default positional argument in function definition",
-    "noqa_row": 753,
+    "noqa_row": 783,
     "url": "https://docs.astral.sh/ruff/rules/boolean-default-value-positional-argument"
   },
   {
@@ -2284,16 +2102,16 @@
     "code": "ANN401",
     "end_location": {
       "column": 31,
-      "row": 772
+      "row": 802
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 28,
-      "row": 772
+      "row": 802
     },
     "message": "Dynamically typed expressions (typing.Any) are disallowed in `*args`",
-    "noqa_row": 772,
+    "noqa_row": 802,
     "url": "https://docs.astral.sh/ruff/rules/any-type"
   },
   {
@@ -2301,16 +2119,16 @@
     "code": "ANN401",
     "end_location": {
       "column": 46,
-      "row": 772
+      "row": 802
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 43,
-      "row": 772
+      "row": 802
     },
     "message": "Dynamically typed expressions (typing.Any) are disallowed in `**kwargs`",
-    "noqa_row": 772,
+    "noqa_row": 802,
     "url": "https://docs.astral.sh/ruff/rules/any-type"
   },
   {
@@ -2318,16 +2136,16 @@
     "code": "ANN401",
     "end_location": {
       "column": 54,
-      "row": 772
+      "row": 802
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 51,
-      "row": 772
+      "row": 802
     },
     "message": "Dynamically typed expressions (typing.Any) are disallowed in `wrapper`",
-    "noqa_row": 772,
+    "noqa_row": 802,
     "url": "https://docs.astral.sh/ruff/rules/any-type"
   },
   {
@@ -2335,16 +2153,16 @@
     "code": "S311",
     "end_location": {
       "column": 55,
-      "row": 793
+      "row": 823
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 40,
-      "row": 793
+      "row": 823
     },
     "message": "Standard pseudo-random generators are not suitable for cryptographic purposes",
-    "noqa_row": 793,
+    "noqa_row": 823,
     "url": "https://docs.astral.sh/ruff/rules/suspicious-non-cryptographic-random-usage"
   },
   {
@@ -2352,16 +2170,16 @@
     "code": "D102",
     "end_location": {
       "column": 17,
-      "row": 842
+      "row": 872
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 9,
-      "row": 842
+      "row": 872
     },
     "message": "Missing docstring in public method",
-    "noqa_row": 842,
+    "noqa_row": 872,
     "url": "https://docs.astral.sh/ruff/rules/undocumented-public-method"
   },
   {
@@ -2369,16 +2187,16 @@
     "code": "ANN401",
     "end_location": {
       "column": 31,
-      "row": 844
+      "row": 874
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 28,
-      "row": 844
+      "row": 874
     },
     "message": "Dynamically typed expressions (typing.Any) are disallowed in `*args`",
-    "noqa_row": 844,
+    "noqa_row": 874,
     "url": "https://docs.astral.sh/ruff/rules/any-type"
   },
   {
@@ -2386,16 +2204,16 @@
     "code": "ANN401",
     "end_location": {
       "column": 46,
-      "row": 844
+      "row": 874
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 43,
-      "row": 844
+      "row": 874
     },
     "message": "Dynamically typed expressions (typing.Any) are disallowed in `**kwargs`",
-    "noqa_row": 844,
+    "noqa_row": 874,
     "url": "https://docs.astral.sh/ruff/rules/any-type"
   },
   {
@@ -2403,16 +2221,16 @@
     "code": "ANN401",
     "end_location": {
       "column": 54,
-      "row": 844
+      "row": 874
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 51,
-      "row": 844
+      "row": 874
     },
     "message": "Dynamically typed expressions (typing.Any) are disallowed in `wrapper`",
-    "noqa_row": 844,
+    "noqa_row": 874,
     "url": "https://docs.astral.sh/ruff/rules/any-type"
   },
   {
@@ -2420,50 +2238,33 @@
     "code": "ANN401",
     "end_location": {
       "column": 18,
-      "row": 897
+      "row": 932
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 15,
-      "row": 897
+      "row": 932
     },
     "message": "Dynamically typed expressions (typing.Any) are disallowed in `**kwargs`",
-    "noqa_row": 897,
+    "noqa_row": 932,
     "url": "https://docs.astral.sh/ruff/rules/any-type"
   },
   {
     "cell": null,
-    "code": "D401",
-    "end_location": {
-      "column": 74,
-      "row": 899
-    },
-    "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
-    "fix": null,
-    "location": {
-      "column": 5,
-      "row": 899
-    },
-    "message": "First line of docstring should be in imperative mood: \"Factory function to create enhanced errors with proper context.\"",
-    "noqa_row": 899,
-    "url": "https://docs.astral.sh/ruff/rules/non-imperative-mood"
-  },
-  {
-    "cell": null,
     "code": "FBT001",
     "end_location": {
       "column": 20,
-      "row": 930
+      "row": 965
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 9,
-      "row": 930
+      "row": 965
     },
     "message": "Boolean-typed positional argument in function definition",
-    "noqa_row": 930,
+    "noqa_row": 965,
     "url": "https://docs.astral.sh/ruff/rules/boolean-type-hint-positional-argument"
   },
   {
@@ -2471,50 +2272,33 @@
     "code": "FBT002",
     "end_location": {
       "column": 20,
-      "row": 930
+      "row": 965
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 9,
-      "row": 930
+      "row": 965
     },
     "message": "Boolean default positional argument in function definition",
-    "noqa_row": 930,
+    "noqa_row": 965,
     "url": "https://docs.astral.sh/ruff/rules/boolean-default-value-positional-argument"
-  },
-  {
-    "cell": null,
-    "code": "D401",
-    "end_location": {
-      "column": 75,
-      "row": 1005
-    },
-    "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
-    "fix": null,
-    "location": {
-      "column": 5,
-      "row": 1005
-    },
-    "message": "First line of docstring should be in imperative mood: \"Factory function to create a new EnhancedErrorReporter instance.\"",
-    "noqa_row": 1005,
-    "url": "https://docs.astral.sh/ruff/rules/non-imperative-mood"
   },
   {
     "cell": null,
     "code": "FBT001",
     "end_location": {
       "column": 29,
-      "row": 1023
+      "row": 1061
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 21,
-      "row": 1023
+      "row": 1061
     },
     "message": "Boolean-typed positional argument in function definition",
-    "noqa_row": 1023,
+    "noqa_row": 1061,
     "url": "https://docs.astral.sh/ruff/rules/boolean-type-hint-positional-argument"
   },
   {
@@ -2522,16 +2306,16 @@
     "code": "FBT002",
     "end_location": {
       "column": 29,
-      "row": 1023
+      "row": 1061
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 21,
-      "row": 1023
+      "row": 1061
     },
     "message": "Boolean default positional argument in function definition",
-    "noqa_row": 1023,
+    "noqa_row": 1061,
     "url": "https://docs.astral.sh/ruff/rules/boolean-default-value-positional-argument"
   },
   {
@@ -2539,16 +2323,16 @@
     "code": "FBT001",
     "end_location": {
       "column": 52,
-      "row": 1023
+      "row": 1061
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 45,
-      "row": 1023
+      "row": 1061
     },
     "message": "Boolean-typed positional argument in function definition",
-    "noqa_row": 1023,
+    "noqa_row": 1061,
     "url": "https://docs.astral.sh/ruff/rules/boolean-type-hint-positional-argument"
   },
   {
@@ -2556,50 +2340,33 @@
     "code": "FBT002",
     "end_location": {
       "column": 52,
-      "row": 1023
+      "row": 1061
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 45,
-      "row": 1023
+      "row": 1061
     },
     "message": "Boolean default positional argument in function definition",
-    "noqa_row": 1023,
+    "noqa_row": 1061,
     "url": "https://docs.astral.sh/ruff/rules/boolean-default-value-positional-argument"
-  },
-  {
-    "cell": null,
-    "code": "D401",
-    "end_location": {
-      "column": 8,
-      "row": 1036
-    },
-    "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
-    "fix": null,
-    "location": {
-      "column": 5,
-      "row": 1025
-    },
-    "message": "First line of docstring should be in imperative mood: \"Decorator combining error handling with optional retry logic.\"",
-    "noqa_row": 1036,
-    "url": "https://docs.astral.sh/ruff/rules/non-imperative-mood"
   },
   {
     "cell": null,
     "code": "ANN401",
     "end_location": {
       "column": 31,
-      "row": 1040
+      "row": 1078
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 28,
-      "row": 1040
+      "row": 1078
     },
     "message": "Dynamically typed expressions (typing.Any) are disallowed in `*args`",
-    "noqa_row": 1040,
+    "noqa_row": 1078,
     "url": "https://docs.astral.sh/ruff/rules/any-type"
   },
   {
@@ -2607,16 +2374,16 @@
     "code": "ANN401",
     "end_location": {
       "column": 46,
-      "row": 1040
+      "row": 1078
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 43,
-      "row": 1040
+      "row": 1078
     },
     "message": "Dynamically typed expressions (typing.Any) are disallowed in `**kwargs`",
-    "noqa_row": 1040,
+    "noqa_row": 1078,
     "url": "https://docs.astral.sh/ruff/rules/any-type"
   },
   {
@@ -2624,16 +2391,16 @@
     "code": "ANN401",
     "end_location": {
       "column": 54,
-      "row": 1040
+      "row": 1078
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
     "fix": null,
     "location": {
       "column": 51,
-      "row": 1040
+      "row": 1078
     },
     "message": "Dynamically typed expressions (typing.Any) are disallowed in `wrapper`",
-    "noqa_row": 1040,
+    "noqa_row": 1078,
     "url": "https://docs.astral.sh/ruff/rules/any-type"
   },
   {
@@ -6371,17 +6138,17 @@
     "cell": null,
     "code": "ANN401",
     "end_location": {
-      "column": 53,
-      "row": 297
+      "column": 26,
+      "row": 333
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/strategy_v2/engines/klm/engine.py",
     "fix": null,
     "location": {
-      "column": 50,
-      "row": 297
+      "column": 23,
+      "row": 333
     },
     "message": "Dynamically typed expressions (typing.Any) are disallowed in `result`",
-    "noqa_row": 297,
+    "noqa_row": 333,
     "url": "https://docs.astral.sh/ruff/rules/any-type"
   },
   {
@@ -6389,16 +6156,16 @@
     "code": "ANN401",
     "end_location": {
       "column": 43,
-      "row": 373
+      "row": 420
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/strategy_v2/engines/klm/engine.py",
     "fix": null,
     "location": {
       "column": 40,
-      "row": 373
+      "row": 420
     },
     "message": "Dynamically typed expressions (typing.Any) are disallowed in `result`",
-    "noqa_row": 373,
+    "noqa_row": 420,
     "url": "https://docs.astral.sh/ruff/rules/any-type"
   },
   {
@@ -6406,16 +6173,16 @@
     "code": "ANN401",
     "end_location": {
       "column": 53,
-      "row": 392
+      "row": 439
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/strategy_v2/engines/klm/engine.py",
     "fix": null,
     "location": {
       "column": 50,
-      "row": 392
+      "row": 439
     },
     "message": "Dynamically typed expressions (typing.Any) are disallowed in `result`",
-    "noqa_row": 392,
+    "noqa_row": 439,
     "url": "https://docs.astral.sh/ruff/rules/any-type"
   },
   {
@@ -6552,23 +6319,6 @@
   },
   {
     "cell": null,
-    "code": "D401",
-    "end_location": {
-      "column": 12,
-      "row": 66
-    },
-    "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/strategy_v2/engines/klm/variants/variant_1280_26.py",
-    "fix": null,
-    "location": {
-      "column": 9,
-      "row": 63
-    },
-    "message": "First line of docstring should be in imperative mood: \"Combined Pop Bot for 1280/26 - includes LABU with RSI < 25.\"",
-    "noqa_row": 66,
-    "url": "https://docs.astral.sh/ruff/rules/non-imperative-mood"
-  },
-  {
-    "cell": null,
     "code": "D400",
     "end_location": {
       "column": 4,
@@ -6631,106 +6381,6 @@
     },
     "message": "First line should end with a period, question mark, or exclamation point",
     "noqa_row": 10,
-    "url": "https://docs.astral.sh/ruff/rules/missing-terminal-punctuation"
-  },
-  {
-    "cell": null,
-    "code": "D400",
-    "end_location": {
-      "column": 4,
-      "row": 15
-    },
-    "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/strategy_v2/engines/klm/variants/variant_506_38.py",
-    "fix": {
-      "applicability": "unsafe",
-      "edits": [
-        {
-          "content": ".",
-          "end_location": {
-            "column": 45,
-            "row": 1
-          },
-          "location": {
-            "column": 45,
-            "row": 1
-          }
-        }
-      ],
-      "message": "Add period"
-    },
-    "location": {
-      "column": 1,
-      "row": 1
-    },
-    "message": "First line should end with a period",
-    "noqa_row": 15,
-    "url": "https://docs.astral.sh/ruff/rules/missing-trailing-period"
-  },
-  {
-    "cell": null,
-    "code": "D415",
-    "end_location": {
-      "column": 4,
-      "row": 15
-    },
-    "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/strategy_v2/engines/klm/variants/variant_506_38.py",
-    "fix": {
-      "applicability": "unsafe",
-      "edits": [
-        {
-          "content": ".",
-          "end_location": {
-            "column": 45,
-            "row": 1
-          },
-          "location": {
-            "column": 45,
-            "row": 1
-          }
-        }
-      ],
-      "message": "Add closing punctuation"
-    },
-    "location": {
-      "column": 1,
-      "row": 1
-    },
-    "message": "First line should end with a period, question mark, or exclamation point",
-    "noqa_row": 15,
-    "url": "https://docs.astral.sh/ruff/rules/missing-terminal-punctuation"
-  },
-  {
-    "cell": null,
-    "code": "D400",
-    "end_location": {
-      "column": 12,
-      "row": 67
-    },
-    "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/strategy_v2/engines/klm/variants/variant_506_38.py",
-    "fix": null,
-    "location": {
-      "column": 9,
-      "row": 63
-    },
-    "message": "First line should end with a period",
-    "noqa_row": 67,
-    "url": "https://docs.astral.sh/ruff/rules/missing-trailing-period"
-  },
-  {
-    "cell": null,
-    "code": "D415",
-    "end_location": {
-      "column": 12,
-      "row": 67
-    },
-    "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/strategy_v2/engines/klm/variants/variant_506_38.py",
-    "fix": null,
-    "location": {
-      "column": 9,
-      "row": 63
-    },
-    "message": "First line should end with a period, question mark, or exclamation point",
-    "noqa_row": 67,
     "url": "https://docs.astral.sh/ruff/rules/missing-terminal-punctuation"
   },
   {
@@ -6738,16 +6388,16 @@
     "code": "D205",
     "end_location": {
       "column": 12,
-      "row": 311
+      "row": 326
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/strategy_v2/engines/klm/variants/variant_530_18.py",
     "fix": null,
     "location": {
       "column": 9,
-      "row": 309
+      "row": 324
     },
     "message": "1 blank line required between summary line and description",
-    "noqa_row": 311,
+    "noqa_row": 326,
     "url": "https://docs.astral.sh/ruff/rules/missing-blank-line-after-summary"
   },
   {
@@ -6755,16 +6405,16 @@
     "code": "D210",
     "end_location": {
       "column": 12,
-      "row": 356
+      "row": 377
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/strategy_v2/engines/klm/variants/variant_530_18.py",
     "fix": null,
     "location": {
       "column": 9,
-      "row": 347
+      "row": 368
     },
     "message": "No whitespaces allowed surrounding docstring text",
-    "noqa_row": 356,
+    "noqa_row": 377,
     "url": "https://docs.astral.sh/ruff/rules/surrounding-whitespace"
   },
   {
@@ -6772,16 +6422,16 @@
     "code": "D210",
     "end_location": {
       "column": 12,
-      "row": 428
+      "row": 453
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/strategy_v2/engines/klm/variants/variant_530_18.py",
     "fix": null,
     "location": {
       "column": 9,
-      "row": 425
+      "row": 450
     },
     "message": "No whitespaces allowed surrounding docstring text",
-    "noqa_row": 428,
+    "noqa_row": 453,
     "url": "https://docs.astral.sh/ruff/rules/surrounding-whitespace"
   },
   {
@@ -6789,16 +6439,16 @@
     "code": "D205",
     "end_location": {
       "column": 12,
-      "row": 571
+      "row": 600
     },
     "filename": "/Users/joshua.moreton/Documents/GitHub/alchemiser-quant/the_alchemiser/strategy_v2/engines/klm/variants/variant_530_18.py",
     "fix": null,
     "location": {
       "column": 9,
-      "row": 569
+      "row": 598
     },
     "message": "1 blank line required between summary line and description",
-    "noqa_row": 571,
+    "noqa_row": 600,
     "url": "https://docs.astral.sh/ruff/rules/missing-blank-line-after-summary"
   },
   {

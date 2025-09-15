@@ -1,4 +1,4 @@
-"""Business Unit: portfolio | Status: current
+"""Business Unit: portfolio | Status: current.
 
 Portfolio state management and rebalancing logic.
 
@@ -13,7 +13,7 @@ from decimal import Decimal
 
 @dataclass(frozen=True)
 class PortfolioSnapshot:
-    """Immutable snapshot of portfolio state.
+    """Represent an immutable snapshot of portfolio state.
 
     Contains current positions, prices, and cash for rebalancing calculations.
     All monetary values use Decimal for precision.
@@ -73,7 +73,7 @@ class PortfolioSnapshot:
             Dictionary mapping symbol to market value
 
         """
-        return {symbol: self.get_position_value(symbol) for symbol in self.positions.keys()}
+        return {symbol: self.get_position_value(symbol) for symbol in self.positions}
 
     def get_total_position_value(self) -> Decimal:
         """Get total market value of all positions.

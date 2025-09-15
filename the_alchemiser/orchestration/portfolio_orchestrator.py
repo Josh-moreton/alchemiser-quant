@@ -36,7 +36,7 @@ from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 
 
 class PortfolioOrchestrator:
-    """Orchestrates portfolio rebalancing workflow."""
+    """Orchestrate portfolio rebalancing workflow."""
 
     def __init__(self, settings: Settings, container: ApplicationContainer) -> None:
         """Initialize orchestrator with settings and DI container."""
