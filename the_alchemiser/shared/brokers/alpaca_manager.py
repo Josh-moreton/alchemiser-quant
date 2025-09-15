@@ -595,7 +595,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             # Map ExecutedOrderDTO status to OrderExecutionResult Literal status
             dto_status_to_result_status: dict[str, Literal["accepted", "filled", "partially_filled", "rejected", "canceled"]] = {
                 "FILLED": "filled",
-                "PARTIAL": "partially_filled", 
+                "PARTIAL": "partially_filled",
                 "REJECTED": "rejected",
                 "CANCELLED": "canceled",
                 "CANCELED": "canceled",
