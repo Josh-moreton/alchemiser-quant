@@ -93,7 +93,7 @@ def normalize_timestamp_to_utc(timestamp: datetime | str | int | float) -> datet
 
             parsed = datetime.fromisoformat(timestamp)
             # ensure_timezone_aware returns datetime for datetime input
-            return ensure_timezone_aware(parsed)  # type: ignore[return-value]
+            return ensure_timezone_aware(parsed)
         except ValueError:
             # Fallback to current time if parsing fails
             return datetime.now(UTC)
