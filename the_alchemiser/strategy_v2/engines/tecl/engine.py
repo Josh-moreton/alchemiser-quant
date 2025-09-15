@@ -508,7 +508,7 @@ class TECLEngine(StrategyEngine):
 
                 signal = StrategySignal(
                     symbol=Symbol(primary_symbol),
-                    action=action,  # type: ignore  # action comes from ActionType.value
+                    action=action,
                     confidence=self._calculate_confidence(
                         primary_symbol, action, indicators, reasoning
                     ),
@@ -520,7 +520,7 @@ class TECLEngine(StrategyEngine):
                 # Single symbol recommendation
                 signal = StrategySignal(
                     symbol=Symbol(symbol_or_allocation),
-                    action=action,  # type: ignore  # action comes from ActionType.value
+                    action=action,
                     confidence=self._calculate_confidence(
                         symbol_or_allocation, action, indicators, reasoning
                     ),
@@ -545,7 +545,10 @@ class TECLEngine(StrategyEngine):
                 return False
             if signal.confidence.value < 0 or signal.confidence.value > 1:
                 return False
-            return not (signal.target_allocation.value < 0 or signal.target_allocation.value > 1)
+            return not (
+                signal.target_allocation is not None
+                and (signal.target_allocation < 0 or signal.target_allocation > 1)
+            )
 
         except Exception:
             return False

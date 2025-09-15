@@ -10,6 +10,15 @@ timezone handling logic across DTOs, mappers, and other components.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import overload
+
+
+@overload
+def ensure_timezone_aware(timestamp: None) -> None: ...
+
+
+@overload
+def ensure_timezone_aware(timestamp: datetime) -> datetime: ...
 
 
 def ensure_timezone_aware(timestamp: datetime | None) -> datetime | None:
@@ -72,7 +81,8 @@ def normalize_timestamp_to_utc(timestamp: datetime | str | int | float) -> datet
     """
     if isinstance(timestamp, datetime):
         # Handle datetime objects
-        return ensure_timezone_aware(timestamp)
+        # ensure_timezone_aware returns datetime for datetime input
+        return ensure_timezone_aware(timestamp)  # type: ignore[return-value]
 
     if isinstance(timestamp, str):
         # Handle ISO format strings
@@ -82,6 +92,7 @@ def normalize_timestamp_to_utc(timestamp: datetime | str | int | float) -> datet
                 timestamp = timestamp[:-1] + "+00:00"
 
             parsed = datetime.fromisoformat(timestamp)
+            # ensure_timezone_aware returns datetime for datetime input
             return ensure_timezone_aware(parsed)
         except ValueError:
             # Fallback to current time if parsing fails
@@ -118,5 +129,6 @@ def to_iso_string(timestamp: datetime | None) -> str | None:
         return None
 
     # Ensure timezone awareness before converting
+    # ensure_timezone_aware returns datetime for datetime input
     aware_timestamp = ensure_timezone_aware(timestamp)
     return aware_timestamp.isoformat()

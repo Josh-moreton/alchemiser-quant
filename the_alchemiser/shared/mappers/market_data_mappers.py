@@ -5,16 +5,17 @@ Market Data Mappers.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.shared.types.market_data import BarModel
 from the_alchemiser.shared.types.quote import QuoteModel
-from the_alchemiser.strategy.types.bar import BarModel
 
 
-def _parse_ts(value: Any) -> datetime | None:
+def _parse_ts(value: datetime | str | int | float | None) -> datetime | None:
     """Best-effort parser to datetime.
 
     Accepts:
@@ -41,13 +42,16 @@ def _parse_ts(value: Any) -> datetime | None:
     return None
 
 
-def bars_to_domain(rows: Iterable[dict[str, Any]]) -> list[BarModel]:
+def bars_to_domain(
+    rows: Iterable[dict[str, Any]], symbol: str | None = None
+) -> list[BarModel]:
     """Convert raw bar data dictionaries to domain BarModel objects.
 
     Args:
         rows: Iterable of dictionaries containing bar data with keys like
               't'/'timestamp'/'time', 'o'/'open', 'h'/'high', 'l'/'low',
               'c'/'close', 'v'/'volume'
+        symbol: Optional default symbol to apply when not present in each row
 
     Returns:
         List of BarModel objects with valid timestamps and decimal prices
@@ -66,21 +70,24 @@ def bars_to_domain(rows: Iterable[dict[str, Any]]) -> list[BarModel]:
                 continue
             out.append(
                 BarModel(
-                    ts=ts_parsed,
-                    open=Decimal(str(r.get("o") or r.get("open") or 0)),
-                    high=Decimal(str(r.get("h") or r.get("high") or 0)),
-                    low=Decimal(str(r.get("l") or r.get("low") or 0)),
-                    close=Decimal(str(r.get("c") or r.get("close") or 0)),
-                    volume=Decimal(str(r.get("v") or r.get("volume") or 0)),
+                    symbol=(r.get("S") or r.get("symbol") or symbol or "UNKNOWN"),
+                    timestamp=ts_parsed,
+                    open=float(r.get("o") or r.get("open") or 0),
+                    high=float(r.get("h") or r.get("high") or 0),
+                    low=float(r.get("l") or r.get("low") or 0),
+                    close=float(r.get("c") or r.get("close") or 0),
+                    volume=int(r.get("v") or r.get("volume") or 0),
                 )
             )
-        except Exception:
-            # Best-effort mapping; skip bad rows
+        except Exception as exc:
+            logging.getLogger(__name__).debug(
+                "Failed to map bar row to domain: %s", exc
+            )
             continue
     return out
 
 
-def quote_to_domain(raw: Any) -> QuoteModel | None:
+def quote_to_domain(raw: object) -> QuoteModel | None:
     """Convert raw quote data object to domain QuoteModel.
 
     Args:

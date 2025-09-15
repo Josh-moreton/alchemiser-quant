@@ -8,6 +8,7 @@ Thin CLI wrapper that delegates to orchestration layer for trading execution wor
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -31,7 +32,7 @@ class ExecutionResult(Protocol):
     """Protocol for execution result interface."""
 
     success_rate: float
-    total_trade_value: Any
+    total_trade_value: Decimal
     orders_placed: int
     orders_succeeded: int
     failure_count: int
@@ -44,6 +45,7 @@ class TradingExecutor(BaseCLI):
         self,
         settings: Settings,
         container: ApplicationContainer,
+        *,
         ignore_market_hours: bool = False,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
@@ -148,7 +150,7 @@ class TradingExecutor(BaseCLI):
                     total_value = (
                         execution_result.total_trade_value
                         if hasattr(execution_result, "total_trade_value")
-                        else 0
+                        else Decimal(0)
                     )
 
                     summary_content = [

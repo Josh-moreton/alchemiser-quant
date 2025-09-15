@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: shared | Status: current
+"""Business Unit: shared | Status: current.
 
 Persistence Handler Factory for Trading System.
 
@@ -32,7 +32,7 @@ def create_persistence_handler(*, paper_trading: bool = True) -> PersistenceHand
         return LocalFileHandler()
     # Live trading - use S3 storage
     logging.info("Using S3 storage for live trading mode")
-    from the_alchemiser.portfolio.utils.s3_utils import S3Handler
+    from the_alchemiser.shared.persistence.s3_handler import S3Handler
 
     return S3Handler()
 

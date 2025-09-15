@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: strategy | Status: current
+"""Business Unit: strategy | Status: current.
 
 Strategy engines (Nuclear, KLM, TECL).
 
@@ -14,7 +14,7 @@ from __future__ import annotations
 # - klm: KLM strategy variants
 # - tecl: TECL strategy
 
-__all__ = [
+__all__: list[str] = [
     # Individual engines available via submodule imports
     # Example: from .nuclear.engine import NuclearEngine
 ]
