@@ -609,14 +609,8 @@ class KLMEngine(StrategyEngine):
             for symbol_str, weight in symbol_or_allocation.items():
                 try:
                     # Validate weight is a valid number
-                    if (
-                        weight is None
-                        or not isinstance(weight, int | float)
-                        or math.isnan(weight)
-                    ):
-                        self.logger.warning(
-                            f"Invalid weight for {symbol_str}: {weight}, skipping"
-                        )
+                    if weight is None or not isinstance(weight, int | float) or math.isnan(weight):
+                        self.logger.warning(f"Invalid weight for {symbol_str}: {weight}, skipping")
                         continue
 
                     symbol = Symbol(symbol_str)
@@ -674,7 +668,11 @@ class KLMEngine(StrategyEngine):
         )
 
     def _calculate_confidence(self, action: str, weight: float) -> Confidence:
-        """Calculate confidence based on action and allocation weight."""
+        """Calculate confidence based on action and allocation weight.
+
+        Uses a more balanced approach that reduces dramatic confidence variations
+        based on allocation weight, providing more stable confidence levels.
+        """
         config = self.confidence_config.klm
 
         # Validate weight is a valid number
@@ -685,22 +683,28 @@ class KLMEngine(StrategyEngine):
             weight = 0.0
 
         if action == "BUY":
-            # Higher weight = higher confidence (configurable formula)
-            confidence_value = min(
-                float(config.buy_max),
-                float(config.buy_base) + (weight * float(config.buy_weight_multiplier)),
-            )
+            # Start with base confidence and apply gentler weight adjustment
+            confidence_value = float(config.base_confidence)
+
+            # Apply weight adjustment (much gentler than before)
+            weight_adjustment = weight * float(config.weight_adjustment_factor)
+            confidence_value += weight_adjustment
 
             # Boost for high-weight positions
             if weight >= float(config.high_weight_threshold):
                 confidence_value += float(config.high_weight_boost)
-                confidence_value = min(float(config.buy_max), confidence_value)
+
+            # Clamp to valid range
+            confidence_value = max(
+                float(config.min_confidence),
+                min(float(config.max_confidence), confidence_value),
+            )
 
         elif action == "SELL":
             # Sell signals have moderate confidence (configurable)
             confidence_value = float(config.sell_confidence)
         else:  # HOLD
-            # Hold signals have lower confidence (configurable)
+            # Hold signals have moderate confidence (increased from 0.30)
             confidence_value = float(config.hold_confidence)
 
         # Ensure confidence_value is valid before Decimal conversion
@@ -724,10 +728,11 @@ class KLMEngine(StrategyEngine):
 
     def _create_hold_signal(self, reason: str, now: datetime) -> list[StrategySignal]:
         """Create a default hold signal for BIL."""
+        config = self.confidence_config.klm
         signal = StrategySignal(
             symbol=Symbol("BIL"),
             action="HOLD",
-            confidence=Confidence(Decimal("0.3")),
+            confidence=Confidence(config.hold_confidence),
             target_allocation=Percentage(Decimal("1.0")),
             reasoning=f"KLM Ensemble: {reason}",
             timestamp=now,

@@ -333,17 +333,16 @@ class MultiStrategyOrchestrator:
             f"Resolving conflict for {symbol} with {len(strategy_signals)} signals"
         )
 
-        # Filter signals that meet minimum confidence thresholds
-        valid_signals = self._filter_by_confidence_thresholds(strategy_signals)
+        # Use ALL signals - no confidence threshold filtering
+        # Strategy signals are concrete and should not be filtered by confidence
+        valid_signals = strategy_signals
 
         if not valid_signals:
-            self.logger.warning(
-                f"No signals for {symbol} meet minimum confidence thresholds"
-            )
+            self.logger.warning(f"No signals provided for {symbol}")
             return None
 
         if len(valid_signals) == 1:
-            # Only one signal meets thresholds
+            # Only one signal - use it directly
             _, signal = valid_signals[0]
             return signal
 
@@ -360,25 +359,6 @@ class MultiStrategyOrchestrator:
             return self._combine_agreeing_signals(symbol, valid_signals)
         # Strategies disagree - use highest weighted confidence with tie-breaking
         return self._select_highest_confidence_signal(symbol, valid_signals)
-
-    def _filter_by_confidence_thresholds(
-        self, strategy_signals: list[tuple[StrategyType, StrategySignal]]
-    ) -> list[tuple[StrategyType, StrategySignal]]:
-        """Filter signals that meet minimum confidence thresholds for their action."""
-        thresholds = self.confidence_config.aggregation.thresholds
-        valid_signals = []
-
-        for strategy_type, signal in strategy_signals:
-            min_threshold = thresholds.get_threshold(signal.action)
-            if signal.confidence.value >= min_threshold:
-                valid_signals.append((strategy_type, signal))
-            else:
-                self.logger.debug(
-                    f"Signal {strategy_type.value}:{signal.symbol.value}:{signal.action} "
-                    f"confidence {signal.confidence.value:.2f} below threshold {min_threshold:.2f}"
-                )
-
-        return valid_signals
 
     def _combine_agreeing_signals(
         self, symbol: str, strategy_signals: list[tuple[StrategyType, StrategySignal]]
@@ -431,6 +411,7 @@ class MultiStrategyOrchestrator:
         """Select signal with highest weighted confidence when strategies disagree.
 
         Implements explicit tie-breaking rules for deterministic behavior.
+        Applies confidence-based weight adjustment up to 10% boost/reduction for high/low confidence strategies.
         """
         best_score = Decimal("-1")
         best_signals: list[tuple[StrategyType, StrategySignal]] = []
@@ -439,13 +420,19 @@ class MultiStrategyOrchestrator:
 
         # Calculate weighted scores for all signals
         for strategy_type, signal in strategy_signals:
-            weight = Decimal(str(self.strategy_allocations[strategy_type]))
+            base_weight = Decimal(str(self.strategy_allocations[strategy_type]))
             confidence_value = signal.confidence.value
-            weighted_score = confidence_value * weight
+
+            # Apply confidence-based weight adjustment (up to 10% boost/reduction)
+            confidence_adjusted_weight = self._apply_confidence_weighting(
+                base_weight, confidence_value, strategy_signals
+            )
+
+            weighted_score = confidence_value * confidence_adjusted_weight
 
             reasoning += (
                 f"• {strategy_type.value}: {signal.action} "
-                f"(confidence: {confidence_value:.2f}, weight: {weight:.1%}, "
+                f"(confidence: {confidence_value:.2f}, weight: {confidence_adjusted_weight:.1%}, "
                 f"score: {weighted_score:.3f})\n"
             )
 
@@ -478,6 +465,45 @@ class MultiStrategyOrchestrator:
             reasoning=reasoning,
             timestamp=best_signal.timestamp,
         )
+
+    def _apply_confidence_weighting(
+        self,
+        base_weight: Decimal,
+        confidence: Decimal,
+        all_signals: list[tuple[StrategyType, StrategySignal]],
+    ) -> Decimal:
+        """Apply confidence-based weight adjustment up to 10% boost/reduction.
+
+        High confidence strategies get up to 10% additional weighting vs low confidence.
+        This provides gentle weighting between strategies based on their conviction.
+        """
+        if len(all_signals) <= 1:
+            return base_weight
+
+        # Get confidence values from all strategies
+        confidences = [signal.confidence.value for _, signal in all_signals]
+        min_confidence = min(confidences)
+        max_confidence = max(confidences)
+
+        # If all strategies have same confidence, no adjustment needed
+        if max_confidence == min_confidence:
+            return base_weight
+
+        # Calculate relative confidence position (0.0 to 1.0)
+        confidence_range = max_confidence - min_confidence
+        relative_confidence = (confidence - min_confidence) / confidence_range
+
+        # Apply up to 10% weight adjustment
+        max_adjustment = (
+            self.confidence_config.aggregation.max_confidence_weight_adjustment
+        )
+        weight_adjustment = (relative_confidence - Decimal("0.5")) * max_adjustment * 2
+
+        # Apply adjustment to base weight
+        adjusted_weight = base_weight * (Decimal("1.0") + weight_adjustment)
+
+        # Ensure weight stays positive and reasonable
+        return max(Decimal("0.01"), adjusted_weight)
 
     def _break_tie(
         self, tied_signals: list[tuple[StrategyType, StrategySignal]]

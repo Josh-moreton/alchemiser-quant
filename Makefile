@@ -59,8 +59,8 @@ lint:
 	poetry run ruff check the_alchemiser/
 
 type-check:
-	@echo "🔍 Running MyPy type checking on modular structure..."
-	poetry run mypy the_alchemiser/shared/ the_alchemiser/strategy_v2/ the_alchemiser/portfolio_v2/ the_alchemiser/execution_v2/ --no-error-summary
+	@echo "🔍 Running MyPy type checking (matching VS Code configuration)..."
+	poetry run mypy the_alchemiser/ --config-file=pyproject.toml
 
 import-check:
 	@echo "🔍 Checking module dependency rules..."
