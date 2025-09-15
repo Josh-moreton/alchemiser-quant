@@ -23,17 +23,15 @@ from ..types.exceptions import (
 from .error_reporter import ErrorReporter, get_error_reporter, report_error_globally
 
 __all__ = [
-    # Core exceptions
     "AlchemiserError",
     "ConfigurationError",
     "DataProviderError",
+    "ErrorReporter",
     "OrderExecutionError",
-    "PortfolioError", 
+    "PortfolioError",
     "StrategyExecutionError",
     "TradingClientError",
     "ValidationError",
-    # Error reporting
-    "ErrorReporter",
-    "get_error_reporter", 
+    "get_error_reporter",
     "report_error_globally",
 ]

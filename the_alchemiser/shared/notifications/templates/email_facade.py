@@ -9,9 +9,12 @@ serve as wrappers around the existing template builder classes.
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import cast
 
-from the_alchemiser.shared.value_objects.core_types import AccountInfo, EnrichedAccountInfo
+from the_alchemiser.shared.value_objects.core_types import (
+    AccountInfo,
+    EnrichedAccountInfo,
+)
 
 # Import the base template and builder classes
 from .base import BaseEmailTemplate
@@ -53,7 +56,7 @@ def build_error_email_html(title: str, message: str) -> str:
     return BaseEmailTemplate.wrap_content(content, f"The Alchemiser - {title}")
 
 
-def build_multi_strategy_email_html(result: Any, mode: str = "PAPER") -> str:
+def build_multi_strategy_email_html(result: object, mode: str = "PAPER") -> str:
     """Build a multi-strategy execution report email.
 
     This function wraps the existing MultiStrategyReportBuilder.build_multi_strategy_report method.
@@ -73,9 +76,9 @@ def build_multi_strategy_email_html(result: Any, mode: str = "PAPER") -> str:
 
 
 def build_trading_report_html(
-    trading_summary: dict[str, Any],
-    strategy_signals: dict[str, Any] | None = None,
-    account_info: dict[str, Any] | None = None,
+    trading_summary: dict[str, object],
+    strategy_signals: dict[str, object] | None = None,
+    account_info: dict[str, object] | None = None,
 ) -> str:
     """Build a general trading report email.
 
@@ -160,12 +163,12 @@ class EmailTemplates:
         return build_error_email_html(title, error_message)
 
     @staticmethod
-    def multi_strategy_report(result: Any, mode: str = "PAPER") -> str:
+    def multi_strategy_report(result: object, mode: str = "PAPER") -> str:
         """Generate a multi-strategy execution report using existing MultiStrategyReportBuilder."""
         return build_multi_strategy_email_html(result, mode)
 
     @staticmethod
-    def build_multi_strategy_report_neutral(result: Any, mode: str = "PAPER") -> str:
+    def build_multi_strategy_report_neutral(result: object, mode: str = "PAPER") -> str:
         """Generate a neutral multi-strategy execution report.
 
         This is an alias for multi_strategy_report to maintain backward compatibility.
@@ -174,9 +177,11 @@ class EmailTemplates:
 
     @staticmethod
     def trading_report(
-        trading_summary: dict[str, Any],
-        strategy_signals: dict[str, Any] | None = None,
-        account_info: dict[str, Any] | None = None,
+        trading_summary: dict[str, object],
+        strategy_signals: dict[str, object] | None = None,
+        account_info: dict[str, object] | None = None,
     ) -> str:
         """Generate a general trading report using existing builder classes."""
-        return build_trading_report_html(trading_summary, strategy_signals, account_info)
+        return build_trading_report_html(
+            trading_summary, strategy_signals, account_info
+        )

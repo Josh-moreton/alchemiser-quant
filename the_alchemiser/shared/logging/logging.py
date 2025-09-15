@@ -7,7 +7,6 @@ All new code should import directly from logging_utils.py.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 # Import from the centralized utilities using relative imports to avoid circular dependency
 from .logging_utils import get_logger as _get_logger
@@ -47,7 +46,9 @@ def setup_logging(level: str = "INFO") -> None:
     )
 
 
-def log_with_context(logger: logging.Logger, level: str, message: str, **context: Any) -> None:
+def log_with_context(
+    logger: logging.Logger, level: str, message: str, **context: object
+) -> None:
     """Log a message with additional context.
 
     Delegates to centralized logging utilities.

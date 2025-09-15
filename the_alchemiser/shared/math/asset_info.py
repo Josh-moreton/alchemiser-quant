@@ -38,7 +38,9 @@ class FractionabilityDetector:
     implementation for authoritative fractionability information.
     """
 
-    def __init__(self, asset_metadata_provider: AssetMetadataProvider | None = None) -> None:
+    def __init__(
+        self, asset_metadata_provider: AssetMetadataProvider | None = None
+    ) -> None:
         """Initialize with optional AssetMetadataProvider.
 
         Args:
@@ -106,7 +108,9 @@ class FractionabilityDetector:
             return provider_result
 
         # Fallback to backup prediction if provider unavailable
-        logging.info(f"🔄 Using fallback prediction for {symbol} (provider unavailable)")
+        logging.info(
+            f"🔄 Using fallback prediction for {symbol} (provider unavailable)"
+        )
         fallback_result = self._fallback_fractionability_prediction(symbol)
 
         # Cache the fallback result with a warning
@@ -126,12 +130,7 @@ class FractionabilityDetector:
         symbol = symbol.upper()
 
         # Known non-fractionable from testing
-        if symbol in self.backup_known_non_fractionable:
-            return False
-
-        # Conservative approach: assume fractionable unless proven otherwise
-        # This is safer since most assets are fractionable according to testing
-        return True
+        return symbol not in self.backup_known_non_fractionable
 
     def get_asset_type(self, symbol: str) -> AssetType:
         """Classify asset type for optimization strategies.
@@ -147,12 +146,20 @@ class FractionabilityDetector:
 
         # Check if it's non-fractionable first
         if not self.is_fractionable(symbol):
-            return AssetType.LEVERAGED_ETF  # Most non-fractionable assets are leveraged products
+            return (
+                AssetType.LEVERAGED_ETF
+            )  # Most non-fractionable assets are leveraged products
 
         # Regular ETFs (common patterns)
-        if symbol in ["SPY", "QQQ", "IWM", "VTI", "VOO", "VEA", "BIL"] or symbol.startswith(
-            ("VT", "VO")
-        ):
+        if symbol in [
+            "SPY",
+            "QQQ",
+            "IWM",
+            "VTI",
+            "VOO",
+            "VEA",
+            "BIL",
+        ] or symbol.startswith(("VT", "VO")):
             return AssetType.ETF
 
         # Assume stocks by default
@@ -183,11 +190,7 @@ class FractionabilityDetector:
             return True
 
         # Use notional if the fractional part is significant (> 0.1)
-        if quantity % 1.0 > 0.1:
-            return True
-
-        # Use quantity orders for clean whole shares of fractionable assets
-        return False
+        return quantity % 1.0 > 0.1
 
     def convert_to_whole_shares(
         self, symbol: str, quantity: float, current_price: float
@@ -227,8 +230,12 @@ class FractionabilityDetector:
         """Get statistics about the fractionability cache."""
         return {
             "cached_symbols": len(self._fractionability_cache),
-            "fractionable_count": sum(1 for v in self._fractionability_cache.values() if v),
-            "non_fractionable_count": sum(1 for v in self._fractionability_cache.values() if not v),
+            "fractionable_count": sum(
+                1 for v in self._fractionability_cache.values() if v
+            ),
+            "non_fractionable_count": sum(
+                1 for v in self._fractionability_cache.values() if not v
+            ),
         }
 
 

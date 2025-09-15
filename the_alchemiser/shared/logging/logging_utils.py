@@ -14,7 +14,6 @@ from collections.abc import MutableMapping
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 # Constants
 _S3_PROTOCOL_PREFIX = "s3://"
@@ -23,7 +22,9 @@ _S3_PROTOCOL_PREFIX = "s3://"
 # Set of string values that, when present in configuration, indicate S3 logging should be enabled.
 _S3_ENABLED_VALUES = frozenset(["1", "true", "yes", "on"])
 # Set of environment variable names that, if present, indicate the code is running in an AWS Lambda environment.
-_LAMBDA_ENV_VARS = frozenset(["AWS_EXECUTION_ENV", "AWS_LAMBDA_RUNTIME_API", "LAMBDA_RUNTIME_DIR"])
+_LAMBDA_ENV_VARS = frozenset(
+    ["AWS_EXECUTION_ENV", "AWS_LAMBDA_RUNTIME_API", "LAMBDA_RUNTIME_DIR"]
+)
 
 # Context variables for request tracking
 request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
@@ -34,8 +35,8 @@ class AlchemiserLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
     """Custom logger adapter for the Alchemiser quantitative trading system."""
 
     def process(
-        self, msg: Any, kwargs: MutableMapping[str, Any]
-    ) -> tuple[str, MutableMapping[str, Any]]:
+        self, msg: object, kwargs: MutableMapping[str, object]
+    ) -> tuple[str, MutableMapping[str, object]]:
         """Prefix log messages with system identifier and add context IDs."""
         # Get context variables
         request_id = request_id_context.get()
@@ -225,7 +226,9 @@ def generate_request_id() -> str:
     return str(uuid.uuid4())
 
 
-def log_with_context(logger: logging.Logger, level: int, message: str, **context: Any) -> None:
+def log_with_context(
+    logger: logging.Logger, level: int, message: str, **context: object
+) -> None:
     """Log a message with additional context fields.
 
     Args:
@@ -235,7 +238,7 @@ def log_with_context(logger: logging.Logger, level: int, message: str, **context
         **context: Additional context fields to include
 
     """
-    extra = {"extra_fields": context}
+    extra: dict[str, object] = {"extra_fields": context}
     logger.log(level, message, extra=extra)
 
 
@@ -293,7 +296,9 @@ def setup_logging(
     if not respect_existing_handlers or not root_logger.hasHandlers():
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(formatter)
-        console_handler.setLevel(console_level if console_level is not None else log_level)
+        console_handler.setLevel(
+            console_level if console_level is not None else log_level
+        )
         handlers.append(console_handler)
 
     # File handler if specified
@@ -305,9 +310,11 @@ def setup_logging(
         else:
             # Local file logging
             file_handler = _create_local_file_handler(
-                log_file, formatter, log_level, 
-                enable_file_rotation=enable_file_rotation, 
-                max_file_size_mb=max_file_size_mb
+                log_file,
+                formatter,
+                log_level,
+                enable_file_rotation=enable_file_rotation,
+                max_file_size_mb=max_file_size_mb,
             )
         handlers.append(file_handler)
 
@@ -394,7 +401,7 @@ def get_service_logger(service_name: str) -> logging.Logger:
 
 
 def get_trading_logger(
-    module_name: str, **context: Any
+    module_name: str, **context: object
 ) -> logging.Logger | AlchemiserLoggerAdapter:
     """Get a logger specifically configured for trading operations.
 
@@ -413,7 +420,9 @@ def get_trading_logger(
     return logger
 
 
-def log_trade_event(logger: logging.Logger, event_type: str, symbol: str, **details: Any) -> None:
+def log_trade_event(
+    logger: logging.Logger, event_type: str, symbol: str, **details: object
+) -> None:
     """Log a trading event with standardized structure.
 
     Args:
@@ -429,11 +438,13 @@ def log_trade_event(logger: logging.Logger, event_type: str, symbol: str, **deta
         "timestamp": datetime.now(UTC).isoformat() + "Z",
         **details,
     }
-    log_with_context(logger, logging.INFO, f"Trading event: {event_type} for {symbol}", **context)
+    log_with_context(
+        logger, logging.INFO, f"Trading event: {event_type} for {symbol}", **context
+    )
 
 
 def log_error_with_context(
-    logger: logging.Logger, error: Exception, operation: str, **context: Any
+    logger: logging.Logger, error: Exception, operation: str, **context: object
 ) -> None:
     """Log an error with full context and traceback.
 
@@ -445,7 +456,11 @@ def log_error_with_context(
 
     """
     context.update(
-        {"operation": operation, "error_type": type(error).__name__, "error_message": str(error)}
+        {
+            "operation": operation,
+            "error_type": type(error).__name__,
+            "error_message": str(error),
+        }
     )
     log_with_context(logger, logging.ERROR, f"Error in {operation}: {error}", **context)
     logger.exception(f"Full traceback for {operation} error:")
@@ -454,9 +469,9 @@ def log_error_with_context(
 def log_data_transfer_checkpoint(
     logger: logging.Logger,
     stage: str,
-    data: dict[str, Any] | None,
+    data: dict[str, object] | None,
     context: str = "",
-    **additional_fields: Any,
+    **additional_fields: object,
 ) -> None:
     """Log a data transfer checkpoint with integrity validation.
 
@@ -479,7 +494,9 @@ def log_data_transfer_checkpoint(
     # Calculate data integrity metrics
     data_count = len(data) if data else 0
     data_checksum = (
-        sum(data.values()) if data and all(isinstance(v, int | float) for v in data.values()) else 0
+        sum(data.values())
+        if data and all(isinstance(v, int | float) for v in data.values())
+        else 0
     )
     data_type = type(data).__name__
 
@@ -520,7 +537,7 @@ def log_data_transfer_checkpoint(
     logger.info(f"=== END_CHECKPOINT[{stage}] ===")
 
 
-def _format_trade_details(trade: dict[str, Any], index: int) -> str:
+def _format_trade_details(trade: dict[str, object], index: int) -> str:
     """Format trade details for logging."""
     symbol = trade.get("symbol", "UNKNOWN")
     action = trade.get("action", "UNKNOWN")
@@ -528,7 +545,7 @@ def _format_trade_details(trade: dict[str, Any], index: int) -> str:
     return f"  Expected_{index + 1}: {action} {symbol} ${amount:.2f}"
 
 
-def _format_order_details(order: Any, index: int) -> str:
+def _format_order_details(order: object, index: int) -> str:
     """Format order details for logging."""
     if hasattr(order, "symbol") and hasattr(order, "side") and hasattr(order, "qty"):
         return f"  Actual_{index + 1}: {order.side} {order.symbol} qty={order.qty}"
@@ -542,7 +559,7 @@ def _format_order_details(order: Any, index: int) -> str:
 
 def _log_trade_mismatches(
     logger: logging.Logger,
-    expected_trades: list[dict[str, Any]],
+    expected_trades: list[dict[str, object]],
     expected_count: int,
     actual_count: int,
     stage: str,
@@ -565,8 +582,8 @@ def _log_trade_mismatches(
 
 def log_trade_expectation_vs_reality(
     logger: logging.Logger,
-    expected_trades: list[dict[str, Any]],
-    actual_orders: list[Any],
+    expected_trades: list[dict[str, object]],
+    actual_orders: list[object],
     stage: str = "Unknown",
 ) -> None:
     """Log comparison between expected trades and actual orders created.

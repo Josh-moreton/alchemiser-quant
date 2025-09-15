@@ -18,17 +18,14 @@ from .strategy_value_objects import Confidence, StrategySignal
 from .time_in_force import TimeInForce
 
 __all__ = [
-    "MarketDataPort",
-    "Quantity",
-    # Strategy types
-    "StrategyEngine",
-    "StrategySignal",
-    "Confidence",
-    # Broker enums
-    "OrderSideType",
-    "TimeInForceType",
     "BrokerOrderSide",
     "BrokerTimeInForce",
-    # Time in force
+    "Confidence",
+    "MarketDataPort",
+    "OrderSideType",
+    "Quantity",
+    "StrategyEngine",
+    "StrategySignal",
     "TimeInForce",
+    "TimeInForceType",
 ]

@@ -23,9 +23,8 @@ from .models.context import StrategyContext
 
 # Public API exports
 __all__ = [
-    # Core components
-    "StrategyContext",
     "SingleStrategyOrchestrator",
+    "StrategyContext",
     "get_strategy",
     "list_strategies",
     "register_strategy",
