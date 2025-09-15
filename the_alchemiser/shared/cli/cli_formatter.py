@@ -1254,11 +1254,6 @@ def _render_allocation_section(
     has_allocation_data = consolidated_portfolio and account_info and current_positions is not None
 
     if has_allocation_data:
-        # Type narrowing: we've checked that account_info and current_positions are not None
-        if account_info is None or current_positions is None:
-            # This shouldn't happen due to has_allocation_data check, but satisfy type checker
-            return
-        
         try:
             render_target_vs_current_allocations(
                 consolidated_portfolio,
