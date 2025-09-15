@@ -1,4 +1,4 @@
-"""Business Unit: shared | Status: current
+"""Business Unit: shared | Status: current.
 
 Alpaca-specific Protocol Definitions.
 
