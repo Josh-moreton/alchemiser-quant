@@ -99,6 +99,9 @@ class Executor:
             logger.info(
                 f"📊 Using phased execution: {len(sell_items)} SELL orders → monitor buying power → {len(buy_items)} BUY orders"
             )
+            # For smart execution, we need to use async
+            if self.enable_smart_execution:
+                return asyncio.run(self._execute_phased_plan_async(plan, sell_items, buy_items))
             return self._execute_phased_plan(plan, sell_items, buy_items)
         # No mixed orders - use sequential execution
         logger.info(f"📦 Using sequential execution for {len(plan.items)} items")
@@ -310,6 +313,104 @@ class Executor:
 
         logger.info(
             f"✅ Phased execution complete: {orders_succeeded}/{orders_placed} orders succeeded "
+            f"(${total_trade_value} traded)"
+        )
+
+        return result
+
+    async def _execute_phased_plan_async(
+        self,
+        plan: RebalancePlanDTO,
+        sell_items: list[RebalancePlanItemDTO],
+        buy_items: list[RebalancePlanItemDTO],
+    ) -> ExecutionResultDTO:
+        """Execute rebalance plan using async phased strategy with smart execution: SELL → monitor → BUY.
+
+        Args:
+            plan: Original rebalance plan
+            sell_items: SELL order items to execute first
+            buy_items: BUY order items to execute after SELL completion
+
+        Returns:
+            ExecutionResultDTO with combined results from both phases
+
+        """
+        all_orders: list[OrderResultDTO] = []
+        total_trade_value = Decimal("0")
+
+        # Phase 1: Execute SELL orders to release buying power (using smart execution)
+        logger.info(
+            f"🔴 Phase 1: Executing {len(sell_items)} SELL orders to release buying power (smart execution)"
+        )
+        sell_order_ids = []
+
+        for item in sell_items:
+            logger.info(f"🎯 Processing SELL ${item.trade_amount} {item.symbol} (smart execution)")
+            order_result = await self._execute_trade_item_smart(item)
+            all_orders.append(order_result)
+
+            if order_result.success:
+                total_trade_value += abs(item.trade_amount)
+                if order_result.order_id:
+                    sell_order_ids.append(order_result.order_id)
+
+        # Phase 2: Monitor SELL order completion and buying power
+        if sell_order_ids:
+            logger.info(
+                f"⏱️ Phase 2: Monitoring {len(sell_order_ids)} SELL orders for completion"
+            )
+            initial_buying_power = self._get_current_buying_power()
+
+            # Wait for SELL orders to complete (max 60 seconds)
+            websocket_result = self.alpaca_manager.wait_for_order_completion(
+                sell_order_ids, max_wait_seconds=60
+            )
+
+            if websocket_result.status.value == "completed":
+                logger.info("✅ All SELL orders completed successfully")
+
+                # Monitor buying power increase
+                self._wait_for_buying_power_increase(initial_buying_power, buy_items)
+            else:
+                logger.warning(
+                    f"⚠️ SELL order monitoring completed with status: {websocket_result.status.value}"
+                )
+                logger.warning(
+                    f"Completed {len(websocket_result.completed_order_ids)}/{len(sell_order_ids)} orders"
+                )
+
+        # Phase 3: Execute BUY orders with available buying power (using smart execution)
+        logger.info(f"🟢 Phase 3: Executing {len(buy_items)} BUY orders (smart execution)")
+
+        for item in buy_items:
+            logger.info(f"🎯 Processing BUY ${item.trade_amount} {item.symbol} (smart execution)")
+            order_result = await self._execute_trade_item_smart(item)
+            all_orders.append(order_result)
+
+            if order_result.success:
+                total_trade_value += abs(item.trade_amount)
+
+        # Calculate combined results
+        orders_placed = len(all_orders)
+        orders_succeeded = sum(1 for order in all_orders if order.success)
+        overall_success = (
+            orders_succeeded == orders_placed if orders_placed > 0 else True
+        )
+
+        result = ExecutionResultDTO(
+            success=overall_success,
+            plan_id=plan.plan_id,
+            correlation_id=plan.correlation_id,
+            orders=all_orders,
+            orders_placed=orders_placed,
+            orders_succeeded=orders_succeeded,
+            total_trade_value=total_trade_value,
+            execution_timestamp=datetime.now(UTC),
+            metadata={"execution_strategy": "phased_sell_first_smart"},
+        )
+
+        logger.info(
+            f"✅ Phased smart execution complete: {orders_succeeded}/{orders_placed} orders succeeded "
             f"(${total_trade_value} traded)"
         )
 
