@@ -225,7 +225,7 @@ class TradingOrchestrator:
                             == execution_result.orders_placed
                         )
                         self._emit_trade_executed_event(
-                            execution_result, execution_success
+                            execution_result, success=execution_success
                         )
 
                         # Log detailed execution results

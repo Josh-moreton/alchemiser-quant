@@ -275,7 +275,7 @@ class PortfolioOrchestrator:
                     target_allocations_decimal,
                     current_allocations_decimal,
                     differences_decimal,
-                    rebalancing_required,
+                    rebalancing_required=rebalancing_required,
                 )
             except Exception as e:
                 self.logger.warning(f"Failed to emit allocation comparison event: {e}")

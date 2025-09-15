@@ -216,7 +216,7 @@ def configure_application_logging() -> None:
     if root_logger.hasHandlers() and not is_production:
         return
 
-    resolved_level = _resolve_log_level(is_production)
+    resolved_level = _resolve_log_level(is_production=is_production)
 
     if is_production:
         log_file = None
@@ -308,7 +308,7 @@ def main(argv: list[str] | None = None) -> bool:
 
         # PHASE 6: Emit StartupEvent to trigger event-driven workflows
         system._emit_startup_event(
-            args.mode, getattr(args, "ignore_market_hours", False)
+            args.mode, ignore_market_hours=getattr(args, "ignore_market_hours", False)
         )
 
         # Display header with simple trading mode detection
