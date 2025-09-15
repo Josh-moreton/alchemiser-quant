@@ -313,7 +313,9 @@ class TradingExecutor(BaseCLI):
 
         return summary_data
 
-    def _get_single_strategy_data(self, tracker: StrategyOrderTrackerProtocol, strategy_name: str) -> dict[str, Any]:
+    def _get_single_strategy_data(
+        self, tracker: StrategyOrderTrackerProtocol, strategy_name: str
+    ) -> dict[str, Any]:
         """Get tracking data for a single strategy.
         
         Args:
@@ -354,7 +356,9 @@ class TradingExecutor(BaseCLI):
             else None,
         }
 
-    def _calculate_return_percentage(self, pnl_summary: StrategyPnLSummaryProtocol, total_pnl: float) -> float:
+    def _calculate_return_percentage(
+        self, pnl_summary: StrategyPnLSummaryProtocol, total_pnl: float
+    ) -> float:
         """Calculate return percentage from PnL summary.
         
         Args:
