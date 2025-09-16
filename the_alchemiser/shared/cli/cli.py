@@ -250,7 +250,7 @@ def _display_positions(alpaca_manager: AlpacaManager) -> None:
 
     """
     try:
-        positions = alpaca_manager.get_all_positions()
+        positions = alpaca_manager.get_positions()
         if positions:
             table = Table(title="Open Positions", show_lines=True, expand=True)
             table.add_column("Symbol", style=STYLE_BOLD_CYAN)

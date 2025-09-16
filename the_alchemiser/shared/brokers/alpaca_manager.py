@@ -215,9 +215,12 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def get_account(self) -> TradeAccount:
         """Get account information with error handling."""
         try:
-            account = self._trading_client.get_account()
+            account_result = self._trading_client.get_account()
+            # Handle the SDK's inconsistent return type
+            if isinstance(account_result, dict):
+                raise ValueError("Received dict instead of TradeAccount from Alpaca SDK")
             logger.debug("Successfully retrieved account information")
-            return account
+            return account_result
         except Exception as e:
             logger.error(f"Failed to get account information: {e}")
             raise
@@ -282,9 +285,12 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def get_position(self, symbol: str) -> Position | None:
         """Get position for a specific symbol."""
         try:
-            position = self._trading_client.get_open_position(symbol)
+            position_result = self._trading_client.get_open_position(symbol)
+            # Handle the SDK's inconsistent return type
+            if isinstance(position_result, dict):
+                raise ValueError(f"Received dict instead of Position from Alpaca SDK for {symbol}")
             logger.debug(f"Successfully retrieved position for {symbol}")
-            return position
+            return position_result
         except Exception as e:
             if "position does not exist" in str(e).lower():
                 logger.debug(f"No position found for {symbol}")
@@ -392,8 +398,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         """
         try:
-            order = self._trading_client.get_order_by_id(order_id)
-            return self._alpaca_order_to_execution_result(order)
+            order_result = self._trading_client.get_order_by_id(order_id)
+            # Handle the SDK's inconsistent return type
+            if isinstance(order_result, dict):
+                raise ValueError(f"Received dict instead of Order from Alpaca SDK for order {order_id}")
+            return self._alpaca_order_to_execution_result(order_result)
         except Exception as e:
             logger.error(f"Failed to refresh order {order_id}: {e}")
             return self._create_error_execution_result(
@@ -919,7 +928,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Get current buying power."""
         try:
             account = self.get_account()
-            if account and hasattr(account, "buying_power"):
+            if account and hasattr(account, "buying_power") and account.buying_power is not None:
                 return float(account.buying_power)
             return None
         except Exception as e:
@@ -930,7 +939,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Get current portfolio value."""
         try:
             account = self.get_account()
-            if account and hasattr(account, "portfolio_value"):
+            if account and hasattr(account, "portfolio_value") and account.portfolio_value is not None:
                 return float(account.portfolio_value)
             return None
         except Exception as e:

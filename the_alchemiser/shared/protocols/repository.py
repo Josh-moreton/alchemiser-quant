@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class AccountRepository(Protocol):
     """Protocol defining account operations interface."""
 
-    def get_account(self) -> dict[str, Any] | None:
+    def get_account(self) -> Any:  # Alpaca SDK TradeAccount
         """Get account information."""
         ...
 
@@ -61,11 +61,11 @@ class TradingRepository(Protocol):
         """
         ...
 
-    def get_account(self) -> dict[str, Any] | None:
+    def get_account(self) -> Any:  # Alpaca SDK TradeAccount
         """Get account information.
 
         Returns:
-            Account information as dictionary, or None if failed.
+            Account information as external SDK object, or None if failed.
 
         """
         ...
