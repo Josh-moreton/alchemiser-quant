@@ -160,7 +160,6 @@ class TradingSystem:
 
             if self.container is None:
                 raise RuntimeError("DI container not initialized")
-            
             # Create trading orchestrator directly
             orchestrator = TradingOrchestrator(
                 settings=self.settings,
