@@ -129,11 +129,10 @@ class KlmVariant128026(BaseKLMVariant):
         
         if len(candidates) >= 2:
             return self._create_dual_allocation_decision(candidates)
-        elif candidates:
+        if candidates:
             return self._create_single_allocation_decision(candidates[0])
-        else:
-            # Fallback to L/S Rotator if no candidates
-            return self._evaluate_ls_rotator_1280(indicators)
+        # Fallback to L/S Rotator if no candidates
+        return self._evaluate_ls_rotator_1280(indicators)
 
     def _get_switcher_candidates(self, indicators: dict[str, dict[str, float]]) -> list[tuple[str, float]]:
         """Get RSI candidates for switcher selection from TECL, SOXL, SVIX."""

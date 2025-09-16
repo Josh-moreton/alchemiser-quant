@@ -17,7 +17,7 @@ import logging
 import math
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -51,6 +51,15 @@ from .variants import (
     KlmVariant128026,
     KLMVariantNova,
 )
+
+if TYPE_CHECKING:
+    from the_alchemiser.shared.value_objects.core_types import KLMDecision
+
+    # Type alias for KLM result formats - static type checking
+    KLMResult = tuple[str | dict[str, float], str, str] | KLMDecision
+else:
+    # Runtime type alias - no forward references
+    KLMResult = tuple[str | dict[str, float], str, str] | object
 
 
 class KLMEngine(StrategyEngine):
@@ -330,14 +339,12 @@ class KLMEngine(StrategyEngine):
         return symbol_or_allocation, action, detailed_reason, best_variant.name
 
     def _extract_result_components(
-        self, result: Any
+        self, result: KLMResult
     ) -> tuple[str | dict[str, float], str, str]:
         """Extract components from either tuple or KLMDecision format.
 
         Supports migration period where variants may return either format.
         """
-        from the_alchemiser.shared.value_objects.core_types import KLMDecision
-
         # Check if it's a KLMDecision (TypedDict)
         if isinstance(result, dict) and "symbol" in result and "action" in result:
             klm_decision: KLMDecision = result  # type: ignore[assignment]
@@ -362,14 +369,14 @@ class KLMEngine(StrategyEngine):
         self,
         indicators: dict[str, dict[str, float]],
         market_data: dict[str, pd.DataFrame],
-    ) -> list[tuple[BaseKLMVariant, Any, float]]:
+    ) -> list[tuple[BaseKLMVariant, KLMResult, float]]:
         """Evaluate all strategy variants and return results with performance scores."""
         results = []
 
         for variant in self.strategy_variants:
             try:
                 # Each variant has its own evaluate method
-                result: Any = variant.evaluate(indicators, market_data)
+                result: KLMResult = variant.evaluate(indicators, market_data)
 
                 # Validate the result structure - support both tuple and KLMDecision
                 if not self._is_valid_result(result):
@@ -417,7 +424,7 @@ class KLMEngine(StrategyEngine):
             "reasoning": reasoning,
         }
 
-    def _is_valid_result(self, result: Any) -> bool:
+    def _is_valid_result(self, result: KLMResult) -> bool:
         """Validate result structure for both tuple and KLMDecision formats."""
         # KLMDecision format
         if isinstance(result, dict):
@@ -436,7 +443,7 @@ class KLMEngine(StrategyEngine):
             and result[1] is not None
         )
 
-    def _format_result_for_logging(self, result: Any) -> str:
+    def _format_result_for_logging(self, result: KLMResult) -> str:
         """Format result for logging, supporting both tuple and KLMDecision formats."""
         try:
             # KLMDecision format
@@ -460,8 +467,8 @@ class KLMEngine(StrategyEngine):
 
     def _select_best_variant(
         self,
-        variant_results: list[tuple[BaseKLMVariant, Any, float]],
-    ) -> tuple[Any, BaseKLMVariant | None]:
+        variant_results: list[tuple[BaseKLMVariant, KLMResult, float]],
+    ) -> tuple[KLMResult, BaseKLMVariant | None]:
         """Select the best performing variant from results."""
         if not variant_results:
             return None, None
@@ -503,7 +510,7 @@ class KLMEngine(StrategyEngine):
         symbol_or_allocation: str | dict[str, float],
         action: str,
         basic_reason: str,
-        all_variant_results: list[tuple[BaseKLMVariant, Any, float]],
+        all_variant_results: list[tuple[BaseKLMVariant, KLMResult, float]],
     ) -> str:
         """Build detailed market analysis similar to other strategies."""
         analysis_lines = []
@@ -609,8 +616,14 @@ class KLMEngine(StrategyEngine):
             for symbol_str, weight in symbol_or_allocation.items():
                 try:
                     # Validate weight is a valid number
-                    if weight is None or not isinstance(weight, int | float) or math.isnan(weight):
-                        self.logger.warning(f"Invalid weight for {symbol_str}: {weight}, skipping")
+                    if (
+                        weight is None
+                        or not isinstance(weight, int | float)
+                        or math.isnan(weight)
+                    ):
+                        self.logger.warning(
+                            f"Invalid weight for {symbol_str}: {weight}, skipping"
+                        )
                         continue
 
                     symbol = Symbol(symbol_str)

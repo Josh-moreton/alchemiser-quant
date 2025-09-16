@@ -20,21 +20,24 @@ class ExecutionManager:
     """Execution manager that delegates to Executor with smart execution capabilities."""
 
     def __init__(
-        self, 
+        self,
         alpaca_manager: AlpacaManager,
         execution_config: ExecutionConfig | None = None,
         *,
         enable_smart_execution: bool = True,
     ) -> None:
-        """Initialize with shared Alpaca manager and execution configuration.
-        
+        """Initialize the execution manager.
+
         Args:
-            alpaca_manager: AlpacaManager for broker operations
+            alpaca_manager: The Alpaca broker manager
             execution_config: Configuration for smart execution strategies
-            enable_smart_execution: Whether to enable smart limit order execution
+            enable_smart_execution: Whether to enable smart execution features
 
         """
         self.alpaca_manager = alpaca_manager
+        self.enable_smart_execution = enable_smart_execution
+
+        # Delegate all execution (and smart execution setup) to Executor
         self.executor = Executor(
             alpaca_manager=alpaca_manager,
             execution_config=execution_config,
@@ -55,15 +58,17 @@ class ExecutionManager:
 
         result = self.executor.execute_rebalance_plan(plan)
 
-        logger.info(f"✅ Execution complete: {result.success} ({result.orders_placed} orders)")
+        logger.info(
+            f"✅ Execution complete: {result.success} ({result.orders_placed} orders)"
+        )
         return result
 
     @classmethod
     def create_with_config(
-        cls, 
-        api_key: str, 
-        secret_key: str, 
-        *, 
+        cls,
+        api_key: str,
+        secret_key: str,
+        *,
         paper: bool = True,
         execution_config: ExecutionConfig | None = None,
         enable_smart_execution: bool = True,
@@ -81,7 +86,9 @@ class ExecutionManager:
             ExecutionManager instance with configured smart execution
 
         """
-        alpaca_manager = AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper)
+        alpaca_manager = AlpacaManager(
+            api_key=api_key, secret_key=secret_key, paper=paper
+        )
         return cls(
             alpaca_manager=alpaca_manager,
             execution_config=execution_config,

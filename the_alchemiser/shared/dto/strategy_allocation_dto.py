@@ -36,7 +36,9 @@ class StrategyAllocationDTO(BaseModel):
         ..., description="Target allocation weights by symbol (symbol -> weight 0-1)"
     )
     portfolio_value: Decimal | None = Field(
-        default=None, ge=0, description="Optional portfolio value; if None, compute from snapshot"
+        default=None,
+        ge=0,
+        description="Optional portfolio value; if None, compute from snapshot",
     )
     correlation_id: str = Field(
         ..., min_length=1, max_length=100, description="Correlation ID for tracking"
@@ -68,7 +70,9 @@ class StrategyAllocationDTO(BaseModel):
                 raise ValueError(f"Duplicate symbol: {symbol_upper}")
 
             if weight < 0 or weight > 1:
-                raise ValueError(f"Weight for {symbol_upper} must be between 0 and 1, got {weight}")
+                raise ValueError(
+                    f"Weight for {symbol_upper} must be between 0 and 1, got {weight}"
+                )
 
             normalized[symbol_upper] = weight
             total_weight += weight
@@ -111,13 +115,13 @@ class StrategyAllocationDTO(BaseModel):
 
         """
         converted_data = data.copy()
-        
+
         # Convert target weights
         if "target_weights" in converted_data:
             converted_data["target_weights"] = cls._convert_target_weights(
                 converted_data["target_weights"]
             )
-        
+
         # Convert portfolio value
         if "portfolio_value" in converted_data:
             converted_data["portfolio_value"] = cls._convert_portfolio_value(
@@ -127,11 +131,13 @@ class StrategyAllocationDTO(BaseModel):
         return cls(**converted_data)
 
     @classmethod
-    def _convert_target_weights(cls, weights_data: Any) -> dict[str, Decimal]:
+    def _convert_target_weights(
+        cls, weights_data: dict[str, float | Decimal | int | str]
+    ) -> dict[str, Decimal]:
         """Convert target weights to Decimal format."""
         if not isinstance(weights_data, dict):
             return weights_data
-        
+
         converted_weights = {}
         for symbol, weight in weights_data.items():
             try:
@@ -141,18 +147,20 @@ class StrategyAllocationDTO(BaseModel):
                     converted_weights[symbol] = Decimal(str(weight))
             except (ValueError, TypeError) as e:
                 raise ValueError(f"Invalid weight value for {symbol}: {weight}") from e
-        
+
         return converted_weights
 
     @classmethod
-    def _convert_portfolio_value(cls, portfolio_value: Any) -> Decimal | None:
+    def _convert_portfolio_value(
+        cls, portfolio_value: float | Decimal | int | str | None
+    ) -> Decimal | None:
         """Convert portfolio value to Decimal if needed."""
         if portfolio_value is None:
             return None
-        
+
         if not isinstance(portfolio_value, str):
             return portfolio_value
-        
+
         try:
             return Decimal(portfolio_value)
         except (ValueError, TypeError) as e:

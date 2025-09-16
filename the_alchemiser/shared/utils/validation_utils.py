@@ -9,7 +9,6 @@ to eliminate the duplicate __post_init__() methods identified in Priority 2.1.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
 
 
 def validate_decimal_range(
@@ -76,7 +75,7 @@ def validate_non_negative_integer(
 
 def validate_order_limit_price(
     order_type_value: str,
-    limit_price: Any,
+    limit_price: float | Decimal | int | None,
 ) -> None:
     """Validate order limit price constraints based on order type.
 

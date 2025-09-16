@@ -37,7 +37,10 @@ class ConfigurationError(AlchemiserError):
     """Raised when there are configuration-related issues."""
 
     def __init__(
-        self, message: str, config_key: str | None = None, config_value: Any = None
+        self,
+        message: str,
+        config_key: str | None = None,
+        config_value: str | int | float | bool | None = None,
     ) -> None:
         """Raise when configuration values are missing or invalid."""
         context = {}
@@ -250,7 +253,10 @@ class ValidationError(AlchemiserError):
     """Raised when data validation fails."""
 
     def __init__(
-        self, message: str, field_name: str | None = None, value: Any | None = None
+        self,
+        message: str,
+        field_name: str | None = None,
+        value: str | int | float | None = None,
     ) -> None:
         """Create a validation error for invalid user data."""
         super().__init__(message)
@@ -265,7 +271,9 @@ class NotificationError(AlchemiserError):
 class S3OperationError(AlchemiserError):
     """Raised when S3 operations fail."""
 
-    def __init__(self, message: str, bucket: str | None = None, key: str | None = None) -> None:
+    def __init__(
+        self, message: str, bucket: str | None = None, key: str | None = None
+    ) -> None:
         """Raise when interacting with Amazon S3 fails."""
         super().__init__(message)
         self.bucket = bucket

@@ -17,7 +17,10 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.orchestration.strategy_orchestrator import MultiStrategyOrchestrator
+from the_alchemiser.orchestration.strategy_orchestrator import (
+    AggregatedSignals,
+    MultiStrategyOrchestrator,
+)
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
     ConsolidatedPortfolioDTO,
@@ -25,8 +28,11 @@ from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
 from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
 from the_alchemiser.shared.events import EventBus, SignalGenerated
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.types import StrategySignal
 from the_alchemiser.shared.types.exceptions import DataProviderError
+from the_alchemiser.shared.types.strategy_types import StrategyType
 from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
+from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy_v2.engines.nuclear import NUCLEAR_SYMBOLS
 
 # Nuclear strategy symbol constants
@@ -79,7 +85,7 @@ class SignalOrchestrator:
         return strategy_signals, consolidated_portfolio
 
     def _convert_signals_to_display_format(
-        self, aggregated_signals: Any
+        self, aggregated_signals: AggregatedSignals
     ) -> dict[str, Any]:
         """Convert aggregated signals to display format."""
         strategy_signals = {}
@@ -123,7 +129,9 @@ class SignalOrchestrator:
         return strategy_signals
 
     def _build_consolidated_portfolio(
-        self, aggregated_signals: Any, typed_allocations: dict[Any, float]
+        self,
+        aggregated_signals: AggregatedSignals,
+        typed_allocations: dict[StrategyType, float],
     ) -> tuple[dict[str, float], list[str]]:
         """Build consolidated portfolio from signals with proper scaling."""
         consolidated_portfolio_dict: dict[str, float] = {}
@@ -156,7 +164,7 @@ class SignalOrchestrator:
 
         return consolidated_portfolio_dict, contributing_strategies
 
-    def _extract_signal_allocation(self, signal: Any) -> float:
+    def _extract_signal_allocation(self, signal: StrategySignal) -> float:
         """Extract signal allocation, handling both Percentage objects and raw Decimal values."""
         if signal.target_allocation:
             # Handle both Percentage objects and raw Decimal values
@@ -227,7 +235,7 @@ class SignalOrchestrator:
 
         return failed_strategies, fallback_strategies
 
-    def _extract_strategy_name(self, strategy_type: Any) -> str:
+    def _extract_strategy_name(self, strategy_type: StrategyType) -> str:
         """Extract strategy name from strategy type."""
         return (
             strategy_type.value
@@ -433,7 +441,7 @@ class SignalOrchestrator:
     def _count_nuclear_positions(
         self,
         signal: dict[str, Any],
-        symbol: Any,
+        symbol: Symbol,
         consolidated_portfolio: dict[str, float],
     ) -> int:
         """Count positions for nuclear strategy based on signal and symbol."""

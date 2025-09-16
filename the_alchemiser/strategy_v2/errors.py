@@ -9,8 +9,6 @@ for traceability and error handling.
 
 from __future__ import annotations
 
-from typing import Any
-
 
 class StrategyV2Error(Exception):
     """Base exception for strategy_v2 module."""
@@ -20,7 +18,7 @@ class StrategyV2Error(Exception):
         message: str,
         module: str = "strategy_v2",
         correlation_id: str | None = None,
-        **kwargs: Any,
+        **kwargs: str | float | int | bool | None,
     ) -> None:
         """Initialize strategy error.
 
@@ -40,7 +38,12 @@ class StrategyV2Error(Exception):
 class StrategyExecutionError(StrategyV2Error):
     """Error during strategy execution."""
 
-    def __init__(self, message: str, strategy_id: str | None = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        message: str,
+        strategy_id: str | None = None,
+        **kwargs: str | float | int | bool | None,
+    ) -> None:
         """Initialize strategy execution error.
 
         Args:
@@ -56,7 +59,7 @@ class StrategyExecutionError(StrategyV2Error):
 class ConfigurationError(StrategyV2Error):
     """Error in strategy configuration or context."""
 
-    def __init__(self, message: str, **kwargs: Any) -> None:
+    def __init__(self, message: str, **kwargs: str | float | int | bool | None) -> None:
         """Initialize configuration error.
 
         Args:
@@ -70,7 +73,12 @@ class ConfigurationError(StrategyV2Error):
 class MarketDataError(StrategyV2Error):
     """Error accessing or processing market data."""
 
-    def __init__(self, message: str, symbol: str | None = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        message: str,
+        symbol: str | None = None,
+        **kwargs: str | float | int | bool | None,
+    ) -> None:
         """Initialize market data error.
 
         Args:
@@ -79,5 +87,7 @@ class MarketDataError(StrategyV2Error):
             **kwargs: Additional context
 
         """
-        super().__init__(message, module="strategy_v2.adapters.market_data_adapter", **kwargs)
+        super().__init__(
+            message, module="strategy_v2.adapters.market_data_adapter", **kwargs
+        )
         self.symbol = symbol

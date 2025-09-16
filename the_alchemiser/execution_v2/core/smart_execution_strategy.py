@@ -18,8 +18,10 @@ Key Features:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
-from datetime import UTC, datetime, time
+import time  # Add this import
+from dataclasses import dataclass, field  # Add field import
+from datetime import UTC, datetime  # Rename to avoid conflict
+from datetime import time as dt_time
 from decimal import Decimal
 from typing import Any
 
@@ -39,14 +41,19 @@ class ExecutionConfig:
     market_open_delay_minutes: int = 5  # Wait 5 minutes after 9:30am ET
 
     # Spread limits
-    max_spread_percent: Decimal = Decimal("0.25")  # 0.25% maximum spread
+    max_spread_percent: Decimal = Decimal(
+        "0.50"
+    )  # 0.50% maximum spread (increased from 0.25%)
 
     # Re-pegging configuration
     repeg_threshold_percent: Decimal = Decimal("0.10")  # Re-peg if market moves >0.1%
     max_repegs_per_order: int = 5  # Maximum re-pegs before escalation
 
-    # Volume requirements
-    min_bid_ask_size: Decimal = Decimal("100")  # Minimum size at bid/ask to anchor
+    # Volume requirements - ADJUSTED FOR LOW LIQUIDITY ETFS
+    min_bid_ask_size: Decimal = Decimal("10")  # Reduced from 100 to 10 shares minimum
+    min_bid_ask_size_high_liquidity: Decimal = Decimal(
+        "100"
+    )  # For liquid stocks like SPY
 
     # Order timing
     quote_freshness_seconds: int = 5  # Require quote within 5 seconds
@@ -55,6 +62,11 @@ class ExecutionConfig:
     # Anchoring offsets (in cents)
     bid_anchor_offset_cents: Decimal = Decimal("0.01")  # Place at bid + $0.01 for buys
     ask_anchor_offset_cents: Decimal = Decimal("0.01")  # Place at ask - $0.01 for sells
+
+    # Symbol-specific overrides for low-liquidity ETFs
+    low_liquidity_symbols: set[str] = field(
+        default_factory=lambda: {"BTAL", "UVXY", "TECL", "KMLM"}
+    )
 
 
 @dataclass
@@ -105,7 +117,7 @@ class SmartExecutionStrategy:
         self.pricing_service = pricing_service
         self.config = config or ExecutionConfig()
 
-        # Initialize liquidity analyzer for volume-aware pricing
+        # Initialize liquidity analyzer with adjusted thresholds
         self.liquidity_analyzer = LiquidityAnalyzer(
             min_volume_threshold=float(self.config.min_bid_ask_size),
             tick_size=float(self.config.bid_anchor_offset_cents),
@@ -129,8 +141,8 @@ class SmartExecutionStrategy:
         current_time = et_time.time()
 
         # Check if we're in the restricted window (9:30-9:35am ET)
-        market_open_time = time(9, 30)  # 9:30am ET
-        restricted_end_time = time(
+        market_open_time = dt_time(9, 30)  # 9:30am ET
+        restricted_end_time = dt_time(
             9, 30 + self.config.market_open_delay_minutes
         )  # 9:35am ET
 
@@ -145,58 +157,111 @@ class SmartExecutionStrategy:
 
     def get_quote_with_validation(
         self, symbol: str, order_size: float
-    ) -> QuoteModel | None:
-        """Get validated quote data for a symbol with liquidity analysis.
+    ) -> tuple[QuoteModel, bool] | None:
+        """Get validated quote data from streaming source, waiting for data.
+
+        Waits for streaming quote data to arrive after subscription.
 
         Args:
             symbol: Stock symbol
             order_size: Size of order to place (in shares)
 
         Returns:
-            QuoteModel if valid quote available, None otherwise
+            (QuoteModel, False) if valid streaming quote available, otherwise None
 
         """
+        import time
+
+        # Only try streaming quote if pricing service available
         if not self.pricing_service:
-            logger.warning("No pricing service available for quote validation")
+            logger.warning(f"No pricing service available for {symbol}")
             return None
 
-        quote = self.pricing_service.get_quote_data(symbol)
+        # Wait for quote data to arrive from stream
+        logger.info(f"⏳ Waiting for streaming quote data for {symbol}...")
+        max_wait_time = 10.0  # Maximum 10 seconds to wait
+        check_interval = 0.1  # Check every 100ms
+        elapsed = 0.0
+
+        quote = None
+        while elapsed < max_wait_time:
+            quote = self.pricing_service.get_quote_data(symbol)
+            if quote:
+                logger.info(
+                    f"✅ Received streaming quote for {symbol} after {elapsed:.1f}s"
+                )
+                break
+
+            time.sleep(check_interval)
+            elapsed += check_interval
+
         if not quote:
-            logger.warning(f"No quote data available for {symbol}")
+            logger.error(
+                f"❌ No streaming quote data received for {symbol} after {max_wait_time}s"
+            )
             return None
 
-        # Validate quote freshness
-        now = datetime.now(UTC)
-        quote_age = (now - quote.timestamp).total_seconds()
+        # Check quote freshness
+        quote_age = (datetime.now(UTC) - quote.timestamp).total_seconds()
         if quote_age > self.config.quote_freshness_seconds:
             logger.warning(
-                f"Quote for {symbol} is stale ({quote_age:.1f}s old, max {self.config.quote_freshness_seconds}s)"
+                f"Streaming quote stale for {symbol} ({quote_age:.1f}s > {self.config.quote_freshness_seconds}s)"
             )
             return None
 
-        # Validate spread
-        if quote.bid_price <= 0 or quote.ask_price <= 0:
+        # Simple price validation - just ensure we have at least one valid price
+        if quote.bid_price <= 0 and quote.ask_price <= 0:
             logger.warning(
-                f"Invalid bid/ask prices for {symbol}: {quote.bid_price}/{quote.ask_price}"
+                f"Invalid prices for {symbol}: bid={quote.bid_price}, ask={quote.ask_price}"
             )
             return None
 
-        spread_percent = (quote.ask_price - quote.bid_price) / quote.bid_price * 100
-        if spread_percent > float(self.config.max_spread_percent):
-            logger.warning(
-                f"Spread too wide for {symbol}: {spread_percent:.2f}% > {self.config.max_spread_percent}%"
-            )
-            return None
+        return quote, False
 
-        # Use liquidity analyzer for advanced volume validation
-        is_valid, reason = self.liquidity_analyzer.validate_liquidity_for_order(
-            quote, "buy", order_size  # Side doesn't matter for basic validation
-        )
-        if not is_valid:
-            logger.warning(f"Liquidity validation failed for {symbol}: {reason}")
-            return None
+    def _calculate_simple_inside_spread_price(
+        self, quote: QuoteModel, side: str
+    ) -> tuple[Decimal, dict[str, Any]]:
+        """Compute a simple inside-spread anchor using configured offsets.
 
-        return quote
+        This is used when we only have REST quotes or inadequate depth data.
+        """
+        bid = Decimal(str(max(quote.bid_price, 0.0)))
+        ask = Decimal(str(max(quote.ask_price, 0.0)))
+        mid = (bid + ask) / Decimal("2") if bid > 0 and ask > 0 else (bid or ask)
+
+        # Minimum step as 1 cent for safety
+        tick = Decimal("0.01")
+
+        if side.upper() == "BUY":
+            anchor = bid + max(self.config.bid_anchor_offset_cents, tick)
+            # Ensure we stay inside the spread when possible
+            if ask > 0 and anchor >= ask:
+                anchor = max(ask - max(self.config.bid_anchor_offset_cents, tick), bid)
+            # Use mid as soft cap
+            if ask > 0 and bid > 0:
+                anchor = min(anchor, mid)
+        else:
+            anchor = ask - max(self.config.ask_anchor_offset_cents, tick)
+            if bid > 0 and anchor <= bid:
+                anchor = min(ask, bid + max(self.config.ask_anchor_offset_cents, tick))
+            if ask > 0 and bid > 0:
+                anchor = max(anchor, mid)
+
+        metadata = {
+            "method": "simple_inside_spread",
+            "mid": float(mid),
+            "bid": float(bid),
+            "ask": float(ask),
+            "strategy_recommendation": "simple_inside_spread_fallback",
+            "liquidity_score": 0.0,
+            "volume_imbalance": 0.0,
+            "confidence": 0.5,  # Conservative confidence for fallback
+            "volume_available": 0.0,
+            "volume_ratio": 0.0,
+            "bid_volume": 0.0,
+            "ask_volume": 0.0,
+        }
+        return anchor, metadata
 
     def calculate_liquidity_aware_price(
         self, quote: QuoteModel, side: str, order_size: float
@@ -283,24 +348,23 @@ class SmartExecutionStrategy:
                 execution_strategy="smart_limit_delayed",
             )
 
-        # Subscribe to real-time data for this symbol and wait briefly for data
-        if self.pricing_service:
-            self.pricing_service.subscribe_for_order_placement(request.symbol)
+        # Symbol should already be pre-subscribed by executor
+        # Brief wait to allow any pending subscription to receive initial data
+        import asyncio
 
-            # Brief wait to allow subscription to receive initial data
-            import asyncio
-
-            await asyncio.sleep(0.2)  # 200ms wait for initial quote data
+        await asyncio.sleep(0.1)  # 100ms wait for quote data to flow
 
         try:
             # Get validated quote with order size, with retry logic
             order_size = float(request.quantity)
             quote = None
+            used_fallback = False
 
             # Retry up to 3 times with increasing waits
             for attempt in range(3):
-                quote = self.get_quote_with_validation(request.symbol, order_size)
-                if quote:
+                validated = self.get_quote_with_validation(request.symbol, order_size)
+                if validated:
+                    quote, used_fallback = validated
                     break
 
                 if attempt < 2:  # Don't wait on last attempt
@@ -319,10 +383,15 @@ class SmartExecutionStrategy:
                     execution_strategy="smart_limit_failed",
                 )
 
-            # Calculate liquidity-aware optimal price
-            optimal_price, analysis_metadata = self.calculate_liquidity_aware_price(
-                quote, request.side, order_size
-            )
+            # Calculate optimal price: full liquidity analysis when streaming, simple when fallback
+            if not used_fallback:
+                optimal_price, analysis_metadata = self.calculate_liquidity_aware_price(
+                    quote, request.side, order_size
+                )
+            else:
+                optimal_price, analysis_metadata = (
+                    self._calculate_simple_inside_spread_price(quote, request.side)
+                )
 
             # Place limit order with optimal pricing
             result = self.alpaca_manager.place_limit_order(
@@ -363,6 +432,7 @@ class SmartExecutionStrategy:
                         * 100,
                         "bid_size": quote.bid_size,
                         "ask_size": quote.ask_size,
+                        "used_fallback": used_fallback,
                     },
                 )
             return SmartOrderResult(
@@ -449,11 +519,12 @@ class SmartExecutionStrategy:
                     continue
 
                 # Get current quote
-                quote = self.get_quote_with_validation(
+                validated = self.get_quote_with_validation(
                     request.symbol, float(request.quantity)
                 )
-                if not quote:
+                if not validated:
                     continue
+                quote, _ = validated
 
                 # Check if market has moved beyond threshold
                 # (This would require tracking original anchor price - simplified for now)
@@ -481,3 +552,147 @@ class SmartExecutionStrategy:
         """Clear tracking for completed orders."""
         self._active_orders.clear()
         self._repeg_counts.clear()
+
+    def wait_for_quote_data(
+        self, symbol: str, timeout: float | None = None
+    ) -> dict[str, float | int] | None:
+        """Wait for real-time quote data to be available.
+
+        Args:
+            symbol: Symbol to get quote for
+            timeout: Maximum time to wait in seconds
+
+        Returns:
+            Quote data or None if timeout
+
+        """
+        timeout = timeout or self.max_wait_time
+        start_time = time.time()
+
+        # Initial quick check
+        quote = self.pricing_service.get_latest_quote(symbol)
+        if quote:
+            logger.info(f"✅ Got immediate quote for {symbol}")
+            return quote
+
+        # Subscribe if not already subscribed
+        if symbol not in self.pricing_service.get_subscribed_symbols():
+            logger.info(f"📊 Subscribing to {symbol} for quote data")
+            self.pricing_service.subscribe_for_order_placement(symbol)
+
+            # Wait a bit for subscription to take effect
+            time.sleep(1.0)  # Give stream time to restart if needed
+
+        # Poll for quote data with exponential backoff
+        check_interval = 0.1  # Start with 100ms
+        max_interval = 1.0  # Cap at 1 second
+
+        while time.time() - start_time < timeout:
+            quote = self.pricing_service.get_latest_quote(symbol)
+            if quote:
+                logger.info(
+                    f"✅ Got quote for {symbol} after {time.time() - start_time:.1f}s"
+                )
+                return quote
+
+            time.sleep(check_interval)
+            # Exponential backoff to reduce CPU usage
+            check_interval = min(check_interval * 1.5, max_interval)
+
+        logger.warning(
+            f"⏱️ Timeout waiting for quote data for {symbol} after {timeout}s"
+        )
+        return None
+
+    def validate_quote_liquidity(
+        self, symbol: str, quote: dict[str, float | int]
+    ) -> bool:
+        """Validate that the quote has sufficient liquidity.
+
+        Args:
+            symbol: Symbol being validated
+            quote: Quote data to validate
+
+        Returns:
+            True if quote passes validation
+
+        """
+        try:
+            # Handle both dict and Quote object formats
+            if isinstance(quote, dict):
+                bid_price = quote.get("bid_price", 0)
+                ask_price = quote.get("ask_price", 0)
+                bid_size = quote.get("bid_size", 0)
+                ask_size = quote.get("ask_size", 0)
+            else:
+                bid_price = getattr(quote, "bid_price", 0)
+                ask_price = getattr(quote, "ask_price", 0)
+                bid_size = getattr(quote, "bid_size", 0)
+                ask_size = getattr(quote, "ask_size", 0)
+
+            # Basic price validation
+            if bid_price <= 0 or ask_price <= 0:
+                logger.warning(
+                    f"Invalid prices for {symbol}: bid={bid_price}, ask={ask_price}"
+                )
+                return False
+
+            # Spread validation (max 0.5% spread for liquidity)
+            spread = (ask_price - bid_price) / ask_price
+            max_spread = 0.005  # 0.5%
+            if spread > max_spread:
+                logger.warning(
+                    f"Spread too wide for {symbol}: {spread:.2%} > {max_spread:.2%}"
+                )
+                return False
+
+            # Size validation (ensure minimum liquidity)
+            min_size = 100  # Minimum 100 shares at bid/ask
+            if bid_size < min_size or ask_size < min_size:
+                logger.warning(
+                    f"Insufficient liquidity for {symbol}: "
+                    f"bid_size={bid_size}, ask_size={ask_size} < {min_size}"
+                )
+                return False
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error validating quote for {symbol}: {e}")
+            return False
+
+    def get_latest_quote(self, symbol: str) -> dict[str, float | int] | None:
+        """Get the latest quote from the pricing service.
+
+        Args:
+            symbol: Symbol to get quote for
+
+        Returns:
+            Quote data or None if not available
+
+        """
+        # Try to get structured quote data first
+        quote_data = self.pricing_service.get_quote_data(symbol)
+        if quote_data:
+            # Convert to dict format for compatibility
+            return {
+                "bid_price": quote_data.bid_price,
+                "ask_price": quote_data.ask_price,
+                "bid_size": quote_data.bid_size,
+                "ask_size": quote_data.ask_size,
+                "timestamp": quote_data.timestamp,
+            }
+
+        # Fallback to bid/ask spread
+        spread = self.pricing_service.get_bid_ask_spread(symbol)
+        if spread:
+            bid, ask = spread
+            return {
+                "bid_price": bid,
+                "ask_price": ask,
+                "bid_size": 0,  # Unknown
+                "ask_size": 0,  # Unknown
+                "timestamp": datetime.now(UTC),
+            }
+
+        return None

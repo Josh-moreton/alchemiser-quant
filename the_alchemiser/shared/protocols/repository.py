@@ -8,6 +8,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
+    from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
+
     from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
 
 
@@ -87,12 +89,12 @@ class TradingRepository(Protocol):
         ...
 
     def place_order(
-        self, order_request: Any
-    ) -> ExecutedOrderDTO:  # External broker SDK order request object
+        self, order_request: LimitOrderRequest | MarketOrderRequest
+    ) -> ExecutedOrderDTO:
         """Place an order.
 
         Args:
-            order_request: Order request object (currently Alpaca order request)
+            order_request: Order request object (Alpaca LimitOrderRequest or MarketOrderRequest)
 
         Returns:
             ExecutedOrderDTO with execution details and status.

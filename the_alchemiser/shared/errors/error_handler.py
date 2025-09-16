@@ -17,7 +17,16 @@ from collections import defaultdict
 from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import wraps
-from typing import Any, TypedDict
+from typing import TYPE_CHECKING, TypedDict
+
+if TYPE_CHECKING:
+    # Forward reference type aliases for type checking
+    from .context import ErrorContextData
+
+# Type aliases for error handler data structures
+ErrorData = dict[str, str | int | float | bool | None]
+ErrorList = list[ErrorData]
+ContextDict = dict[str, str | int | float | bool | None]
 
 
 # Error schema types
@@ -162,6 +171,10 @@ except ImportError:
             }
 
 
+# Define FlexibleContext after ErrorContextData is available
+FlexibleContext = ErrorContextData | ErrorData | None
+
+
 class ErrorSeverity:
     """Error severity levels for production monitoring."""
 
@@ -226,7 +239,7 @@ class EnhancedAlchemiserError(AlchemiserError):
     def __init__(
         self,
         message: str,
-        context: ErrorContextData | dict[str, Any] | Any | None = None,
+        context: FlexibleContext = None,
         severity: str = ErrorSeverity.MEDIUM,
         *,
         recoverable: bool = True,
