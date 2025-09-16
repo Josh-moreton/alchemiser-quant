@@ -837,7 +837,11 @@ def retry_with_backoff(
                     delay = min(base_delay * (backoff_factor**attempt), max_delay)
                     if jitter:
                         # Add deterministic jitter based on attempt and timestamp
-                        jitter_factor = 0.5 + (hash(str(attempt) + str(int(time.time() * 1000))) % 500) / 1000
+                        jitter_factor = (
+                            0.5
+                            + (hash(str(attempt) + str(int(time.time() * 1000))) % 500)
+                            / 1000
+                        )
                         delay *= jitter_factor
 
                     logging.warning(
@@ -889,9 +893,10 @@ class CircuitBreaker:
 
     def __call__(self, func: Callable[..., Any]) -> Callable[..., Any]:
         """Apply circuit breaker pattern to a function.
-        
+
         Returns a wrapper that tracks failures and prevents calls when threshold is exceeded.
         """
+
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             if self.state == "OPEN":

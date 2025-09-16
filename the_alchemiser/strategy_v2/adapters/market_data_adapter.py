@@ -94,7 +94,10 @@ class StrategyMarketDataAdapter:
         for symbol in symbols:
             try:
                 bars = self._alpaca.get_historical_bars(
-                    symbol=symbol, start_date=start_str, end_date=end_str, timeframe=timeframe
+                    symbol=symbol,
+                    start_date=start_str,
+                    end_date=end_str,
+                    timeframe=timeframe,
                 )
                 result[symbol] = bars
                 self._logger.debug(

@@ -28,7 +28,9 @@ class ApplicationContainer(containers.DeclarativeContainer):
     # Sub-containers
     config = providers.Container(ConfigProviders)
     infrastructure = providers.Container(InfrastructureProviders, config=config)
-    services = providers.Container(ServiceProviders, infrastructure=infrastructure, config=config)
+    services = providers.Container(
+        ServiceProviders, infrastructure=infrastructure, config=config
+    )
 
     # Application layer (will be added in Phase 2)
 
@@ -40,7 +42,9 @@ class ApplicationContainer(containers.DeclarativeContainer):
         # Load environment-specific configuration
         if env == "test":
             container.config.alpaca_api_key.override("test_api_key_valid_for_testing")
-            container.config.alpaca_secret_key.override("test_secret_key_valid_for_testing")
+            container.config.alpaca_secret_key.override(
+                "test_secret_key_valid_for_testing"
+            )
             container.config.paper_trading.override(value=True)
         elif env == "production":
             # Production uses environment variables (default behavior)
