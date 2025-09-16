@@ -537,7 +537,7 @@ def calculate_dynamic_limit_price_with_symbol(
         Initial buy limit: $100.05
 
     """
-    from the_alchemiser.execution_v2.services.tick_size_service import (
+    from the_alchemiser.shared.services.tick_size_service import (
         DynamicTickSizeService,
     )
 

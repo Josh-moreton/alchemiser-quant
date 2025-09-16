@@ -1,11 +1,9 @@
-"""Business Unit: strategy_v2 | Status: current.
+"""Business Unit: shared | Status: current.
 
 Market data service providing domain-facing interface.
 
 This service acts as a port between orchestrators and the market data infrastructure,
 handling input normalization, error mapping, and providing a clean domain interface.
-
-Moved from shared/services to strategy_v2/services as this is strategy-specific functionality.
 """
 
 from __future__ import annotations
@@ -20,7 +18,7 @@ from the_alchemiser.shared.types.quote import QuoteModel
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:
-    from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+    from the_alchemiser.execution_v2.adapters.alpaca_manager import AlpacaManager
 
 
 class MarketDataService(MarketDataPort):

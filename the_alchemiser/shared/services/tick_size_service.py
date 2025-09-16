@@ -1,10 +1,8 @@
-"""Business Unit: execution_v2 | Status: current.
+"""Business Unit: shared | Status: current.
 
 Simple tick size service for trading calculations.
 
 Provides symbol-specific tick sizes for order pricing calculations.
-
-Moved from shared/services to execution_v2/services as this is execution-specific functionality.
 """
 
 from __future__ import annotations

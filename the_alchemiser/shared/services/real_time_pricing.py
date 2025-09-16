@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
-"""Business Unit: strategy_v2; Status: current.
+"""Business Unit: shared; Status: current.
 
 Real-time WebSocket Price Streaming for Alpaca Trading with Structured Data Types.
 
 This module provides real-time stock price updates via Alpaca's WebSocket streams
 to ensure accurate limit order pricing. It maintains current bid/ask quotes and
 last trade prices for symbols used in trading strategies using structured data types.
-
-Moved from shared/services to strategy_v2/services as this is market data functionality.
-"""
 
 DESIGN PHILOSOPHY:
 =================
@@ -50,7 +47,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.brokers.alpaca_utils import (
+from the_alchemiser.execution_v2.adapters.alpaca_utils import (
     create_stock_data_stream,
 )
 from the_alchemiser.shared.types.market_data import PriceDataModel, QuoteModel
@@ -1017,7 +1014,7 @@ class RealTimePricingManager:
         Uses centralized price discovery utility for consistent fallback logic.
 
         """
-        from the_alchemiser.strategy_v2.utils.price_discovery_utils import (
+        from the_alchemiser.shared.utils.price_discovery_utils import (
             get_current_price_with_fallback,
         )
 
