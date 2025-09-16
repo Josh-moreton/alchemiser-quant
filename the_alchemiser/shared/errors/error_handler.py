@@ -17,7 +17,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import wraps
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
     # Forward reference type aliases for type checking
@@ -447,7 +447,7 @@ class TradingSystemErrorHandler:
         return self.handle_error(
             error=error,
             context=context.operation or "unknown",
-            component=context.module or "unknown",
+            component=context.component or "unknown",
             additional_data=context.to_dict(),
         )
 
