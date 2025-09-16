@@ -1017,7 +1017,7 @@ class RealTimePricingManager:
         Uses centralized price discovery utility for consistent fallback logic.
 
         """
-        from the_alchemiser.shared.utils.price_discovery_utils import (
+        from the_alchemiser.strategy_v2.utils.price_discovery_utils import (
             get_current_price_with_fallback,
         )
 

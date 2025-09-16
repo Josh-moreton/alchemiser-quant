@@ -717,7 +717,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         - RealTimePricingService.get_price_data() for volume and enhanced trade data
         - Enhanced price discovery with QuoteModel and PriceDataModel
         """
-        from the_alchemiser.shared.utils.price_discovery_utils import (
+        from the_alchemiser.strategy_v2.utils.price_discovery_utils import (
             get_current_price_from_quote,
         )
 

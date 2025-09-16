@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Business Unit: shared | Status: current.
+"""Business Unit: strategy_v2 | Status: current.
 
 Strategy configuration utilities for consolidating strategy allocation logic.
 
 This module provides centralized functions for extracting and managing strategy
 allocations from configuration, eliminating duplication across the codebase.
+
+Moved from shared/utils to strategy_v2/utils as this is strategy-specific functionality.
 """
 
 from __future__ import annotations

@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Business Unit: shared | Status: current.
+"""Business Unit: strategy_v2 | Status: current.
 
 Centralized Price Discovery Utilities.
 
 This module provides unified price discovery functionality to eliminate duplication
 across multiple modules. All price discovery operations should use this centralized
 utility to ensure consistent pricing behavior and calculation methods.
+
+Moved from shared/utils to strategy_v2/utils as this is market data functionality.
+"""
 
 Consolidates the following duplicate implementations:
 - execution_v2 brokers: bid-ask midpoint calculation

@@ -208,7 +208,7 @@ class PortfolioOrchestrator:
             }
 
             # Use shared utilities for allocation comparison
-            from the_alchemiser.shared.utils.portfolio_calculations import (
+            from the_alchemiser.portfolio_v2.utils.portfolio_calculations import (
                 build_allocation_comparison,
             )
 

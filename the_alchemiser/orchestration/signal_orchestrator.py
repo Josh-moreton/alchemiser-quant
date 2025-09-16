@@ -31,7 +31,7 @@ from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types import StrategySignal
 from the_alchemiser.shared.types.exceptions import DataProviderError
 from the_alchemiser.shared.types.strategy_types import StrategyType
-from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
+from the_alchemiser.strategy_v2.utils.strategy_utils import get_strategy_allocations
 from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy_v2.engines.nuclear import NUCLEAR_SYMBOLS
 
