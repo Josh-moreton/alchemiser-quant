@@ -78,20 +78,23 @@ class TradingExecutor(BaseCLI):
             render_footer("Market closed - no action taken")
             return True
 
-        # 2) Generate and DISPLAY signals + allocation BEFORE executing
-        pre_result = self.orchestrator.execute_strategy_signals()
-        if pre_result is None:
-            render_footer("Signal generation failed - check logs for details")
+        # 2) Execute full workflow with signals, rebalancing, and trading in one go
+        exec_result = self.orchestrator.execute_strategy_signals_with_trading()
+        if exec_result is None:
+            render_footer("Trading execution failed - check logs for details")
             return False
 
-        strategy_signals = pre_result.get("strategy_signals", {})
-        consolidated_portfolio = pre_result.get("consolidated_portfolio", {})
-        account_info = pre_result.get("account_info")
-        current_positions = pre_result.get("current_positions")
-        allocation_comparison = pre_result.get("allocation_comparison")
-        open_orders = pre_result.get("open_orders", [])
+        # Extract data for display
+        strategy_signals = exec_result.get("strategy_signals", {})
+        consolidated_portfolio = exec_result.get("consolidated_portfolio", {})
+        account_info = exec_result.get("account_info")
+        current_positions = exec_result.get("current_positions")
+        allocation_comparison = exec_result.get("allocation_comparison")
+        open_orders = exec_result.get("open_orders", [])
+        orders_executed = exec_result.get("orders_executed", [])
+        execution_result = exec_result.get("execution_result")
 
-        # Display strategy signals, account info, and rebalancing summary first
+        # Display strategy signals, account info, and rebalancing summary
         if strategy_signals or consolidated_portfolio or account_info:
             self._display_comprehensive_results(
                 strategy_signals,
@@ -102,15 +105,7 @@ class TradingExecutor(BaseCLI):
                 open_orders,
             )
 
-        # 3) Execute trades and then display execution results
-        exec_result = self.orchestrator.execute_strategy_signals_with_trading()
-        if exec_result is None:
-            render_footer("Trading execution failed - check logs for details")
-            return False
-
-        orders_executed = exec_result.get("orders_executed", [])
-        execution_result = exec_result.get("execution_result")
-
+        # Display execution results
         if orders_executed:
             self._display_execution_results(orders_executed, execution_result)
 

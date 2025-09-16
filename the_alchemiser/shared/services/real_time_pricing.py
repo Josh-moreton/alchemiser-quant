@@ -132,9 +132,60 @@ class RealTimePricingService:
         self._paper_trading = paper_trading
         self._max_symbols = max_symbols
 
+        # Initialize streaming state
+        self._stream_thread: threading.Thread | None = None
+        self._stream = None
+        self._should_reconnect = False
+        self._connected = False
+
+        # Initialize data storage
+        self._quotes: dict[str, RealTimeQuote] = {}
+        self._price_data: dict[str, PriceDataModel] = {}
+        self._quote_data: dict[str, QuoteModel] = {}
+        self._subscribed_symbols: set[str] = set()
+        self._data_lock = threading.Lock()
+        self._subscription_lock = threading.Lock()
+        self._quotes_lock = threading.Lock()
+
+        # Initialize cleanup settings
+        self._cleanup_interval = 60  # seconds between cleanup cycles
+        self._max_quote_age = 300  # maximum age of quotes in seconds
+
+        # Initialize missing attributes for smart execution
+        self._subscription_priority: dict[str, int] = {}
+        self._latest_quotes: dict[str, dict] = {}
+        self._stats: dict[str, int] = {
+            "quotes_received": 0,
+            "total_subscriptions": 0,
+            "trades_received": 0,
+            "subscription_limit_hits": 0,
+        }
+        self._latest_bid: dict[str, float] = {}
+        self._latest_ask: dict[str, float] = {}
+        self._last_quote_time: dict[str, datetime] = {}
+        self._last_update: dict[str, datetime] = {}
+
+        # Initialize logger for this instance
+        self.logger = logging.getLogger(__name__)
+
         logging.info(
             f"📡 Real-time pricing service initialized ({'paper' if paper_trading else 'live'})"
         )
+
+    @property
+    def api_key(self) -> str:
+        """Get API key."""
+        return self._api_key
+
+    @property
+    def secret_key(self) -> str:
+        """Get secret key."""
+        return self._secret_key
+
+    @property
+    def paper_trading(self) -> bool:
+        """Get paper trading flag."""
+        return self._paper_trading
 
     def start(self) -> bool:
         """Start the real-time pricing service.
@@ -154,8 +205,7 @@ class RealTimePricingService:
             self._stream = create_stock_data_stream(
                 api_key=self.api_key,
                 secret_key=self.secret_key,
-                feed="iex",  # Use IEX feed for both paper and live (free tier)
-                # feed="sip" if not self.paper_trading else "iex"  # Uncomment when SIP subscription is active
+                feed=self._get_feed(),
             )
 
             # Set up the async event handlers BEFORE starting the stream
@@ -285,7 +335,7 @@ class RealTimePricingService:
                     self._stream = create_stock_data_stream(
                         api_key=self.api_key,
                         secret_key=self.secret_key,
-                        feed="iex",  # Use IEX feed for both paper and live (free tier)
+                        feed=self._get_feed(),
                     )
 
                     # Subscribe to quotes and trades for all symbols at once
@@ -365,28 +415,65 @@ class RealTimePricingService:
             symbol = data.symbol if hasattr(data, "symbol") else data.get("S", "")
 
             if not symbol:
-                logger.warning("Received quote with no symbol")
+                self.logger.warning("Received quote with no symbol")
                 return
 
+            # Extract bid/ask data with explicit branching to avoid precedence bugs
+            if isinstance(data, dict):
+                bid_price = data.get("bp")
+                ask_price = data.get("ap")
+                bid_size = data.get("bs")
+                ask_size = data.get("as")
+                timestamp = data.get("t")
+            else:
+                bid_price = getattr(data, "bid_price", None)
+                ask_price = getattr(data, "ask_price", None)
+                bid_size = getattr(data, "bid_size", None)
+                ask_size = getattr(data, "ask_size", None)
+                timestamp = getattr(data, "timestamp", None)
+
             # Log for debugging
-            logger.debug(
-                f"📊 Quote received for {symbol}: bid={getattr(data, 'bid_price', 'N/A')}, ask={getattr(data, 'ask_price', 'N/A')}"
+            self.logger.debug(
+                f"📊 Quote received for {symbol}: bid={bid_price}, ask={ask_price}"
             )
 
             # Store complete quote data
             self._latest_quotes[symbol] = data
 
             # Update bid/ask tracking
-            if hasattr(data, "bid_price") and hasattr(data, "ask_price"):
-                self._latest_bid[symbol] = data.bid_price
-                self._latest_ask[symbol] = data.ask_price
+            if bid_price is not None and ask_price is not None:
+                self._latest_bid[symbol] = float(bid_price)
+                self._latest_ask[symbol] = float(ask_price)
+
+                # Create structured QuoteModel object
+                with self._quotes_lock:
+                    current_quote = self._quotes.get(symbol)
+                    last_price = current_quote.last_price if current_quote else 0.0
+
+                    # Update legacy RealTimeQuote
+                    self._quotes[symbol] = RealTimeQuote(
+                        bid=float(bid_price),
+                        ask=float(ask_price),
+                        last_price=last_price,
+                        timestamp=timestamp or datetime.now(UTC),
+                    )
+
+                    # Create new structured QuoteModel
+                    self._quote_data[symbol] = QuoteModel(
+                        symbol=symbol,
+                        bid_price=float(bid_price),
+                        ask_price=float(ask_price),
+                        bid_size=int(bid_size) if bid_size is not None else None,
+                        ask_size=int(ask_size) if ask_size is not None else None,
+                        timestamp=timestamp or datetime.now(UTC),
+                    )
 
             # Update statistics
             self._stats["quotes_received"] += 1
             self._last_quote_time[symbol] = datetime.now(UTC)
 
         except Exception as e:
-            logger.error(f"Error processing quote: {e}", exc_info=True)
+            self.logger.error(f"Error processing quote: {e}", exc_info=True)
 
     async def _on_trade(self, trade: AlpacaTradeData) -> None:
         """Handle incoming trade updates from Alpaca stream."""
@@ -631,19 +718,37 @@ class RealTimePricingService:
 
     def get_stats(self) -> dict[str, str | int | float | datetime | bool]:
         """Get service statistics."""
+        last_hb = self._stats.get("last_heartbeat")  # May be absent until first trade
+        uptime = (
+            (datetime.now(UTC) - last_hb).total_seconds()  # type: ignore[arg-type]
+            if last_hb
+            else 0
+        )
         return {
             **self._stats,
             "connected": self._connected,
-            "symbols_tracked": len(self._quotes),  # Legacy count for compatibility
+            "symbols_tracked": len(self._quotes),
             "symbols_tracked_legacy": len(self._quotes),
             "symbols_tracked_structured_prices": len(self._price_data),
             "symbols_tracked_structured_quotes": len(self._quote_data),
-            "uptime_seconds": (
-                (datetime.now(UTC) - self._stats["last_heartbeat"]).total_seconds()
-                if self._stats["last_heartbeat"]
-                else 0
-            ),
+            "uptime_seconds": uptime,
         }
+
+    def _get_feed(self) -> str:
+        """Resolve the Alpaca data feed to use.
+
+        Allows overriding via env vars `ALPACA_FEED` or `ALPACA_DATA_FEED`.
+        Defaults to "iex". Use "sip" if you have the required subscription.
+        """
+        import os
+
+        feed = (
+            os.getenv("ALPACA_FEED") or os.getenv("ALPACA_DATA_FEED") or "iex"
+        ).lower()
+        if feed not in {"iex", "sip"}:
+            self.logger.warning(f"Unknown ALPACA_FEED '{feed}', defaulting to 'iex'")
+            return "iex"
+        return feed
 
     def subscribe_symbol(self, symbol: str, priority: float | None = None) -> None:
         """Subscribe to real-time updates for a specific symbol with smart limit management.
@@ -797,7 +902,7 @@ class RealTimePricingService:
         self.subscribe_symbol(symbol, priority=time.time() + 1000)  # High priority
 
         # Log for debugging
-        logger.info(f"📊 Subscribed {symbol} for order placement (high priority)")
+        self.logger.info(f"📊 Subscribed {symbol} for order placement (high priority)")
 
     def unsubscribe_after_order(self, symbol: str) -> None:
         """Optionally unsubscribe from a symbol after order placement.
@@ -808,7 +913,7 @@ class RealTimePricingService:
         """
         # For now, keep subscriptions active for potential re-pegging
         # Could implement cleanup logic here if needed
-        logger.debug(f"Keeping {symbol} subscription active for monitoring")
+        self.logger.debug(f"Keeping {symbol} subscription active for monitoring")
 
     def get_optimized_price_for_order(self, symbol: str) -> float | None:
         """Get the most accurate price for order placement with temporary subscription.

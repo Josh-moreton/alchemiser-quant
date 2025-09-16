@@ -6,6 +6,7 @@ Core executor for order placement and smart execution.
 from __future__ import annotations
 
 import logging
+import asyncio
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -19,6 +20,7 @@ from the_alchemiser.execution_v2.models.execution_result import (
     OrderResultDTO,
 )
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanItemDTO
 from the_alchemiser.shared.dto.execution_dto import ExecutionResult
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
@@ -192,6 +194,10 @@ class Executor:
     def execute_rebalance_plan(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
         """Execute a rebalance plan with all its items.
 
+        Executes in two phases:
+        1. SELL orders first to free up buying power
+        2. BUY orders second with the freed buying power
+
         Args:
             plan: RebalancePlanDTO containing the rebalance plan
 
@@ -208,71 +214,46 @@ class Executor:
         orders_succeeded = 0
         total_trade_value = Decimal("0")
 
-        for item in plan.items:
-            if item.action == "HOLD":
-                logger.info(f"⏸️ Holding {item.symbol} - no action required")
-                continue
+        # Separate SELL and BUY orders
+        sell_items = [item for item in plan.items if item.action == "SELL"]
+        buy_items = [item for item in plan.items if item.action == "BUY"]
+        hold_items = [item for item in plan.items if item.action == "HOLD"]
 
-            try:
-                # Execute order for this item
-                side = "buy" if item.action == "BUY" else "sell"
-                shares = abs(item.trade_amount / Decimal("100"))  # Simple approximation
+        logger.info(
+            f"📊 Execution plan: {len(sell_items)} SELLs, {len(buy_items)} BUYs, {len(hold_items)} HOLDs"
+        )
 
-                logger.info(
-                    f"📊 Executing {item.action} for {item.symbol}: "
-                    f"${item.trade_amount} ({shares} shares)"
-                )
-
-                # Use synchronous execution for now (could be made async later)
-                result = self._execute_market_order(
-                    symbol=item.symbol,
-                    side=side,
-                    quantity=float(shares),
-                )
-
-                orders_placed += 1
-
-                # Create order result
-                order_result = OrderResultDTO(
-                    symbol=item.symbol,
-                    action=item.action,
-                    trade_amount=abs(item.trade_amount),
-                    shares=shares,
-                    price=Decimal(str(result.price)) if result.price else None,
-                    order_id=result.order_id,
-                    success=result.success,
-                    error_message=getattr(result, "error", None),
-                    timestamp=datetime.now(UTC),
-                )
+        # Phase 1: Execute SELL orders first to free up buying power
+        if sell_items:
+            logger.info("🔄 Phase 1: Executing SELL orders to free buying power...")
+            for item in sell_items:
+                order_result = self._execute_single_item(item)
                 orders.append(order_result)
-
-                if result.success:
+                orders_placed += 1
+                if order_result.success:
                     orders_succeeded += 1
                     total_trade_value += abs(item.trade_amount)
-                    logger.info(
-                        f"✅ Successfully executed {item.action} for {item.symbol}"
-                    )
+                    logger.info(f"✅ SELL {item.symbol} completed successfully")
                 else:
-                    logger.error(
-                        f"❌ Failed to execute {item.action} for {item.symbol}"
-                    )
+                    logger.error(f"❌ SELL {item.symbol} failed")
 
-            except Exception as e:
-                logger.error(f"❌ Error executing {item.action} for {item.symbol}: {e}")
-                orders_placed += 1
-
-                order_result = OrderResultDTO(
-                    symbol=item.symbol,
-                    action=item.action,
-                    trade_amount=abs(item.trade_amount),
-                    shares=Decimal("0"),
-                    price=None,
-                    order_id=None,
-                    success=False,
-                    error_message=str(e),
-                    timestamp=datetime.now(UTC),
-                )
+        # Phase 2: Execute BUY orders with freed buying power
+        if buy_items:
+            logger.info("🔄 Phase 2: Executing BUY orders with freed buying power...")
+            for item in buy_items:
+                order_result = self._execute_single_item(item)
                 orders.append(order_result)
+                orders_placed += 1
+                if order_result.success:
+                    orders_succeeded += 1
+                    total_trade_value += abs(item.trade_amount)
+                    logger.info(f"✅ BUY {item.symbol} completed successfully")
+                else:
+                    logger.error(f"❌ BUY {item.symbol} failed")
+
+        # Log HOLD items
+        for item in hold_items:
+            logger.info(f"⏸️ Holding {item.symbol} - no action required")
 
         # Create execution result
         execution_result = ExecutionResultDTO(
@@ -292,6 +273,118 @@ class Executor:
         )
 
         return execution_result
+
+    def _execute_single_item(self, item: RebalancePlanItemDTO) -> OrderResultDTO:
+        """Execute a single rebalance plan item.
+
+        Args:
+            item: RebalancePlanItemDTO to execute
+
+        Returns:
+            OrderResultDTO with execution results
+
+        """
+        try:
+            side = "buy" if item.action == "BUY" else "sell"
+
+            # Calculate shares based on action type
+            if item.action == "SELL" and item.target_weight == Decimal("0.0"):
+                # For liquidation (0% target), get actual position quantity
+                shares = self._get_position_quantity(item.symbol)
+                logger.info(
+                    f"📊 Liquidating {item.symbol}: selling {shares} shares (full position)"
+                )
+            else:
+                # For other orders, estimate shares from trade amount
+                # This is a simplified calculation - could be improved with real-time price
+                estimated_price = abs(
+                    item.trade_amount
+                    / max(item.current_value / Decimal("100"), Decimal("1"))
+                )
+                shares = (
+                    abs(item.trade_amount / estimated_price)
+                    if estimated_price > 0
+                    else Decimal("1")
+                )
+                logger.info(
+                    f"📊 Executing {item.action} for {item.symbol}: "
+                    f"${item.trade_amount} (estimated {shares} shares)"
+                )
+
+            # Use smart execution with async context
+            execution_result = asyncio.run(
+                self.execute_order(
+                    symbol=item.symbol,
+                    side=side,
+                    quantity=float(shares),
+                    order_type="limit",  # Use limit orders for smart execution
+                    correlation_id=f"rebalance-{item.symbol}",
+                )
+            )
+
+            # Create order result
+            order_result = OrderResultDTO(
+                symbol=item.symbol,
+                action=item.action,
+                trade_amount=abs(item.trade_amount),
+                shares=shares,
+                price=(
+                    Decimal(str(execution_result.price))
+                    if execution_result.price
+                    else None
+                ),
+                order_id=execution_result.order_id,
+                success=execution_result.success,
+                error_message=getattr(execution_result, "error", None),
+                timestamp=datetime.now(UTC),
+            )
+
+            if execution_result.success:
+                logger.info(f"✅ Successfully executed {item.action} for {item.symbol}")
+            else:
+                logger.error(f"❌ Failed to execute {item.action} for {item.symbol}")
+
+            return order_result
+
+        except Exception as e:
+            logger.error(f"❌ Error executing {item.action} for {item.symbol}: {e}")
+
+            return OrderResultDTO(
+                symbol=item.symbol,
+                action=item.action,
+                trade_amount=abs(item.trade_amount),
+                shares=Decimal("0"),
+                price=None,
+                order_id=None,
+                success=False,
+                error_message=str(e),
+                timestamp=datetime.now(UTC),
+            )
+
+    def _get_position_quantity(self, symbol: str) -> Decimal:
+        """Get the actual quantity held for a symbol.
+
+        Args:
+            symbol: Stock symbol to check
+
+        Returns:
+            Decimal quantity owned, or 0 if no position exists
+
+        """
+        try:
+            position = self.alpaca_manager.get_position(symbol)
+            if position is None:
+                logger.debug(f"No position found for {symbol}")
+                return Decimal("0")
+
+            # Use qty_available to account for shares tied up in orders
+            qty = getattr(position, "qty_available", None) or getattr(
+                position, "qty", 0
+            )
+            return Decimal(str(qty))
+        except Exception as e:
+            logger.warning(f"Error getting position for {symbol}: {e}")
+            return Decimal("0")
 
     def shutdown(self) -> None:
         """Shutdown the executor and cleanup resources."""

@@ -157,69 +157,156 @@ class SmartExecutionStrategy:
 
     def get_quote_with_validation(
         self, symbol: str, order_size: float
-    ) -> QuoteModel | None:
-        """Get validated quote data for a symbol with liquidity analysis.
+    ) -> tuple[QuoteModel, bool] | None:
+        """Get validated quote data with streaming-first, REST fallback.
+
+        Tries realtime streaming quotes first. If unavailable or stale, falls back
+        to REST latest quote via `AlpacaManager`. Returns a tuple of (quote, is_fallback).
 
         Args:
             symbol: Stock symbol
             order_size: Size of order to place (in shares)
 
         Returns:
-            QuoteModel if valid quote available, None otherwise
+            (QuoteModel, is_fallback) if valid, otherwise None
 
         """
-        if not self.pricing_service:
-            logger.warning("No pricing service available for quote validation")
-            return None
-
-        quote = self.pricing_service.get_quote_data(symbol)
-        if not quote:
-            logger.warning(f"No quote data available for {symbol}")
-            return None
-
-        # Validate quote freshness
         now = datetime.now(UTC)
-        quote_age = (now - quote.timestamp).total_seconds()
-        if quote_age > self.config.quote_freshness_seconds:
+
+        quote: QuoteModel | None = None
+        is_fallback = False
+
+        # 1) Try streaming quote if pricing service available
+        if self.pricing_service:
+            quote = self.pricing_service.get_quote_data(symbol)
+            if quote:
+                quote_age = (now - quote.timestamp).total_seconds()
+                if quote_age > self.config.quote_freshness_seconds:
+                    logger.info(
+                        f"Streaming quote stale for {symbol} ({quote_age:.1f}s), will try REST fallback"
+                    )
+                    quote = None
+
+        # 2) Fallback to REST latest quote for symbols not covered by IEX
+        if quote is None:
+            try:
+                latest = self.alpaca_manager.get_latest_quote(symbol)
+                if latest is not None:
+                    bid, ask = latest
+                    if bid > 0 or ask > 0:
+                        # Build a minimal QuoteModel with unknown sizes as 0.0
+                        quote = QuoteModel(
+                            symbol=symbol,
+                            bid_price=bid,
+                            ask_price=ask,
+                            bid_size=0.0,
+                            ask_size=0.0,
+                            timestamp=now,
+                        )
+                        is_fallback = True
+            except Exception as e:
+                logger.warning(f"REST latest quote failed for {symbol}: {e}")
+
+        if not quote:
+            logger.warning(f"No quote data available for {symbol} after fallback")
+            return None
+
+        # Validate prices and spread
+        if quote.bid_price <= 0 and quote.ask_price <= 0:
             logger.warning(
-                f"Quote for {symbol} is stale ({quote_age:.1f}s old, max {self.config.quote_freshness_seconds}s)"
+                f"Invalid prices for {symbol}: bid={quote.bid_price}, ask={quote.ask_price}"
             )
             return None
 
-        # Validate spread
-        if quote.bid_price <= 0 or quote.ask_price <= 0:
-            logger.warning(
-                f"Invalid bid/ask prices for {symbol}: {quote.bid_price}/{quote.ask_price}"
-            )
+        # If only one side is known (REST may return both equal if single-sided), synthesize spread
+        bid = quote.bid_price if quote.bid_price > 0 else quote.ask_price
+        ask = quote.ask_price if quote.ask_price > 0 else quote.bid_price
+        if ask <= 0:
+            logger.warning(f"No usable prices for {symbol}")
             return None
 
-        spread_percent = (quote.ask_price - quote.bid_price) / quote.bid_price * 100
+        if bid <= 0:
+            bid = ask  # single-sided, treat as equal to avoid negative spread
+
+        spread_percent = (ask - bid) / max(bid, 1e-9) * 100.0
         if spread_percent > float(self.config.max_spread_percent):
             logger.warning(
                 f"Spread too wide for {symbol}: {spread_percent:.2f}% > {self.config.max_spread_percent}%"
             )
-            # For low liquidity symbols, be more lenient
             if symbol not in self.config.low_liquidity_symbols:
                 return None
 
-        # Adjust liquidity requirements based on symbol
-        if symbol in self.config.low_liquidity_symbols:
-            # For low liquidity ETFs, skip strict volume validation
-            # Just ensure there's SOME volume
-            if quote.bid_size <= 0 or quote.ask_size <= 0:
-                logger.warning(f"No volume at all for {symbol}")
-                return None
-            logger.info(f"📊 Low-liquidity symbol {symbol} - using relaxed validation")
+        # Liquidity validation: for fallback quotes (sizes unknown), relax rules on low-liquidity names
+        if not is_fallback:
+            if symbol in self.config.low_liquidity_symbols:
+                if quote.bid_size <= 0 or quote.ask_size <= 0:
+                    logger.warning(f"No volume at all for {symbol}")
+                    return None
+                logger.info(
+                    f"📊 Low-liquidity symbol {symbol} - using relaxed validation (streaming)"
+                )
+            else:
+                is_valid, reason = self.liquidity_analyzer.validate_liquidity_for_order(
+                    quote, "buy", order_size
+                )
+                if not is_valid:
+                    logger.warning(
+                        f"Liquidity validation failed for {symbol}: {reason}"
+                    )
+                    return None
         else:
-            # Use standard liquidity analyzer for normal stocks
-            is_valid, reason = self.liquidity_analyzer.validate_liquidity_for_order(
-                quote, "buy", order_size
-            )
-            if not is_valid:
-                logger.warning(f"Liquidity validation failed for {symbol}: {reason}")
-                return None
+            # Fallback path: allow for low-liquidity ETFs even if sizes unknown
+            if symbol not in self.config.low_liquidity_symbols:
+                logger.info(
+                    f"Using REST fallback for {symbol} with unknown sizes; proceeding with conservative anchors"
+                )
 
-        return quote
+        return quote, is_fallback
+
+    def _calculate_simple_inside_spread_price(
+        self, quote: QuoteModel, side: str
+    ) -> tuple[Decimal, dict[str, Any]]:
+        """Compute a simple inside-spread anchor using configured offsets.
+
+        This is used when we only have REST quotes or inadequate depth data.
+        """
+        bid = Decimal(str(max(quote.bid_price, 0.0)))
+        ask = Decimal(str(max(quote.ask_price, 0.0)))
+        mid = (bid + ask) / Decimal("2") if bid > 0 and ask > 0 else (bid or ask)
+
+        # Minimum step as 1 cent for safety
+        tick = Decimal("0.01")
+
+        if side.upper() == "BUY":
+            anchor = bid + max(self.config.bid_anchor_offset_cents, tick)
+            # Ensure we stay inside the spread when possible
+            if ask > 0 and anchor >= ask:
+                anchor = max(ask - max(self.config.bid_anchor_offset_cents, tick), bid)
+            # Use mid as soft cap
+            if ask > 0 and bid > 0:
+                anchor = min(anchor, mid)
+        else:
+            anchor = ask - max(self.config.ask_anchor_offset_cents, tick)
+            if bid > 0 and anchor <= bid:
+                anchor = min(ask, bid + max(self.config.ask_anchor_offset_cents, tick))
+            if ask > 0 and bid > 0:
+                anchor = max(anchor, mid)
+
+        metadata = {
+            "method": "simple_inside_spread",
+            "mid": float(mid),
+            "bid": float(bid),
+            "ask": float(ask),
+            "strategy_recommendation": "simple_inside_spread_fallback",
+            "liquidity_score": 0.0,
+            "volume_imbalance": 0.0,
+            "confidence": 0.5,  # Conservative confidence for fallback
+            "volume_available": 0.0,
+            "volume_ratio": 0.0,
+            "bid_volume": 0.0,
+            "ask_volume": 0.0,
+        }
+        return anchor, metadata
 
     def calculate_liquidity_aware_price(
         self, quote: QuoteModel, side: str, order_size: float
@@ -319,11 +406,13 @@ class SmartExecutionStrategy:
             # Get validated quote with order size, with retry logic
             order_size = float(request.quantity)
             quote = None
+            used_fallback = False
 
             # Retry up to 3 times with increasing waits
             for attempt in range(3):
-                quote = self.get_quote_with_validation(request.symbol, order_size)
-                if quote:
+                validated = self.get_quote_with_validation(request.symbol, order_size)
+                if validated:
+                    quote, used_fallback = validated
                     break
 
                 if attempt < 2:  # Don't wait on last attempt
@@ -342,10 +431,15 @@ class SmartExecutionStrategy:
                     execution_strategy="smart_limit_failed",
                 )
 
-            # Calculate liquidity-aware optimal price
-            optimal_price, analysis_metadata = self.calculate_liquidity_aware_price(
-                quote, request.side, order_size
-            )
+            # Calculate optimal price: full liquidity analysis when streaming, simple when fallback
+            if not used_fallback:
+                optimal_price, analysis_metadata = self.calculate_liquidity_aware_price(
+                    quote, request.side, order_size
+                )
+            else:
+                optimal_price, analysis_metadata = (
+                    self._calculate_simple_inside_spread_price(quote, request.side)
+                )
 
             # Place limit order with optimal pricing
             result = self.alpaca_manager.place_limit_order(
@@ -386,6 +480,7 @@ class SmartExecutionStrategy:
                         * 100,
                         "bid_size": quote.bid_size,
                         "ask_size": quote.ask_size,
+                        "used_fallback": used_fallback,
                     },
                 )
             return SmartOrderResult(
@@ -472,11 +567,12 @@ class SmartExecutionStrategy:
                     continue
 
                 # Get current quote
-                quote = self.get_quote_with_validation(
+                validated = self.get_quote_with_validation(
                     request.symbol, float(request.quantity)
                 )
-                if not quote:
+                if not validated:
                     continue
+                quote, _ = validated
 
                 # Check if market has moved beyond threshold
                 # (This would require tracking original anchor price - simplified for now)
@@ -507,7 +603,7 @@ class SmartExecutionStrategy:
 
     def wait_for_quote_data(
         self, symbol: str, timeout: float | None = None
-    ) -> dict[str, float | int] | Quote | None:
+    ) -> dict[str, float | int] | None:
         """Wait for real-time quote data to be available.
 
         Args:
@@ -557,7 +653,7 @@ class SmartExecutionStrategy:
         return None
 
     def validate_quote_liquidity(
-        self, symbol: str, quote: dict[str, float | int] | Quote
+        self, symbol: str, quote: dict[str, float | int]
     ) -> bool:
         """Validate that the quote has sufficient liquidity.
 
@@ -613,7 +709,7 @@ class SmartExecutionStrategy:
             logger.error(f"Error validating quote for {symbol}: {e}")
             return False
 
-    def get_latest_quote(self, symbol: str) -> dict[str, float | int] | Quote | None:
+    def get_latest_quote(self, symbol: str) -> dict[str, float | int] | None:
         """Get the latest quote from the pricing service.
 
         Args:
