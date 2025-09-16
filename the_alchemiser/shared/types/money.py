@@ -20,6 +20,7 @@ class Money:
     currency: str  # ISO 4217 code, e.g., "USD"
 
     def __post_init__(self) -> None:  # pragma: no cover - trivial validation
+        """Normalize the amount to standard precision after initialization."""
         if self.amount < 0:
             raise ValueError("Money amount cannot be negative")
         if len(self.currency) != 3:
@@ -28,9 +29,11 @@ class Money:
         object.__setattr__(self, "amount", normalized)
 
     def add(self, other: Money) -> Money:
+        """Add two Money amounts of the same currency."""
         if self.currency != other.currency:
             raise ValueError("Cannot add different currencies")
         return Money(self.amount + other.amount, self.currency)
 
     def multiply(self, factor: Decimal) -> Money:
+        """Multiply Money amount by a decimal factor."""
         return Money(self.amount * factor, self.currency)

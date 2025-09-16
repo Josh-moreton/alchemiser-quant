@@ -160,6 +160,7 @@ class BaseKLMVariant(ABC):
         self, indicators: dict[str, dict[str, float]]
     ) -> KLMDecision | None:
         """Complete 11-step overbought detection chain from CLJ.
+
         ALL standard variants follow this exact sequence before "Single Popped KMLM".
 
         Sequence: QQQE → VTV → VOX → TECL → VOOG → VOOV → XLP → TQQQ → XLY → FAS → SPY
@@ -213,7 +214,9 @@ class BaseKLMVariant(ABC):
         # No overbought conditions met - proceed to Single Popped KMLM
         return None
 
-    def evaluate_single_popped_kmlm(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def evaluate_single_popped_kmlm(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> KLMDecision:
         """Single Popped KMLM logic - common across most standard variants.
 
         Logic:
@@ -233,7 +236,9 @@ class BaseKLMVariant(ABC):
         # Fallback if UVXY data unavailable
         return self.evaluate_combined_pop_bot(indicators)
 
-    def evaluate_bsc_strategy(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def evaluate_bsc_strategy(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> KLMDecision:
         """BSC (Bond/Stock/Commodity) strategy when UVXY RSI(21) > 65.
 
         Logic from CLJ:
@@ -264,7 +269,9 @@ class BaseKLMVariant(ABC):
         self.log_klm_decision(result)
         return result
 
-    def evaluate_combined_pop_bot(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def evaluate_combined_pop_bot(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> KLMDecision:
         """Evaluate Combined Pop Bot strategy - standard across most variants.
 
         Sequence (from CLJ):
@@ -313,8 +320,11 @@ class BaseKLMVariant(ABC):
         return self.evaluate_core_kmlm_switcher(indicators)
 
     @abstractmethod
-    def evaluate_core_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def evaluate_core_kmlm_switcher(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> KLMDecision:
         """Core KMLM switcher - each variant implements its own logic.
+
         This is where variants differ after the common overbought/pop bot logic.
         """
 
@@ -337,6 +347,7 @@ class BaseKLMVariant(ABC):
 
     def get_base_required_symbols(self) -> list[str]:
         """Get base symbols required by the standard 11-step overbought chain and pop bot logic.
+
         Variants should extend this list with their specific requirements.
         """
         return [
@@ -377,6 +388,7 @@ class BaseKLMVariant(ABC):
 
     def calculate_performance_metric(self, window: int = 5) -> float:
         """Calculate performance metric for ensemble selection.
+
         This should track the 5-day standard deviation of returns.
         """
         if len(self.performance_history) < window:

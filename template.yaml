@@ -26,23 +26,16 @@ Globals:
 
         # AWS Configuration
         AWS__ACCOUNT_ID: 211125653762
-        AWS__REGION: eu-west-2
-        AWS__REPO_NAME: the-alchemiser
-        AWS__LAMBDA_ARN: arn:aws:lambda:eu-west-2:211125653762:function:the-alchemiser-v2-lambda
-        AWS__IMAGE_TAG: latest
+        AWS__REGION: us-east-1
 
         # Alerts
-        ALERTS__ALERT_CONFIG_S3: s3://the-alchemiser-s3/alert_config.json
+        ALERTS__ALERT_CONFIG_S3: s3://the-alchemiser-v2-s3/alert_config.json
         ALERTS__COOLDOWN_MINUTES: 30
 
         # Secrets Manager
-        SECRETS_MANAGER__REGION_NAME: eu-west-2
-        SECRETS_MANAGER__SECRET_NAME: the-alchemiser-secrets
+        SECRETS_MANAGER__REGION_NAME: us-east-1
+        SECRETS_MANAGER__SECRET_NAME: the-alchemiser-v2-secrets
 
-        # Strategy Configuration
-        STRATEGY__DEFAULT_STRATEGY_ALLOCATIONS: '{"nuclear": 0.3, "tecl": 0.5, "klm": 0.2}'
-        STRATEGY__POLL_TIMEOUT: 30
-        STRATEGY__POLL_INTERVAL: 2.0
 
         # Email Configuration
         EMAIL__SMTP_SERVER: smtp.mail.me.com
@@ -56,14 +49,11 @@ Globals:
         DATA__DEFAULT_SYMBOL: AAPL
 
         # Tracking Configuration
-        TRACKING__S3_BUCKET: the-alchemiser-s3
+        TRACKING__S3_BUCKET: the-alchemiser-v2-s3
         TRACKING__STRATEGY_ORDERS_PATH: strategy_orders/
         TRACKING__STRATEGY_POSITIONS_PATH: strategy_positions/
         TRACKING__STRATEGY_PNL_HISTORY_PATH: strategy_pnl_history/
         TRACKING__ORDER_HISTORY_LIMIT: 1000
-
-        # Execution Configuration
-        EXECUTION__MAX_SLIPPAGE_BPS: 20.0
 
 Resources:
   # Lambda Layer for dependencies
@@ -105,8 +95,8 @@ Resources:
     Type: AWS::Scheduler::Schedule
     Properties:
       Name: the-alchemiser-daily-trading
-      Description: "Execute quantitative trading system daily at 9:30 AM New York time"
-      ScheduleExpression: "cron(30 9 ? * MON-FRI *)"
+      Description: "Execute quantitative trading system daily at 9:35 AM New York time"
+      ScheduleExpression: "cron(35 9 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow:
         Mode: "OFF"
@@ -152,7 +142,6 @@ Resources:
   TradingSystemExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: the-alchemiser-lambda-execution-role
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -173,7 +162,7 @@ Resources:
                   - secretsmanager:GetSecretValue
                   - secretsmanager:DescribeSecret
                 Resource:
-                  - arn:aws:secretsmanager:eu-west-2:211125653762:secret:the-alchemiser-secrets-*
+                  - !Ref TradingSecrets
 
               # S3 access for alerts and data storage
               - Effect: Allow
@@ -182,8 +171,8 @@ Resources:
                   - s3:PutObject
                   - s3:ListBucket
                 Resource:
-                  - arn:aws:s3:::the-alchemiser-s3
-                  - arn:aws:s3:::the-alchemiser-s3/*
+                  - arn:aws:s3:::the-alchemiser-v2-s3
+                  - arn:aws:s3:::the-alchemiser-v2-s3/*
 
               # CloudWatch Logs (enhanced logging)
               - Effect: Allow
@@ -201,6 +190,15 @@ Resources:
     Properties:
       LogGroupName: !Sub "/aws/lambda/${TradingSystemFunction}"
       RetentionInDays: 30
+
+  # Secrets Manager Secret (managed by this stack, value set manually post-deploy)
+  TradingSecrets:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: the-alchemiser-v2-secrets
+      Description: "Secrets for The Alchemiser v2 (ALPACA_KEY/SECRET, optional TWELVEDATA_KEY, SMTP_PASSWORD)"
 
 Outputs:
   TradingSystemFunction:

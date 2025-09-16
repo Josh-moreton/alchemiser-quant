@@ -85,7 +85,9 @@ class RealTimePricingService:
     active trading symbols.
     """
 
-    def __init__(self, api_key: str, secret_key: str, *, paper_trading: bool = True) -> None:
+    def __init__(
+        self, api_key: str, secret_key: str, *, paper_trading: bool = True
+    ) -> None:
         """Initialize real-time pricing service.
 
         Args:
@@ -246,7 +248,7 @@ class RealTimePricingService:
                     jitter = secrets.randbelow(500) / 1000.0  # 0.0 to 0.5 seconds
                     reconnect_delay += jitter
 
-    def _on_quote(self, quote: Any) -> None:
+    async def _on_quote(self, quote: Any) -> None:
         """Handle incoming quote updates from Alpaca stream."""
         try:
             # Handle both Quote objects and dictionary format
@@ -261,8 +263,12 @@ class RealTimePricingService:
                 symbol = quote.symbol
                 bid_price = quote.bid_price
                 ask_price = quote.ask_price
-                bid_size = getattr(quote, "bid_size", 0)  # New field for structured types
-                ask_size = getattr(quote, "ask_size", 0)  # New field for structured types
+                bid_size = getattr(
+                    quote, "bid_size", 0
+                )  # New field for structured types
+                ask_size = getattr(
+                    quote, "ask_size", 0
+                )  # New field for structured types
                 timestamp = quote.timestamp
 
             if not symbol:
@@ -309,7 +315,7 @@ class RealTimePricingService:
             )
             logging.error(f"Error processing quote for {symbol_str}: {e}")
 
-    def _on_trade(self, trade: Any) -> None:
+    async def _on_trade(self, trade: Any) -> None:
         """Handle incoming trade updates from Alpaca stream."""
         try:
             # Handle both Trade objects and dictionary format
@@ -323,7 +329,9 @@ class RealTimePricingService:
                 symbol = trade.symbol
                 price = trade.price
                 size = trade.size
-                volume = getattr(trade, "volume", size)  # New field for structured types
+                volume = getattr(
+                    trade, "volume", size
+                )  # New field for structured types
                 timestamp = trade.timestamp
 
             if not symbol:
@@ -406,7 +414,9 @@ class RealTimePricingService:
                         self._last_update.pop(symbol, None)
 
                     if symbols_to_remove:
-                        logging.info(f"🧹 Cleaned up {len(symbols_to_remove)} old quotes")
+                        logging.info(
+                            f"🧹 Cleaned up {len(symbols_to_remove)} old quotes"
+                        )
 
             except Exception as e:
                 logging.error(f"Error during quote cleanup: {e}")
@@ -581,9 +591,12 @@ class RealTimePricingService:
             ):
                 # Find lowest priority symbol to unsubscribe
                 lowest_priority_symbol = min(
-                    self._subscribed_symbols, key=lambda s: self._subscription_priority.get(s, 0)
+                    self._subscribed_symbols,
+                    key=lambda s: self._subscription_priority.get(s, 0),
                 )
-                lowest_priority = self._subscription_priority.get(lowest_priority_symbol, 0)
+                lowest_priority = self._subscription_priority.get(
+                    lowest_priority_symbol, 0
+                )
 
                 if priority > lowest_priority:
                     # Unsubscribe lowest priority symbol
@@ -652,6 +665,7 @@ class RealTimePricingService:
 
     def subscribe_for_order_placement(self, symbol: str) -> None:
         """Subscribe to a symbol temporarily for order placement.
+
         Uses the highest priority to ensure subscription.
 
         Args:
@@ -659,7 +673,9 @@ class RealTimePricingService:
 
         """
         # Maximum priority for order placement
-        order_priority = time.time() + 172800  # Current time + 2 days (highest priority)
+        order_priority = (
+            time.time() + 172800
+        )  # Current time + 2 days (highest priority)
         self.subscribe_symbol(symbol, order_priority)
         logging.debug(
             f"Subscribed to {symbol} for order placement (priority: {order_priority:.1f})"
@@ -667,6 +683,7 @@ class RealTimePricingService:
 
     def unsubscribe_after_order(self, symbol: str) -> None:
         """Unsubscribe from a symbol after order placement is complete.
+
         Only unsubscribes if no other high-priority needs exist.
 
         Args:
@@ -683,7 +700,9 @@ class RealTimePricingService:
                 if current_priority > base_priority + 86400:  # More than 1 day ahead
                     # Reduce priority to normal level
                     self._subscription_priority[symbol] = base_priority
-                    logging.debug(f"Reduced priority for {symbol} after order placement")
+                    logging.debug(
+                        f"Reduced priority for {symbol} after order placement"
+                    )
 
                     # If we're over subscription limits, this may trigger unsubscription
                     # during the next subscription request
@@ -716,7 +735,9 @@ class RealTimePricingService:
             # Check if we have recent data for this symbol
             if symbol in self._quotes and symbol in self._last_update:
                 # If data is very recent (within 1 second), use it immediately
-                time_since_update = (datetime.now(UTC) - self._last_update[symbol]).total_seconds()
+                time_since_update = (
+                    datetime.now(UTC) - self._last_update[symbol]
+                ).total_seconds()
                 if time_since_update < 1.0:
                     break
 
@@ -739,7 +760,9 @@ class RealTimePricingManager:
     existing trading systems while maintaining backward compatibility.
     """
 
-    def __init__(self, api_key: str, secret_key: str, *, paper_trading: bool = True) -> None:
+    def __init__(
+        self, api_key: str, secret_key: str, *, paper_trading: bool = True
+    ) -> None:
         """Initialize real-time pricing manager.
 
         Args:
@@ -748,7 +771,9 @@ class RealTimePricingManager:
             paper_trading: Whether to use paper trading environment
 
         """
-        self.pricing_service = RealTimePricingService(api_key, secret_key, paper_trading=paper_trading)
+        self.pricing_service = RealTimePricingService(
+            api_key, secret_key, paper_trading=paper_trading
+        )
         self._fallback_provider: Callable[[str], float | None] | None = None
 
     def set_fallback_provider(self, provider: Callable[[str], float | None]) -> None:
@@ -788,7 +813,11 @@ class RealTimePricingManager:
         primary_provider = type(
             "PriceProvider",
             (),
-            {"get_current_price": lambda _, sym: self.pricing_service.get_real_time_price(sym)},
+            {
+                "get_current_price": lambda _, sym: self.pricing_service.get_real_time_price(
+                    sym
+                )
+            },
         )()
 
         # Create fallback provider wrapper if available
@@ -798,13 +827,17 @@ class RealTimePricingManager:
                 "FallbackProvider",
                 (),
                 {
-                    "get_current_price": lambda _, sym: self._fallback_provider(sym)
-                    if self._fallback_provider is not None
-                    else None
+                    "get_current_price": lambda _, sym: (
+                        self._fallback_provider(sym)
+                        if self._fallback_provider is not None
+                        else None
+                    )
                 },
             )()
 
-        return get_current_price_with_fallback(primary_provider, fallback_provider, symbol)
+        return get_current_price_with_fallback(
+            primary_provider, fallback_provider, symbol
+        )
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
         """Get latest bid/ask quote with real-time data priority.

@@ -10,7 +10,6 @@ categorization, and detailed error reporting via email notifications.
 from __future__ import annotations
 
 import logging
-import random
 import time
 import traceback
 import uuid
@@ -588,11 +587,9 @@ class TradingSystemErrorHandler:
         report = self._add_error_section(
             report, summary["strategy"], "🧠 STRATEGY ERRORS"
         )
-        report = self._add_error_section(
+        return self._add_error_section(
             report, summary["configuration"], "⚙️ CONFIGURATION ERRORS"
         )
-
-        return report
 
     def classify_order_error(
         self,
@@ -839,7 +836,13 @@ def retry_with_backoff(
                     # Calculate delay with exponential backoff
                     delay = min(base_delay * (backoff_factor**attempt), max_delay)
                     if jitter:
-                        delay *= 0.5 + random.random() * 0.5  # Add 50% jitter
+                        # Add deterministic jitter based on attempt and timestamp
+                        jitter_factor = (
+                            0.5
+                            + (hash(str(attempt) + str(int(time.time() * 1000))) % 500)
+                            / 1000
+                        )
+                        delay *= jitter_factor
 
                     logging.warning(
                         f"Attempt {attempt + 1}/{max_retries + 1} failed for {func.__name__}: {e}. "
@@ -889,6 +892,11 @@ class CircuitBreaker:
         self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
 
     def __call__(self, func: Callable[..., Any]) -> Callable[..., Any]:
+        """Apply circuit breaker pattern to a function.
+
+        Returns a wrapper that tracks failures and prevents calls when threshold is exceeded.
+        """
+
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             if self.state == "OPEN":

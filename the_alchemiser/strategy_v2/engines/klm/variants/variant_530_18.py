@@ -322,6 +322,7 @@ class KlmVariant53018(BaseKLMVariant):
         self, indicators: dict[str, dict[str, float]]
     ) -> KLMDecision | None:
         """SPY RSI(70) > 63 "Overbought" branch with AGG vs QQQ comparison.
+
         This is where 530/18 gets extremely complex with commodity allocations.
         """
         if "SPY" not in indicators or "rsi_70" not in indicators["SPY"]:
@@ -596,6 +597,7 @@ class KlmVariant53018(BaseKLMVariant):
         self, indicators: dict[str, dict[str, float]]
     ) -> KLMDecision:
         """530/18 doesn't use the standard core KMLM switcher pattern.
+
         It has its own complex Holy Grail logic.
         """
         return self._evaluate_holy_grail_kmlm_switcher(indicators)

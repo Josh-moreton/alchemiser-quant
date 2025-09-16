@@ -44,7 +44,9 @@ class ConsolidatedPortfolioDTO(BaseModel):
 
     # Metadata
     timestamp: datetime = Field(..., description="When the consolidation was performed")
-    strategy_count: int = Field(..., ge=1, description="Number of strategies that contributed")
+    strategy_count: int = Field(
+        ..., ge=1, description="Number of strategies that contributed"
+    )
     source_strategies: list[str] = Field(
         default_factory=list, description="Names of contributing strategies"
     )
@@ -74,7 +76,9 @@ class ConsolidatedPortfolioDTO(BaseModel):
                 raise ValueError(f"Duplicate symbol: {symbol_upper}")
 
             if weight < 0 or weight > 1:
-                raise ValueError(f"Weight for {symbol_upper} must be between 0 and 1, got {weight}")
+                raise ValueError(
+                    f"Weight for {symbol_upper} must be between 0 and 1, got {weight}"
+                )
 
             normalized[symbol_upper] = weight
             total_weight += weight
@@ -150,4 +154,6 @@ class ConsolidatedPortfolioDTO(BaseModel):
             Dictionary of symbol -> weight as floats
 
         """
-        return {symbol: float(weight) for symbol, weight in self.target_allocations.items()}
+        return {
+            symbol: float(weight) for symbol, weight in self.target_allocations.items()
+        }

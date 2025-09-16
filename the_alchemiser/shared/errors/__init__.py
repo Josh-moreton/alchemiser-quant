@@ -1,6 +1,6 @@
 """Business Unit: shared | Status: current.
 
-Error handling and exception management.
+Error handling and exception types for The Alchemiser.
 
 This package provides error handling utilities, custom exceptions, and error
 context management for The Alchemiser Trading System. It includes the main

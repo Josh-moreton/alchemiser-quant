@@ -271,9 +271,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 if symbol and qty_raw is not None:
                     try:
                         result[str(symbol)] = float(qty_raw)
-                    except Exception:
+                    except (ValueError, TypeError):
                         continue
-        except Exception:
+        except (KeyError, AttributeError, TypeError):
             # Best-effort mapping; return what we have
             pass
         return result
@@ -546,7 +546,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             # Adjust quantity for complete exits
             final_qty = self._adjust_quantity_for_complete_exit(
-                normalized_symbol, side_normalized, qty, is_complete_exit=is_complete_exit
+                normalized_symbol,
+                side_normalized,
+                qty,
+                is_complete_exit=is_complete_exit,
             )
 
             # Create order request

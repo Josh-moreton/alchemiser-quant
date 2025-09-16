@@ -110,6 +110,8 @@ class ExecutionSettings(BaseModel):
     )
     # Phase 1: Canonical order executor feature flag (enabled by default for consolidation)
     use_canonical_executor: bool = True
+    # Smart execution with liquidity-aware volume analysis (enabled by default)
+    enable_smart_execution: bool = True
 
 
 class Settings(BaseSettings):

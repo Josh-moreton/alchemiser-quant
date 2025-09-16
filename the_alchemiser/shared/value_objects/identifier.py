@@ -23,8 +23,10 @@ class Identifier(Generic[T_contra]):
 
     @classmethod
     def generate(cls) -> Self:
+        """Generate a new unique identifier with a random UUID."""
         return cls(value=uuid4())
 
     @classmethod
     def from_string(cls, value: str) -> Self:
+        """Create an identifier from a string UUID representation."""
         return cls(value=UUID(value))
