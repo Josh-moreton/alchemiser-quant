@@ -98,11 +98,23 @@ class StructuredFormatter(logging.Formatter):
 def get_logger(name: str) -> logging.Logger:
     """Get a logger instance with proper configuration.
 
+    Retrieves a logger from Python's logging system that will use the centralized
+    configuration established by setup_logging(). The logger will inherit all
+    formatting, levels, and handlers configured globally.
+
+    Logger retrieval behavior:
+    - Uses the standard logging hierarchy (dotted names create parent-child relationships)
+    - Inherits root logger configuration (handlers, formatters, levels)
+    - Supports both structured (JSON) and standard text formatting
+    - Automatically includes context variables (request_id, error_id) when present
+
     Args:
-        name: Logger name, typically __name__
+        name: Logger name, typically __name__ for module-level logging.
+              Creates hierarchical loggers (e.g., 'the_alchemiser.strategy_v2.core')
 
     Returns:
-        Configured logger instance
+        Configured logger instance that uses centralized handlers and formatting.
+        Output will go to console and/or file based on setup_logging() configuration.
 
     """
     return logging.getLogger(name)
@@ -256,15 +268,50 @@ def setup_logging(
 ) -> None:
     """Set up centralized logging for the project.
 
+    Configures the root Python logger with consistent formatting, handlers, and levels
+    across the entire application. This function should be called once at startup
+    to establish the logging infrastructure.
+
+    Logging Setup Details:
+
+    Formats:
+    - Standard format: "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+    - Structured format: JSON with timestamp, level, logger, message, module, function, line
+    - All messages prefixed with "[ALCHEMISER]" and include context IDs when available
+
+    Levels:
+    - Root logger set to DEBUG to capture all messages
+    - Individual handlers filter by their specific levels
+    - Supports different levels for console vs file output
+    - Third-party loggers suppressed to WARNING to reduce noise
+
+    Handlers:
+    - Console handler: outputs to stdout with configurable level
+    - File handler: optional local file or S3 URI support (with fallback)
+    - File rotation: optional RotatingFileHandler with size-based rotation
+    - S3 logging: converts S3 URIs to local fallback unless explicitly enabled
+
+    Special Features:
+    - Context variable support for request_id and error_id tracking
+    - AWS Lambda environment detection for production hygiene
+    - AlchemiserLoggerAdapter integration for consistent message formatting
+    - Automatic directory creation for log file paths
+
     Args:
-        log_level: Default logging level for file output
-        log_file: Optional file path or S3 URI for file logging
-        console_level: Optional different level for console output (defaults to log_level)
-        suppress_third_party: Whether to suppress noisy third-party loggers
-        structured_format: Whether to use JSON structured logging format
-        enable_file_rotation: Whether to enable file rotation for local files
-        max_file_size_mb: Maximum file size in MB before rotation
-        respect_existing_handlers: If True, don't clear existing handlers (useful for CLI)
+        log_level: Default logging level for file output (DEBUG=10, INFO=20, WARNING=30, ERROR=40)
+        log_file: Optional file path or S3 URI for file logging. If S3 URI provided in Lambda
+                 without ENABLE_S3_LOGGING=true, falls back to console-only logging
+        console_level: Optional different level for console output (defaults to log_level).
+                      Useful for reducing console noise while maintaining detailed file logs
+        suppress_third_party: Whether to suppress noisy third-party loggers (botocore, urllib3,
+                             alpaca, boto3, etc.) to WARNING level
+        structured_format: Whether to use JSON structured logging format (recommended for production)
+                          vs human-readable text format (recommended for development)
+        enable_file_rotation: Whether to enable file rotation for local files using RotatingFileHandler.
+                             Creates backups when max_file_size_mb is exceeded
+        max_file_size_mb: Maximum file size in MB before rotation triggers (default 100MB)
+        respect_existing_handlers: If True, don't clear existing handlers (useful for CLI tools
+                                  that may have pre-configured logging)
 
     """
     root_logger = logging.getLogger()
