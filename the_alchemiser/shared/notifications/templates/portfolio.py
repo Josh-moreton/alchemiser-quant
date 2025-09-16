@@ -169,9 +169,14 @@ class PortfolioBuilder:
 
         for position in open_positions[:10]:  # Show top 10 positions
             symbol = position.get("symbol", "N/A")
-            market_value = float(position.get("market_value", 0))
-            unrealized_pl = float(position.get("unrealized_pl", 0))
-            unrealized_plpc = float(position.get("unrealized_plpc", 0))
+            market_value_raw = position.get("market_value", 0)
+            unrealized_pl_raw = position.get("unrealized_pl", 0)
+            unrealized_plpc_raw = position.get("unrealized_plpc", 0)
+            
+            # Safely convert to float
+            market_value = float(market_value_raw) if isinstance(market_value_raw, (int, float, str)) else 0.0
+            unrealized_pl = float(unrealized_pl_raw) if isinstance(unrealized_pl_raw, (int, float, str)) else 0.0
+            unrealized_plpc = float(unrealized_plpc_raw) if isinstance(unrealized_plpc_raw, (int, float, str)) else 0.0
 
             total_unrealized_pl += unrealized_pl
 

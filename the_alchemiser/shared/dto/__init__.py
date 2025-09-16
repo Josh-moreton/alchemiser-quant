@@ -7,6 +7,7 @@ and serialization helpers.
 from __future__ import annotations
 
 # Import implemented DTOs
+from the_alchemiser.shared.dto.error_context_dto import ErrorContextDTO
 from the_alchemiser.shared.dto.execution_report_dto import (
     ExecutedOrderDTO,
     ExecutionReportDTO,
@@ -43,6 +44,7 @@ __all__ = [
     "ConfigurationDTO",
     "ErrorDTO",
     # Implemented DTOs
+    "ErrorContextDTO",
     "ExecutedOrderDTO",
     "ExecutionReportDTO",
     "LambdaEventDTO",

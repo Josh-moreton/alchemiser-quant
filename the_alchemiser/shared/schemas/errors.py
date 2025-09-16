@@ -11,6 +11,11 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
+from ..dto.error_context_dto import ErrorContextDTO
+
+# Re-export for backward compatibility
+ErrorContextData = ErrorContextDTO
+
 
 # Error Detail Types
 class ErrorDetailInfo(TypedDict):
@@ -55,16 +60,3 @@ class ErrorNotificationData(TypedDict):
     title: str
     error_report: str
     html_content: str
-
-
-class ErrorContextData(TypedDict):
-    """Context information for error tracking."""
-
-    operation: str
-    component: str
-    function_name: str | None
-    request_id: str | None
-    user_id: str | None
-    session_id: str | None
-    additional_data: dict[str, Any]
-    timestamp: str

@@ -60,7 +60,10 @@ class BaseEvent(BaseModel):
     def __init__(self, **data: str | datetime | dict[str, Any] | None) -> None:
         """Initialize event with timezone-aware timestamp."""
         if "timestamp" in data:
-            data["timestamp"] = ensure_timezone_aware(data["timestamp"])
+            timestamp_value = data["timestamp"]
+            # Only process if it's a datetime - otherwise let Pydantic handle validation
+            if isinstance(timestamp_value, datetime):
+                data["timestamp"] = ensure_timezone_aware(timestamp_value)
         super().__init__(**data)
 
     def to_dict(self) -> dict[str, Any]:

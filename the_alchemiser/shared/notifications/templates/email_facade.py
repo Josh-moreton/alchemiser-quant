@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import cast
 
+from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.shared.value_objects.core_types import (
     AccountInfo,
     EnrichedAccountInfo,
@@ -56,7 +57,7 @@ def build_error_email_html(title: str, message: str) -> str:
     return BaseEmailTemplate.wrap_content(content, f"The Alchemiser - {title}")
 
 
-def build_multi_strategy_email_html(result: object, mode: str = "PAPER") -> str:
+def build_multi_strategy_email_html(result: MultiStrategyExecutionResultDTO, mode: str = "PAPER") -> str:
     """Build a multi-strategy execution report email.
 
     This function wraps the existing MultiStrategyReportBuilder.build_multi_strategy_report method.
@@ -163,12 +164,12 @@ class EmailTemplates:
         return build_error_email_html(title, error_message)
 
     @staticmethod
-    def multi_strategy_report(result: object, mode: str = "PAPER") -> str:
+    def multi_strategy_report(result: MultiStrategyExecutionResultDTO, mode: str = "PAPER") -> str:
         """Generate a multi-strategy execution report using existing MultiStrategyReportBuilder."""
         return build_multi_strategy_email_html(result, mode)
 
     @staticmethod
-    def build_multi_strategy_report_neutral(result: object, mode: str = "PAPER") -> str:
+    def build_multi_strategy_report_neutral(result: MultiStrategyExecutionResultDTO, mode: str = "PAPER") -> str:
         """Generate a neutral multi-strategy execution report.
 
         This is an alias for multi_strategy_report to maintain backward compatibility.

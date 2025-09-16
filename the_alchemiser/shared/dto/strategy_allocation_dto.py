@@ -158,10 +158,16 @@ class StrategyAllocationDTO(BaseModel):
         if portfolio_value is None:
             return None
 
-        if not isinstance(portfolio_value, str):
+        if isinstance(portfolio_value, Decimal):
             return portfolio_value
+        
+        if isinstance(portfolio_value, (int, float)):
+            return Decimal(str(portfolio_value))
 
-        try:
-            return Decimal(portfolio_value)
-        except (ValueError, TypeError) as e:
-            raise ValueError(f"Invalid portfolio_value: {portfolio_value}") from e
+        if isinstance(portfolio_value, str):
+            try:
+                return Decimal(portfolio_value)
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"Invalid portfolio_value: {portfolio_value}") from e
+        
+        raise ValueError(f"Unsupported portfolio_value type: {type(portfolio_value)}")
