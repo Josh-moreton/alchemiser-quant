@@ -413,7 +413,7 @@ class SmartExecutionStrategy:
         if not self._active_orders:
             return []
             
-        repeg_results = []
+        repeg_results: list[SmartOrderResult] = []
         orders_to_remove = []
         
         for order_id, request in self._active_orders.items():

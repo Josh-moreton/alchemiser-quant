@@ -7,7 +7,7 @@ strategies. Now supports both legacy market orders and smart limit order executi
 
 Enhanced with:
 - Smart limit order execution for improved fills
-- Liquidity-aware anchoring to bid/ask spreads  
+- Liquidity-aware anchoring to bid/ask spreads
 - Market timing awareness (avoids 9:30-9:35am)
 - Configurable execution strategies per order urgency
 """
@@ -42,14 +42,14 @@ class Executor:
     """Executor that processes RebalancePlanDTO items with smart execution strategies."""
 
     def __init__(
-        self, 
+        self,
         alpaca_manager: AlpacaManager,
         execution_config: ExecutionConfig | None = None,
         *,
         enable_smart_execution: bool = True,
     ) -> None:
         """Initialize with AlpacaManager and optional smart execution.
-        
+
         Args:
             alpaca_manager: AlpacaManager for broker operations
             execution_config: Configuration for smart execution
@@ -58,7 +58,8 @@ class Executor:
         """
         self.alpaca_manager = alpaca_manager
         self.enable_smart_execution = enable_smart_execution
-        
+        self.smart_strategy: SmartExecutionStrategy | None = None
+
         # Initialize smart execution strategy if enabled
         if enable_smart_execution:
             # Try to set up real-time pricing for smart execution
@@ -101,17 +102,21 @@ class Executor:
             )
             # For smart execution, we need to use async
             if self.enable_smart_execution:
-                return asyncio.run(self._execute_phased_plan_async(plan, sell_items, buy_items))
+                return asyncio.run(
+                    self._execute_phased_plan_async(plan, sell_items, buy_items)
+                )
             return self._execute_phased_plan(plan, sell_items, buy_items)
         # No mixed orders - use sequential execution
         logger.info(f"📦 Using sequential execution for {len(plan.items)} items")
-        
+
         # For smart execution, we need to use async
         if self.enable_smart_execution:
             return asyncio.run(self._execute_sequential_plan_async(plan))
         return self._execute_sequential_plan_sync(plan)
 
-    def _execute_sequential_plan_sync(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
+    def _execute_sequential_plan_sync(
+        self, plan: RebalancePlanDTO
+    ) -> ExecutionResultDTO:
         """Execute rebalance plan using synchronous sequential strategy (legacy).
 
         Args:
@@ -141,9 +146,13 @@ class Executor:
             if order_result.success:
                 total_trade_value += abs(item.trade_amount)
 
-        return self._create_execution_result(plan, orders, total_trade_value, "sequential_sync")
+        return self._create_execution_result(
+            plan, orders, total_trade_value, "sequential_sync"
+        )
 
-    async def _execute_sequential_plan_async(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
+    async def _execute_sequential_plan_async(
+        self, plan: RebalancePlanDTO
+    ) -> ExecutionResultDTO:
         """Execute rebalance plan using asynchronous sequential strategy with smart execution.
 
         Args:
@@ -173,23 +182,25 @@ class Executor:
             if order_result.success:
                 total_trade_value += abs(item.trade_amount)
 
-        return self._create_execution_result(plan, orders, total_trade_value, "sequential_smart")
+        return self._create_execution_result(
+            plan, orders, total_trade_value, "sequential_smart"
+        )
 
     def _create_execution_result(
-        self, 
-        plan: RebalancePlanDTO, 
-        orders: list[OrderResultDTO], 
+        self,
+        plan: RebalancePlanDTO,
+        orders: list[OrderResultDTO],
         total_trade_value: Decimal,
-        strategy: str
+        strategy: str,
     ) -> ExecutionResultDTO:
         """Create ExecutionResultDTO from order results.
-        
+
         Args:
             plan: Original rebalance plan
-            orders: List of order results  
+            orders: List of order results
             total_trade_value: Total value traded
             strategy: Execution strategy used
-            
+
         Returns:
             ExecutionResultDTO with summary statistics
 
@@ -218,7 +229,6 @@ class Executor:
         )
 
         return result
-
 
     def _execute_phased_plan(
         self,
@@ -345,7 +355,9 @@ class Executor:
         sell_order_ids = []
 
         for item in sell_items:
-            logger.info(f"🎯 Processing SELL ${item.trade_amount} {item.symbol} (smart execution)")
+            logger.info(
+                f"🎯 Processing SELL ${item.trade_amount} {item.symbol} (smart execution)"
+            )
             order_result = await self._execute_trade_item_smart(item)
             all_orders.append(order_result)
 
@@ -380,10 +392,14 @@ class Executor:
                 )
 
         # Phase 3: Execute BUY orders with available buying power (using smart execution)
-        logger.info(f"🟢 Phase 3: Executing {len(buy_items)} BUY orders (smart execution)")
+        logger.info(
+            f"🟢 Phase 3: Executing {len(buy_items)} BUY orders (smart execution)"
+        )
 
         for item in buy_items:
-            logger.info(f"🎯 Processing BUY ${item.trade_amount} {item.symbol} (smart execution)")
+            logger.info(
+                f"🎯 Processing BUY ${item.trade_amount} {item.symbol} (smart execution)"
+            )
             order_result = await self._execute_trade_item_smart(item)
             all_orders.append(order_result)
 
@@ -509,7 +525,7 @@ class Executor:
 
     def _setup_pricing_service(self) -> RealTimePricingService | None:
         """Set up real-time pricing service for smart execution.
-        
+
         Returns:
             RealTimePricingService instance or None if setup fails
 
@@ -521,24 +537,26 @@ class Executor:
                 secret_key=self.alpaca_manager.secret_key,
                 paper_trading=self.alpaca_manager.paper,
             )
-            
+
             # Start the service and return if successful
             if pricing_service.start():
                 logger.info("📡 Real-time pricing service started for smart execution")
                 return pricing_service
-            logger.warning("⚠️ Real-time pricing service failed to start, using fallback execution")
+            logger.warning(
+                "⚠️ Real-time pricing service failed to start, using fallback execution"
+            )
             return None
-                
+
         except Exception as e:
             logger.warning(f"⚠️ Could not initialize real-time pricing: {e}")
             return None
 
     def _determine_execution_urgency(self, item: RebalancePlanItemDTO) -> str:
         """Determine execution urgency for an order item.
-        
+
         Args:
             item: Rebalance plan item
-            
+
         Returns:
             Urgency level: "LOW", "NORMAL", or "HIGH"
 
@@ -549,16 +567,18 @@ class Executor:
             and hasattr(item, "target_weight")
             and item.target_weight == Decimal("0")
         )
-        
+
         if is_complete_exit:
             return "HIGH"
-            
+
         # Check trade size relative to typical amounts (simplified heuristic)
         if abs(item.trade_amount) > Decimal("10000"):  # Large trades get normal urgency
             return "NORMAL"
         return "LOW"  # Smaller trades can wait for better execution
 
-    async def _execute_trade_item_smart(self, item: RebalancePlanItemDTO) -> OrderResultDTO:
+    async def _execute_trade_item_smart(
+        self, item: RebalancePlanItemDTO
+    ) -> OrderResultDTO:
         """Execute a single trade item using smart execution strategy.
 
         Args:
@@ -569,7 +589,7 @@ class Executor:
 
         """
         timestamp = datetime.now(UTC)
-        
+
         if not self.smart_strategy:
             # Fallback to legacy execution
             return self._execute_trade_item_legacy(item)
@@ -620,7 +640,7 @@ class Executor:
                 logger.info(
                     f"✅ Smart order executed: {item.action} {shares:.4f} shares {item.symbol} → {smart_result.order_id}"
                 )
-                
+
                 return OrderResultDTO(
                     symbol=item.symbol,
                     action=item.action,

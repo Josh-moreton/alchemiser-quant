@@ -10,8 +10,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from decimal import Decimal
-from typing import NamedTuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.types.market_data import QuoteModel
@@ -52,11 +51,12 @@ class LiquidityAnalyzer:
         Args:
             min_volume_threshold: Minimum volume required for valid liquidity level
             tick_size: Price increment for calculations
+
         """
         self.min_volume_threshold = min_volume_threshold
         self.tick_size = tick_size
 
-    def analyze_liquidity(self, quote: "QuoteModel", order_size: float) -> LiquidityAnalysis:
+    def analyze_liquidity(self, quote: QuoteModel, order_size: float) -> LiquidityAnalysis:
         """Perform comprehensive liquidity analysis.
         
         Args:
@@ -65,6 +65,7 @@ class LiquidityAnalyzer:
             
         Returns:
             LiquidityAnalysis with recommendations
+
         """
         logger.debug(f"Analyzing liquidity for {quote.symbol}: order_size={order_size}")
         
@@ -108,7 +109,7 @@ class LiquidityAnalyzer:
         
         return analysis
 
-    def _calculate_liquidity_score(self, quote: "QuoteModel", total_volume: float) -> float:
+    def _calculate_liquidity_score(self, quote: QuoteModel, total_volume: float) -> float:
         """Calculate overall liquidity score (0-100).
         
         Args:
@@ -117,6 +118,7 @@ class LiquidityAnalyzer:
             
         Returns:
             Liquidity score from 0 (illiquid) to 100 (very liquid)
+
         """
         # Base score from volume
         volume_score = min(total_volume / 1000.0, 50.0)  # Up to 50 points for volume
@@ -135,7 +137,7 @@ class LiquidityAnalyzer:
         return min(volume_score + spread_score + balance_score, 100.0)
 
     def _calculate_volume_aware_prices(
-        self, quote: "QuoteModel", order_size: float
+        self, quote: QuoteModel, order_size: float
     ) -> dict[str, float]:
         """Calculate optimal prices based on volume analysis.
         
@@ -145,6 +147,7 @@ class LiquidityAnalyzer:
             
         Returns:
             Dictionary with recommended bid and ask prices
+
         """
         # Analyze volume sufficiency at current levels
         bid_volume_ratio = order_size / max(quote.bid_size, 1.0)
@@ -202,7 +205,7 @@ class LiquidityAnalyzer:
         }
 
     def _calculate_confidence(
-        self, quote: "QuoteModel", order_size: float, total_volume: float
+        self, quote: QuoteModel, order_size: float, total_volume: float
     ) -> float:
         """Calculate confidence in the liquidity analysis.
         
@@ -213,6 +216,7 @@ class LiquidityAnalyzer:
             
         Returns:
             Confidence score from 0.0 to 1.0
+
         """
         confidence = 1.0
         
@@ -236,7 +240,7 @@ class LiquidityAnalyzer:
         return max(confidence, 0.1)  # Minimum 10% confidence
 
     def validate_liquidity_for_order(
-        self, quote: "QuoteModel", side: str, order_size: float
+        self, quote: QuoteModel, side: str, order_size: float
     ) -> tuple[bool, str]:
         """Validate if there's sufficient liquidity for an order.
         
@@ -247,6 +251,7 @@ class LiquidityAnalyzer:
             
         Returns:
             Tuple of (is_valid, reason)
+
         """
         if side.lower() == "buy":
             available_volume = quote.ask_size  # Buy against ask
@@ -283,6 +288,7 @@ class LiquidityAnalyzer:
             
         Returns:
             Recommended strategy: 'aggressive', 'normal', 'patient', 'split'
+
         """
         # High confidence and good liquidity = normal strategy
         if analysis.confidence > 0.8 and analysis.liquidity_score > 70:
@@ -305,7 +311,7 @@ class LiquidityAnalyzer:
         # Volume imbalance suggests aggressive strategy
         if side.lower() == "buy" and analysis.volume_imbalance < -0.3:
             return "aggressive"  # Heavy bid side, be aggressive
-        elif side.lower() == "sell" and analysis.volume_imbalance > 0.3:
+        if side.lower() == "sell" and analysis.volume_imbalance > 0.3:
             return "aggressive"  # Heavy ask side, be aggressive
             
         return "normal"
