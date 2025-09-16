@@ -178,7 +178,7 @@ class NuclearEngine(StrategyEngine):
 
     def _calculate_indicators(
         self, market_data: dict[str, pd.DataFrame]
-    ) -> dict[str, Any]:
+    ) -> dict[str, dict[str, float | None]]:
         """Calculate technical indicators for all symbols."""
         indicators = {}
         for symbol, df in market_data.items():
@@ -322,7 +322,7 @@ class NuclearEngine(StrategyEngine):
         self,
         symbol: str,
         action: str,
-        market_data: dict[str, Any],
+        market_data: dict[str, dict[str, float | None]],
         config: NuclearConfidenceConfig,
     ) -> Decimal:
         """Calculate confidence based on actual market indicators."""

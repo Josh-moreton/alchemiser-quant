@@ -1,103 +1,22 @@
 {
   "summary": {
-    "total_violations": 168,
+    "total_violations": 159,
     "files_with_violations": 35,
     "by_severity": {
       "LOW": 0,
       "MEDIUM": 159,
-      "HIGH": 9,
+      "HIGH": 0,
       "CRITICAL": 0
     },
     "by_rule_type": {
-      "ANN401_VIOLATION": 166,
-      "LAYER_TYPE_VIOLATION": 2,
+      "ANN401_VIOLATION": 159,
+      "LAYER_TYPE_VIOLATION": 0,
       "CONVERSION_POINT_VIOLATION": 0,
       "NAMING_CONVENTION_VIOLATION": 0,
       "PROTOCOL_TYPING_VIOLATION": 0
     }
   },
   "violations": [
-    {
-      "file_path": "strategy_v2/engines/nuclear/engine.py",
-      "line_number": 179,
-      "rule_type": "ANN401_VIOLATION",
-      "severity": "HIGH",
-      "description": "Function '_calculate_indicators' returns 'Any' type",
-      "suggested_fix": "Return specific DTO instead of Any",
-      "code_context": "Line 179: Function definition"
-    },
-    {
-      "file_path": "strategy_v2/engines/nuclear/engine.py",
-      "line_number": 179,
-      "rule_type": "LAYER_TYPE_VIOLATION",
-      "severity": "HIGH",
-      "description": "Business logic function '_calculate_indicators' returns dict[str, Any] instead of DTO",
-      "suggested_fix": "Return specific DTO type instead of dict[str, Any]",
-      "code_context": "Line 179: Function definition"
-    },
-    {
-      "file_path": "strategy_v2/engines/nuclear/engine.py",
-      "line_number": 321,
-      "rule_type": "ANN401_VIOLATION",
-      "severity": "HIGH",
-      "description": "Parameter 'market_data' uses 'Any' type annotation",
-      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
-      "code_context": "Line 321: Function definition"
-    },
-    {
-      "file_path": "strategy_v2/engines/tecl/engine.py",
-      "line_number": 121,
-      "rule_type": "ANN401_VIOLATION",
-      "severity": "HIGH",
-      "description": "Parameter 'market_data' uses 'Any' type annotation",
-      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
-      "code_context": "Line 121: Function definition"
-    },
-    {
-      "file_path": "strategy_v2/engines/tecl/engine.py",
-      "line_number": 121,
-      "rule_type": "ANN401_VIOLATION",
-      "severity": "HIGH",
-      "description": "Function 'calculate_indicators' returns 'Any' type",
-      "suggested_fix": "Return specific DTO instead of Any",
-      "code_context": "Line 121: Function definition"
-    },
-    {
-      "file_path": "strategy_v2/engines/tecl/engine.py",
-      "line_number": 121,
-      "rule_type": "LAYER_TYPE_VIOLATION",
-      "severity": "HIGH",
-      "description": "Business logic function 'calculate_indicators' returns dict[str, Any] instead of DTO",
-      "suggested_fix": "Return specific DTO type instead of dict[str, Any]",
-      "code_context": "Line 121: Function definition"
-    },
-    {
-      "file_path": "strategy_v2/engines/tecl/engine.py",
-      "line_number": 424,
-      "rule_type": "ANN401_VIOLATION",
-      "severity": "HIGH",
-      "description": "Parameter 'indicators' uses 'Any' type annotation",
-      "suggested_fix": "Replace Any with specific type or Union for parameter",
-      "code_context": "Line 424: Function definition"
-    },
-    {
-      "file_path": "strategy_v2/engines/tecl/engine.py",
-      "line_number": 462,
-      "rule_type": "ANN401_VIOLATION",
-      "severity": "HIGH",
-      "description": "Parameter 'indicators' uses 'Any' type annotation",
-      "suggested_fix": "Replace Any with specific type or Union for parameter",
-      "code_context": "Line 462: Function definition"
-    },
-    {
-      "file_path": "strategy_v2/engines/tecl/engine.py",
-      "line_number": 495,
-      "rule_type": "ANN401_VIOLATION",
-      "severity": "HIGH",
-      "description": "Parameter 'indicators' uses 'Any' type annotation",
-      "suggested_fix": "Replace Any with specific type or Union for parameter",
-      "code_context": "Line 495: Function definition"
-    },
     {
       "file_path": "orchestration/event_driven_orchestrator.py",
       "line_number": 314,
@@ -1477,57 +1396,57 @@
     },
     {
       "file_path": "strategy_v2/engines/tecl/engine.py",
-      "line_number": 92,
+      "line_number": 94,
       "rule_type": "ANN401_VIOLATION",
       "severity": "MEDIUM",
       "description": "Function 'get_market_data' returns 'Any' type",
       "suggested_fix": "Return specific DTO instead of Any",
-      "code_context": "Line 92: Function definition"
+      "code_context": "Line 94: Function definition"
     },
     {
       "file_path": "strategy_v2/engines/tecl/engine.py",
-      "line_number": 160,
+      "line_number": 162,
       "rule_type": "ANN401_VIOLATION",
       "severity": "MEDIUM",
       "description": "Parameter 'indicators' uses 'Any' type annotation",
       "suggested_fix": "Replace Any with specific type or Union for parameter",
-      "code_context": "Line 160: Function definition"
+      "code_context": "Line 162: Function definition"
     },
     {
       "file_path": "strategy_v2/engines/tecl/engine.py",
-      "line_number": 195,
+      "line_number": 197,
       "rule_type": "ANN401_VIOLATION",
       "severity": "MEDIUM",
       "description": "Parameter 'indicators' uses 'Any' type annotation",
       "suggested_fix": "Replace Any with specific type or Union for parameter",
-      "code_context": "Line 195: Function definition"
+      "code_context": "Line 197: Function definition"
     },
     {
       "file_path": "strategy_v2/engines/tecl/engine.py",
-      "line_number": 228,
+      "line_number": 230,
       "rule_type": "ANN401_VIOLATION",
       "severity": "MEDIUM",
       "description": "Parameter 'indicators' uses 'Any' type annotation",
       "suggested_fix": "Replace Any with specific type or Union for parameter",
-      "code_context": "Line 228: Function definition"
+      "code_context": "Line 230: Function definition"
     },
     {
       "file_path": "strategy_v2/engines/tecl/engine.py",
-      "line_number": 286,
+      "line_number": 288,
       "rule_type": "ANN401_VIOLATION",
       "severity": "MEDIUM",
       "description": "Parameter 'indicators' uses 'Any' type annotation",
       "suggested_fix": "Replace Any with specific type or Union for parameter",
-      "code_context": "Line 286: Function definition"
+      "code_context": "Line 288: Function definition"
     },
     {
       "file_path": "strategy_v2/engines/tecl/engine.py",
-      "line_number": 378,
+      "line_number": 380,
       "rule_type": "ANN401_VIOLATION",
       "severity": "MEDIUM",
       "description": "Parameter 'indicators' uses 'Any' type annotation",
       "suggested_fix": "Replace Any with specific type or Union for parameter",
-      "code_context": "Line 378: Function definition"
+      "code_context": "Line 380: Function definition"
     }
   ]
 }

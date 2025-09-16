@@ -31,6 +31,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+import pandas as pd
+
 from the_alchemiser.shared.config.confidence_config import (
     ConfidenceConfig,
     TECLConfidenceConfig,
@@ -118,7 +120,7 @@ class TECLEngine(StrategyEngine):
                 self.logger.warning(f"Failed to fetch data for {symbol}: {e}")
         return market_data
 
-    def calculate_indicators(self, market_data: dict[str, Any]) -> dict[str, Any]:
+    def calculate_indicators(self, market_data: dict[str, pd.DataFrame]) -> dict[str, dict[str, float | None]]:
         """Calculate all technical indicators needed for TECL strategy."""
         indicators = {}
         for symbol, df in market_data.items():
@@ -422,7 +424,7 @@ class TECLEngine(StrategyEngine):
         return symbol, ActionType.BUY.value, reasoning
 
     def _calculate_confidence(
-        self, symbol: str, action: str, indicators: dict[str, Any], reasoning: str
+        self, symbol: str, action: str, indicators: dict[str, dict[str, float | None]], reasoning: str
     ) -> Confidence:
         """Calculate confidence based on market indicators and signal strength.
 
@@ -460,7 +462,7 @@ class TECLEngine(StrategyEngine):
         return Confidence(confidence)
 
     def _calculate_rsi_confidence_boost(
-        self, indicators: dict[str, Any], config: TECLConfidenceConfig
+        self, indicators: dict[str, dict[str, float | None]], config: TECLConfidenceConfig
     ) -> Decimal:
         """Calculate confidence boost based on RSI extremes across key symbols."""
         max_boost = Decimal("0")
@@ -493,7 +495,7 @@ class TECLEngine(StrategyEngine):
         return max_boost
 
     def _calculate_ma_confidence_boost(
-        self, indicators: dict[str, Any], config: TECLConfidenceConfig
+        self, indicators: dict[str, dict[str, float | None]], config: TECLConfidenceConfig
     ) -> Decimal:
         """Calculate confidence boost based on distance from moving averages."""
         max_boost = Decimal("0")

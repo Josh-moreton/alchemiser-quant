@@ -2,97 +2,23 @@
 
 ## Summary
 
-- **Total Violations:** 168
+- **Total Violations:** 159
 - **Files Affected:** 35
 
 ### Violations by Severity
 
 - 🟢 **LOW:** 0
 - 🟡 **MEDIUM:** 159
-- 🟠 **HIGH:** 9
+- 🟠 **HIGH:** 0
 - 🔴 **CRITICAL:** 0
 
 ### Violations by Rule Type
 
-- **Ann401 Violation:** 166
-- **Layer Type Violation:** 2
+- **Ann401 Violation:** 159
+- **Layer Type Violation:** 0
 - **Conversion Point Violation:** 0
 - **Naming Convention Violation:** 0
 - **Protocol Typing Violation:** 0
-
-## 🟠 HIGH Priority Violations
-
-### strategy_v2/engines/nuclear/engine.py:179
-
-**Issue:** Function '_calculate_indicators' returns 'Any' type
-
-**Suggested Fix:** Return specific DTO instead of Any
-
----
-
-### strategy_v2/engines/nuclear/engine.py:179
-
-**Issue:** Business logic function '_calculate_indicators' returns dict[str, Any] instead of DTO
-
-**Suggested Fix:** Return specific DTO type instead of dict[str, Any]
-
----
-
-### strategy_v2/engines/nuclear/engine.py:321
-
-**Issue:** Parameter 'market_data' uses 'Any' type annotation
-
-**Suggested Fix:** Use specific DTO or Union of known types instead of Any
-
----
-
-### strategy_v2/engines/tecl/engine.py:121
-
-**Issue:** Parameter 'market_data' uses 'Any' type annotation
-
-**Suggested Fix:** Use specific DTO or Union of known types instead of Any
-
----
-
-### strategy_v2/engines/tecl/engine.py:121
-
-**Issue:** Function 'calculate_indicators' returns 'Any' type
-
-**Suggested Fix:** Return specific DTO instead of Any
-
----
-
-### strategy_v2/engines/tecl/engine.py:121
-
-**Issue:** Business logic function 'calculate_indicators' returns dict[str, Any] instead of DTO
-
-**Suggested Fix:** Return specific DTO type instead of dict[str, Any]
-
----
-
-### strategy_v2/engines/tecl/engine.py:424
-
-**Issue:** Parameter 'indicators' uses 'Any' type annotation
-
-**Suggested Fix:** Replace Any with specific type or Union for parameter
-
----
-
-### strategy_v2/engines/tecl/engine.py:462
-
-**Issue:** Parameter 'indicators' uses 'Any' type annotation
-
-**Suggested Fix:** Replace Any with specific type or Union for parameter
-
----
-
-### strategy_v2/engines/tecl/engine.py:495
-
-**Issue:** Parameter 'indicators' uses 'Any' type annotation
-
-**Suggested Fix:** Replace Any with specific type or Union for parameter
-
----
 
 ## 🟡 MEDIUM Priority Violations
 
