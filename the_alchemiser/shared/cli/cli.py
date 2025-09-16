@@ -96,16 +96,16 @@ def show_welcome() -> None:
 @app.command()
 def trade(
     # Remove --live flag - trading mode now determined by deployment stage
-    ignore_market_hours: bool = typer.Option(
-        False, "--ignore-market-hours", help="Trade outside market hours (testing only)"
+    ignore_market_hours: bool = typer.Option(  # noqa: FBT001
+        default=False, param_decls=["--ignore-market-hours"], help="Trade outside market hours (testing only)"
     ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Enable verbose output"
+    verbose: bool = typer.Option(  # noqa: FBT001
+        default=False, param_decls=["--verbose", "-v"], help="Enable verbose output"
     ),
-    no_header: bool = typer.Option(False, "--no-header", help="Skip welcome header"),
-    show_tracking: bool = typer.Option(
-        False,
-        "--show-tracking",
+    no_header: bool = typer.Option(default=False, param_decls=["--no-header"], help="Skip welcome header"),  # noqa: FBT001
+    show_tracking: bool = typer.Option(  # noqa: FBT001
+        default=False,
+        param_decls=["--show-tracking"],
         help="Display strategy performance tracking after execution",
     ),
     export_tracking_json: str | None = typer.Option(
@@ -225,7 +225,7 @@ def _determine_trading_mode() -> tuple[bool, bool, str]:
     return is_live, paper_trading, mode_display
 
 
-def _show_live_warning(is_live: bool) -> None:
+def _show_live_warning(is_live: bool) -> None:  # noqa: FBT001
     """Display warning panel for live trading accounts."""
     if is_live:
         console.print(
@@ -273,7 +273,7 @@ def _display_positions(alpaca_manager: Any) -> None:
         console.print(f"[dim yellow]Positions display unavailable: {e}[/dim yellow]")
 
 
-def _display_strategy_tracking(paper_trading: bool) -> None:
+def _display_strategy_tracking(paper_trading: bool) -> None:  # noqa: FBT001
     """Display strategy tracking information.
 
     Args:
@@ -449,11 +449,11 @@ def version() -> None:
 @app.callback()
 def main(
     ctx: typer.Context,
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Enable verbose output"
+    verbose: bool = typer.Option(  # noqa: FBT001
+        default=False, param_decls=["--verbose", "-v"], help="Enable verbose output"
     ),
-    quiet: bool = typer.Option(
-        False, "--quiet", "-q", help="Suppress non-essential output"
+    quiet: bool = typer.Option(  # noqa: FBT001
+        default=False, param_decls=["--quiet", "-q"], help="Suppress non-essential output"
     ),
 ) -> None:
     """[bold]The Alchemiser - Advanced Multi-Strategy Quantitative Trading System[/bold].
