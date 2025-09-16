@@ -270,9 +270,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 if symbol and qty_raw is not None:
                     try:
                         result[str(symbol)] = float(qty_raw)
-                    except Exception:
+                    except (ValueError, TypeError):
                         continue
-        except Exception:
+        except (KeyError, AttributeError, TypeError):
             # Best-effort mapping; return what we have
             pass
         return result

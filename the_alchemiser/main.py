@@ -186,7 +186,8 @@ def _resolve_log_level(*, is_production: bool) -> int:
     if level_str:
         try:
             return int(getattr(logging, level_str.upper()))
-        except Exception:
+        except (AttributeError, TypeError):
+            # Invalid log level string, fall back to default
             pass
 
     # Then settings
@@ -195,7 +196,8 @@ def _resolve_log_level(*, is_production: bool) -> int:
         configured = getattr(logging, settings.logging.level.upper(), None)
         if isinstance(configured, int):
             return configured
-    except Exception:
+    except (AttributeError, TypeError, ImportError):
+        # Settings loading failed or invalid log level, fall back to default
         pass
 
     # Fallback
@@ -224,7 +226,8 @@ def configure_application_logging() -> None:
             settings = load_settings()
             if settings.logging.enable_s3_logging and settings.logging.s3_log_uri:
                 log_file = settings.logging.s3_log_uri
-        except Exception:
+        except (AttributeError, ImportError):
+            # Settings loading failed, use default log file setting
             pass
         configure_production_logging(log_level=resolved_level, log_file=log_file)
         return
