@@ -136,7 +136,7 @@ class EventDrivenOrchestrator:
     def _handle_startup(self, event: StartupEvent) -> None:
         """Handle system startup event.
 
-        Initializes orchestration workflows and triggers signal generation.
+        Coordinates high-level workflow initialization.
 
         Args:
             event: The startup event
@@ -160,30 +160,11 @@ class EventDrivenOrchestrator:
         startup_mode = event.startup_mode
         configuration = event.configuration or {}
 
-        try:
-            if startup_mode == "trade":
-                self.logger.info("Orchestrating full trading workflow - starting signal generation")
-                
-                # Trigger signal generation workflow
-                self._execute_signal_generation(event.correlation_id)
-                
-            elif startup_mode == "signal":
-                self.logger.info("Orchestrating signal-only workflow")
-                # Trigger signal generation workflow
-                self._execute_signal_generation(event.correlation_id)
-            else:
-                self.logger.warning(f"Unknown startup mode: {startup_mode}")
-                return
+        self.logger.info(f"Orchestrating {startup_mode} workflow")
+        self.logger.debug(f"Startup configuration: {configuration}")
 
-            # Log startup configuration
-            self.logger.debug(f"Startup configuration: {configuration}")
-
-            # Track successful startup
-            self.workflow_state["last_successful_workflow"] = "startup"
-
-        except Exception as e:
-            self.logger.error(f"Startup workflow failed: {e}")
-            self.workflow_state["signal_generation_in_progress"] = False
+        # Track successful startup - domain orchestrators will handle the actual work
+        self.workflow_state["last_successful_workflow"] = "startup"
 
     def _execute_signal_generation(self, correlation_id: str) -> None:
         """Execute signal generation workflow and emit SignalGenerated event.
@@ -297,7 +278,7 @@ class EventDrivenOrchestrator:
     def _handle_signal_generated(self, event: SignalGenerated) -> None:
         """Handle signal generation event.
 
-        Orchestrates the portfolio rebalancing workflow in response to signals.
+        Coordinates the transition from signal generation to portfolio rebalancing.
 
         Args:
             event: The signal generated event
@@ -311,7 +292,7 @@ class EventDrivenOrchestrator:
         self.workflow_state.update(
             {
                 "signal_generation_in_progress": False,  # Signals completed
-                "rebalancing_in_progress": True,  # Start rebalancing
+                "rebalancing_in_progress": True,  # Rebalancing will start
             }
         )
 
@@ -322,16 +303,8 @@ class EventDrivenOrchestrator:
                 f"(strategy: {signal.strategy_name}, confidence: {signal.confidence})"
             )
 
-        try:
-            # Execute portfolio rebalancing workflow
-            self._execute_portfolio_rebalancing(event)
-            
-            # Track successful signal processing
-            self.workflow_state["last_successful_workflow"] = "signal_generation"
-
-        except Exception as e:
-            self.logger.error(f"Portfolio rebalancing workflow failed: {e}")
-            self.workflow_state["rebalancing_in_progress"] = False
+        # Track successful signal processing - PortfolioOrchestrator will handle rebalancing
+        self.workflow_state["last_successful_workflow"] = "signal_generation"
 
     def _execute_portfolio_rebalancing(self, signal_event: SignalGenerated) -> None:
         """Execute portfolio rebalancing workflow based on signals.
@@ -414,7 +387,7 @@ class EventDrivenOrchestrator:
     def _handle_rebalance_planned(self, event: RebalancePlanned) -> None:
         """Handle rebalance planning event.
 
-        Orchestrates the trade execution workflow in response to rebalancing plans.
+        Coordinates the transition from rebalancing to trade execution.
 
         Args:
             event: The rebalance planned event
@@ -428,7 +401,7 @@ class EventDrivenOrchestrator:
         self.workflow_state.update(
             {
                 "rebalancing_in_progress": False,  # Rebalancing plan completed
-                "trading_in_progress": True,  # Start trade execution
+                "trading_in_progress": True,  # Trading will start
             }
         )
 
@@ -436,16 +409,8 @@ class EventDrivenOrchestrator:
         total_value = event.rebalance_plan.total_trade_value
         self.logger.debug(f"Orchestrating total trade value: ${total_value}")
 
-        try:
-            # Execute trade execution workflow
-            self._execute_trade_execution(event)
-            
-            # Track successful rebalancing
-            self.workflow_state["last_successful_workflow"] = "rebalancing"
-
-        except Exception as e:
-            self.logger.error(f"Trade execution workflow failed: {e}")
-            self.workflow_state["trading_in_progress"] = False
+        # Track successful rebalancing - TradingOrchestrator will handle execution
+        self.workflow_state["last_successful_workflow"] = "rebalancing"
 
     def _execute_trade_execution(self, rebalance_event: RebalancePlanned) -> None:
         """Execute trade execution workflow based on rebalance plan.
