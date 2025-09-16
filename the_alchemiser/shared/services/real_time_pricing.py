@@ -652,6 +652,7 @@ class RealTimePricingService:
 
     def subscribe_for_order_placement(self, symbol: str) -> None:
         """Subscribe to a symbol temporarily for order placement.
+        
         Uses the highest priority to ensure subscription.
 
         Args:
@@ -667,6 +668,7 @@ class RealTimePricingService:
 
     def unsubscribe_after_order(self, symbol: str) -> None:
         """Unsubscribe from a symbol after order placement is complete.
+        
         Only unsubscribes if no other high-priority needs exist.
 
         Args:

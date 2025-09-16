@@ -10,7 +10,7 @@ consumption with batched data fetching and strategy-specific interface.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
 from ...shared.brokers.alpaca_manager import AlpacaManager
@@ -79,7 +79,7 @@ class StrategyMarketDataAdapter:
             return {}
 
         if end_date is None:
-            end_date = datetime.now()
+            end_date = datetime.now(UTC)
 
         start_date = end_date - timedelta(days=lookback_days)
 

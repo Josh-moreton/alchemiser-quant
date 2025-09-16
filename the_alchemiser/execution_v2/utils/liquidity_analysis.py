@@ -45,7 +45,7 @@ class LiquidityAnalysis:
 class LiquidityAnalyzer:
     """Advanced liquidity analysis for smart execution."""
     
-    def __init__(self, min_volume_threshold: float = 100.0, tick_size: float = 0.01):
+    def __init__(self, min_volume_threshold: float = 100.0, tick_size: float = 0.01) -> None:
         """Initialize liquidity analyzer.
         
         Args:

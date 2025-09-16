@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from ...shared.dto.strategy_allocation_dto import StrategyAllocationDTO
@@ -83,7 +83,7 @@ class SingleStrategyOrchestrator:
             allocation = StrategyAllocationDTO(
                 target_weights=normalized_weights,
                 correlation_id=correlation_id,
-                as_of=context.as_of or datetime.now(),
+                as_of=context.as_of or datetime.now(UTC),
                 constraints={
                     "strategy_id": strategy_id,
                     "symbols": context.symbols,
