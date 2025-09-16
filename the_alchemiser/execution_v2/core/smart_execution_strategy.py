@@ -58,6 +58,7 @@ class ExecutionConfig:
     # Order timing
     quote_freshness_seconds: int = 5  # Require quote within 5 seconds
     order_placement_timeout_seconds: int = 30  # Timeout for order placement
+    fill_wait_seconds: int = 15  # Wait time before attempting re-peg
 
     # Anchoring offsets (in cents)
     bid_anchor_offset_cents: Decimal = Decimal("0.01")  # Place at bid + $0.01 for buys
@@ -126,6 +127,8 @@ class SmartExecutionStrategy:
         # Track active orders for re-pegging
         self._active_orders: dict[str, SmartOrderRequest] = {}
         self._repeg_counts: dict[str, int] = {}
+        self._order_placement_times: dict[str, datetime] = {}
+        self._order_anchor_prices: dict[str, Decimal] = {}
 
     def should_place_order_now(self) -> bool:
         """Check if it's appropriate to place orders based on market timing.
@@ -408,12 +411,21 @@ class SmartExecutionStrategy:
                 # Track for potential re-pegging
                 self._active_orders[result.order_id] = request
                 self._repeg_counts[result.order_id] = 0
+                self._order_placement_times[result.order_id] = placement_time
+                self._order_anchor_prices[result.order_id] = optimal_price
 
                 logger.info(
                     f"✅ Smart liquidity-aware order placed: {result.order_id} at ${optimal_price} "
                     f"(strategy: {analysis_metadata['strategy_recommendation']}, "
                     f"confidence: {analysis_metadata['confidence']:.2f})"
                 )
+
+                # Schedule re-pegging monitoring for this order
+                if self.config.fill_wait_seconds > 0:
+                    logger.info(
+                        f"⏰ Will monitor order {result.order_id} for re-pegging "
+                        f"after {self.config.fill_wait_seconds}s"
+                    )
 
                 return SmartOrderResult(
                     success=True,
@@ -491,7 +503,7 @@ class SmartExecutionStrategy:
         )
 
     async def check_and_repeg_orders(self) -> list[SmartOrderResult]:
-        """Check active orders and repeg if market has moved significantly.
+        """Check active orders and repeg if they haven't filled after the wait period.
 
         Returns:
             List of re-pegging results
@@ -502,47 +514,214 @@ class SmartExecutionStrategy:
 
         repeg_results: list[SmartOrderResult] = []
         orders_to_remove = []
+        current_time = datetime.now(UTC)
 
-        for order_id, request in self._active_orders.items():
+        for order_id, request in list(self._active_orders.items()):
             try:
                 # Check if order is still active
-                order_status = self.alpaca_manager.get_order_execution_result(order_id)
-                if order_status.status in ["filled", "canceled", "rejected"]:
+                order_status = self.alpaca_manager._check_order_completion_status(order_id)
+                if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
                     orders_to_remove.append(order_id)
+                    logger.info(f"📊 Order {order_id} completed with status: {order_status}")
                     continue
 
-                # Check if re-pegging is needed
-                if self._repeg_counts[order_id] >= self.config.max_repegs_per_order:
-                    logger.info(
-                        f"⚠️ Order {order_id} reached max re-pegs, leaving as-is"
+                # Check if enough time has passed to consider re-pegging
+                placement_time = self._order_placement_times.get(order_id)
+                if not placement_time:
+                    continue
+                    
+                time_elapsed = (current_time - placement_time).total_seconds()
+                if time_elapsed < self.config.fill_wait_seconds:
+                    logger.debug(
+                        f"⏳ Order {order_id} waiting for fill "
+                        f"({time_elapsed:.1f}s/{self.config.fill_wait_seconds}s)"
                     )
                     continue
 
-                # Get current quote
-                validated = self.get_quote_with_validation(
-                    request.symbol, float(request.quantity)
-                )
-                if not validated:
+                # Check if we've reached max re-pegs
+                if self._repeg_counts[order_id] >= self.config.max_repegs_per_order:
+                    logger.info(
+                        f"⚠️ Order {order_id} reached max re-pegs "
+                        f"({self.config.max_repegs_per_order}), leaving as-is"
+                    )
                     continue
-                quote, _ = validated
 
-                # Check if market has moved beyond threshold
-                # (This would require tracking original anchor price - simplified for now)
-                # Implementation note: In production, you'd track original prices and calculate movement
-
-                logger.debug(
-                    f"Order {order_id} still active, monitoring for re-peg opportunities"
+                # Attempt re-pegging
+                logger.info(
+                    f"🔄 Order {order_id} hasn't filled after {time_elapsed:.1f}s, "
+                    "attempting re-peg..."
                 )
+                repeg_result = await self._attempt_repeg(order_id, request)
+                
+                if repeg_result:
+                    repeg_results.append(repeg_result)
 
             except Exception as e:
                 logger.error(f"Error checking order {order_id} for re-pegging: {e}")
 
         # Clean up completed orders
         for order_id in orders_to_remove:
-            self._active_orders.pop(order_id, None)
-            self._repeg_counts.pop(order_id, None)
+            self._cleanup_order_tracking(order_id)
 
         return repeg_results
+
+    async def _attempt_repeg(
+        self, order_id: str, request: SmartOrderRequest
+    ) -> SmartOrderResult | None:
+        """Attempt to re-peg an order with a more aggressive price.
+        
+        Args:
+            order_id: The order ID to re-peg
+            request: Original order request
+            
+        Returns:
+            SmartOrderResult if re-peg was attempted, None if skipped
+        """
+        try:
+            # Cancel the existing order
+            logger.info(f"❌ Canceling order {order_id} for re-pegging")
+            cancel_success = self.alpaca_manager.cancel_order(order_id)
+            
+            if not cancel_success:
+                logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
+                return None
+
+            # Get current market data
+            validated = self.get_quote_with_validation(
+                request.symbol, float(request.quantity)
+            )
+            if not validated:
+                logger.warning(f"⚠️ No valid quote for {request.symbol}, skipping re-peg")
+                return None
+                
+            quote, _ = validated
+            
+            # Calculate more aggressive price for re-peg
+            original_anchor = self._order_anchor_prices.get(order_id)
+            new_price = self._calculate_repeg_price(quote, request.side, original_anchor)
+            
+            if not new_price:
+                logger.warning(f"⚠️ Cannot calculate re-peg price for {request.symbol}")
+                return None
+
+            # Place new order with more aggressive pricing
+            logger.info(
+                f"📈 Re-pegging {request.symbol} {request.side} from "
+                f"${original_anchor} to ${new_price}"
+            )
+            
+            executed_order = self.alpaca_manager.place_limit_order(
+                symbol=request.symbol,
+                side=request.side.lower(),
+                quantity=float(request.quantity),
+                limit_price=float(new_price),
+                time_in_force="day",
+            )
+
+            # Update tracking
+            self._repeg_counts[order_id] = self._repeg_counts.get(order_id, 0) + 1
+            repeg_count = self._repeg_counts[order_id]
+            
+            if executed_order.order_id:
+                # Update tracking with new order ID
+                self._cleanup_order_tracking(order_id)
+                self._active_orders[executed_order.order_id] = request
+                self._repeg_counts[executed_order.order_id] = repeg_count
+                self._order_placement_times[executed_order.order_id] = datetime.now(UTC)
+                self._order_anchor_prices[executed_order.order_id] = new_price
+
+                logger.info(
+                    f"✅ Re-peg successful: new order {executed_order.order_id} "
+                    f"at ${new_price} (attempt {repeg_count})"
+                )
+                
+                return SmartOrderResult(
+                    success=True,
+                    order_id=executed_order.order_id,
+                    final_price=new_price,
+                    anchor_price=original_anchor,
+                    repegs_used=repeg_count,
+                    execution_strategy=f"smart_repeg_{repeg_count}",
+                    placement_timestamp=datetime.now(UTC),
+                    metadata={
+                        "original_order_id": order_id,
+                        "original_price": float(original_anchor) if original_anchor else None,
+                        "new_price": float(new_price),
+                        "bid_price": quote.bid_price,
+                        "ask_price": quote.ask_price,
+                    },
+                )
+            else:
+                logger.error(f"❌ Re-peg failed for {request.symbol}: no order ID returned")
+                return SmartOrderResult(
+                    success=False,
+                    error_message="Re-peg order placement failed",
+                    execution_strategy="smart_repeg_failed",
+                    repegs_used=repeg_count,
+                )
+                
+        except Exception as e:
+            logger.error(f"❌ Error during re-peg attempt for {order_id}: {e}")
+            return SmartOrderResult(
+                success=False,
+                error_message=str(e),
+                execution_strategy="smart_repeg_error",
+            )
+
+    def _calculate_repeg_price(
+        self, quote: QuoteModel, side: str, original_price: Decimal | None
+    ) -> Decimal | None:
+        """Calculate a more aggressive price for re-pegging.
+        
+        Args:
+            quote: Current market quote
+            side: Order side ("BUY" or "SELL")
+            original_price: Original order price
+            
+        Returns:
+            New more aggressive price, or None if cannot calculate
+        """
+        try:
+            if side.upper() == "BUY":
+                # For buys, move price up towards ask (more aggressive)
+                if original_price:
+                    # Move 50% closer to the ask price
+                    ask_price = Decimal(str(quote.ask_price))
+                    adjustment = (ask_price - original_price) * Decimal("0.5")
+                    new_price = original_price + adjustment
+                else:
+                    # If no original price, use ask price minus small offset
+                    new_price = Decimal(str(quote.ask_price)) - self.config.ask_anchor_offset_cents
+                    
+                # Ensure we don't exceed ask price
+                new_price = min(new_price, Decimal(str(quote.ask_price)))
+                
+            else:  # SELL
+                # For sells, move price down towards bid (more aggressive)
+                if original_price:
+                    # Move 50% closer to the bid price
+                    bid_price = Decimal(str(quote.bid_price))
+                    adjustment = (original_price - bid_price) * Decimal("0.5")
+                    new_price = original_price - adjustment
+                else:
+                    # If no original price, use bid price plus small offset
+                    new_price = Decimal(str(quote.bid_price)) + self.config.bid_anchor_offset_cents
+                    
+                # Ensure we don't go below bid price
+                new_price = max(new_price, Decimal(str(quote.bid_price)))
+
+            return new_price
+            
+        except Exception as e:
+            logger.error(f"Error calculating re-peg price: {e}")
+            return None
+
+    def _cleanup_order_tracking(self, order_id: str) -> None:
+        """Clean up tracking data for a completed order."""
+        self._active_orders.pop(order_id, None)
+        self._repeg_counts.pop(order_id, None)
+        self._order_placement_times.pop(order_id, None)
+        self._order_anchor_prices.pop(order_id, None)
 
     def get_active_order_count(self) -> int:
         """Get count of active orders being monitored."""
@@ -552,6 +731,8 @@ class SmartExecutionStrategy:
         """Clear tracking for completed orders."""
         self._active_orders.clear()
         self._repeg_counts.clear()
+        self._order_placement_times.clear()
+        self._order_anchor_prices.clear()
 
     def wait_for_quote_data(
         self, symbol: str, timeout: float | None = None

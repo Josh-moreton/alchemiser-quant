@@ -750,6 +750,91 @@ class RealTimePricingService:
             return "iex"
         return feed
 
+    def subscribe_symbols_bulk(self, symbols: list[str], priority: float | None = None) -> dict[str, bool]:
+        """Subscribe to real-time data for multiple symbols efficiently.
+
+        Args:
+            symbols: List of symbols to subscribe to
+            priority: Subscription priority for all symbols (higher = more important)
+
+        Returns:
+            Dictionary mapping symbol to subscription success status
+
+        """
+        if priority is None:
+            priority = time.time()  # Use current timestamp as default priority
+            
+        results: dict[str, bool] = {}
+        normalized_symbols = [symbol.upper().strip() for symbol in symbols if symbol.strip()]
+        
+        if not normalized_symbols:
+            return results
+            
+        logging.info(f"📡 Bulk subscribing to {len(normalized_symbols)} symbols with priority {priority:.1f}")
+        
+        with self._subscription_lock:
+            # Process each symbol
+            symbols_to_add = []
+            symbols_to_replace = []
+            
+            for symbol in normalized_symbols:
+                if symbol in self._subscribed_symbols:
+                    # Update priority for existing subscription
+                    self._subscription_priority[symbol] = max(
+                        self._subscription_priority.get(symbol, 0), priority
+                    )
+                    results[symbol] = True
+                    logging.debug(f"Already subscribed to {symbol}, updated priority to {self._subscription_priority[symbol]:.1f}")
+                else:
+                    symbols_to_add.append(symbol)
+            
+            # Calculate how many we can actually subscribe to
+            available_slots = self._max_symbols - len(self._subscribed_symbols)
+            
+            if len(symbols_to_add) > available_slots:
+                # Need to replace some existing subscriptions if we have higher priority
+                existing_symbols = sorted(
+                    self._subscription_priority.keys(),
+                    key=lambda x: self._subscription_priority.get(x, 0)
+                )
+                
+                symbols_needed = len(symbols_to_add) - available_slots
+                for symbol in existing_symbols:
+                    if len(symbols_to_replace) >= symbols_needed:
+                        break
+                    if self._subscription_priority.get(symbol, 0) < priority:
+                        symbols_to_replace.append(symbol)
+                
+                # Remove symbols to be replaced
+                for symbol_to_remove in symbols_to_replace:
+                    self._subscribed_symbols.discard(symbol_to_remove)
+                    self._subscription_priority.pop(symbol_to_remove, None)
+                    available_slots += 1
+                    self._stats["subscription_limit_hits"] += 1
+                    logging.info(f"📊 Replaced {symbol_to_remove} for higher priority symbols")
+            
+            # Add new symbols
+            successfully_added = 0
+            for symbol in symbols_to_add[:available_slots]:
+                self._subscribed_symbols.add(symbol)
+                self._subscription_priority[symbol] = priority
+                results[symbol] = True
+                successfully_added += 1
+                self._stats["total_subscriptions"] += 1
+            
+            # Mark symbols we couldn't subscribe to due to limits
+            for symbol in symbols_to_add[available_slots:]:
+                results[symbol] = False
+                logging.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
+        
+        # Restart stream if we added new symbols and are connected
+        if successfully_added > 0 and self._connected:
+            logging.info(f"🔄 Restarting stream to add {successfully_added} new subscriptions")
+            self._restart_stream_for_new_subscription()
+        
+        logging.info(f"✅ Bulk subscription complete: {successfully_added}/{len(symbols_to_add)} new symbols subscribed")
+        return results
+
     def subscribe_symbol(self, symbol: str, priority: float | None = None) -> None:
         """Subscribe to real-time updates for a specific symbol with smart limit management.
 

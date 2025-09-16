@@ -56,7 +56,19 @@ class ExecutionManager:
         """
         logger.info(f"🚀 NEW EXECUTION: {len(plan.items)} items (using execution_v2)")
 
-        result = self.executor.execute_rebalance_plan(plan)
+        # Run the async executor in a new event loop
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # We're in an async context, use async directly
+                raise RuntimeError("Cannot run asyncio.run() in an existing event loop")
+        except RuntimeError:
+            # No event loop running, safe to use asyncio.run
+            result = asyncio.run(self.executor.execute_rebalance_plan(plan))
+        else:
+            # Event loop exists but not running, safe to use asyncio.run
+            result = asyncio.run(self.executor.execute_rebalance_plan(plan))
 
         logger.info(
             f"✅ Execution complete: {result.success} ({result.orders_placed} orders)"
