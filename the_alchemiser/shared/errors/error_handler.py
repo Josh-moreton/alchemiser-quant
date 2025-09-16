@@ -17,7 +17,13 @@ from collections import defaultdict
 from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import wraps
-from typing import Any, TypedDict
+from typing import TypedDict
+
+# Type aliases for error handler data structures
+ErrorData = dict[str, str | int | float | bool | None]
+FlexibleContext = "ErrorContextData" | ErrorData | None
+ErrorList = list[ErrorData]
+ContextDict = dict[str, str | int | float | bool | None]
 
 
 # Error schema types
@@ -226,7 +232,7 @@ class EnhancedAlchemiserError(AlchemiserError):
     def __init__(
         self,
         message: str,
-        context: ErrorContextData | dict[str, Any] | Any | None = None,
+        context: FlexibleContext = None,
         severity: str = ErrorSeverity.MEDIUM,
         *,
         recoverable: bool = True,

@@ -44,12 +44,19 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.brokers.alpaca_utils import (
     create_stock_data_stream,
 )
 from the_alchemiser.shared.types.market_data import PriceDataModel, QuoteModel
+
+if TYPE_CHECKING:
+    from alpaca.data.models import Quote, Trade
+
+# Type alias for Alpaca streaming data - can be either dict or Alpaca objects
+AlpacaQuoteData = dict[str, str | float | int] | "Quote"
+AlpacaTradeData = dict[str, str | float | int] | "Trade"
 
 # Phase 11 - Migration to structured pricing data in progress
 # Both RealTimeQuote (legacy) and structured types (PriceDataModel, QuoteModel) are available
@@ -113,7 +120,7 @@ class RealTimePricingService:
         self._max_symbols = 5  # Stay under Alpaca's subscription limits
 
         # Connection management
-        self._stream: Any = None  # StockDataStream from alpaca_utils
+        self._stream: object = None  # StockDataStream from alpaca_utils
         self._stream_thread: threading.Thread | None = None
         self._connected = False
         self._should_reconnect = True
@@ -124,7 +131,7 @@ class RealTimePricingService:
         self._max_quote_age = 600  # 10 minutes
 
         # Statistics
-        self._stats: dict[str, Any] = {
+        self._stats: dict[str, str | int | float | datetime | bool] = {
             "quotes_received": 0,
             "trades_received": 0,
             "connection_errors": 0,
@@ -248,7 +255,7 @@ class RealTimePricingService:
                     jitter = secrets.randbelow(500) / 1000.0  # 0.0 to 0.5 seconds
                     reconnect_delay += jitter
 
-    async def _on_quote(self, quote: Any) -> None:
+    async def _on_quote(self, quote: AlpacaQuoteData) -> None:
         """Handle incoming quote updates from Alpaca stream."""
         try:
             # Handle both Quote objects and dictionary format
@@ -315,7 +322,7 @@ class RealTimePricingService:
             )
             logging.error(f"Error processing quote for {symbol_str}: {e}")
 
-    async def _on_trade(self, trade: Any) -> None:
+    async def _on_trade(self, trade: AlpacaTradeData) -> None:
         """Handle incoming trade updates from Alpaca stream."""
         try:
             # Handle both Trade objects and dictionary format
@@ -556,7 +563,7 @@ class RealTimePricingService:
         """Check if the real-time service is connected."""
         return self._connected
 
-    def get_stats(self) -> dict[str, Any]:
+    def get_stats(self) -> dict[str, str | int | float | datetime | bool]:
         """Get service statistics."""
         return {
             **self._stats,
@@ -894,7 +901,7 @@ class RealTimePricingManager:
         """Check if real-time pricing is available."""
         return self.pricing_service.is_connected()
 
-    def get_stats(self) -> dict[str, Any]:
+    def get_stats(self) -> dict[str, str | int | float | datetime | bool]:
         """Get real-time pricing statistics."""
         return self.pricing_service.get_stats()
 

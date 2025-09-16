@@ -9,15 +9,19 @@ strategy identifiers to their corresponding engine implementations.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from datetime import datetime
+from typing import Protocol
 
 from ...shared.dto.strategy_allocation_dto import StrategyAllocationDTO
+from ...shared.types.market_data_port import MarketDataPort
 
 
 class StrategyEngine(Protocol):
     """Protocol for strategy engine implementations."""
 
-    def __call__(self, context: Any) -> StrategyAllocationDTO:
+    def __call__(
+        self, context: datetime | MarketDataPort | dict[str, datetime | MarketDataPort]
+    ) -> StrategyAllocationDTO:
         """Execute strategy and return allocation DTO."""
         ...
 
@@ -54,7 +58,9 @@ class StrategyRegistry:
         """
         if strategy_id not in self._strategies:
             available = list(self._strategies.keys())
-            raise KeyError(f"Strategy '{strategy_id}' not found. Available strategies: {available}")
+            raise KeyError(
+                f"Strategy '{strategy_id}' not found. Available strategies: {available}"
+            )
         return self._strategies[strategy_id]
 
     def list_strategies(self) -> list[str]:

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
 
 from pydantic import BaseModel
 
@@ -47,7 +46,7 @@ class StrategySignal(BaseModel):
         target_allocation: Decimal | float | Percentage | None = None,
         reasoning: str = "",
         timestamp: datetime | None = None,
-        **kwargs: Any,
+        **kwargs: str | int | float | bool,
     ) -> None:
         """Build a normalized `StrategySignal` from flexible input types."""
         if isinstance(symbol, str):

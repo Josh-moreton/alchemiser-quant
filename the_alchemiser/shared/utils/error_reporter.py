@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.types.exceptions import (
     InsufficientFundsError,
@@ -21,13 +21,20 @@ from the_alchemiser.shared.types.exceptions import (
     SecurityError,
 )
 
+if TYPE_CHECKING:
+    pass
+
+# Type alias for notification manager and error context
+NotificationManager = object | None
+ErrorContext = dict[str, str | int | float | bool | None]
+
 logger = logging.getLogger(__name__)
 
 
 class ErrorReporter:
     """Centralized error reporting for production monitoring."""
 
-    def __init__(self, notification_manager: Any = None) -> None:
+    def __init__(self, notification_manager: NotificationManager = None) -> None:
         """Initialize error reporter.
 
         Args:
@@ -36,13 +43,13 @@ class ErrorReporter:
         """
         self.notification_manager = notification_manager
         self.error_counts: dict[str, int] = defaultdict(int)
-        self.critical_errors: list[dict[str, Any]] = []
+        self.critical_errors: list[ErrorContext] = []
         self.error_rate_threshold = 10  # Max errors per operation type before alerting
 
     def report_error(
         self,
         error: Exception,
-        context: dict[str, Any] | None = None,
+        context: ErrorContext | None = None,
         *,
         is_critical: bool = False,
     ) -> None:
@@ -84,7 +91,7 @@ class ErrorReporter:
             | MarketClosedError,
         )
 
-    def _handle_critical_error(self, error_data: dict[str, Any]) -> None:
+    def _handle_critical_error(self, error_data: ErrorContext) -> None:
         """Handle critical errors with immediate notification."""
         if self.notification_manager:
             self.notification_manager.send_critical_alert(
@@ -109,7 +116,7 @@ class ErrorReporter:
                         {"count": count, "threshold": self.error_rate_threshold},
                     )
 
-    def get_error_summary(self) -> dict[str, Any]:
+    def get_error_summary(self) -> dict[str, str | int | list[ErrorContext]]:
         """Get summary of recent errors for dashboard."""
         return {
             "error_counts": dict(self.error_counts),
@@ -127,7 +134,7 @@ class ErrorReporter:
 _global_error_reporter: ErrorReporter | None = None
 
 
-def get_error_reporter(notification_manager: Any = None) -> ErrorReporter:
+def get_error_reporter(notification_manager: NotificationManager = None) -> ErrorReporter:
     """Get the global error reporter instance.
 
     Args:
@@ -145,7 +152,7 @@ def get_error_reporter(notification_manager: Any = None) -> ErrorReporter:
 
 def report_error_globally(
     error: Exception,
-    context: dict[str, Any] | None = None,
+    context: ErrorContext | None = None,
     *,
     is_critical: bool = False,
 ) -> None:

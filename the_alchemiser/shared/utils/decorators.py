@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import TypeVar
 
 from the_alchemiser.shared.types.exceptions import (
     ConfigurationError,
@@ -21,12 +21,15 @@ from the_alchemiser.shared.types.exceptions import (
     TradingClientError,
 )
 
-F = TypeVar("F", bound=Callable[..., Any])  # Generic function type for decorators
+F = TypeVar("F", bound=Callable[..., object])
+
+# Type alias for flexible default return values in decorators
+DefaultReturn = str | int | float | bool | dict[str, object] | list[object] | None  # Generic function type for decorators
 
 
 def translate_service_errors(
     error_types: dict[type[Exception], type[Exception]] | None = None,
-    default_return: Any = None,  # noqa: ANN401  # Flexible default return for any function type
+    default_return: DefaultReturn = None,
 ) -> Callable[[F], F]:
     """Translate service errors without logging.
 
@@ -51,7 +54,7 @@ def translate_service_errors(
 
     def decorator(func: F) -> F:
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401  # Decorator passthrough for any function signature
+        def wrapper(*args: object, **kwargs: object) -> object:
             try:
                 return func(*args, **kwargs)
             except tuple(error_types.keys()) as e:
@@ -78,7 +81,7 @@ def translate_service_errors(
 
 
 def translate_market_data_errors(
-    default_return: Any = None,
+    default_return: DefaultReturn = None,
 ) -> Callable[[F], F]:  # Flexible default return for any function type
     """Translate market data service error translation."""
     return translate_service_errors(
@@ -93,7 +96,7 @@ def translate_market_data_errors(
 
 
 def translate_trading_errors(
-    default_return: Any = None,
+    default_return: DefaultReturn = None,
 ) -> Callable[[F], F]:  # Flexible default return for any function type
     """Translate trading service error translation."""
     return translate_service_errors(
@@ -108,7 +111,7 @@ def translate_trading_errors(
 
 
 def translate_streaming_errors(
-    default_return: Any = None,
+    default_return: DefaultReturn = None,
 ) -> Callable[[F], F]:  # Flexible default return for any function type
     """Translate streaming service error translation."""
     return translate_service_errors(
@@ -122,7 +125,7 @@ def translate_streaming_errors(
 
 
 def translate_config_errors(
-    default_return: Any = None,
+    default_return: DefaultReturn = None,
 ) -> Callable[[F], F]:  # Flexible default return for any function type
     """Translate configuration error translation."""
     return translate_service_errors(

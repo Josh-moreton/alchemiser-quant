@@ -54,7 +54,7 @@ def create_error_context(
     operation: str,
     component: str,
     function_name: str | None = None,
-    **kwargs: Any,
+    **kwargs: str | int | float | bool,
 ) -> ErrorContextData:
     """Create standardized error context."""
     return ErrorContextData(

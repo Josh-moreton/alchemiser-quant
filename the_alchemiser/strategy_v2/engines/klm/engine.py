@@ -17,7 +17,7 @@ import logging
 import math
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -51,6 +51,12 @@ from .variants import (
     KlmVariant128026,
     KLMVariantNova,
 )
+
+if TYPE_CHECKING:
+    from the_alchemiser.shared.value_objects.core_types import KLMDecision
+
+# Type alias for KLM result formats
+KLMResult = tuple[str | dict[str, float], str, str] | "KLMDecision"
 
 
 class KLMEngine(StrategyEngine):
@@ -330,7 +336,7 @@ class KLMEngine(StrategyEngine):
         return symbol_or_allocation, action, detailed_reason, best_variant.name
 
     def _extract_result_components(
-        self, result: Any
+        self, result: KLMResult
     ) -> tuple[str | dict[str, float], str, str]:
         """Extract components from either tuple or KLMDecision format.
 
@@ -362,14 +368,14 @@ class KLMEngine(StrategyEngine):
         self,
         indicators: dict[str, dict[str, float]],
         market_data: dict[str, pd.DataFrame],
-    ) -> list[tuple[BaseKLMVariant, Any, float]]:
+    ) -> list[tuple[BaseKLMVariant, KLMResult, float]]:
         """Evaluate all strategy variants and return results with performance scores."""
         results = []
 
         for variant in self.strategy_variants:
             try:
                 # Each variant has its own evaluate method
-                result: Any = variant.evaluate(indicators, market_data)
+                result: KLMResult = variant.evaluate(indicators, market_data)
 
                 # Validate the result structure - support both tuple and KLMDecision
                 if not self._is_valid_result(result):
@@ -417,7 +423,7 @@ class KLMEngine(StrategyEngine):
             "reasoning": reasoning,
         }
 
-    def _is_valid_result(self, result: Any) -> bool:
+    def _is_valid_result(self, result: KLMResult) -> bool:
         """Validate result structure for both tuple and KLMDecision formats."""
         # KLMDecision format
         if isinstance(result, dict):
@@ -436,7 +442,7 @@ class KLMEngine(StrategyEngine):
             and result[1] is not None
         )
 
-    def _format_result_for_logging(self, result: Any) -> str:
+    def _format_result_for_logging(self, result: KLMResult) -> str:
         """Format result for logging, supporting both tuple and KLMDecision formats."""
         try:
             # KLMDecision format
@@ -609,8 +615,14 @@ class KLMEngine(StrategyEngine):
             for symbol_str, weight in symbol_or_allocation.items():
                 try:
                     # Validate weight is a valid number
-                    if weight is None or not isinstance(weight, int | float) or math.isnan(weight):
-                        self.logger.warning(f"Invalid weight for {symbol_str}: {weight}, skipping")
+                    if (
+                        weight is None
+                        or not isinstance(weight, int | float)
+                        or math.isnan(weight)
+                    ):
+                        self.logger.warning(
+                            f"Invalid weight for {symbol_str}: {weight}, skipping"
+                        )
                         continue
 
                     symbol = Symbol(symbol_str)
