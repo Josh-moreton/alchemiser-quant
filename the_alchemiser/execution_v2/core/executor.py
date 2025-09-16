@@ -195,8 +195,9 @@ class Executor:
         """Execute a rebalance plan with all its items.
 
         Executes in two phases:
-        1. SELL orders first to free up buying power
-        2. BUY orders second with the freed buying power
+        1. Pre-subscribe to all symbols to avoid connection limit issues
+        2. SELL orders first to free up buying power
+        3. BUY orders second with the freed buying power
 
         Args:
             plan: RebalancePlanDTO containing the rebalance plan
@@ -208,6 +209,15 @@ class Executor:
         logger.info(
             f"🚀 Executing rebalance plan {plan.plan_id} with {len(plan.items)} items"
         )
+
+        # Pre-subscribe to all symbols at once to avoid connection limits
+        if self.pricing_service and self.enable_smart_execution:
+            all_symbols = {item.symbol for item in plan.items if item.action in ["BUY", "SELL"]}
+            if all_symbols:
+                logger.info(f"📡 Pre-subscribing to all symbols: {sorted(all_symbols)}")
+                for symbol in sorted(all_symbols):  # Sort for consistent ordering
+                    self.pricing_service.subscribe_for_order_placement(symbol)
+                logger.info(f"✅ Pre-subscribed to {len(all_symbols)} symbols")
 
         orders: list[OrderResultDTO] = []
         orders_placed = 0

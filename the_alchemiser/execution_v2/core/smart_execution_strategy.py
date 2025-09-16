@@ -182,19 +182,23 @@ class SmartExecutionStrategy:
         max_wait_time = 10.0  # Maximum 10 seconds to wait
         check_interval = 0.1  # Check every 100ms
         elapsed = 0.0
-        
+
         quote = None
         while elapsed < max_wait_time:
             quote = self.pricing_service.get_quote_data(symbol)
             if quote:
-                logger.info(f"✅ Received streaming quote for {symbol} after {elapsed:.1f}s")
+                logger.info(
+                    f"✅ Received streaming quote for {symbol} after {elapsed:.1f}s"
+                )
                 break
-            
+
             time.sleep(check_interval)
             elapsed += check_interval
-        
+
         if not quote:
-            logger.error(f"❌ No streaming quote data received for {symbol} after {max_wait_time}s")
+            logger.error(
+                f"❌ No streaming quote data received for {symbol} after {max_wait_time}s"
+            )
             return None
 
         # Check quote freshness
@@ -344,14 +348,11 @@ class SmartExecutionStrategy:
                 execution_strategy="smart_limit_delayed",
             )
 
-        # Subscribe to real-time data for this symbol and wait briefly for data
-        if self.pricing_service:
-            self.pricing_service.subscribe_for_order_placement(request.symbol)
+        # Symbol should already be pre-subscribed by executor
+        # Brief wait to allow any pending subscription to receive initial data
+        import asyncio
 
-            # Brief wait to allow subscription to receive initial data
-            import asyncio
-
-            await asyncio.sleep(0.2)  # 200ms wait for initial quote data
+        await asyncio.sleep(0.1)  # 100ms wait for quote data to flow
 
         try:
             # Get validated quote with order size, with retry logic
