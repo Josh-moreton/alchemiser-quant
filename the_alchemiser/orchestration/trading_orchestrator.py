@@ -29,6 +29,9 @@ from the_alchemiser.shared.dto.rebalance_plan_dto import (
     RebalancePlanDTO,
     RebalancePlanItemDTO,
 )
+from the_alchemiser.shared.dto.portfolio_analysis_dto import AccountInfoDTO
+from the_alchemiser.shared.dto.trading_workflow_dto import TradingWorkflowResultDTO
+from the_alchemiser.shared.dto.signal_analysis_dto import SignalAnalysisResultDTO
 from the_alchemiser.shared.events import EventBus, StartupEvent, TradeExecuted, TradeExecutionStarted
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
@@ -302,7 +305,7 @@ class TradingOrchestrator:
 
         return True
 
-    def execute_strategy_signals_with_trading(self) -> dict[str, Any] | None:
+    def execute_strategy_signals_with_trading(self) -> TradingWorkflowResultDTO | None:
         """Execute trading workflow with direct orchestrator coordination.
         
         Uses direct calls to domain orchestrators for synchronous execution.
@@ -325,14 +328,14 @@ class TradingOrchestrator:
             
             # PHASE 1: Generate signals via SignalOrchestrator
             self.logger.info("🔄 Generating strategy signals")
-            strategy_signals, consolidated_portfolio_dto = self.signal_orchestrator.generate_signals()
+            signal_analysis_dto, consolidated_portfolio_dto = self.signal_orchestrator.generate_signals()
             
-            if not strategy_signals:
+            if not signal_analysis_dto.strategy_signals:
                 self.logger.error("Failed to generate strategy signals")
                 return None
 
             # Validate signal quality before proceeding
-            if not self.signal_orchestrator.validate_signal_quality(strategy_signals):
+            if not self.signal_orchestrator.validate_signal_quality(signal_analysis_dto.strategy_signals):
                 self.logger.error("Signal analysis failed validation - no meaningful data available")
                 return None
                 
@@ -342,15 +345,15 @@ class TradingOrchestrator:
             
             # PHASE 2: Get account data and analyze portfolio
             self.logger.info("🔄 Getting account data and analyzing portfolio")
-            account_data = self.portfolio_orchestrator.get_comprehensive_account_data()
+            account_data_dto = self.portfolio_orchestrator.get_comprehensive_account_data()
             
-            if not account_data or not account_data.get("account_info"):
+            if not account_data_dto or not account_data_dto.account_info:
                 self.logger.error("Could not retrieve account data for trading")
                 return None
                 
-            account_info = account_data.get("account_info")
-            current_positions = account_data.get("current_positions", {})
-            open_orders = account_data.get("open_orders", [])
+            account_info = account_data_dto.account_info
+            current_positions = account_data_dto.current_positions
+            open_orders = account_data_dto.open_orders
             
             # Create allocation comparison
             allocation_comparison = self.portfolio_orchestrator.analyze_allocation_comparison(consolidated_portfolio_dto)
@@ -418,20 +421,19 @@ class TradingOrchestrator:
                 "last_successful_step": "trading",
             })
             
-            # Return results for CLI
-            return {
-                "strategy_signals": strategy_signals,
-                "consolidated_portfolio": consolidated_portfolio_dto.to_dict_allocation(),
-                "account_info": account_info,
-                "current_positions": current_positions,
-                "allocation_comparison": allocation_comparison,
-                "orders_executed": orders_executed,
-                "execution_result": execution_result,
-                "open_orders": open_orders,
-                "success": True,
-                "message": "Direct trading workflow completed successfully",
-                "correlation_id": correlation_id,
-            }
+            # Return results as TradingWorkflowResultDTO
+            return TradingWorkflowResultDTO(
+                success=True,
+                signal_analysis=signal_analysis_dto,
+                account_info=account_info,
+                current_positions=current_positions,
+                open_orders=open_orders,
+                execution_results=[execution_result] if execution_result else [],
+                total_executed_value=execution_result.total_trade_value if execution_result else DECIMAL_ZERO,
+                trades_executed=execution_result.orders_succeeded if execution_result else 0,
+                correlation_id=correlation_id,
+                mode="live" if self.live_trading else "paper",
+            )
             
         except Exception as e:
             self.logger.error(f"Direct trading workflow failed: {e}")
@@ -443,7 +445,7 @@ class TradingOrchestrator:
             })
             return None
 
-    def execute_strategy_signals(self) -> dict[str, Any] | None:
+    def execute_strategy_signals(self) -> SignalAnalysisResultDTO | None:
         """Execute signal analysis workflow with direct orchestrator coordination.
         
         Uses direct calls to domain orchestrators for synchronous execution.
@@ -466,14 +468,14 @@ class TradingOrchestrator:
             
             # Generate signals via SignalOrchestrator
             self.logger.info("🔄 Generating strategy signals")
-            strategy_signals, consolidated_portfolio_dto = self.signal_orchestrator.generate_signals()
+            signal_analysis_dto, consolidated_portfolio_dto = self.signal_orchestrator.generate_signals()
             
-            if not strategy_signals:
+            if not signal_analysis_dto.strategy_signals:
                 self.logger.error("Failed to generate strategy signals")
                 return None
 
             # Validate signal quality before proceeding
-            if not self.signal_orchestrator.validate_signal_quality(strategy_signals):
+            if not self.signal_orchestrator.validate_signal_quality(signal_analysis_dto.strategy_signals):
                 self.logger.error("Signal analysis failed validation - no meaningful data available")
                 return None
                 
@@ -482,34 +484,18 @@ class TradingOrchestrator:
             self.logger.info("✅ Signal generation completed")
             
             # Get account data for context (optional for signal-only mode)
-            account_data = self.portfolio_orchestrator.get_comprehensive_account_data()
-            account_info = account_data.get("account_info") if account_data else None
-            current_positions = account_data.get("current_positions", {}) if account_data else {}
-            open_orders = account_data.get("open_orders", []) if account_data else []
+            account_data_dto = self.portfolio_orchestrator.get_comprehensive_account_data()
             
             # For signal-only mode, we can optionally get allocation comparison for analysis
-            allocation_comparison = None
-            if account_data and account_info:
+            if account_data_dto and account_data_dto.account_info:
                 try:
                     allocation_comparison = self.portfolio_orchestrator.analyze_allocation_comparison(consolidated_portfolio_dto)
                     self.logger.info("✅ Portfolio analysis completed (for reference)")
                 except Exception as e:
                     self.logger.warning(f"Portfolio analysis failed (optional for signal mode): {e}")
             
-            # Return results for CLI
-            return {
-                "strategy_signals": strategy_signals,
-                "consolidated_portfolio": consolidated_portfolio_dto.to_dict_allocation(),
-                "account_info": account_info,
-                "current_positions": current_positions,
-                "allocation_comparison": allocation_comparison,
-                "orders_executed": [],  # No execution in signal-only mode
-                "execution_result": None,  # No execution in signal-only mode
-                "open_orders": open_orders,
-                "success": True,
-                "message": "Direct signal analysis workflow completed successfully",
-                "correlation_id": correlation_id,
-            }
+            # Return signal analysis results 
+            return signal_analysis_dto
             
         except Exception as e:
             self.logger.error(f"Direct signal analysis workflow failed: {e}")
@@ -519,7 +505,7 @@ class TradingOrchestrator:
             })
             return None
 
-    def send_trading_notification(self, result: dict[str, Any], mode_str: str) -> None:
+    def send_trading_notification(self, result: TradingWorkflowResultDTO, mode_str: str) -> None:
         """Send trading completion notification.
 
         Args:
@@ -534,8 +520,8 @@ class TradingOrchestrator:
             )
 
             # Create simple HTML content for the result
-            success = result.get("success", False)
-            message = result.get("message", "Trading execution completed")
+            success = result.success
+            message = result.error_message or "Trading execution completed"
 
             if success:
                 html_content = f"""
@@ -626,7 +612,7 @@ class TradingOrchestrator:
             self.handle_trading_error(e, mode_str)
             return False
 
-    def execute_trading_workflow_with_details(self) -> dict[str, Any] | None:
+    def execute_trading_workflow_with_details(self) -> TradingWorkflowResultDTO | None:
         """Execute complete trading workflow and return detailed results.
 
         Returns:
@@ -642,12 +628,12 @@ class TradingOrchestrator:
             # Check market hours
             if not self.check_market_hours():
                 self.logger.info(MARKET_CLOSED_MESSAGE)
-                return {
-                    "strategy_signals": {},
-                    "consolidated_portfolio": {},
-                    "success": True,
-                    "message": MARKET_CLOSED_MESSAGE,
-                }
+                return TradingWorkflowResultDTO(
+                    success=True,
+                    correlation_id=f"market_closed_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
+                    mode="live" if self.live_trading else "paper",
+                    error_message=MARKET_CLOSED_MESSAGE,
+                )
 
             # Execute strategy signals with actual trading
             result = self.execute_strategy_signals_with_trading()
@@ -671,7 +657,7 @@ class TradingOrchestrator:
     def _create_rebalance_plan_from_allocation(
         self,
         allocation_comparison: AllocationComparisonDTO,
-        account_info: dict[str, Any],
+        account_info: AccountInfoDTO,
     ) -> RebalancePlanDTO | None:
         """Convert allocation comparison DTO to RebalancePlanDTO.
 
@@ -715,12 +701,9 @@ class TradingOrchestrator:
             self.logger.error(f"Failed to create rebalance plan: {e}")
             return None
 
-    def _extract_portfolio_value(self, account_info: dict[str, Any]) -> Decimal:
-        """Extract portfolio value from account info."""
-        portfolio_value = account_info.get(
-            "portfolio_value", account_info.get("equity", 0)
-        )
-        return Decimal(str(portfolio_value))
+    def _extract_portfolio_value(self, account_info: AccountInfoDTO) -> Decimal:
+        """Extract portfolio value from account info DTO."""
+        return account_info.portfolio_value or account_info.equity
 
     def _create_plan_items(
         self,
