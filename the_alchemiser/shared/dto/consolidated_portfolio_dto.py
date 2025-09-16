@@ -9,7 +9,7 @@ signal aggregation, ensuring type safety in orchestrator communication.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -138,7 +138,7 @@ class ConsolidatedPortfolioDTO(BaseModel):
         return cls(
             target_allocations=target_allocations,
             correlation_id=correlation_id,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(UTC),
             strategy_count=len(source_strategies) if source_strategies else 1,
             source_strategies=source_strategies or [],
         )
