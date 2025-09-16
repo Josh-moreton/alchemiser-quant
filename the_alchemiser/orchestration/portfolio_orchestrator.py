@@ -48,7 +48,7 @@ class PortfolioOrchestrator:
         # Get event bus from container for dual-path emission
         self.event_bus: EventBus = container.services.event_bus()
 
-    def analyze_portfolio_state(self) -> dict[str, Any] | None:
+    def analyze_portfolio_state(self) -> PortfolioAnalysisDTO | None:
         """Analyze current portfolio state and generate rebalancing recommendations.
 
         Returns:
@@ -56,6 +56,9 @@ class PortfolioOrchestrator:
 
         """
         try:
+            # Import here to avoid circular dependency
+            from the_alchemiser.shared.dto.portfolio_analysis_dto import PortfolioAnalysisDTO
+            
             # Use portfolio_v2 for modern portfolio analysis
             from the_alchemiser.portfolio_v2 import PortfolioServiceV2
 
@@ -78,12 +81,10 @@ class PortfolioOrchestrator:
                 f"${portfolio_snapshot.total_value:.2f} total value"
             )
 
-            return {
-                "snapshot": portfolio_snapshot,
-                "analysis_timestamp": getattr(portfolio_snapshot, "timestamp", None),
-                "position_count": len(portfolio_snapshot.positions),
-                "total_value": float(portfolio_snapshot.total_value),
-            }
+            return PortfolioAnalysisDTO.from_snapshot(
+                portfolio_snapshot, 
+                correlation_id=f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+            )
 
         except Exception as e:
             self.logger.error(f"Portfolio analysis failed: {e}")
@@ -91,7 +92,7 @@ class PortfolioOrchestrator:
 
     def generate_rebalancing_plan(
         self, target_allocations: ConsolidatedPortfolioDTO
-    ) -> dict[str, Any] | None:
+    ) -> RebalancingPlanResultDTO | None:
         """Generate rebalancing plan based on target allocations.
 
         Args:
@@ -102,6 +103,9 @@ class PortfolioOrchestrator:
 
         """
         try:
+            # Import here to avoid circular dependency
+            from the_alchemiser.shared.dto.signal_analysis_dto import RebalancingPlanResultDTO
+            
             # Use portfolio_v2 for rebalancing plan calculation
             from the_alchemiser.shared.dto.strategy_allocation_dto import (
                 StrategyAllocationDTO,
@@ -167,13 +171,14 @@ class PortfolioOrchestrator:
                 self.logger.warning(f"Failed to emit rebalance events: {e}")
 
             # Return traditional response for backwards compatibility
-            return {
-                "plan": rebalance_plan,
-                "trade_count": len(rebalance_plan.items),
-                "total_trade_value": float(rebalance_plan.total_trade_value),
-                "target_allocations": target_allocations.to_dict_allocation(),
-                "plan_timestamp": rebalance_plan.timestamp,
-            }
+            return RebalancingPlanResultDTO(
+                plan=rebalance_plan,
+                trade_count=len(rebalance_plan.items),
+                total_trade_value=rebalance_plan.total_trade_value,
+                target_allocations={k: Decimal(str(v)) for k, v in target_allocations.to_dict_allocation().items()},
+                plan_timestamp=rebalance_plan.timestamp,
+                correlation_id=target_allocations.correlation_id,
+            )
 
         except Exception as e:
             self.logger.error(f"Rebalancing plan generation failed: {e}")
@@ -286,7 +291,7 @@ class PortfolioOrchestrator:
             self.logger.error(f"Allocation comparison analysis failed: {e}")
             return None
 
-    def get_comprehensive_account_data(self) -> dict[str, Any] | None:
+    def get_comprehensive_account_data(self) -> ComprehensiveAccountDataDTO | None:
         """Retrieve comprehensive account data including account info, positions, and open orders.
 
         Returns:
@@ -294,26 +299,35 @@ class PortfolioOrchestrator:
 
         """
         try:
+            # Import here to avoid circular dependency
+            from the_alchemiser.shared.dto.portfolio_analysis_dto import (
+                ComprehensiveAccountDataDTO,
+                AccountInfoDTO,
+                PositionDataDTO,
+                OrderDataDTO,
+            )
+            
             alpaca_manager = self.container.infrastructure.alpaca_manager()
 
             # Get account info
             account_raw = alpaca_manager.get_account()
-            account_info = None
+            account_info_dto = None
             if account_raw:
-                account_info = {
-                    "portfolio_value": getattr(account_raw, "portfolio_value", None)
-                    or getattr(account_raw, "equity", None),
-                    "cash": getattr(account_raw, "cash", 0),
-                    "buying_power": getattr(account_raw, "buying_power", 0),
-                    "equity": getattr(account_raw, "equity", None)
-                    or getattr(account_raw, "portfolio_value", None),
-                }
-                portfolio_value = account_info.get("portfolio_value", 0)
+                portfolio_value = getattr(account_raw, "portfolio_value", None) or getattr(account_raw, "equity", None)
+                cash = getattr(account_raw, "cash", 0)
+                buying_power = getattr(account_raw, "buying_power", 0)
+                equity = getattr(account_raw, "equity", None) or getattr(account_raw, "portfolio_value", None)
+                
+                account_info_dto = AccountInfoDTO(
+                    portfolio_value=Decimal(str(portfolio_value)) if portfolio_value is not None else Decimal("0"),
+                    cash=Decimal(str(cash)),
+                    buying_power=Decimal(str(buying_power)),
+                    equity=Decimal(str(equity)) if equity is not None else Decimal("0"),
+                )
+                
                 # Safely convert to float for logging, handling string values from API
                 try:
-                    portfolio_value_float = (
-                        float(portfolio_value) if portfolio_value is not None else 0.0
-                    )
+                    portfolio_value_float = float(portfolio_value) if portfolio_value is not None else 0.0
                 except (ValueError, TypeError):
                     portfolio_value_float = 0.0
                 self.logger.info(
@@ -321,58 +335,52 @@ class PortfolioOrchestrator:
                 )
 
             # Get current positions
-            current_positions = {}
+            current_positions_dict = {}
             positions_list = alpaca_manager.get_positions()
             if positions_list:
-                current_positions = {
-                    pos.symbol: {
-                        "qty": float(getattr(pos, "qty", 0)),
-                        "market_value": float(getattr(pos, "market_value", 0)),
-                        "avg_entry_price": float(getattr(pos, "avg_entry_price", 0)),
-                        "current_price": float(getattr(pos, "current_price", 0)),
-                        "unrealized_pl": float(getattr(pos, "unrealized_pl", 0)),
-                        "unrealized_plpc": float(getattr(pos, "unrealized_plpc", 0)),
-                    }
-                    for pos in positions_list
-                }
+                for pos in positions_list:
+                    position_dto = PositionDataDTO(
+                        qty=Decimal(str(getattr(pos, "qty", 0))),
+                        market_value=Decimal(str(getattr(pos, "market_value", 0))),
+                        avg_entry_price=Decimal(str(getattr(pos, "avg_entry_price", 0))),
+                        current_price=Decimal(str(getattr(pos, "current_price", 0))),
+                        unrealized_pl=Decimal(str(getattr(pos, "unrealized_pl", 0))),
+                        unrealized_plpc=Decimal(str(getattr(pos, "unrealized_plpc", 0))),
+                    )
+                    current_positions_dict[pos.symbol] = position_dto
                 self.logger.info(
-                    f"Retrieved {len(current_positions)} current positions"
+                    f"Retrieved {len(current_positions_dict)} current positions"
                 )
 
             # Get open orders
-            open_orders = []
+            open_orders_list = []
             try:
                 orders_list = alpaca_manager.get_orders(status="open")
                 if orders_list:
-                    open_orders = [
-                        {
-                            "id": getattr(order, "id", "unknown"),
-                            "symbol": getattr(order, "symbol", "unknown"),
-                            "type": str(
-                                getattr(order, "order_type", "unknown")
-                            ).replace("OrderType.", ""),
-                            "qty": float(getattr(order, "qty", 0)),
-                            "limit_price": (
-                                float(getattr(order, "limit_price", 0))
+                    for order in orders_list:
+                        order_dto = OrderDataDTO(
+                            id=getattr(order, "id", "unknown"),
+                            symbol=getattr(order, "symbol", "unknown"),
+                            type=str(getattr(order, "order_type", "unknown")).replace("OrderType.", ""),
+                            qty=Decimal(str(getattr(order, "qty", 0))),
+                            limit_price=(
+                                Decimal(str(getattr(order, "limit_price", 0)))
                                 if order.limit_price
                                 else None
                             ),
-                            "status": str(getattr(order, "status", "unknown")).replace(
-                                "OrderStatus.", ""
-                            ),
-                            "created_at": str(getattr(order, "created_at", "unknown")),
-                        }
-                        for order in orders_list
-                    ]
-                    self.logger.info(f"Retrieved {len(open_orders)} open orders")
+                            status=str(getattr(order, "status", "unknown")).replace("OrderStatus.", ""),
+                            created_at=str(getattr(order, "created_at", "unknown")),
+                        )
+                        open_orders_list.append(order_dto)
+                    self.logger.info(f"Retrieved {len(open_orders_list)} open orders")
             except Exception as e:
                 self.logger.warning(f"Failed to retrieve open orders: {e}")
 
-            return {
-                "account_info": account_info,
-                "current_positions": current_positions,
-                "open_orders": open_orders,
-            }
+            return ComprehensiveAccountDataDTO(
+                account_info=account_info_dto,
+                current_positions=current_positions_dict,
+                open_orders=open_orders_list,
+            )
 
         except Exception as e:
             self.logger.error(f"Failed to retrieve comprehensive account data: {e}")

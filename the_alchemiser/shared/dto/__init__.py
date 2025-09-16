@@ -16,6 +16,13 @@ from the_alchemiser.shared.dto.order_request_dto import (
     MarketDataDTO,
     OrderRequestDTO,
 )
+from the_alchemiser.shared.dto.portfolio_analysis_dto import (
+    AccountInfoDTO,
+    ComprehensiveAccountDataDTO,
+    OrderDataDTO,
+    PortfolioAnalysisDTO,
+    PositionDataDTO,
+)
 from the_alchemiser.shared.dto.portfolio_state_dto import (
     PortfolioMetricsDTO,
     PortfolioStateDTO,
@@ -25,8 +32,17 @@ from the_alchemiser.shared.dto.rebalance_plan_dto import (
     RebalancePlanDTO,
     RebalancePlanItemDTO,
 )
+from the_alchemiser.shared.dto.signal_analysis_dto import (
+    RebalancingPlanResultDTO,
+    SignalAnalysisResultDTO,
+    StrategySignalResultDTO,
+)
 from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
 from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
+from the_alchemiser.shared.dto.trading_workflow_dto import (
+    NotificationDataDTO,
+    TradingWorkflowResultDTO,
+)
 
 
 # Placeholder DTO classes for future implementation
@@ -43,16 +59,26 @@ __all__ = [
     "ConfigurationDTO",
     "ErrorDTO",
     # Implemented DTOs
+    "AccountInfoDTO",
+    "ComprehensiveAccountDataDTO",
     "ExecutedOrderDTO",
     "ExecutionReportDTO",
     "LambdaEventDTO",
     "MarketDataDTO",
+    "NotificationDataDTO",
+    "OrderDataDTO",
     "OrderRequestDTO",
+    "PortfolioAnalysisDTO",
     "PortfolioMetricsDTO",
     "PortfolioStateDTO",
+    "PositionDataDTO",
     "PositionDTO",
     "RebalancePlanDTO",
     "RebalancePlanItemDTO",
+    "RebalancingPlanResultDTO",
+    "SignalAnalysisResultDTO",
     "StrategyAllocationDTO",
     "StrategySignalDTO",
+    "StrategySignalResultDTO",
+    "TradingWorkflowResultDTO",
 ]
