@@ -97,12 +97,16 @@ def show_welcome() -> None:
 def trade(
     # Remove --live flag - trading mode now determined by deployment stage
     ignore_market_hours: bool = typer.Option(  # noqa: FBT001
-        default=False, param_decls=["--ignore-market-hours"], help="Trade outside market hours (testing only)"
+        default=False,
+        param_decls=["--ignore-market-hours"],
+        help="Trade outside market hours (testing only)",
     ),
     verbose: bool = typer.Option(  # noqa: FBT001
         default=False, param_decls=["--verbose", "-v"], help="Enable verbose output"
     ),
-    no_header: bool = typer.Option(default=False, param_decls=["--no-header"], help="Skip welcome header"),  # noqa: FBT001
+    no_header: bool = typer.Option(
+        default=False, param_decls=["--no-header"], help="Skip welcome header"
+    ),  # noqa: FBT001
     show_tracking: bool = typer.Option(  # noqa: FBT001
         default=False,
         param_decls=["--show-tracking"],
@@ -453,7 +457,9 @@ def main(
         default=False, param_decls=["--verbose", "-v"], help="Enable verbose output"
     ),
     quiet: bool = typer.Option(  # noqa: FBT001
-        default=False, param_decls=["--quiet", "-q"], help="Suppress non-essential output"
+        default=False,
+        param_decls=["--quiet", "-q"],
+        help="Suppress non-essential output",
     ),
 ) -> None:
     """[bold]The Alchemiser - Advanced Multi-Strategy Quantitative Trading System[/bold].
