@@ -272,6 +272,22 @@ class Executor:
             orders_succeeded += buy_stats["succeeded"]
             total_trade_value += buy_stats["trade_value"]
 
+        # Phase 3: Monitor active orders for re-pegging opportunities
+        if self.smart_strategy and self.enable_smart_execution:
+            logger.info("🔄 Phase 3: Monitoring orders for re-pegging opportunities...")
+            repeg_results = await self.smart_strategy.check_and_repeg_orders()
+            
+            if repeg_results:
+                logger.info(f"📊 Re-pegging results: {len(repeg_results)} orders processed")
+                for repeg_result in repeg_results:
+                    if repeg_result.success:
+                        logger.info(
+                            f"✅ Re-peg successful: {repeg_result.order_id} "
+                            f"(attempt {repeg_result.repegs_used})"
+                        )
+                    else:
+                        logger.warning(f"⚠️ Re-peg failed: {repeg_result.error_message}")
+
         # Log HOLD items
         for item in hold_items:
             logger.info(f"⏸️ Holding {item.symbol} - no action required")
