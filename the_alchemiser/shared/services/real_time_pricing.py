@@ -38,6 +38,7 @@ MIGRATION NOTES:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import threading
 import time
@@ -140,6 +141,7 @@ class RealTimePricingService:
             "trades_received": 0,
             "connection_errors": 0,
             "subscription_limit_hits": 0,
+            "total_subscriptions": 0,
             "last_heartbeat": None,
         }
 
@@ -169,13 +171,19 @@ class RealTimePricingService:
                 # feed="sip" if not self.paper_trading else "iex"  # Uncomment when SIP subscription is active
             )
 
+            # Set up the async event handlers BEFORE starting the stream
+            # This is critical - handlers must be registered before run() is called
+            logging.info("📡 Real-time pricing service initialized with async handlers")
+
             # NOTE: Do NOT subscribe to wildcard "*" - it hits subscription limits immediately
             # We'll subscribe to specific symbols only when needed via subscribe_for_order_placement()
 
-            # Start the stream in a background thread
+            # Start the stream in a background thread with proper async handling
             self._should_reconnect = True
             self._stream_thread = threading.Thread(
-                target=self._run_stream, name="RealTimePricing", daemon=True
+                target=self._run_stream_with_event_loop,
+                name="RealTimePricing",
+                daemon=True,
             )
             self._stream_thread.start()
 
@@ -227,37 +235,136 @@ class RealTimePricingService:
         except Exception as e:
             logging.error(f"Error stopping real-time pricing service: {e}")
 
-    def _run_stream(self) -> None:
-        """Run the WebSocket stream with automatic reconnection and exponential backoff."""
-        reconnect_delay = 2.0  # Start with 2 seconds
-        max_reconnect_delay = 60.0  # Cap at 1 minute
+    def _run_stream_with_event_loop(self) -> None:
+        """Run the WebSocket stream in a new event loop.
 
-        while self._should_reconnect:
+        This method creates a new event loop in the current thread and runs
+        the async stream within it. This is necessary because the Alpaca SDK
+        requires async handlers to run in the same event loop as the stream.
+        """
+        # Create a new event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            # Run the async stream method
+            loop.run_until_complete(self._run_stream_async())
+        except Exception as e:
+            logging.error(f"Error in stream event loop: {e}")
+        finally:
+            # Clean up the event loop
             try:
-                if self._stream:
-                    logging.info("📡 Starting real-time data stream...")
+                # Cancel any remaining tasks
+                pending = asyncio.all_tasks(loop)
+                for task in pending:
+                    task.cancel()
+
+                if pending:
+                    loop.run_until_complete(
+                        asyncio.gather(*pending, return_exceptions=True)
+                    )
+
+                loop.close()
+            except Exception as e:
+                logging.error(f"Error cleaning up event loop: {e}")
+
+    async def _run_stream_async(self) -> None:
+        """Async method to run the WebSocket stream.
+
+        This method handles the actual stream execution and reconnection logic
+        within an async context where the handlers can operate properly.
+        """
+        retry_count = 0
+        max_retries = 5
+        base_delay = 1.0
+
+        while self._should_reconnect and retry_count < max_retries:
+            try:
+                logging.info(
+                    f"🔄 Attempting to start real-time data stream (attempt {retry_count + 1})"
+                )
+
+                # Get current subscription list in a thread-safe way
+                with self._subscription_lock:
+                    symbols_to_subscribe = list(self._subscribed_symbols)
+
+                if symbols_to_subscribe:
+                    logging.info(
+                        f"📡 Setting up subscriptions for {len(symbols_to_subscribe)} symbols: {sorted(symbols_to_subscribe)}"
+                    )
+
+                    # Create a fresh stream instance for each attempt
+                    # This is necessary because streams are not reusable after they fail or close
+                    self._stream = create_stock_data_stream(
+                        api_key=self.api_key,
+                        secret_key=self.secret_key,
+                        feed="iex",  # Use IEX feed for both paper and live (free tier)
+                    )
+
+                    # Subscribe to quotes and trades for all symbols at once
+                    # This must be done BEFORE calling stream.run()
+                    self._stream.subscribe_quotes(self._on_quote, *symbols_to_subscribe)
+                    self._stream.subscribe_trades(self._on_trade, *symbols_to_subscribe)
+
+                    logging.info("✅ All subscriptions set up successfully")
+
+                    # Mark as connected before starting the stream
                     self._connected = True
-                    self._stats["last_heartbeat"] = datetime.now(UTC)
-                    # Reset reconnect delay on successful connection
-                    reconnect_delay = 2.0
-                    self._stream.run()
+
+                    # Run the stream's internal async method directly
+                    # NOTE: We use _run_forever() instead of run() because run()
+                    # calls asyncio.run() internally, which would conflict with our event loop
+                    await self._stream._run_forever()
+
+                    # If we get here, the stream closed normally
+                    logging.info("📡 Real-time data stream closed normally")
+                    break  # No symbols to subscribe to - wait for symbols to be added
+                logging.info(
+                    "📡 No symbols to subscribe to, waiting for subscription requests..."
+                )
+                self._connected = True  # Mark as ready to receive subscriptions
+
+                # Wait for subscriptions to be added
+                while self._should_reconnect and not symbols_to_subscribe:
+                    await asyncio.sleep(1.0)  # Check every second
+                    with self._subscription_lock:
+                        symbols_to_subscribe = list(self._subscribed_symbols)
+
+                # If symbols were added, restart the loop to set up subscriptions
+                if symbols_to_subscribe:
+                    logging.info(
+                        f"📡 New subscriptions detected: {sorted(symbols_to_subscribe)}"
+                    )
+                    # Reset connection state to force re-setup
+                    self._connected = False
+                    continue
+
+                # Should not reconnect anymore
+                logging.info("📡 Shutting down stream - no reconnection requested")
+                break
 
             except Exception as e:
+                retry_count += 1
+                delay = min(
+                    base_delay * (2 ** (retry_count - 1)), 30.0
+                )  # Cap at 30 seconds
+
+                logging.error(
+                    f"❌ Real-time data stream error (attempt {retry_count}): {e}"
+                )
+
+                if retry_count < max_retries and self._should_reconnect:
+                    logging.info(f"⏱️ Retrying in {delay:.1f} seconds...")
+                    await asyncio.sleep(delay)
+                else:
+                    logging.error(
+                        "🚨 Max retries exceeded, stopping real-time pricing service"
+                    )
+                    break
+            finally:
                 self._connected = False
-                self._stats["connection_errors"] += 1
-                logging.error(f"Real-time stream error: {e}")
 
-                if self._should_reconnect:
-                    logging.info(f"🔄 Reconnecting in {reconnect_delay:.1f} seconds...")
-                    time.sleep(reconnect_delay)
-
-                    # Exponential backoff with jitter for reconnection delays
-                    reconnect_delay = min(reconnect_delay * 1.5, max_reconnect_delay)
-                    # Add small jitter to prevent thundering herd
-                    import secrets
-
-                    jitter = secrets.randbelow(500) / 1000.0  # 0.0 to 0.5 seconds
-                    reconnect_delay += jitter
+        logging.info("📡 Real-time pricing stream thread exiting")
 
     async def _on_quote(self, quote: AlpacaQuoteData) -> None:
         """Handle incoming quote updates from Alpaca stream."""
@@ -626,16 +733,15 @@ class RealTimePricingService:
                 self._subscribed_symbols.add(symbol)
                 self._subscription_priority[symbol] = priority
 
-                if self._stream and self._connected:
-                    try:
-                        # Subscribe to both quotes and trades for this symbol
-                        self._stream.subscribe_quotes(self._on_quote, symbol)
-                        self._stream.subscribe_trades(self._on_trade, symbol)
-                        logging.info(
-                            f"📡 Subscribed to real-time data for {symbol} (priority: {priority:.1f})"
-                        )
-                    except Exception as e:
-                        logging.error(f"Error subscribing to {symbol}: {e}")
+                # Instead of trying to subscribe to a running stream,
+                # we'll let the stream setup handle this in _run_stream_async()
+                logging.info(
+                    f"📡 Added {symbol} to subscription list (priority: {priority:.1f})"
+                )
+                logging.debug(
+                    f"📊 Current subscriptions: {sorted(self._subscribed_symbols)}"
+                )
+                self._stats["total_subscriptions"] += 1
             else:
                 # Update priority for existing subscription
                 self._subscription_priority[symbol] = max(
