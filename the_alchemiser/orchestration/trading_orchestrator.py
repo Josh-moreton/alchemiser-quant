@@ -29,7 +29,7 @@ from the_alchemiser.shared.dto.rebalance_plan_dto import (
     RebalancePlanDTO,
     RebalancePlanItemDTO,
 )
-from the_alchemiser.shared.events import EventBus, TradeExecuted, TradeExecutionStarted
+from the_alchemiser.shared.events import EventBus, StartupEvent, TradeExecuted, TradeExecutionStarted
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 from the_alchemiser.shared.types.exceptions import (
@@ -70,6 +70,225 @@ class TradingOrchestrator:
         # Create portfolio orchestrator for allocation analysis
         self.portfolio_orchestrator = PortfolioOrchestrator(settings, container)
 
+        # Track workflow state for monitoring
+        self.workflow_state: dict[str, Any] = {
+            "signal_generation_in_progress": False,
+            "rebalancing_in_progress": False,
+            "trading_in_progress": False,
+            "last_correlation_id": None,
+            "last_successful_step": None,
+        }
+
+        # Results collection for CLI compatibility
+        self.workflow_results: dict[str, Any] = {}
+
+    def handle_event(self, event: BaseEvent) -> None:
+        """Handle events for trading workflow coordination.
+
+        Args:
+            event: The event to handle
+
+        """
+        try:
+            if isinstance(event, SignalGenerated):
+                self._handle_signal_generated_coordination(event)
+            elif isinstance(event, RebalancePlanned):
+                self._handle_rebalance_planned_coordination(event)
+            else:
+                self.logger.debug(
+                    f"TradingOrchestrator ignoring event type: {event.event_type}"
+                )
+
+        except Exception as e:
+            self.logger.error(
+                f"TradingOrchestrator event handling failed for {event.event_type}: {e}",
+                extra={
+                    "event_id": event.event_id,
+                    "correlation_id": event.correlation_id,
+                },
+            )
+
+    def can_handle(self, event_type: str) -> bool:
+        """Check if handler can handle a specific event type.
+
+        Args:
+            event_type: The type of event to check
+
+        Returns:
+            True if this handler can handle the event type
+
+        """
+        return event_type in ["SignalGenerated", "RebalancePlanned"]
+
+    def _handle_signal_generated_coordination(self, event: SignalGenerated) -> None:
+        """Handle SignalGenerated event for workflow coordination.
+        
+        Triggers portfolio rebalancing when signals are generated.
+        
+        Args:
+            event: The SignalGenerated event
+        """
+        self.logger.info(
+            f"🔄 TradingOrchestrator: SignalGenerated coordination - {len(event.signals)} signals"
+        )
+        
+        # Update workflow state
+        self.workflow_state.update({
+            "signal_generation_in_progress": False,
+            "rebalancing_in_progress": True,
+            "last_correlation_id": event.correlation_id,
+            "last_successful_step": "signal_generation",
+        })
+        
+        # Trigger portfolio rebalancing via the portfolio orchestrator
+        # Note: PortfolioOrchestrator will emit RebalancePlanned event
+        try:
+            # Get comprehensive account data for rebalancing context
+            account_data = self.portfolio_orchestrator.get_comprehensive_account_data()
+            
+            if account_data and account_data.get("account_info"):
+                self.logger.info("🔄 Triggering portfolio rebalancing workflow")
+                
+                # Populate workflow results with account data for CLI
+                if (hasattr(self, 'workflow_results') and 
+                    self.workflow_state.get("last_correlation_id") == event.correlation_id):
+                    
+                    self.workflow_results.update({
+                        "account_info": account_data.get("account_info"),
+                        "current_positions": account_data.get("current_positions", {}),
+                        "open_orders": account_data.get("open_orders", []),
+                    })
+                
+                # Reconstruct consolidated portfolio from event signals for rebalancing
+                from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
+                
+                # Extract strategy names from signals
+                source_strategies = list(set(signal.strategy_name for signal in event.signals if signal.strategy_name))
+                
+                # This should trigger the portfolio orchestrator to analyze allocation and emit RebalancePlanned
+                # For now, let's call the portfolio orchestrator method that will emit the event
+                try:
+                    # Create a consolidated portfolio DTO from the signals
+                    portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
+                        allocation_dict=event.consolidated_portfolio,
+                        correlation_id=event.correlation_id,
+                        source_strategies=source_strategies,
+                    )
+                    
+                    # Trigger allocation comparison which should emit RebalancePlanned
+                    allocation_comparison = self.portfolio_orchestrator.analyze_allocation_comparison(portfolio_dto)
+                    
+                    if allocation_comparison:
+                        # Populate workflow results for CLI
+                        if (hasattr(self, 'workflow_results') and 
+                            self.workflow_state.get("last_correlation_id") == event.correlation_id):
+                            self.workflow_results["allocation_comparison"] = allocation_comparison
+                        
+                        self.logger.info("✅ Portfolio rebalancing analysis completed - RebalancePlanned event should be emitted")
+                    else:
+                        self.logger.error("Failed to generate allocation comparison")
+                        self.workflow_state["rebalancing_in_progress"] = False
+                        
+                except Exception as portfolio_error:
+                    self.logger.error(f"Failed to trigger portfolio orchestrator: {portfolio_error}")
+                    self.workflow_state["rebalancing_in_progress"] = False
+                    
+            else:
+                self.logger.error("Cannot trigger rebalancing: account data not available")
+                self.workflow_state["rebalancing_in_progress"] = False
+                
+        except Exception as e:
+            self.logger.error(f"Failed to coordinate portfolio rebalancing: {e}")
+            self.workflow_state["rebalancing_in_progress"] = False
+
+    def _handle_rebalance_planned_coordination(self, event: RebalancePlanned) -> None:
+        """Handle RebalancePlanned event for workflow coordination.
+        
+        Executes trades when rebalance plan is ready.
+        
+        Args:
+            event: The RebalancePlanned event
+        """
+        self.logger.info(
+            f"🚀 TradingOrchestrator: RebalancePlanned coordination - {len(event.rebalance_plan.items)} trades"
+        )
+        
+        # Update workflow state
+        self.workflow_state.update({
+            "rebalancing_in_progress": False,
+            "trading_in_progress": True,
+            "last_correlation_id": event.correlation_id,
+            "last_successful_step": "rebalancing",
+        })
+        
+        try:
+            # Execute trades using ExecutionManager
+            execution_manager = self.container.services.execution_manager()
+            execution_result = execution_manager.execute_rebalance_plan(event.rebalance_plan)
+            
+            self.logger.info(
+                f"✅ Trade execution completed: {execution_result.orders_succeeded}/"
+                f"{execution_result.orders_placed} orders succeeded"
+            )
+            
+            # Populate workflow results for CLI if this is the active correlation
+            if self.workflow_state.get("last_correlation_id") == event.correlation_id:
+                
+                # Convert ExecutionResultDTO to format expected by CLI
+                orders_executed = self._convert_execution_result_to_orders(execution_result)
+                self.workflow_results.update({
+                    "orders_executed": orders_executed,
+                    "execution_result": execution_result,
+                    "success": execution_result.success,
+                    "message": "Pure event-driven trading workflow completed",
+                })
+            
+            # Emit TradeExecuted event
+            execution_success = (
+                execution_result.success and 
+                (execution_result.orders_placed == 0 or  # No-op case
+                 execution_result.orders_succeeded == execution_result.orders_placed)  # All succeeded
+            )
+            
+            self._emit_trade_executed_event(
+                execution_result, 
+                success=execution_success,
+                error_message=None if execution_success else "Some orders failed"
+            )
+            
+            # Update workflow state
+            self.workflow_state.update({
+                "trading_in_progress": False,
+                "last_successful_step": "trading" if execution_success else "trading_failed",
+            })
+            
+        except Exception as e:
+            self.logger.error(f"Failed to execute trades from rebalance plan: {e}")
+            
+            # Create and emit failure event
+            try:
+                failed_result = ExecutionResultDTO(
+                    success=False,
+                    plan_id=f"failed-{uuid.uuid4()}",
+                    correlation_id=event.correlation_id,
+                    orders=[],
+                    orders_placed=0,
+                    orders_succeeded=0,
+                    total_trade_value=DECIMAL_ZERO,
+                    execution_timestamp=datetime.now(UTC),
+                    metadata={"error": str(e)},
+                )
+                self._emit_trade_executed_event(
+                    failed_result, success=False, error_message=str(e)
+                )
+            except Exception as emit_error:
+                self.logger.warning(f"Failed to emit failure event: {emit_error}")
+            
+            self.workflow_state.update({
+                "trading_in_progress": False,
+                "last_successful_step": "trading_failed",
+            })
+
     def check_market_hours(self) -> bool:
         """Check if market is open for trading."""
         if self.ignore_market_hours:
@@ -84,171 +303,122 @@ class TradingOrchestrator:
         return True
 
     def execute_strategy_signals_with_trading(self) -> dict[str, Any] | None:
-        """Generate strategy signals AND execute trades, returning comprehensive execution data."""
-        return self._execute_strategy_signals_internal(execute_trades=True)
-
-    def execute_strategy_signals(self) -> dict[str, Any] | None:
-        """Generate strategy signals and return comprehensive execution data (signal mode)."""
-        return self._execute_strategy_signals_internal(execute_trades=False)
-
-    def _execute_strategy_signals_internal(
-        self, *, execute_trades: bool
-    ) -> dict[str, Any] | None:
-        """Generate strategy signals with optional trade execution.
-
-        Args:
-            execute_trades: Whether to execute actual trades or just analyze signals
-
-        Returns:
-            Dictionary with strategy signals, portfolio, and execution data, or None if failed
-
+        """Execute trading workflow with direct orchestrator coordination.
+        
+        Uses direct calls to domain orchestrators for synchronous execution.
+        No event redundancy - pure direct coordination.
         """
         try:
-            # Generate signals using signal orchestrator with direct DTO access
-            strategy_signals, consolidated_portfolio_dto = (
-                self.signal_orchestrator.generate_signals()
-            )
+            # Generate correlation ID for this workflow
+            correlation_id = str(uuid.uuid4())
+            
+            self.logger.info("🚀 Starting direct trading workflow coordination")
+            
+            # Update workflow state for tracking
+            self.workflow_state.update({
+                "signal_generation_in_progress": True,
+                "rebalancing_in_progress": False,
+                "trading_in_progress": False,
+                "last_correlation_id": correlation_id,
+                "last_successful_step": None,
+            })
+            
+            # PHASE 1: Generate signals via SignalOrchestrator
+            self.logger.info("🔄 Generating strategy signals")
+            strategy_signals, consolidated_portfolio_dto = self.signal_orchestrator.generate_signals()
+            
             if not strategy_signals:
                 self.logger.error("Failed to generate strategy signals")
                 return None
 
             # Validate signal quality before proceeding
             if not self.signal_orchestrator.validate_signal_quality(strategy_signals):
-                self.logger.error(
-                    "Signal analysis failed validation - no meaningful data available"
-                )
+                self.logger.error("Signal analysis failed validation - no meaningful data available")
                 return None
-
-            # Get comprehensive account data using portfolio orchestrator
+                
+            self.workflow_state["signal_generation_in_progress"] = False
+            self.workflow_state["last_successful_step"] = "signal_generation"
+            self.logger.info("✅ Signal generation completed")
+            
+            # PHASE 2: Get account data and analyze portfolio
+            self.logger.info("🔄 Getting account data and analyzing portfolio")
             account_data = self.portfolio_orchestrator.get_comprehensive_account_data()
-            account_info = None
-            current_positions = {}
-            allocation_comparison = None
-            execution_result = None
+            
+            if not account_data or not account_data.get("account_info"):
+                self.logger.error("Could not retrieve account data for trading")
+                return None
+                
+            account_info = account_data.get("account_info")
+            current_positions = account_data.get("current_positions", {})
+            open_orders = account_data.get("open_orders", [])
+            
+            # Create allocation comparison
+            allocation_comparison = self.portfolio_orchestrator.analyze_allocation_comparison(consolidated_portfolio_dto)
+            
+            if not allocation_comparison:
+                self.logger.error("Failed to generate allocation comparison")
+                return None
+                
+            self.logger.info("✅ Portfolio analysis completed")
+            
+            # PHASE 3: Execute trades
+            self.workflow_state["rebalancing_in_progress"] = True
+            
+            # Create rebalance plan from allocation comparison
+            rebalance_plan = self._create_rebalance_plan_from_allocation(allocation_comparison, account_info)
+            
             orders_executed = []
-            open_orders = []
-
-            if account_data:
-                account_info = account_data.get("account_info")
-                current_positions = account_data.get("current_positions", {})
-                open_orders = account_data.get("open_orders", [])
-
-                # Calculate allocation comparison if we have the necessary data
-                if account_info and consolidated_portfolio_dto:
-                    allocation_comparison = (
-                        self.portfolio_orchestrator.analyze_allocation_comparison(
-                            consolidated_portfolio_dto
-                        )
-                    )
-                    if allocation_comparison:
-                        self.logger.info("Generated allocation comparison analysis")
-
-                # Execute trades if requested and data is available
-                if execute_trades and allocation_comparison and account_info:
-                    self.logger.info("🚀 EXECUTING ACTUAL TRADES")
-
-                    # Convert allocation comparison to RebalancePlanDTO
-                    rebalance_plan = self._create_rebalance_plan_from_allocation(
-                        allocation_comparison, account_info
-                    )
-
-                    if rebalance_plan:
-                        self.logger.info(
-                            f"📋 Generated rebalance plan with {len(rebalance_plan.items)} items"
-                        )
-
-                        # DUAL-PATH: Emit TradeExecutionStarted event for event-driven consumers
-                        execution_plan = {
-                            "plan_id": rebalance_plan.plan_id,
-                            "trade_count": len(rebalance_plan.items),
-                            "total_trade_value": float(
-                                rebalance_plan.total_trade_value
-                            ),
-                            "trades": [
-                                {
-                                    "symbol": item.symbol,
-                                    "action": item.action,
-                                    "trade_amount": float(item.trade_amount),
-                                    "target_value": float(item.target_value),
-                                    "current_value": float(item.current_value),
-                                }
-                                for item in rebalance_plan.items
-                            ],
-                        }
-                        mode_str = "LIVE" if self.live_trading else "PAPER"
-                        self._emit_trade_execution_started_event(
-                            execution_plan, mode_str
-                        )
-
-                        # Get ExecutionManager from container
-                        execution_manager = self.container.services.execution_manager()
-
-                        # Execute the rebalance plan
-                        execution_result = execution_manager.execute_rebalance_plan(
-                            rebalance_plan
-                        )
-
-                        # Convert ExecutionResultDTO to format expected by CLI
-                        orders_executed = self._convert_execution_result_to_orders(
-                            execution_result
-                        )
-
-                        self.logger.info(
-                            f"✅ Execution completed: {execution_result.orders_succeeded}/"
-                            f"{execution_result.orders_placed} orders succeeded"
-                        )
-
-                        # DUAL-PATH: Emit TradeExecuted event for event-driven consumers
-                        execution_success = (
-                            execution_result.orders_succeeded > 0
-                            and execution_result.orders_succeeded
-                            == execution_result.orders_placed
-                        )
-                        self._emit_trade_executed_event(
-                            execution_result, success=execution_success
-                        )
-
-                        # Log detailed execution results
-                        self._log_detailed_execution_results(execution_result)
-                    else:
-                        self.logger.info(
-                            "📊 No significant trades needed - portfolio already balanced"
-                        )
-
-                        # DUAL-PATH: Emit TradeExecuted event for successful no-trade scenario
-                        # Create empty execution result to represent successful no-op
-
-                        no_trade_result = ExecutionResultDTO(
-                            success=True,
-                            plan_id=f"no-trade-{uuid.uuid4()}",
-                            correlation_id=str(uuid.uuid4()),
-                            orders=[],
-                            orders_placed=0,
-                            orders_succeeded=0,
-                            total_trade_value=DECIMAL_ZERO,
-                            execution_timestamp=datetime.now(UTC),
-                            metadata={"scenario": "no_trades_needed"},
-                        )
-                        self._emit_trade_executed_event(no_trade_result, success=True)
-                elif execute_trades:
-                    self.logger.warning(
-                        "Could not calculate trades - missing allocation comparison data"
-                    )
-            else:
-                warning_msg = (
-                    "Could not retrieve account data for trading"
-                    if execute_trades
-                    else "Could not retrieve account data - continuing with basic signal data"
+            execution_result = None
+            
+            if rebalance_plan:
+                self.logger.info(f"🚀 Executing trades: {len(rebalance_plan.items)} items")
+                self.workflow_state["trading_in_progress"] = True
+                
+                # Execute the rebalance plan
+                execution_manager = self.container.services.execution_manager()
+                execution_result = execution_manager.execute_rebalance_plan(rebalance_plan)
+                
+                # Convert ExecutionResultDTO to format expected by CLI
+                orders_executed = self._convert_execution_result_to_orders(execution_result)
+                
+                self.logger.info(
+                    f"✅ Trade execution completed: {execution_result.orders_succeeded}/"
+                    f"{execution_result.orders_placed} orders succeeded"
                 )
-                self.logger.warning(warning_msg)
-
-            # Determine success message based on mode
-            success_message = (
-                "Strategy execution with trading completed successfully"
-                if execute_trades
-                else "Signal generation completed successfully with account integration"
-            )
-
+                
+                # Emit TradeExecuted event for monitoring (EventDrivenOrchestrator)
+                execution_success = (
+                    execution_result.success and 
+                    (execution_result.orders_placed == 0 or 
+                     execution_result.orders_succeeded == execution_result.orders_placed)
+                )
+                self._emit_trade_executed_event(execution_result, success=execution_success)
+                
+            else:
+                self.logger.info("📊 No significant trades needed - portfolio already balanced")
+                
+                # Create empty execution result
+                execution_result = ExecutionResultDTO(
+                    success=True,
+                    plan_id=f"no-trade-{uuid.uuid4()}",
+                    correlation_id=correlation_id,
+                    orders=[],
+                    orders_placed=0,
+                    orders_succeeded=0,
+                    total_trade_value=DECIMAL_ZERO,
+                    execution_timestamp=datetime.now(UTC),
+                    metadata={"scenario": "no_trades_needed"},
+                )
+                self._emit_trade_executed_event(execution_result, success=True)
+            
+            # Update workflow state
+            self.workflow_state.update({
+                "rebalancing_in_progress": False,
+                "trading_in_progress": False,
+                "last_successful_step": "trading",
+            })
+            
+            # Return results for CLI
             return {
                 "strategy_signals": strategy_signals,
                 "consolidated_portfolio": consolidated_portfolio_dto.to_dict_allocation(),
@@ -259,33 +429,94 @@ class TradingOrchestrator:
                 "execution_result": execution_result,
                 "open_orders": open_orders,
                 "success": True,
-                "message": success_message,
+                "message": "Direct trading workflow completed successfully",
+                "correlation_id": correlation_id,
             }
-
+            
         except Exception as e:
-            error_context = "with trading" if execute_trades else "signal execution"
-            self.logger.error(f"Strategy execution {error_context} failed: {e}")
+            self.logger.error(f"Direct trading workflow failed: {e}")
+            self.workflow_state.update({
+                "signal_generation_in_progress": False,
+                "rebalancing_in_progress": False,
+                "trading_in_progress": False,
+                "last_successful_step": "failed",
+            })
+            return None
 
-            # DUAL-PATH: Emit TradeExecuted event for failure case
-            if execute_trades:
+    def execute_strategy_signals(self) -> dict[str, Any] | None:
+        """Execute signal analysis workflow with direct orchestrator coordination.
+        
+        Uses direct calls to domain orchestrators for synchronous execution.
+        No event redundancy - pure direct coordination.
+        """
+        try:
+            # Generate correlation ID for this workflow
+            correlation_id = str(uuid.uuid4())
+            
+            self.logger.info("📊 Starting direct signal analysis workflow")
+            
+            # Update workflow state for tracking
+            self.workflow_state.update({
+                "signal_generation_in_progress": True,
+                "rebalancing_in_progress": False,
+                "trading_in_progress": False,
+                "last_correlation_id": correlation_id,
+                "last_successful_step": None,
+            })
+            
+            # Generate signals via SignalOrchestrator
+            self.logger.info("🔄 Generating strategy signals")
+            strategy_signals, consolidated_portfolio_dto = self.signal_orchestrator.generate_signals()
+            
+            if not strategy_signals:
+                self.logger.error("Failed to generate strategy signals")
+                return None
+
+            # Validate signal quality before proceeding
+            if not self.signal_orchestrator.validate_signal_quality(strategy_signals):
+                self.logger.error("Signal analysis failed validation - no meaningful data available")
+                return None
+                
+            self.workflow_state["signal_generation_in_progress"] = False
+            self.workflow_state["last_successful_step"] = "signal_generation"
+            self.logger.info("✅ Signal generation completed")
+            
+            # Get account data for context (optional for signal-only mode)
+            account_data = self.portfolio_orchestrator.get_comprehensive_account_data()
+            account_info = account_data.get("account_info") if account_data else None
+            current_positions = account_data.get("current_positions", {}) if account_data else {}
+            open_orders = account_data.get("open_orders", []) if account_data else []
+            
+            # For signal-only mode, we can optionally get allocation comparison for analysis
+            allocation_comparison = None
+            if account_data and account_info:
                 try:
-                    failed_result = ExecutionResultDTO(
-                        success=False,
-                        plan_id=f"failed-{uuid.uuid4()}",
-                        correlation_id=str(uuid.uuid4()),
-                        orders=[],
-                        orders_placed=0,
-                        orders_succeeded=0,
-                        total_trade_value=DECIMAL_ZERO,
-                        execution_timestamp=datetime.now(UTC),
-                        metadata={"error": str(e)},
-                    )
-                    self._emit_trade_executed_event(
-                        failed_result, success=False, error_message=str(e)
-                    )
-                except Exception as emit_error:
-                    self.logger.warning(f"Failed to emit failure event: {emit_error}")
-
+                    allocation_comparison = self.portfolio_orchestrator.analyze_allocation_comparison(consolidated_portfolio_dto)
+                    self.logger.info("✅ Portfolio analysis completed (for reference)")
+                except Exception as e:
+                    self.logger.warning(f"Portfolio analysis failed (optional for signal mode): {e}")
+            
+            # Return results for CLI
+            return {
+                "strategy_signals": strategy_signals,
+                "consolidated_portfolio": consolidated_portfolio_dto.to_dict_allocation(),
+                "account_info": account_info,
+                "current_positions": current_positions,
+                "allocation_comparison": allocation_comparison,
+                "orders_executed": [],  # No execution in signal-only mode
+                "execution_result": None,  # No execution in signal-only mode
+                "open_orders": open_orders,
+                "success": True,
+                "message": "Direct signal analysis workflow completed successfully",
+                "correlation_id": correlation_id,
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Direct signal analysis workflow failed: {e}")
+            self.workflow_state.update({
+                "signal_generation_in_progress": False,
+                "last_successful_step": "failed",
+            })
             return None
 
     def send_trading_notification(self, result: dict[str, Any], mode_str: str) -> None:

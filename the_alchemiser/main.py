@@ -310,9 +310,10 @@ def main(argv: list[str] | None = None) -> bool:
         system = TradingSystem()
 
         # PHASE 6: Emit StartupEvent to trigger event-driven workflows
-        system._emit_startup_event(
-            args.mode, ignore_market_hours=getattr(args, "ignore_market_hours", False)
-        )
+        # NOTE: Disabled for now since TradingOrchestrator emits its own StartupEvent
+        # system._emit_startup_event(
+        #     args.mode, ignore_market_hours=getattr(args, "ignore_market_hours", False)
+        # )
 
         # Display header with simple trading mode detection
         if args.mode == "trade":

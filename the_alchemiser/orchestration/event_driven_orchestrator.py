@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Business Unit: orchestration | Status: current.
 
-Event-driven orchestration handlers for startup, recovery, and reconciliation.
+Event-driven orchestration handlers for cross-cutting concerns.
 
-Provides event handlers that replace traditional direct-call orchestration
-with event-driven workflows for better decoupling and extensibility.
+Provides event handlers for notifications, reconciliation, monitoring, and recovery 
+across the trading workflow. Focused on cross-cutting concerns rather than domain execution.
 """
 
 from __future__ import annotations
@@ -26,10 +26,10 @@ from the_alchemiser.shared.logging.logging_utils import get_logger
 
 
 class EventDrivenOrchestrator:
-    """Event-driven orchestrator for startup, recovery, and reconciliation workflows.
+    """Event-driven orchestrator for cross-cutting workflow concerns.
 
-    Replaces traditional direct-call orchestration with event-driven handlers
-    that provide better decoupling and extensibility.
+    Handles notifications, reconciliation, monitoring, and recovery across 
+    the trading workflow without duplicating domain logic.
     """
 
     def __init__(self, container: ApplicationContainer) -> None:
@@ -48,27 +48,28 @@ class EventDrivenOrchestrator:
         # Register event handlers
         self._register_handlers()
 
-        # Track workflow state for recovery and reconciliation
+        # Track workflow state for monitoring and recovery
         self.workflow_state: dict[str, Any] = {
             "startup_completed": False,
             "signal_generation_in_progress": False,
             "rebalancing_in_progress": False,
             "trading_in_progress": False,
             "last_successful_workflow": None,
+            "active_correlations": set(),
         }
 
     def _register_handlers(self) -> None:
-        """Register event handlers for orchestration workflows."""
-        # Subscribe to all event types for orchestration monitoring
+        """Register event handlers for cross-cutting orchestration concerns."""
+        # Subscribe to all event types for monitoring and cross-cutting concerns
         self.event_bus.subscribe("StartupEvent", self)
         self.event_bus.subscribe("SignalGenerated", self)
         self.event_bus.subscribe("RebalancePlanned", self)
         self.event_bus.subscribe("TradeExecuted", self)
 
-        self.logger.info("Registered event-driven orchestration handlers")
+        self.logger.info("Registered event-driven orchestration handlers for cross-cutting concerns")
 
     def handle_event(self, event: BaseEvent) -> None:
-        """Handle events for orchestration workflows.
+        """Handle events for cross-cutting orchestration concerns.
 
         Args:
             event: The event to handle
@@ -85,12 +86,12 @@ class EventDrivenOrchestrator:
                 self._handle_trade_executed(event)
             else:
                 self.logger.debug(
-                    f"Orchestrator ignoring event type: {event.event_type}"
+                    f"EventDrivenOrchestrator ignoring event type: {event.event_type}"
                 )
 
         except Exception as e:
             self.logger.error(
-                f"Orchestration event handling failed for {event.event_type}: {e}",
+                f"EventDrivenOrchestrator event handling failed for {event.event_type}: {e}",
                 extra={
                     "event_id": event.event_id,
                     "correlation_id": event.correlation_id,
@@ -115,19 +116,17 @@ class EventDrivenOrchestrator:
         ]
 
     def _handle_startup(self, event: StartupEvent) -> None:
-        """Handle system startup event.
-
-        Initializes orchestration workflows and prepares for signal generation.
+        """Handle system startup event for monitoring and coordination.
 
         Args:
             event: The startup event
 
         """
         self.logger.info(
-            f"🚀 System startup orchestration triggered for mode: {event.startup_mode}"
+            f"🚀 EventDrivenOrchestrator: System startup monitoring for mode: {event.startup_mode}"
         )
 
-        # Reset workflow state for new run
+        # Update workflow monitoring state
         self.workflow_state.update(
             {
                 "startup_completed": True,
@@ -137,94 +136,73 @@ class EventDrivenOrchestrator:
             }
         )
 
-        # Perform startup orchestration tasks
-        startup_mode = event.startup_mode
+        # Track this correlation for monitoring
+        self.workflow_state["active_correlations"].add(event.correlation_id)
+
+        # Log startup configuration for monitoring
         configuration = event.configuration or {}
-
-        if startup_mode == "signal":
-            self.logger.info("Orchestrating signal-only workflow")
-            # For signal mode, workflow will be triggered by SignalOrchestrator
-        elif startup_mode == "trade":
-            self.logger.info("Orchestrating full trading workflow")
-            # For trade mode, workflow includes portfolio rebalancing and execution
-
-        # Log startup configuration
-        self.logger.debug(f"Startup configuration: {configuration}")
+        self.logger.debug(f"Monitoring startup configuration: {configuration}")
 
         # Track successful startup
         self.workflow_state["last_successful_workflow"] = "startup"
 
     def _handle_signal_generated(self, event: SignalGenerated) -> None:
-        """Handle signal generation event.
-
-        Orchestrates the portfolio rebalancing workflow in response to signals.
+        """Handle signal generation event for monitoring.
 
         Args:
             event: The signal generated event
 
         """
         self.logger.info(
-            f"📊 Signal generation orchestration: {len(event.signals)} signals received"
+            f"📊 EventDrivenOrchestrator: Monitoring signal generation - {len(event.signals)} signals"
         )
 
-        # Update workflow state
+        # Update monitoring state
         self.workflow_state.update(
             {
                 "signal_generation_in_progress": False,  # Signals completed
-                "rebalancing_in_progress": True,  # Start rebalancing
+                "rebalancing_in_progress": True,  # Rebalancing should start
             }
         )
 
-        # Log signal summary for orchestration tracking
+        # Log signal summary for monitoring
         for signal in event.signals:
             self.logger.debug(
-                f"Orchestrating signal: {signal.symbol} {signal.action} "
+                f"Monitoring signal: {signal.symbol} {signal.action} "
                 f"(strategy: {signal.strategy_name}, confidence: {signal.confidence})"
             )
-
-        # In Phase 7, this would trigger portfolio rebalancing via events
-        # For now, log orchestration intent
-        self.logger.info("Orchestration: Ready to trigger portfolio rebalancing")
 
         # Track successful signal processing
         self.workflow_state["last_successful_workflow"] = "signal_generation"
 
     def _handle_rebalance_planned(self, event: RebalancePlanned) -> None:
-        """Handle rebalance planning event.
-
-        Orchestrates the trade execution workflow in response to rebalancing plans.
+        """Handle rebalance planning event for monitoring.
 
         Args:
             event: The rebalance planned event
 
         """
         self.logger.info(
-            f"⚖️ Rebalance planning orchestration: {len(event.rebalance_plan.items)} trades planned"
+            f"⚖️ EventDrivenOrchestrator: Monitoring rebalance planning - {len(event.rebalance_plan.items)} trades"
         )
 
-        # Update workflow state
+        # Update monitoring state
         self.workflow_state.update(
             {
                 "rebalancing_in_progress": False,  # Rebalancing plan completed
-                "trading_in_progress": True,  # Start trade execution
+                "trading_in_progress": True,  # Trading should start
             }
         )
 
-        # Log rebalancing plan summary for orchestration tracking
+        # Log rebalancing plan summary for monitoring
         total_value = event.rebalance_plan.total_trade_value
-        self.logger.debug(f"Orchestrating total trade value: ${total_value}")
-
-        # In Phase 7, this would trigger trade execution via events
-        # For now, log orchestration intent
-        self.logger.info("Orchestration: Ready to trigger trade execution")
+        self.logger.debug(f"Monitoring total trade value: ${total_value}")
 
         # Track successful rebalancing
         self.workflow_state["last_successful_workflow"] = "rebalancing"
 
     def _handle_trade_executed(self, event: TradeExecuted) -> None:
-        """Handle trade execution event.
-
-        Completes the orchestration workflow and performs reconciliation.
+        """Handle trade execution event for notifications and reconciliation.
 
         Args:
             event: The trade executed event
@@ -232,31 +210,93 @@ class EventDrivenOrchestrator:
         """
         success = event.success
         self.logger.info(
-            f"🎯 Trade execution orchestration completed: {'✅' if success else '❌'}"
+            f"🎯 EventDrivenOrchestrator: Trade execution monitoring - {'✅' if success else '❌'}"
         )
 
-        # Update workflow state
+        # Update monitoring state
         self.workflow_state.update(
             {
                 "trading_in_progress": False,  # Trading completed
             }
         )
 
+        # Remove from active correlations as workflow is complete
+        self.workflow_state["active_correlations"].discard(event.correlation_id)
+
         if success:
             self.logger.info(
-                "Orchestration: Full trading workflow completed successfully"
+                "EventDrivenOrchestrator: Full trading workflow monitoring completed successfully"
             )
             self.workflow_state["last_successful_workflow"] = "trading"
 
             # Perform post-trade reconciliation
             self._perform_reconciliation(event)
+            
+            # Send success notification
+            self._send_trading_notification(event, success=True)
         else:
             self.logger.error(
-                f"Orchestration: Trading workflow failed - {event.error_message}"
+                f"EventDrivenOrchestrator: Trading workflow monitoring detected failure - {event.error_message}"
             )
 
+            # Send failure notification  
+            self._send_trading_notification(event, success=False)
+            
             # Trigger recovery workflow
             self._trigger_recovery_workflow(event)
+
+    def _send_trading_notification(self, event: TradeExecuted, *, success: bool) -> None:
+        """Send trading completion notification.
+
+        Args:
+            event: The TradeExecuted event
+            success: Whether the trading was successful
+
+        """
+        try:
+            from the_alchemiser.shared.notifications.email_utils import (
+                build_error_email_html,
+                send_email_notification,
+            )
+
+            # Determine trading mode from container
+            is_live = not self.container.config.paper_trading()
+            mode_str = "LIVE" if is_live else "PAPER"
+            
+            # Extract execution data
+            execution_data = event.execution_results
+            orders_placed = execution_data.get("orders_placed", 0)
+            orders_succeeded = execution_data.get("orders_succeeded", 0)
+            total_trade_value = execution_data.get("total_trade_value", 0)
+
+            if success:
+                html_content = f"""
+                <h2>Trading Execution Report - {mode_str.upper()}</h2>
+                <p><strong>Status:</strong> Success</p>
+                <p><strong>Orders Placed:</strong> {orders_placed}</p>
+                <p><strong>Orders Succeeded:</strong> {orders_succeeded}</p>
+                <p><strong>Total Trade Value:</strong> ${total_trade_value:,.2f}</p>
+                <p><strong>Correlation ID:</strong> {event.correlation_id}</p>
+                <p><strong>Timestamp:</strong> {event.timestamp}</p>
+                """
+            else:
+                error_message = event.error_message or "Unknown error"
+                html_content = build_error_email_html(
+                    "Trading Execution Failed",
+                    f"Trading workflow failed: {error_message}",
+                )
+
+            send_email_notification(
+                subject=f"📈 The Alchemiser - {mode_str.upper()} Trading Report",
+                html_content=html_content,
+                text_content=f"Trading execution completed. Success: {success}",
+            )
+
+            self.logger.info(f"Trading notification sent successfully (success={success})")
+
+        except Exception as e:
+            # Don't let notification failure break the workflow
+            self.logger.warning(f"Failed to send trading notification: {e}")
 
     def _perform_reconciliation(self, event: TradeExecuted) -> None:
         """Perform post-trade reconciliation workflow.
@@ -268,7 +308,7 @@ class EventDrivenOrchestrator:
         self.logger.info("🔄 Starting post-trade reconciliation")
 
         try:
-            # In Phase 7, this would:
+            # In the future, this would:
             # 1. Verify portfolio state matches expectations
             # 2. Check trade execution accuracy
             # 3. Update position tracking
@@ -284,17 +324,17 @@ class EventDrivenOrchestrator:
             self.logger.error(f"Reconciliation failed: {e}")
 
     def _trigger_recovery_workflow(self, event: TradeExecuted) -> None:
-        """Trigger recovery workflow for failed operations.
+        """Trigger recovery workflow for failed trades.
 
         Args:
-            event: The trade executed event that failed
+            event: The trade executed event (failed)
 
         """
-        self.logger.info("🛠️ Starting recovery workflow")
+        self.logger.info("🚨 Starting recovery workflow for failed trades")
 
         try:
-            # In Phase 7, this would:
-            # 1. Assess the failure state
+            # In the future, this would:
+            # 1. Analyze failure causes
             # 2. Determine recovery actions
             # 3. Emit recovery events
             # 4. Alert system administrators
@@ -305,7 +345,7 @@ class EventDrivenOrchestrator:
 
             # For now, log the recovery intent
             self.logger.info(
-                "Recovery workflow prepared (full implementation in Phase 7)"
+                "Recovery workflow prepared (full implementation in future iterations)"
             )
 
         except Exception as e:
