@@ -212,7 +212,9 @@ class Executor:
 
         # Pre-subscribe to all symbols at once to avoid connection limits
         if self.pricing_service and self.enable_smart_execution:
-            all_symbols = {item.symbol for item in plan.items if item.action in ["BUY", "SELL"]}
+            all_symbols = {
+                item.symbol for item in plan.items if item.action in ["BUY", "SELL"]
+            }
             if all_symbols:
                 logger.info(f"📡 Pre-subscribing to all symbols: {sorted(all_symbols)}")
                 for symbol in sorted(all_symbols):  # Sort for consistent ordering
