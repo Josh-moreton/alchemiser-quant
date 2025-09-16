@@ -272,22 +272,6 @@ class Executor:
             orders_succeeded += buy_stats["succeeded"]
             total_trade_value += buy_stats["trade_value"]
 
-        # Phase 3: Monitor active orders for re-pegging opportunities
-        if self.smart_strategy and self.enable_smart_execution:
-            logger.info("🔄 Phase 3: Monitoring orders for re-pegging opportunities...")
-            repeg_results = await self.smart_strategy.check_and_repeg_orders()
-            
-            if repeg_results:
-                logger.info(f"📊 Re-pegging results: {len(repeg_results)} orders processed")
-                for repeg_result in repeg_results:
-                    if repeg_result.success:
-                        logger.info(
-                            f"✅ Re-peg successful: {repeg_result.order_id} "
-                            f"(attempt {repeg_result.repegs_used})"
-                        )
-                    else:
-                        logger.warning(f"⚠️ Re-peg failed: {repeg_result.error_message}")
-
         # Log HOLD items
         for item in hold_items:
             logger.info(f"⏸️ Holding {item.symbol} - no action required")
@@ -367,7 +351,7 @@ class Executor:
         return subscription_results
 
     async def _execute_sell_phase(self, sell_items: list) -> tuple[list[OrderResultDTO], dict]:
-        """Execute sell orders phase.
+        """Execute sell orders phase with integrated re-pegging monitoring.
         
         Args:
             sell_items: List of sell order items
@@ -381,6 +365,7 @@ class Executor:
         succeeded = 0
         trade_value = Decimal("0")
         
+        # Execute all sell orders first
         for item in sell_items:
             order_result = await self._execute_single_item(item)
             orders.append(order_result)
@@ -395,6 +380,11 @@ class Executor:
                 )
             else:
                 logger.error(f"❌ SELL {item.symbol} failed: {order_result.error_message}")
+        
+        # Monitor and re-peg sell orders that haven't filled
+        if self.smart_strategy and self.enable_smart_execution:
+            logger.info("🔄 Monitoring SELL orders for re-pegging opportunities...")
+            await self._monitor_and_repeg_phase_orders("SELL", orders)
         
         return orders, {"placed": placed, "succeeded": succeeded, "trade_value": trade_value}
 
@@ -442,7 +432,7 @@ class Executor:
         return await self._execute_buy_phase(buy_items)
 
     async def _execute_buy_phase(self, buy_items: list) -> tuple[list[OrderResultDTO], dict]:
-        """Execute buy orders phase.
+        """Execute buy orders phase with integrated re-pegging monitoring.
         
         Args:
             buy_items: List of buy order items
@@ -456,6 +446,7 @@ class Executor:
         succeeded = 0
         trade_value = Decimal("0")
         
+        # Execute all buy orders first
         for item in buy_items:
             order_result = await self._execute_single_item(item)
             orders.append(order_result)
@@ -471,7 +462,39 @@ class Executor:
             else:
                 logger.error(f"❌ BUY {item.symbol} failed: {order_result.error_message}")
         
+        # Monitor and re-peg buy orders that haven't filled
+        if self.smart_strategy and self.enable_smart_execution:
+            logger.info("🔄 Monitoring BUY orders for re-pegging opportunities...")
+            await self._monitor_and_repeg_phase_orders("BUY", orders)
+        
         return orders, {"placed": placed, "succeeded": succeeded, "trade_value": trade_value}
+
+    async def _monitor_and_repeg_phase_orders(self, phase_type: str, orders: list) -> None:
+        """Monitor and re-peg orders from a specific execution phase.
+        
+        Args:
+            phase_type: Type of phase ("SELL" or "BUY")
+            orders: List of orders from this phase to monitor
+        """
+        # Wait a moment for orders to potentially fill before checking for re-pegging
+        import asyncio
+        await asyncio.sleep(1)
+        
+        # Check for re-pegging opportunities on orders from this phase
+        repeg_results = await self.smart_strategy.check_and_repeg_orders()
+        
+        if repeg_results:
+            logger.info(f"📊 {phase_type} phase re-pegging: {len(repeg_results)} orders processed")
+            for repeg_result in repeg_results:
+                if repeg_result.success:
+                    logger.info(
+                        f"✅ {phase_type} re-peg successful: {repeg_result.order_id} "
+                        f"(attempt {repeg_result.repegs_used})"
+                    )
+                else:
+                    logger.warning(f"⚠️ {phase_type} re-peg failed: {repeg_result.error_message}")
+        else:
+            logger.info(f"📊 {phase_type} phase: No re-pegging needed")
 
     def _cleanup_subscriptions(self, symbols: list[str]) -> None:
         """Clean up pricing subscriptions after execution.
