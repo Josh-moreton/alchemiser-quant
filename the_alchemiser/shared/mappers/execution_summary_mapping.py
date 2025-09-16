@@ -85,7 +85,9 @@ def dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummaryDTO:
         if isinstance(strategy_data, dict):
             # Ensure strategy_name is in the data
             strategy_data_with_name = {**strategy_data, "strategy_name": strategy_name}
-            strategy_summary[strategy_name] = dict_to_strategy_summary_dto(strategy_data_with_name)
+            strategy_summary[strategy_name] = dict_to_strategy_summary_dto(
+                strategy_data_with_name
+            )
 
     # Handle trading summary
     trading_summary_data = data.get("trading_summary", {})
@@ -157,11 +159,13 @@ def dict_to_portfolio_state_dto(data: dict[str, Any]) -> PortfolioStateDTO:
     )
 
 
-def allocation_comparison_to_dict(allocation_comparison: Any) -> dict[str, Any]:
+def allocation_comparison_to_dict(
+    allocation_comparison: dict[str, Any] | AllocationSummaryDTO,
+) -> dict[str, Any]:
     """Convert allocation comparison DTO to dictionary format.
 
     Args:
-        allocation_comparison: Allocation comparison DTO or similar object
+        allocation_comparison: Allocation comparison DTO or dictionary object
 
     Returns:
         Dictionary with target_values, current_values, and deltas keys

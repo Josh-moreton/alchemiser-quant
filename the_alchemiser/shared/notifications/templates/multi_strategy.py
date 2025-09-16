@@ -7,8 +7,6 @@ This module handles the multi-strategy email template generation.
 
 from __future__ import annotations
 
-from typing import Any
-
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 
 from .base import BaseEmailTemplate
@@ -22,7 +20,7 @@ class MultiStrategyReportBuilder:
 
     @staticmethod
     def build_multi_strategy_report(
-        result: MultiStrategyExecutionResultDTO | Any, mode: str
+        result: MultiStrategyExecutionResultDTO, mode: str
     ) -> str:
         """Build a comprehensive multi-strategy email report."""
         # Determine success status
@@ -34,7 +32,10 @@ class MultiStrategyReportBuilder:
         # Build content sections
         header = BaseEmailTemplate.get_header("The Alchemiser")
         status_banner = BaseEmailTemplate.get_status_banner(
-            f"{mode.upper()} Multi-Strategy Report", status_text, status_color, status_emoji
+            f"{mode.upper()} Multi-Strategy Report",
+            status_text,
+            status_color,
+            status_emoji,
         )
 
         # Get execution summary data
@@ -52,12 +53,15 @@ class MultiStrategyReportBuilder:
         # Account summary
         if account_after:
             account_html = BaseEmailTemplate.create_section(
-                "💰 Account Summary", PortfolioBuilder.build_account_summary(account_after)
+                "💰 Account Summary",
+                PortfolioBuilder.build_account_summary(account_after),
             )
             content_sections.append(account_html)
 
         # Market regime analysis
-        market_regime_html = SignalsBuilder.build_market_regime_analysis(strategy_signals)
+        market_regime_html = SignalsBuilder.build_market_regime_analysis(
+            strategy_signals
+        )
         if market_regime_html:
             content_sections.append(market_regime_html)
 
@@ -77,17 +81,22 @@ class MultiStrategyReportBuilder:
 
         # Technical indicators
         if strategy_signals:
-            indicators_html = SignalsBuilder.build_technical_indicators(strategy_signals)
+            indicators_html = SignalsBuilder.build_technical_indicators(
+                strategy_signals
+            )
             content_sections.append(indicators_html)
 
         # Trading summary
         if trading_summary:
-            trading_summary_html = PerformanceBuilder.build_trading_summary(trading_summary)
+            trading_summary_html = PerformanceBuilder.build_trading_summary(
+                trading_summary
+            )
             content_sections.append(trading_summary_html)
 
         # Portfolio allocation
         portfolio_allocation_html = BaseEmailTemplate.create_section(
-            "📈 Portfolio Allocation", PortfolioBuilder.build_portfolio_allocation(result)
+            "📈 Portfolio Allocation",
+            PortfolioBuilder.build_portfolio_allocation(result),
         )
         content_sections.append(portfolio_allocation_html)
 
@@ -124,11 +133,13 @@ class MultiStrategyReportBuilder:
         {footer}
         """
 
-        return BaseEmailTemplate.wrap_content(content, "The Alchemiser - Multi-Strategy Report")
+        return BaseEmailTemplate.wrap_content(
+            content, "The Alchemiser - Multi-Strategy Report"
+        )
 
     @staticmethod
     def build_multi_strategy_report_neutral(
-        result: MultiStrategyExecutionResultDTO | Any, mode: str
+        result: MultiStrategyExecutionResultDTO, mode: str
     ) -> str:
         """Build a neutral multi-strategy email report without financial values."""
         # Determine success status
@@ -139,7 +150,10 @@ class MultiStrategyReportBuilder:
 
         # Build content sections
         combined_header = BaseEmailTemplate.get_combined_header_status(
-            f"{mode.upper()} Multi-Strategy Report", status_text, status_color, status_emoji
+            f"{mode.upper()} Multi-Strategy Report",
+            status_text,
+            status_color,
+            status_emoji,
         )
 
         # Get strategy signals for market regime and signals
@@ -150,18 +164,23 @@ class MultiStrategyReportBuilder:
 
         # Portfolio rebalancing table (percentages only)
         rebalancing_html = BaseEmailTemplate.create_section(
-            "🔄 Portfolio Rebalancing", PortfolioBuilder.build_portfolio_rebalancing_table(result)
+            "🔄 Portfolio Rebalancing",
+            PortfolioBuilder.build_portfolio_rebalancing_table(result),
         )
         content_sections.append(rebalancing_html)
 
         # Market regime analysis (no financial data)
-        market_regime_html = SignalsBuilder.build_market_regime_analysis(strategy_signals)
+        market_regime_html = SignalsBuilder.build_market_regime_analysis(
+            strategy_signals
+        )
         if market_regime_html:
             content_sections.append(market_regime_html)
 
         # Strategy signals (neutral mode)
         if strategy_signals:
-            neutral_signals_html = SignalsBuilder.build_strategy_signals_neutral(strategy_signals)
+            neutral_signals_html = SignalsBuilder.build_strategy_signals_neutral(
+                strategy_signals
+            )
             content_sections.append(neutral_signals_html)
 
         # Orders executed (detailed table, no values)
@@ -174,7 +193,8 @@ class MultiStrategyReportBuilder:
             content_sections.append(neutral_orders_html)
         else:
             neutral_orders_html = BaseEmailTemplate.create_section(
-                "📋 Trading Activity", "<p>No orders executed - portfolio already balanced</p>"
+                "📋 Trading Activity",
+                "<p>No orders executed - portfolio already balanced</p>",
             )
             content_sections.append(neutral_orders_html)
 

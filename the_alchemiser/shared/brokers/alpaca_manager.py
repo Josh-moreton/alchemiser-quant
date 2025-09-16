@@ -27,6 +27,7 @@ from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
+from alpaca.trading.models import Order, Position, TradeAccount
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
 from the_alchemiser.shared.dto.broker_dto import (
@@ -122,12 +123,12 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         return self._paper
 
     @property
-    def trading_client(self) -> Any:
+    def trading_client(self) -> TradingClient:
         """Return underlying trading client for backward compatibility."""
         return self._trading_client
 
     # Helper methods for DTO mapping
-    def _alpaca_order_to_execution_result(self, order: Any) -> OrderExecutionResult:
+    def _alpaca_order_to_execution_result(self, order: Order) -> OrderExecutionResult:
         """Convert Alpaca order object to OrderExecutionResult.
 
         Simple implementation that avoids circular imports.
@@ -211,7 +212,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         )
 
     # Trading Operations
-    def get_account(self) -> Any:
+    def get_account(self) -> TradeAccount:
         """Get account information with error handling."""
         try:
             account = self._trading_client.get_account()
@@ -278,7 +279,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             pass
         return result
 
-    def get_position(self, symbol: str) -> Any | None:
+    def get_position(self, symbol: str) -> Position | None:
         """Get position for a specific symbol."""
         try:
             position = self._trading_client.get_open_position(symbol)
@@ -291,7 +292,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get position for {symbol}: {e}")
             raise
 
-    def place_order(self, order_request: Any) -> ExecutedOrderDTO:
+    def place_order(
+        self, order_request: LimitOrderRequest | MarketOrderRequest
+    ) -> ExecutedOrderDTO:
         """Place an order and return execution details."""
         try:
             order = self._trading_client.submit_order(order_request)

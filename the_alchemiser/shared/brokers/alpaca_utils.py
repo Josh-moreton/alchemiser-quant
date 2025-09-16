@@ -9,27 +9,31 @@ reduce the number of direct Alpaca imports scattered throughout the codebase.
 
 from __future__ import annotations
 
-from typing import Any
+# Import Alpaca types for proper typing
+from alpaca.data.historical import StockHistoricalDataClient
+from alpaca.data.live import StockDataStream
+from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
+from alpaca.data.timeframe import TimeFrame
+from alpaca.trading.client import TradingClient
+from alpaca.trading.stream import TradingStream
 
 
 # Alpaca data request helpers
-def create_stock_bars_request(**kwargs: Any) -> Any:
+def create_stock_bars_request(**kwargs: str | int | bool | None) -> StockBarsRequest:
     """Create an Alpaca StockBarsRequest with the given parameters."""
-    from alpaca.data.requests import StockBarsRequest
-
     return StockBarsRequest(**kwargs)
 
 
-def create_stock_latest_quote_request(**kwargs: Any) -> Any:
+def create_stock_latest_quote_request(
+    **kwargs: str | int | bool | None,
+) -> StockLatestQuoteRequest:
     """Create an Alpaca StockLatestQuoteRequest with the given parameters."""
-    from alpaca.data.requests import StockLatestQuoteRequest
-
     return StockLatestQuoteRequest(**kwargs)
 
 
-def create_timeframe(amount: int, unit: str) -> Any:
+def create_timeframe(amount: int, unit: str) -> TimeFrame:
     """Create an Alpaca TimeFrame object."""
-    from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
+    from alpaca.data.timeframe import TimeFrameUnit
 
     # Map string units to Alpaca TimeFrameUnit
     unit_mapping = {
@@ -46,31 +50,30 @@ def create_timeframe(amount: int, unit: str) -> Any:
 
 
 # Alpaca client factory functions
-def create_trading_client(api_key: str, secret_key: str, *, paper: bool = True) -> Any:
+def create_trading_client(
+    api_key: str, secret_key: str, *, paper: bool = True
+) -> TradingClient:
     """Create an Alpaca TradingClient."""
-    from alpaca.trading.client import TradingClient
-
     return TradingClient(api_key=api_key, secret_key=secret_key, paper=paper)
 
 
-def create_data_client(api_key: str, secret_key: str) -> Any:
+def create_data_client(api_key: str, secret_key: str) -> StockHistoricalDataClient:
     """Create an Alpaca StockHistoricalDataClient."""
-    from alpaca.data.historical import StockHistoricalDataClient
-
     return StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
 
 
-def create_trading_stream(api_key: str, secret_key: str, *, paper: bool = True) -> Any:
+def create_trading_stream(
+    api_key: str, secret_key: str, *, paper: bool = True
+) -> TradingStream:
     """Create an Alpaca TradingStream."""
-    from alpaca.trading.stream import TradingStream
-
     return TradingStream(api_key=api_key, secret_key=secret_key, paper=paper)
 
 
-def create_stock_data_stream(api_key: str, secret_key: str, feed: str = "iex") -> Any:
+def create_stock_data_stream(
+    api_key: str, secret_key: str, feed: str = "iex"
+) -> StockDataStream:
     """Create an Alpaca StockDataStream."""
     from alpaca.data.enums import DataFeed
-    from alpaca.data.live import StockDataStream
 
     # Map string feed to DataFeed enum
     feed_mapping = {
