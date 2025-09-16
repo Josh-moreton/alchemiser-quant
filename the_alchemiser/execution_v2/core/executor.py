@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 from the_alchemiser.execution_v2.core.smart_execution_strategy import (
     SmartExecutionStrategy,
@@ -29,6 +29,14 @@ if TYPE_CHECKING:
     )
 
 logger = logging.getLogger(__name__)
+
+
+class ExecutionStats(TypedDict):
+    """Statistics for execution phase results."""
+    
+    placed: int
+    succeeded: int
+    trade_value: Decimal
 
 
 class Executor:
@@ -350,7 +358,7 @@ class Executor:
         
         return subscription_results
 
-    async def _execute_sell_phase(self, sell_items: list) -> tuple[list[OrderResultDTO], dict]:
+    async def _execute_sell_phase(self, sell_items: list[RebalancePlanItemDTO]) -> tuple[list[OrderResultDTO], ExecutionStats]:
         """Execute sell orders phase with integrated re-pegging monitoring.
         
         Args:
@@ -390,11 +398,11 @@ class Executor:
 
     async def _execute_buy_phase_with_settlement_monitoring(
         self, 
-        buy_items: list, 
+        buy_items: list[RebalancePlanItemDTO], 
         sell_order_ids: list[str], 
         correlation_id: str,
         plan_id: str
-    ) -> tuple[list[OrderResultDTO], dict]:
+    ) -> tuple[list[OrderResultDTO], ExecutionStats]:
         """Execute buy phase with settlement monitoring.
         
         Args:
@@ -431,7 +439,7 @@ class Executor:
         # Now execute buy orders with released buying power
         return await self._execute_buy_phase(buy_items)
 
-    async def _execute_buy_phase(self, buy_items: list) -> tuple[list[OrderResultDTO], dict]:
+    async def _execute_buy_phase(self, buy_items: list[RebalancePlanItemDTO]) -> tuple[list[OrderResultDTO], ExecutionStats]:
         """Execute buy orders phase with integrated re-pegging monitoring.
         
         Args:
@@ -469,7 +477,7 @@ class Executor:
         
         return orders, {"placed": placed, "succeeded": succeeded, "trade_value": trade_value}
 
-    async def _monitor_and_repeg_phase_orders(self, phase_type: str, orders: list) -> None:
+    async def _monitor_and_repeg_phase_orders(self, phase_type: str, orders: list[OrderResultDTO]) -> None:
         """Monitor and re-peg orders from a specific execution phase.
         
         Args:
