@@ -927,10 +927,9 @@ def render_enriched_order_summaries(
             """Get color for order status display."""
             if order_status == "FILLED":
                 return "green"
-            elif order_status in {"NEW", "PARTIALLY_FILLED"}:
+            if order_status in {"NEW", "PARTIALLY_FILLED"}:
                 return "yellow"
-            else:
-                return "red"
+            return "red"
         
         status_color = _get_status_color(status)
 

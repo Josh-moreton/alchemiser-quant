@@ -345,8 +345,6 @@ class KLMEngine(StrategyEngine):
 
         Supports migration period where variants may return either format.
         """
-        from the_alchemiser.shared.value_objects.core_types import KLMDecision
-
         # Check if it's a KLMDecision (TypedDict)
         if isinstance(result, dict) and "symbol" in result and "action" in result:
             klm_decision: KLMDecision = result  # type: ignore[assignment]

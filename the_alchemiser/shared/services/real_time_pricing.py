@@ -98,52 +98,39 @@ class RealTimePricingService:
     """
 
     def __init__(
-        self, api_key: str, secret_key: str, *, paper_trading: bool = True
+        self,
+        api_key: str | None = None,
+        secret_key: str | None = None,
+        paper_trading: bool = True,
+        max_symbols: int = 30,
     ) -> None:
-        """Initialize real-time pricing service.
+        """Initialize real-time pricing service with WebSocket streaming.
 
         Args:
-            api_key: Alpaca API key
-            secret_key: Alpaca secret key
-            paper_trading: Whether to use paper trading environment
+            api_key: Alpaca API key (reads from env if not provided)
+            secret_key: Alpaca secret key (reads from env if not provided)
+            paper_trading: Whether to use paper trading endpoints
+            max_symbols: Maximum number of symbols to subscribe to concurrently
 
         """
-        self.api_key = api_key
-        self.secret_key = secret_key
-        self.paper_trading = paper_trading
+        # Load credentials from environment if not provided
+        if not api_key or not secret_key:
+            import os
 
-        # Real-time quote storage (thread-safe) - migrating to structured types
-        self._quotes: dict[str, RealTimeQuote] = {}  # Legacy storage - deprecated
-        self._price_data: dict[str, PriceDataModel] = {}  # New price storage
-        self._quote_data: dict[str, QuoteModel] = {}  # New quote storage
-        self._quotes_lock = threading.RLock()
+            from dotenv import load_dotenv
 
-        # Subscription management
-        self._subscribed_symbols: set[str] = set()
-        self._subscription_lock = threading.RLock()
-        self._subscription_priority: dict[str, float] = {}  # symbol -> priority score
-        self._max_symbols = 5  # Stay under Alpaca's subscription limits
+            load_dotenv()
+            api_key = api_key or os.getenv("ALPACA_KEY")
+            secret_key = secret_key or os.getenv("ALPACA_SECRET")
 
-        # Connection management
-        self._stream: object = None  # StockDataStream from alpaca_utils
-        self._stream_thread: threading.Thread | None = None
-        self._connected = False
-        self._should_reconnect = True
+        if not api_key or not secret_key:
+            logging.error("❌ Alpaca credentials not provided or found in environment")
+            raise ValueError("Alpaca API credentials required")
 
-        # Quote age tracking for cleanup
-        self._last_update: dict[str, datetime] = {}
-        self._cleanup_interval = 300  # 5 minutes
-        self._max_quote_age = 600  # 10 minutes
-
-        # Statistics
-        self._stats: dict[str, str | int | float | datetime | bool] = {
-            "quotes_received": 0,
-            "trades_received": 0,
-            "connection_errors": 0,
-            "subscription_limit_hits": 0,
-            "total_subscriptions": 0,
-            "last_heartbeat": None,
-        }
+        self._api_key = api_key
+        self._secret_key = secret_key
+        self._paper_trading = paper_trading
+        self._max_symbols = max_symbols
 
         logging.info(
             f"📡 Real-time pricing service initialized ({'paper' if paper_trading else 'live'})"
@@ -366,72 +353,40 @@ class RealTimePricingService:
 
         logging.info("📡 Real-time pricing stream thread exiting")
 
-    async def _on_quote(self, quote: AlpacaQuoteData) -> None:
-        """Handle incoming quote updates from Alpaca stream."""
+    async def _on_quote(self, data: AlpacaQuoteData) -> None:
+        """Handle incoming quote data.
+
+        Args:
+            data: Quote data from Alpaca WebSocket
+
+        """
         try:
-            # Handle both Quote objects and dictionary format
-            if isinstance(quote, dict):
-                symbol = quote.get("symbol")
-                bid_price = quote.get("bid_price", 0)
-                ask_price = quote.get("ask_price", 0)
-                bid_size = quote.get("bid_size", 0)  # New field for structured types
-                ask_size = quote.get("ask_size", 0)  # New field for structured types
-                timestamp = quote.get("timestamp", datetime.now(UTC))
-            else:
-                symbol = quote.symbol
-                bid_price = quote.bid_price
-                ask_price = quote.ask_price
-                bid_size = getattr(
-                    quote, "bid_size", 0
-                )  # New field for structured types
-                ask_size = getattr(
-                    quote, "ask_size", 0
-                )  # New field for structured types
-                timestamp = quote.timestamp
+            # Extract symbol from data
+            symbol = data.symbol if hasattr(data, "symbol") else data.get("S", "")
 
             if not symbol:
+                logger.warning("Received quote with no symbol")
                 return
 
-            # Update quote data with both legacy and structured storage
-            with self._quotes_lock:
-                current_quote = self._quotes.get(symbol)
-                last_price = current_quote.last_price if current_quote else 0.0
-
-                # Legacy RealTimeQuote storage (for backward compatibility)
-                self._quotes[symbol] = RealTimeQuote(
-                    bid=float(bid_price or 0),
-                    ask=float(ask_price or 0),
-                    last_price=last_price,  # Keep existing last price from trades
-                    timestamp=timestamp or datetime.now(UTC),
-                )
-
-                # New structured QuoteModel storage
-                self._quote_data[symbol] = QuoteModel(
-                    symbol=symbol,
-                    bid_price=float(bid_price or 0),
-                    ask_price=float(ask_price or 0),
-                    bid_size=float(bid_size or 0),
-                    ask_size=float(ask_size or 0),
-                    timestamp=timestamp or datetime.now(UTC),
-                )
-
-                self._last_update[symbol] = datetime.now(UTC)
-                self._stats["quotes_received"] += 1
-
-            # Update heartbeat
-            self._stats["last_heartbeat"] = datetime.now(UTC)
-
-            logging.debug(
-                f"📊 Quote: {symbol} ${float(bid_price or 0):.2f}/${float(ask_price or 0):.2f}"
+            # Log for debugging
+            logger.debug(
+                f"📊 Quote received for {symbol}: bid={getattr(data, 'bid_price', 'N/A')}, ask={getattr(data, 'ask_price', 'N/A')}"
             )
+
+            # Store complete quote data
+            self._latest_quotes[symbol] = data
+
+            # Update bid/ask tracking
+            if hasattr(data, "bid_price") and hasattr(data, "ask_price"):
+                self._latest_bid[symbol] = data.bid_price
+                self._latest_ask[symbol] = data.ask_price
+
+            # Update statistics
+            self._stats["quotes_received"] += 1
+            self._last_quote_time[symbol] = datetime.now(UTC)
 
         except Exception as e:
-            symbol_str = str(
-                quote.get("symbol", "unknown")
-                if isinstance(quote, dict)
-                else getattr(quote, "symbol", "unknown")
-            )
-            logging.error(f"Error processing quote for {symbol_str}: {e}")
+            logger.error(f"Error processing quote: {e}", exc_info=True)
 
     async def _on_trade(self, trade: AlpacaTradeData) -> None:
         """Handle incoming trade updates from Alpaca stream."""
@@ -701,6 +656,7 @@ class RealTimePricingService:
         if priority is None:
             priority = time.time()  # Use current timestamp as default priority
 
+        needs_restart = False
         with self._subscription_lock:
             # Check if we need to manage subscription limits
             if (
@@ -721,8 +677,10 @@ class RealTimePricingService:
                     logging.info(
                         f"📊 Subscription limit reached. Replacing {lowest_priority_symbol} (priority: {lowest_priority:.1f}) with {symbol} (priority: {priority:.1f})"
                     )
-                    self.unsubscribe_symbol(lowest_priority_symbol)
+                    self._subscribed_symbols.remove(lowest_priority_symbol)
+                    self._subscription_priority.pop(lowest_priority_symbol, None)
                     self._stats["subscription_limit_hits"] += 1
+                    needs_restart = True
                 else:
                     logging.warning(
                         f"⚠️ Cannot subscribe to {symbol} - priority {priority:.1f} too low (limit: {self._max_symbols} symbols)"
@@ -732,9 +690,8 @@ class RealTimePricingService:
             if symbol not in self._subscribed_symbols:
                 self._subscribed_symbols.add(symbol)
                 self._subscription_priority[symbol] = priority
+                needs_restart = self._connected  # Only restart if already connected
 
-                # Instead of trying to subscribe to a running stream,
-                # we'll let the stream setup handle this in _run_stream_async()
                 logging.info(
                     f"📡 Added {symbol} to subscription list (priority: {priority:.1f})"
                 )
@@ -747,6 +704,54 @@ class RealTimePricingService:
                 self._subscription_priority[symbol] = max(
                     self._subscription_priority.get(symbol, 0), priority
                 )
+
+        # Restart stream if needed (outside the lock to avoid deadlock)
+        if needs_restart and self._connected:
+            logging.info(f"🔄 Restarting stream to add subscription for {symbol}")
+            self._restart_stream_for_new_subscription()
+
+    def _restart_stream_for_new_subscription(self) -> None:
+        """Restart the stream to pick up new subscriptions.
+
+        This is necessary because Alpaca SDK doesn't allow adding subscriptions
+        to a running stream - they must be set up before stream.run().
+        """
+        try:
+            # Signal the current stream to stop
+            self._should_reconnect = False
+            if self._stream:
+                try:
+                    self._stream.stop()
+                except Exception as e:
+                    logging.debug(f"Error stopping stream for restart: {e}")
+
+            # Wait for the stream thread to finish
+            if self._stream_thread and self._stream_thread.is_alive():
+                self._stream_thread.join(timeout=2.0)
+
+            # Restart with new subscriptions
+            self._should_reconnect = True
+            self._connected = False
+            self._stream_thread = threading.Thread(
+                target=self._run_stream_with_event_loop,
+                name="RealTimePricing",
+                daemon=True,
+            )
+            self._stream_thread.start()
+
+            # Wait for reconnection
+            start_time = time.time()
+            while time.time() - start_time < 5.0:
+                if self._connected:
+                    logging.info(
+                        "✅ Stream restarted successfully with new subscriptions"
+                    )
+                    break
+                time.sleep(0.1)
+
+        except Exception as e:
+            logging.error(f"Error restarting stream for new subscription: {e}")
+            self._connected = False
 
     def unsubscribe_symbol(self, symbol: str) -> None:
         """Unsubscribe from real-time updates for a specific symbol.
@@ -770,63 +775,40 @@ class RealTimePricingService:
                 logging.info(f"📴 Unsubscribed from real-time data for {symbol}")
 
     def subscribe_for_trading(self, symbol: str) -> None:
-        """Subscribe to a symbol with high priority for active trading.
+        """Subscribe to real-time data for a symbol that will be traded.
 
         Args:
-            symbol: Stock symbol being actively traded
+            symbol: Stock symbol to subscribe to
 
         """
-        # High priority for active trading
-        trading_priority = time.time() + 86400  # Current time + 1 day
-        self.subscribe_symbol(symbol, trading_priority)
+        self.pricing_service.subscribe_for_trading(symbol)
 
     def subscribe_for_order_placement(self, symbol: str) -> None:
-        """Subscribe to a symbol temporarily for order placement.
+        """Subscribe to a symbol specifically for order placement.
 
-        Uses the highest priority to ensure subscription.
+        This method ensures the symbol is subscribed with high priority
+        for immediate order execution needs.
 
         Args:
-            symbol: Stock symbol for order placement
+            symbol: The symbol to subscribe to
 
         """
-        # Maximum priority for order placement
-        order_priority = (
-            time.time() + 172800
-        )  # Current time + 2 days (highest priority)
-        self.subscribe_symbol(symbol, order_priority)
-        logging.debug(
-            f"Subscribed to {symbol} for order placement (priority: {order_priority:.1f})"
-        )
+        # Subscribe with high priority (current timestamp ensures recent priority)
+        self.subscribe_symbol(symbol, priority=time.time() + 1000)  # High priority
+
+        # Log for debugging
+        logger.info(f"📊 Subscribed {symbol} for order placement (high priority)")
 
     def unsubscribe_after_order(self, symbol: str) -> None:
-        """Unsubscribe from a symbol after order placement is complete.
-
-        Only unsubscribes if no other high-priority needs exist.
+        """Optionally unsubscribe from a symbol after order placement.
 
         Args:
-            symbol: Stock symbol to potentially unsubscribe from
+            symbol: The symbol to unsubscribe from
 
         """
-        with self._subscription_lock:
-            if symbol in self._subscribed_symbols:
-                # Check if this was a temporary subscription for order placement
-                current_priority = self._subscription_priority.get(symbol, 0)
-                base_priority = time.time()  # Current time as baseline
-
-                # If priority is very high (order placement), reduce it
-                if current_priority > base_priority + 86400:  # More than 1 day ahead
-                    # Reduce priority to normal level
-                    self._subscription_priority[symbol] = base_priority
-                    logging.debug(
-                        f"Reduced priority for {symbol} after order placement"
-                    )
-
-                    # If we're over subscription limits, this may trigger unsubscription
-                    # during the next subscription request
-                else:
-                    logging.debug(
-                        f"Keeping subscription for {symbol} (normal priority: {current_priority:.1f})"
-                    )
+        # For now, keep subscriptions active for potential re-pegging
+        # Could implement cleanup logic here if needed
+        logger.debug(f"Keeping {symbol} subscription active for monitoring")
 
     def get_optimized_price_for_order(self, symbol: str) -> float | None:
         """Get the most accurate price for order placement with temporary subscription.
@@ -865,7 +847,12 @@ class RealTimePricingService:
         return self.get_real_time_price(symbol)
 
     def get_subscribed_symbols(self) -> set[str]:
-        """Get set of currently subscribed symbols."""
+        """Get currently subscribed symbols.
+
+        Returns:
+            Set of subscribed symbol strings
+
+        """
         with self._subscription_lock:
             return self._subscribed_symbols.copy()
 

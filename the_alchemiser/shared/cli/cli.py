@@ -106,7 +106,7 @@ def trade(
     ),
     no_header: bool = typer.Option(
         default=False, help="Skip welcome header"
-    ),  # noqa: FBT001
+    ),
     show_tracking: bool = typer.Option(  # noqa: FBT001
         default=False,
         help="Display strategy performance tracking after execution",
