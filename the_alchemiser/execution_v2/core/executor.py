@@ -1,4 +1,4 @@
-"""Business Unit: execution | Status: current
+"""Business Unit: execution | Status: current.
 
 Core executor for order placement and smart execution.
 """
@@ -6,7 +6,6 @@ Core executor for order placement and smart execution.
 from __future__ import annotations
 
 import logging
-import asyncio
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -20,9 +19,8 @@ from the_alchemiser.execution_v2.models.execution_result import (
     OrderResultDTO,
 )
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanItemDTO
 from the_alchemiser.shared.dto.execution_dto import ExecutionResult
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
+from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO, RebalancePlanItemDTO
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 
 if TYPE_CHECKING:
@@ -191,13 +189,14 @@ class Executor:
                 execution_strategy="market_order_failed",
             )
 
-    def execute_rebalance_plan(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
-        """Execute a rebalance plan with all its items.
+    async def execute_rebalance_plan(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
+        """Execute a rebalance plan with settlement-aware sell-first, buy-second workflow.
 
-        Executes in two phases:
-        1. Pre-subscribe to all symbols to avoid connection limit issues
-        2. SELL orders first to free up buying power
-        3. BUY orders second with the freed buying power
+        Enhanced execution flow:
+        1. Extract and bulk-subscribe to all symbols upfront
+        2. Execute SELL orders in parallel where possible
+        3. Monitor settlement and buying power release
+        4. Execute BUY orders once sufficient buying power is available
 
         Args:
             plan: RebalancePlanDTO containing the rebalance plan
@@ -207,65 +206,78 @@ class Executor:
 
         """
         logger.info(
-            f"🚀 Executing rebalance plan {plan.plan_id} with {len(plan.items)} items"
+            f"🚀 Executing rebalance plan {plan.plan_id} with {len(plan.items)} items "
+            "(enhanced settlement-aware)"
         )
 
-        # Pre-subscribe to all symbols at once to avoid connection limits
-        if self.pricing_service and self.enable_smart_execution:
-            all_symbols = {
-                item.symbol for item in plan.items if item.action in ["BUY", "SELL"]
-            }
-            if all_symbols:
-                logger.info(f"📡 Pre-subscribing to all symbols: {sorted(all_symbols)}")
-                for symbol in sorted(all_symbols):  # Sort for consistent ordering
-                    self.pricing_service.subscribe_for_order_placement(symbol)
-                logger.info(f"✅ Pre-subscribed to {len(all_symbols)} symbols")
+        # Extract all symbols upfront for bulk subscription
+        all_symbols = self._extract_all_symbols(plan)
+        
+        # Bulk subscribe to all symbols for efficient pricing
+        self._bulk_subscribe_symbols(all_symbols, plan.correlation_id)
+        
+        # Separate orders by type
+        sell_items = [item for item in plan.items if item.action == "SELL"]
+        buy_items = [item for item in plan.items if item.action == "BUY"]
+        hold_items = [item for item in plan.items if item.action == "HOLD"]
+
+        logger.info(
+            f"📊 Execution plan: {len(sell_items)} SELLs, {len(buy_items)} BUYs, "
+            f"{len(hold_items)} HOLDs"
+        )
 
         orders: list[OrderResultDTO] = []
         orders_placed = 0
         orders_succeeded = 0
         total_trade_value = Decimal("0")
 
-        # Separate SELL and BUY orders
-        sell_items = [item for item in plan.items if item.action == "SELL"]
-        buy_items = [item for item in plan.items if item.action == "BUY"]
-        hold_items = [item for item in plan.items if item.action == "HOLD"]
-
-        logger.info(
-            f"📊 Execution plan: {len(sell_items)} SELLs, {len(buy_items)} BUYs, {len(hold_items)} HOLDs"
-        )
-
-        # Phase 1: Execute SELL orders first to free up buying power
+        # Phase 1: Execute SELL orders and monitor settlement
+        sell_order_ids: list[str] = []
         if sell_items:
-            logger.info("🔄 Phase 1: Executing SELL orders to free buying power...")
-            for item in sell_items:
-                order_result = self._execute_single_item(item)
-                orders.append(order_result)
-                orders_placed += 1
-                if order_result.success:
-                    orders_succeeded += 1
-                    total_trade_value += abs(item.trade_amount)
-                    logger.info(f"✅ SELL {item.symbol} completed successfully")
-                else:
-                    logger.error(f"❌ SELL {item.symbol} failed")
+            logger.info("🔄 Phase 1: Executing SELL orders with settlement monitoring...")
+            
+            sell_orders, sell_stats = await self._execute_sell_phase(sell_items)
+            orders.extend(sell_orders)
+            orders_placed += sell_stats["placed"]
+            orders_succeeded += sell_stats["succeeded"]
+            total_trade_value += sell_stats["trade_value"]
+            
+            # Collect successful sell order IDs for settlement monitoring
+            sell_order_ids = [
+                order.order_id for order in sell_orders 
+                if order.success and order.order_id
+            ]
 
-        # Phase 2: Execute BUY orders with freed buying power
-        if buy_items:
-            logger.info("🔄 Phase 2: Executing BUY orders with freed buying power...")
-            for item in buy_items:
-                order_result = self._execute_single_item(item)
-                orders.append(order_result)
-                orders_placed += 1
-                if order_result.success:
-                    orders_succeeded += 1
-                    total_trade_value += abs(item.trade_amount)
-                    logger.info(f"✅ BUY {item.symbol} completed successfully")
-                else:
-                    logger.error(f"❌ BUY {item.symbol} failed")
+        # Phase 2: Monitor settlement and execute BUY orders
+        if buy_items and sell_order_ids:
+            logger.info("🔄 Phase 2: Monitoring settlement and executing BUY orders...")
+            
+            # Wait for settlement and then execute buys
+            buy_orders, buy_stats = await self._execute_buy_phase_with_settlement_monitoring(
+                buy_items, sell_order_ids, plan.correlation_id, plan.plan_id
+            )
+            
+            orders.extend(buy_orders)
+            orders_placed += buy_stats["placed"]  
+            orders_succeeded += buy_stats["succeeded"]
+            total_trade_value += buy_stats["trade_value"]
+            
+        elif buy_items:
+            # No sells to wait for, execute buys immediately
+            logger.info("🔄 Phase 2: Executing BUY orders (no settlement monitoring needed)...")
+            
+            buy_orders, buy_stats = await self._execute_buy_phase(buy_items)
+            orders.extend(buy_orders)
+            orders_placed += buy_stats["placed"]
+            orders_succeeded += buy_stats["succeeded"]
+            total_trade_value += buy_stats["trade_value"]
 
         # Log HOLD items
         for item in hold_items:
             logger.info(f"⏸️ Holding {item.symbol} - no action required")
+
+        # Clean up subscriptions after execution
+        self._cleanup_subscriptions(all_symbols)
 
         # Create execution result
         execution_result = ExecutionResultDTO(
@@ -286,7 +298,186 @@ class Executor:
 
         return execution_result
 
-    def _execute_single_item(self, item: RebalancePlanItemDTO) -> OrderResultDTO:
+    def _extract_all_symbols(self, plan: RebalancePlanDTO) -> list[str]:
+        """Extract all symbols from the rebalance plan.
+        
+        Args:
+            plan: Rebalance plan to extract symbols from
+            
+        Returns:
+            List of unique symbols in the plan
+
+        """
+        symbols = {
+            item.symbol for item in plan.items if item.action in ["BUY", "SELL"]
+        }
+        sorted_symbols = sorted(symbols)
+        logger.info(f"📋 Extracted {len(sorted_symbols)} unique symbols for execution")
+        return sorted_symbols
+
+    def _bulk_subscribe_symbols(self, symbols: list[str], correlation_id: str) -> dict[str, bool]:
+        """Bulk subscribe to all symbols for efficient real-time pricing.
+        
+        Args:
+            symbols: List of symbols to subscribe to
+            correlation_id: Correlation ID for tracking
+            
+        Returns:
+            Dictionary mapping symbol to subscription success
+
+        """
+        if not self.pricing_service or not self.enable_smart_execution:
+            logger.info("📡 Smart execution disabled, skipping bulk subscription")
+            return {}
+
+        if not symbols:
+            return {}
+
+        logger.info(f"📡 Bulk subscribing to {len(symbols)} symbols for real-time pricing")
+        
+        # Use the enhanced bulk subscription method
+        subscription_results = self.pricing_service.subscribe_symbols_bulk(
+            symbols, priority=5.0  # High priority for execution
+        )
+        
+        successful_subscriptions = sum(
+            1 for success in subscription_results.values() if success
+        )
+        logger.info(
+            f"✅ Bulk subscription complete: {successful_subscriptions}/{len(symbols)} "
+            "symbols subscribed"
+        )
+        
+        return subscription_results
+
+    async def _execute_sell_phase(self, sell_items: list) -> tuple[list[OrderResultDTO], dict]:
+        """Execute sell orders phase.
+        
+        Args:
+            sell_items: List of sell order items
+            
+        Returns:
+            Tuple of (order results, execution statistics)
+
+        """
+        orders = []
+        placed = 0
+        succeeded = 0
+        trade_value = Decimal("0")
+        
+        for item in sell_items:
+            order_result = await self._execute_single_item(item)
+            orders.append(order_result)
+            placed += 1
+            
+            if order_result.success:
+                succeeded += 1
+                trade_value += abs(item.trade_amount)
+                logger.info(
+                    f"✅ SELL {item.symbol} completed successfully "
+                    f"(ID: {order_result.order_id})"
+                )
+            else:
+                logger.error(f"❌ SELL {item.symbol} failed: {order_result.error_message}")
+        
+        return orders, {"placed": placed, "succeeded": succeeded, "trade_value": trade_value}
+
+    async def _execute_buy_phase_with_settlement_monitoring(
+        self, 
+        buy_items: list, 
+        sell_order_ids: list[str], 
+        correlation_id: str,
+        plan_id: str
+    ) -> tuple[list[OrderResultDTO], dict]:
+        """Execute buy phase with settlement monitoring.
+        
+        Args:
+            buy_items: List of buy order items
+            sell_order_ids: List of sell order IDs to monitor
+            correlation_id: Correlation ID for tracking
+            plan_id: Execution plan ID
+            
+        Returns:
+            Tuple of (order results, execution statistics)
+
+        """
+        # Initialize settlement monitor
+        from .settlement_monitor import SettlementMonitor
+        
+        settlement_monitor = SettlementMonitor(
+            alpaca_manager=self.alpaca_manager,
+            event_bus=None,  # Could integrate with event bus later
+            polling_interval_seconds=0.5,
+            max_wait_seconds=60,
+        )
+        
+        # Monitor sell order settlements
+        logger.info(f"👀 Monitoring settlement of {len(sell_order_ids)} sell orders...")
+        settlement_result = await settlement_monitor.monitor_sell_orders_settlement(
+            sell_order_ids, correlation_id, plan_id
+        )
+        
+        logger.info(
+            f"💰 Settlement complete: ${settlement_result.total_buying_power_released} "
+            "buying power released"
+        )
+        
+        # Now execute buy orders with released buying power
+        return await self._execute_buy_phase(buy_items)
+
+    async def _execute_buy_phase(self, buy_items: list) -> tuple[list[OrderResultDTO], dict]:
+        """Execute buy orders phase.
+        
+        Args:
+            buy_items: List of buy order items
+            
+        Returns:
+            Tuple of (order results, execution statistics)
+
+        """
+        orders = []
+        placed = 0
+        succeeded = 0
+        trade_value = Decimal("0")
+        
+        for item in buy_items:
+            order_result = await self._execute_single_item(item)
+            orders.append(order_result)
+            placed += 1
+            
+            if order_result.success:
+                succeeded += 1
+                trade_value += abs(item.trade_amount)
+                logger.info(
+                    f"✅ BUY {item.symbol} completed successfully "
+                    f"(ID: {order_result.order_id})"
+                )
+            else:
+                logger.error(f"❌ BUY {item.symbol} failed: {order_result.error_message}")
+        
+        return orders, {"placed": placed, "succeeded": succeeded, "trade_value": trade_value}
+
+    def _cleanup_subscriptions(self, symbols: list[str]) -> None:
+        """Clean up pricing subscriptions after execution.
+        
+        Args:
+            symbols: List of symbols to clean up subscriptions for
+
+        """
+        if not self.pricing_service or not symbols:
+            return
+            
+        logger.info(f"🧹 Cleaning up pricing subscriptions for {len(symbols)} symbols")
+        
+        for symbol in symbols:
+            try:
+                self.pricing_service.unsubscribe_after_order(symbol)
+            except Exception as e:
+                logger.warning(f"Error cleaning up subscription for {symbol}: {e}")
+        
+        logger.info("✅ Subscription cleanup complete")
+
+    async def _execute_single_item(self, item: RebalancePlanItemDTO) -> OrderResultDTO:
         """Execute a single rebalance plan item.
 
         Args:
@@ -324,14 +515,12 @@ class Executor:
                 )
 
             # Use smart execution with async context
-            execution_result = asyncio.run(
-                self.execute_order(
-                    symbol=item.symbol,
-                    side=side,
-                    quantity=float(shares),
-                    order_type="limit",  # Use limit orders for smart execution
-                    correlation_id=f"rebalance-{item.symbol}",
-                )
+            execution_result = await self.execute_order(
+                symbol=item.symbol,
+                side=side,
+                quantity=float(shares),
+                order_type="limit",  # Use limit orders for smart execution
+                correlation_id=f"rebalance-{item.symbol}",
             )
 
             # Create order result

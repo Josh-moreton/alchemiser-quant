@@ -158,3 +158,57 @@ class AllocationComparisonCompleted(BaseEvent):
     comparison_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional comparison analysis data"
     )
+
+
+class OrderSettlementCompleted(BaseEvent):
+    """Event emitted when an order settlement is completed.
+    
+    Signals that an order has been filled and settled, which may release buying power.
+    """
+    
+    # Override event_type with default
+    event_type: str = Field(default="OrderSettlementCompleted", description=EVENT_TYPE_DESCRIPTION)
+    
+    # Settlement fields
+    order_id: str = Field(..., description="Order ID that completed settlement")
+    symbol: str = Field(..., description="Symbol of the settled order")
+    side: str = Field(..., description="Order side (BUY/SELL)")
+    settled_quantity: Decimal = Field(..., description="Quantity that settled")
+    settlement_price: Decimal = Field(..., description="Price at which settlement occurred")
+    settled_value: Decimal = Field(..., description="Total value settled")
+    buying_power_released: Decimal = Field(default=Decimal("0"), description="Buying power released from settlement")
+    original_correlation_id: str | None = Field(default=None, description="Original correlation ID for order tracking")
+
+
+class BulkSettlementCompleted(BaseEvent):
+    """Event emitted when multiple sell orders have completed settlement.
+    
+    Signals that buying power has been released and buy orders can proceed.
+    """
+    
+    # Override event_type with default  
+    event_type: str = Field(default="BulkSettlementCompleted", description=EVENT_TYPE_DESCRIPTION)
+    
+    # Bulk settlement fields
+    settled_order_ids: list[str] = Field(..., description="List of order IDs that completed settlement")
+    total_buying_power_released: Decimal = Field(..., description="Total buying power released")
+    settlement_details: dict[str, Any] = Field(default_factory=dict, description="Detailed settlement information")
+    execution_plan_id: str | None = Field(default=None, description="Associated execution plan ID")
+
+
+class ExecutionPhaseCompleted(BaseEvent):
+    """Event emitted when an execution phase (sell or buy) is completed.
+    
+    Used to coordinate multi-phase execution workflows.
+    """
+    
+    # Override event_type with default
+    event_type: str = Field(default="ExecutionPhaseCompleted", description=EVENT_TYPE_DESCRIPTION)
+    
+    # Execution phase fields
+    phase_type: str = Field(..., description="Phase type (SELL_PHASE/BUY_PHASE)")
+    plan_id: str = Field(..., description="Execution plan ID")
+    completed_orders: list[str] = Field(..., description="Order IDs completed in this phase")
+    successful_orders: list[str] = Field(..., description="Successfully completed order IDs")
+    failed_orders: list[str] = Field(default_factory=list, description="Failed order IDs")
+    phase_metadata: dict[str, Any] = Field(default_factory=dict, description="Phase execution metadata")
