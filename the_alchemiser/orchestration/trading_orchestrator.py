@@ -253,8 +253,7 @@ class TradingOrchestrator:
             )
             
             # Populate workflow results for CLI if this is the active correlation
-            if (hasattr(self, 'workflow_results') and 
-                self.workflow_state.get("last_correlation_id") == event.correlation_id):
+            if self.workflow_state.get("last_correlation_id") == event.correlation_id:
                 
                 # Convert ExecutionResultDTO to format expected by CLI
                 orders_executed = self._convert_execution_result_to_orders(execution_result)
