@@ -98,18 +98,16 @@ def trade(
     # Remove --live flag - trading mode now determined by deployment stage
     ignore_market_hours: bool = typer.Option(  # noqa: FBT001
         default=False,
-        param_decls=["--ignore-market-hours"],
         help="Trade outside market hours (testing only)",
     ),
     verbose: bool = typer.Option(  # noqa: FBT001
-        default=False, param_decls=["--verbose", "-v"], help="Enable verbose output"
+        default=False, help="Enable verbose output"
     ),
     no_header: bool = typer.Option(
-        default=False, param_decls=["--no-header"], help="Skip welcome header"
+        default=False, help="Skip welcome header"
     ),  # noqa: FBT001
     show_tracking: bool = typer.Option(  # noqa: FBT001
         default=False,
-        param_decls=["--show-tracking"],
         help="Display strategy performance tracking after execution",
     ),
     export_tracking_json: str | None = typer.Option(
@@ -454,11 +452,10 @@ def version() -> None:
 def main(
     ctx: typer.Context,
     verbose: bool = typer.Option(  # noqa: FBT001
-        default=False, param_decls=["--verbose", "-v"], help="Enable verbose output"
+        default=False, help="Enable verbose output"
     ),
     quiet: bool = typer.Option(  # noqa: FBT001
         default=False,
-        param_decls=["--quiet", "-q"],
         help="Suppress non-essential output",
     ),
 ) -> None:
