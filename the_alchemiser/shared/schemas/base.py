@@ -22,6 +22,7 @@ class Result(BaseModel):
 
     @property
     def is_success(self) -> bool:  # Convenience mirror
+        """Check if the result represents a successful operation."""
         return self.success
 
 

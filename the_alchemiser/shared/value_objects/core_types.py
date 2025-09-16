@@ -25,7 +25,7 @@ OrderStatusLiteral = Literal[
 # Account Information Types
 class AccountInfo(TypedDict):
     """Trading account information and balances."""
-    
+
     account_id: str
     equity: str | float
     cash: str | float
@@ -69,7 +69,7 @@ class EnrichedAccountInfo(AccountInfo, total=False):
 # Position Information Types
 class PositionInfo(TypedDict):
     """Current position details from broker API."""
-    
+
     symbol: str
     qty: str | float
     market_value: str | float
@@ -89,7 +89,7 @@ PositionsDict = dict[str, PositionInfo]  # Symbol -> Position mapping
 # Order Types
 class OrderDetails(TypedDict):
     """Complete order information with execution status."""
-    
+
     id: str
     symbol: str
     qty: str | float
@@ -106,15 +106,17 @@ class OrderDetails(TypedDict):
 # Strategy Types
 class StrategySignalBase(TypedDict):
     """Base strategy signal type with core fields."""
-    
+
     symbol: str | dict[str, float]  # Allow both symbol string and portfolio dict
-    action: Literal["BUY", "SELL", "HOLD"] | str  # Allow both strict and loose action values
+    action: (
+        Literal["BUY", "SELL", "HOLD"] | str
+    )  # Allow both strict and loose action values
     confidence: float
 
 
 class StrategySignal(StrategySignalBase, total=False):
     """Extended strategy signal with optional fields."""
-    
+
     reasoning: str
     allocation_percentage: float
     # Legacy field aliases for backward compatibility
@@ -123,7 +125,7 @@ class StrategySignal(StrategySignalBase, total=False):
 
 class StrategyPnLSummary(TypedDict):
     """Strategy performance summary and statistics."""
-    
+
     strategy_name: str
     total_pnl: float
     realized_pnl: float
@@ -136,7 +138,7 @@ class StrategyPnLSummary(TypedDict):
 # Phase 6: Strategy Layer Types
 class StrategyPositionData(TypedDict):
     """Position data specific to strategy analysis."""
-    
+
     symbol: str
     quantity: float
     entry_price: float
@@ -146,7 +148,7 @@ class StrategyPositionData(TypedDict):
 
 class KLMVariantResult(TypedDict):
     """KLM variant analysis result."""
-    
+
     variant: Any  # BaseKLMVariant - using Any to avoid circular import
     signal: StrategySignal
     confidence: float
@@ -167,7 +169,7 @@ class KLMVariantResult(TypedDict):
 # Phase 9: KLM Variants Types
 class KLMDecision(TypedDict):
     """KLM decision result with symbol allocation and reasoning."""
-    
+
     symbol: str | dict[str, float]  # Single symbol or allocation dict
     action: Literal["BUY", "SELL", "HOLD"]
     reasoning: str
@@ -180,7 +182,7 @@ class KLMDecision(TypedDict):
 # Phase 11: Data Layer Types
 class MarketDataPoint(TypedDict):
     """Market data point with OHLCV information."""
-    
+
     timestamp: str
     open: float
     high: float
@@ -192,7 +194,7 @@ class MarketDataPoint(TypedDict):
 
 class IndicatorData(TypedDict):
     """Technical indicator calculation result."""
-    
+
     symbol: str
     indicator_name: str
     value: float
@@ -202,7 +204,7 @@ class IndicatorData(TypedDict):
 
 class PriceData(TypedDict):
     """Real-time price data with bid/ask information."""
-    
+
     symbol: str
     price: float
     timestamp: str
@@ -213,7 +215,7 @@ class PriceData(TypedDict):
 
 class QuoteData(TypedDict):
     """Market quote with bid/ask spreads and sizes."""
-    
+
     bid_price: float
     ask_price: float
     bid_size: float
@@ -223,7 +225,7 @@ class QuoteData(TypedDict):
 
 class DataProviderResult(TypedDict):
     """Generic result wrapper for data provider responses."""
-    
+
     success: bool
     data: dict[str, Any] | None
     error_message: str | None
@@ -236,7 +238,7 @@ class DataProviderResult(TypedDict):
 
 class TradeAnalysis(TypedDict):
     """Individual trade performance analysis."""
-    
+
     symbol: str
     entry_date: str
     exit_date: str
@@ -250,7 +252,7 @@ class TradeAnalysis(TypedDict):
 
 class PortfolioSnapshot(TypedDict):
     """Point-in-time portfolio state and valuation."""
-    
+
     timestamp: str
     total_value: float
     positions: dict[str, PositionInfo]
@@ -262,7 +264,7 @@ class PortfolioSnapshot(TypedDict):
 # Error Reporting Types
 class ErrorContext(TypedDict):
     """Error context information for debugging and monitoring."""
-    
+
     timestamp: str
     component: str
     operation: str
