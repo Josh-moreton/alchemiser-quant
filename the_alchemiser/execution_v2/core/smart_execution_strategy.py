@@ -23,7 +23,7 @@ from dataclasses import dataclass, field  # Add field import
 from datetime import UTC, datetime  # Rename to avoid conflict
 from datetime import time as dt_time
 from decimal import Decimal
-from typing import Any
+from typing import Any, TypedDict
 
 from the_alchemiser.execution_v2.utils.liquidity_analysis import LiquidityAnalyzer
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
@@ -31,6 +31,37 @@ from the_alchemiser.shared.services.real_time_pricing import RealTimePricingServ
 from the_alchemiser.shared.types.market_data import QuoteModel
 
 logger = logging.getLogger(__name__)
+
+
+class LiquidityMetadata(TypedDict, total=False):
+    """Metadata for liquidity analysis and execution."""
+    
+    # Core liquidity metrics
+    liquidity_score: float
+    volume_imbalance: float
+    confidence: float
+    volume_available: float
+    volume_ratio: float
+    strategy_recommendation: str
+    bid_volume: float
+    ask_volume: float
+    
+    # Market data context
+    method: str
+    mid: float
+    bid: float
+    ask: float
+    bid_price: float
+    ask_price: float
+    spread_percent: float
+    bid_size: float
+    ask_size: float
+    
+    # Execution context
+    used_fallback: bool
+    original_order_id: str
+    original_price: float
+    new_price: float
 
 
 @dataclass
@@ -94,7 +125,7 @@ class SmartOrderResult:
     execution_strategy: str = "smart_limit"
     error_message: str | None = None
     placement_timestamp: datetime | None = None
-    metadata: dict[str, Any] | None = None
+    metadata: LiquidityMetadata | None = None
 
 
 class SmartExecutionStrategy:
@@ -223,7 +254,7 @@ class SmartExecutionStrategy:
 
     def _calculate_simple_inside_spread_price(
         self, quote: QuoteModel, side: str
-    ) -> tuple[Decimal, dict[str, Any]]:
+    ) -> tuple[Decimal, LiquidityMetadata]:
         """Compute a simple inside-spread anchor using configured offsets.
 
         This is used when we only have REST quotes or inadequate depth data.
@@ -268,7 +299,7 @@ class SmartExecutionStrategy:
 
     def calculate_liquidity_aware_price(
         self, quote: QuoteModel, side: str, order_size: float
-    ) -> tuple[Decimal, dict[str, Any]]:
+    ) -> tuple[Decimal, LiquidityMetadata]:
         """Calculate optimal price using advanced liquidity analysis.
 
         Args:
