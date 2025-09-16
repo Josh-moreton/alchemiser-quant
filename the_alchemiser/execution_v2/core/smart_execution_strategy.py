@@ -158,110 +158,61 @@ class SmartExecutionStrategy:
     def get_quote_with_validation(
         self, symbol: str, order_size: float
     ) -> tuple[QuoteModel, bool] | None:
-        """Get validated quote data with streaming-first, REST fallback.
+        """Get validated quote data from streaming source, waiting for data.
 
-        Tries realtime streaming quotes first. If unavailable or stale, falls back
-        to REST latest quote via `AlpacaManager`. Returns a tuple of (quote, is_fallback).
+        Waits for streaming quote data to arrive after subscription.
 
         Args:
             symbol: Stock symbol
             order_size: Size of order to place (in shares)
 
         Returns:
-            (QuoteModel, is_fallback) if valid, otherwise None
+            (QuoteModel, False) if valid streaming quote available, otherwise None
 
         """
-        now = datetime.now(UTC)
+        import time
 
-        quote: QuoteModel | None = None
-        is_fallback = False
-
-        # 1) Try streaming quote if pricing service available
-        if self.pricing_service:
-            quote = self.pricing_service.get_quote_data(symbol)
-            if quote:
-                quote_age = (now - quote.timestamp).total_seconds()
-                if quote_age > self.config.quote_freshness_seconds:
-                    logger.info(
-                        f"Streaming quote stale for {symbol} ({quote_age:.1f}s), will try REST fallback"
-                    )
-                    quote = None
-
-        # 2) Fallback to REST latest quote for symbols not covered by IEX
-        if quote is None:
-            try:
-                latest = self.alpaca_manager.get_latest_quote(symbol)
-                if latest is not None:
-                    bid, ask = latest
-                    if bid > 0 or ask > 0:
-                        # Build a minimal QuoteModel with unknown sizes as 0.0
-                        quote = QuoteModel(
-                            symbol=symbol,
-                            bid_price=bid,
-                            ask_price=ask,
-                            bid_size=0.0,
-                            ask_size=0.0,
-                            timestamp=now,
-                        )
-                        is_fallback = True
-            except Exception as e:
-                logger.warning(f"REST latest quote failed for {symbol}: {e}")
-
-        if not quote:
-            logger.warning(f"No quote data available for {symbol} after fallback")
+        # Only try streaming quote if pricing service available
+        if not self.pricing_service:
+            logger.warning(f"No pricing service available for {symbol}")
             return None
 
-        # Validate prices and spread
+        # Wait for quote data to arrive from stream
+        logger.info(f"⏳ Waiting for streaming quote data for {symbol}...")
+        max_wait_time = 10.0  # Maximum 10 seconds to wait
+        check_interval = 0.1  # Check every 100ms
+        elapsed = 0.0
+        
+        quote = None
+        while elapsed < max_wait_time:
+            quote = self.pricing_service.get_quote_data(symbol)
+            if quote:
+                logger.info(f"✅ Received streaming quote for {symbol} after {elapsed:.1f}s")
+                break
+            
+            time.sleep(check_interval)
+            elapsed += check_interval
+        
+        if not quote:
+            logger.error(f"❌ No streaming quote data received for {symbol} after {max_wait_time}s")
+            return None
+
+        # Check quote freshness
+        quote_age = (datetime.now(UTC) - quote.timestamp).total_seconds()
+        if quote_age > self.config.quote_freshness_seconds:
+            logger.warning(
+                f"Streaming quote stale for {symbol} ({quote_age:.1f}s > {self.config.quote_freshness_seconds}s)"
+            )
+            return None
+
+        # Simple price validation - just ensure we have at least one valid price
         if quote.bid_price <= 0 and quote.ask_price <= 0:
             logger.warning(
                 f"Invalid prices for {symbol}: bid={quote.bid_price}, ask={quote.ask_price}"
             )
             return None
 
-        # If only one side is known (REST may return both equal if single-sided), synthesize spread
-        bid = quote.bid_price if quote.bid_price > 0 else quote.ask_price
-        ask = quote.ask_price if quote.ask_price > 0 else quote.bid_price
-        if ask <= 0:
-            logger.warning(f"No usable prices for {symbol}")
-            return None
-
-        if bid <= 0:
-            bid = ask  # single-sided, treat as equal to avoid negative spread
-
-        spread_percent = (ask - bid) / max(bid, 1e-9) * 100.0
-        if spread_percent > float(self.config.max_spread_percent):
-            logger.warning(
-                f"Spread too wide for {symbol}: {spread_percent:.2f}% > {self.config.max_spread_percent}%"
-            )
-            if symbol not in self.config.low_liquidity_symbols:
-                return None
-
-        # Liquidity validation: for fallback quotes (sizes unknown), relax rules on low-liquidity names
-        if not is_fallback:
-            if symbol in self.config.low_liquidity_symbols:
-                if quote.bid_size <= 0 or quote.ask_size <= 0:
-                    logger.warning(f"No volume at all for {symbol}")
-                    return None
-                logger.info(
-                    f"📊 Low-liquidity symbol {symbol} - using relaxed validation (streaming)"
-                )
-            else:
-                is_valid, reason = self.liquidity_analyzer.validate_liquidity_for_order(
-                    quote, "buy", order_size
-                )
-                if not is_valid:
-                    logger.warning(
-                        f"Liquidity validation failed for {symbol}: {reason}"
-                    )
-                    return None
-        else:
-            # Fallback path: allow for low-liquidity ETFs even if sizes unknown
-            if symbol not in self.config.low_liquidity_symbols:
-                logger.info(
-                    f"Using REST fallback for {symbol} with unknown sizes; proceeding with conservative anchors"
-                )
-
-        return quote, is_fallback
+        return quote, False
 
     def _calculate_simple_inside_spread_price(
         self, quote: QuoteModel, side: str
