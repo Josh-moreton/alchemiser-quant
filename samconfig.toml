@@ -6,10 +6,10 @@ beta_features = true
 use_container = false
 
 [default.deploy.parameters]
-stack_name = "the-alchemiser"
+stack_name = "the-alchemiser-v2-us-east-1"
 s3_bucket = "the-alchemiser-s3"
 s3_prefix = "the-alchemiser"
-region = "eu-west-2"
+region = "us-east-1"
 capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
 disable_rollback = false
 confirm_changeset = false

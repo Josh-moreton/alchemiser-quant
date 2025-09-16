@@ -25,10 +25,10 @@ Globals:
         ALPACA__ENABLE_WEBSOCKET_ORDERS: true
 
         # AWS Configuration
-        AWS__ACCOUNT_ID: 211125653762
-        AWS__REGION: eu-west-2
+  AWS__ACCOUNT_ID: 211125653762
+  AWS__REGION: us-east-1
         AWS__REPO_NAME: the-alchemiser
-        AWS__LAMBDA_ARN: arn:aws:lambda:eu-west-2:211125653762:function:the-alchemiser-v2-lambda
+  AWS__LAMBDA_ARN: arn:aws:lambda:us-east-1:211125653762:function:the-alchemiser-v2-lambda
         AWS__IMAGE_TAG: latest
 
         # Alerts
@@ -36,7 +36,7 @@ Globals:
         ALERTS__COOLDOWN_MINUTES: 30
 
         # Secrets Manager
-        SECRETS_MANAGER__REGION_NAME: eu-west-2
+  SECRETS_MANAGER__REGION_NAME: us-east-1
         SECRETS_MANAGER__SECRET_NAME: the-alchemiser-secrets
 
         # Strategy Configuration
@@ -106,7 +106,7 @@ Resources:
     Properties:
       Name: the-alchemiser-daily-trading
       Description: "Execute quantitative trading system daily at 9:30 AM New York time"
-      ScheduleExpression: "cron(30 9 ? * MON-FRI *)"
+      ScheduleExpression: "cron(35 9 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
       FlexibleTimeWindow:
         Mode: "OFF"
@@ -152,7 +152,6 @@ Resources:
   TradingSystemExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: the-alchemiser-lambda-execution-role
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -173,7 +172,7 @@ Resources:
                   - secretsmanager:GetSecretValue
                   - secretsmanager:DescribeSecret
                 Resource:
-                  - arn:aws:secretsmanager:eu-west-2:211125653762:secret:the-alchemiser-secrets-*
+                  - !Ref TradingSecrets
 
               # S3 access for alerts and data storage
               - Effect: Allow
@@ -201,6 +200,14 @@ Resources:
     Properties:
       LogGroupName: !Sub "/aws/lambda/${TradingSystemFunction}"
       RetentionInDays: 30
+
+  # Secrets Manager Secret (managed by this stack, value set manually post-deploy)
+  TradingSecrets:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    Properties:
+      Name: the-alchemiser-secrets
+      Description: "Secrets for The Alchemiser (ALPACA_KEY/SECRET, optional TWELVEDATA_KEY, SMTP_PASSWORD)"
 
 Outputs:
   TradingSystemFunction:

@@ -60,11 +60,15 @@ def _get_alpaca_keys_from_aws() -> tuple[str, str, str] | tuple[None, None, None
         return None, None, None
 
     try:
+        settings = load_settings()
+        region = settings.secrets_manager.region_name
+        secret_name = settings.secrets_manager.secret_name
+
         # Initialize AWS Secrets Manager client
-        client = boto3.client("secretsmanager", region_name="eu-west-2")
+        client = boto3.client("secretsmanager", region_name=region)
 
         # Get the secret
-        response = client.get_secret_value(SecretId="the-alchemiser-secrets")
+        response = client.get_secret_value(SecretId=secret_name)
         secret_data = json.loads(response["SecretString"])
 
         api_key = secret_data.get("ALPACA_KEY")
@@ -138,8 +142,11 @@ def _get_twelvedata_key_from_aws() -> str | None:
         return None
 
     try:
-        client = boto3.client("secretsmanager", region_name="eu-west-2")
-        response = client.get_secret_value(SecretId="the-alchemiser-secrets")
+        settings = load_settings()
+        region = settings.secrets_manager.region_name
+        secret_name = settings.secrets_manager.secret_name
+        client = boto3.client("secretsmanager", region_name=region)
+        response = client.get_secret_value(SecretId=secret_name)
         secret_data = json.loads(response["SecretString"])
 
         api_key = secret_data.get("TWELVEDATA_KEY")
@@ -198,8 +205,11 @@ def _get_email_password_from_aws() -> str | None:
         return None
 
     try:
-        client = boto3.client("secretsmanager", region_name="eu-west-2")
-        response = client.get_secret_value(SecretId="the-alchemiser-secrets")
+        settings = load_settings()
+        region = settings.secrets_manager.region_name
+        secret_name = settings.secrets_manager.secret_name
+        client = boto3.client("secretsmanager", region_name=region)
+        response = client.get_secret_value(SecretId=secret_name)
         secret_data = json.loads(response["SecretString"])
 
         # Look for email password in secrets (prioritize SMTP_PASSWORD)
