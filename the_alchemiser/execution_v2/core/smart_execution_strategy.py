@@ -25,6 +25,10 @@ from datetime import time as dt_time
 from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.execution_v2.dto import (
+    PriceCalculationMetadataDTO,
+    PriceCalculationResultDTO,
+)
 from the_alchemiser.execution_v2.utils.liquidity_analysis import LiquidityAnalyzer
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
@@ -220,7 +224,7 @@ class SmartExecutionStrategy:
 
     def _calculate_simple_inside_spread_price(
         self, quote: QuoteModel, side: str
-    ) -> tuple[Decimal, dict[str, Any]]:
+    ) -> PriceCalculationResultDTO:
         """Compute a simple inside-spread anchor using configured offsets.
 
         This is used when we only have REST quotes or inadequate depth data.
@@ -247,25 +251,22 @@ class SmartExecutionStrategy:
             if ask > 0 and bid > 0:
                 anchor = max(anchor, mid)
 
-        metadata = {
-            "method": "simple_inside_spread",
-            "mid": float(mid),
-            "bid": float(bid),
-            "ask": float(ask),
-            "strategy_recommendation": "simple_inside_spread_fallback",
-            "liquidity_score": 0.0,
-            "volume_imbalance": 0.0,
-            "confidence": 0.5,  # Conservative confidence for fallback
-            "volume_available": 0.0,
-            "volume_ratio": 0.0,
-            "bid_volume": 0.0,
-            "ask_volume": 0.0,
-        }
-        return anchor, metadata
+        metadata = PriceCalculationMetadataDTO(
+            spread_pct=float((ask - bid) / mid * 100) if mid > 0 else 0.0,
+            bid_ask_ratio=float(bid / ask) if ask > 0 else 0.0,
+            volume_ratio=0.0,
+            bid_volume=0.0,
+            ask_volume=0.0,
+            calculation_method="simple_inside_spread",
+        )
+        return PriceCalculationResultDTO(
+            anchor_price=anchor,
+            metadata=metadata,
+        )
 
     def calculate_liquidity_aware_price(
         self, quote: QuoteModel, side: str, order_size: float
-    ) -> tuple[Decimal, dict[str, Any]]:
+    ) -> PriceCalculationResultDTO:
         """Calculate optimal price using advanced liquidity analysis.
 
         Args:
@@ -299,16 +300,14 @@ class SmartExecutionStrategy:
             )
 
         # Create metadata for logging and monitoring
-        metadata = {
-            "liquidity_score": analysis.liquidity_score,
-            "volume_imbalance": analysis.volume_imbalance,
-            "confidence": analysis.confidence,
-            "volume_available": volume_available,
-            "volume_ratio": order_size / max(volume_available, 1.0),
-            "strategy_recommendation": strategy_rec,
-            "bid_volume": analysis.total_bid_volume,
-            "ask_volume": analysis.total_ask_volume,
-        }
+        metadata = PriceCalculationMetadataDTO(
+            spread_pct=float((quote.ask_price - quote.bid_price) / quote.bid_price * 100) if quote.bid_price > 0 else 0.0,
+            bid_ask_ratio=float(quote.bid_price / quote.ask_price) if quote.ask_price > 0 else 0.0,
+            volume_ratio=order_size / max(volume_available, 1.0),
+            bid_volume=analysis.total_bid_volume,
+            ask_volume=analysis.total_ask_volume,
+            calculation_method="liquidity_aware",
+        )
 
         logger.info(
             f"🧠 Liquidity-aware pricing for {quote.symbol} {side}: "
@@ -323,7 +322,10 @@ class SmartExecutionStrategy:
             f"order_vol_ratio={order_size / max(volume_available, 1.0):.2f}"
         )
 
-        return optimal_price, metadata
+        return PriceCalculationResultDTO(
+            anchor_price=optimal_price,
+            metadata=metadata,
+        )
 
     async def place_smart_order(self, request: SmartOrderRequest) -> SmartOrderResult:
         """Place a smart limit order with liquidity anchoring.
@@ -385,13 +387,25 @@ class SmartExecutionStrategy:
 
             # Calculate optimal price: full liquidity analysis when streaming, simple when fallback
             if not used_fallback:
-                optimal_price, analysis_metadata = self.calculate_liquidity_aware_price(
+                price_result = self.calculate_liquidity_aware_price(
                     quote, request.side, order_size
                 )
+                optimal_price = price_result.anchor_price
+                analysis_metadata = {
+                    "strategy_recommendation": "liquidity_aware",
+                    "confidence": 0.8,  # High confidence for liquidity analysis
+                    "spread_pct": price_result.metadata.spread_pct,
+                    "volume_ratio": price_result.metadata.volume_ratio,
+                }
             else:
-                optimal_price, analysis_metadata = (
-                    self._calculate_simple_inside_spread_price(quote, request.side)
-                )
+                price_result = self._calculate_simple_inside_spread_price(quote, request.side)
+                optimal_price = price_result.anchor_price
+                analysis_metadata = {
+                    "strategy_recommendation": "simple_inside_spread_fallback",
+                    "confidence": 0.5,  # Conservative confidence for fallback
+                    "spread_pct": price_result.metadata.spread_pct,
+                    "volume_ratio": price_result.metadata.volume_ratio,
+                }
 
             # Place limit order with optimal pricing
             result = self.alpaca_manager.place_limit_order(
@@ -524,7 +538,7 @@ class SmartExecutionStrategy:
                 )
                 if not validated:
                     continue
-                quote, _ = validated
+                _quote, _ = validated
 
                 # Check if market has moved beyond threshold
                 # (This would require tracking original anchor price - simplified for now)

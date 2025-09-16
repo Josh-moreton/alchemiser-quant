@@ -1,15 +1,15 @@
 {
   "summary": {
-    "total_violations": 170,
-    "files_with_violations": 36,
+    "total_violations": 168,
+    "files_with_violations": 35,
     "by_severity": {
       "LOW": 0,
       "MEDIUM": 159,
-      "HIGH": 11,
+      "HIGH": 9,
       "CRITICAL": 0
     },
     "by_rule_type": {
-      "ANN401_VIOLATION": 168,
+      "ANN401_VIOLATION": 166,
       "LAYER_TYPE_VIOLATION": 2,
       "CONVERSION_POINT_VIOLATION": 0,
       "NAMING_CONVENTION_VIOLATION": 0,
@@ -17,24 +17,6 @@
     }
   },
   "violations": [
-    {
-      "file_path": "execution_v2/core/smart_execution_strategy.py",
-      "line_number": 221,
-      "rule_type": "ANN401_VIOLATION",
-      "severity": "HIGH",
-      "description": "Function '_calculate_simple_inside_spread_price' returns 'Any' type",
-      "suggested_fix": "Return specific DTO instead of Any",
-      "code_context": "Line 221: Function definition"
-    },
-    {
-      "file_path": "execution_v2/core/smart_execution_strategy.py",
-      "line_number": 266,
-      "rule_type": "ANN401_VIOLATION",
-      "severity": "HIGH",
-      "description": "Function 'calculate_liquidity_aware_price' returns 'Any' type",
-      "suggested_fix": "Return specific DTO instead of Any",
-      "code_context": "Line 266: Function definition"
-    },
     {
       "file_path": "strategy_v2/engines/nuclear/engine.py",
       "line_number": 179,

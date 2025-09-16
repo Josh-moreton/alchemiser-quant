@@ -2,41 +2,25 @@
 
 ## Summary
 
-- **Total Violations:** 170
-- **Files Affected:** 36
+- **Total Violations:** 168
+- **Files Affected:** 35
 
 ### Violations by Severity
 
 - 🟢 **LOW:** 0
 - 🟡 **MEDIUM:** 159
-- 🟠 **HIGH:** 11
+- 🟠 **HIGH:** 9
 - 🔴 **CRITICAL:** 0
 
 ### Violations by Rule Type
 
-- **Ann401 Violation:** 168
+- **Ann401 Violation:** 166
 - **Layer Type Violation:** 2
 - **Conversion Point Violation:** 0
 - **Naming Convention Violation:** 0
 - **Protocol Typing Violation:** 0
 
 ## 🟠 HIGH Priority Violations
-
-### execution_v2/core/smart_execution_strategy.py:221
-
-**Issue:** Function '_calculate_simple_inside_spread_price' returns 'Any' type
-
-**Suggested Fix:** Return specific DTO instead of Any
-
----
-
-### execution_v2/core/smart_execution_strategy.py:266
-
-**Issue:** Function 'calculate_liquidity_aware_price' returns 'Any' type
-
-**Suggested Fix:** Return specific DTO instead of Any
-
----
 
 ### strategy_v2/engines/nuclear/engine.py:179
 
@@ -95,6 +79,14 @@
 ---
 
 ### strategy_v2/engines/tecl/engine.py:462
+
+**Issue:** Parameter 'indicators' uses 'Any' type annotation
+
+**Suggested Fix:** Replace Any with specific type or Union for parameter
+
+---
+
+### strategy_v2/engines/tecl/engine.py:495
 
 **Issue:** Parameter 'indicators' uses 'Any' type annotation
 
