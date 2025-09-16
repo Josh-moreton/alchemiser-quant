@@ -29,7 +29,7 @@ from the_alchemiser.shared.dto.rebalance_plan_dto import (
     RebalancePlanDTO,
     RebalancePlanItemDTO,
 )
-from the_alchemiser.shared.events import EventBus, TradeExecuted, TradeExecutionStarted
+from the_alchemiser.shared.events import EventBus, StartupEvent, TradeExecuted, TradeExecutionStarted
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 from the_alchemiser.shared.types.exceptions import (
@@ -84,12 +84,100 @@ class TradingOrchestrator:
         return True
 
     def execute_strategy_signals_with_trading(self) -> dict[str, Any] | None:
-        """Generate strategy signals AND execute trades, returning comprehensive execution data."""
-        return self._execute_strategy_signals_internal(execute_trades=True)
+        """Execute trading workflow with dual-path: emit events AND return synchronous results.
+        
+        This hybrid approach allows the event-driven architecture to run in parallel
+        while maintaining CLI compatibility with synchronous results.
+        """
+        try:
+            # Generate correlation ID for this workflow
+            correlation_id = str(uuid.uuid4())
+            
+            self.logger.info("🚀 Starting dual-path trading workflow (events + synchronous)")
+            
+            # PHASE 1: Emit StartupEvent to trigger pure event-driven execution
+            startup_event = StartupEvent(
+                correlation_id=correlation_id,
+                causation_id=f"trading-cli-{datetime.now(UTC).isoformat()}",
+                event_id=f"startup-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="orchestration",
+                source_component="TradingOrchestrator",
+                startup_mode="trade",
+                configuration={
+                    "ignore_market_hours": self.ignore_market_hours,
+                    "live_trading": self.live_trading,
+                },
+            )
+            
+            # Emit the startup event for event-driven processing
+            self.event_bus.publish(startup_event)
+            self.logger.info(f"Emitted StartupEvent {startup_event.event_id} (event-driven path)")
+            
+            # PHASE 2: Execute synchronous workflow for CLI compatibility (temporary)
+            # TODO: Remove this once event-driven workflow is fully tested and CLI is updated
+            self.logger.info("🔄 Executing synchronous workflow for CLI compatibility")
+            result = self._execute_strategy_signals_internal(execute_trades=True)
+            
+            if result:
+                # Add event correlation info to result
+                result["correlation_id"] = correlation_id
+                result["startup_event_id"] = startup_event.event_id
+                result["event_driven_initiated"] = True
+                
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Failed to execute dual-path trading workflow: {e}")
+            return None
 
     def execute_strategy_signals(self) -> dict[str, Any] | None:
-        """Generate strategy signals and return comprehensive execution data (signal mode)."""
-        return self._execute_strategy_signals_internal(execute_trades=False)
+        """Execute signal analysis workflow with dual-path: emit events AND return synchronous results.
+        
+        This hybrid approach allows the event-driven architecture to run in parallel
+        while maintaining CLI compatibility with synchronous results.
+        """
+        try:
+            # Generate correlation ID for this workflow
+            correlation_id = str(uuid.uuid4())
+            
+            self.logger.info("📊 Starting dual-path signal analysis workflow (events + synchronous)")
+            
+            # PHASE 1: Emit StartupEvent to trigger pure event-driven execution
+            startup_event = StartupEvent(
+                correlation_id=correlation_id,
+                causation_id=f"signal-cli-{datetime.now(UTC).isoformat()}",
+                event_id=f"startup-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="orchestration",
+                source_component="TradingOrchestrator",
+                startup_mode="signal",
+                configuration={
+                    "ignore_market_hours": self.ignore_market_hours,
+                    "live_trading": self.live_trading,
+                },
+            )
+            
+            # Emit the startup event for event-driven processing
+            self.event_bus.publish(startup_event)
+            self.logger.info(f"Emitted StartupEvent {startup_event.event_id} (event-driven path)")
+            
+            # PHASE 2: Execute synchronous workflow for CLI compatibility (temporary)
+            # TODO: Remove this once event-driven workflow is fully tested and CLI is updated
+            self.logger.info("🔄 Executing synchronous workflow for CLI compatibility")
+            result = self._execute_strategy_signals_internal(execute_trades=False)
+            
+            if result:
+                # Add event correlation info to result
+                result["correlation_id"] = correlation_id
+                result["startup_event_id"] = startup_event.event_id
+                result["event_driven_initiated"] = True
+                
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Failed to execute dual-path signal analysis workflow: {e}")
+            return None
 
     def _execute_strategy_signals_internal(
         self, *, execute_trades: bool
