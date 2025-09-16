@@ -400,7 +400,6 @@ class SmartExecutionStrategy:
 
             # Place limit order with optimal pricing
             # Ensure price is properly quantized to avoid sub-penny precision errors
-            from decimal import Decimal
             quantized_price = Decimal(str(float(optimal_price))).quantize(Decimal("0.01"))
             
             result = self.alpaca_manager.place_limit_order(
@@ -661,13 +660,14 @@ class SmartExecutionStrategy:
                         "ask_price": quote.ask_price,
                     },
                 )
-            logger.error(f"❌ Re-peg failed for {request.symbol}: no order ID returned")
-            return SmartOrderResult(
-                success=False,
-                error_message="Re-peg order placement failed",
-                execution_strategy="smart_repeg_failed",
-                repegs_used=repeg_count,
-            )
+            else:  # noqa: RET505
+                logger.error(f"❌ Re-peg failed for {request.symbol}: no order ID returned")
+                return SmartOrderResult(
+                    success=False,
+                    error_message="Re-peg order placement failed",
+                    execution_strategy="smart_repeg_failed",
+                    repegs_used=repeg_count,
+                )
                 
         except Exception as e:
             logger.error(f"❌ Error during re-peg attempt for {order_id}: {e}")
