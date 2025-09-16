@@ -51,13 +51,19 @@ class SignalOrchestrator:
         # Get event bus from container for dual-path emission
         self.event_bus: EventBus = container.services.event_bus()
 
-    def generate_signals(self) -> tuple[dict[str, Any], ConsolidatedPortfolioDTO]:
+    def generate_signals(self) -> tuple[SignalAnalysisResultDTO, ConsolidatedPortfolioDTO]:
         """Generate strategy signals and consolidated portfolio allocation.
 
         Returns:
-            Tuple of (strategy_signals dict, ConsolidatedPortfolioDTO)
+            Tuple of (SignalAnalysisResultDTO, ConsolidatedPortfolioDTO)
 
         """
+        # Import here to avoid circular dependency
+        from the_alchemiser.shared.dto.signal_analysis_dto import (
+            SignalAnalysisResultDTO, 
+            StrategySignalResultDTO
+        )
+        
         # Use strategy orchestrator for signal generation
         market_data_port = self.container.infrastructure.market_data_service()
         strategy_allocations = get_strategy_allocations(self.settings)
@@ -82,12 +88,22 @@ class SignalOrchestrator:
             source_strategies=contributing_strategies,
         )
 
-        return strategy_signals, consolidated_portfolio
+        # Create SignalAnalysisResultDTO
+        signal_analysis_dto = SignalAnalysisResultDTO(
+            strategy_signals=strategy_signals,
+            consolidated_portfolio={k: Decimal(str(v)) for k, v in consolidated_portfolio_dict.items()},
+            correlation_id=consolidated_portfolio.correlation_id,
+        )
+
+        return signal_analysis_dto, consolidated_portfolio
 
     def _convert_signals_to_display_format(
         self, aggregated_signals: AggregatedSignals
-    ) -> dict[str, Any]:
-        """Convert aggregated signals to display format."""
+    ) -> dict[str, StrategySignalResultDTO]:
+        """Convert aggregated signals to display format with proper DTOs."""
+        # Import here to avoid circular dependency
+        from the_alchemiser.shared.dto.signal_analysis_dto import StrategySignalResultDTO
+        
         strategy_signals = {}
         for (
             strategy_type,
@@ -104,28 +120,28 @@ class SignalOrchestrator:
                         if signal.action == "BUY"
                     ]
                     primary_signal = signals[0]  # Use first signal for other attributes
-                    strategy_signals[str(strategy_type)] = {
-                        "symbol": (
+                    strategy_signals[str(strategy_type)] = StrategySignalResultDTO(
+                        symbol=(
                             ", ".join(symbols)
                             if symbols
                             else primary_signal.symbol.value
                         ),
-                        "symbols": symbols,  # Keep individual symbols for other processing
-                        "action": primary_signal.action,
-                        "confidence": float(primary_signal.confidence.value),
-                        "reasoning": primary_signal.reasoning,
-                        "is_multi_symbol": True,
-                    }
+                        symbols=symbols,  # Keep individual symbols for other processing
+                        action=primary_signal.action,
+                        confidence=primary_signal.confidence.value,
+                        reasoning=primary_signal.reasoning,
+                        is_multi_symbol=True,
+                    )
                 else:
                     # Single signal - existing behavior
                     signal = signals[0]
-                    strategy_signals[str(strategy_type)] = {
-                        "symbol": signal.symbol.value,
-                        "action": signal.action,
-                        "confidence": float(signal.confidence.value),
-                        "reasoning": signal.reasoning,
-                        "is_multi_symbol": False,
-                    }
+                    strategy_signals[str(strategy_type)] = StrategySignalResultDTO(
+                        symbol=signal.symbol.value,
+                        action=signal.action,
+                        confidence=signal.confidence.value,
+                        reasoning=signal.reasoning,
+                        is_multi_symbol=False,
+                    )
         return strategy_signals
 
     def _build_consolidated_portfolio(
@@ -175,7 +191,7 @@ class SignalOrchestrator:
 
     def validate_signal_quality(
         self,
-        strategy_signals: dict[str, Any],
+        strategy_signals: dict[str, StrategySignalResultDTO],
     ) -> bool:
         """Validate that signal analysis produced meaningful results.
 
@@ -223,7 +239,7 @@ class SignalOrchestrator:
         fallback_strategies = []
 
         for strategy_type, signal in strategy_signals.items():
-            reasoning = signal.get("reasoning", "")
+            reasoning = signal.reasoning
             strategy_name = self._extract_strategy_name(strategy_type)
 
             # Check for explicit failure indicators
@@ -296,28 +312,31 @@ class SignalOrchestrator:
             )
             return True
 
-    def analyze_signals(self) -> tuple[dict[str, Any], dict[str, float]] | None:
+    def analyze_signals(self) -> SignalAnalysisResultDTO | None:
         """Run complete signal analysis workflow.
 
-        DUAL-PATH: Emits SignalGenerated event AND returns traditional response.
+        DUAL-PATH: Emits SignalGenerated event AND returns SignalAnalysisResultDTO.
 
         Returns:
-            Tuple of (strategy_signals, consolidated_portfolio) if successful, None if failed
+            SignalAnalysisResultDTO if successful, None if failed
 
         """
         try:
+            # Import here to avoid circular dependency
+            from the_alchemiser.shared.dto.signal_analysis_dto import SignalAnalysisResultDTO
+            
             # System now uses fully typed domain model
             self.logger.info("Using typed StrategySignal domain model")
 
             # Generate signals
-            strategy_signals, consolidated_portfolio = self.generate_signals()
+            signal_analysis_dto, consolidated_portfolio = self.generate_signals()
 
-            if not strategy_signals:
+            if not signal_analysis_dto.strategy_signals:
                 self.logger.error("Failed to generate strategy signals")
                 return None
 
             # Check if analysis produced meaningful results
-            if not self.validate_signal_quality(strategy_signals):
+            if not self.validate_signal_quality(signal_analysis_dto.strategy_signals):
                 self.logger.error(
                     "Signal analysis failed validation - no meaningful data available"
                 )
@@ -325,11 +344,20 @@ class SignalOrchestrator:
 
             # DUAL-PATH: Emit SignalGenerated event for event-driven consumers
             self._emit_signal_generated_event(
-                strategy_signals, consolidated_portfolio.to_dict_allocation()
+                signal_analysis_dto.strategy_signals, consolidated_portfolio.to_dict_allocation()
             )
 
-            # Return traditional response for backwards compatibility
-            return strategy_signals, consolidated_portfolio.to_dict_allocation()
+            # Update the DTO with quality validation result
+            signal_analysis_dto_with_quality = SignalAnalysisResultDTO(
+                strategy_signals=signal_analysis_dto.strategy_signals,
+                consolidated_portfolio=signal_analysis_dto.consolidated_portfolio,
+                analysis_timestamp=signal_analysis_dto.analysis_timestamp,
+                correlation_id=signal_analysis_dto.correlation_id,
+                signal_quality_passed=True,
+            )
+
+            # Return SignalAnalysisResultDTO for new consumers
+            return signal_analysis_dto_with_quality
 
         except DataProviderError as e:
             self.logger.error(f"Signal analysis failed: {e}")
@@ -339,7 +367,7 @@ class SignalOrchestrator:
             return None
 
     def _emit_signal_generated_event(
-        self, strategy_signals: dict[str, Any], consolidated_portfolio: dict[str, float]
+        self, strategy_signals: dict[str, StrategySignalResultDTO], consolidated_portfolio: dict[str, float]
     ) -> None:
         """Emit SignalGenerated event for event-driven architecture.
 
@@ -351,24 +379,24 @@ class SignalOrchestrator:
             correlation_id = str(uuid.uuid4())
             causation_id = f"signal-analysis-{datetime.now(UTC).isoformat()}"
 
-            for strategy_type, signal_data in strategy_signals.items():
+            for strategy_type, signal_dto in strategy_signals.items():
                 strategy_name = (
                     strategy_type.value
                     if hasattr(strategy_type, "value")
                     else str(strategy_type)
                 )
-                signal_dto = StrategySignalDTO(
+                signal_event_dto = StrategySignalDTO(
                     correlation_id=correlation_id,
                     causation_id=causation_id,
                     timestamp=datetime.now(UTC),
-                    symbol=signal_data.get("symbol", "UNKNOWN"),
-                    action=signal_data.get("action", "HOLD"),
-                    confidence=Decimal(str(signal_data.get("confidence", 0.0))),
-                    reasoning=signal_data.get("reasoning", "Signal generated"),
+                    symbol=signal_dto.symbol,
+                    action=signal_dto.action,
+                    confidence=signal_dto.confidence,
+                    reasoning=signal_dto.reasoning,
                     strategy_name=strategy_name,
                     allocation_weight=None,  # Will be determined by portfolio module
                 )
-                signal_dtos.append(signal_dto)
+                signal_dtos.append(signal_event_dto)
 
             # Convert strategy allocations to Decimal for event
             strategy_allocations: dict[str, Decimal] = {}
@@ -406,7 +434,7 @@ class SignalOrchestrator:
     def count_positions_for_strategy(
         self,
         strategy_name: str,
-        strategy_signals: dict[str, Any],
+        strategy_signals: dict[str, StrategySignalResultDTO],
         consolidated_portfolio: dict[str, float],
     ) -> int:
         """Count positions for a specific strategy."""
@@ -414,13 +442,11 @@ class SignalOrchestrator:
         if not signal:
             return 0
 
-        symbol = signal.get("symbol")
-
         if strategy_name.upper() == "NUCLEAR":
-            return self._count_nuclear_positions(signal, symbol, consolidated_portfolio)
+            return self._count_nuclear_positions(signal, signal.symbol, consolidated_portfolio)
         if strategy_name.upper() in ["TECL", "KLM"]:
             # Single position strategies
-            return 1 if signal.get("action") == "BUY" else 0
+            return 1 if signal.action == "BUY" else 0
         # Count from consolidated portfolio if possible
         strategy_symbols = self._get_symbols_for_strategy(
             strategy_name, strategy_signals
@@ -428,33 +454,34 @@ class SignalOrchestrator:
         return len([s for s in strategy_symbols if s in consolidated_portfolio])
 
     def _find_signal_for_strategy(
-        self, strategy_name: str, strategy_signals: dict[str, Any]
-    ) -> dict[str, Any] | None:
+        self, strategy_name: str, strategy_signals: dict[str, StrategySignalResultDTO]
+    ) -> StrategySignalResultDTO | None:
         """Find signal for a specific strategy by name."""
         strategy_key = strategy_name.upper()
         for key, sig in strategy_signals.items():
             key_name = key.value if hasattr(key, "value") else str(key)
             if key_name.upper() == strategy_key:
-                return sig  # type: ignore[no-any-return]
+                return sig
         return None
 
     def _count_nuclear_positions(
         self,
-        signal: dict[str, Any],
-        symbol: Symbol,
+        signal: StrategySignalResultDTO,
+        symbol: str | Symbol,
         consolidated_portfolio: dict[str, float],
     ) -> int:
         """Count positions for nuclear strategy based on signal and symbol."""
-        if signal.get("action") != "BUY":
+        if signal.action != "BUY":
             return 0
 
-        if symbol == "UVXY_BTAL_PORTFOLIO":
+        symbol_str = symbol.value if hasattr(symbol, "value") else str(symbol)
+        if symbol_str == "UVXY_BTAL_PORTFOLIO":
             return 2  # UVXY and BTAL
-        if symbol == "UVXY":
+        if symbol_str == "UVXY":
             return 1  # Just UVXY
         # For NUCLEAR_PORTFOLIO, count actual symbols in consolidated portfolio
-        if isinstance(symbol, str) and "NUCLEAR_PORTFOLIO" in symbol:
-            return self._count_nuclear_portfolio_symbols(symbol, consolidated_portfolio)
+        if "NUCLEAR_PORTFOLIO" in symbol_str:
+            return self._count_nuclear_portfolio_symbols(symbol_str, consolidated_portfolio)
         return 0
 
     def _count_nuclear_portfolio_symbols(
@@ -474,7 +501,7 @@ class SignalOrchestrator:
     def _get_symbols_for_strategy(
         self,
         strategy_name: str,
-        strategy_signals: dict[str, Any],
+        strategy_signals: dict[str, StrategySignalResultDTO],
     ) -> set[str]:
         """Get symbols associated with a strategy."""
         # Convert strategy name to strategy type key
@@ -491,11 +518,12 @@ class SignalOrchestrator:
         if not signal:
             return set()
 
-        symbol: Any = signal.get("symbol")
+        symbol = signal.symbol  # Access DTO property directly
 
         if isinstance(symbol, str):
             return {symbol}
-        if isinstance(symbol, dict):
-            return set(symbol.keys())
+        if hasattr(symbol, "__iter__") and not isinstance(symbol, str):
+            # Handle case where symbol might be a list or other iterable
+            return set(str(s) for s in symbol)
 
         return set()
