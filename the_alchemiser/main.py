@@ -219,7 +219,6 @@ class TradingSystem:
                 render_footer("Trading execution failed - check logs for details")
 
             return success
-            
         except (TradingClientError, StrategyExecutionError) as e:
             self.error_handler.handle_error(
                 error=e,
