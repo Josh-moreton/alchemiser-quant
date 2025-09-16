@@ -205,6 +205,7 @@ Resources:
   TradingSecrets:
     Type: AWS::SecretsManager::Secret
     DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Name: the-alchemiser-secrets
       Description: "Secrets for The Alchemiser (ALPACA_KEY/SECRET, optional TWELVEDATA_KEY, SMTP_PASSWORD)"
