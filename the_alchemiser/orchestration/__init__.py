@@ -15,6 +15,7 @@ Exports:
     - MultiStrategyOrchestrator: Multi-strategy coordination
     - PortfolioOrchestrator: Portfolio rebalancing workflow orchestration
     - EventDrivenOrchestrator: Event-driven workflow orchestration (NEW)
+    - CLI module: Command-line interface for all orchestration workflows
 """
 
 from .event_driven_orchestrator import EventDrivenOrchestrator

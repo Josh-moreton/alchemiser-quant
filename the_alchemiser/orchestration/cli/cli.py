@@ -25,7 +25,7 @@ from rich.text import Text
 # Delayed import to avoid complex dependency chains during module loading
 # from the_alchemiser.strategy_v2.data.market_data_service import MarketDataService
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.cli.cli_formatter import render_account_info
+from the_alchemiser.orchestration.cli.cli_formatter import render_account_info
 from the_alchemiser.shared.config.secrets_manager import secrets_manager
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.logging.logging_utils import (
@@ -284,7 +284,7 @@ def _display_strategy_tracking(paper_trading: bool) -> None:  # noqa: FBT001
 
     """
     try:
-        from the_alchemiser.shared.cli.strategy_tracking_utils import (
+        from the_alchemiser.orchestration.cli.strategy_tracking_utils import (
             display_detailed_strategy_positions,
         )
 

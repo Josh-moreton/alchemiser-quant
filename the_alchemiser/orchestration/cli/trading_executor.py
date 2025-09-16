@@ -16,8 +16,8 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
-from the_alchemiser.shared.cli.base_cli import BaseCLI
-from the_alchemiser.shared.cli.cli_formatter import (
+from the_alchemiser.orchestration.cli.base_cli import BaseCLI
+from the_alchemiser.orchestration.cli.cli_formatter import (
     render_footer,
     render_header,
 )
@@ -140,7 +140,7 @@ class TradingExecutor(BaseCLI):
         execution_result: ExecutionResult | None = None,
     ) -> None:
         """Display comprehensive execution results including order details and summary."""
-        from the_alchemiser.shared.cli.cli_formatter import render_orders_executed
+        from the_alchemiser.orchestration.cli.cli_formatter import render_orders_executed
 
         try:
             # Display orders executed using existing formatter
@@ -293,7 +293,7 @@ class TradingExecutor(BaseCLI):
     def _export_tracking_summary(self) -> None:
         """Export tracking summary to JSON file."""
         try:
-            from the_alchemiser.shared.cli.strategy_tracking_utils import (
+            from the_alchemiser.orchestration.cli.strategy_tracking_utils import (
                 _get_strategy_order_tracker,
             )
 

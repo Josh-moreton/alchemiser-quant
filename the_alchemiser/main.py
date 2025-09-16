@@ -19,7 +19,7 @@ from the_alchemiser.orchestration.event_driven_orchestrator import (
 )
 
 # CLI formatter imports (moved from function-level)
-from the_alchemiser.shared.cli.cli_formatter import render_footer, render_header
+from the_alchemiser.orchestration.cli.cli_formatter import render_footer, render_header
 
 # Signal analyzer import removed - signal functionality integrated into trading workflow
 from the_alchemiser.shared.config.config import Settings, load_settings
@@ -153,7 +153,7 @@ class TradingSystem:
         Note: Trading mode (live/paper) is now determined by deployment stage.
         """
         try:
-            from the_alchemiser.shared.cli.trading_executor import TradingExecutor
+            from the_alchemiser.orchestration.cli.trading_executor import TradingExecutor
 
             if self.container is None:
                 raise RuntimeError("DI container not initialized")
