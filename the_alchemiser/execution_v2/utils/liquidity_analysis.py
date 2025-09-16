@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
@@ -56,7 +57,8 @@ class LiquidityAnalyzer:
 
         """
         self.min_volume_threshold = min_volume_threshold
-        self.tick_size = tick_size
+        # Convert tick_size to Decimal to avoid floating point precision issues
+        self.tick_size = Decimal(str(tick_size))
 
     def analyze_liquidity(
         self, quote: QuoteModel, order_size: float
@@ -161,36 +163,40 @@ class LiquidityAnalyzer:
         bid_volume_ratio = order_size / max(quote.bid_size, 1.0)
         ask_volume_ratio = order_size / max(quote.ask_size, 1.0)
 
+        # Convert prices to Decimal for precise arithmetic
+        bid_price = Decimal(str(quote.bid_price))
+        ask_price = Decimal(str(quote.ask_price))
+
         # Base pricing at best levels
-        recommended_bid = quote.bid_price
-        recommended_ask = quote.ask_price
+        recommended_bid = bid_price
+        recommended_ask = ask_price
 
         # Adjust based on order size vs available volume
         if bid_volume_ratio > 0.8:  # Order size > 80% of available volume
             # Large order relative to liquidity - be more aggressive
-            recommended_bid = quote.bid_price + (self.tick_size * 2)
+            recommended_bid = bid_price + (self.tick_size * 2)
             logger.debug(
                 f"Large buy order vs liquidity ({bid_volume_ratio:.1%}), "
                 f"pricing aggressively: {recommended_bid}"
             )
         elif bid_volume_ratio > 0.3:  # Order size > 30% of available volume
             # Medium order - price just inside
-            recommended_bid = quote.bid_price + self.tick_size
+            recommended_bid = bid_price + self.tick_size
         else:
             # Small order - can be patient, price at best bid
-            recommended_bid = quote.bid_price
+            recommended_bid = bid_price
 
         # Similar logic for ask side
         if ask_volume_ratio > 0.8:
-            recommended_ask = quote.ask_price - (self.tick_size * 2)
+            recommended_ask = ask_price - (self.tick_size * 2)
             logger.debug(
                 f"Large sell order vs liquidity ({ask_volume_ratio:.1%}), "
                 f"pricing aggressively: {recommended_ask}"
             )
         elif ask_volume_ratio > 0.3:
-            recommended_ask = quote.ask_price - self.tick_size
+            recommended_ask = ask_price - self.tick_size
         else:
-            recommended_ask = quote.ask_price
+            recommended_ask = ask_price
 
         # Additional adjustments based on volume imbalance
         total_volume = quote.bid_size + quote.ask_size
@@ -200,7 +206,7 @@ class LiquidityAnalyzer:
             # If heavy bid side (imbalance < -0.2), be more aggressive on buys
             if imbalance < -0.2:
                 recommended_bid = min(
-                    recommended_bid + self.tick_size, quote.ask_price - self.tick_size
+                    recommended_bid + self.tick_size, ask_price - self.tick_size
                 )
                 logger.debug(
                     f"Heavy bid side detected, adjusting buy price to {recommended_bid}"
@@ -209,13 +215,17 @@ class LiquidityAnalyzer:
             # If heavy ask side (imbalance > 0.2), be more aggressive on sells
             elif imbalance > 0.2:
                 recommended_ask = max(
-                    recommended_ask - self.tick_size, quote.bid_price + self.tick_size
+                    recommended_ask - self.tick_size, bid_price + self.tick_size
                 )
                 logger.debug(
                     f"Heavy ask side detected, adjusting sell price to {recommended_ask}"
                 )
 
-        return {"bid": recommended_bid, "ask": recommended_ask}
+        # Quantize prices to tick_size precision to avoid floating point errors
+        recommended_bid = recommended_bid.quantize(self.tick_size)
+        recommended_ask = recommended_ask.quantize(self.tick_size)
+
+        return {"bid": float(recommended_bid), "ask": float(recommended_ask)}
 
     def _calculate_confidence(
         self, quote: QuoteModel, order_size: float, total_volume: float
