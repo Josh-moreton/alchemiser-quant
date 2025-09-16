@@ -2,7 +2,7 @@
 
 Portfolio state management and rebalancing logic.
 
-Alpaca data adapter - thin wrapper around execution_v2.adapters.AlpacaManager
+Alpaca data adapter - thin wrapper around shared.brokers.AlpacaManager
 for portfolio-specific data access.
 """
 
@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from the_alchemiser.shared.logging.logging_utils import log_with_context
 
 if TYPE_CHECKING:
-    from the_alchemiser.execution_v2.adapters.alpaca_manager import AlpacaManager
+    from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 
 logger = logging.getLogger(__name__)
 

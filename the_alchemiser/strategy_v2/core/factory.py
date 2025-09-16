@@ -9,7 +9,7 @@ strategy orchestrators with market data adapters.
 
 from __future__ import annotations
 
-from ...execution_v2.adapters.alpaca_manager import AlpacaManager
+from ...shared.brokers.alpaca_manager import AlpacaManager
 from ..adapters.market_data_adapter import StrategyMarketDataAdapter
 from .orchestrator import SingleStrategyOrchestrator
 

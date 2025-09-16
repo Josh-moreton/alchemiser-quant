@@ -1,6 +1,6 @@
-"""Business Unit: execution_v2 | Status: current.
+"""Business Unit: shared | Status: current.
 
-Alpaca broker adapter for trading operations.
+Alpaca broker adapter (moved from execution module for architectural compliance).
 
 This module consolidates scattered Alpaca client usage into a single, well-managed class.
 It provides a clean interface that:
@@ -9,7 +9,8 @@ It provides a clean interface that:
 3. Uses Pydantic models directly
 4. Provides clean domain interfaces
 
-Moved from shared/brokers to execution_v2/adapters as this is execution-specific infrastructure.
+Phase 2 Update: Now implements domain interfaces for type safety and future migration.
+Phase 3 Update: Moved to shared module to resolve architectural boundary violations.
 """
 
 from __future__ import annotations
@@ -717,7 +718,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         - RealTimePricingService.get_price_data() for volume and enhanced trade data
         - Enhanced price discovery with QuoteModel and PriceDataModel
         """
-        from the_alchemiser.strategy_v2.utils.price_discovery_utils import (
+        from the_alchemiser.shared.utils.price_discovery_utils import (
             get_current_price_from_quote,
         )
 

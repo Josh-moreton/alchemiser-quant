@@ -50,7 +50,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from the_alchemiser.execution_v2.adapters.alpaca_utils import (
+from the_alchemiser.shared.brokers.alpaca_utils import (
     create_stock_data_stream,
 )
 from the_alchemiser.shared.types.market_data import PriceDataModel, QuoteModel
