@@ -65,31 +65,33 @@ class TradingExecutor(BaseCLI):
         self.export_tracking_json = export_tracking_json
 
         # Delegate orchestration to dedicated orchestrator
-        self.orchestrator = TradingOrchestrator(settings, container, ignore_market_hours=ignore_market_hours)
+        self.orchestrator = TradingOrchestrator(
+            settings, container, ignore_market_hours=ignore_market_hours
+        )
 
     def run(self) -> bool:
         """Execute trading strategy."""
         render_header("Analyzing market conditions...", "Multi-Strategy Trading")
 
-        # Delegate to orchestration layer
-        result = self.orchestrator.execute_trading_workflow_with_details()
+        # 1) Market hours check (no confirmation, just informational ordering)
+        if not self.orchestrator.check_market_hours():
+            render_footer("Market closed - no action taken")
+            return True
 
-        if result is None:
-            render_footer("Trading execution failed - check logs for details")
+        # 2) Generate and DISPLAY signals + allocation BEFORE executing
+        pre_result = self.orchestrator.execute_strategy_signals()
+        if pre_result is None:
+            render_footer("Signal generation failed - check logs for details")
             return False
 
-        # Extract signal data for display
-        strategy_signals = result.get("strategy_signals", {})
-        consolidated_portfolio = result.get("consolidated_portfolio", {})
-        account_info = result.get("account_info")
-        current_positions = result.get("current_positions")
-        allocation_comparison = result.get("allocation_comparison")
-        orders_executed = result.get("orders_executed", [])
-        execution_result = result.get("execution_result")
-        open_orders = result.get("open_orders", [])
-        success = bool(result.get("success", False))
+        strategy_signals = pre_result.get("strategy_signals", {})
+        consolidated_portfolio = pre_result.get("consolidated_portfolio", {})
+        account_info = pre_result.get("account_info")
+        current_positions = pre_result.get("current_positions")
+        allocation_comparison = pre_result.get("allocation_comparison")
+        open_orders = pre_result.get("open_orders", [])
 
-        # Display strategy signals and comprehensive portfolio information
+        # Display strategy signals, account info, and rebalancing summary first
         if strategy_signals or consolidated_portfolio or account_info:
             self._display_comprehensive_results(
                 strategy_signals,
@@ -100,7 +102,15 @@ class TradingExecutor(BaseCLI):
                 open_orders,
             )
 
-        # Display execution results if trades were made
+        # 3) Execute trades and then display execution results
+        exec_result = self.orchestrator.execute_strategy_signals_with_trading()
+        if exec_result is None:
+            render_footer("Trading execution failed - check logs for details")
+            return False
+
+        orders_executed = exec_result.get("orders_executed", [])
+        execution_result = exec_result.get("execution_result")
+
         if orders_executed:
             self._display_execution_results(orders_executed, execution_result)
 
@@ -111,6 +121,16 @@ class TradingExecutor(BaseCLI):
         # Export tracking summary if requested
         if self.export_tracking_json:
             self._export_tracking_summary()
+
+        success = bool(exec_result.get("success", False))
+
+        # Send notification mirroring orchestrator workflow
+        try:
+            mode_str = "LIVE" if self.orchestrator.live_trading else "PAPER"
+            self.orchestrator.send_trading_notification(exec_result, mode_str)
+        except Exception as exc:
+            # Non-fatal for CLI UX, but record the failure
+            self.logger.warning(f"Failed to send trading notification: {exc}")
 
         if success:
             render_footer("Trading execution completed successfully!")
@@ -183,7 +203,9 @@ class TradingExecutor(BaseCLI):
         except Exception as e:
             self.logger.warning(f"Failed to display execution results: {e}")
 
-    def _display_order_status_details(self, orders_executed: list[dict[str, Any]]) -> None:
+    def _display_order_status_details(
+        self, orders_executed: list[dict[str, Any]]
+    ) -> None:
         """Display detailed order status information including order IDs and errors.
 
         Args:
@@ -251,7 +273,9 @@ class TradingExecutor(BaseCLI):
             console.print("\n")
 
             # Use the shared tracking display method from BaseCLI
-            self._display_strategy_tracking(paper_trading=not self.orchestrator.live_trading)
+            self._display_strategy_tracking(
+                paper_trading=not self.orchestrator.live_trading
+            )
 
         except Exception as e:
             self.logger.warning(f"Failed to display post-execution tracking: {e}")
@@ -267,7 +291,9 @@ class TradingExecutor(BaseCLI):
                     )
                 )
             except ImportError:
-                self.logger.warning("Strategy tracking display unavailable (rich not available)")
+                self.logger.warning(
+                    "Strategy tracking display unavailable (rich not available)"
+                )
 
     def _export_tracking_summary(self) -> None:
         """Export tracking summary to JSON file."""
@@ -277,7 +303,9 @@ class TradingExecutor(BaseCLI):
             )
 
             # Create tracker using same mode as execution
-            tracker = _get_strategy_order_tracker(paper_trading=not self.orchestrator.live_trading)
+            tracker = _get_strategy_order_tracker(
+                paper_trading=not self.orchestrator.live_trading
+            )
 
             # Collect strategy data
             summary_data = self._collect_strategy_tracking_data(tracker)
@@ -308,7 +336,9 @@ class TradingExecutor(BaseCLI):
                 strategy_data = self._get_single_strategy_data(tracker, strategy_name)
                 summary_data.append(strategy_data)
             except Exception as e:
-                self.logger.warning(f"Error gathering tracking data for {strategy_name}: {e}")
+                self.logger.warning(
+                    f"Error gathering tracking data for {strategy_name}: {e}"
+                )
                 summary_data.append(self._create_error_strategy_data(strategy_name, e))
 
         return summary_data
@@ -350,9 +380,11 @@ class TradingExecutor(BaseCLI):
             "total_pnl": total_pnl,
             "return_pct": return_pct,
             "recent_orders_count": len(recent_orders[-10:]),  # Last 10 orders
-            "updated_at": pnl_summary.last_updated.isoformat()
-            if hasattr(pnl_summary, "last_updated") and pnl_summary.last_updated
-            else None,
+            "updated_at": (
+                pnl_summary.last_updated.isoformat()
+                if hasattr(pnl_summary, "last_updated") and pnl_summary.last_updated
+                else None
+            ),
         }
 
     def _calculate_return_percentage(
@@ -391,7 +423,9 @@ class TradingExecutor(BaseCLI):
             "updated_at": None,
         }
 
-    def _create_error_strategy_data(self, strategy_name: str, error: Exception) -> dict[str, Any]:
+    def _create_error_strategy_data(
+        self, strategy_name: str, error: Exception
+    ) -> dict[str, Any]:
         """Create error data structure for failed strategy data collection.
 
         Args:
