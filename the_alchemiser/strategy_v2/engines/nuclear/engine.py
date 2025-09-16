@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
 
 import pandas as pd
 
@@ -19,6 +18,7 @@ from the_alchemiser.shared.config.confidence_config import (
     ConfidenceConfig,
     NuclearConfidenceConfig,
 )
+from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 from the_alchemiser.shared.logging.logging_utils import get_trading_logger
 from the_alchemiser.shared.types import Confidence, StrategyEngine, StrategySignal
 from the_alchemiser.shared.types.exceptions import StrategyExecutionError
@@ -178,9 +178,9 @@ class NuclearEngine(StrategyEngine):
 
     def _calculate_indicators(
         self, market_data: dict[str, pd.DataFrame]
-    ) -> dict[str, Any]:
+    ) -> dict[str, TechnicalIndicatorDTO]:
         """Calculate technical indicators for all symbols."""
-        indicators = {}
+        indicators: dict[str, TechnicalIndicatorDTO] = {}
         for symbol, df in market_data.items():
             if df.empty:
                 continue
@@ -200,30 +200,26 @@ class NuclearEngine(StrategyEngine):
                     )
                     continue
 
-                indicators[symbol] = {
-                    "rsi_10": safe_get_indicator(close, self.indicators.rsi, 10),
-                    "rsi_20": safe_get_indicator(close, self.indicators.rsi, 20),
-                    "ma_200": safe_get_indicator(
-                        close, self.indicators.moving_average, 200
-                    ),
-                    "ma_20": safe_get_indicator(
-                        close, self.indicators.moving_average, 20
-                    ),
-                    "ma_return_90": safe_get_indicator(
-                        close, self.indicators.moving_average_return, 90
-                    ),
-                    "cum_return_60": safe_get_indicator(
-                        close, self.indicators.cumulative_return, 60
-                    ),
-                    "current_price": float(close.iloc[-1]),
-                }
+                # Create TechnicalIndicatorDTO with calculated indicators
+                indicators[symbol] = TechnicalIndicatorDTO(
+                    symbol=symbol,
+                    timestamp=datetime.utcnow(),
+                    current_price=Decimal(str(close.iloc[-1])),
+                    rsi_10=safe_get_indicator(close, self.indicators.rsi, 10),
+                    rsi_20=safe_get_indicator(close, self.indicators.rsi, 20),
+                    ma_200=safe_get_indicator(close, self.indicators.moving_average, 200),
+                    ma_20=safe_get_indicator(close, self.indicators.moving_average, 20),
+                    ma_return_90=safe_get_indicator(close, self.indicators.moving_average_return, 90),
+                    cum_return_60=safe_get_indicator(close, self.indicators.cumulative_return, 60),
+                    data_source="nuclear_engine"
+                )
             except Exception as e:
                 self.logger.warning(f"Failed to calculate indicators for {symbol}: {e}")
 
         return indicators
 
     def _evaluate_nuclear_strategy(
-        self, indicators: dict[str, Any], market_data: dict[str, Any] | None = None
+        self, indicators: dict[str, TechnicalIndicatorDTO], market_data: dict[str, pd.DataFrame] | None = None
     ) -> tuple[str, str, str]:
         """Evaluate Nuclear strategy using the shared strategy logic.
 
@@ -241,7 +237,7 @@ class NuclearEngine(StrategyEngine):
         reasoning: str,
         timestamp: datetime,
         target_allocation_override: float | None = None,
-        market_data: dict[str, Any] | None = None,
+        market_data: dict[str, pd.DataFrame] | None = None,
     ) -> StrategySignal:
         """Convert signal format to typed StrategySignal."""
         # Normalize symbol - handle portfolio cases and invalid symbol names
@@ -282,7 +278,7 @@ class NuclearEngine(StrategyEngine):
         symbol: str,
         action: str,
         reasoning: str,
-        market_data: dict[str, Any] | None = None,
+        market_data: dict[str, pd.DataFrame] | None = None,
     ) -> Confidence:
         """Calculate confidence based on market indicators and signal characteristics.
 
@@ -322,7 +318,7 @@ class NuclearEngine(StrategyEngine):
         self,
         symbol: str,
         action: str,
-        market_data: dict[str, Any],
+        market_data: dict[str, pd.DataFrame],
         config: NuclearConfidenceConfig,
     ) -> Decimal:
         """Calculate confidence based on actual market indicators."""
@@ -438,7 +434,7 @@ class NuclearEngine(StrategyEngine):
         ]
 
     def _expand_nuclear_portfolio(
-        self, indicators: dict[str, Any], reason: str, now: datetime, top_n: int = 3
+        self, indicators: dict[str, TechnicalIndicatorDTO], reason: str, now: datetime, top_n: int = 3
     ) -> list[StrategySignal]:
         """Build a nuclear equity portfolio and emit per-symbol BUY signals with weights.
 
@@ -474,13 +470,13 @@ class NuclearEngine(StrategyEngine):
             )
         return signals
 
-    def _rank_nuclear_symbols(self, indicators: dict[str, Any]) -> list[str]:
+    def _rank_nuclear_symbols(self, indicators: dict[str, TechnicalIndicatorDTO]) -> list[str]:
         """Return nuclear symbols sorted by ma_return_90 descending."""
         scored: list[tuple[str, float]] = []
         for sym in self.nuclear_symbols:
             if sym in indicators:
                 try:
-                    score = float(indicators[sym].get("ma_return_90", float("-inf")))
+                    score = indicators[sym].ma_return_90 or float("-inf")
                 except Exception:
                     score = float("-inf")
                 scored.append((sym, score))
@@ -491,7 +487,7 @@ class NuclearEngine(StrategyEngine):
 
     def _expand_bear_portfolio(
         self,
-        indicators: dict[str, Any],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame] | None,
         reason: str,
         now: datetime,
@@ -533,17 +529,30 @@ class NuclearEngine(StrategyEngine):
             )
         return signals
 
-    def _get(self, indicators: dict[str, Any], sym: str, key: str) -> float | None:
+    def _get(self, indicators: dict[str, TechnicalIndicatorDTO], sym: str, key: str) -> float | None:
         try:
-            d = indicators.get(sym)
-            if not d:
+            dto = indicators.get(sym)
+            if not dto:
                 return None
-            v = d.get(key)
-            return float(v) if v is not None else None
+            # Map legacy key names to DTO attributes
+            if key == "rsi_10":
+                return dto.rsi_10
+            elif key == "rsi_20":
+                return dto.rsi_20
+            elif key == "rsi_21":
+                return dto.rsi_21
+            elif key == "ma_20":
+                return dto.ma_20
+            elif key == "current_price":
+                return float(dto.current_price) if dto.current_price else None
+            elif key == "cum_return_60":
+                return dto.cum_return_60
+            else:
+                return None
         except Exception:
             return None
 
-    def _choose_bear1_asset(self, indicators: dict[str, Any]) -> str:
+    def _choose_bear1_asset(self, indicators: dict[str, TechnicalIndicatorDTO]) -> str:
         """Choose the first bear market asset based on market conditions."""
         # Early exit for PSQ oversold condition
         if self._is_psq_oversold(indicators):
@@ -560,36 +569,36 @@ class NuclearEngine(StrategyEngine):
         # Final comparison checks
         return self._choose_final_bear_asset(indicators)
 
-    def _is_psq_oversold(self, indicators: dict[str, Any]) -> bool:
+    def _is_psq_oversold(self, indicators: dict[str, TechnicalIndicatorDTO]) -> bool:
         """Check if PSQ is oversold (RSI < 35)."""
         psq_rsi10 = self._get(indicators, "PSQ", "rsi_10")
         return psq_rsi10 is not None and psq_rsi10 < 35.0
 
-    def _is_qqq_declined(self, indicators: dict[str, Any]) -> bool:
+    def _is_qqq_declined(self, indicators: dict[str, TechnicalIndicatorDTO]) -> bool:
         """Check if QQQ has declined significantly (60-day return < -10%)."""
         qqq_cr60 = self._get(indicators, "QQQ", "cum_return_60")
         return qqq_cr60 is not None and qqq_cr60 < -10.0
 
-    def _is_tqqq_above_ma(self, indicators: dict[str, Any]) -> bool:
+    def _is_tqqq_above_ma(self, indicators: dict[str, TechnicalIndicatorDTO]) -> bool:
         """Check if TQQQ is above its 20-day moving average."""
         tqqq_price = self._get(indicators, "TQQQ", "current_price")
         tqqq_ma20 = self._get(indicators, "TQQQ", "ma_20")
         return (tqqq_price is not None and tqqq_ma20 is not None 
                 and tqqq_price > tqqq_ma20)
 
-    def _choose_asset_for_qqq_decline(self, indicators: dict[str, Any]) -> str:
+    def _choose_asset_for_qqq_decline(self, indicators: dict[str, TechnicalIndicatorDTO]) -> str:
         """Choose asset when QQQ has declined significantly."""
         if self._tlt_stronger_than_psq(indicators):
             return "TQQQ"
         return "PSQ"
 
-    def _choose_asset_for_tqqq_strength(self, indicators: dict[str, Any]) -> str:
+    def _choose_asset_for_tqqq_strength(self, indicators: dict[str, TechnicalIndicatorDTO]) -> str:
         """Choose asset when TQQQ is above MA."""
         if self._tlt_stronger_than_psq(indicators):
             return "TQQQ"
         return "SQQQ"
 
-    def _choose_final_bear_asset(self, indicators: dict[str, Any]) -> str:
+    def _choose_final_bear_asset(self, indicators: dict[str, TechnicalIndicatorDTO]) -> str:
         """Final asset selection logic."""
         ief_rsi10 = self._get(indicators, "IEF", "rsi_10")
         psq_rsi20 = self._get(indicators, "PSQ", "rsi_20")
@@ -603,14 +612,14 @@ class NuclearEngine(StrategyEngine):
         
         return "SQQQ"
 
-    def _tlt_stronger_than_psq(self, indicators: dict[str, Any]) -> bool:
+    def _tlt_stronger_than_psq(self, indicators: dict[str, TechnicalIndicatorDTO]) -> bool:
         """Check if TLT RSI is stronger than PSQ RSI."""
         tlt_rsi20 = self._get(indicators, "TLT", "rsi_20")
         psq_rsi20 = self._get(indicators, "PSQ", "rsi_20")
         return (tlt_rsi20 is not None and psq_rsi20 is not None 
                 and tlt_rsi20 > psq_rsi20)
 
-    def _choose_bear2_asset(self, indicators: dict[str, Any]) -> str:
+    def _choose_bear2_asset(self, indicators: dict[str, TechnicalIndicatorDTO]) -> str:
         psq_rsi10 = self._get(indicators, "PSQ", "rsi_10")
         if psq_rsi10 is not None and psq_rsi10 < 35.0:
             return "SQQQ"

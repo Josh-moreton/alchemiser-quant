@@ -30,8 +30,8 @@ class StrategyContext:
     as_of: datetime | None = None
     """Optional timestamp for strategy calculation (defaults to current time)"""
 
-    params: dict[str, Any] | None = None
-    """Optional strategy-specific parameters"""
+    params: dict[str, Any] | None = None  # type: ignore[misc] # Strategy configuration metadata
+    """Optional strategy-specific parameters (configuration metadata)"""
 
     def __post_init__(self) -> None:
         """Validate context after initialization."""
