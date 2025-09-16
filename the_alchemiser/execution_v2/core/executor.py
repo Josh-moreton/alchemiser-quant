@@ -23,7 +23,7 @@ from the_alchemiser.execution_v2.adapters.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanItemDTO
 from the_alchemiser.shared.dto.execution_dto import ExecutionResult
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
-from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
+from the_alchemiser.strategy_v2.services.real_time_pricing import RealTimePricingService
 
 if TYPE_CHECKING:
     from the_alchemiser.execution_v2.core.smart_execution_strategy import (

@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Business Unit: shared; Status: current.
+"""Business Unit: strategy_v2; Status: current.
 
 Real-time WebSocket Price Streaming for Alpaca Trading with Structured Data Types.
 
 This module provides real-time stock price updates via Alpaca's WebSocket streams
 to ensure accurate limit order pricing. It maintains current bid/ask quotes and
 last trade prices for symbols used in trading strategies using structured data types.
+
+Moved from shared/services to strategy_v2/services as this is market data functionality.
+"""
 
 DESIGN PHILOSOPHY:
 =================

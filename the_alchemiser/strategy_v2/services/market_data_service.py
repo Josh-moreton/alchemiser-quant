@@ -1,9 +1,11 @@
-"""Business Unit: shared | Status: current.
+"""Business Unit: strategy_v2 | Status: current.
 
 Market data service providing domain-facing interface.
 
 This service acts as a port between orchestrators and the market data infrastructure,
 handling input normalization, error mapping, and providing a clean domain interface.
+
+Moved from shared/services to strategy_v2/services as this is strategy-specific functionality.
 """
 
 from __future__ import annotations
