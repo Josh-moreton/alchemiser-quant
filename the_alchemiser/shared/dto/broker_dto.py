@@ -73,6 +73,7 @@ class OrderExecutionResult(Result):
     @field_validator("filled_qty")
     @classmethod
     def validate_filled_qty(cls, v: Decimal) -> Decimal:
+        """Validate filled quantity is non-negative."""
         if v < 0:
             raise ValueError("Filled quantity cannot be negative")
         return v
@@ -80,6 +81,7 @@ class OrderExecutionResult(Result):
     @field_validator("avg_fill_price")
     @classmethod
     def validate_avg_fill_price(cls, v: Decimal | None) -> Decimal | None:
+        """Validate average fill price is positive when provided."""
         if v is not None and v <= 0:
             raise ValueError("Average fill price must be greater than 0")
         return v
