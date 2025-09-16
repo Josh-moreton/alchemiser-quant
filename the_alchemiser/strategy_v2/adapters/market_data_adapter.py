@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any, Protocol
+from typing import Protocol
 
 from ...shared.brokers.alpaca_manager import AlpacaManager
+from ...shared.dto.market_bar_dto import MarketBarDTO
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class MarketDataProvider(Protocol):
 
     def get_bars(
         self, symbols: list[str], timeframe: str, lookback_days: int
-    ) -> dict[str, list[dict[str, Any]]]:
+    ) -> dict[str, list[MarketBarDTO]]:
         """Get historical bars for multiple symbols."""
         ...
 
@@ -58,7 +59,7 @@ class StrategyMarketDataAdapter:
         timeframe: str,
         lookback_days: int,
         end_date: datetime | None = None,
-    ) -> dict[str, list[dict[str, Any]]]:
+    ) -> dict[str, list[MarketBarDTO]]:
         """Get historical bars for multiple symbols.
 
         Args:
@@ -87,7 +88,7 @@ class StrategyMarketDataAdapter:
         start_str = start_date.strftime("%Y-%m-%d")
         end_str = end_date.strftime("%Y-%m-%d")
 
-        result: dict[str, list[dict[str, Any]]] = {}
+        result: dict[str, list[MarketBarDTO]] = {}
 
         # Fetch data for each symbol
         # Note: Could be optimized for batch requests if Alpaca SDK supports it
@@ -99,9 +100,23 @@ class StrategyMarketDataAdapter:
                     end_date=end_str,
                     timeframe=timeframe,
                 )
-                result[symbol] = bars
+                
+                # Convert legacy bar dictionaries to MarketBarDTO objects
+                typed_bars = []
+                for bar_dict in bars:
+                    try:
+                        bar_dto = MarketBarDTO.from_alpaca_bar(bar_dict, symbol, timeframe)
+                        typed_bars.append(bar_dto)
+                    except ValueError as e:
+                        self._logger.warning(
+                            f"Failed to convert bar data for {symbol}: {e}",
+                            extra={"component": _COMPONENT},
+                        )
+                        continue
+                
+                result[symbol] = typed_bars
                 self._logger.debug(
-                    f"Fetched {len(bars)} bars for {symbol} "
+                    f"Fetched {len(typed_bars)} bars for {symbol} "
                     f"({timeframe}, {lookback_days}d lookback)"
                 )
             except Exception as e:

@@ -12,6 +12,7 @@ from the_alchemiser.shared.dto.execution_report_dto import (
     ExecutionReportDTO,
 )
 from the_alchemiser.shared.dto.lambda_event_dto import LambdaEventDTO
+from the_alchemiser.shared.dto.market_bar_dto import MarketBarDTO
 from the_alchemiser.shared.dto.order_request_dto import (
     MarketDataDTO,
     OrderRequestDTO,
@@ -27,6 +28,7 @@ from the_alchemiser.shared.dto.rebalance_plan_dto import (
 )
 from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
 from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
+from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 
 
 # Placeholder DTO classes for future implementation
@@ -46,6 +48,7 @@ __all__ = [
     "ExecutedOrderDTO",
     "ExecutionReportDTO",
     "LambdaEventDTO",
+    "MarketBarDTO",
     "MarketDataDTO",
     "OrderRequestDTO",
     "PortfolioMetricsDTO",
@@ -55,4 +58,5 @@ __all__ = [
     "RebalancePlanItemDTO",
     "StrategyAllocationDTO",
     "StrategySignalDTO",
+    "TechnicalIndicatorDTO",
 ]
