@@ -25,7 +25,11 @@ from the_alchemiser.shared.dto.rebalance_plan_dto import (
     RebalancePlanDTO,
     RebalancePlanItemDTO,
 )
-from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
+from the_alchemiser.shared.dto.signal_dto import (
+    AggregatedSignalsDisplayDTO,
+    StrategySignalDTO,
+    StrategySignalsDisplayDTO,
+)
 from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
 
 
@@ -43,6 +47,7 @@ __all__ = [
     "ConfigurationDTO",
     "ErrorDTO",
     # Implemented DTOs
+    "AggregatedSignalsDisplayDTO",
     "ExecutedOrderDTO",
     "ExecutionReportDTO",
     "LambdaEventDTO",
@@ -55,4 +60,5 @@ __all__ = [
     "RebalancePlanItemDTO",
     "StrategyAllocationDTO",
     "StrategySignalDTO",
+    "StrategySignalsDisplayDTO",
 ]

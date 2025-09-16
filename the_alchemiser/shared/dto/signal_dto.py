@@ -59,6 +59,52 @@ class StrategySignalDTO(BaseModel):
     )
     metadata: dict[str, Any] | None = Field(default=None, description="Additional signal metadata")
 
+
+class StrategySignalsDisplayDTO(BaseModel):
+    """DTO for strategy signals display format.
+
+    Used to replace dict[str, Any] returns in signal orchestrator display functions.
+    Provides type-safe representation of strategy signals for UI/display purposes.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    strategy_name: str = Field(..., min_length=1, description="Strategy identifier")
+    symbol: str = Field(..., min_length=1, description="Trading symbol or symbols")
+    symbols: list[str] | None = Field(
+        default=None, description="Individual symbols for multi-symbol strategies"
+    )
+    action: str = Field(..., description="Trading action (BUY, SELL, HOLD)")
+    confidence: float = Field(..., ge=0, le=1, description="Signal confidence (0-1)")
+    reasoning: str = Field(..., min_length=1, description="Human-readable signal reasoning")
+    is_multi_symbol: bool = Field(..., description="Whether this represents multiple symbols")
+
+
+class AggregatedSignalsDisplayDTO(BaseModel):
+    """DTO for aggregated strategy signals display.
+
+    Container for multiple strategy signals in display format.
+    Replaces dict[str, Any] returns in signal orchestration.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    signals: dict[str, StrategySignalsDisplayDTO] = Field(
+        ..., description="Strategy signals by strategy name"
+    )
+    correlation_id: str = Field(..., min_length=1, description="Unique correlation identifier")
+    timestamp: datetime = Field(..., description="Signal generation timestamp")
+
     @field_validator("symbol")
     @classmethod
     def normalize_symbol(cls, v: str) -> str:

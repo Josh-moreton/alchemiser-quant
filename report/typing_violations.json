@@ -1,0 +1,1551 @@
+{
+  "summary": {
+    "total_violations": 170,
+    "files_with_violations": 36,
+    "by_severity": {
+      "LOW": 0,
+      "MEDIUM": 159,
+      "HIGH": 11,
+      "CRITICAL": 0
+    },
+    "by_rule_type": {
+      "ANN401_VIOLATION": 168,
+      "LAYER_TYPE_VIOLATION": 2,
+      "CONVERSION_POINT_VIOLATION": 0,
+      "NAMING_CONVENTION_VIOLATION": 0,
+      "PROTOCOL_TYPING_VIOLATION": 0
+    }
+  },
+  "violations": [
+    {
+      "file_path": "execution_v2/core/smart_execution_strategy.py",
+      "line_number": 221,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "HIGH",
+      "description": "Function '_calculate_simple_inside_spread_price' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 221: Function definition"
+    },
+    {
+      "file_path": "execution_v2/core/smart_execution_strategy.py",
+      "line_number": 266,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "HIGH",
+      "description": "Function 'calculate_liquidity_aware_price' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 266: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 179,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "HIGH",
+      "description": "Function '_calculate_indicators' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 179: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 179,
+      "rule_type": "LAYER_TYPE_VIOLATION",
+      "severity": "HIGH",
+      "description": "Business logic function '_calculate_indicators' returns dict[str, Any] instead of DTO",
+      "suggested_fix": "Return specific DTO type instead of dict[str, Any]",
+      "code_context": "Line 179: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 321,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "HIGH",
+      "description": "Parameter 'market_data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 321: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/tecl/engine.py",
+      "line_number": 121,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "HIGH",
+      "description": "Parameter 'market_data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 121: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/tecl/engine.py",
+      "line_number": 121,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "HIGH",
+      "description": "Function 'calculate_indicators' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 121: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/tecl/engine.py",
+      "line_number": 121,
+      "rule_type": "LAYER_TYPE_VIOLATION",
+      "severity": "HIGH",
+      "description": "Business logic function 'calculate_indicators' returns dict[str, Any] instead of DTO",
+      "suggested_fix": "Return specific DTO type instead of dict[str, Any]",
+      "code_context": "Line 121: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/tecl/engine.py",
+      "line_number": 424,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "HIGH",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 424: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/tecl/engine.py",
+      "line_number": 462,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "HIGH",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 462: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/tecl/engine.py",
+      "line_number": 495,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "HIGH",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 495: Function definition"
+    },
+    {
+      "file_path": "orchestration/event_driven_orchestrator.py",
+      "line_number": 314,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'get_workflow_status' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 314: Function definition"
+    },
+    {
+      "file_path": "orchestration/signal_orchestrator.py",
+      "line_number": 190,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 190: Function definition"
+    },
+    {
+      "file_path": "orchestration/signal_orchestrator.py",
+      "line_number": 232,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 232: Function definition"
+    },
+    {
+      "file_path": "orchestration/signal_orchestrator.py",
+      "line_number": 355,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 355: Function definition"
+    },
+    {
+      "file_path": "orchestration/signal_orchestrator.py",
+      "line_number": 420,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 420: Function definition"
+    },
+    {
+      "file_path": "orchestration/signal_orchestrator.py",
+      "line_number": 444,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 444: Function definition"
+    },
+    {
+      "file_path": "orchestration/signal_orchestrator.py",
+      "line_number": 455,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'signal' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 455: Function definition"
+    },
+    {
+      "file_path": "orchestration/signal_orchestrator.py",
+      "line_number": 488,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 488: Function definition"
+    },
+    {
+      "file_path": "orchestration/strategy_orchestrator.py",
+      "line_number": 294,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function '_create_conflict_record' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 294: Function definition"
+    },
+    {
+      "file_path": "orchestration/trading_orchestrator.py",
+      "line_number": 291,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'result' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 291: Function definition"
+    },
+    {
+      "file_path": "orchestration/trading_orchestrator.py",
+      "line_number": 440,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'account_info' uses 'Any' type annotation",
+      "suggested_fix": "Use AccountInfoDTO for account parameters",
+      "code_context": "Line 440: Function definition"
+    },
+    {
+      "file_path": "orchestration/trading_orchestrator.py",
+      "line_number": 487,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'account_info' uses 'Any' type annotation",
+      "suggested_fix": "Use AccountInfoDTO for account parameters",
+      "code_context": "Line 487: Function definition"
+    },
+    {
+      "file_path": "orchestration/trading_orchestrator.py",
+      "line_number": 755,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'execution_plan' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 755: Function definition"
+    },
+    {
+      "file_path": "shared/cli/base_cli.py",
+      "line_number": 40,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 40: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 86,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 86: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 86,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function '_extract_indicators_from_signals' returns 'Any' type",
+      "suggested_fix": "Return ExecutionReportDTO or StrategySignalDTO",
+      "code_context": "Line 86: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 104,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 104: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 121,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 121: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 131,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 131: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 139,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'all_indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 139: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 162,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 162: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 258,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'signal' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 258: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 304,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 304: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 505,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'account_info' uses 'Any' type annotation",
+      "suggested_fix": "Use AccountInfoDTO for account parameters",
+      "code_context": "Line 505: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 651,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'account_info' uses 'Any' type annotation",
+      "suggested_fix": "Use AccountInfoDTO for account parameters",
+      "code_context": "Line 651: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 682,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'account_info' uses 'Any' type annotation",
+      "suggested_fix": "Use AccountInfoDTO for account parameters",
+      "code_context": "Line 682: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 682,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'current_positions' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 682: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 783,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'account_info' uses 'Any' type annotation",
+      "suggested_fix": "Use AccountInfoDTO for account parameters",
+      "code_context": "Line 783: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 783,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'current_positions' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 783: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 1026,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function '_build_enriched_account_info' returns 'Any' type",
+      "suggested_fix": "Return specific DTO (AccountInfoDTO, PortfolioStateDTO, etc.)",
+      "code_context": "Line 1026: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 1042,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'base_account' uses 'Any' type annotation",
+      "suggested_fix": "Use AccountInfoDTO for account parameters",
+      "code_context": "Line 1042: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 1066,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'base_account' uses 'Any' type annotation",
+      "suggested_fix": "Use AccountInfoDTO for account parameters",
+      "code_context": "Line 1066: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 1119,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'enriched_account' uses 'Any' type annotation",
+      "suggested_fix": "Use AccountInfoDTO for account parameters",
+      "code_context": "Line 1119: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 1336,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 1336: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 1375,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 1375: Function definition"
+    },
+    {
+      "file_path": "shared/cli/cli_formatter.py",
+      "line_number": 1418,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 1418: Function definition"
+    },
+    {
+      "file_path": "shared/cli/dashboard_utils.py",
+      "line_number": 20,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'build_basic_dashboard_structure' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 20: Function definition"
+    },
+    {
+      "file_path": "shared/cli/dashboard_utils.py",
+      "line_number": 124,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 124: Function definition"
+    },
+    {
+      "file_path": "shared/cli/dashboard_utils.py",
+      "line_number": 124,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_allocations' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 124: Function definition"
+    },
+    {
+      "file_path": "shared/cli/dashboard_utils.py",
+      "line_number": 124,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'extract_strategies_data' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 124: Function definition"
+    },
+    {
+      "file_path": "shared/cli/trading_executor.py",
+      "line_number": 341,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function '_get_single_strategy_data' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 341: Function definition"
+    },
+    {
+      "file_path": "shared/cli/trading_executor.py",
+      "line_number": 402,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function '_create_empty_strategy_data' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 402: Function definition"
+    },
+    {
+      "file_path": "shared/cli/trading_executor.py",
+      "line_number": 421,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function '_create_error_strategy_data' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 421: Function definition"
+    },
+    {
+      "file_path": "shared/dto/execution_report_dto.py",
+      "line_number": 176,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'to_dict' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 176: Function definition"
+    },
+    {
+      "file_path": "shared/dto/execution_report_dto.py",
+      "line_number": 196,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 196: Function definition"
+    },
+    {
+      "file_path": "shared/dto/execution_report_dto.py",
+      "line_number": 203,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 203: Function definition"
+    },
+    {
+      "file_path": "shared/dto/execution_report_dto.py",
+      "line_number": 217,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 217: Function definition"
+    },
+    {
+      "file_path": "shared/dto/execution_report_dto.py",
+      "line_number": 230,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'order_dict' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 230: Function definition"
+    },
+    {
+      "file_path": "shared/dto/execution_report_dto.py",
+      "line_number": 235,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'order_dict' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 235: Function definition"
+    },
+    {
+      "file_path": "shared/dto/execution_report_dto.py",
+      "line_number": 250,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 250: Function definition"
+    },
+    {
+      "file_path": "shared/dto/order_request_dto.py",
+      "line_number": 112,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'to_dict' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 112: Function definition"
+    },
+    {
+      "file_path": "shared/dto/order_request_dto.py",
+      "line_number": 140,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 140: Function definition"
+    },
+    {
+      "file_path": "shared/dto/order_request_dto.py",
+      "line_number": 248,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'to_dict' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 248: Function definition"
+    },
+    {
+      "file_path": "shared/dto/order_request_dto.py",
+      "line_number": 277,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 277: Function definition"
+    },
+    {
+      "file_path": "shared/dto/portfolio_state_dto.py",
+      "line_number": 152,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'to_dict' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 152: Function definition"
+    },
+    {
+      "file_path": "shared/dto/portfolio_state_dto.py",
+      "line_number": 170,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 170: Function definition"
+    },
+    {
+      "file_path": "shared/dto/portfolio_state_dto.py",
+      "line_number": 177,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 177: Function definition"
+    },
+    {
+      "file_path": "shared/dto/portfolio_state_dto.py",
+      "line_number": 184,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 184: Function definition"
+    },
+    {
+      "file_path": "shared/dto/portfolio_state_dto.py",
+      "line_number": 191,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 191: Function definition"
+    },
+    {
+      "file_path": "shared/dto/portfolio_state_dto.py",
+      "line_number": 201,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'position_dict' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 201: Function definition"
+    },
+    {
+      "file_path": "shared/dto/portfolio_state_dto.py",
+      "line_number": 221,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 221: Function definition"
+    },
+    {
+      "file_path": "shared/dto/portfolio_state_dto.py",
+      "line_number": 243,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 243: Function definition"
+    },
+    {
+      "file_path": "shared/dto/portfolio_state_dto.py",
+      "line_number": 269,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 269: Function definition"
+    },
+    {
+      "file_path": "shared/dto/portfolio_state_dto.py",
+      "line_number": 283,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 283: Function definition"
+    },
+    {
+      "file_path": "shared/dto/portfolio_state_dto.py",
+      "line_number": 298,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 298: Function definition"
+    },
+    {
+      "file_path": "shared/dto/portfolio_state_dto.py",
+      "line_number": 315,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 315: Function definition"
+    },
+    {
+      "file_path": "shared/dto/portfolio_state_dto.py",
+      "line_number": 328,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'position_data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 328: Function definition"
+    },
+    {
+      "file_path": "shared/dto/portfolio_state_dto.py",
+      "line_number": 366,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 366: Function definition"
+    },
+    {
+      "file_path": "shared/dto/rebalance_plan_dto.py",
+      "line_number": 131,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'to_dict' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 131: Function definition"
+    },
+    {
+      "file_path": "shared/dto/rebalance_plan_dto.py",
+      "line_number": 173,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 173: Function definition"
+    },
+    {
+      "file_path": "shared/dto/signal_dto.py",
+      "line_number": 130,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'to_dict' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 130: Function definition"
+    },
+    {
+      "file_path": "shared/dto/signal_dto.py",
+      "line_number": 151,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 151: Function definition"
+    },
+    {
+      "file_path": "shared/dto/strategy_allocation_dto.py",
+      "line_number": 104,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 104: Function definition"
+    },
+    {
+      "file_path": "shared/errors/context.py",
+      "line_number": 22,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'to_dict' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 22: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 163,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'to_dict' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 163: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 221,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'to_dict' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 221: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 296,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'to_dict' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 296: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 462,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'get_error_summary' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 462: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 543,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'error' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 543: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 683,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'to_dict' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 683: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 714,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'to_dict' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 714: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 805,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'retry_with_backoff' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 805: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 829,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'func' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 829: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 829,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'decorator' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 829: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 831,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'wrapper' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 831: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 907,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'func' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 907: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 907,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function '__call__' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 907: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 914,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'wrapper' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 914: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 1070,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'get_error_summary' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 1070: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 1103,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'handle_errors_with_retry' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 1103: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 1123,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'func' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 1123: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 1123,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'decorator' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 1123: Function definition"
+    },
+    {
+      "file_path": "shared/errors/error_handler.py",
+      "line_number": 1125,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'wrapper' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 1125: Function definition"
+    },
+    {
+      "file_path": "shared/events/base.py",
+      "line_number": 66,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'to_dict' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 66: Function definition"
+    },
+    {
+      "file_path": "shared/events/base.py",
+      "line_number": 82,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 82: Function definition"
+    },
+    {
+      "file_path": "shared/events/bus.py",
+      "line_number": 195,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'get_stats' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 195: Function definition"
+    },
+    {
+      "file_path": "shared/mappers/execution_summary_mapping.py",
+      "line_number": 36,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 36: Function definition"
+    },
+    {
+      "file_path": "shared/mappers/execution_summary_mapping.py",
+      "line_number": 45,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 45: Function definition"
+    },
+    {
+      "file_path": "shared/mappers/execution_summary_mapping.py",
+      "line_number": 55,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 55: Function definition"
+    },
+    {
+      "file_path": "shared/mappers/execution_summary_mapping.py",
+      "line_number": 65,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 65: Function definition"
+    },
+    {
+      "file_path": "shared/mappers/execution_summary_mapping.py",
+      "line_number": 75,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 75: Function definition"
+    },
+    {
+      "file_path": "shared/mappers/execution_summary_mapping.py",
+      "line_number": 117,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 117: Function definition"
+    },
+    {
+      "file_path": "shared/mappers/execution_summary_mapping.py",
+      "line_number": 162,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'allocation_comparison_to_dict' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 162: Function definition"
+    },
+    {
+      "file_path": "shared/notifications/templates/performance.py",
+      "line_number": 48,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'order' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 48: Function definition"
+    },
+    {
+      "file_path": "shared/notifications/templates/performance.py",
+      "line_number": 129,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'trading_summary' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 129: Function definition"
+    },
+    {
+      "file_path": "shared/notifications/templates/performance.py",
+      "line_number": 180,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_summary' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 180: Function definition"
+    },
+    {
+      "file_path": "shared/notifications/templates/performance.py",
+      "line_number": 238,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'order' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 238: Function definition"
+    },
+    {
+      "file_path": "shared/notifications/templates/portfolio.py",
+      "line_number": 48,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function '_normalise_result' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 48: Function definition"
+    },
+    {
+      "file_path": "shared/notifications/templates/portfolio.py",
+      "line_number": 83,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 83: Function definition"
+    },
+    {
+      "file_path": "shared/notifications/templates/portfolio.py",
+      "line_number": 83,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function '_extract_current_positions' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 83: Function definition"
+    },
+    {
+      "file_path": "shared/notifications/templates/portfolio.py",
+      "line_number": 98,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 98: Function definition"
+    },
+    {
+      "file_path": "shared/notifications/templates/portfolio.py",
+      "line_number": 119,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'current_positions' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 119: Function definition"
+    },
+    {
+      "file_path": "shared/notifications/templates/signals.py",
+      "line_number": 39,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 39: Function definition"
+    },
+    {
+      "file_path": "shared/notifications/templates/signals.py",
+      "line_number": 101,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 101: Function definition"
+    },
+    {
+      "file_path": "shared/notifications/templates/signals.py",
+      "line_number": 155,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 155: Function definition"
+    },
+    {
+      "file_path": "shared/notifications/templates/signals.py",
+      "line_number": 155,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_summary' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 155: Function definition"
+    },
+    {
+      "file_path": "shared/notifications/templates/signals.py",
+      "line_number": 229,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 229: Function definition"
+    },
+    {
+      "file_path": "shared/notifications/templates/signals.py",
+      "line_number": 315,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'strategy_signals' uses 'Any' type annotation",
+      "suggested_fix": "Use StrategySignalDTO for signal parameters",
+      "code_context": "Line 315: Function definition"
+    },
+    {
+      "file_path": "shared/persistence/local_handler.py",
+      "line_number": 93,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 93: Function definition"
+    },
+    {
+      "file_path": "shared/persistence/s3_handler.py",
+      "line_number": 80,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 80: Function definition"
+    },
+    {
+      "file_path": "shared/protocols/persistence.py",
+      "line_number": 43,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 43: Function definition"
+    },
+    {
+      "file_path": "shared/protocols/repository.py",
+      "line_number": 185,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'trading_client' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 185: Function definition"
+    },
+    {
+      "file_path": "shared/types/exceptions.py",
+      "line_number": 26,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'to_dict' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 26: Function definition"
+    },
+    {
+      "file_path": "shared/utils/context.py",
+      "line_number": 39,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'to_dict' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 39: Function definition"
+    },
+    {
+      "file_path": "shared/utils/dto_conversion.py",
+      "line_number": 67,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 67: Function definition"
+    },
+    {
+      "file_path": "shared/utils/dto_conversion.py",
+      "line_number": 83,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 83: Function definition"
+    },
+    {
+      "file_path": "shared/utils/dto_conversion.py",
+      "line_number": 103,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 103: Function definition"
+    },
+    {
+      "file_path": "shared/utils/dto_conversion.py",
+      "line_number": 119,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 119: Function definition"
+    },
+    {
+      "file_path": "shared/utils/dto_conversion.py",
+      "line_number": 135,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'order_data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 135: Function definition"
+    },
+    {
+      "file_path": "shared/utils/dto_conversion.py",
+      "line_number": 135,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'convert_nested_order_data' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 135: Function definition"
+    },
+    {
+      "file_path": "shared/utils/dto_conversion.py",
+      "line_number": 165,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'item_data' uses 'Any' type annotation",
+      "suggested_fix": "Use specific DTO or Union of known types instead of Any",
+      "code_context": "Line 165: Function definition"
+    },
+    {
+      "file_path": "shared/utils/dto_conversion.py",
+      "line_number": 165,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'convert_nested_rebalance_item_data' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 165: Function definition"
+    },
+    {
+      "file_path": "shared/utils/portfolio_calculations.py",
+      "line_number": 17,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'account_dict' uses 'Any' type annotation",
+      "suggested_fix": "Use AccountInfoDTO for account parameters",
+      "code_context": "Line 17: Function definition"
+    },
+    {
+      "file_path": "shared/utils/portfolio_calculations.py",
+      "line_number": 17,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'build_allocation_comparison' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 17: Function definition"
+    },
+    {
+      "file_path": "shared/utils/serialization.py",
+      "line_number": 25,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'model_dump' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 25: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/klm/base_variant.py",
+      "line_number": 58,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 58: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/klm/base_variant.py",
+      "line_number": 85,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 85: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/klm/base_variant.py",
+      "line_number": 378,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 378: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 225,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 225: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 440,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 440: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 477,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 477: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 492,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 492: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 536,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 536: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 546,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 546: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 563,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 563: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 568,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 568: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 573,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 573: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 580,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 580: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 586,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 586: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 592,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 592: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 606,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 606: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/engine.py",
+      "line_number": 613,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 613: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/nuclear/logic.py",
+      "line_number": 20,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 20: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/tecl/engine.py",
+      "line_number": 92,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Function 'get_market_data' returns 'Any' type",
+      "suggested_fix": "Return specific DTO instead of Any",
+      "code_context": "Line 92: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/tecl/engine.py",
+      "line_number": 160,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 160: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/tecl/engine.py",
+      "line_number": 195,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 195: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/tecl/engine.py",
+      "line_number": 228,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 228: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/tecl/engine.py",
+      "line_number": 286,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 286: Function definition"
+    },
+    {
+      "file_path": "strategy_v2/engines/tecl/engine.py",
+      "line_number": 378,
+      "rule_type": "ANN401_VIOLATION",
+      "severity": "MEDIUM",
+      "description": "Parameter 'indicators' uses 'Any' type annotation",
+      "suggested_fix": "Replace Any with specific type or Union for parameter",
+      "code_context": "Line 378: Function definition"
+    }
+  ]
+}

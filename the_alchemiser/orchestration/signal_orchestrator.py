@@ -25,7 +25,11 @@ from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
     ConsolidatedPortfolioDTO,
 )
-from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
+from the_alchemiser.shared.dto.signal_dto import (
+    AggregatedSignalsDisplayDTO,
+    StrategySignalDTO,
+    StrategySignalsDisplayDTO,
+)
 from the_alchemiser.shared.events import EventBus, SignalGenerated
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types import StrategySignal
@@ -51,11 +55,11 @@ class SignalOrchestrator:
         # Get event bus from container for dual-path emission
         self.event_bus: EventBus = container.services.event_bus()
 
-    def generate_signals(self) -> tuple[dict[str, Any], ConsolidatedPortfolioDTO]:
+    def generate_signals(self) -> tuple[AggregatedSignalsDisplayDTO, ConsolidatedPortfolioDTO]:
         """Generate strategy signals and consolidated portfolio allocation.
 
         Returns:
-            Tuple of (strategy_signals dict, ConsolidatedPortfolioDTO)
+            Tuple of (AggregatedSignalsDisplayDTO, ConsolidatedPortfolioDTO)
 
         """
         # Use strategy orchestrator for signal generation
@@ -86,9 +90,11 @@ class SignalOrchestrator:
 
     def _convert_signals_to_display_format(
         self, aggregated_signals: AggregatedSignals
-    ) -> dict[str, Any]:
+    ) -> AggregatedSignalsDisplayDTO:
         """Convert aggregated signals to display format."""
         strategy_signals = {}
+        correlation_id = f"signal_orchestrator_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+        
         for (
             strategy_type,
             signals,
@@ -104,29 +110,37 @@ class SignalOrchestrator:
                         if signal.action == "BUY"
                     ]
                     primary_signal = signals[0]  # Use first signal for other attributes
-                    strategy_signals[str(strategy_type)] = {
-                        "symbol": (
+                    strategy_signals[str(strategy_type)] = StrategySignalsDisplayDTO(
+                        strategy_name=str(strategy_type),
+                        symbol=(
                             ", ".join(symbols)
                             if symbols
                             else primary_signal.symbol.value
                         ),
-                        "symbols": symbols,  # Keep individual symbols for other processing
-                        "action": primary_signal.action,
-                        "confidence": float(primary_signal.confidence.value),
-                        "reasoning": primary_signal.reasoning,
-                        "is_multi_symbol": True,
-                    }
+                        symbols=symbols,  # Keep individual symbols for other processing
+                        action=primary_signal.action,
+                        confidence=float(primary_signal.confidence.value),
+                        reasoning=primary_signal.reasoning,
+                        is_multi_symbol=True,
+                    )
                 else:
                     # Single signal - existing behavior
                     signal = signals[0]
-                    strategy_signals[str(strategy_type)] = {
-                        "symbol": signal.symbol.value,
-                        "action": signal.action,
-                        "confidence": float(signal.confidence.value),
-                        "reasoning": signal.reasoning,
-                        "is_multi_symbol": False,
-                    }
-        return strategy_signals
+                    strategy_signals[str(strategy_type)] = StrategySignalsDisplayDTO(
+                        strategy_name=str(strategy_type),
+                        symbol=signal.symbol.value,
+                        symbols=None,
+                        action=signal.action,
+                        confidence=float(signal.confidence.value),
+                        reasoning=signal.reasoning,
+                        is_multi_symbol=False,
+                    )
+                    
+        return AggregatedSignalsDisplayDTO(
+            signals=strategy_signals,
+            correlation_id=correlation_id,
+            timestamp=datetime.now(UTC),
+        )
 
     def _build_consolidated_portfolio(
         self,
