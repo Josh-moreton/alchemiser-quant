@@ -51,7 +51,10 @@ class ExecutionResultDTO(BaseModel):
     orders_succeeded: int = Field(..., description="Number of successful orders")
     total_trade_value: Decimal = Field(..., description="Total dollar value traded")
     execution_timestamp: datetime = Field(..., description="Execution completion timestamp")
-    metadata: dict[str, Any] | None = Field(default=None, description="Additional execution metadata only")  # JSON metadata only
+    metadata: dict[str, Any] | None = Field(
+        default=None,
+        description="Additional execution metadata only"
+    )  # Arbitrary JSON-serializable metadata for serialization only; type safety is not required, so Any is justified.
 
     @property
     def success_rate(self) -> float:
