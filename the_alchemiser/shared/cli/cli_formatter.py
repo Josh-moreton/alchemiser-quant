@@ -86,7 +86,7 @@ def _add_truncation_notice(table: Table, truncated_count: int, table_type: str) 
 def _extract_indicators_from_signals(strategy_signals: dict[Any, Any]) -> dict[str, dict[str, Any]]:
     """Extract all indicators from strategy signals."""
     all_indicators: dict[str, dict[str, Any]] = {}
-    for _, data in strategy_signals.items():
+    for data in strategy_signals.values():
         if data.get("indicators"):
             all_indicators.update(data["indicators"])
     return all_indicators
@@ -922,11 +922,17 @@ def render_enriched_order_summaries(
         status = str(s.get("status", "")).upper()
         created = str(s.get("created_at", ""))
 
-        status_color = (
-            "green"
-            if status == "FILLED"
-            else ("yellow" if status in {"NEW", "PARTIALLY_FILLED"} else "red")
-        )
+        # Determine status color based on order state
+        def _get_status_color(order_status: str) -> str:
+            """Get color for order status display."""
+            if order_status == "FILLED":
+                return "green"
+            elif order_status in {"NEW", "PARTIALLY_FILLED"}:
+                return "yellow"
+            else:
+                return "red"
+        
+        status_color = _get_status_color(status)
 
         table.add_row(
             short_id,
@@ -1393,7 +1399,7 @@ def render_strategy_summary(
             pct = int(allocation * 100)
             # Calculate positions from signals for each strategy
             positions = _count_positions_for_strategy(
-                strategy_name, strategy_signals, consolidated_portfolio, allocations
+                strategy_name, strategy_signals, consolidated_portfolio
             )
             strategy_lines.append(
                 f"[bold cyan]{strategy_name.upper()}:[/bold cyan] "
@@ -1414,7 +1420,6 @@ def _count_positions_for_strategy(
     strategy_name: str,
     strategy_signals: dict[str, Any],
     consolidated_portfolio: dict[str, float],
-    allocations: dict[str, float],
 ) -> int:
     """Count positions for a specific strategy.
 
@@ -1422,7 +1427,6 @@ def _count_positions_for_strategy(
         strategy_name: Name of the strategy
         strategy_signals: Strategy signals dictionary
         consolidated_portfolio: Target portfolio allocation
-        allocations: Strategy allocation percentages from config
 
     Returns:
         Number of positions for the strategy

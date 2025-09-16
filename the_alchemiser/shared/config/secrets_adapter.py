@@ -21,6 +21,10 @@ from the_alchemiser.shared.config.config import load_settings
 
 logger = logging.getLogger(__name__)
 
+# Constants for repeated literals
+BOTO3_NOT_AVAILABLE_MSG = "boto3 not available for AWS Secrets Manager access"
+DEFAULT_AWS_REGION = "eu-west-2"
+
 # Try to import boto3 for AWS Secrets Manager support
 try:
     import boto3
@@ -56,7 +60,7 @@ def get_alpaca_keys() -> tuple[str, str, str] | tuple[None, None, None]:
 def _get_alpaca_keys_from_aws() -> tuple[str, str, str] | tuple[None, None, None]:
     """Get Alpaca keys from AWS Secrets Manager."""
     if not BOTO3_AVAILABLE:
-        logger.error("boto3 not available for AWS Secrets Manager access")
+        logger.error(BOTO3_NOT_AVAILABLE_MSG)
         return None, None, None
 
     try:
@@ -142,15 +146,12 @@ def get_twelvedata_api_key() -> str | None:
 def _get_twelvedata_key_from_aws() -> str | None:
     """Get TwelveData key from AWS Secrets Manager."""
     if not BOTO3_AVAILABLE:
-        logger.error("boto3 not available for AWS Secrets Manager access")
+        logger.error(BOTO3_NOT_AVAILABLE_MSG)
         return None
 
     try:
-        settings = load_settings()
-        region = settings.secrets_manager.region_name
-        secret_name = settings.secrets_manager.secret_name
-        client = boto3.client("secretsmanager", region_name=region)
-        response = client.get_secret_value(SecretId=secret_name)
+        client = boto3.client("secretsmanager", region_name="eu-west-2")
+        response = client.get_secret_value(SecretId="the-alchemiser-secrets")
         secret_data = json.loads(response["SecretString"])
 
         api_key = secret_data.get("TWELVEDATA_KEY")
@@ -209,15 +210,12 @@ def get_email_password() -> str | None:
 def _get_email_password_from_aws() -> str | None:
     """Get email password from AWS Secrets Manager."""
     if not BOTO3_AVAILABLE:
-        logger.error("boto3 not available for AWS Secrets Manager access")
+        logger.error(BOTO3_NOT_AVAILABLE_MSG)
         return None
 
     try:
-        settings = load_settings()
-        region = settings.secrets_manager.region_name
-        secret_name = settings.secrets_manager.secret_name
-        client = boto3.client("secretsmanager", region_name=region)
-        response = client.get_secret_value(SecretId=secret_name)
+        client = boto3.client("secretsmanager", region_name="eu-west-2")
+        response = client.get_secret_value(SecretId="the-alchemiser-secrets")
         secret_data = json.loads(response["SecretString"])
 
         # Look for email password in secrets (prioritize SMTP_PASSWORD)

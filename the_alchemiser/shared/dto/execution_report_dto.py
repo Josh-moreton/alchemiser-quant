@@ -181,17 +181,30 @@ class ExecutionReportDTO(BaseModel):
 
         """
         data = self.model_dump()
-
+        
         # Convert datetime fields to ISO strings
+        self._convert_datetime_fields(data)
+        
+        # Convert Decimal fields to string for JSON serialization
+        self._convert_decimal_fields(data)
+        
+        # Convert nested orders
+        self._convert_nested_orders(data)
+        
+        return data
+
+    def _convert_datetime_fields(self, data: dict[str, Any]) -> None:
+        """Convert datetime fields to ISO string format."""
         datetime_fields = ["timestamp", "execution_start_time", "execution_end_time"]
         for field_name in datetime_fields:
             if data.get(field_name):
                 data[field_name] = data[field_name].isoformat()
 
-        # Convert Decimal fields to string for JSON serialization
+    def _convert_decimal_fields(self, data: dict[str, Any]) -> None:
+        """Convert Decimal fields to string for JSON serialization."""
         decimal_fields = [
             "total_value_traded",
-            "total_commissions",
+            "total_commissions", 
             "total_fees",
             "net_cash_flow",
             "success_rate",
@@ -201,32 +214,37 @@ class ExecutionReportDTO(BaseModel):
             if data.get(field_name) is not None:
                 data[field_name] = str(data[field_name])
 
-        # Convert nested orders
-        if "orders" in data:
-            orders_data = []
-            for order in data["orders"]:
-                order_dict = dict(order)
-                # Convert datetime in order
-                if order_dict.get("execution_timestamp"):
-                    order_dict["execution_timestamp"] = order_dict[
-                        "execution_timestamp"
-                    ].isoformat()
-                # Convert Decimal fields in order
-                order_decimal_fields = [
-                    "quantity",
-                    "filled_quantity",
-                    "price",
-                    "total_value",
-                    "commission",
-                    "fees",
-                ]
-                for field_name in order_decimal_fields:
-                    if order_dict.get(field_name) is not None:
-                        order_dict[field_name] = str(order_dict[field_name])
-                orders_data.append(order_dict)
-            data["orders"] = orders_data
+    def _convert_nested_orders(self, data: dict[str, Any]) -> None:
+        """Convert nested order objects to dictionaries with proper serialization."""
+        if "orders" not in data:
+            return
+        
+        orders_data = []
+        for order in data["orders"]:
+            order_dict = dict(order)
+            self._convert_order_datetime(order_dict)
+            self._convert_order_decimals(order_dict)
+            orders_data.append(order_dict)
+        data["orders"] = orders_data
 
-        return data
+    def _convert_order_datetime(self, order_dict: dict[str, Any]) -> None:
+        """Convert datetime fields in order dictionary."""
+        if order_dict.get("execution_timestamp"):
+            order_dict["execution_timestamp"] = order_dict["execution_timestamp"].isoformat()
+
+    def _convert_order_decimals(self, order_dict: dict[str, Any]) -> None:
+        """Convert Decimal fields in order dictionary."""
+        order_decimal_fields = [
+            "quantity",
+            "filled_quantity", 
+            "price",
+            "total_value",
+            "commission",
+            "fees",
+        ]
+        for field_name in order_decimal_fields:
+            if order_dict.get(field_name) is not None:
+                order_dict[field_name] = str(order_dict[field_name])
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ExecutionReportDTO:
