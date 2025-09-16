@@ -7,27 +7,32 @@ The smart execution strategy implements canonical order placement for swing trad
 ## Key Features
 
 ### 1. Liquidity-Aware Anchoring
+
 - **Buy orders**: Placed just inside the best bid ($bid + $0.01) for queue priority
-- **Sell orders**: Placed just inside the best ask ($ask - $0.01) for queue priority  
+- **Sell orders**: Placed just inside the best ask ($ask - $0.01) for queue priority
 - Avoids crossing spreads unnecessarily while maintaining execution probability
 
 ### 2. Market Timing Rules
+
 - **Avoids 9:30-9:35am ET placement**: Spreads are widest at market open
 - Configurable delay period (default: 5 minutes)
 - Prevents poor execution during high volatility periods
 
 ### 3. Spread and Volume Validation
+
 - **Maximum spread tolerance**: 0.25% by default
 - **Minimum volume requirements**: $100 at bid/ask levels
 - **Quote freshness**: Requires quotes within 5 seconds
 - Orders rejected if conditions not met
 
 ### 4. Re-pegging Logic
+
 - **Movement threshold**: Re-peg if market moves >0.1%
 - **Maximum re-pegs**: 5 attempts per order
 - **Escalation**: Falls back to market orders after max re-pegs for urgent orders
 
 ### 5. Async Integration
+
 - Leverages existing real-time pricing service
 - Non-blocking execution for multiple concurrent orders
 - Event-driven architecture compatible
@@ -47,6 +52,7 @@ The system will automatically use the new liquidity-aware smart execution strate
 ### Checking Current Configuration
 
 To verify that smart execution is enabled, check your logs. You should see messages like:
+
 - "🧠 Using smart execution with liquidity analysis"
 - "📊 Volume analysis: [details about bid/ask sizes]"
 - "💡 Price adjustment based on volume: [pricing decisions]"
@@ -69,6 +75,7 @@ alchemiser trade
 Smart execution is enabled by default. To control this behavior:
 
 **Using Configuration File (.env or environment variable):**
+
 ```bash
 # Enable smart execution (default)
 EXECUTION__ENABLE_SMART_EXECUTION=true
@@ -78,6 +85,7 @@ EXECUTION__ENABLE_SMART_EXECUTION=false
 ```
 
 **Programmatically:**
+
 ```python
 from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
 from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
@@ -91,7 +99,7 @@ manager = ExecutionManager.create_with_config(
 
 # Disable smart execution (legacy market orders)
 manager = ExecutionManager.create_with_config(
-    api_key="your_key", 
+    api_key="your_key",
     secret_key="your_secret",
     enable_smart_execution=False
 )
@@ -117,6 +125,7 @@ config = ExecutionConfig(
 ## Usage
 
 ### Basic Usage
+
 ```python
 from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
 from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
@@ -135,10 +144,11 @@ result = manager.execute_rebalance_plan(rebalance_plan)
 ```
 
 ### Legacy Mode
+
 ```python
 # Disable smart execution for legacy market order behavior
 manager = ExecutionManager.create_with_config(
-    api_key="your_api_key", 
+    api_key="your_api_key",
     secret_key="your_secret_key",
     enable_smart_execution=False
 )
@@ -147,16 +157,19 @@ manager = ExecutionManager.create_with_config(
 ## Execution Strategies by Urgency
 
 ### Low Urgency
+
 - Uses smart limit orders exclusively
 - Fails gracefully if quote validation fails
 - No market order fallback
 
-### Normal Urgency  
+### Normal Urgency
+
 - Prefers smart limit orders
 - Falls back to market orders if smart execution fails
 - Balanced approach for typical trades
 
 ### High Urgency
+
 - Uses smart limit orders when possible
 - Immediate market order fallback if quote validation fails
 - Prioritizes execution over price optimization
@@ -173,7 +186,7 @@ The smart execution strategy integrates seamlessly with existing components:
 ## Benefits
 
 1. **Better Fill Prices**: Anchoring to liquidity improves execution quality
-2. **Reduced Market Impact**: Avoids crossing spreads unnecessarily  
+2. **Reduced Market Impact**: Avoids crossing spreads unnecessarily
 3. **Market Timing Awareness**: Prevents poor execution during volatile periods
 4. **Risk Management**: Validates spread and volume before placement
 5. **Flexibility**: Configurable parameters for different trading styles
