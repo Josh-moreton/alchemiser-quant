@@ -17,7 +17,7 @@ to prevent import-time side effects and circular import issues. Import directly
 from the relevant subpackage, for example:
 
     from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
-    from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+    from the_alchemiser.execution_v2.adapters.alpaca_manager import AlpacaManager
 """
 
 from __future__ import annotations

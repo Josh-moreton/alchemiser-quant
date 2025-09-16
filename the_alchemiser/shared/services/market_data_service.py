@@ -18,7 +18,7 @@ from the_alchemiser.shared.types.quote import QuoteModel
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:
-    from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+    from the_alchemiser.execution_v2.adapters.alpaca_manager import AlpacaManager
 
 
 class MarketDataService(MarketDataPort):

@@ -10,7 +10,7 @@ import logging
 from the_alchemiser.execution_v2.core.executor import Executor
 from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
-from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.execution_v2.adapters.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
 
 logger = logging.getLogger(__name__)

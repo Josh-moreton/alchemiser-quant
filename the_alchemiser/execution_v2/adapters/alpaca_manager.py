@@ -1,6 +1,6 @@
-"""Business Unit: shared | Status: current.
+"""Business Unit: execution_v2 | Status: current.
 
-Alpaca broker adapter (moved from execution module for architectural compliance).
+Alpaca broker adapter for trading operations.
 
 This module consolidates scattered Alpaca client usage into a single, well-managed class.
 It provides a clean interface that:
@@ -9,8 +9,7 @@ It provides a clean interface that:
 3. Uses Pydantic models directly
 4. Provides clean domain interfaces
 
-Phase 2 Update: Now implements domain interfaces for type safety and future migration.
-Phase 3 Update: Moved to shared module to resolve architectural boundary violations.
+Moved from shared/brokers to execution_v2/adapters as this is execution-specific infrastructure.
 """
 
 from __future__ import annotations

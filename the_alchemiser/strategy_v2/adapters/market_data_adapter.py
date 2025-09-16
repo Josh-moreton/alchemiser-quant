@@ -3,7 +3,7 @@
 
 Market data adapter for strategy execution.
 
-Provides a thin wrapper around shared.brokers.AlpacaManager for strategy
+Provides a thin wrapper around execution_v2.adapters.AlpacaManager for strategy
 consumption with batched data fetching and strategy-specific interface.
 """
 
@@ -13,7 +13,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
-from ...shared.brokers.alpaca_manager import AlpacaManager
+from ...execution_v2.adapters.alpaca_manager import AlpacaManager
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class MarketDataProvider(Protocol):
 class StrategyMarketDataAdapter:
     """Market data adapter for strategy execution.
 
-    Wraps shared.brokers.AlpacaManager with strategy-specific interface
+    Wraps execution_v2.adapters.AlpacaManager with strategy-specific interface
     optimized for batched data fetching and strategy consumption patterns.
     """
 
