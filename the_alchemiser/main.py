@@ -13,6 +13,8 @@ import argparse
 import logging
 import os
 import sys
+from decimal import Decimal
+from typing import Any
 
 from the_alchemiser.orchestration.event_driven_orchestrator import (
     EventDrivenOrchestrator,
@@ -37,6 +39,7 @@ from the_alchemiser.shared.logging.logging_utils import (
     set_request_id,
     setup_logging,
 )
+from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 from the_alchemiser.shared.types.exceptions import (
     ConfigurationError,
     StrategyExecutionError,
@@ -153,18 +156,71 @@ class TradingSystem:
         Note: Trading mode (live/paper) is now determined by deployment stage.
         """
         try:
-            from the_alchemiser.orchestration.cli.trading_executor import TradingExecutor
+            from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
 
             if self.container is None:
                 raise RuntimeError("DI container not initialized")
-            executor = TradingExecutor(
+            
+            # Create trading orchestrator directly
+            orchestrator = TradingOrchestrator(
                 settings=self.settings,
                 container=self.container,
                 ignore_market_hours=ignore_market_hours,
-                show_tracking=show_tracking,
-                export_tracking_json=export_tracking_json,
             )
-            return executor.run()
+            
+            # Display header
+            render_header("Analyzing market conditions...", "Multi-Strategy Trading")
+
+            # 1) Market hours check
+            if not orchestrator.check_market_hours():
+                render_footer("Market closed - no action taken")
+                return True
+
+            # 2) Execute full workflow
+            exec_result = orchestrator.execute_strategy_signals_with_trading()
+            if exec_result is None:
+                render_footer("Trading execution failed - check logs for details")
+                return False
+
+            # 3) Display results if available
+            if exec_result.get("strategy_signals") or exec_result.get("consolidated_portfolio") or exec_result.get("account_info"):
+                self._display_comprehensive_results(
+                    exec_result.get("strategy_signals", {}),
+                    exec_result.get("consolidated_portfolio", {}),
+                    exec_result.get("account_info"),
+                    exec_result.get("current_positions"),
+                    exec_result.get("allocation_comparison"),
+                    exec_result.get("open_orders", []),
+                )
+
+            # 4) Display execution results
+            orders_executed = exec_result.get("orders_executed", [])
+            if orders_executed:
+                self._display_execution_results(orders_executed, exec_result.get("execution_result"))
+
+            # 5) Display tracking if requested
+            if show_tracking:
+                self._display_post_execution_tracking(not orchestrator.live_trading)
+
+            # 6) Export tracking summary if requested
+            if export_tracking_json:
+                self._export_tracking_summary(export_tracking_json, not orchestrator.live_trading)
+
+            # 7) Send notification
+            try:
+                mode_str = "LIVE" if orchestrator.live_trading else "PAPER"
+                orchestrator.send_trading_notification(exec_result, mode_str)
+            except Exception as exc:
+                self.logger.warning(f"Failed to send trading notification: {exc}")
+
+            success = bool(exec_result.get("success", False))
+            if success:
+                render_footer("Trading execution completed successfully!")
+            else:
+                render_footer("Trading execution failed - check logs for details")
+
+            return success
+            
         except (TradingClientError, StrategyExecutionError) as e:
             self.error_handler.handle_error(
                 error=e,
@@ -176,7 +232,188 @@ class TradingSystem:
                     "export_tracking_json": export_tracking_json,
                 },
             )
+            render_footer("System error occurred!")
             return False
+
+    def _display_comprehensive_results(
+        self,
+        strategy_signals: dict[str, Any],
+        consolidated_portfolio: dict[str, float],
+        account_info: dict[str, Any] | None = None,
+        current_positions: dict[str, Any] | None = None,
+        allocation_comparison: AllocationComparisonDTO | None = None,
+        open_orders: list[dict[str, Any]] | None = None,
+    ) -> None:
+        """Display comprehensive trading results."""
+        from the_alchemiser.orchestration.cli.cli_formatter import render_comprehensive_trading_results
+        from the_alchemiser.shared.config.config import load_settings
+        
+        try:
+            settings = load_settings()
+            allocations = settings.strategy.default_strategy_allocations
+            
+            render_comprehensive_trading_results(
+                strategy_signals,
+                consolidated_portfolio,
+                account_info,
+                current_positions,
+                allocation_comparison,
+                open_orders,
+            )
+        except Exception as e:
+            self.logger.warning(f"Failed to display comprehensive results: {e}")
+
+    def _display_execution_results(
+        self,
+        orders_executed: list[dict[str, Any]],
+        execution_result: Any | None = None,
+    ) -> None:
+        """Display execution results including order details and summary."""
+        try:
+            from rich.console import Console
+            from rich.panel import Panel
+            from rich.table import Table
+            from the_alchemiser.orchestration.cli.cli_formatter import render_orders_executed
+
+            console = Console()
+            
+            # Display orders executed using existing formatter
+            render_orders_executed(orders_executed)
+
+            # Display detailed order status information
+            if orders_executed:
+                status_table = Table(title="Order Execution Details", show_lines=True)
+                status_table.add_column("Symbol", style="cyan", justify="center")
+                status_table.add_column("Action", style="bold", justify="center")
+                status_table.add_column("Status", style="bold", justify="center")
+                status_table.add_column("Order ID", style="dim", justify="center")
+                status_table.add_column("Error Details", style="red", justify="left")
+
+                for order in orders_executed:
+                    status = order.get("status", "UNKNOWN")
+                    order_id = order.get("order_id") or "N/A"
+                    error = order.get("error") or ""
+
+                    # Style status
+                    if status == "FILLED":
+                        status_display = "[bold green]✅ FILLED[/bold green]"
+                    elif status == "FAILED":
+                        status_display = "[bold red]❌ FAILED[/bold red]"
+                    else:
+                        status_display = f"[yellow]{status}[/yellow]"
+
+                    # Style action
+                    action = order.get("side", "").upper()
+                    if action == "BUY":
+                        action_display = "[green]BUY[/green]"
+                    elif action == "SELL":
+                        action_display = "[red]SELL[/red]"
+                    else:
+                        action_display = action
+
+                    status_table.add_row(
+                        order.get("symbol", "N/A"),
+                        action_display,
+                        status_display,
+                        order_id,
+                        error[:50] + "..." if len(error) > 50 else error,
+                    )
+
+                console.print(status_table)
+
+            # Display execution summary if available
+            if execution_result:
+                try:
+                    success_rate = getattr(execution_result, "success_rate", 1.0)
+                    total_value = getattr(execution_result, "total_trade_value", Decimal(0))
+
+                    summary_content = [
+                        f"[bold green]Execution Success Rate:[/bold green] {success_rate:.1%}",
+                        f"[bold blue]Orders Placed:[/bold blue] {execution_result.orders_placed}",
+                        f"[bold green]Orders Succeeded:[/bold green] {execution_result.orders_succeeded}",
+                        f"[bold yellow]Total Trade Value:[/bold yellow] ${float(total_value):,.2f}",
+                    ]
+
+                    if hasattr(execution_result, "failure_count") and execution_result.failure_count > 0:
+                        summary_content.append(
+                            f"[bold red]Orders Failed:[/bold red] {execution_result.failure_count}"
+                        )
+
+                    console.print(
+                        Panel(
+                            "\n".join(summary_content),
+                            title="Execution Summary",
+                            style="bold white",
+                        )
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Failed to display execution summary: {e}")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to display execution results: {e}")
+
+    def _display_post_execution_tracking(self, paper_trading: bool) -> None:
+        """Display strategy performance tracking after execution."""
+        try:
+            from rich.console import Console
+            from the_alchemiser.orchestration.cli.strategy_tracking_utils import display_strategy_tracking
+
+            console = Console()
+            console.print("\n")
+            display_strategy_tracking(paper_trading=paper_trading)
+
+        except Exception as e:
+            self.logger.warning(f"Failed to display post-execution tracking: {e}")
+            try:
+                from rich.console import Console
+                from rich.panel import Panel
+
+                Console().print(
+                    Panel(
+                        f"[dim yellow]Strategy tracking display unavailable: {e}[/dim yellow]",
+                        title="Strategy Performance Tracking",
+                        border_style="yellow",
+                    )
+                )
+            except ImportError:
+                self.logger.warning("Strategy tracking display unavailable (rich not available)")
+
+    def _export_tracking_summary(self, export_path: str, paper_trading: bool) -> None:
+        """Export tracking summary to JSON file."""
+        try:
+            from the_alchemiser.orchestration.cli.strategy_tracking_utils import _get_strategy_order_tracker
+            import json
+            from pathlib import Path
+
+            # Create tracker using same mode as execution
+            tracker = _get_strategy_order_tracker(paper_trading=paper_trading)
+
+            # Collect strategy data
+            strategy_data = {}
+            for strategy_name in ["nuclear", "tecl", "klm"]:
+                try:
+                    strategy_summary = tracker.get_strategy_summary(strategy_name)
+                    if strategy_summary:
+                        strategy_data[strategy_name] = {
+                            "total_profit_loss": float(strategy_summary.total_profit_loss),
+                            "total_orders": strategy_summary.total_orders,
+                            "success_rate": strategy_summary.success_rate,
+                            "avg_profit_per_trade": float(strategy_summary.avg_profit_per_trade),
+                        }
+                except Exception as e:
+                    self.logger.debug(f"Could not get summary for {strategy_name}: {e}")
+
+            # Export to JSON
+            export_file = Path(export_path)
+            export_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            with export_file.open("w") as f:
+                json.dump(strategy_data, f, indent=2)
+            
+            self.logger.info(f"Tracking summary exported to: {export_path}")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to export tracking summary: {e}")
 
 
 def _resolve_log_level(*, is_production: bool) -> int:

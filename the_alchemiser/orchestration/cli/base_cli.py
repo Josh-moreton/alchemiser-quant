@@ -77,7 +77,7 @@ class BaseCLI:
         """Display strategy tracking information from StrategyOrderTracker.
 
         This method consolidates the strategy tracking display logic
-        across TradingExecutor and the main CLI status command.
+        across CLI modules.
 
         Args:
             paper_trading: Whether to use paper trading mode. If None, uses container config.

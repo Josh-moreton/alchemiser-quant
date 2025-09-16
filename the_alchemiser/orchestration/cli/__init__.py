@@ -8,16 +8,13 @@ orchestration as they coordinate between business units rather than being shared
 
 Exports:
     - app: Main CLI application (Typer app)
-    - TradingExecutor: Trading execution CLI wrapper
     - BaseCLI: Base CLI functionality
 """
 
 from .cli import app
-from .trading_executor import TradingExecutor
 from .base_cli import BaseCLI
 
 __all__ = [
     "app",
-    "TradingExecutor", 
     "BaseCLI",
 ]
