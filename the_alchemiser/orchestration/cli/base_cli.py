@@ -1,4 +1,4 @@
-"""Business Unit: shared | Status: current.
+"""Business Unit: orchestration | Status: current.
 
 Base CLI functionality shared across CLI modules.
 
@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.shared.cli.cli_formatter import (
+from the_alchemiser.orchestration.cli.cli_formatter import (
     render_comprehensive_trading_results,
     render_strategy_summary,
 )
@@ -83,7 +83,7 @@ class BaseCLI:
             paper_trading: Whether to use paper trading mode. If None, uses container config.
 
         """
-        from the_alchemiser.shared.cli.strategy_tracking_utils import display_strategy_tracking
+        from the_alchemiser.orchestration.cli.strategy_tracking_utils import display_strategy_tracking
 
         # Determine paper trading mode
         if paper_trading is None:
@@ -101,7 +101,7 @@ class BaseCLI:
             paper_trading: Whether to use paper trading mode. If None, uses container config.
 
         """
-        from the_alchemiser.shared.cli.strategy_tracking_utils import (
+        from the_alchemiser.orchestration.cli.strategy_tracking_utils import (
             display_detailed_strategy_positions,
         )
 

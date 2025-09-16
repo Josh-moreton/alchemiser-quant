@@ -1,4 +1,4 @@
-"""Business Unit: shared | Status: current.
+"""Business Unit: orchestration | Status: current.
 
 CLI formatting utilities for the trading system.
 """
