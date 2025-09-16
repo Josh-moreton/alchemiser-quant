@@ -54,9 +54,13 @@ from the_alchemiser.shared.types.market_data import PriceDataModel, QuoteModel
 if TYPE_CHECKING:
     from alpaca.data.models import Quote, Trade
 
-# Type alias for Alpaca streaming data - can be either dict or Alpaca objects
-AlpacaQuoteData = dict[str, str | float | int] | "Quote"
-AlpacaTradeData = dict[str, str | float | int] | "Trade"
+    # Type aliases for static type checking - can be either dict or Alpaca objects
+    AlpacaQuoteData = dict[str, str | float | int] | Quote
+    AlpacaTradeData = dict[str, str | float | int] | Trade
+else:
+    # Runtime type aliases - no forward references, use object for flexibility
+    AlpacaQuoteData = dict[str, str | float | int] | object
+    AlpacaTradeData = dict[str, str | float | int] | object
 
 # Phase 11 - Migration to structured pricing data in progress
 # Both RealTimeQuote (legacy) and structured types (PriceDataModel, QuoteModel) are available

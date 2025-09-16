@@ -55,8 +55,11 @@ from .variants import (
 if TYPE_CHECKING:
     from the_alchemiser.shared.value_objects.core_types import KLMDecision
 
-# Type alias for KLM result formats
-KLMResult = tuple[str | dict[str, float], str, str] | "KLMDecision"
+    # Type alias for KLM result formats - static type checking
+    KLMResult = tuple[str | dict[str, float], str, str] | KLMDecision
+else:
+    # Runtime type alias - no forward references
+    KLMResult = tuple[str | dict[str, float], str, str] | object
 
 
 class KLMEngine(StrategyEngine):
@@ -466,8 +469,8 @@ class KLMEngine(StrategyEngine):
 
     def _select_best_variant(
         self,
-        variant_results: list[tuple[BaseKLMVariant, Any, float]],
-    ) -> tuple[Any, BaseKLMVariant | None]:
+        variant_results: list[tuple[BaseKLMVariant, KLMResult, float]],
+    ) -> tuple[KLMResult, BaseKLMVariant | None]:
         """Select the best performing variant from results."""
         if not variant_results:
             return None, None
@@ -509,7 +512,7 @@ class KLMEngine(StrategyEngine):
         symbol_or_allocation: str | dict[str, float],
         action: str,
         basic_reason: str,
-        all_variant_results: list[tuple[BaseKLMVariant, Any, float]],
+        all_variant_results: list[tuple[BaseKLMVariant, KLMResult, float]],
     ) -> str:
         """Build detailed market analysis similar to other strategies."""
         analysis_lines = []

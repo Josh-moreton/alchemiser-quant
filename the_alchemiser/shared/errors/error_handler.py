@@ -17,11 +17,14 @@ from collections import defaultdict
 from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import wraps
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
+
+if TYPE_CHECKING:
+    # Forward reference type aliases for type checking
+    from .context import ErrorContextData
 
 # Type aliases for error handler data structures
 ErrorData = dict[str, str | int | float | bool | None]
-FlexibleContext = "ErrorContextData" | ErrorData | None
 ErrorList = list[ErrorData]
 ContextDict = dict[str, str | int | float | bool | None]
 
@@ -166,6 +169,10 @@ except ImportError:
                 "correlation_id": self.correlation_id,
                 "additional_data": self.additional_data or {},
             }
+
+
+# Define FlexibleContext after ErrorContextData is available
+FlexibleContext = ErrorContextData | ErrorData | None
 
 
 class ErrorSeverity:

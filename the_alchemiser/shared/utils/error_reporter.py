@@ -134,7 +134,9 @@ class ErrorReporter:
 _global_error_reporter: ErrorReporter | None = None
 
 
-def get_error_reporter(notification_manager: NotificationManager = None) -> ErrorReporter:
+def get_error_reporter(
+    notification_manager: NotificationManager = None,
+) -> ErrorReporter:
     """Get the global error reporter instance.
 
     Args:
