@@ -191,7 +191,7 @@ class SmartExecutionStrategy:
         return True
 
     def get_quote_with_validation(
-        self, symbol: str, order_size: float
+        self, symbol: str
     ) -> tuple[QuoteModel, bool] | None:
         """Get validated quote data from streaming source with REST API fallback.
 
@@ -201,7 +201,6 @@ class SmartExecutionStrategy:
 
         Args:
             symbol: Stock symbol
-            order_size: Size of order to place (in shares)
 
         Returns:
             (QuoteModel, used_fallback) if valid quote available, otherwise None
@@ -272,6 +271,147 @@ class SmartExecutionStrategy:
         )
 
         return quote, True  # Used REST fallback
+
+    async def _get_quote_with_retry(self, request: SmartOrderRequest) -> tuple[QuoteModel, bool] | None:
+        """Get quote with retry logic for smart order placement.
+        
+        Args:
+            request: Smart order request
+            
+        Returns:
+            Tuple of (quote, used_fallback) or None if failed
+
+        """
+        import asyncio
+        
+        quote = None
+        used_fallback = False
+        
+        # Retry up to 3 times with increasing waits
+        for attempt in range(3):
+            validated = self.get_quote_with_validation(request.symbol)
+            if validated:
+                quote, used_fallback = validated
+                break
+                
+            if attempt < 2:  # Don't wait on last attempt
+                await asyncio.sleep(0.3 * (attempt + 1))  # 300ms, 600ms waits
+                
+        return (quote, used_fallback) if quote else None
+
+    def _calculate_order_price(
+        self, quote: QuoteModel, request: SmartOrderRequest, used_fallback: bool
+    ) -> tuple[Decimal, LiquidityMetadata]:
+        """Calculate optimal order price based on liquidity analysis.
+        
+        Args:
+            quote: Market quote data
+            request: Smart order request
+            used_fallback: Whether REST API fallback was used
+            
+        Returns:
+            Tuple of (optimal_price, analysis_metadata)
+
+        """
+        order_size = float(request.quantity)
+        
+        # Calculate optimal price: full liquidity analysis when streaming, simple when fallback
+        if not used_fallback:
+            return self.calculate_liquidity_aware_price(quote, request.side, order_size)
+        return self._calculate_simple_inside_spread_price(quote, request.side)
+
+    def _place_and_track_order(
+        self, request: SmartOrderRequest, optimal_price: Decimal
+    ) -> tuple[bool, str | None, datetime]:
+        """Place limit order and set up tracking.
+        
+        Args:
+            request: Smart order request
+            optimal_price: Calculated optimal price
+            
+        Returns:
+            Tuple of (success, order_id, placement_time)
+
+        """
+        # Ensure price is properly quantized to avoid sub-penny precision errors
+        quantized_price = Decimal(str(float(optimal_price))).quantize(Decimal("0.01"))
+        
+        result = self.alpaca_manager.place_limit_order(
+            symbol=request.symbol,
+            side=request.side.lower(),
+            quantity=float(request.quantity),
+            limit_price=float(quantized_price),
+            time_in_force="day",
+        )
+        
+        placement_time = datetime.now(UTC)
+        
+        if result.success and result.order_id:
+            # Track for potential re-pegging
+            self._active_orders[result.order_id] = request
+            self._repeg_counts[result.order_id] = 0
+            self._order_placement_times[result.order_id] = placement_time
+            self._order_anchor_prices[result.order_id] = optimal_price
+            return True, result.order_id, placement_time
+        
+        return False, None, placement_time
+
+    def _create_success_result(
+        self,
+        order_id: str,
+        optimal_price: Decimal,
+        analysis_metadata: LiquidityMetadata,
+        quote: QuoteModel,
+        used_fallback: bool,
+        placement_time: datetime,
+    ) -> SmartOrderResult:
+        """Create successful order result with metadata.
+        
+        Args:
+            order_id: Placed order ID
+            optimal_price: Calculated optimal price
+            analysis_metadata: Liquidity analysis metadata
+            quote: Market quote data
+            used_fallback: Whether REST API fallback was used
+            placement_time: Order placement timestamp
+            
+        Returns:
+            SmartOrderResult for successful placement
+
+        """
+        logger.info(
+            f"✅ Smart liquidity-aware order placed: {order_id} at ${optimal_price} "
+            f"(strategy: {analysis_metadata['strategy_recommendation']}, "
+            f"confidence: {analysis_metadata['confidence']:.2f})"
+        )
+        
+        # Schedule re-pegging monitoring for this order
+        if self.config.fill_wait_seconds > 0:
+            logger.info(
+                f"⏰ Will monitor order {order_id} for re-pegging "
+                f"after {self.config.fill_wait_seconds}s"
+            )
+        
+        metadata_dict: LiquidityMetadata = {
+            **analysis_metadata,
+            "bid_price": quote.bid_price,
+            "ask_price": quote.ask_price,
+            "spread_percent": (quote.ask_price - quote.bid_price) / quote.bid_price * 100,
+            "bid_size": quote.bid_size,
+            "ask_size": quote.ask_size,
+            "used_fallback": used_fallback,
+        }
+        
+        return SmartOrderResult(
+            success=True,
+            order_id=order_id,
+            final_price=optimal_price,
+            anchor_price=optimal_price,
+            repegs_used=0,
+            execution_strategy=f"smart_liquidity_{analysis_metadata['strategy_recommendation']}",
+            placement_timestamp=placement_time,
+            metadata=metadata_dict,
+        )
 
     def _calculate_simple_inside_spread_price(
         self, quote: QuoteModel, side: str
@@ -417,26 +557,12 @@ class SmartExecutionStrategy:
         # Symbol should already be pre-subscribed by executor
         # Brief wait to allow any pending subscription to receive initial data
         import asyncio
-
         await asyncio.sleep(0.1)  # 100ms wait for quote data to flow
 
         try:
-            # Get validated quote with order size, with retry logic
-            order_size = float(request.quantity)
-            quote = None
-            used_fallback = False
-
-            # Retry up to 3 times with increasing waits
-            for attempt in range(3):
-                validated = self.get_quote_with_validation(request.symbol, order_size)
-                if validated:
-                    quote, used_fallback = validated
-                    break
-
-                if attempt < 2:  # Don't wait on last attempt
-                    await asyncio.sleep(0.3 * (attempt + 1))  # 300ms, 600ms waits
-
-            if not quote:
+            # Get validated quote with retry logic
+            quote_result = await self._get_quote_with_retry(request)
+            if not quote_result:
                 # Fallback to market order for high urgency
                 if request.urgency == "HIGH":
                     logger.warning(
@@ -449,76 +575,25 @@ class SmartExecutionStrategy:
                     execution_strategy="smart_limit_failed",
                 )
 
-            # Calculate optimal price: full liquidity analysis when streaming, simple when fallback
-            if not used_fallback:
-                optimal_price, analysis_metadata = self.calculate_liquidity_aware_price(
-                    quote, request.side, order_size
-                )
-            else:
-                optimal_price, analysis_metadata = (
-                    self._calculate_simple_inside_spread_price(quote, request.side)
-                )
+            quote, used_fallback = quote_result
 
-            # Place limit order with optimal pricing
-            # Ensure price is properly quantized to avoid sub-penny precision errors
-            quantized_price = Decimal(str(float(optimal_price))).quantize(
-                Decimal("0.01")
+            # Calculate optimal price
+            optimal_price, analysis_metadata = self._calculate_order_price(
+                quote, request, used_fallback
             )
 
-            result = self.alpaca_manager.place_limit_order(
-                symbol=request.symbol,
-                side=request.side.lower(),
-                quantity=float(request.quantity),
-                limit_price=float(quantized_price),
-                time_in_force="day",
-            )
+            # Place order and set up tracking
+            success, order_id, placement_time = self._place_and_track_order(request, optimal_price)
 
-            placement_time = datetime.now(UTC)
-
-            if result.success and result.order_id:
-                # Track for potential re-pegging
-                self._active_orders[result.order_id] = request
-                self._repeg_counts[result.order_id] = 0
-                self._order_placement_times[result.order_id] = placement_time
-                self._order_anchor_prices[result.order_id] = optimal_price
-
-                logger.info(
-                    f"✅ Smart liquidity-aware order placed: {result.order_id} at ${optimal_price} "
-                    f"(strategy: {analysis_metadata['strategy_recommendation']}, "
-                    f"confidence: {analysis_metadata['confidence']:.2f})"
+            if success and order_id:
+                return self._create_success_result(
+                    order_id, optimal_price, analysis_metadata, 
+                    quote, used_fallback, placement_time
                 )
-
-                # Schedule re-pegging monitoring for this order
-                if self.config.fill_wait_seconds > 0:
-                    logger.info(
-                        f"⏰ Will monitor order {result.order_id} for re-pegging "
-                        f"after {self.config.fill_wait_seconds}s"
-                    )
-
-                    metadata_dict: LiquidityMetadata = {
-                        **analysis_metadata,
-                        "bid_price": quote.bid_price,
-                        "ask_price": quote.ask_price,
-                        "spread_percent": (quote.ask_price - quote.bid_price)
-                        / quote.bid_price
-                        * 100,
-                        "bid_size": quote.bid_size,
-                        "ask_size": quote.ask_size,
-                        "used_fallback": used_fallback,
-                    }
-                return SmartOrderResult(
-                    success=True,
-                    order_id=result.order_id,
-                    final_price=optimal_price,
-                    anchor_price=optimal_price,
-                    repegs_used=0,
-                    execution_strategy=f"smart_liquidity_{analysis_metadata['strategy_recommendation']}",
-                    placement_timestamp=placement_time,
-                    metadata=metadata_dict,
-                )
+            
             return SmartOrderResult(
                 success=False,
-                error_message=result.error or "Limit order placement failed",
+                error_message="Limit order placement failed",
                 execution_strategy="smart_limit_failed",
                 placement_timestamp=placement_time,
             )
@@ -585,7 +660,7 @@ class SmartExecutionStrategy:
         orders_to_remove = []
         current_time = datetime.now(UTC)
 
-        for order_id, request in list(self._active_orders.items()):
+        for order_id, request in self._active_orders.items():
             try:
                 # Check if order is still active
                 order_status = self.alpaca_manager._check_order_completion_status(
@@ -624,7 +699,7 @@ class SmartExecutionStrategy:
                     f"🔄 Order {order_id} hasn't filled after {time_elapsed:.1f}s, "
                     "attempting re-peg..."
                 )
-                repeg_result = await self._attempt_repeg(order_id, request)
+                repeg_result = self._attempt_repeg(order_id, request)
 
                 if repeg_result:
                     repeg_results.append(repeg_result)
@@ -638,7 +713,7 @@ class SmartExecutionStrategy:
 
         return repeg_results
 
-    async def _attempt_repeg(
+    def _attempt_repeg(
         self, order_id: str, request: SmartOrderRequest
     ) -> SmartOrderResult | None:
         """Attempt to re-peg an order with a more aggressive price.
@@ -662,9 +737,7 @@ class SmartExecutionStrategy:
                 return None
 
             # Get current market data
-            validated = self.get_quote_with_validation(
-                request.symbol, float(request.quantity)
-            )
+            validated = self.get_quote_with_validation(request.symbol)
             if not validated:
                 logger.warning(
                     f"⚠️ No valid quote for {request.symbol}, skipping re-peg"
