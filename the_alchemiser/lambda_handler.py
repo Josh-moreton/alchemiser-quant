@@ -71,10 +71,18 @@ def _build_response_message(mode: str, trading_mode: str, *, result: bool) -> st
 
     """
     if mode == "bot":
-        return "Signal analysis completed successfully" if result else "Signal analysis failed"
+        return (
+            "Signal analysis completed successfully"
+            if result
+            else "Signal analysis failed"
+        )
 
     mode_str = trading_mode.title()
-    return f"{mode_str} trading completed successfully" if result else f"{mode_str} trading failed"
+    return (
+        f"{mode_str} trading completed successfully"
+        if result
+        else f"{mode_str} trading failed"
+    )
 
 
 def _handle_error(
@@ -119,7 +127,13 @@ def _handle_error(
 
     except NotificationError as notification_error:
         logger.warning("Failed to send error notification: %s", notification_error)
-    except (ImportError, AttributeError, ValueError, KeyError, TypeError) as notification_error:
+    except (
+        ImportError,
+        AttributeError,
+        ValueError,
+        KeyError,
+        TypeError,
+    ) as notification_error:
         if is_critical:
             logger.warning("Failed to send error notification: %s", notification_error)
         else:
@@ -160,7 +174,9 @@ def _handle_critical_error(
         command_args: Parsed command arguments (optional)
 
     """
-    _handle_error(error, event, request_id, " - unexpected error", command_args, is_critical=True)
+    _handle_error(
+        error, event, request_id, " - unexpected error", command_args, is_critical=True
+    )
 
 
 def parse_event_mode(
@@ -176,22 +192,20 @@ def parse_event_mode(
 
     Event Structure:
         {
-            "mode": "trade" | "bot",           # Required: Operation mode
-            "ignore_market_hours": bool        # Optional: Override market hours (default: false)
+            "mode": "trade" | "bot"           # Required: Operation mode
         }
 
     Examples:
         Trading: {"mode": "trade"}
         Signals only: {"mode": "bot"}
-        Testing: {"mode": "trade", "ignore_market_hours": true}
-        Empty event (safe default): {} or None → trading with market hours ignored
+        Empty event (safe default): {} or None → trading mode
 
     Note: Trading mode (live/paper) is now determined by deployment environment,
     not by event parameters.
 
     """
-    # Default to trading with market hours ignored for safety
-    default_args = ["trade", "--ignore-market-hours"]
+    # Default to trading mode
+    default_args = ["trade"]
 
     # Convert dict to DTO if needed
     if isinstance(event, dict):
@@ -219,15 +233,13 @@ def parse_event_mode(
     # Build command arguments
     args: list[str] = [mode]
 
-    # Only add trading-specific flags for trade mode
-    if mode == "trade" and event.ignore_market_hours:
-        args.append("--ignore-market-hours")
-
     logger.info(f"Parsed event to command: {' '.join(args)}")
     return args
 
 
-def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> dict[str, Any]:  # noqa: ANN401  # AWS Lambda context is external object
+def lambda_handler(
+    event: LambdaEventDTO | None = None, context: Any = None
+) -> dict[str, Any]:  # noqa: ANN401  # AWS Lambda context is external object
     """AWS Lambda function handler for The Alchemiser trading system.
 
     This function serves as the entry point when the trading system is deployed
@@ -302,7 +314,9 @@ def lambda_handler(event: LambdaEventDTO | None = None, context: Any = None) -> 
 
     try:
         # Log the incoming event for debugging
-        logger.info(f"Lambda invoked with event: {json.dumps(event) if event else 'None'}")
+        logger.info(
+            f"Lambda invoked with event: {json.dumps(event) if event else 'None'}"
+        )
 
         # Parse event to determine command arguments
         command_args = parse_event_mode(event or {})

@@ -93,14 +93,11 @@ class TradingSystem:
             self.logger.warning(f"Failed to initialize event orchestration: {e}")
             self.event_driven_orchestrator = None
 
-    def _emit_startup_event(
-        self, startup_mode: str, *, ignore_market_hours: bool = False
-    ) -> None:
+    def _emit_startup_event(self, startup_mode: str) -> None:
         """Emit StartupEvent to trigger event-driven workflows.
 
         Args:
             startup_mode: The mode the system is starting in (signal, trade, etc.)
-            ignore_market_hours: Whether market hours are being ignored
 
         """
         try:
@@ -126,7 +123,6 @@ class TradingSystem:
                 source_component="TradingSystem",
                 startup_mode=startup_mode,
                 configuration={
-                    "ignore_market_hours": ignore_market_hours,
                     "settings_loaded": True,
                 },
             )
@@ -146,7 +142,6 @@ class TradingSystem:
     def execute_trading(
         self,
         *,
-        ignore_market_hours: bool = False,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
     ) -> bool:
@@ -155,7 +150,9 @@ class TradingSystem:
         Note: Trading mode (live/paper) is now determined by deployment stage.
         """
         try:
-            from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
+            from the_alchemiser.orchestration.trading_orchestrator import (
+                TradingOrchestrator,
+            )
 
             if self.container is None:
                 raise RuntimeError("DI container not initialized")
@@ -163,25 +160,23 @@ class TradingSystem:
             orchestrator = TradingOrchestrator(
                 settings=self.settings,
                 container=self.container,
-                ignore_market_hours=ignore_market_hours,
             )
-            
+
             # Display header
             render_header("Analyzing market conditions...", "Multi-Strategy Trading")
 
-            # 1) Market hours check
-            if not orchestrator.check_market_hours():
-                render_footer("Market closed - no action taken")
-                return True
-
-            # 2) Execute full workflow
+            # Execute full workflow
             exec_result = orchestrator.execute_strategy_signals_with_trading()
             if exec_result is None:
                 render_footer("Trading execution failed - check logs for details")
                 return False
 
-            # 3) Display results if available
-            if exec_result.get("strategy_signals") or exec_result.get("consolidated_portfolio") or exec_result.get("account_info"):
+            # Display results if available
+            if (
+                exec_result.get("strategy_signals")
+                or exec_result.get("consolidated_portfolio")
+                or exec_result.get("account_info")
+            ):
                 self._display_comprehensive_results(
                     exec_result.get("strategy_signals", {}),
                     exec_result.get("consolidated_portfolio", {}),
@@ -194,7 +189,9 @@ class TradingSystem:
             # 4) Display execution results
             orders_executed = exec_result.get("orders_executed", [])
             if orders_executed:
-                self._display_execution_results(orders_executed, exec_result.get("execution_result"))
+                self._display_execution_results(
+                    orders_executed, exec_result.get("execution_result")
+                )
 
             # 5) Display tracking if requested
             if show_tracking:
@@ -202,7 +199,9 @@ class TradingSystem:
 
             # 6) Export tracking summary if requested
             if export_tracking_json:
-                self._export_tracking_summary(export_tracking_json, not orchestrator.live_trading)
+                self._export_tracking_summary(
+                    export_tracking_json, not orchestrator.live_trading
+                )
 
             # 7) Send notification
             try:
@@ -224,7 +223,6 @@ class TradingSystem:
                 context="multi-strategy trading execution",
                 component="TradingSystem.execute_trading",
                 additional_data={
-                    "ignore_market_hours": ignore_market_hours,
                     "show_tracking": show_tracking,
                     "export_tracking_json": export_tracking_json,
                 },
@@ -246,11 +244,11 @@ class TradingSystem:
             render_comprehensive_trading_results,
         )
         from the_alchemiser.shared.config.config import load_settings
-        
+
         try:
             settings = load_settings()
             allocations = settings.strategy.default_strategy_allocations
-            
+
             render_comprehensive_trading_results(
                 strategy_signals,
                 consolidated_portfolio,
@@ -273,10 +271,12 @@ class TradingSystem:
             from rich.panel import Panel
             from rich.table import Table
 
-            from the_alchemiser.orchestration.cli.cli_formatter import render_orders_executed
+            from the_alchemiser.orchestration.cli.cli_formatter import (
+                render_orders_executed,
+            )
 
             console = Console()
-            
+
             # Display orders executed using existing formatter
             render_orders_executed(orders_executed)
 
@@ -325,7 +325,9 @@ class TradingSystem:
             if execution_result:
                 try:
                     success_rate = getattr(execution_result, "success_rate", 1.0)
-                    total_value = getattr(execution_result, "total_trade_value", Decimal(0))
+                    total_value = getattr(
+                        execution_result, "total_trade_value", Decimal(0)
+                    )
 
                     summary_content = [
                         f"[bold green]Execution Success Rate:[/bold green] {success_rate:.1%}",
@@ -334,7 +336,10 @@ class TradingSystem:
                         f"[bold yellow]Total Trade Value:[/bold yellow] ${float(total_value):,.2f}",
                     ]
 
-                    if hasattr(execution_result, "failure_count") and execution_result.failure_count > 0:
+                    if (
+                        hasattr(execution_result, "failure_count")
+                        and execution_result.failure_count > 0
+                    ):
                         summary_content.append(
                             f"[bold red]Orders Failed:[/bold red] {execution_result.failure_count}"
                         )
@@ -379,7 +384,9 @@ class TradingSystem:
                     )
                 )
             except ImportError:
-                self.logger.warning("Strategy tracking display unavailable (rich not available)")
+                self.logger.warning(
+                    "Strategy tracking display unavailable (rich not available)"
+                )
 
     def _export_tracking_summary(self, export_path: str, paper_trading: bool) -> None:
         """Export tracking summary to JSON file."""
@@ -401,10 +408,14 @@ class TradingSystem:
                     strategy_summary = tracker.get_strategy_summary(strategy_name)
                     if strategy_summary:
                         strategy_data[strategy_name] = {
-                            "total_profit_loss": float(strategy_summary.total_profit_loss),
+                            "total_profit_loss": float(
+                                strategy_summary.total_profit_loss
+                            ),
                             "total_orders": strategy_summary.total_orders,
                             "success_rate": strategy_summary.success_rate,
-                            "avg_profit_per_trade": float(strategy_summary.avg_profit_per_trade),
+                            "avg_profit_per_trade": float(
+                                strategy_summary.avg_profit_per_trade
+                            ),
                         }
                 except Exception as e:
                     self.logger.debug(f"Could not get summary for {strategy_name}: {e}")
@@ -412,10 +423,10 @@ class TradingSystem:
             # Export to JSON
             export_file = Path(export_path)
             export_file.parent.mkdir(parents=True, exist_ok=True)
-            
+
             with export_file.open("w") as f:
                 json.dump(strategy_data, f, indent=2)
-            
+
             self.logger.info(f"Tracking summary exported to: {export_path}")
 
         except Exception as e:
@@ -509,10 +520,6 @@ Examples:
     # )
 
     parser.add_argument(
-        "--ignore-market-hours", action="store_true", help="Override market hours check"
-    )
-
-    parser.add_argument(
         "--show-tracking",
         action="store_true",
         help="Display strategy performance tracking after trade execution",
@@ -554,9 +561,7 @@ def main(argv: list[str] | None = None) -> bool:
 
         # PHASE 6: Emit StartupEvent to trigger event-driven workflows
         # NOTE: Disabled for now since TradingOrchestrator emits its own StartupEvent
-        # system._emit_startup_event(
-        #     args.mode, ignore_market_hours=getattr(args, "ignore_market_hours", False)
-        # )
+        # system._emit_startup_event(args.mode)
 
         # Display header with simple trading mode detection
         if args.mode == "trade":
@@ -572,7 +577,6 @@ def main(argv: list[str] | None = None) -> bool:
         # Execute trading with integrated signal analysis
         if args.mode == "trade":
             success = system.execute_trading(
-                ignore_market_hours=args.ignore_market_hours,
                 show_tracking=getattr(args, "show_tracking", False),
                 export_tracking_json=getattr(args, "export_tracking_json", None),
             )
@@ -597,7 +601,6 @@ def main(argv: list[str] | None = None) -> bool:
             component="main",
             additional_data={
                 "mode": args.mode,
-                "ignore_market_hours": getattr(args, "ignore_market_hours", False),
             },
         )
         render_footer("System error occurred!")

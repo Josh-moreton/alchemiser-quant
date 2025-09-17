@@ -98,16 +98,10 @@ def show_welcome() -> None:
 @app.command()
 def trade(
     # Remove --live flag - trading mode now determined by deployment stage
-    ignore_market_hours: bool = typer.Option(  # noqa: FBT001
-        default=False,
-        help="Trade outside market hours (testing only)",
-    ),
     verbose: bool = typer.Option(  # noqa: FBT001
         default=False, help="Enable verbose output"
     ),
-    no_header: bool = typer.Option(
-        default=False, help="Skip welcome header"
-    ),
+    no_header: bool = typer.Option(default=False, help="Skip welcome header"),
     show_tracking: bool = typer.Option(  # noqa: FBT001
         default=False,
         help="Display strategy performance tracking after execution",
@@ -158,8 +152,6 @@ def trade(
 
         # Build argv for main function (no --live flag)
         argv = ["trade"]
-        if ignore_market_hours:
-            argv.append("--ignore-market-hours")
         if show_tracking:
             argv.append("--show-tracking")
         if export_tracking_json:
@@ -185,7 +177,6 @@ def trade(
             "cli_trading_client_error",
             function="trade",
             command="trade",
-            ignore_market_hours=ignore_market_hours,
             error_type=type(e).__name__,
         )
         console.print(f"\n[bold red]Trading client error: {e}[/bold red]")
@@ -200,7 +191,6 @@ def trade(
             "cli_trading_execution",
             function="trade",
             command="trade",
-            ignore_market_hours=ignore_market_hours,
             error_type="unexpected_error",
             original_error=type(e).__name__,
         )
