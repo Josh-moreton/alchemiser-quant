@@ -607,18 +607,18 @@ class SmartExecutionStrategy:
                 if time_elapsed < self.config.fill_wait_seconds:
                     logger.debug(
                         f"⏳ Order {order_id} waiting for fill "
-                        f"({time_elapsed:.1f}s/{self.config.fill_wait_seconds}s)"
+                        f"({time_elapsed:.1f}s/{self.config.fill_wait_seconds}s) - "
+                        f"repeg_count: {self._repeg_counts.get(order_id, 0)}"
                     )
                     continue
 
+                current_repeg_count = self._repeg_counts.get(order_id, 0)
+                
                 # Check if we've reached max re-pegs — escalate to market
-                if (
-                    self._repeg_counts.get(order_id, 0)
-                    >= self.config.max_repegs_per_order
-                ):
+                if current_repeg_count >= self.config.max_repegs_per_order:
                     logger.info(
                         f"⚠️ Order {order_id} reached max re-pegs "
-                        f"({self.config.max_repegs_per_order}), escalating to market order"
+                        f"({current_repeg_count}/{self.config.max_repegs_per_order}), escalating to market order"
                     )
                     escalation_result = await self._escalate_to_market(
                         order_id, request
@@ -631,7 +631,7 @@ class SmartExecutionStrategy:
                 # Attempt re-pegging
                 logger.info(
                     f"🔄 Order {order_id} hasn't filled after {time_elapsed:.1f}s, "
-                    "attempting re-peg..."
+                    f"attempting re-peg (attempt {current_repeg_count + 1}/{self.config.max_repegs_per_order})"
                 )
                 repeg_result = await self._attempt_repeg(order_id, request)
 
@@ -662,16 +662,18 @@ class SmartExecutionStrategy:
         """
         try:
             logger.info(
-                f"🛑 Escalating order {order_id} to market: canceling existing limit order"
+                f"🛑 Escalating order {order_id} to market: canceling existing limit order "
+                f"(after {self._repeg_counts.get(order_id, 0)} re-pegs)"
             )
             cancel_success = self.alpaca_manager.cancel_order(order_id)
             if not cancel_success:
                 logger.warning(
-                    f"⚠️ Failed to cancel order {order_id}; cannot escalate to market"
+                    f"⚠️ Failed to cancel order {order_id}; attempting market order anyway"
                 )
-                return None
+                # Don't return None - still try market order as the limit order might fill/cancel
 
             # Place market order
+            logger.info(f"📈 Placing market order for {request.symbol} {request.side}")
             executed_order = self.alpaca_manager.place_market_order(
                 symbol=request.symbol,
                 side=request.side.lower(),
@@ -700,7 +702,8 @@ class SmartExecutionStrategy:
                     ),
                 }
                 logger.info(
-                    f"✅ Market escalation successful: new order {executed_order.order_id}"
+                    f"✅ Market escalation successful: new order {executed_order.order_id} "
+                    f"(escalated from {order_id} after {self.config.max_repegs_per_order} re-pegs)"
                 )
                 return SmartOrderResult(
                     success=True,
@@ -782,10 +785,13 @@ class SmartExecutionStrategy:
                 logger.warning(f"⚠️ Cannot calculate re-peg price for {request.symbol}")
                 return None
 
-            # Place new order with more aggressive pricing
+            # Update tracking BEFORE placing new order to ensure count persistence
+            old_repeg_count = self._repeg_counts.get(order_id, 0)
+            new_repeg_count = old_repeg_count + 1
+            
             logger.info(
                 f"📈 Re-pegging {request.symbol} {request.side} from "
-                f"${original_anchor} to ${new_price}"
+                f"${original_anchor} to ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order})"
             )
 
             # Ensure price is properly quantized to avoid sub-penny precision errors
@@ -799,21 +805,17 @@ class SmartExecutionStrategy:
                 time_in_force="day",
             )
 
-            # Update tracking
-            self._repeg_counts[order_id] = self._repeg_counts.get(order_id, 0) + 1
-            repeg_count = self._repeg_counts[order_id]
-
             if executed_order.order_id:
-                # Update tracking with new order ID
+                # Update tracking with new order ID and preserve count
                 self._cleanup_order_tracking(order_id)
                 self._active_orders[executed_order.order_id] = request
-                self._repeg_counts[executed_order.order_id] = repeg_count
+                self._repeg_counts[executed_order.order_id] = new_repeg_count
                 self._order_placement_times[executed_order.order_id] = datetime.now(UTC)
                 self._order_anchor_prices[executed_order.order_id] = new_price
 
                 logger.info(
                     f"✅ Re-peg successful: new order {executed_order.order_id} "
-                    f"at ${new_price} (attempt {repeg_count})"
+                    f"at ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order})"
                 )
 
                 metadata_dict: LiquidityMetadata = {
@@ -830,8 +832,8 @@ class SmartExecutionStrategy:
                     order_id=executed_order.order_id,
                     final_price=new_price,
                     anchor_price=original_anchor,
-                    repegs_used=repeg_count,
-                    execution_strategy=f"smart_repeg_{repeg_count}",
+                    repegs_used=new_repeg_count,
+                    execution_strategy=f"smart_repeg_{new_repeg_count}",
                     placement_timestamp=datetime.now(UTC),
                     metadata=metadata_dict,
                 )
@@ -842,7 +844,7 @@ class SmartExecutionStrategy:
                 success=False,
                 error_message="Re-peg order placement failed",
                 execution_strategy="smart_repeg_failed",
-                repegs_used=repeg_count,
+                repegs_used=new_repeg_count,
             )
 
         except Exception as e:

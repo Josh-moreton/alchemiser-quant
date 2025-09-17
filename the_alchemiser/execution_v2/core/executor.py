@@ -532,50 +532,85 @@ class Executor:
 
         # Derive loop bounds
         max_repegs = 5
-        wait_between_checks = 1
+        fill_wait_seconds = 15
+        wait_between_checks = 1  # Keep frequent checks for responsiveness
         max_total_wait = 60
         try:
             if self.execution_config is not None:
                 max_repegs = getattr(self.execution_config, "max_repegs_per_order", 5)
-                wait_between_checks = max(
-                    1, int(getattr(self.execution_config, "fill_wait_seconds", 15))
-                )
+                fill_wait_seconds = int(getattr(self.execution_config, "fill_wait_seconds", 15))
+                wait_between_checks = max(1, min(fill_wait_seconds // 5, 5))  # Check 5x per fill_wait period
                 placement_timeout = int(
                     getattr(
                         self.execution_config, "order_placement_timeout_seconds", 30
                     )
                 )
+                # Fix: Use fill_wait_seconds for total time calculation, not wait_between_checks
                 max_total_wait = int(
-                    placement_timeout + wait_between_checks * (max_repegs + 1)
+                    placement_timeout + fill_wait_seconds * (max_repegs + 1) + 30  # +30s safety margin
                 )
-                max_total_wait = max(30, min(max_total_wait, 300))
+                max_total_wait = max(60, min(max_total_wait, 600))  # Increased max to 10 minutes
         except Exception as exc:
             logger.debug(f"Error deriving re-peg loop bounds: {exc}")
+        
+        logger.info(
+            f"📊 {phase_type} re-peg monitoring: max_repegs={max_repegs}, "
+            f"fill_wait_seconds={fill_wait_seconds}, max_total_wait={max_total_wait}s"
+        )
 
         start_time = time.time()
         attempts = 0
+        last_repeg_action_time = start_time
+        
         while (time.time() - start_time) < max_total_wait:
+            elapsed_total = time.time() - start_time
+            
             # Give existing orders time to fill before checking
             await asyncio.sleep(wait_between_checks)
 
             repeg_results = await self.smart_strategy.check_and_repeg_orders()
 
             if repeg_results:
+                last_repeg_action_time = time.time()
+                escalations = sum(1 for r in repeg_results if "escalation" in getattr(r, "execution_strategy", ""))
+                repegs = sum(1 for r in repeg_results if "repeg" in getattr(r, "execution_strategy", ""))
+                
                 logger.info(
-                    f"📊 {phase_type} phase re-pegging: {len(repeg_results)} orders processed (attempt {attempts + 1})"
+                    f"📊 {phase_type} phase: {len(repeg_results)} orders processed "
+                    f"(repegs: {repegs}, escalations: {escalations}) at {elapsed_total:.1f}s"
                 )
                 replacement_map = self._build_replacement_map_from_repeg_results(
                     phase_type, repeg_results
                 )
                 if replacement_map:
                     orders = self._replace_order_ids(orders, replacement_map)
+                    logger.info(f"📊 {phase_type} phase: {len(replacement_map)} order IDs replaced")
             else:
-                logger.info(
-                    f"📊 {phase_type} phase: No re-pegging needed (attempt {attempts + 1})"
+                # Enhanced logging to show why no re-pegging occurred
+                active_orders = self.smart_strategy.get_active_order_count() if self.smart_strategy else 0
+                logger.debug(
+                    f"📊 {phase_type} phase: No re-pegging needed "
+                    f"(attempt {attempts + 1}, {elapsed_total:.1f}s elapsed, {active_orders} active orders)"
                 )
 
             attempts += 1
+            
+            # Break early if we haven't had any re-peg activity for a while and no active orders
+            time_since_last_action = time.time() - last_repeg_action_time
+            if (time_since_last_action > fill_wait_seconds * 2 and 
+                self.smart_strategy and 
+                self.smart_strategy.get_active_order_count() == 0):
+                logger.info(
+                    f"📊 {phase_type} phase: No active orders remaining, ending monitoring early "
+                    f"(after {elapsed_total:.1f}s)"
+                )
+                break
 
+        final_elapsed = time.time() - start_time
+        logger.info(
+            f"📊 {phase_type} phase monitoring completed after {final_elapsed:.1f}s "
+            f"({attempts} check attempts)"
+        )
         return orders
 
     def _cleanup_subscriptions(self, symbols: list[str]) -> None:
@@ -842,16 +877,17 @@ class Executor:
         """Compute a conservative max wait time for order fills from config."""
         try:
             if self.execution_config is not None:
-                wait_base = getattr(self.execution_config, "fill_wait_seconds", 15)
+                fill_wait_seconds = getattr(self.execution_config, "fill_wait_seconds", 15)
                 max_repegs = getattr(self.execution_config, "max_repegs_per_order", 5)
                 placement_timeout = getattr(
                     self.execution_config, "order_placement_timeout_seconds", 30
                 )
-                max_wait = int(placement_timeout + wait_base * (max_repegs + 1))
-                return max(30, min(max_wait, 300))
+                # Fix: Use fill_wait_seconds for calculation, not wait_base
+                max_wait = int(placement_timeout + fill_wait_seconds * (max_repegs + 1) + 30)
+                return max(60, min(max_wait, 600))  # Increased max to 10 minutes
         except Exception as exc:
             logger.debug(f"Using default max wait due to config error: {exc}")
-        return 60
+        return 120  # Increased default from 60s
 
     def _get_final_status_map(
         self,
