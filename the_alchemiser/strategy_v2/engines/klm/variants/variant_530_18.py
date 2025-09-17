@@ -125,9 +125,7 @@ class KlmVariant53018(BaseKLMVariant):
                 )
             else:
                 # VIX Blend+ - Equal VIX allocation
-                allocation = (
-                    self.vix_blend_plus
-                )  # {UVXY: 0.333, VXX: 0.333, VIXM: 0.333}
+                allocation = self.vix_blend_plus  # {UVXY: 0.333, VXX: 0.333, VIXM: 0.333}
                 result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
@@ -330,9 +328,7 @@ class KlmVariant53018(BaseKLMVariant):
             return None
 
         spy_rsi_70 = float(
-            indicators["SPY"].metadata.get("rsi_70", 50)
-            if indicators["SPY"].metadata
-            else 50
+            indicators["SPY"].metadata.get("rsi_70", 50) if indicators["SPY"].metadata else 50
         )
 
         if spy_rsi_70 > 63:
@@ -379,7 +375,7 @@ class KlmVariant53018(BaseKLMVariant):
     def _evaluate_holy_grail_kmlm_switcher(
         self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
-        """ "10. KMLM Switcher | Holy Grail" - The final complex branch.
+        """"10. KMLM Switcher | Holy Grail" - The final complex branch.
 
         This includes:
         1. VOX RSI(10) > 79 → VIX Blend
@@ -469,7 +465,7 @@ class KlmVariant53018(BaseKLMVariant):
     def _evaluate_kmlm_switcher_plus_fngu(
         self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
-        """ "KMLM Switcher + FNGU" with complex 50/50 FNGU logic.
+        """"KMLM Switcher + FNGU" with complex 50/50 FNGU logic.
 
         This is the most sophisticated KMLM switcher in the ensemble.
         """
@@ -549,9 +545,7 @@ class KlmVariant53018(BaseKLMVariant):
                 if symbol in indicators:
                     metadata = indicators[symbol].metadata
                     stdev = float(
-                        metadata.get("stdev_return_6", 0.1)
-                        if metadata is not None
-                        else 0.1
+                        metadata.get("stdev_return_6", 0.1) if metadata is not None else 0.1
                     )
                     rotator_candidates.append((symbol, stdev))
 

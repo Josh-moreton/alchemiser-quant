@@ -180,10 +180,10 @@ class TradingOrchestrator:
                 try:
                     # Convert Decimal values to float for DTO compatibility
                     allocation_dict_float = {
-                        symbol: float(allocation) 
+                        symbol: float(allocation)
                         for symbol, allocation in event.consolidated_portfolio.items()
                     }
-                    
+
                     # Create a consolidated portfolio DTO from the signals
                     portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
                         allocation_dict=allocation_dict_float,
@@ -393,7 +393,7 @@ class TradingOrchestrator:
             if account_info is None:
                 self.logger.error("❌ No account information available for rebalancing")
                 return None
-                
+
             rebalance_plan = self._create_rebalance_plan_from_allocation(
                 allocation_comparison, account_info
             )

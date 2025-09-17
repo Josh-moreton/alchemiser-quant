@@ -41,7 +41,7 @@ class ApplicationContainer(containers.DeclarativeContainer):
         if env == "test":
             container.config.alpaca_api_key.override("test_api_key_valid_for_testing")
             container.config.alpaca_secret_key.override("test_secret_key_valid_for_testing")
-            container.config.paper_trading.override(True)
+            container.config.paper_trading.override(True)  # noqa: FBT003
         elif env == "production":
             # Production uses environment variables (default behavior)
             pass

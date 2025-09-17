@@ -920,14 +920,16 @@ class SmartExecutionStrategy:
         # Return None if no pricing service available
         if self.pricing_service is None:
             return None
-            
+
         # Try to get structured quote data first
         quote_data = self.pricing_service.get_quote_data(symbol)
         if quote_data:
             # Convert to dict format for compatibility
             timestamp_value = (
-                quote_data.timestamp.timestamp() 
-                if hasattr(quote_data.timestamp, 'timestamp') 
+                quote_data.timestamp.timestamp()
+                if hasattr(quote_data.timestamp, "timestamp")
+                else quote_data.timestamp.timestamp()
+                if isinstance(quote_data.timestamp, datetime)
                 else float(quote_data.timestamp)
             )
             return {

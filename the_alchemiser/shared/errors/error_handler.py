@@ -651,7 +651,7 @@ class EnhancedTradingError(EnhancedAlchemiserError):
         order_id: str | None = None,
         quantity: float | None = None,
         price: float | None = None,
-        **kwargs: Any,
+        **kwargs: Any,  # noqa: ANN401
     ) -> None:
         """Initialize trading error with optional symbol/order/quantity/price."""
         super().__init__(message, **kwargs)
@@ -683,7 +683,7 @@ class EnhancedDataError(EnhancedAlchemiserError):
         data_source: str | None = None,
         data_type: str | None = None,
         symbol: str | None = None,
-        **kwargs: Any,
+        **kwargs: Any,  # noqa: ANN401
     ) -> None:
         """Initialize data error with optional source/type/symbol context."""
         super().__init__(message, **kwargs)
@@ -808,7 +808,7 @@ def retry_with_backoff(
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
             last_exception = None
 
             for attempt in range(max_retries + 1):
@@ -889,7 +889,7 @@ class CircuitBreaker:
         """
 
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
             if self.state == "OPEN":
                 if self.last_failure_time and time.time() - self.last_failure_time < self.timeout:
                     raise CircuitBreakerOpenError(
@@ -944,7 +944,7 @@ def create_enhanced_error(
     message: str,
     context: ErrorContextData | None = None,
     severity: str | None = None,
-    **kwargs: Any,
+    **kwargs: Any,  # noqa: ANN401
 ) -> EnhancedAlchemiserError:
     """Create enhanced errors with proper context."""
     if severity is None:
@@ -1092,7 +1092,7 @@ def handle_errors_with_retry(
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
             if max_retries > 0:
                 # Apply retry logic
                 retry_decorator = retry_with_backoff(

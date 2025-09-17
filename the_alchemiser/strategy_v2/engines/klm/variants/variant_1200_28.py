@@ -84,7 +84,9 @@ class KlmVariant120028(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator
         return self._evaluate_ls_rotator_1200(indicators)
 
-    def _evaluate_ls_rotator_1200(self, indicators: dict[str, TechnicalIndicatorDTO]) -> KLMDecision:
+    def _evaluate_ls_rotator_1200(
+        self, indicators: dict[str, TechnicalIndicatorDTO]
+    ) -> KLMDecision:
         """1200/28 L/S Rotator - uses SQQQ/TLT select-top 1."""
         candidates = []
         for symbol in ["SQQQ", "TLT"]:

@@ -57,6 +57,26 @@ class StrategyPnLSummaryProtocol(Protocol):
         ...
 
     @property
+    def total_profit_loss(self) -> float:
+        """Total profit and loss (alias for total_pnl)."""
+        ...
+
+    @property
+    def total_orders(self) -> int:
+        """Total number of orders."""
+        ...
+
+    @property
+    def success_rate(self) -> float:
+        """Success rate as a percentage."""
+        ...
+
+    @property
+    def avg_profit_per_trade(self) -> float:
+        """Average profit per trade."""
+        ...
+
+    @property
     def total_return_pct(self) -> float:
         """Total return percentage."""
         ...

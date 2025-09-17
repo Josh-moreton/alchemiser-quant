@@ -40,7 +40,7 @@ class ConfigurationError(AlchemiserError):
         self,
         message: str,
         config_key: str | None = None,
-        config_value: str | int | float | bool | None = None,
+        config_value: str | int | float | bool | None = None,  # noqa: FBT001
     ) -> None:
         """Raise when configuration values are missing or invalid."""
         context = {}

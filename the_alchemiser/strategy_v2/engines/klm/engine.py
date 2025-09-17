@@ -468,8 +468,8 @@ class KLMEngine(StrategyEngine):
             # Return a default "no decision" result
             no_decision: KLMDecision = {
                 "symbol": "CASH",
-                "action": "HOLD", 
-                "reasoning": "No valid variant results available"
+                "action": "HOLD",
+                "reasoning": "No valid variant results available",
             }
             return no_decision, None
 
@@ -525,7 +525,11 @@ class KLMEngine(StrategyEngine):
 
         # Get key market indicators
         spy_rsi_10 = indicators["SPY"].rsi_10 if "SPY" in indicators else 0.0
-        spy_close = float(indicators["SPY"].current_price) if "SPY" in indicators and indicators["SPY"].current_price is not None else 0.0
+        spy_close = (
+            float(indicators["SPY"].current_price)
+            if "SPY" in indicators and indicators["SPY"].current_price is not None
+            else 0.0
+        )
         spy_sma_200 = indicators["SPY"].ma_200 if "SPY" in indicators else 0.0
 
         analysis_lines.append(f"• SPY RSI(10): {spy_rsi_10:.1f}")

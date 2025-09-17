@@ -65,9 +65,7 @@ class PortfolioOrchestrator:
             )
 
             # Get current portfolio snapshot via state reader
-            portfolio_snapshot = (
-                portfolio_service._state_reader.build_portfolio_snapshot()
-            )
+            portfolio_snapshot = portfolio_service._state_reader.build_portfolio_snapshot()
 
             if not portfolio_snapshot:
                 self.logger.warning("Could not retrieve portfolio snapshot")
@@ -203,9 +201,7 @@ class PortfolioOrchestrator:
 
             # Get current positions
             current_positions = alpaca_manager.get_positions()
-            positions_dict = {
-                pos.symbol: float(pos.market_value) for pos in current_positions
-            }
+            positions_dict = {pos.symbol: float(pos.market_value) for pos in current_positions}
 
             # Use shared utilities for allocation comparison
             from the_alchemiser.shared.utils.portfolio_calculations import (
@@ -218,9 +214,7 @@ class PortfolioOrchestrator:
                     raw = getattr(obj, name, None)
                     if raw is None:
                         return 0.0
-                    return (
-                        float(raw) if isinstance(raw, int | float) else float(str(raw))
-                    )
+                    return float(raw) if isinstance(raw, int | float) else float(str(raw))
                 except (ValueError, TypeError):
                     return 0.0
 
@@ -261,18 +255,12 @@ class PortfolioOrchestrator:
 
                 for symbol, market_value in positions_dict.items():
                     current_allocation = (
-                        market_value / total_portfolio_value
-                        if total_portfolio_value > 0
-                        else 0
+                        market_value / total_portfolio_value if total_portfolio_value > 0 else 0
                     )
-                    current_allocations_decimal[symbol] = Decimal(
-                        str(current_allocation)
-                    )
+                    current_allocations_decimal[symbol] = Decimal(str(current_allocation))
 
                     # Calculate difference
-                    target_allocation = target_allocations_decimal.get(
-                        symbol, Decimal("0")
-                    )
+                    target_allocation = target_allocations_decimal.get(symbol, Decimal("0"))
                     differences_decimal[symbol] = target_allocation - Decimal(
                         str(current_allocation)
                     )
@@ -311,9 +299,9 @@ class PortfolioOrchestrator:
             account_raw = alpaca_manager.get_account()
             account_info = None
             if account_raw:
-                portfolio_value_any = getattr(
-                    account_raw, "portfolio_value", None
-                ) or getattr(account_raw, "equity", None)
+                portfolio_value_any = getattr(account_raw, "portfolio_value", None) or getattr(
+                    account_raw, "equity", None
+                )
                 equity_any = getattr(account_raw, "equity", None) or getattr(
                     account_raw, "portfolio_value", None
                 )
@@ -326,9 +314,7 @@ class PortfolioOrchestrator:
 
                 try:
                     portfolio_value_float = (
-                        float(portfolio_value_any)
-                        if portfolio_value_any is not None
-                        else 0.0
+                        float(portfolio_value_any) if portfolio_value_any is not None else 0.0
                     )
                 except (ValueError, TypeError):
                     portfolio_value_float = 0.0
@@ -351,9 +337,7 @@ class PortfolioOrchestrator:
                     }
                     for pos in positions_list
                 }
-                self.logger.info(
-                    f"Retrieved {len(current_positions)} current positions"
-                )
+                self.logger.info(f"Retrieved {len(current_positions)} current positions")
 
             # Get open orders
             open_orders = []
@@ -364,9 +348,9 @@ class PortfolioOrchestrator:
                         {
                             "id": getattr(order, "id", "unknown"),
                             "symbol": getattr(order, "symbol", "unknown"),
-                            "type": str(
-                                getattr(order, "order_type", "unknown")
-                            ).replace("OrderType.", ""),
+                            "type": str(getattr(order, "order_type", "unknown")).replace(
+                                "OrderType.", ""
+                            ),
                             "qty": float(getattr(order, "qty", 0)),
                             "limit_price": (
                                 float(getattr(order, "limit_price", 0))
@@ -469,15 +453,11 @@ class PortfolioOrchestrator:
             )
 
             self.event_bus.publish(event)
-            self.logger.debug(
-                f"Emitted AllocationComparisonCompleted event {event.event_id}"
-            )
+            self.logger.debug(f"Emitted AllocationComparisonCompleted event {event.event_id}")
 
         except Exception as e:
             # Don't let event emission failure break the traditional workflow
-            self.logger.warning(
-                f"Failed to emit AllocationComparisonCompleted event: {e}"
-            )
+            self.logger.warning(f"Failed to emit AllocationComparisonCompleted event: {e}")
 
     def execute_portfolio_workflow(
         self, target_allocations: dict[str, float]
@@ -502,8 +482,7 @@ class PortfolioOrchestrator:
             )
 
             target_allocations_decimal = {
-                symbol: Decimal(str(weight))
-                for symbol, weight in target_allocations.items()
+                symbol: Decimal(str(weight)) for symbol, weight in target_allocations.items()
             }
 
             consolidated_portfolio = ConsolidatedPortfolioDTO(
@@ -525,9 +504,7 @@ class PortfolioOrchestrator:
                 return None
 
             # Analyze allocation comparison
-            allocation_analysis = self.analyze_allocation_comparison(
-                consolidated_portfolio
-            )
+            allocation_analysis = self.analyze_allocation_comparison(consolidated_portfolio)
             if not allocation_analysis:
                 return None
 
