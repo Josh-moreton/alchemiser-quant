@@ -170,7 +170,47 @@ class TradingSystem:
             self._display_signals_and_rebalance(signals_result)
 
             # PHASE 2: Execute trading (may place orders)
-            trading_result = orchestrator.execute_strategy_signals_with_trading()
+            try:
+                from rich.logging import RichHandler
+                from rich.progress import Progress, SpinnerColumn, TextColumn
+
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    transient=True,
+                ) as progress:
+                    _task = progress.add_task(
+                        "🚀 Executing trades... Submitting orders and monitoring fills",
+                        total=None,
+                    )
+
+                    # Temporarily surface INFO logs to the CLI for live feedback
+                    root_logger = logging.getLogger()
+                    rich_handler = RichHandler(
+                        console=progress.console,
+                        show_time=False,
+                        show_level=False,
+                        show_path=False,
+                        markup=True,
+                    )
+
+                    # Limit to our app logs to avoid noisy third-party streams
+                    class _OnlyAlchemiser(logging.Filter):
+                        def filter(self, record: logging.LogRecord) -> bool:
+                            return record.name.startswith("the_alchemiser")
+
+                    rich_handler.addFilter(_OnlyAlchemiser())
+                    root_original_level = root_logger.level
+                    root_logger.setLevel(logging.INFO)
+                    root_logger.addHandler(rich_handler)
+                    try:
+                        trading_result = orchestrator.execute_strategy_signals_with_trading()
+                    finally:
+                        root_logger.removeHandler(rich_handler)
+                        root_logger.setLevel(root_original_level)
+            except Exception:
+                # Fallback if Rich is unavailable
+                trading_result = orchestrator.execute_strategy_signals_with_trading()
             if trading_result is None:
                 render_footer("Trading execution failed - check logs for details")
                 return False
@@ -184,11 +224,14 @@ class TradingSystem:
 
             # 5) Display tracking if requested
             if show_tracking:
-                self._display_post_execution_tracking(not orchestrator.live_trading)
+                self._display_post_execution_tracking(paper_trading=not orchestrator.live_trading)
 
             # 6) Export tracking summary if requested
             if export_tracking_json:
-                self._export_tracking_summary(export_tracking_json, not orchestrator.live_trading)
+                self._export_tracking_summary(
+                    export_path=export_tracking_json,
+                    paper_trading=not orchestrator.live_trading,
+                )
 
             # 7) Send notification
             try:
@@ -362,7 +405,7 @@ class TradingSystem:
         except Exception as e:
             self.logger.warning(f"Failed to display execution results: {e}")
 
-    def _display_post_execution_tracking(self, paper_trading: bool) -> None:  # noqa: FBT001
+    def _display_post_execution_tracking(self, *, paper_trading: bool) -> None:
         """Display strategy performance tracking after execution."""
         try:
             from rich.console import Console
@@ -391,7 +434,7 @@ class TradingSystem:
             except ImportError:
                 self.logger.warning("Strategy tracking display unavailable (rich not available)")
 
-    def _export_tracking_summary(self, export_path: str, paper_trading: bool) -> None:  # noqa: FBT001
+    def _export_tracking_summary(self, *, export_path: str, paper_trading: bool) -> None:
         """Export tracking summary to JSON file."""
         try:
             import json
