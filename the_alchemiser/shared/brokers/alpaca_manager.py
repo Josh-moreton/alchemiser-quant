@@ -204,15 +204,36 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         )
 
     # Trading Operations
-    def get_account(self) -> TradeAccount:
-        """Get account information with error handling."""
+    def get_account(self) -> dict[str, Any] | None:
+        """Get account information with error handling (protocol compliance)."""
+        account_obj = self._get_account_object()
+        if account_obj:
+            # Convert TradeAccount to dict for protocol compliance
+            if hasattr(account_obj, '__dict__'):
+                return account_obj.__dict__
+            else:
+                # Fallback: manually convert known attributes
+                return {
+                    'id': getattr(account_obj, 'id', None),
+                    'account_number': getattr(account_obj, 'account_number', None),
+                    'status': getattr(account_obj, 'status', None),
+                    'currency': getattr(account_obj, 'currency', None),
+                    'buying_power': getattr(account_obj, 'buying_power', None),
+                    'cash': getattr(account_obj, 'cash', None),
+                    'equity': getattr(account_obj, 'equity', None),
+                    'portfolio_value': getattr(account_obj, 'portfolio_value', None),
+                }
+        return None
+
+    def _get_account_object(self) -> TradeAccount | None:
+        """Get account object for internal use."""
         try:
             account = self._trading_client.get_account()
             logger.debug("Successfully retrieved account information")
-            return account
+            return account if isinstance(account, TradeAccount) else None
         except Exception as e:
             logger.error(f"Failed to get account information: {e}")
-            raise
+            return None
 
     def get_positions(self) -> list[Any]:
         """Get all positions as list of position objects (AccountRepository interface).
@@ -274,7 +295,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         try:
             position = self._trading_client.get_open_position(symbol)
             logger.debug(f"Successfully retrieved position for {symbol}")
-            return position
+            return position if isinstance(position, Position) else None
         except Exception as e:
             if "position does not exist" in str(e).lower():
                 logger.debug(f"No position found for {symbol}")
@@ -383,7 +404,13 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         try:
             order = self._trading_client.get_order_by_id(order_id)
-            return self._alpaca_order_to_execution_result(order)
+            if isinstance(order, Order):
+                return self._alpaca_order_to_execution_result(order)
+            else:
+                logger.error(f"Unexpected order type: {type(order)}")
+                return self._create_error_execution_result(
+                    Exception("Invalid order type"), context="Order type validation", order_id=order_id
+                )
         except Exception as e:
             logger.error(f"Failed to refresh order {order_id}: {e}")
             return self._create_error_execution_result(
@@ -884,7 +911,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def validate_connection(self) -> bool:
         """Validate that the connection to Alpaca is working."""
         try:
-            account = self.get_account()
+            account = self._get_account_object()
             if account:
                 logger.info("Alpaca connection validated successfully")
                 return True
@@ -896,8 +923,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def get_buying_power(self) -> float | None:
         """Get current buying power."""
         try:
-            account = self.get_account()
-            if account and hasattr(account, "buying_power"):
+            account = self._get_account_object()
+            if account and hasattr(account, "buying_power") and account.buying_power is not None:
                 return float(account.buying_power)
             return None
         except Exception as e:
@@ -907,8 +934,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def get_portfolio_value(self) -> float | None:
         """Get current portfolio value."""
         try:
-            account = self.get_account()
-            if account and hasattr(account, "portfolio_value"):
+            account = self._get_account_object()
+            if account and hasattr(account, "portfolio_value") and account.portfolio_value is not None:
                 return float(account.portfolio_value)
             return None
         except Exception as e:

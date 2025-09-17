@@ -19,7 +19,7 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.shared.events import BulkSettlementCompleted, OrderSettlementCompleted
 from the_alchemiser.shared.events.bus import EventBus
@@ -55,8 +55,8 @@ class SettlementMonitor:
         self.max_wait_seconds = max_wait_seconds
 
         # Track monitoring sessions
-        self._active_monitors: dict[str, asyncio.Task] = {}
-        self._settlement_results: dict[str, dict] = {}
+        self._active_monitors: dict[str, asyncio.Task[None]] = {}
+        self._settlement_results: dict[str, dict[str, Any]] = {}
 
     async def monitor_sell_orders_settlement(
         self,
@@ -82,7 +82,7 @@ class SettlementMonitor:
 
         settled_orders: list[str] = []
         total_buying_power_released = Decimal("0")
-        settlement_details: dict[str, dict] = {}
+        settlement_details: dict[str, dict[str, Any]] = {}
         start_time = datetime.now(UTC)
 
         try:
@@ -123,7 +123,7 @@ class SettlementMonitor:
         )
 
         if self.event_bus:
-            await self.event_bus.emit(settlement_event)
+            self.event_bus.publish(settlement_event)
 
         execution_time = (datetime.now(UTC) - start_time).total_seconds()
         logger.info(
@@ -136,7 +136,7 @@ class SettlementMonitor:
 
     async def _monitor_single_order_settlement(
         self, order_id: str, correlation_id: str
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """Monitor a single order for settlement completion.
 
         Args:
@@ -180,7 +180,7 @@ class SettlementMonitor:
                                 ),
                                 original_correlation_id=correlation_id,
                             )
-                            await self.event_bus.emit(settlement_event)
+                            self.event_bus.publish(settlement_event)
 
                     return order_details
 
@@ -194,7 +194,7 @@ class SettlementMonitor:
         logger.warning(f"⏰ Settlement monitoring timeout for order {order_id}")
         return None
 
-    async def _get_order_settlement_details(self, order_id: str) -> dict | None:
+    async def _get_order_settlement_details(self, order_id: str) -> dict[str, Any] | None:
         """Get detailed settlement information for a completed order.
 
         Args:
