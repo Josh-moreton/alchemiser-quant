@@ -29,7 +29,11 @@ from the_alchemiser.shared.dto.rebalance_plan_dto import (
     RebalancePlanDTO,
     RebalancePlanItemDTO,
 )
-from the_alchemiser.shared.events import EventBus, StartupEvent, TradeExecuted, TradeExecutionStarted
+from the_alchemiser.shared.events import (
+    EventBus,
+    TradeExecuted,
+    TradeExecutionStarted,
+)
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 from the_alchemiser.shared.types.exceptions import (
@@ -127,6 +131,7 @@ class TradingOrchestrator:
         
         Args:
             event: The SignalGenerated event
+
         """
         self.logger.info(
             f"🔄 TradingOrchestrator: SignalGenerated coordination - {len(event.signals)} signals"
@@ -150,7 +155,7 @@ class TradingOrchestrator:
                 self.logger.info("🔄 Triggering portfolio rebalancing workflow")
                 
                 # Populate workflow results with account data for CLI
-                if (hasattr(self, 'workflow_results') and 
+                if (hasattr(self, "workflow_results") and 
                     self.workflow_state.get("last_correlation_id") == event.correlation_id):
                     
                     self.workflow_results.update({
@@ -160,7 +165,9 @@ class TradingOrchestrator:
                     })
                 
                 # Reconstruct consolidated portfolio from event signals for rebalancing
-                from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
+                from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
+                    ConsolidatedPortfolioDTO,
+                )
                 
                 # Extract strategy names from signals
                 source_strategies = list(set(signal.strategy_name for signal in event.signals if signal.strategy_name))
@@ -180,7 +187,7 @@ class TradingOrchestrator:
                     
                     if allocation_comparison:
                         # Populate workflow results for CLI
-                        if (hasattr(self, 'workflow_results') and 
+                        if (hasattr(self, "workflow_results") and 
                             self.workflow_state.get("last_correlation_id") == event.correlation_id):
                             self.workflow_results["allocation_comparison"] = allocation_comparison
                         
@@ -208,6 +215,7 @@ class TradingOrchestrator:
         
         Args:
             event: The RebalancePlanned event
+
         """
         self.logger.info(
             f"🚀 TradingOrchestrator: RebalancePlanned coordination - {len(event.rebalance_plan.items)} trades"

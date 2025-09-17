@@ -97,6 +97,7 @@ class MarketBarDTO(BaseModel):
 
         Returns:
             Dictionary representation optimized for JSON serialization.
+
         """
         data = self.model_dump()
 
@@ -130,6 +131,7 @@ class MarketBarDTO(BaseModel):
 
         Raises:
             ValueError: If data is invalid or missing required fields
+
         """
         # Convert string timestamp back to datetime
         if "timestamp" in data and isinstance(data["timestamp"], str):
@@ -182,6 +184,7 @@ class MarketBarDTO(BaseModel):
 
         Raises:
             ValueError: If required fields are missing or invalid
+
         """
         try:
             # Extract timestamp - handle both 't' and 'timestamp' keys
@@ -218,6 +221,7 @@ class MarketBarDTO(BaseModel):
 
         Returns:
             Dictionary in the format expected by existing strategy engines.
+
         """
         return {
             "t": self.timestamp,

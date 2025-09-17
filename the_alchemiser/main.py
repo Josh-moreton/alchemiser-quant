@@ -16,12 +16,11 @@ import sys
 from decimal import Decimal
 from typing import Any
 
+# CLI formatter imports (moved from function-level)
+from the_alchemiser.orchestration.cli.cli_formatter import render_footer, render_header
 from the_alchemiser.orchestration.event_driven_orchestrator import (
     EventDrivenOrchestrator,
 )
-
-# CLI formatter imports (moved from function-level)
-from the_alchemiser.orchestration.cli.cli_formatter import render_footer, render_header
 
 # Signal analyzer import removed - signal functionality integrated into trading workflow
 from the_alchemiser.shared.config.config import Settings, load_settings
@@ -243,7 +242,9 @@ class TradingSystem:
         open_orders: list[dict[str, Any]] | None = None,
     ) -> None:
         """Display comprehensive trading results."""
-        from the_alchemiser.orchestration.cli.cli_formatter import render_comprehensive_trading_results
+        from the_alchemiser.orchestration.cli.cli_formatter import (
+            render_comprehensive_trading_results,
+        )
         from the_alchemiser.shared.config.config import load_settings
         
         try:
@@ -271,6 +272,7 @@ class TradingSystem:
             from rich.console import Console
             from rich.panel import Panel
             from rich.table import Table
+
             from the_alchemiser.orchestration.cli.cli_formatter import render_orders_executed
 
             console = Console()
@@ -354,7 +356,10 @@ class TradingSystem:
         """Display strategy performance tracking after execution."""
         try:
             from rich.console import Console
-            from the_alchemiser.orchestration.cli.strategy_tracking_utils import display_strategy_tracking
+
+            from the_alchemiser.orchestration.cli.strategy_tracking_utils import (
+                display_strategy_tracking,
+            )
 
             console = Console()
             console.print("\n")
@@ -379,9 +384,12 @@ class TradingSystem:
     def _export_tracking_summary(self, export_path: str, paper_trading: bool) -> None:
         """Export tracking summary to JSON file."""
         try:
-            from the_alchemiser.orchestration.cli.strategy_tracking_utils import _get_strategy_order_tracker
             import json
             from pathlib import Path
+
+            from the_alchemiser.orchestration.cli.strategy_tracking_utils import (
+                _get_strategy_order_tracker,
+            )
 
             # Create tracker using same mode as execution
             tracker = _get_strategy_order_tracker(paper_trading=paper_trading)

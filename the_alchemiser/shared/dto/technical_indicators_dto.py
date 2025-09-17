@@ -185,6 +185,7 @@ class TechnicalIndicatorDTO(BaseModel):
 
         Returns:
             Dictionary representation optimized for JSON serialization.
+
         """
         data = self.model_dump()
 
@@ -210,6 +211,7 @@ class TechnicalIndicatorDTO(BaseModel):
 
         Raises:
             ValueError: If data is invalid or missing required fields
+
         """
         # Convert string timestamp back to datetime
         if "timestamp" in data and isinstance(data["timestamp"], str):
@@ -254,6 +256,7 @@ class TechnicalIndicatorDTO(BaseModel):
         Note:
             Handles conversion from existing strategy engine indicator formats
             to the new typed DTO structure.
+
         """
         try:
             # Extract timestamp or use current time
@@ -316,6 +319,7 @@ class TechnicalIndicatorDTO(BaseModel):
 
         Returns:
             Dictionary in the format expected by existing strategy engines.
+
         """
         result: dict[str, Any] = {}
 
@@ -361,6 +365,7 @@ class TechnicalIndicatorDTO(BaseModel):
 
         Returns:
             RSI value or None if not available
+
         """
         field_name = f"rsi_{period}"
         return getattr(self, field_name, None)
@@ -373,6 +378,7 @@ class TechnicalIndicatorDTO(BaseModel):
 
         Returns:
             Moving average value or None if not available
+
         """
         field_name = f"ma_{period}"
         return getattr(self, field_name, None)

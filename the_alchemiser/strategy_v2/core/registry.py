@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Protocol
 
 from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
+
 from ...shared.types.market_data_port import MarketDataPort
 
 

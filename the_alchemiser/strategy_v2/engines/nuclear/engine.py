@@ -537,18 +537,17 @@ class NuclearEngine(StrategyEngine):
             # Map legacy key names to DTO attributes
             if key == "rsi_10":
                 return dto.rsi_10
-            elif key == "rsi_20":
+            if key == "rsi_20":
                 return dto.rsi_20
-            elif key == "rsi_21":
+            if key == "rsi_21":
                 return dto.rsi_21
-            elif key == "ma_20":
+            if key == "ma_20":
                 return dto.ma_20
-            elif key == "current_price":
+            if key == "current_price":
                 return float(dto.current_price) if dto.current_price else None
-            elif key == "cum_return_60":
+            if key == "cum_return_60":
                 return dto.cum_return_60
-            else:
-                return None
+            return None
         except Exception:
             return None
 

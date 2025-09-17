@@ -483,6 +483,7 @@ class Executor:
         Args:
             phase_type: Type of phase ("SELL" or "BUY")
             orders: List of orders from this phase to monitor
+
         """
         # Wait a moment for orders to potentially fill before checking for re-pegging
         import asyncio
