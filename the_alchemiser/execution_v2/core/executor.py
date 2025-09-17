@@ -579,6 +579,11 @@ class Executor:
                     f"📊 {phase_type} phase: {len(repeg_results)} orders processed "
                     f"(repegs: {repegs}, escalations: {escalations}) at {elapsed_total:.1f}s"
                 )
+                
+                # Log escalations prominently
+                if escalations > 0:
+                    logger.info(f"🚨 {phase_type} phase: {escalations} orders ESCALATED TO MARKET")
+                
                 replacement_map = self._build_replacement_map_from_repeg_results(
                     phase_type, repeg_results
                 )
@@ -836,10 +841,16 @@ class Executor:
         for repeg_result in repeg_results:
             try:
                 if getattr(repeg_result, "success", False):
-                    logger.info(
-                        f"✅ {phase_type} re-peg successful: {getattr(repeg_result, 'order_id', '')} "
-                        f"(attempt {getattr(repeg_result, 'repegs_used', 0)})"
-                    )
+                    strategy = getattr(repeg_result, "execution_strategy", "")
+                    if "escalation" in strategy:
+                        logger.info(
+                            f"🚨 {phase_type} ESCALATED_TO_MARKET: {getattr(repeg_result, 'order_id', '')} "
+                            f"(after {getattr(repeg_result, 'repegs_used', 0)} re-pegs)"
+                        )
+                    else:
+                        logger.info(
+                            f"✅ {phase_type} REPEG {getattr(repeg_result, 'repegs_used', 0)}/5: {getattr(repeg_result, 'order_id', '')}"
+                        )
                     meta = getattr(repeg_result, "metadata", None) or {}
                     original_id = (
                         str(meta.get("original_order_id"))
