@@ -23,7 +23,7 @@ from dataclasses import dataclass, field  # Add field import
 from datetime import UTC, datetime  # Rename to avoid conflict
 from datetime import time as dt_time
 from decimal import Decimal
-from typing import Any, TypedDict
+from typing import TypedDict
 
 from the_alchemiser.execution_v2.utils.liquidity_analysis import LiquidityAnalyzer
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
@@ -192,65 +192,83 @@ class SmartExecutionStrategy:
     def get_quote_with_validation(
         self, symbol: str, order_size: float
     ) -> tuple[QuoteModel, bool] | None:
-        """Get validated quote data from streaming source, waiting for data.
+        """Get validated quote data from streaming source with REST API fallback.
 
-        Waits for streaming quote data to arrive after subscription.
+        First attempts to get streaming quote data, then falls back to REST API
+        if streaming data is not available - following Josh's guidance to use
+        the same bid/ask data feed that strategy engines use.
 
         Args:
             symbol: Stock symbol
             order_size: Size of order to place (in shares)
 
         Returns:
-            (QuoteModel, False) if valid streaming quote available, otherwise None
+            (QuoteModel, used_fallback) if valid quote available, otherwise None
+            used_fallback is True if REST API was used instead of streaming
 
         """
         import time
 
-        # Only try streaming quote if pricing service available
-        if not self.pricing_service:
-            logger.warning(f"No pricing service available for {symbol}")
-            return None
+        # Try streaming quote if pricing service available
+        if self.pricing_service:
+            # Wait for quote data to arrive from stream
+            logger.info(f"⏳ Waiting for streaming quote data for {symbol}...")
+            max_wait_time = 10.0  # Maximum 10 seconds to wait
+            check_interval = 0.1  # Check every 100ms
+            elapsed = 0.0
 
-        # Wait for quote data to arrive from stream
-        logger.info(f"⏳ Waiting for streaming quote data for {symbol}...")
-        max_wait_time = 10.0  # Maximum 10 seconds to wait
-        check_interval = 0.1  # Check every 100ms
-        elapsed = 0.0
+            quote = None
+            while elapsed < max_wait_time:
+                quote = self.pricing_service.get_quote_data(symbol)
+                if quote:
+                    logger.info(
+                        f"✅ Received streaming quote for {symbol} after {elapsed:.1f}s"
+                    )
+                    break
 
-        quote = None
-        while elapsed < max_wait_time:
-            quote = self.pricing_service.get_quote_data(symbol)
+                time.sleep(check_interval)
+                elapsed += check_interval
+
             if quote:
-                logger.info(
-                    f"✅ Received streaming quote for {symbol} after {elapsed:.1f}s"
-                )
-                break
+                # Check quote freshness
+                quote_age = (datetime.now(UTC) - quote.timestamp).total_seconds()
+                if quote_age <= self.config.quote_freshness_seconds:
+                    # Simple price validation - ensure we have at least one valid price
+                    if quote.bid_price > 0 or quote.ask_price > 0:
+                        return quote, False  # Streaming quote success
+                    logger.warning(
+                        f"Invalid streaming prices for {symbol}: bid={quote.bid_price}, ask={quote.ask_price}"
+                    )
+                else:
+                    logger.warning(
+                        f"Streaming quote stale for {symbol} ({quote_age:.1f}s > {self.config.quote_freshness_seconds}s)"
+                    )
 
-            time.sleep(check_interval)
-            elapsed += check_interval
-
-        if not quote:
-            logger.error(
-                f"❌ No streaming quote data received for {symbol} after {max_wait_time}s"
-            )
+        # Fallback to REST API using the same data feed as strategy engines
+        logger.info(f"📊 Falling back to REST API quote data for {symbol}")
+        rest_quote = self.alpaca_manager.get_latest_quote(symbol)
+        
+        if not rest_quote:
+            logger.error(f"❌ No quote data available for {symbol} (streaming and REST failed)")
             return None
-
-        # Check quote freshness
-        quote_age = (datetime.now(UTC) - quote.timestamp).total_seconds()
-        if quote_age > self.config.quote_freshness_seconds:
-            logger.warning(
-                f"Streaming quote stale for {symbol} ({quote_age:.1f}s > {self.config.quote_freshness_seconds}s)"
-            )
-            return None
-
-        # Simple price validation - just ensure we have at least one valid price
-        if quote.bid_price <= 0 and quote.ask_price <= 0:
-            logger.warning(
-                f"Invalid prices for {symbol}: bid={quote.bid_price}, ask={quote.ask_price}"
-            )
-            return None
-
-        return quote, False
+            
+        bid_price, ask_price = rest_quote
+        
+        # Create QuoteModel from REST data for consistent processing
+        quote = QuoteModel(
+            symbol=symbol,
+            bid_price=bid_price,
+            ask_price=ask_price,
+            bid_size=0.0,  # REST API doesn't provide size data
+            ask_size=0.0,  # REST API doesn't provide size data  
+            timestamp=datetime.now(UTC),
+        )
+        
+        logger.info(
+            f"✅ Got REST quote for {symbol}: bid=${bid_price:.2f}, ask=${ask_price:.2f}"
+        )
+        
+        return quote, True  # Used REST fallback
 
     def _calculate_simple_inside_spread_price(
         self, quote: QuoteModel, side: str
@@ -258,6 +276,7 @@ class SmartExecutionStrategy:
         """Compute a simple inside-spread anchor using configured offsets.
 
         This is used when we only have REST quotes or inadequate depth data.
+        Uses 'normal' liquidity settings as per Josh's guidance for fallback scenarios.
         """
         bid = Decimal(str(max(quote.bid_price, 0.0)))
         ask = Decimal(str(max(quote.ask_price, 0.0)))
@@ -267,14 +286,16 @@ class SmartExecutionStrategy:
         tick = Decimal("0.01")
 
         if side.upper() == "BUY":
+            # For buys, place slightly above bid (normal liquidity setting)
             anchor = bid + max(self.config.bid_anchor_offset_cents, tick)
             # Ensure we stay inside the spread when possible
             if ask > 0 and anchor >= ask:
                 anchor = max(ask - max(self.config.bid_anchor_offset_cents, tick), bid)
-            # Use mid as soft cap
+            # Use mid as soft cap for reasonable execution
             if ask > 0 and bid > 0:
                 anchor = min(anchor, mid)
         else:
+            # For sells, place slightly below ask (normal liquidity setting)
             anchor = ask - max(self.config.ask_anchor_offset_cents, tick)
             if bid > 0 and anchor <= bid:
                 anchor = min(ask, bid + max(self.config.ask_anchor_offset_cents, tick))
@@ -282,18 +303,19 @@ class SmartExecutionStrategy:
                 anchor = max(anchor, mid)
 
         metadata = {
-            "method": "simple_inside_spread",
+            "method": "simple_inside_spread_fallback",
             "mid": float(mid),
             "bid": float(bid),
             "ask": float(ask),
-            "strategy_recommendation": "simple_inside_spread_fallback",
-            "liquidity_score": 0.0,
+            "strategy_recommendation": "normal_liquidity_fallback",
+            "liquidity_score": 0.5,  # Normal/moderate score for fallback
             "volume_imbalance": 0.0,
-            "confidence": 0.5,  # Conservative confidence for fallback
-            "volume_available": 0.0,
+            "confidence": 0.7,  # Good confidence for REST API data
+            "volume_available": 0.0,  # Not available from REST API
             "volume_ratio": 0.0,
             "bid_volume": 0.0,
             "ask_volume": 0.0,
+            "used_fallback": True,  # Mark as fallback pricing
         }
         return anchor, metadata
 
@@ -607,6 +629,7 @@ class SmartExecutionStrategy:
             
         Returns:
             SmartOrderResult if re-peg was attempted, None if skipped
+
         """
         try:
             # Cancel the existing order
@@ -682,14 +705,13 @@ class SmartExecutionStrategy:
                         "ask_price": quote.ask_price,
                     },
                 )
-            else:
-                logger.error(f"❌ Re-peg failed for {request.symbol}: no order ID returned")
-                return SmartOrderResult(
-                    success=False,
-                    error_message="Re-peg order placement failed",
-                    execution_strategy="smart_repeg_failed",
-                    repegs_used=repeg_count,
-                )
+            logger.error(f"❌ Re-peg failed for {request.symbol}: no order ID returned")
+            return SmartOrderResult(
+                success=False,
+                error_message="Re-peg order placement failed",
+                execution_strategy="smart_repeg_failed",
+                repegs_used=repeg_count,
+            )
                 
         except Exception as e:
             logger.error(f"❌ Error during re-peg attempt for {order_id}: {e}")
@@ -711,6 +733,7 @@ class SmartExecutionStrategy:
             
         Returns:
             New more aggressive price, or None if cannot calculate
+
         """
         try:
             if side.upper() == "BUY":
