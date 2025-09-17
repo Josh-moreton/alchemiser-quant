@@ -15,6 +15,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.portfolio_v2 import PortfolioServiceV2
@@ -34,6 +35,238 @@ from the_alchemiser.shared.events import (
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
+
+
+def _to_float_safe(value: object) -> float:
+    """Convert a value to float safely, returning 0.0 for invalid values.
+    
+    Args:
+        value: Value to convert to float
+        
+    Returns:
+        Float representation of value, or 0.0 if conversion fails
+
+    """
+    try:
+        if value is None:
+            return 0.0
+        return (
+            float(value)
+            if isinstance(value, int | float)
+            else float(str(value))
+        )
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def _to_float_attr_safe(obj: object, name: str) -> float:
+    """Extract float attribute from object safely, returning 0.0 if not found.
+    
+    Args:
+        obj: Object to extract attribute from
+        name: Attribute name
+        
+    Returns:
+        Float value of attribute, or 0.0 if not found or conversion fails
+
+    """
+    try:
+        raw = getattr(obj, name, None)
+        if raw is None:
+            return 0.0
+        return (
+            float(raw)
+            if isinstance(raw, int | float)
+            else float(str(raw))
+        )
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def _normalize_account_info(account_info: dict[str, Any] | object) -> dict[str, float]:
+    """Normalize account info to a standardized dict format.
+    
+    Args:
+        account_info: Account info from broker API (dict or object)
+        
+    Returns:
+        Normalized dict with float values for equity, portfolio_value, buying_power
+
+    """
+    if isinstance(account_info, dict):
+        return {
+            "equity": _to_float_safe(account_info.get("equity")),
+            "portfolio_value": _to_float_safe(account_info.get("portfolio_value")),
+            "buying_power": _to_float_safe(account_info.get("buying_power")),
+        }
+    return {
+        "equity": _to_float_attr_safe(account_info, "equity"),
+        "portfolio_value": _to_float_attr_safe(account_info, "portfolio_value"),
+        "buying_power": _to_float_attr_safe(account_info, "buying_power"),
+    }
+
+
+def _build_positions_dict(current_positions: list[Any]) -> dict[str, float]:
+    """Build positions dict from broker position objects.
+    
+    Args:
+        current_positions: List of position objects from broker API
+        
+    Returns:
+        Dict mapping symbol to market value
+
+    """
+    return {
+        pos.symbol: float(pos.market_value) for pos in current_positions
+    }
+
+
+def _calculate_event_allocation_data(
+    consolidated_portfolio: ConsolidatedPortfolioDTO,
+    account_dict: dict[str, float],
+    positions_dict: dict[str, float],
+) -> tuple[dict[str, Decimal], dict[str, Decimal], dict[str, Decimal], bool]:
+    """Calculate allocation data for event emission.
+    
+    Args:
+        consolidated_portfolio: Portfolio allocation DTO
+        account_dict: Normalized account information
+        positions_dict: Current positions by symbol
+        
+    Returns:
+        Tuple of (target_allocations, current_allocations, differences, rebalancing_required)
+
+    """
+    # Convert data to Decimal for event emission
+    target_allocations_decimal = {
+        symbol: Decimal(str(allocation))
+        for symbol, allocation in consolidated_portfolio.to_dict_allocation().items()
+    }
+
+    # Calculate current allocations from positions
+    total_portfolio_value = account_dict.get(
+        "portfolio_value", 0.0
+    ) or account_dict.get("equity", 0.0)
+    current_allocations_decimal = {}
+    differences_decimal = {}
+
+    for symbol, market_value in positions_dict.items():
+        current_allocation = (
+            market_value / total_portfolio_value
+            if total_portfolio_value > 0
+            else 0
+        )
+        current_allocations_decimal[symbol] = Decimal(
+            str(current_allocation)
+        )
+
+        # Calculate difference
+        target_allocation = target_allocations_decimal.get(
+            symbol, Decimal("0")
+        )
+        differences_decimal[symbol] = target_allocation - Decimal(
+            str(current_allocation)
+        )
+
+    # Determine if rebalancing is required (significant differences)
+    rebalancing_required = any(
+        abs(diff) > Decimal("0.05") for diff in differences_decimal.values()
+    )
+    
+    return target_allocations_decimal, current_allocations_decimal, differences_decimal, rebalancing_required
+
+
+def _extract_account_info_comprehensive(account_raw: dict[str, Any] | object) -> dict[str, Any]:
+    """Extract comprehensive account info with proper value extraction.
+    
+    Args:
+        account_raw: Raw account info from broker API
+        
+    Returns:
+        Dict with comprehensive account information
+
+    """
+    if isinstance(account_raw, dict):
+        portfolio_value_any = account_raw.get(
+            "portfolio_value"
+        ) or account_raw.get("equity")
+        equity_any = account_raw.get("equity") or account_raw.get(
+            "portfolio_value"
+        )
+        cash_any = account_raw.get("cash", 0)
+        buying_power_any = account_raw.get("buying_power", 0)
+    else:
+        portfolio_value_any = getattr(
+            account_raw, "portfolio_value", None
+        ) or getattr(account_raw, "equity", None)
+        equity_any = getattr(account_raw, "equity", None) or getattr(
+            account_raw, "portfolio_value", None
+        )
+        cash_any = getattr(account_raw, "cash", 0)
+        buying_power_any = getattr(account_raw, "buying_power", 0)
+    
+    return {
+        "portfolio_value": portfolio_value_any,
+        "cash": cash_any,
+        "buying_power": buying_power_any,
+        "equity": equity_any,
+    }
+
+
+def _build_current_positions_comprehensive(positions_list: list[Any]) -> dict[str, dict[str, Any]]:
+    """Build comprehensive current positions dict from broker position objects.
+    
+    Args:
+        positions_list: List of position objects from broker API
+        
+    Returns:
+        Dict mapping symbol to detailed position information
+
+    """
+    return {
+        pos.symbol: {
+            "symbol": str(getattr(pos, "symbol", "")) or str(pos.symbol),
+            "qty": float(getattr(pos, "qty", 0)),
+            "market_value": float(getattr(pos, "market_value", 0)),
+            "avg_entry_price": float(getattr(pos, "avg_entry_price", 0)),
+            "current_price": float(getattr(pos, "current_price", 0)),
+            "unrealized_pl": float(getattr(pos, "unrealized_pl", 0)),
+            "unrealized_plpc": float(getattr(pos, "unrealized_plpc", 0)),
+        }
+        for pos in positions_list
+    }
+
+
+def _build_open_orders_list(orders_list: list[Any]) -> list[dict[str, Any]]:
+    """Build open orders list from broker order objects.
+    
+    Args:
+        orders_list: List of order objects from broker API
+        
+    Returns:
+        List of dicts with order information
+
+    """
+    return [
+        {
+            "id": getattr(order, "id", "unknown"),
+            "symbol": getattr(order, "symbol", "unknown"),
+            "type": str(
+                getattr(order, "order_type", "unknown")
+            ).replace("OrderType.", ""),
+            "qty": float(getattr(order, "qty", 0)),
+            "limit_price": (
+                float(getattr(order, "limit_price", 0))
+                if order.limit_price
+                else None
+            ),
+            "status": str(getattr(order, "status", "unknown")).replace(
+                "OrderStatus.", ""
+            ),
+            "created_at": str(getattr(order, "created_at", "unknown")),
+        }
+        for order in orders_list
+    ]
 
 
 class PortfolioOrchestrator:
@@ -201,79 +434,17 @@ class PortfolioOrchestrator:
                 self.logger.warning("Could not retrieve account information")
                 return None
 
-            # Get current positions
+            # Get current positions and normalize account info
             current_positions = alpaca_manager.get_positions()
-            positions_dict = {
-                pos.symbol: float(pos.market_value) for pos in current_positions
-            }
-            try:
-                total_mkt_val = sum(positions_dict.values()) if positions_dict else 0.0
-                self.logger.debug(
-                    "AllocationComparison: positions loaded",
-                    extra={
-                        "module": __name__,
-                        "position_count": len(positions_dict),
-                        "positions_total_market_value": f"{total_mkt_val:.2f}",
-                    },
-                )
-            except Exception as exc:
-                self.logger.debug(
-                    f"AllocationComparison: positions summary failed: {exc}"
-                )
+            positions_dict = _build_positions_dict(current_positions)
+            account_dict = _normalize_account_info(account_info)
+            
+            # Log positions summary
+            self._log_positions_summary(positions_dict)
 
             # Use shared utilities for allocation comparison
-            from the_alchemiser.shared.utils.portfolio_calculations import (
-                build_allocation_comparison,
-            )
-
-            # Normalize account info to numeric dict for calculation
-            if isinstance(account_info, dict):
-
-                def _to_float_val(value: object) -> float:
-                    try:
-                        if value is None:
-                            return 0.0
-                        return (
-                            float(value)
-                            if isinstance(value, int | float)
-                            else float(str(value))
-                        )
-                    except (ValueError, TypeError):
-                        return 0.0
-
-                account_dict = {
-                    "equity": _to_float_val(account_info.get("equity")),
-                    "portfolio_value": _to_float_val(
-                        account_info.get("portfolio_value")
-                    ),
-                    "buying_power": _to_float_val(account_info.get("buying_power")),
-                }
-            else:
-
-                def _to_float_attr(obj: object, name: str) -> float:
-                    try:
-                        raw = getattr(obj, name, None)
-                        if raw is None:
-                            return 0.0
-                        return (
-                            float(raw)
-                            if isinstance(raw, int | float)
-                            else float(str(raw))
-                        )
-                    except (ValueError, TypeError):
-                        return 0.0
-
-                account_dict = {
-                    "equity": _to_float_attr(account_info, "equity"),
-                    "portfolio_value": _to_float_attr(account_info, "portfolio_value"),
-                    "buying_power": _to_float_attr(account_info, "buying_power"),
-                }
-
-            # Convert ConsolidatedPortfolioDTO to dict for existing utility function
-            allocation_comparison_data = build_allocation_comparison(
-                consolidated_portfolio.to_dict_allocation(),
-                account_dict,
-                positions_dict,
+            allocation_comparison_data = self._build_allocation_comparison_data(
+                consolidated_portfolio, account_dict, positions_dict
             )
 
             # Create AllocationComparisonDTO from the calculation result
@@ -283,89 +454,137 @@ class PortfolioOrchestrator:
                 deltas=allocation_comparison_data["deltas"],
             )
 
-            # Debug: detect zeroed DTOs and log context
-            try:
-                from decimal import Decimal as _D
-
-                tgt_sum = sum(allocation_comparison_dto.target_values.values(), _D("0"))
-                cur_sum = sum(
-                    allocation_comparison_dto.current_values.values(), _D("0")
-                )
-                zeroed = tgt_sum <= _D("0")
-                self.logger.debug(
-                    "AllocationComparison: built DTO",
-                    extra={
-                        "module": __name__,
-                        "target_sum": str(tgt_sum),
-                        "current_sum": str(cur_sum),
-                        "account_portfolio_value": account_dict.get("portfolio_value"),
-                        "account_equity": account_dict.get("equity"),
-                        "used_effective_base": account_dict.get("portfolio_value")
-                        or account_dict.get("equity"),
-                        "target_weights_sum": sum(
-                            consolidated_portfolio.to_dict_allocation().values()
-                        ),
-                        "dto_zeroed": zeroed,
-                    },
-                )
-            except Exception as exc:
-                self.logger.debug(f"AllocationComparison: DTO summary failed: {exc}")
+            # Log DTO summary for debugging
+            self._log_allocation_dto_summary(allocation_comparison_dto, account_dict, consolidated_portfolio)
 
             self.logger.info("Generated allocation comparison analysis")
 
-            # DUAL-PATH: Emit AllocationComparisonCompleted event for event-driven consumers
-            try:
-                # Convert data to Decimal for event emission
-                target_allocations_decimal = {
-                    symbol: Decimal(str(allocation))
-                    for symbol, allocation in consolidated_portfolio.to_dict_allocation().items()
-                }
-
-                # Calculate current allocations from positions
-                # account_info may be an SDK object or a dict; use the normalized dict built above
-                total_portfolio_value = account_dict.get(
-                    "portfolio_value", 0.0
-                ) or account_dict.get("equity", 0.0)
-                current_allocations_decimal = {}
-                differences_decimal = {}
-
-                for symbol, market_value in positions_dict.items():
-                    current_allocation = (
-                        market_value / total_portfolio_value
-                        if total_portfolio_value > 0
-                        else 0
-                    )
-                    current_allocations_decimal[symbol] = Decimal(
-                        str(current_allocation)
-                    )
-
-                    # Calculate difference
-                    target_allocation = target_allocations_decimal.get(
-                        symbol, Decimal("0")
-                    )
-                    differences_decimal[symbol] = target_allocation - Decimal(
-                        str(current_allocation)
-                    )
-
-                # Determine if rebalancing is required (significant differences)
-                rebalancing_required = any(
-                    abs(diff) > Decimal("0.05") for diff in differences_decimal.values()
-                )
-
-                self._emit_allocation_comparison_completed_event(
-                    target_allocations_decimal,
-                    current_allocations_decimal,
-                    differences_decimal,
-                    rebalancing_required=rebalancing_required,
-                )
-            except Exception as e:
-                self.logger.warning(f"Failed to emit allocation comparison event: {e}")
+            # Emit event for event-driven consumers
+            self._emit_allocation_comparison_event(consolidated_portfolio, account_dict, positions_dict)
 
             return allocation_comparison_dto
 
         except Exception as e:
             self.logger.error(f"Allocation comparison analysis failed: {e}")
             return None
+
+    def _log_positions_summary(self, positions_dict: dict[str, float]) -> None:
+        """Log summary of current positions.
+        
+        Args:
+            positions_dict: Current positions by symbol
+
+        """
+        try:
+            total_mkt_val = sum(positions_dict.values()) if positions_dict else 0.0
+            self.logger.debug(
+                "AllocationComparison: positions loaded",
+                extra={
+                    "module": __name__,
+                    "position_count": len(positions_dict),
+                    "positions_total_market_value": f"{total_mkt_val:.2f}",
+                },
+            )
+        except Exception as exc:
+            self.logger.debug(
+                f"AllocationComparison: positions summary failed: {exc}"
+            )
+
+    def _build_allocation_comparison_data(
+        self, 
+        consolidated_portfolio: ConsolidatedPortfolioDTO,
+        account_dict: dict[str, float],
+        positions_dict: dict[str, float],
+    ) -> dict[str, Any]:
+        """Build allocation comparison data using shared utilities.
+        
+        Args:
+            consolidated_portfolio: Portfolio allocation DTO
+            account_dict: Normalized account information
+            positions_dict: Current positions by symbol
+            
+        Returns:
+            Allocation comparison data dict
+
+        """
+        from the_alchemiser.shared.utils.portfolio_calculations import (
+            build_allocation_comparison,
+        )
+        
+        return build_allocation_comparison(
+            consolidated_portfolio.to_dict_allocation(),
+            account_dict,
+            positions_dict,
+        )
+
+    def _log_allocation_dto_summary(
+        self,
+        allocation_comparison_dto: AllocationComparisonDTO,
+        account_dict: dict[str, float],
+        consolidated_portfolio: ConsolidatedPortfolioDTO,
+    ) -> None:
+        """Log summary of allocation comparison DTO for debugging.
+        
+        Args:
+            allocation_comparison_dto: The allocation comparison result
+            account_dict: Normalized account information
+            consolidated_portfolio: Original portfolio allocation DTO
+
+        """
+        try:
+            from decimal import Decimal as _D
+
+            tgt_sum = sum(allocation_comparison_dto.target_values.values(), _D("0"))
+            cur_sum = sum(
+                allocation_comparison_dto.current_values.values(), _D("0")
+            )
+            zeroed = tgt_sum <= _D("0")
+            self.logger.debug(
+                "AllocationComparison: built DTO",
+                extra={
+                    "module": __name__,
+                    "target_sum": str(tgt_sum),
+                    "current_sum": str(cur_sum),
+                    "account_portfolio_value": account_dict.get("portfolio_value"),
+                    "account_equity": account_dict.get("equity"),
+                    "used_effective_base": account_dict.get("portfolio_value")
+                    or account_dict.get("equity"),
+                    "target_weights_sum": sum(
+                        consolidated_portfolio.to_dict_allocation().values()
+                    ),
+                    "dto_zeroed": zeroed,
+                },
+            )
+        except Exception as exc:
+            self.logger.debug(f"AllocationComparison: DTO summary failed: {exc}")
+
+    def _emit_allocation_comparison_event(
+        self,
+        consolidated_portfolio: ConsolidatedPortfolioDTO,
+        account_dict: dict[str, float],
+        positions_dict: dict[str, float],
+    ) -> None:
+        """Emit AllocationComparisonCompleted event for event-driven consumers.
+        
+        Args:
+            consolidated_portfolio: Portfolio allocation DTO
+            account_dict: Normalized account information
+            positions_dict: Current positions by symbol
+
+        """
+        try:
+            target_allocations_decimal, current_allocations_decimal, differences_decimal, rebalancing_required = (
+                _calculate_event_allocation_data(consolidated_portfolio, account_dict, positions_dict)
+            )
+
+            self._emit_allocation_comparison_completed_event(
+                target_allocations_decimal,
+                current_allocations_decimal,
+                differences_decimal,
+                rebalancing_required=rebalancing_required,
+            )
+        except Exception as e:
+            self.logger.warning(f"Failed to emit allocation comparison event: {e}")
 
     def get_comprehensive_account_data(self) -> dict[str, Any] | None:
         """Retrieve comprehensive account data including account info, positions, and open orders.
@@ -377,95 +596,14 @@ class PortfolioOrchestrator:
         try:
             alpaca_manager = self.container.infrastructure.alpaca_manager()
 
-            # Get account info (SDK object or dict)
-            account_raw = alpaca_manager.get_account()
-            account_info = None
-            if account_raw:
-                if isinstance(account_raw, dict):
-                    portfolio_value_any = account_raw.get(
-                        "portfolio_value"
-                    ) or account_raw.get("equity")
-                    equity_any = account_raw.get("equity") or account_raw.get(
-                        "portfolio_value"
-                    )
-                    cash_any = account_raw.get("cash", 0)
-                    buying_power_any = account_raw.get("buying_power", 0)
-                else:
-                    portfolio_value_any = getattr(
-                        account_raw, "portfolio_value", None
-                    ) or getattr(account_raw, "equity", None)
-                    equity_any = getattr(account_raw, "equity", None) or getattr(
-                        account_raw, "portfolio_value", None
-                    )
-                    cash_any = getattr(account_raw, "cash", 0)
-                    buying_power_any = getattr(account_raw, "buying_power", 0)
-                account_info = {
-                    "portfolio_value": portfolio_value_any,
-                    "cash": cash_any,
-                    "buying_power": buying_power_any,
-                    "equity": equity_any,
-                }
-
-                try:
-                    portfolio_value_float = (
-                        float(portfolio_value_any)
-                        if portfolio_value_any is not None
-                        else 0.0
-                    )
-                except (ValueError, TypeError):
-                    portfolio_value_float = 0.0
-                self.logger.info(
-                    f"Retrieved account info: Portfolio value ${portfolio_value_float:,.2f}"
-                )
-
-            # Get current positions
-            current_positions = {}
-            positions_list = alpaca_manager.get_positions()
-            if positions_list:
-                current_positions = {
-                    pos.symbol: {
-                        "symbol": str(getattr(pos, "symbol", "")) or str(pos.symbol),
-                        "qty": float(getattr(pos, "qty", 0)),
-                        "market_value": float(getattr(pos, "market_value", 0)),
-                        "avg_entry_price": float(getattr(pos, "avg_entry_price", 0)),
-                        "current_price": float(getattr(pos, "current_price", 0)),
-                        "unrealized_pl": float(getattr(pos, "unrealized_pl", 0)),
-                        "unrealized_plpc": float(getattr(pos, "unrealized_plpc", 0)),
-                    }
-                    for pos in positions_list
-                }
-                self.logger.info(
-                    f"Retrieved {len(current_positions)} current positions"
-                )
-
-            # Get open orders
-            open_orders = []
-            try:
-                orders_list = alpaca_manager.get_orders(status="open")
-                if orders_list:
-                    open_orders = [
-                        {
-                            "id": getattr(order, "id", "unknown"),
-                            "symbol": getattr(order, "symbol", "unknown"),
-                            "type": str(
-                                getattr(order, "order_type", "unknown")
-                            ).replace("OrderType.", ""),
-                            "qty": float(getattr(order, "qty", 0)),
-                            "limit_price": (
-                                float(getattr(order, "limit_price", 0))
-                                if order.limit_price
-                                else None
-                            ),
-                            "status": str(getattr(order, "status", "unknown")).replace(
-                                "OrderStatus.", ""
-                            ),
-                            "created_at": str(getattr(order, "created_at", "unknown")),
-                        }
-                        for order in orders_list
-                    ]
-                    self.logger.info(f"Retrieved {len(open_orders)} open orders")
-            except Exception as e:
-                self.logger.warning(f"Failed to retrieve open orders: {e}")
+            # Get and process account info
+            account_info = self._process_account_info(alpaca_manager)
+            
+            # Get and process current positions
+            current_positions = self._process_current_positions(alpaca_manager)
+            
+            # Get and process open orders
+            open_orders = self._process_open_orders(alpaca_manager)
 
             return {
                 "account_info": account_info,
@@ -476,6 +614,80 @@ class PortfolioOrchestrator:
         except Exception as e:
             self.logger.error(f"Failed to retrieve comprehensive account data: {e}")
             return None
+
+    def _process_account_info(self, alpaca_manager: AlpacaManager) -> dict[str, Any] | None:
+        """Process and normalize account information.
+        
+        Args:
+            alpaca_manager: Alpaca manager instance
+            
+        Returns:
+            Normalized account info dict or None if not available
+
+        """
+        account_raw = alpaca_manager.get_account()
+        if not account_raw:
+            return None
+
+        account_info = _extract_account_info_comprehensive(account_raw)
+        
+        # Log portfolio value for debugging
+        try:
+            portfolio_value_float = (
+                float(account_info["portfolio_value"])
+                if account_info["portfolio_value"] is not None
+                else 0.0
+            )
+        except (ValueError, TypeError):
+            portfolio_value_float = 0.0
+        
+        self.logger.info(
+            f"Retrieved account info: Portfolio value ${portfolio_value_float:,.2f}"
+        )
+        
+        return account_info
+
+    def _process_current_positions(self, alpaca_manager: AlpacaManager) -> dict[str, dict[str, Any]]:
+        """Process current positions from the broker.
+        
+        Args:
+            alpaca_manager: Alpaca manager instance
+            
+        Returns:
+            Dict mapping symbol to position details
+
+        """
+        current_positions = {}
+        positions_list = alpaca_manager.get_positions()
+        
+        if positions_list:
+            current_positions = _build_current_positions_comprehensive(positions_list)
+            self.logger.info(
+                f"Retrieved {len(current_positions)} current positions"
+            )
+        
+        return current_positions
+
+    def _process_open_orders(self, alpaca_manager: AlpacaManager) -> list[dict[str, Any]]:
+        """Process open orders from the broker.
+        
+        Args:
+            alpaca_manager: Alpaca manager instance
+            
+        Returns:
+            List of open order dicts
+
+        """
+        open_orders = []
+        try:
+            orders_list = alpaca_manager.get_orders(status="open")
+            if orders_list:
+                open_orders = _build_open_orders_list(orders_list)
+                self.logger.info(f"Retrieved {len(open_orders)} open orders")
+        except Exception as e:
+            self.logger.warning(f"Failed to retrieve open orders: {e}")
+        
+        return open_orders
 
     def _emit_rebalance_planned_event(
         self, rebalance_plan: RebalancePlanDTO, portfolio_state: PortfolioStateDTO
