@@ -15,7 +15,7 @@ from __future__ import annotations
 import decimal
 import logging
 import math
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -270,7 +270,7 @@ class KLMEngine(StrategyEngine):
                 # Create TechnicalIndicatorDTO
                 indicators[symbol] = TechnicalIndicatorDTO(
                     symbol=symbol,
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(UTC),
                     current_price=Decimal(str(close.iloc[-1])),
                     rsi_10=rsi_10,
                     rsi_14=rsi_14,
