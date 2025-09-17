@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 from the_alchemiser.shared.utils.common import ActionType
 
 if TYPE_CHECKING:
@@ -54,7 +55,7 @@ class KlmVariant53018(BaseKLMVariant):
 
     def evaluate(
         self,
-        indicators: dict[str, dict[str, float]],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame] | None = None,
     ) -> KLMDecision:
         """Evaluate the complete 530/18 Scale-In variant exactly as in CLJ.
@@ -630,7 +631,7 @@ class KlmVariant53018(BaseKLMVariant):
 
     # Override the base class method since 530/18 doesn't use standard pattern
     def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
         """530/18 doesn't use the standard core KMLM switcher pattern.
 

@@ -258,7 +258,7 @@ class KLMEngine(StrategyEngine):
                 stdev_return_6 = calculate_stdev_returns(close, 6)
 
                 # Additional RSI windows required by variants - store in metadata
-                metadata = {
+                metadata: dict[str, str | int | float | bool] = {
                     "rsi_11": safe_get_indicator(close, self.indicators.rsi, window=11),
                     "rsi_15": safe_get_indicator(close, self.indicators.rsi, window=15),
                     "rsi_70": safe_get_indicator(close, self.indicators.rsi, window=70),

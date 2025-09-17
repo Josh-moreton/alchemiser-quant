@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 from the_alchemiser.shared.utils.common import ActionType
 from the_alchemiser.shared.value_objects.core_types import KLMDecision
 
@@ -39,7 +40,7 @@ class KLMVariantNova(BaseKLMVariant):
 
     def evaluate(
         self,
-        indicators: dict[str, dict[str, float]],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame] | None = None,
     ) -> KLMDecision:
         """Evaluate Nova - same as others except UVIX check and individual stock selection."""
@@ -70,7 +71,7 @@ class KLMVariantNova(BaseKLMVariant):
         return self.evaluate_combined_pop_bot(indicators)
 
     def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
         """Core KMLM switcher for variant Nova.
 

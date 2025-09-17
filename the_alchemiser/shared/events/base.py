@@ -59,7 +59,7 @@ class BaseEvent(BaseModel):
 
     def __init__(self, **data: str | datetime | dict[str, Any] | None) -> None:
         """Initialize event with timezone-aware timestamp."""
-        if "timestamp" in data:
+        if "timestamp" in data and isinstance(data["timestamp"], datetime | type(None)):
             data["timestamp"] = ensure_timezone_aware(data["timestamp"])
         super().__init__(**data)
 

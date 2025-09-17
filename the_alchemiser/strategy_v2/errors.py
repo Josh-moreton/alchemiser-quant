@@ -52,7 +52,7 @@ class StrategyExecutionError(StrategyV2Error):
             **kwargs: Additional context
 
         """
-        super().__init__(message, module="strategy_v2.core.orchestrator", **kwargs)
+        super().__init__(message, "strategy_v2.core.orchestrator", None, **kwargs)
         self.strategy_id = strategy_id
 
 
@@ -67,7 +67,7 @@ class ConfigurationError(StrategyV2Error):
             **kwargs: Additional context
 
         """
-        super().__init__(message, module="strategy_v2.models.context", **kwargs)
+        super().__init__(message, "strategy_v2.models.context", None, **kwargs)
 
 
 class MarketDataError(StrategyV2Error):
@@ -88,6 +88,6 @@ class MarketDataError(StrategyV2Error):
 
         """
         super().__init__(
-            message, module="strategy_v2.adapters.market_data_adapter", **kwargs
+            message, "strategy_v2.adapters.market_data_adapter", None, **kwargs
         )
         self.symbol = symbol

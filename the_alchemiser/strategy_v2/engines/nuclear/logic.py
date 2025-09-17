@@ -53,6 +53,8 @@ def evaluate_nuclear_strategy(
 
     def _ma(sym: str, window: int) -> float | None:
         dto = indicators.get(sym)
+        if dto is None:
+            return None
         try:
             return dto.get_ma_by_period(window)
         except Exception:

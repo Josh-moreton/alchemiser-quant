@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from the_alchemiser.shared.types.exceptions import (
     InsufficientFundsError,
@@ -24,9 +24,21 @@ from the_alchemiser.shared.types.exceptions import (
 if TYPE_CHECKING:
     pass
 
-# Type alias for notification manager and error context
-NotificationManager = object | None
-ErrorContext = dict[str, str | int | float | bool | None]
+
+class NotificationManager(Protocol):
+    """Protocol for notification managers."""
+
+    def send_critical_alert(self, message: str, context: dict[str, object]) -> None:
+        """Send critical alert notification."""
+        ...
+
+    def send_warning_alert(self, message: str, context: dict[str, object]) -> None:
+        """Send warning alert notification."""
+        ...
+
+
+# Type alias for error context
+ErrorContext = dict[str, object]
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +46,7 @@ logger = logging.getLogger(__name__)
 class ErrorReporter:
     """Centralized error reporting for production monitoring."""
 
-    def __init__(self, notification_manager: NotificationManager = None) -> None:
+    def __init__(self, notification_manager: NotificationManager | None = None) -> None:
         """Initialize error reporter.
 
         Args:
@@ -116,7 +128,7 @@ class ErrorReporter:
                         {"count": count, "threshold": self.error_rate_threshold},
                     )
 
-    def get_error_summary(self) -> dict[str, str | int | list[ErrorContext]]:
+    def get_error_summary(self) -> dict[str, object]:
         """Get summary of recent errors for dashboard."""
         return {
             "error_counts": dict(self.error_counts),
@@ -135,7 +147,7 @@ _global_error_reporter: ErrorReporter | None = None
 
 
 def get_error_reporter(
-    notification_manager: NotificationManager = None,
+    notification_manager: NotificationManager | None = None,
 ) -> ErrorReporter:
     """Get the global error reporter instance.
 

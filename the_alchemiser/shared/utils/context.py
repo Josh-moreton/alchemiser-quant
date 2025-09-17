@@ -57,9 +57,12 @@ def create_error_context(
     **kwargs: str | int | float | bool,
 ) -> ErrorContextData:
     """Create standardized error context."""
+    # Cast kwargs to the expected type for additional_data
+    additional_data: dict[str, Any] = dict(kwargs) if kwargs else {}
+
     return ErrorContextData(
         operation=operation,
         component=component,
         function_name=function_name,
-        **kwargs,
+        additional_data=additional_data,
     )

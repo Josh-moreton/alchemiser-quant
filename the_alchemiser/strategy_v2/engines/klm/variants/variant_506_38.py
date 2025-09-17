@@ -43,7 +43,7 @@ class KlmVariant50638(BaseKLMVariant):
 
     def evaluate(
         self,
-        indicators: dict[str, dict[str, float]],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame] | None = None,
     ) -> KLMDecision:
         """Evaluate the 506/38 variant strategy.
@@ -89,7 +89,7 @@ class KlmVariant50638(BaseKLMVariant):
         return self._evaluate_long_short_rotator(indicators)
 
     def _evaluate_long_short_rotator(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
         """Long/Short Rotator - CORRECTED to match CLJ exactly.
 

@@ -317,7 +317,7 @@ class TechnicalIndicatorDTO(BaseModel):
         Returns:
             Dictionary in the format expected by existing strategy engines.
         """
-        result = {}
+        result: dict[str, Any] = {}
 
         # Add current price
         if self.current_price is not None:
