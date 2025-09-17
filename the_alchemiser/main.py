@@ -13,6 +13,7 @@ import argparse
 import logging
 import os
 import sys
+from datetime import datetime
 from decimal import Decimal
 from time import sleep
 from typing import Any
@@ -28,6 +29,11 @@ from the_alchemiser.orchestration.event_driven_orchestrator import (
 )
 from the_alchemiser.shared.config.config import Settings, load_settings
 from the_alchemiser.shared.config.container import ApplicationContainer
+from the_alchemiser.shared.dto.trade_run_result_dto import (
+    ExecutionSummaryDTO,
+    OrderResultSummaryDTO,
+    TradeRunResultDTO,
+)
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.events import EventBus, StartupEvent
 from the_alchemiser.shared.logging.logging_utils import (
@@ -143,18 +149,35 @@ class TradingSystem:
         *,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
-    ) -> bool:
+    ) -> TradeRunResultDTO:
         """Execute multi-strategy trading.
 
         Note: Trading mode (live/paper) is now determined by deployment stage.
+        
+        Returns:
+            TradeRunResultDTO with complete execution results and metadata
         """
+        import uuid
+        from datetime import UTC, datetime
+        
+        # Start timing and correlation tracking
+        started_at = datetime.now(UTC)
+        correlation_id = str(uuid.uuid4())
+        warnings: list[str] = []
+        
         try:
             from the_alchemiser.orchestration.trading_orchestrator import (
                 TradingOrchestrator,
             )
 
             if self.container is None:
-                raise RuntimeError("DI container not initialized")
+                return self._create_failure_result(
+                    "DI container not initialized", 
+                    started_at, 
+                    correlation_id,
+                    warnings
+                )
+                
             # Create trading orchestrator directly
             orchestrator = TradingOrchestrator(
                 settings=self.settings,
@@ -166,8 +189,12 @@ class TradingSystem:
             # PHASE 1: Signals-only analysis (no trading yet)
             signals_result = orchestrator.execute_strategy_signals()
             if signals_result is None:
-                render_footer("Signal analysis failed - check logs for details")
-                return False
+                return self._create_failure_result(
+                    "Signal analysis failed - check logs for details",
+                    started_at,
+                    correlation_id, 
+                    warnings
+                )
 
             # Show pure strategy outputs first, then rebalance plan
             self._display_signals_and_rebalance(signals_result)
@@ -216,9 +243,14 @@ class TradingSystem:
             except Exception:
                 # Fallback if Rich is unavailable
                 trading_result = orchestrator.execute_strategy_signals_with_trading()
+                
             if trading_result is None:
-                render_footer("Trading execution failed - check logs for details")
-                return False
+                return self._create_failure_result(
+                    "Trading execution failed - check logs for details",
+                    started_at,
+                    correlation_id,
+                    warnings
+                )
 
             # Show execution results only (avoid re-printing signals/plan)
             orders_executed = trading_result.get("orders_executed", [])
@@ -231,7 +263,7 @@ class TradingSystem:
             try:
                 self._display_post_trade_portfolio_summary()
             except Exception as exc:
-                self.logger.warning(f"Post-trade portfolio summary unavailable: {exc}")
+                warnings.append(f"Post-trade portfolio summary unavailable: {exc}")
 
             # 5) Display tracking if requested
             if show_tracking:
@@ -251,15 +283,22 @@ class TradingSystem:
                 mode_str = "LIVE" if orchestrator.live_trading else "PAPER"
                 orchestrator.send_trading_notification(trading_result, mode_str)
             except Exception as exc:
-                self.logger.warning(f"Failed to send trading notification: {exc}")
+                warnings.append(f"Failed to send trading notification: {exc}")
 
+            # Create successful result DTO
+            completed_at = datetime.now(UTC)
             success = bool(trading_result.get("success", False))
-            if success:
-                render_footer("Trading execution completed successfully!")
-            else:
-                render_footer("Trading execution failed - check logs for details")
-
-            return success
+            
+            return self._create_success_result(
+                trading_result=trading_result,
+                orchestrator=orchestrator,
+                started_at=started_at,
+                completed_at=completed_at,
+                correlation_id=correlation_id,
+                warnings=warnings,
+                success=success
+            )
+            
         except (TradingClientError, StrategyExecutionError) as e:
             self.error_handler.handle_error(
                 error=e,
@@ -270,8 +309,12 @@ class TradingSystem:
                     "export_tracking_json": export_tracking_json,
                 },
             )
-            render_footer("System error occurred!")
-            return False
+            return self._create_failure_result(
+                f"System error: {e}",
+                started_at,
+                correlation_id,
+                warnings
+            )
 
     def _display_signals_and_rebalance(self, result: dict[str, Any]) -> None:
         """Display strategy signals followed by rebalance plan."""
@@ -395,7 +438,8 @@ class TradingSystem:
                     summary_content = [
                         f"[bold green]Execution Success Rate:[/bold green] {success_rate:.1%}",
                         f"[bold blue]Orders Placed:[/bold blue] {execution_result.orders_placed}",
-                        f"[bold green]Orders Succeeded:[/bold green] {execution_result.orders_succeeded}",
+                        f"[bold green]Orders Succeeded:[/bold green] "
+                        f"{execution_result.orders_succeeded}",
                         f"[bold yellow]Total Trade Value:[/bold yellow] ${float(total_value):,.2f}",
                     ]
 
@@ -572,6 +616,106 @@ class TradingSystem:
 
         except Exception as e:
             self.logger.warning(f"Failed to export tracking summary: {e}")
+    
+    def _create_failure_result(
+        self, 
+        error_message: str, 
+        started_at: datetime, 
+        correlation_id: str,
+        warnings: list[str]
+    ) -> TradeRunResultDTO:
+        """Create a failure result DTO."""
+        from datetime import UTC, datetime
+        
+        completed_at = datetime.now(UTC)
+        
+        return TradeRunResultDTO(
+            status="FAILURE",
+            success=False,
+            execution_summary=ExecutionSummaryDTO(
+                orders_total=0,
+                orders_succeeded=0,
+                orders_failed=0,
+                total_value=Decimal("0"),
+                success_rate=0.0,
+                execution_duration_seconds=(completed_at - started_at).total_seconds()
+            ),
+            orders=[],
+            warnings=warnings + [error_message],
+            trading_mode="UNKNOWN",
+            started_at=started_at,
+            completed_at=completed_at,
+            correlation_id=correlation_id,
+        )
+    
+    def _create_success_result(
+        self,
+        trading_result: dict[str, Any],
+        orchestrator: Any,  # TradingOrchestrator type
+        started_at: datetime,
+        completed_at: datetime,
+        correlation_id: str,
+        warnings: list[str],
+        success: bool
+    ) -> TradeRunResultDTO:
+        """Create a success result DTO from trading results."""
+        orders_executed = trading_result.get("orders_executed", [])
+        
+        # Convert orders to DTOs with ID redaction
+        order_dtos: list[OrderResultSummaryDTO] = []
+        for order in orders_executed:
+            order_id = order.get("order_id", "")
+            order_id_redacted = f"...{order_id[-6:]}" if len(order_id) > 6 else order_id
+            
+            order_dtos.append(OrderResultSummaryDTO(
+                symbol=order.get("symbol", ""),
+                action=order.get("side", "").upper(),
+                trade_amount=Decimal(str(order.get("notional", 0))),
+                shares=Decimal(str(order.get("qty", 0))),
+                price=(
+                    Decimal(str(order.get("filled_avg_price", 0))) 
+                    if order.get("filled_avg_price") 
+                    else None
+                ),
+                order_id_redacted=order_id_redacted,
+                order_id_full=order_id,
+                success=order.get("status", "").upper() in ["FILLED", "COMPLETE"],
+                error_message=order.get("error_message"),
+                timestamp=order.get("filled_at") or completed_at
+            ))
+        
+        # Calculate summary metrics
+        orders_total = len(order_dtos)
+        orders_succeeded = sum(1 for order in order_dtos if order.success)
+        orders_failed = orders_total - orders_succeeded
+        total_value = sum(order.trade_amount for order in order_dtos)
+        success_rate = orders_succeeded / orders_total if orders_total > 0 else 1.0
+        
+        if success and orders_failed == 0:
+            status = "SUCCESS"
+        elif orders_succeeded > 0:
+            status = "PARTIAL"
+        else:
+            status = "FAILURE"
+        
+        return TradeRunResultDTO(
+            status=status,
+            success=success,
+            execution_summary=ExecutionSummaryDTO(
+                orders_total=orders_total,
+                orders_succeeded=orders_succeeded,
+                orders_failed=orders_failed,
+                total_value=total_value,
+                success_rate=success_rate,
+                execution_duration_seconds=(completed_at - started_at).total_seconds()
+            ),
+            orders=order_dtos,
+            warnings=warnings,
+            trading_mode="LIVE" if getattr(orchestrator, 'live_trading', False) else "PAPER",
+            started_at=started_at,
+            completed_at=completed_at,
+            correlation_id=correlation_id,
+        )
 
 
 def _resolve_log_level(*, is_production: bool) -> int:
@@ -682,14 +826,14 @@ Examples:
     return parser
 
 
-def main(argv: list[str] | None = None) -> bool:
+def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
     """Serve as main entry point for The Alchemiser Trading System.
 
     Args:
         argv: Command line arguments (uses sys.argv if None)
 
     Returns:
-        True if operation completed successfully, False otherwise
+        TradeRunResultDTO for trade execution, or bool for other operations
 
     """
     # Setup
@@ -715,21 +859,19 @@ def main(argv: list[str] | None = None) -> bool:
 
         # Execute trading with integrated signal analysis
         if args.mode == "trade":
-            success = system.execute_trading(
+            result = system.execute_trading(
                 show_tracking=getattr(args, "show_tracking", False),
                 export_tracking_json=getattr(args, "export_tracking_json", None),
             )
+            # For compatibility, render footer but return DTO
+            if result.success:
+                render_footer("Operation completed successfully!")
+            else:
+                render_footer("Operation failed!")
+            return result
         else:
             # This should never happen since we only accept "trade" mode now
-            success = False
-
-        # Display result
-        if success:
-            render_footer("Operation completed successfully!")
-        else:
-            render_footer("Operation failed!")
-
-        return success
+            return False
 
     except (ConfigurationError, ValueError, ImportError) as e:
         # Use TradingSystemErrorHandler for boundary logging - exactly once
