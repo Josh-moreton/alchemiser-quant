@@ -11,6 +11,7 @@ Since 506/38 was just corrected to use FNGU, 410/38 only differs in the SSO addi
 
 from __future__ import annotations
 
+from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 from the_alchemiser.shared.utils.common import ActionType
 from the_alchemiser.shared.value_objects.core_types import KLMDecision
 
@@ -30,7 +31,7 @@ class KlmVariant41038(KlmVariant50638):
         self.name = "410/38"
         self.description = "MonkeyBusiness Simons variant - Same as 506/38 + SSO in rotator"
 
-    def _evaluate_long_short_rotator(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def _evaluate_long_short_rotator(self, indicators: dict[str, TechnicalIndicatorDTO]) -> KLMDecision:
         """410/38 L/S Rotator - SAME as 506/38 but includes SSO.
 
         CLJ: "Long/Short Rotator with FTLS KMLM SSO UUP"

@@ -486,9 +486,10 @@ class KlmVariant53018(BaseKLMVariant):
                 comparison_candidates = []
                 for symbol in ["FNGU", "SPXL", "XLE", "XLK", "AGG"]:
                     if symbol in indicators:
+                        metadata = indicators[symbol].metadata
                         ma_return = float(
-                            indicators[symbol].metadata.get("moving_average_return_20", 0)
-                            if indicators[symbol].metadata is not None
+                            metadata.get("moving_average_return_20", 0)
+                            if metadata is not None
                             else 0
                         )
                         comparison_candidates.append((symbol, ma_return))
@@ -528,9 +529,10 @@ class KlmVariant53018(BaseKLMVariant):
             rotator_candidates = []
             for symbol in ["SVXY", "VIXM", "FTLS", "KMLM", "UUP"]:
                 if symbol in indicators:
+                    metadata = indicators[symbol].metadata
                     stdev = float(
-                        indicators[symbol].metadata.get("stdev_return_6", 0.1)
-                        if indicators[symbol].metadata is not None
+                        metadata.get("stdev_return_6", 0.1)
+                        if metadata is not None
                         else 0.1
                     )
                     rotator_candidates.append((symbol, stdev))

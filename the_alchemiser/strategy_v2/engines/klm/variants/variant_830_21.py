@@ -104,7 +104,7 @@ class KlmVariant83021(BaseKLMVariant):
             "KMLM", ActionType.BUY.value, "830/21 Bond Check: KMLM fallback"
         )
 
-    def _evaluate_kmlm_splv_path(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def _evaluate_kmlm_splv_path(self, indicators: dict[str, TechnicalIndicatorDTO]) -> KLMDecision:
         """KMLM/SPLV path when BND MA return > 0."""
         # Select between KMLM and SPLV using volatility filter
         candidates = []
@@ -127,7 +127,7 @@ class KlmVariant83021(BaseKLMVariant):
             "KMLM", ActionType.BUY.value, "830/21 KMLM/SPLV: KMLM fallback"
         )
 
-    def _evaluate_tlt_path(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def _evaluate_tlt_path(self, indicators: dict[str, TechnicalIndicatorDTO]) -> KLMDecision:
         """TLT/LABD/TZA path when BND MA return <= 0."""
         # Select from TLT, LABD, TZA using volatility filter
         candidates = []
