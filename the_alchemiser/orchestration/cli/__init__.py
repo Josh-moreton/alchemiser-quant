@@ -10,8 +10,16 @@ Exports:
     - app: Main CLI application (Typer app)
 """
 
-from .cli import app
-
+# Lazy imports to avoid missing dependencies during import
 __all__ = [
     "app",
 ]
+
+
+def __getattr__(name: str):
+    """Lazy import for CLI components."""
+    if name == "app":
+        from .cli import app
+        return app
+    else:
+        raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

@@ -24,9 +24,7 @@ if TYPE_CHECKING:
 from the_alchemiser.orchestration.cli.cli_utilities import (
     render_footer,
 )
-from the_alchemiser.orchestration.event_driven_orchestrator import (
-    EventDrivenOrchestrator,
-)
+# Import moved to where it's used to avoid early dependency loading
 from the_alchemiser.shared.config.config import Settings, load_settings
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.dto.trade_run_result_dto import (

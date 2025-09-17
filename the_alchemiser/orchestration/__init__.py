@@ -20,16 +20,32 @@ Exports:
     - EventDrivenOrchestrator: Event-driven workflow orchestration (NEW)
 """
 
-from .event_driven_orchestrator import EventDrivenOrchestrator
-from .portfolio_orchestrator import PortfolioOrchestrator
-from .signal_orchestrator import SignalOrchestrator
-from .strategy_orchestrator import MultiStrategyOrchestrator
-from .trading_orchestrator import TradingOrchestrator
-
+# Lazy imports to avoid circular dependencies and missing dependencies during CLI operations
 __all__ = [
     "EventDrivenOrchestrator",
-    "MultiStrategyOrchestrator",
+    "MultiStrategyOrchestrator", 
     "PortfolioOrchestrator",
     "SignalOrchestrator",
     "TradingOrchestrator",
 ]
+
+
+def __getattr__(name: str):
+    """Lazy import for orchestration components."""
+    if name == "EventDrivenOrchestrator":
+        from .event_driven_orchestrator import EventDrivenOrchestrator
+        return EventDrivenOrchestrator
+    elif name == "PortfolioOrchestrator":
+        from .portfolio_orchestrator import PortfolioOrchestrator
+        return PortfolioOrchestrator
+    elif name == "SignalOrchestrator":
+        from .signal_orchestrator import SignalOrchestrator
+        return SignalOrchestrator
+    elif name == "MultiStrategyOrchestrator":
+        from .strategy_orchestrator import MultiStrategyOrchestrator
+        return MultiStrategyOrchestrator
+    elif name == "TradingOrchestrator":
+        from .trading_orchestrator import TradingOrchestrator
+        return TradingOrchestrator
+    else:
+        raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
