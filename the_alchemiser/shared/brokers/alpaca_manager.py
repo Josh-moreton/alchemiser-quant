@@ -337,81 +337,112 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get position for {symbol}: {e}")
             raise
 
+    def _extract_order_attributes(self, order: Order) -> dict[str, Any]:
+        """Extract attributes from Alpaca order object."""
+        return {
+            "order_id": str(getattr(order, "id", "")),
+            "order_symbol": str(getattr(order, "symbol", "")),
+            "order_qty": getattr(order, "qty", "0"),
+            "order_filled_qty": getattr(order, "filled_qty", "0"),
+            "order_filled_avg_price": getattr(order, "filled_avg_price", None),
+            "order_side": getattr(order, "side", ""),
+            "order_status": getattr(order, "status", "SUBMITTED"),
+        }
+
+    def _calculate_order_price(
+        self, order_filled_avg_price: str | float | None, order_request: LimitOrderRequest | MarketOrderRequest
+    ) -> Decimal:
+        """Calculate order price from filled price or request limit price."""
+        if order_filled_avg_price:
+            return Decimal(str(order_filled_avg_price))
+        if hasattr(order_request, "limit_price") and order_request.limit_price:
+            return Decimal(str(order_request.limit_price))
+        return Decimal("0.01")  # Default minimal price
+
+    def _extract_enum_values(self, order_side: object, order_status: object) -> tuple[str, str]:
+        """Extract action and status values from order enums."""
+        action_value = (
+            str(order_side.value).upper()
+            if hasattr(order_side, "value")
+            else str(order_side).upper()
+        )
+        status_value = (
+            str(order_status.value).upper()
+            if hasattr(order_status, "value")
+            else str(order_status).upper()
+        )
+        return action_value, status_value
+
+    def _calculate_total_value(
+        self, filled_qty_decimal: Decimal, order_qty_decimal: Decimal, price: Decimal
+    ) -> Decimal:
+        """Calculate total value using filled quantity if available, otherwise order quantity."""
+        if filled_qty_decimal > 0:
+            return filled_qty_decimal * price
+        return order_qty_decimal * price
+
+    def _create_successful_order_dto(
+        self, order_attrs: dict[str, Any], order_request: LimitOrderRequest | MarketOrderRequest
+    ) -> ExecutedOrderDTO:
+        """Create ExecutedOrderDTO for successful order placement."""
+        price = self._calculate_order_price(order_attrs["order_filled_avg_price"], order_request)
+        action_value, status_value = self._extract_enum_values(
+            order_attrs["order_side"], order_attrs["order_status"]
+        )
+
+        filled_qty_decimal = Decimal(str(order_attrs["order_filled_qty"]))
+        order_qty_decimal = Decimal(str(order_attrs["order_qty"]))
+        total_value = self._calculate_total_value(filled_qty_decimal, order_qty_decimal, price)
+
+        return ExecutedOrderDTO(
+            order_id=order_attrs["order_id"],
+            symbol=order_attrs["order_symbol"],
+            action=action_value,
+            quantity=order_qty_decimal,
+            filled_quantity=filled_qty_decimal,
+            price=price,
+            total_value=total_value,
+            status=status_value,
+            execution_timestamp=datetime.now(UTC),
+        )
+
+    def _extract_action_from_request(self, side: object) -> str:
+        """Extract action from order request side."""
+        if not side:
+            return "BUY"
+
+        if hasattr(side, "value"):
+            return str(side.value).upper()
+
+        side_str = str(side).upper()
+        if "SELL" in side_str:
+            return "SELL"
+        if "BUY" in side_str:
+            return "BUY"
+        return "BUY"
+
     def place_order(
         self, order_request: LimitOrderRequest | MarketOrderRequest
     ) -> ExecutedOrderDTO:
         """Place an order and return execution details."""
         try:
             order = self._trading_client.submit_order(order_request)
+            # Ensure order is of expected type before processing
+            if not isinstance(order, Order):
+                raise ValueError(f"Unexpected order type: {type(order)}")
+            
+            order_attrs = self._extract_order_attributes(order)
 
-            # Avoid attribute assumptions for mypy
-            order_id = str(getattr(order, "id", ""))
-            order_symbol = str(getattr(order, "symbol", ""))
-            order_qty = getattr(order, "qty", "0")
-            order_filled_qty = getattr(order, "filled_qty", "0")
-            order_filled_avg_price = getattr(order, "filled_avg_price", None)
-            order_side = getattr(order, "side", "")
-            order_status = getattr(order, "status", "SUBMITTED")
+            logger.info(f"Successfully placed order: {order_attrs['order_id']} for {order_attrs['order_symbol']}")
 
-            logger.info(f"Successfully placed order: {order_id} for {order_symbol}")
+            return self._create_successful_order_dto(order_attrs, order_request)
 
-            # Handle price - use filled_avg_price if available, otherwise estimate
-            price = Decimal("0.01")  # Default minimal price
-            if order_filled_avg_price:
-                price = Decimal(str(order_filled_avg_price))
-            elif hasattr(order_request, "limit_price") and order_request.limit_price:
-                price = Decimal(str(order_request.limit_price))
-
-            # Extract enum values properly
-            action_value = (
-                order_side.value.upper()
-                if hasattr(order_side, "value")
-                else str(order_side).upper()
-            )
-            status_value = (
-                order_status.value.upper()
-                if hasattr(order_status, "value")
-                else str(order_status).upper()
-            )
-
-            # Calculate total_value: use filled_quantity if > 0, otherwise use order quantity
-            # This ensures total_value > 0 for DTO validation even for unfilled orders
-            filled_qty_decimal = Decimal(str(order_filled_qty))
-            order_qty_decimal = Decimal(str(order_qty))
-            if filled_qty_decimal > 0:
-                total_value = filled_qty_decimal * price
-            else:
-                total_value = order_qty_decimal * price
-
-            return ExecutedOrderDTO(
-                order_id=order_id,
-                symbol=order_symbol,
-                action=action_value,
-                quantity=order_qty_decimal,
-                filled_quantity=filled_qty_decimal,
-                price=price,
-                total_value=total_value,
-                status=status_value,
-                execution_timestamp=datetime.now(UTC),
-            )
         except Exception as e:
             logger.error(f"Failed to place order: {e}")
 
-            # Return a failed order DTO with valid values
             symbol = getattr(order_request, "symbol", "UNKNOWN")
             side = getattr(order_request, "side", None)
-
-            # Extract action from order request
-            action = "BUY"  # Default fallback
-            if side:
-                if hasattr(side, "value"):
-                    action = side.value.upper()
-                else:
-                    side_str = str(side).upper()
-                    if "SELL" in side_str:
-                        action = "SELL"
-                    elif "BUY" in side_str:
-                        action = "BUY"
+            action = self._extract_action_from_request(side)
 
             return ExecutedOrderDTO(
                 order_id="FAILED",  # Must be non-empty
@@ -739,19 +770,25 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to cancel order {order_id}: {e}")
             raise
 
+    def _filter_orders_by_status(self, orders_list: list[Any], status: str) -> list[Any]:
+        """Filter orders by status."""
+        status_lower = status.lower()
+        return [
+            o
+            for o in orders_list
+            if str(getattr(o, "status", "")).lower() == status_lower
+        ]
+
     def get_orders(self, status: str | None = None) -> list[Any]:
         """Get orders, optionally filtered by status."""
         try:
             # Some stubs don't accept status kw; fetch and filter manually
             orders = self._trading_client.get_orders()
             orders_list = list(orders)
+            
             if status:
-                status_lower = status.lower()
-                orders_list = [
-                    o
-                    for o in orders_list
-                    if str(getattr(o, "status", "")).lower() == status_lower
-                ]
+                orders_list = self._filter_orders_by_status(orders_list, status)
+            
             logger.debug(f"Successfully retrieved {len(orders_list)} orders")
             return orders_list
         except Exception as e:
@@ -872,6 +909,62 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get quote for {symbol}: {e}")
             return None
 
+    def _get_timeframe_mapping(self) -> dict[str, TimeFrame]:
+        """Get mapping of timeframe strings to Alpaca TimeFrame objects."""
+        return {
+            "1min": TimeFrame(1, TimeFrameUnit.Minute),
+            "5min": TimeFrame(5, TimeFrameUnit.Minute),
+            "15min": TimeFrame(15, TimeFrameUnit.Minute),
+            "1hour": TimeFrame(1, TimeFrameUnit.Hour),
+            "1day": TimeFrame(1, TimeFrameUnit.Day),
+        }
+
+    def _validate_and_convert_timeframe(self, timeframe: str) -> TimeFrame:
+        """Validate and convert timeframe string to Alpaca TimeFrame object."""
+        timeframe_map = self._get_timeframe_mapping()
+        timeframe_lower = timeframe.lower()
+        if timeframe_lower not in timeframe_map:
+            raise ValueError(f"Unsupported timeframe: {timeframe}")
+        return timeframe_map[timeframe_lower]
+
+    def _extract_bars_from_response(self, response: object, symbol: str) -> object | None:
+        """Extract bars for symbol from various possible response shapes."""
+        try:
+            # Preferred: BarsBySymbol has a `.data` dict
+            data_attr = getattr(response, "data", None)
+            if isinstance(data_attr, dict) and symbol in data_attr:
+                return data_attr[symbol]  # type: ignore[no-any-return]
+            # Some SDKs expose attributes per symbol
+            if hasattr(response, symbol):
+                return getattr(response, symbol)  # type: ignore[no-any-return]
+            # Fallback: mapping-like access
+            if isinstance(response, dict) and symbol in response:
+                return response[symbol]  # type: ignore[no-any-return]
+        except Exception as e:
+            logger.debug(f"Error extracting bars from response for {symbol}: {e}")
+        return None
+
+    def _convert_bars_to_dicts(self, bars_obj: object, symbol: str) -> list[dict[str, Any]]:
+        """Convert bars object to list of dictionaries."""
+        try:
+            bars = list(bars_obj)  # type: ignore[call-overload]
+        except (TypeError, ValueError) as e:
+            logger.error(f"Failed to convert bars_obj to list for {symbol}: {e}")
+            return []
+        
+        logger.debug(f"Successfully retrieved {len(bars)} bars for {symbol}")
+
+        result: list[dict[str, Any]] = []
+        for bar in bars:
+            try:
+                # Alpaca SDK uses Pydantic models, use model_dump()
+                bar_dict = bar.model_dump()
+                result.append(bar_dict)
+            except Exception as e:
+                logger.warning(f"Failed to convert bar for {symbol}: {e}")
+                continue
+        return result
+
     def get_historical_bars(
         self, symbol: str, start_date: str, end_date: str, timeframe: str = "1Day"
     ) -> list[dict[str, Any]]:
@@ -888,18 +981,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         """
         try:
-            # Map timeframe strings to Alpaca TimeFrame objects (case-insensitive)
-            timeframe_map = {
-                "1min": TimeFrame(1, TimeFrameUnit.Minute),
-                "5min": TimeFrame(5, TimeFrameUnit.Minute),
-                "15min": TimeFrame(15, TimeFrameUnit.Minute),
-                "1hour": TimeFrame(1, TimeFrameUnit.Hour),
-                "1day": TimeFrame(1, TimeFrameUnit.Day),
-            }
-
-            timeframe_lower = timeframe.lower()
-            if timeframe_lower not in timeframe_map:
-                raise ValueError(f"Unsupported timeframe: {timeframe}")
+            timeframe_obj = self._validate_and_convert_timeframe(timeframe)
 
             from datetime import datetime
 
@@ -908,47 +990,19 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             request = StockBarsRequest(
                 symbol_or_symbols=symbol,
-                timeframe=timeframe_map[timeframe_lower],
+                timeframe=timeframe_obj,
                 start=start_dt,
                 end=end_dt,
             )
 
             response = self._data_client.get_stock_bars(request)
-
-            # Extract bars for symbol from various possible response shapes
-            bars_obj: Any | None = None
-            try:
-                # Preferred: BarsBySymbol has a `.data` dict
-                data_attr = getattr(response, "data", None)
-                if isinstance(data_attr, dict) and symbol in data_attr:
-                    bars_obj = data_attr[symbol]
-                # Some SDKs expose attributes per symbol
-                elif hasattr(response, symbol):
-                    bars_obj = getattr(response, symbol)
-                # Fallback: mapping-like access
-                elif isinstance(response, dict) and symbol in response:
-                    bars_obj = response[symbol]
-            except Exception:
-                bars_obj = None
+            bars_obj = self._extract_bars_from_response(response, symbol)
 
             if not bars_obj:
                 logger.warning(f"No historical data found for {symbol}")
                 return []
 
-            bars = list(bars_obj)
-            logger.debug(f"Successfully retrieved {len(bars)} bars for {symbol}")
-
-            # Use Pydantic model_dump() to get proper dictionaries with full field names
-            result: list[dict[str, Any]] = []
-            for bar in bars:
-                try:
-                    # Alpaca SDK uses Pydantic models, use model_dump()
-                    bar_dict = bar.model_dump()
-                    result.append(bar_dict)
-                except Exception as e:
-                    logger.warning(f"Failed to convert bar for {symbol}: {e}")
-                    continue
-            return result
+            return self._convert_bars_to_dicts(bars_obj, symbol)
 
         except Exception as e:
             logger.error(f"Failed to get historical data for {symbol}: {e}")
