@@ -83,7 +83,9 @@ def _add_truncation_notice(table: Table, truncated_count: int, table_type: str) 
     table.add_row(*row_data, style="dim italic")
 
 
-def _extract_indicators_from_signals(strategy_signals: dict[Any, Any]) -> dict[str, dict[str, Any]]:
+def _extract_indicators_from_signals(
+    strategy_signals: dict[Any, Any],
+) -> dict[str, dict[str, Any]]:
     """Extract all indicators from strategy signals."""
     all_indicators: dict[str, dict[str, Any]] = {}
     for data in strategy_signals.values():
@@ -101,7 +103,9 @@ def _format_price_string(price: float) -> str:
     return f"${price:.1f}"
 
 
-def _collect_indicator_parts(indicators: dict[str, Any]) -> tuple[list[str], list[str], list[str]]:
+def _collect_indicator_parts(
+    indicators: dict[str, Any],
+) -> tuple[list[str], list[str], list[str]]:
     """Collect RSI, MA, and other indicator parts from indicator data."""
     rsi_parts = []
     ma_parts = []
@@ -136,7 +140,9 @@ def _get_trend_indicator(indicators: dict[str, Any], price: float) -> str:
     return ""
 
 
-def _create_market_regime_panel(all_indicators: dict[str, dict[str, Any]]) -> Panel | None:
+def _create_market_regime_panel(
+    all_indicators: dict[str, dict[str, Any]],
+) -> Panel | None:
     """Create market regime panel if SPY data is available."""
     if "SPY" not in all_indicators:
         return None
@@ -177,7 +183,11 @@ def render_technical_indicators(
 
     if not all_indicators:
         (console or Console()).print(
-            Panel("No indicator data available", title="TECHNICAL INDICATORS", style="yellow")
+            Panel(
+                "No indicator data available",
+                title="TECHNICAL INDICATORS",
+                style="yellow",
+            )
         )
         return
 
@@ -225,7 +235,10 @@ def _determine_action_style(action: str) -> tuple[str, str]:
 
 
 def _build_signal_details(
-    allocation: float | int | None, confidence: float | int | None, symbol: str, action: str
+    allocation: float | int | None,
+    confidence: float | int | None,
+    symbol: str,
+    action: str,
 ) -> list[str]:
     """Build details lines for signal display."""
     details_lines: list[str] = []
@@ -255,7 +268,9 @@ def _build_signal_details(
     return details_lines
 
 
-def _create_signal_panel(strategy_type: str | StrategyType, signal: dict[str, Any]) -> Panel:
+def _create_signal_panel(
+    strategy_type: str | StrategyType, signal: dict[str, Any]
+) -> Panel:
     """Create a Rich panel for a single strategy signal."""
     action = signal.get("action", "HOLD")
     symbol = signal.get("symbol", "N/A")
@@ -280,7 +295,9 @@ def _create_signal_panel(strategy_type: str | StrategyType, signal: dict[str, An
     details_lines = _build_signal_details(allocation, confidence, symbol, action)
 
     # Format the detailed explanation with better spacing
-    formatted_reason = reason.replace("\n", "\n\n")  # Add extra spacing between sections
+    formatted_reason = reason.replace(
+        "\n", "\n\n"
+    )  # Add extra spacing between sections
 
     # Combine content sections
     content_sections = [header]
@@ -290,7 +307,9 @@ def _create_signal_panel(strategy_type: str | StrategyType, signal: dict[str, An
     content = "\n\n".join(content_sections)
 
     # Extract nested conditional expression into a statement
-    panel_title = strategy_type.value if hasattr(strategy_type, "value") else strategy_type
+    panel_title = (
+        strategy_type.value if hasattr(strategy_type, "value") else strategy_type
+    )
 
     return Panel(
         content,
@@ -318,7 +337,13 @@ def render_strategy_signals(
     c = console or Console()
 
     if not strategy_signals:
-        c.print(Panel("No strategy signals available", title="STRATEGY SIGNALS", style="yellow"))
+        c.print(
+            Panel(
+                "No strategy signals available",
+                title="STRATEGY SIGNALS",
+                style="yellow",
+            )
+        )
         return
 
     panels: list[Panel] = []
@@ -378,15 +403,23 @@ def render_orders_executed(
         side = order.get("side")
         if side:
             # Handle both string and enum values
-            side_value = side.value.upper() if hasattr(side, "value") else str(side).upper()
+            side_value = (
+                side.value.upper() if hasattr(side, "value") else str(side).upper()
+            )
 
             if side_value == "BUY":
                 buy_orders.append(order)
             elif side_value == "SELL":
                 sell_orders.append(order)
 
-    total_buy_value = sum(o.get("estimated_value", 0) for o in buy_orders)
-    total_sell_value = sum(o.get("estimated_value", 0) for o in sell_orders)
+    def _to_float(v: object) -> float:
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return 0.0
+
+    total_buy_value = sum(_to_float(o.get("estimated_value", 0)) for o in buy_orders)
+    total_sell_value = sum(_to_float(o.get("estimated_value", 0)) for o in sell_orders)
     net_value = total_buy_value - total_sell_value
 
     # Create summary table
@@ -397,7 +430,9 @@ def render_orders_executed(
 
     table.add_row("Buys", str(len(buy_orders)), f"${total_buy_value:,.2f}")
     table.add_row("Sells", str(len(sell_orders)), f"${total_sell_value:,.2f}")
-    table.add_row("[bold]Net", f"[bold]{len(orders_executed)}", f"[bold]${net_value:+,.2f}")
+    table.add_row(
+        "[bold]Net", f"[bold]{len(orders_executed)}", f"[bold]${net_value:+,.2f}"
+    )
 
     c.print(table)
 
@@ -413,11 +448,13 @@ def render_orders_executed(
             side = str(order.get("side", "")).replace("OrderSide.", "")
             side_color = "green" if side == "BUY" else "red"
 
+            qty_val = _to_float(order.get("qty", 0))
+            est_val = _to_float(order.get("estimated_value", 0))
             detail_table.add_row(
                 order.get("symbol", "N/A"),
                 f"[{side_color}]{side}[/{side_color}]",
-                f"{order.get('qty', 0):.6f}",
-                f"${order.get('estimated_value', 0):,.2f}",
+                f"{qty_val:.6f}",
+                f"${est_val:,.2f}",
             )
 
         c.print(detail_table)
@@ -502,12 +539,18 @@ def _format_money(value: float | int | Decimal | str | MoneyLike) -> str:
     return "-"
 
 
-def render_account_info(account_info: dict[str, Any], console: Console | None = None) -> None:
+def render_account_info(
+    account_info: dict[str, Any], console: Console | None = None
+) -> None:
     """Render account information including P&L data."""
     c = console or Console()
 
     if not account_info:
-        c.print(Panel("Account information not available", title="ACCOUNT INFO", style="red"))
+        c.print(
+            Panel(
+                "Account information not available", title="ACCOUNT INFO", style="red"
+            )
+        )
         return
 
     account_data = account_info.get("account", account_info)  # Support both formats
@@ -527,7 +570,9 @@ def render_account_info(account_info: dict[str, Any], console: Console | None = 
 
     # Always use typed domain Money display (using typed domain)
     # If account_data contains nested money fields, honor them; otherwise fallback
-    pv_display = _format_money(account_data.get("portfolio_value_money", portfolio_value))
+    pv_display = _format_money(
+        account_data.get("portfolio_value_money", portfolio_value)
+    )
     cash_display = _format_money(account_data.get("cash_money", cash))
     bp_display = _format_money(account_data.get("buying_power_money", buying_power))
 
@@ -560,7 +605,9 @@ def render_account_info(account_info: dict[str, Any], console: Console | None = 
     # Open positions table if we have positions
     if open_positions:
         # Apply truncation for large position lists
-        display_positions, was_truncated = _truncate_table_data(open_positions, max_rows=50)
+        display_positions, was_truncated = _truncate_table_data(
+            open_positions, max_rows=50
+        )
 
         positions_table = Table(title="Open Positions", show_lines=True, box=None)
         positions_table.add_column("Symbol", style=STYLE_BOLD_CYAN)
@@ -603,7 +650,9 @@ def render_account_info(account_info: dict[str, Any], console: Console | None = 
             total_pl_color = "green" if total_unrealized_pl >= 0 else "red"
             total_pl_sign = "+" if total_unrealized_pl >= 0 else ""
             total_pl_pct = (
-                (total_unrealized_pl / total_market_value) * 100 if total_market_value > 0 else 0
+                (total_unrealized_pl / total_market_value) * 100
+                if total_market_value > 0
+                else 0
             )
 
             positions_table.add_row(
@@ -624,7 +673,9 @@ def render_account_info(account_info: dict[str, Any], console: Console | None = 
         c.print(positions_table)
 
 
-def render_header(title: str, subtitle: str = "", console: Console | None = None) -> None:
+def render_header(
+    title: str, subtitle: str = "", console: Console | None = None
+) -> None:
     """Render a beautiful header for the bot."""
     c = console or Console()
 
@@ -635,7 +686,9 @@ def render_header(title: str, subtitle: str = "", console: Console | None = None
     c.print()
 
 
-def render_footer(message: str, *, success: bool = True, console: Console | None = None) -> None:
+def render_footer(
+    message: str, *, success: bool = True, console: Console | None = None
+) -> None:
     """Render a footer message."""
     c = console or Console()
 
@@ -662,6 +715,9 @@ def _compute_allocation_values_from_dto(
         calculated_value = sum(target_values.values(), Decimal("0"))
         if calculated_value <= 0:
             pv_from_account = account_info.get("portfolio_value")
+            # Fallback to equity if portfolio_value is missing or zero-like
+            if pv_from_account in (None, 0, 0.0, "0", "0.0", "0.00"):
+                pv_from_account = account_info.get("equity")
             if pv_from_account is None:
                 raise ValueError("Portfolio value is 0 or not available")
             portfolio_value = Decimal(str(pv_from_account))
@@ -669,6 +725,8 @@ def _compute_allocation_values_from_dto(
             portfolio_value = calculated_value
     except Exception as e:
         pv_from_account = account_info.get("portfolio_value")
+        if pv_from_account in (None, 0, 0.0, "0", "0.0", "0.00"):
+            pv_from_account = account_info.get("equity")
         if pv_from_account is None:
             raise ValueError(
                 f"Unable to determine portfolio value: {e}. "
@@ -688,6 +746,8 @@ def _compute_allocation_values_on_fly(
     from decimal import Decimal
 
     pv_from_account = account_info.get("portfolio_value")
+    if pv_from_account in (None, 0, 0.0, "0", "0.0", "0.00"):
+        pv_from_account = account_info.get("equity")
     if pv_from_account is None:
         raise ValueError(
             "Portfolio value not available in account info. "
@@ -756,7 +816,9 @@ def _process_symbol_allocation_row(
 
     # Calculate current weight with Decimal precision
     try:
-        current_weight = float(current_value / portfolio_value) if portfolio_value > 0 else 0.0
+        current_weight = (
+            float(current_value / portfolio_value) if portfolio_value > 0 else 0.0
+        )
     except Exception:
         current_weight = 0.0
 
@@ -773,9 +835,7 @@ def _process_symbol_allocation_row(
     # Format the row columns
     target_column = f"{target_weight:.1%}\n[dim]{_format_money(target_value)}[/dim]"
     current_column = f"{current_weight:.1%}\n[dim]{_format_money(current_value)}[/dim]"
-    dollar_diff_column = (
-        f"[{dollar_color}]{dollar_sign}{_format_money(abs(dollar_diff_float))}[/{dollar_color}]"
-    )
+    dollar_diff_column = f"[{dollar_color}]{dollar_sign}{_format_money(abs(dollar_diff_float))}[/{dollar_color}]"
 
     return symbol, target_column, current_column, dollar_diff_column, action
 
@@ -799,12 +859,32 @@ def render_target_vs_current_allocations(
         target_values, current_values, deltas, portfolio_value = (
             _compute_allocation_values_from_dto(allocation_comparison, account_info)
         )
+        # Robust fallback: if DTO carried zero-like targets, recompute on-the-fly
+        try:
+            from decimal import Decimal as _D
+
+            total_targets = (
+                sum(target_values.values(), _D("0")) if target_values else _D("0")
+            )
+        except Exception:
+            total_targets = 0  # Trigger fallback safely
+
+        if not target_values or total_targets <= _D("0"):
+            target_values, current_values, deltas, portfolio_value = (
+                _compute_allocation_values_on_fly(
+                    target_portfolio, account_info, current_positions
+                )
+            )
     else:
-        target_values, current_values, deltas, portfolio_value = _compute_allocation_values_on_fly(
-            target_portfolio, account_info, current_positions
+        target_values, current_values, deltas, portfolio_value = (
+            _compute_allocation_values_on_fly(
+                target_portfolio, account_info, current_positions
+            )
         )
 
-    table = Table(title="Portfolio Rebalancing Summary", show_lines=True, expand=True, box=None)
+    table = Table(
+        title="Portfolio Rebalancing Summary", show_lines=True, expand=True, box=None
+    )
     table.add_column("Symbol", style=STYLE_BOLD_CYAN, justify="center", width=8)
     table.add_column("Target", style="green", justify="right", width=14)
     table.add_column("Current", style="blue", justify="right", width=14)
@@ -814,7 +894,12 @@ def render_target_vs_current_allocations(
     all_symbols = set(target_portfolio.keys()) | set(current_positions.keys())
     for symbol in sorted(all_symbols):
         symbol_data = _process_symbol_allocation_row(
-            symbol, target_portfolio, target_values, current_values, deltas, portfolio_value
+            symbol,
+            target_portfolio,
+            target_values,
+            current_values,
+            deltas,
+            portfolio_value,
         )
         table.add_row(*symbol_data)
 
@@ -839,7 +924,9 @@ def render_execution_plan(
     table.add_column("Total Value", style="green", justify="right")
     table.add_column("Details", style="white", justify="left")
 
-    sell_details = ", ".join([f"{o['symbol']} ({o['qty']:.2f})" for o in sell_orders[:3]])
+    sell_details = ", ".join(
+        [f"{o['symbol']} ({o['qty']:.2f})" for o in sell_orders[:3]]
+    )
     if len(sell_orders) > 3:
         sell_details += f" +{len(sell_orders) - 3} more"
 
@@ -847,7 +934,9 @@ def render_execution_plan(
     if len(buy_orders) > 3:
         buy_details += f" +{len(buy_orders) - 3} more"
 
-    table.add_row("Sells", str(len(sell_orders)), f"${total_sell_proceeds:,.2f}", sell_details)
+    table.add_row(
+        "Sells", str(len(sell_orders)), f"${total_sell_proceeds:,.2f}", sell_details
+    )
     table.add_row("Buys", str(len(buy_orders)), f"${total_buy_cost:,.2f}", buy_details)
 
     c.print(table)
@@ -895,7 +984,13 @@ def render_enriched_order_summaries(
             summaries.append(item)
 
     if not summaries:
-        c.print(Panel("No enriched order summaries available", title="Open Orders", style="yellow"))
+        c.print(
+            Panel(
+                "No enriched order summaries available",
+                title="Open Orders",
+                style="yellow",
+            )
+        )
         return
 
     table = Table(title="Open Orders (Enriched)", show_lines=False, expand=True)
@@ -951,7 +1046,8 @@ def _render_orders_executed_table(
 ) -> None:
     """Render the orders executed table for multi-strategy summary."""
     orders_table = Table(
-        title=f"Orders Executed ({len(execution_result.orders_executed)})", show_lines=False
+        title=f"Orders Executed ({len(execution_result.orders_executed)})",
+        show_lines=False,
     )
     orders_table.add_column("Type", style="bold", justify="center")
     orders_table.add_column("Symbol", style="cyan", justify="center")
@@ -999,7 +1095,10 @@ def _log_no_orders_context(execution_result: MultiStrategyExecutionResultDTO) ->
         f"Number of orders in execution result: {len(execution_result.orders_executed) if execution_result.orders_executed else 0}"
     )
 
-    if hasattr(execution_result, "strategy_signals") and execution_result.strategy_signals:
+    if (
+        hasattr(execution_result, "strategy_signals")
+        and execution_result.strategy_signals
+    ):
         logger.warning(
             f"Strategy signals received: {len(execution_result.strategy_signals)} strategies"
         )
@@ -1012,7 +1111,9 @@ def _log_no_orders_context(execution_result: MultiStrategyExecutionResultDTO) ->
         hasattr(execution_result, "consolidated_portfolio")
         and execution_result.consolidated_portfolio
     ):
-        logger.warning(f"Consolidated portfolio: {execution_result.consolidated_portfolio}")
+        logger.warning(
+            f"Consolidated portfolio: {execution_result.consolidated_portfolio}"
+        )
         total_allocation = sum(execution_result.consolidated_portfolio.values())
         logger.warning(
             f"Total portfolio allocation: {total_allocation:.3f} ({total_allocation * 100:.1f}%)"
@@ -1024,7 +1125,8 @@ def _log_no_orders_context(execution_result: MultiStrategyExecutionResultDTO) ->
 
 
 def _build_enriched_account_info(
-    execution_result: MultiStrategyExecutionResultDTO, enriched_account: dict[str, Any] | None
+    execution_result: MultiStrategyExecutionResultDTO,
+    enriched_account: dict[str, Any] | None,
 ) -> dict[str, Any]:
     """Build enriched account dictionary for display."""
     from typing import cast
@@ -1039,7 +1141,9 @@ def _build_enriched_account_info(
     return dict(base_account)
 
 
-def _extract_and_validate_financial_values(base_account: dict[str, Any]) -> tuple[float, float]:
+def _extract_and_validate_financial_values(
+    base_account: dict[str, Any],
+) -> tuple[float, float]:
     """Extract and validate portfolio value and cash from account data."""
     pv_raw = base_account.get("portfolio_value") or base_account.get("equity")
     if pv_raw is None:
@@ -1111,18 +1215,24 @@ def _render_account_summary(
 
     _append_portfolio_history_to_content(base_account, account_content)
 
-    account_panel = Panel(account_content, title="Account Summary", style=STYLE_BOLD_WHITE)
+    account_panel = Panel(
+        account_content, title="Account Summary", style=STYLE_BOLD_WHITE
+    )
     console.print(account_panel)
     console.print()
 
 
-def _render_closed_pnl_table(enriched_account: dict[str, Any], console: Console) -> None:
+def _render_closed_pnl_table(
+    enriched_account: dict[str, Any], console: Console
+) -> None:
     """Render recent closed positions P&L table."""
     closed_pnl = enriched_account.get("recent_closed_pnl", [])
     if not closed_pnl:
         return
 
-    closed_pnl_table = Table(title="Recent Closed Positions P&L (Last 7 Days)", show_lines=False)
+    closed_pnl_table = Table(
+        title="Recent Closed Positions P&L (Last 7 Days)", show_lines=False
+    )
     closed_pnl_table.add_column("Symbol", style=STYLE_BOLD_CYAN, justify="center")
     closed_pnl_table.add_column("Realized P&L", style="bold", justify="right")
     closed_pnl_table.add_column("P&L %", style="bold", justify="right")
@@ -1245,13 +1355,16 @@ def render_multi_strategy_summary_dto(
     c = console or Console()
 
     # Display target vs current allocations with enhanced precision
-    if summary.allocation_comparison and summary.execution_result.consolidated_portfolio:
+    if (
+        summary.allocation_comparison
+        and summary.execution_result.consolidated_portfolio
+    ):
         try:
             # Convert account info from execution result
             account_dict = dict(summary.execution_result.account_info_after)
-            current_positions: dict[
-                str, Any
-            ] = {}  # Extract from final_portfolio_state if available
+            current_positions: dict[str, Any] = (
+                {}
+            )  # Extract from final_portfolio_state if available
 
             render_target_vs_current_allocations(
                 summary.execution_result.consolidated_portfolio,
@@ -1289,7 +1402,9 @@ def _render_account_section(
         render_account_info(
             {
                 "account": account_info,
-                "open_positions": list(current_positions.values()) if current_positions else [],
+                "open_positions": (
+                    list(current_positions.values()) if current_positions else []
+                ),
             }
         )
     except Exception as e:
@@ -1303,9 +1418,15 @@ def _render_allocation_section(
     allocation_comparison: AllocationComparisonDTO | None,
 ) -> None:
     """Render allocation comparison section with fallback logic."""
-    has_allocation_data = consolidated_portfolio and account_info and current_positions is not None
+    has_allocation_data = (
+        consolidated_portfolio and account_info and current_positions is not None
+    )
 
-    if has_allocation_data and account_info is not None and current_positions is not None:
+    if (
+        has_allocation_data
+        and account_info is not None
+        and current_positions is not None
+    ):
         try:
             render_target_vs_current_allocations(
                 consolidated_portfolio,
@@ -1410,7 +1531,9 @@ def render_strategy_summary(
     try:
         from rich.panel import Panel
 
-        console.print(Panel(strategy_summary, title="Strategy Summary", border_style="blue"))
+        console.print(
+            Panel(strategy_summary, title="Strategy Summary", border_style="blue")
+        )
     except ImportError:
         logger.info(f"Strategy Summary:\n{strategy_summary}")
 

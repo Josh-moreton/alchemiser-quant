@@ -269,7 +269,12 @@ class EventDrivenOrchestrator:
             execution_data = event.execution_results
             orders_placed = execution_data.get("orders_placed", 0)
             orders_succeeded = execution_data.get("orders_succeeded", 0)
-            total_trade_value = execution_data.get("total_trade_value", 0)
+            # total_trade_value may be Decimal, float, or string; normalize for formatting
+            raw_total_value = execution_data.get("total_trade_value", 0)
+            try:
+                total_trade_value_float = float(raw_total_value)
+            except (TypeError, ValueError):
+                total_trade_value_float = 0.0
 
             if success:
                 html_content = f"""
@@ -277,7 +282,7 @@ class EventDrivenOrchestrator:
                 <p><strong>Status:</strong> Success</p>
                 <p><strong>Orders Placed:</strong> {orders_placed}</p>
                 <p><strong>Orders Succeeded:</strong> {orders_succeeded}</p>
-                <p><strong>Total Trade Value:</strong> ${total_trade_value:,.2f}</p>
+                <p><strong>Total Trade Value:</strong> ${total_trade_value_float:,.2f}</p>
                 <p><strong>Correlation ID:</strong> {event.correlation_id}</p>
                 <p><strong>Timestamp:</strong> {event.timestamp}</p>
                 """

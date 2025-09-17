@@ -471,11 +471,18 @@ def _resolve_log_level(*, is_production: bool) -> int:
     # Environment override first
     level_str = os.getenv("LOGGING__LEVEL")
     if level_str:
-        try:
-            return int(getattr(logging, level_str.upper()))
-        except (AttributeError, TypeError):
-            # Invalid log level string, fall back to default
-            pass
+        # Support both names (e.g. DEBUG) and numeric strings (e.g. 10)
+        lvl_upper = level_str.strip().upper()
+        # Numeric string
+        if lvl_upper.isdigit():
+            try:
+                return int(lvl_upper)
+            except ValueError:
+                pass
+        # Named level
+        named = getattr(logging, lvl_upper, None)
+        if isinstance(named, int):
+            return named
 
     # Then settings
     try:
