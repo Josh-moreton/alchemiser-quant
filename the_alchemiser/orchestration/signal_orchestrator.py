@@ -471,7 +471,7 @@ class SignalOrchestrator:
         if not signal:
             return set()
 
-        symbol: Any = signal.get("symbol")
+        symbol = signal.get("symbol")  # Type inferred from signal context
 
         if isinstance(symbol, str):
             return {symbol}
