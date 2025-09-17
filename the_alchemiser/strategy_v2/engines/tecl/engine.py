@@ -120,7 +120,9 @@ class TECLEngine(StrategyEngine):
                 self.logger.warning(f"Failed to fetch data for {symbol}: {e}")
         return market_data
 
-    def calculate_indicators(self, market_data: dict[str, pd.DataFrame]) -> dict[str, TechnicalIndicatorDTO]:
+    def calculate_indicators(
+        self, market_data: dict[str, pd.DataFrame]
+    ) -> dict[str, TechnicalIndicatorDTO]:
         """Calculate all technical indicators needed for TECL strategy."""
         indicators: dict[str, TechnicalIndicatorDTO] = {}
         for symbol, df in market_data.items():
@@ -149,11 +151,15 @@ class TECLEngine(StrategyEngine):
                     current_price=Decimal(str(close.iloc[-1])),
                     rsi_10=safe_get_indicator(close, self.indicators.rsi, 10),
                     rsi_20=safe_get_indicator(close, self.indicators.rsi, 20),
-                    ma_200=safe_get_indicator(close, self.indicators.moving_average, 200),
+                    ma_200=safe_get_indicator(
+                        close, self.indicators.moving_average, 200
+                    ),
                     ma_20=safe_get_indicator(close, self.indicators.moving_average, 20),
                     # TECL-specific indicators
-                    metadata={"rsi_9": safe_get_indicator(close, self.indicators.rsi, 9)},
-                    data_source="tecl_engine"
+                    metadata={
+                        "rsi_9": safe_get_indicator(close, self.indicators.rsi, 9)
+                    },
+                    data_source="tecl_engine",
                 )
             except Exception as e:
                 self.logger.warning(f"Failed to calculate indicators for {symbol}: {e}")
@@ -161,7 +167,9 @@ class TECLEngine(StrategyEngine):
         return indicators
 
     def evaluate_tecl_strategy(
-        self, indicators: dict[str, TechnicalIndicatorDTO], market_data: dict[str, pd.DataFrame] | None = None
+        self,
+        indicators: dict[str, TechnicalIndicatorDTO],
+        market_data: dict[str, pd.DataFrame] | None = None,
     ) -> tuple[str | dict[str, float], str, str]:
         """Evaluate the TECL (Technology) strategy with detailed reasoning.
 
@@ -177,7 +185,11 @@ class TECLEngine(StrategyEngine):
             )
 
         # Primary market regime detection: SPY vs 200 MA
-        spy_price = float(indicators["SPY"].current_price) if indicators["SPY"].current_price else 0.0
+        spy_price = (
+            float(indicators["SPY"].current_price)
+            if indicators["SPY"].current_price
+            else 0.0
+        )
         spy_ma_200 = indicators["SPY"].ma_200 or 0.0
         spy_rsi = indicators["SPY"].rsi_10 or 0.0
 
@@ -200,7 +212,7 @@ class TECLEngine(StrategyEngine):
     ) -> tuple[str | dict[str, float], str, str]:
         """Evaluate strategy when SPY is above 200-day MA (bull market)."""
         # First check: TQQQ overbought > 79 - Mixed allocation (25% UVXY + 75% BIL)
-        if "TQQQ" in indicators and indicators["TQQQ"].rsi_10 or 0.0 > 79:
+        if "TQQQ" in indicators and (indicators["TQQQ"].rsi_10 or 0.0) > 79:
             tqqq_rsi = indicators["TQQQ"].rsi_10 or 0.0
             reasoning = f"{market_analysis}\n\nTechnology Overbought Signal:\n"
             reasoning += f"• TQQQ RSI(10): {tqqq_rsi:.1f} > 79 (overbought threshold)\n"
@@ -213,7 +225,7 @@ class TECLEngine(StrategyEngine):
             return {"UVXY": 0.25, "BIL": 0.75}, ActionType.BUY.value, reasoning
 
         # Second check: SPY overbought > 80 - Mixed allocation (25% UVXY + 75% BIL)
-        if indicators["SPY"].rsi_10 or 0.0 > 80:
+        if (indicators["SPY"].rsi_10 or 0.0) > 80:
             spy_rsi = indicators["SPY"].rsi_10 or 0.0
             reasoning = f"{market_analysis}\n\nMarket Overbought Signal:\n"
             reasoning += (
@@ -233,7 +245,7 @@ class TECLEngine(StrategyEngine):
     ) -> tuple[str | dict[str, float], str, str]:
         """Evaluate strategy when SPY is below 200-day MA (bear market)."""
         # First check: TQQQ oversold < 31 (buy the dip even in bear market)
-        if "TQQQ" in indicators and indicators["TQQQ"].rsi_10 or 0.0 < 31:
+        if "TQQQ" in indicators and (indicators["TQQQ"].rsi_10 or 0.0) < 31:
             tqqq_rsi = indicators["TQQQ"].rsi_10 or 0.0
             reasoning = f"{market_analysis}\n\nOversold Dip-Buying Signal:\n"
             reasoning += f"• TQQQ RSI(10): {tqqq_rsi:.1f} < 31 (oversold)\n"
@@ -246,7 +258,7 @@ class TECLEngine(StrategyEngine):
             return "TECL", ActionType.BUY.value, reasoning
 
         # Second check: SPXL oversold < 29
-        if "SPXL" in indicators and indicators["SPXL"].rsi_10 or 0.0 < 29:
+        if "SPXL" in indicators and (indicators["SPXL"].rsi_10 or 0.0) < 29:
             spxl_rsi = indicators["SPXL"].rsi_10 or 0.0
             reasoning = f"{market_analysis}\n\nBroad Market Oversold Signal:\n"
             reasoning += f"• SPXL RSI(10): {spxl_rsi:.1f} < 29 (extremely oversold)\n"
@@ -287,7 +299,10 @@ class TECLEngine(StrategyEngine):
         return self._evaluate_kmlm_switcher(indicators, market_analysis, "Bear market")
 
     def _evaluate_kmlm_switcher(
-        self, indicators: dict[str, TechnicalIndicatorDTO], market_analysis: str, market_regime: str
+        self,
+        indicators: dict[str, TechnicalIndicatorDTO],
+        market_analysis: str,
+        market_regime: str,
     ) -> tuple[str | dict[str, float], str, str]:
         """KMLM Switcher logic: Compare XLK vs KMLM RSI to determine technology timing.
 
@@ -379,7 +394,10 @@ class TECLEngine(StrategyEngine):
         )
 
     def _evaluate_bond_vs_short_selection(
-        self, indicators: dict[str, TechnicalIndicatorDTO], switcher_analysis: str, market_regime: str
+        self,
+        indicators: dict[str, TechnicalIndicatorDTO],
+        switcher_analysis: str,
+        market_regime: str,
     ) -> tuple[str | dict[str, float], str, str]:
         """Select the final asset between bonds and short positions using RSI filter mechanism.
 
@@ -389,10 +407,28 @@ class TECLEngine(StrategyEngine):
         candidates = []
 
         if "SQQQ" in indicators:
-            candidates.append(("SQQQ", indicators["SQQQ"].metadata.get("rsi_9", 0.0) if indicators["SQQQ"].metadata else 0.0))
+            candidates.append(
+                (
+                    "SQQQ",
+                    (
+                        indicators["SQQQ"].metadata.get("rsi_9", 0.0)
+                        if indicators["SQQQ"].metadata
+                        else 0.0
+                    ),
+                )
+            )
 
         if "BSV" in indicators:
-            candidates.append(("BSV", indicators["BSV"].metadata.get("rsi_9", 0.0) if indicators["BSV"].metadata else 0.0))
+            candidates.append(
+                (
+                    "BSV",
+                    (
+                        indicators["BSV"].metadata.get("rsi_9", 0.0)
+                        if indicators["BSV"].metadata
+                        else 0.0
+                    ),
+                )
+            )
 
         if not candidates:
             reasoning = (
@@ -425,7 +461,11 @@ class TECLEngine(StrategyEngine):
         return symbol, ActionType.BUY.value, reasoning
 
     def _calculate_confidence(
-        self, symbol: str, action: str, indicators: dict[str, TechnicalIndicatorDTO], reasoning: str
+        self,
+        symbol: str,
+        action: str,
+        indicators: dict[str, TechnicalIndicatorDTO],
+        reasoning: str,
     ) -> Confidence:
         """Calculate confidence based on market indicators and signal strength.
 

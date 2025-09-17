@@ -56,7 +56,10 @@ class BaseKLMVariant(ABC):
 
     # Common filter operations used across variants
     def apply_stdev_return_filter(
-        self, candidates: list[str], indicators: dict[str, TechnicalIndicatorDTO], window: int = 6
+        self,
+        candidates: list[str],
+        indicators: dict[str, TechnicalIndicatorDTO],
+        window: int = 6,
     ) -> list[tuple[str, float]]:
         """Apply (stdev-return {:window N}) filter as in Clojure."""
         filtered_candidates = []
@@ -85,7 +88,10 @@ class BaseKLMVariant(ABC):
         return sorted_candidates[:count]
 
     def apply_rsi_filter(
-        self, candidates: list[str], indicators: dict[str, TechnicalIndicatorDTO], window: int = 10
+        self,
+        candidates: list[str],
+        indicators: dict[str, TechnicalIndicatorDTO],
+        window: int = 10,
     ) -> list[str]:
         """Filter candidates by RSI values.
 
@@ -170,47 +176,47 @@ class BaseKLMVariant(ABC):
         Returns KLMDecision if overbought condition met, None otherwise.
         """
         # Step 1: QQQE RSI(10) > 79
-        if "QQQE" in indicators and indicators["QQQE"].rsi_10 or 0 > 79:
+        if "QQQE" in indicators and (indicators["QQQE"].rsi_10 or 0) > 79:
             return self.create_klm_decision("UVXY", "BUY", "QQQE RSI(10) > 79 → UVXY")
 
         # Step 2: VTV RSI(10) > 79
-        if "VTV" in indicators and indicators["VTV"].rsi_10 or 0 > 79:
+        if "VTV" in indicators and (indicators["VTV"].rsi_10 or 0) > 79:
             return self.create_klm_decision("UVXY", "BUY", "VTV RSI(10) > 79 → UVXY")
 
         # Step 3: VOX RSI(10) > 79
-        if "VOX" in indicators and indicators["VOX"].rsi_10 or 0 > 79:
+        if "VOX" in indicators and (indicators["VOX"].rsi_10 or 0) > 79:
             return self.create_klm_decision("UVXY", "BUY", "VOX RSI(10) > 79 → UVXY")
 
         # Step 4: TECL RSI(10) > 79
-        if "TECL" in indicators and indicators["TECL"].rsi_10 or 0 > 79:
+        if "TECL" in indicators and (indicators["TECL"].rsi_10 or 0) > 79:
             return self.create_klm_decision("UVXY", "BUY", "TECL RSI(10) > 79 → UVXY")
 
         # Step 5: VOOG RSI(10) > 79
-        if "VOOG" in indicators and indicators["VOOG"].rsi_10 or 0 > 79:
+        if "VOOG" in indicators and (indicators["VOOG"].rsi_10 or 0) > 79:
             return self.create_klm_decision("UVXY", "BUY", "VOOG RSI(10) > 79 → UVXY")
 
         # Step 6: VOOV RSI(10) > 79
-        if "VOOV" in indicators and indicators["VOOV"].rsi_10 or 0 > 79:
+        if "VOOV" in indicators and (indicators["VOOV"].rsi_10 or 0) > 79:
             return self.create_klm_decision("UVXY", "BUY", "VOOV RSI(10) > 79 → UVXY")
 
         # Step 7: XLP RSI(10) > 75 (different threshold!)
-        if "XLP" in indicators and indicators["XLP"].rsi_10 or 0 > 75:
+        if "XLP" in indicators and (indicators["XLP"].rsi_10 or 0) > 75:
             return self.create_klm_decision("UVXY", "BUY", "XLP RSI(10) > 75 → UVXY")
 
         # Step 8: TQQQ RSI(10) > 79
-        if "TQQQ" in indicators and indicators["TQQQ"].rsi_10 or 0 > 79:
+        if "TQQQ" in indicators and (indicators["TQQQ"].rsi_10 or 0) > 79:
             return self.create_klm_decision("UVXY", "BUY", "TQQQ RSI(10) > 79 → UVXY")
 
         # Step 9: XLY RSI(10) > 80 (different threshold!)
-        if "XLY" in indicators and indicators["XLY"].rsi_10 or 0 > 80:
+        if "XLY" in indicators and (indicators["XLY"].rsi_10 or 0) > 80:
             return self.create_klm_decision("UVXY", "BUY", "XLY RSI(10) > 80 → UVXY")
 
         # Step 10: FAS RSI(10) > 80
-        if "FAS" in indicators and indicators["FAS"].rsi_10 or 0 > 80:
+        if "FAS" in indicators and (indicators["FAS"].rsi_10 or 0) > 80:
             return self.create_klm_decision("UVXY", "BUY", "FAS RSI(10) > 80 → UVXY")
 
         # Step 11: SPY RSI(10) > 80
-        if "SPY" in indicators and indicators["SPY"].rsi_10 or 0 > 80:
+        if "SPY" in indicators and (indicators["SPY"].rsi_10 or 0) > 80:
             return self.create_klm_decision("UVXY", "BUY", "SPY RSI(10) > 80 → UVXY")
 
         # No overbought conditions met - proceed to Single Popped KMLM
