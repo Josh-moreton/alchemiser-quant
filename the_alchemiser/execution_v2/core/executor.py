@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from the_alchemiser.execution_v2.core.smart_execution_strategy import (
     SmartExecutionStrategy,
@@ -845,7 +845,10 @@ class Executor:
             try:
                 exec_res = self.alpaca_manager.get_order_execution_result(oid)
                 status_str = str(getattr(exec_res, "status", "accepted"))
-                avg_price: Decimal | None = getattr(exec_res, "avg_fill_price", None)  # type: ignore[assignment]
+                avg_price_obj = getattr(exec_res, "avg_fill_price", None)
+                avg_price: Decimal | None = (
+                    avg_price_obj if isinstance(avg_price_obj, Decimal) else None
+                )
                 final_status_map[oid] = (status_str, avg_price)
             except Exception as exc:
                 logger.warning(f"Failed to refresh order {oid}: {exc}")

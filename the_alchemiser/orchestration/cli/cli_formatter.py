@@ -412,11 +412,21 @@ def render_orders_executed(
             elif side_value == "SELL":
                 sell_orders.append(order)
 
-    def _to_float(v: object) -> float:
-        try:
-            return float(v)
-        except (TypeError, ValueError):
+    from decimal import Decimal as _Dec
+
+    def _to_float(v: str | int | float | _Dec | None) -> float:
+        if v is None:
             return 0.0
+        if isinstance(v, (int, float)):
+            return float(v)
+        if isinstance(v, _Dec):
+            return float(v)
+        if isinstance(v, str):
+            try:
+                return float(v)
+            except ValueError:
+                return 0.0
+        return 0.0
 
     total_buy_value = sum(_to_float(o.get("estimated_value", 0)) for o in buy_orders)
     total_sell_value = sum(_to_float(o.get("estimated_value", 0)) for o in sell_orders)
@@ -867,7 +877,7 @@ def render_target_vs_current_allocations(
                 sum(target_values.values(), _D("0")) if target_values else _D("0")
             )
         except Exception:
-            total_targets = 0  # Trigger fallback safely
+            total_targets = _D("0")  # Trigger fallback safely
 
         if not target_values or total_targets <= _D("0"):
             target_values, current_values, deltas, portfolio_value = (

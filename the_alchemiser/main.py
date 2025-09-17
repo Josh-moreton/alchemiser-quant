@@ -10,18 +10,18 @@ Supports signal analysis and trading execution with dependency injection.
 from __future__ import annotations
 
 import argparse
-from decimal import Decimal
 import logging
 import os
 import sys
+from decimal import Decimal
 from time import sleep
 from typing import Any
 
 # CLI formatter imports (moved from function-level)
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
 from the_alchemiser.orchestration.cli.cli_formatter import (
-    render_footer,
     render_account_info,
+    render_footer,
 )
 from the_alchemiser.orchestration.event_driven_orchestrator import (
     EventDrivenOrchestrator,
@@ -444,7 +444,9 @@ class TradingSystem:
             normalized_positions: list[dict[str, Any]] = []
 
             # Helper to coerce value to float safely
-            def _to_float(value: object) -> float:
+            from decimal import Decimal as _Dec
+
+            def _to_float(value: str | int | float | _Dec | None) -> float:
                 try:
                     return float(value or 0)
                 except Exception:
