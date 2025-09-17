@@ -14,7 +14,7 @@ import logging
 import os
 import sys
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 # CLI formatter imports (moved from function-level)
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
@@ -40,6 +40,9 @@ from the_alchemiser.shared.types.exceptions import (
     TradingClientError,
 )
 from the_alchemiser.shared.utils.service_factory import ServiceFactory
+
+if TYPE_CHECKING:
+    from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
 
 # Global DI container
 # Use Optional for proper type inference by static type checkers
@@ -151,13 +154,12 @@ class TradingSystem:
 
             if self.container is None:
                 raise RuntimeError("DI container not initialized")
+            
             # Create trading orchestrator directly
             orchestrator = TradingOrchestrator(
                 settings=self.settings,
                 container=self.container,
             )
-
-            # Header suppressed to reduce duplicate banners in CLI output
 
             # PHASE 1: Signals-only analysis (no trading yet)
             signals_result = orchestrator.execute_strategy_signals()
@@ -169,87 +171,19 @@ class TradingSystem:
             self._display_signals_and_rebalance(signals_result)
 
             # PHASE 2: Execute trading (may place orders)
-            try:
-                from rich.logging import RichHandler
-                from rich.progress import Progress, SpinnerColumn, TextColumn
-
-                with Progress(
-                    SpinnerColumn(),
-                    TextColumn("[progress.description]{task.description}"),
-                    transient=True,
-                ) as progress:
-                    _task = progress.add_task(
-                        "🚀 Executing trades... Submitting orders and monitoring fills",
-                        total=None,
-                    )
-
-                    # Temporarily surface INFO logs to the CLI for live feedback
-                    root_logger = logging.getLogger()
-                    rich_handler = RichHandler(
-                        console=progress.console,
-                        show_time=False,
-                        show_level=False,
-                        show_path=False,
-                        markup=True,
-                    )
-
-                    # Limit to our app logs to avoid noisy third-party streams
-                    class _OnlyAlchemiser(logging.Filter):
-                        def filter(self, record: logging.LogRecord) -> bool:
-                            return record.name.startswith("the_alchemiser")
-
-                    rich_handler.addFilter(_OnlyAlchemiser())
-                    root_original_level = root_logger.level
-                    root_logger.setLevel(logging.INFO)
-                    root_logger.addHandler(rich_handler)
-                    try:
-                        trading_result = (
-                            orchestrator.execute_strategy_signals_with_trading()
-                        )
-                    finally:
-                        root_logger.removeHandler(rich_handler)
-                        root_logger.setLevel(root_original_level)
-            except Exception:
-                # Fallback if Rich is unavailable
-                trading_result = orchestrator.execute_strategy_signals_with_trading()
+            trading_result = self._execute_trading_with_progress(orchestrator)
             if trading_result is None:
                 render_footer("Trading execution failed - check logs for details")
                 return False
 
-            # Show execution results only (avoid re-printing signals/plan)
-            orders_executed = trading_result.get("orders_executed", [])
-            if orders_executed:
-                self._display_execution_results(
-                    orders_executed, trading_result.get("execution_result")
-                )
+            # Handle post-execution tasks
+            return self._handle_post_execution_tasks(
+                trading_result, 
+                orchestrator, 
+                show_tracking=show_tracking, 
+                export_tracking_json=export_tracking_json
+            )
 
-            # 5) Display tracking if requested
-            if show_tracking:
-                self._display_post_execution_tracking(
-                    paper_trading=not orchestrator.live_trading
-                )
-
-            # 6) Export tracking summary if requested
-            if export_tracking_json:
-                self._export_tracking_summary(
-                    export_path=export_tracking_json,
-                    paper_trading=not orchestrator.live_trading,
-                )
-
-            # 7) Send notification
-            try:
-                mode_str = "LIVE" if orchestrator.live_trading else "PAPER"
-                orchestrator.send_trading_notification(trading_result, mode_str)
-            except Exception as exc:
-                self.logger.warning(f"Failed to send trading notification: {exc}")
-
-            success = bool(trading_result.get("success", False))
-            if success:
-                render_footer("Trading execution completed successfully!")
-            else:
-                render_footer("Trading execution failed - check logs for details")
-
-            return success
         except (TradingClientError, StrategyExecutionError) as e:
             self.error_handler.handle_error(
                 error=e,
@@ -262,6 +196,96 @@ class TradingSystem:
             )
             render_footer("System error occurred!")
             return False
+
+    def _execute_trading_with_progress(
+        self, orchestrator: TradingOrchestrator
+    ) -> dict[str, Any] | None:
+        """Execute trading with Rich progress display and logging setup."""
+        try:
+            from rich.logging import RichHandler
+            from rich.progress import Progress, SpinnerColumn, TextColumn
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                transient=True,
+            ) as progress:
+                _task = progress.add_task(
+                    "🚀 Executing trades... Submitting orders and monitoring fills",
+                    total=None,
+                )
+
+                # Temporarily surface INFO logs to the CLI for live feedback
+                root_logger = logging.getLogger()
+                rich_handler = RichHandler(
+                    console=progress.console,
+                    show_time=False,
+                    show_level=False,
+                    show_path=False,
+                    markup=True,
+                )
+
+                # Limit to our app logs to avoid noisy third-party streams
+                class _OnlyAlchemiser(logging.Filter):
+                    def filter(self, record: logging.LogRecord) -> bool:
+                        return record.name.startswith("the_alchemiser")
+
+                rich_handler.addFilter(_OnlyAlchemiser())
+                root_original_level = root_logger.level
+                root_logger.setLevel(logging.INFO)
+                root_logger.addHandler(rich_handler)
+                try:
+                    return orchestrator.execute_strategy_signals_with_trading()
+                finally:
+                    root_logger.removeHandler(rich_handler)
+                    root_logger.setLevel(root_original_level)
+        except Exception:
+            # Fallback if Rich is unavailable
+            return orchestrator.execute_strategy_signals_with_trading()
+
+    def _handle_post_execution_tasks(
+        self,
+        trading_result: dict[str, Any],
+        orchestrator: TradingOrchestrator,
+        *,
+        show_tracking: bool,
+        export_tracking_json: str | None,
+    ) -> bool:
+        """Handle post-execution tasks like displaying results, tracking, and notifications."""
+        # Show execution results only (avoid re-printing signals/plan)
+        orders_executed = trading_result.get("orders_executed", [])
+        if orders_executed:
+            self._display_execution_results(
+                orders_executed, trading_result.get("execution_result")
+            )
+
+        # Display tracking if requested
+        if show_tracking:
+            self._display_post_execution_tracking(
+                paper_trading=not orchestrator.live_trading
+            )
+
+        # Export tracking summary if requested
+        if export_tracking_json:
+            self._export_tracking_summary(
+                export_path=export_tracking_json,
+                paper_trading=not orchestrator.live_trading,
+            )
+
+        # Send notification
+        try:
+            mode_str = "LIVE" if orchestrator.live_trading else "PAPER"
+            orchestrator.send_trading_notification(trading_result, mode_str)
+        except Exception as exc:
+            self.logger.warning(f"Failed to send trading notification: {exc}")
+
+        success = bool(trading_result.get("success", False))
+        if success:
+            render_footer("Trading execution completed successfully!")
+        else:
+            render_footer("Trading execution failed - check logs for details")
+
+        return success
 
     def _display_signals_and_rebalance(self, result: dict[str, Any]) -> None:
         """Display strategy signals followed by rebalance plan."""
@@ -320,95 +344,110 @@ class TradingSystem:
     ) -> None:
         """Display execution results including order details and summary."""
         try:
-            from rich.console import Console
-            from rich.panel import Panel
-            from rich.table import Table
-
             from the_alchemiser.orchestration.cli.cli_formatter import (
                 render_orders_executed,
             )
-
-            console = Console()
 
             # Display orders executed using existing formatter
             render_orders_executed(orders_executed)
 
             # Display detailed order status information
             if orders_executed:
-                status_table = Table(title="Order Execution Details", show_lines=True)
-                status_table.add_column("Symbol", style="cyan", justify="center")
-                status_table.add_column("Action", style="bold", justify="center")
-                status_table.add_column("Status", style="bold", justify="center")
-                status_table.add_column("Order ID", style="dim", justify="center")
-                status_table.add_column("Error Details", style="red", justify="left")
-
-                for order in orders_executed:
-                    status = order.get("status", "UNKNOWN")
-                    order_id = order.get("order_id") or "N/A"
-                    error = order.get("error") or ""
-
-                    # Style status
-                    if status == "FILLED":
-                        status_display = "[bold green]✅ FILLED[/bold green]"
-                    elif status == "FAILED":
-                        status_display = "[bold red]❌ FAILED[/bold red]"
-                    else:
-                        status_display = f"[yellow]{status}[/yellow]"
-
-                    # Style action
-                    action = order.get("side", "").upper()
-                    if action == "BUY":
-                        action_display = "[green]BUY[/green]"
-                    elif action == "SELL":
-                        action_display = "[red]SELL[/red]"
-                    else:
-                        action_display = action
-
-                    status_table.add_row(
-                        order.get("symbol", "N/A"),
-                        action_display,
-                        status_display,
-                        order_id,
-                        error[:50] + "..." if len(error) > 50 else error,
-                    )
-
-                console.print(status_table)
+                self._display_order_status_table(orders_executed)
 
             # Display execution summary if available
             if execution_result:
-                try:
-                    success_rate = getattr(execution_result, "success_rate", 1.0)
-                    total_value = getattr(
-                        execution_result, "total_trade_value", Decimal(0)
-                    )
-
-                    summary_content = [
-                        f"[bold green]Execution Success Rate:[/bold green] {success_rate:.1%}",
-                        f"[bold blue]Orders Placed:[/bold blue] {execution_result.orders_placed}",
-                        f"[bold green]Orders Succeeded:[/bold green] {execution_result.orders_succeeded}",
-                        f"[bold yellow]Total Trade Value:[/bold yellow] ${float(total_value):,.2f}",
-                    ]
-
-                    if (
-                        hasattr(execution_result, "failure_count")
-                        and execution_result.failure_count > 0
-                    ):
-                        summary_content.append(
-                            f"[bold red]Orders Failed:[/bold red] {execution_result.failure_count}"
-                        )
-
-                    console.print(
-                        Panel(
-                            "\n".join(summary_content),
-                            title="Execution Summary",
-                            style="bold white",
-                        )
-                    )
-                except Exception as e:
-                    self.logger.warning(f"Failed to display execution summary: {e}")
+                self._display_execution_summary(execution_result)
 
         except Exception as e:
             self.logger.warning(f"Failed to display execution results: {e}")
+
+    def _display_order_status_table(self, orders_executed: list[dict[str, Any]]) -> None:
+        """Display detailed order status information in a table."""
+        try:
+            from rich.console import Console
+            from rich.table import Table
+
+            console = Console()
+            status_table = Table(title="Order Execution Details", show_lines=True)
+            status_table.add_column("Symbol", style="cyan", justify="center")
+            status_table.add_column("Action", style="bold", justify="center")
+            status_table.add_column("Status", style="bold", justify="center")
+            status_table.add_column("Order ID", style="dim", justify="center")
+            status_table.add_column("Error Details", style="red", justify="left")
+
+            for order in orders_executed:
+                status = order.get("status", "UNKNOWN")
+                order_id = order.get("order_id") or "N/A"
+                error = order.get("error") or ""
+
+                # Style status and action
+                status_display = self._format_order_status(status)
+                action_display = self._format_order_action(order.get("side", ""))
+
+                status_table.add_row(
+                    order.get("symbol", "N/A"),
+                    action_display,
+                    status_display,
+                    order_id,
+                    error[:50] + "..." if len(error) > 50 else error,
+                )
+
+            console.print(status_table)
+        except Exception as e:
+            self.logger.warning(f"Failed to display order status table: {e}")
+
+    def _format_order_status(self, status: str) -> str:
+        """Format order status with appropriate styling."""
+        if status == "FILLED":
+            return "[bold green]✅ FILLED[/bold green]"
+        if status == "FAILED":
+            return "[bold red]❌ FAILED[/bold red]"
+        return f"[yellow]{status}[/yellow]"
+
+    def _format_order_action(self, side: str) -> str:
+        """Format order action with appropriate styling."""
+        action = side.upper()
+        if action == "BUY":
+            return "[green]BUY[/green]"
+        if action == "SELL":
+            return "[red]SELL[/red]"
+        return action
+
+    def _display_execution_summary(self, execution_result: ExecutionResultDTO) -> None:
+        """Display execution summary panel."""
+        try:
+            from rich.console import Console
+            from rich.panel import Panel
+
+            console = Console()
+            success_rate = getattr(execution_result, "success_rate", 1.0)
+            total_value = getattr(execution_result, "total_trade_value", Decimal(0))
+
+            summary_content = [
+                f"[bold green]Execution Success Rate:[/bold green] {success_rate:.1%}",
+                f"[bold blue]Orders Placed:[/bold blue] {execution_result.orders_placed}",
+                f"[bold green]Orders Succeeded:[/bold green] {execution_result.orders_succeeded}",
+                f"[bold yellow]Total Trade Value:[/bold yellow] ${float(total_value):,.2f}",
+            ]
+
+            if (
+                hasattr(execution_result, "failure_count")
+                and execution_result.failure_count > 0
+            ):
+                summary_content.append(
+                    f"[bold red]Orders Failed:[/bold red] {execution_result.failure_count}"
+                )
+
+            console.print(
+                Panel(
+                    "\n".join(summary_content),
+                    title="Execution Summary",
+                    style="bold white",
+                )
+            )
+        except Exception as e:
+            self.logger.warning(f"Failed to display execution summary: {e}")
 
     def _display_post_execution_tracking(self, *, paper_trading: bool) -> None:
         """Display strategy performance tracking after execution."""
