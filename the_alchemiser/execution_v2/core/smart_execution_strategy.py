@@ -23,7 +23,7 @@ from dataclasses import dataclass, field  # Add field import
 from datetime import UTC, datetime  # Rename to avoid conflict
 from datetime import time as dt_time
 from decimal import Decimal
-from typing import Any
+from typing import TypedDict
 
 from the_alchemiser.execution_v2.utils.liquidity_analysis import LiquidityAnalyzer
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
@@ -31,6 +31,37 @@ from the_alchemiser.shared.services.real_time_pricing import RealTimePricingServ
 from the_alchemiser.shared.types.market_data import QuoteModel
 
 logger = logging.getLogger(__name__)
+
+
+class LiquidityMetadata(TypedDict, total=False):
+    """Metadata for liquidity analysis and execution."""
+
+    # Core liquidity metrics
+    liquidity_score: float
+    volume_imbalance: float
+    confidence: float
+    volume_available: float
+    volume_ratio: float
+    strategy_recommendation: str
+    bid_volume: float
+    ask_volume: float
+
+    # Market data context
+    method: str
+    mid: float
+    bid: float
+    ask: float
+    bid_price: float
+    ask_price: float
+    spread_percent: float
+    bid_size: float
+    ask_size: float
+
+    # Execution context
+    used_fallback: bool
+    original_order_id: str
+    original_price: float
+    new_price: float
 
 
 @dataclass
@@ -94,7 +125,7 @@ class SmartOrderResult:
     execution_strategy: str = "smart_limit"
     error_message: str | None = None
     placement_timestamp: datetime | None = None
-    metadata: dict[str, Any] | None = None
+    metadata: LiquidityMetadata | None = None
 
 
 class SmartExecutionStrategy:
@@ -161,72 +192,93 @@ class SmartExecutionStrategy:
     def get_quote_with_validation(
         self, symbol: str, order_size: float
     ) -> tuple[QuoteModel, bool] | None:
-        """Get validated quote data from streaming source, waiting for data.
+        """Get validated quote data from streaming source with REST API fallback.
 
-        Waits for streaming quote data to arrive after subscription.
+        First attempts to get streaming quote data, then falls back to REST API
+        if streaming data is not available - following Josh's guidance to use
+        the same bid/ask data feed that strategy engines use.
 
         Args:
             symbol: Stock symbol
             order_size: Size of order to place (in shares)
 
         Returns:
-            (QuoteModel, False) if valid streaming quote available, otherwise None
+            (QuoteModel, used_fallback) if valid quote available, otherwise None
+            used_fallback is True if REST API was used instead of streaming
 
         """
         import time
 
-        # Only try streaming quote if pricing service available
-        if not self.pricing_service:
-            logger.warning(f"No pricing service available for {symbol}")
-            return None
+        # Try streaming quote if pricing service available
+        if self.pricing_service:
+            # Wait for quote data to arrive from stream
+            logger.info(f"⏳ Waiting for streaming quote data for {symbol}...")
+            max_wait_time = 30.0  # Maximum 30 seconds to wait
+            check_interval = 0.1  # Check every 100ms
+            elapsed = 0.0
 
-        # Wait for quote data to arrive from stream
-        logger.info(f"⏳ Waiting for streaming quote data for {symbol}...")
-        max_wait_time = 10.0  # Maximum 10 seconds to wait
-        check_interval = 0.1  # Check every 100ms
-        elapsed = 0.0
+            quote = None
+            while elapsed < max_wait_time:
+                quote = self.pricing_service.get_quote_data(symbol)
+                if quote:
+                    logger.info(
+                        f"✅ Received streaming quote for {symbol} after {elapsed:.1f}s"
+                    )
+                    break
 
-        quote = None
-        while elapsed < max_wait_time:
-            quote = self.pricing_service.get_quote_data(symbol)
+                time.sleep(check_interval)
+                elapsed += check_interval
+
             if quote:
-                logger.info(
-                    f"✅ Received streaming quote for {symbol} after {elapsed:.1f}s"
-                )
-                break
+                # Check quote freshness
+                quote_age = (datetime.now(UTC) - quote.timestamp).total_seconds()
+                if quote_age <= self.config.quote_freshness_seconds:
+                    # Simple price validation - ensure we have at least one valid price
+                    if quote.bid_price > 0 or quote.ask_price > 0:
+                        return quote, False  # Streaming quote success
+                    logger.warning(
+                        f"Invalid streaming prices for {symbol}: bid={quote.bid_price}, ask={quote.ask_price}"
+                    )
+                else:
+                    logger.warning(
+                        f"Streaming quote stale for {symbol} ({quote_age:.1f}s > {self.config.quote_freshness_seconds}s)"
+                    )
 
-            time.sleep(check_interval)
-            elapsed += check_interval
+        # Fallback to REST API using the same data feed as strategy engines
+        logger.info(f"📊 Falling back to REST API quote data for {symbol}")
+        rest_quote = self.alpaca_manager.get_latest_quote(symbol)
 
-        if not quote:
+        if not rest_quote:
             logger.error(
-                f"❌ No streaming quote data received for {symbol} after {max_wait_time}s"
+                f"❌ No quote data available for {symbol} (streaming and REST failed)"
             )
             return None
 
-        # Check quote freshness
-        quote_age = (datetime.now(UTC) - quote.timestamp).total_seconds()
-        if quote_age > self.config.quote_freshness_seconds:
-            logger.warning(
-                f"Streaming quote stale for {symbol} ({quote_age:.1f}s > {self.config.quote_freshness_seconds}s)"
-            )
-            return None
+        bid_price, ask_price = rest_quote
 
-        # Simple price validation - just ensure we have at least one valid price
-        if quote.bid_price <= 0 and quote.ask_price <= 0:
-            logger.warning(
-                f"Invalid prices for {symbol}: bid={quote.bid_price}, ask={quote.ask_price}"
-            )
-            return None
+        # Create QuoteModel from REST data for consistent processing
+        quote = QuoteModel(
+            symbol=symbol,
+            bid_price=bid_price,
+            ask_price=ask_price,
+            bid_size=0.0,  # REST API doesn't provide size data
+            ask_size=0.0,  # REST API doesn't provide size data
+            timestamp=datetime.now(UTC),
+        )
 
-        return quote, False
+        logger.info(
+            f"✅ Got REST quote for {symbol}: bid=${bid_price:.2f}, ask=${ask_price:.2f}"
+        )
+
+        return quote, True  # Used REST fallback
 
     def _calculate_simple_inside_spread_price(
         self, quote: QuoteModel, side: str
-    ) -> tuple[Decimal, dict[str, Any]]:
+    ) -> tuple[Decimal, LiquidityMetadata]:
         """Compute a simple inside-spread anchor using configured offsets.
 
         This is used when we only have REST quotes or inadequate depth data.
+        Uses 'normal' liquidity settings as per Josh's guidance for fallback scenarios.
         """
         bid = Decimal(str(max(quote.bid_price, 0.0)))
         ask = Decimal(str(max(quote.ask_price, 0.0)))
@@ -236,14 +288,16 @@ class SmartExecutionStrategy:
         tick = Decimal("0.01")
 
         if side.upper() == "BUY":
+            # For buys, place slightly above bid (normal liquidity setting)
             anchor = bid + max(self.config.bid_anchor_offset_cents, tick)
             # Ensure we stay inside the spread when possible
             if ask > 0 and anchor >= ask:
                 anchor = max(ask - max(self.config.bid_anchor_offset_cents, tick), bid)
-            # Use mid as soft cap
+            # Use mid as soft cap for reasonable execution
             if ask > 0 and bid > 0:
                 anchor = min(anchor, mid)
         else:
+            # For sells, place slightly below ask (normal liquidity setting)
             anchor = ask - max(self.config.ask_anchor_offset_cents, tick)
             if bid > 0 and anchor <= bid:
                 anchor = min(ask, bid + max(self.config.ask_anchor_offset_cents, tick))
@@ -251,24 +305,32 @@ class SmartExecutionStrategy:
                 anchor = max(anchor, mid)
 
         metadata = {
-            "method": "simple_inside_spread",
+            "method": "simple_inside_spread_fallback",
             "mid": float(mid),
             "bid": float(bid),
             "ask": float(ask),
-            "strategy_recommendation": "simple_inside_spread_fallback",
-            "liquidity_score": 0.0,
+            "bid_price": float(bid),  # Ensure consistency with normal analysis
+            "ask_price": float(ask),  # Ensure consistency with normal analysis
+            "strategy_recommendation": "normal_liquidity_fallback",
+            "liquidity_score": 0.5,  # Normal/moderate score for fallback
             "volume_imbalance": 0.0,
-            "confidence": 0.5,  # Conservative confidence for fallback
-            "volume_available": 0.0,
+            "confidence": 0.7,  # Good confidence for REST API data
+            "volume_available": 0.0,  # Not available from REST API
             "volume_ratio": 0.0,
             "bid_volume": 0.0,
             "ask_volume": 0.0,
+            "bid_size": 0.0,  # REST API doesn't provide size data
+            "ask_size": 0.0,  # REST API doesn't provide size data
+            "spread_percent": float((ask - bid) / bid * 100) if bid > 0 else 0.0,
+            "used_fallback": True,  # Mark as fallback pricing
         }
-        return anchor, metadata
+        # Quantize to cent precision to avoid sub-penny errors
+        anchor_quantized = anchor.quantize(Decimal("0.01"))
+        return anchor_quantized, metadata
 
     def calculate_liquidity_aware_price(
         self, quote: QuoteModel, side: str, order_size: float
-    ) -> tuple[Decimal, dict[str, Any]]:
+    ) -> tuple[Decimal, LiquidityMetadata]:
         """Calculate optimal price using advanced liquidity analysis.
 
         Args:
@@ -397,11 +459,16 @@ class SmartExecutionStrategy:
                 )
 
             # Place limit order with optimal pricing
+            # Ensure price is properly quantized to avoid sub-penny precision errors
+            quantized_price = Decimal(str(float(optimal_price))).quantize(
+                Decimal("0.01")
+            )
+
             result = self.alpaca_manager.place_limit_order(
                 symbol=request.symbol,
                 side=request.side.lower(),
                 quantity=float(request.quantity),
-                limit_price=float(optimal_price),
+                limit_price=float(quantized_price),
                 time_in_force="day",
             )
 
@@ -519,17 +586,21 @@ class SmartExecutionStrategy:
         for order_id, request in list(self._active_orders.items()):
             try:
                 # Check if order is still active
-                order_status = self.alpaca_manager._check_order_completion_status(order_id)
+                order_status = self.alpaca_manager._check_order_completion_status(
+                    order_id
+                )
                 if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
                     orders_to_remove.append(order_id)
-                    logger.info(f"📊 Order {order_id} completed with status: {order_status}")
+                    logger.info(
+                        f"📊 Order {order_id} completed with status: {order_status}"
+                    )
                     continue
 
                 # Check if enough time has passed to consider re-pegging
                 placement_time = self._order_placement_times.get(order_id)
                 if not placement_time:
                     continue
-                    
+
                 time_elapsed = (current_time - placement_time).total_seconds()
                 if time_elapsed < self.config.fill_wait_seconds:
                     logger.debug(
@@ -552,7 +623,7 @@ class SmartExecutionStrategy:
                     "attempting re-peg..."
                 )
                 repeg_result = await self._attempt_repeg(order_id, request)
-                
+
                 if repeg_result:
                     repeg_results.append(repeg_result)
 
@@ -569,19 +640,21 @@ class SmartExecutionStrategy:
         self, order_id: str, request: SmartOrderRequest
     ) -> SmartOrderResult | None:
         """Attempt to re-peg an order with a more aggressive price.
-        
+
         Args:
             order_id: The order ID to re-peg
             request: Original order request
-            
+
         Returns:
             SmartOrderResult if re-peg was attempted, None if skipped
+
+
         """
         try:
             # Cancel the existing order
             logger.info(f"❌ Canceling order {order_id} for re-pegging")
             cancel_success = self.alpaca_manager.cancel_order(order_id)
-            
+
             if not cancel_success:
                 logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
                 return None
@@ -591,15 +664,19 @@ class SmartExecutionStrategy:
                 request.symbol, float(request.quantity)
             )
             if not validated:
-                logger.warning(f"⚠️ No valid quote for {request.symbol}, skipping re-peg")
+                logger.warning(
+                    f"⚠️ No valid quote for {request.symbol}, skipping re-peg"
+                )
                 return None
-                
+
             quote, _ = validated
-            
+
             # Calculate more aggressive price for re-peg
             original_anchor = self._order_anchor_prices.get(order_id)
-            new_price = self._calculate_repeg_price(quote, request.side, original_anchor)
-            
+            new_price = self._calculate_repeg_price(
+                quote, request.side, original_anchor
+            )
+
             if not new_price:
                 logger.warning(f"⚠️ Cannot calculate re-peg price for {request.symbol}")
                 return None
@@ -609,19 +686,22 @@ class SmartExecutionStrategy:
                 f"📈 Re-pegging {request.symbol} {request.side} from "
                 f"${original_anchor} to ${new_price}"
             )
-            
+
+            # Ensure price is properly quantized to avoid sub-penny precision errors
+            quantized_price = new_price.quantize(Decimal("0.01"))
+
             executed_order = self.alpaca_manager.place_limit_order(
                 symbol=request.symbol,
                 side=request.side.lower(),
                 quantity=float(request.quantity),
-                limit_price=float(new_price),
+                limit_price=float(quantized_price),
                 time_in_force="day",
             )
 
             # Update tracking
             self._repeg_counts[order_id] = self._repeg_counts.get(order_id, 0) + 1
             repeg_count = self._repeg_counts[order_id]
-            
+
             if executed_order.order_id:
                 # Update tracking with new order ID
                 self._cleanup_order_tracking(order_id)
@@ -634,7 +714,7 @@ class SmartExecutionStrategy:
                     f"✅ Re-peg successful: new order {executed_order.order_id} "
                     f"at ${new_price} (attempt {repeg_count})"
                 )
-                
+
                 return SmartOrderResult(
                     success=True,
                     order_id=executed_order.order_id,
@@ -645,21 +725,24 @@ class SmartExecutionStrategy:
                     placement_timestamp=datetime.now(UTC),
                     metadata={
                         "original_order_id": order_id,
-                        "original_price": float(original_anchor) if original_anchor else None,
+                        "original_price": (
+                            float(original_anchor) if original_anchor else None
+                        ),
                         "new_price": float(new_price),
                         "bid_price": quote.bid_price,
                         "ask_price": quote.ask_price,
                     },
                 )
-            else:
-                logger.error(f"❌ Re-peg failed for {request.symbol}: no order ID returned")
-                return SmartOrderResult(
-                    success=False,
-                    error_message="Re-peg order placement failed",
-                    execution_strategy="smart_repeg_failed",
-                    repegs_used=repeg_count,
-                )
-                
+
+            # If we get here, re-peg failed (no order ID returned)
+            logger.error(f"❌ Re-peg failed for {request.symbol}: no order ID returned")
+            return SmartOrderResult(
+                success=False,
+                error_message="Re-peg order placement failed",
+                execution_strategy="smart_repeg_failed",
+                repegs_used=repeg_count,
+            )
+
         except Exception as e:
             logger.error(f"❌ Error during re-peg attempt for {order_id}: {e}")
             return SmartOrderResult(
@@ -672,14 +755,15 @@ class SmartExecutionStrategy:
         self, quote: QuoteModel, side: str, original_price: Decimal | None
     ) -> Decimal | None:
         """Calculate a more aggressive price for re-pegging.
-        
+
         Args:
             quote: Current market quote
             side: Order side ("BUY" or "SELL")
             original_price: Original order price
-            
+
         Returns:
             New more aggressive price, or None if cannot calculate
+
         """
         try:
             if side.upper() == "BUY":
@@ -691,11 +775,14 @@ class SmartExecutionStrategy:
                     new_price = original_price + adjustment
                 else:
                     # If no original price, use ask price minus small offset
-                    new_price = Decimal(str(quote.ask_price)) - self.config.ask_anchor_offset_cents
-                    
+                    new_price = (
+                        Decimal(str(quote.ask_price))
+                        - self.config.ask_anchor_offset_cents
+                    )
+
                 # Ensure we don't exceed ask price
                 new_price = min(new_price, Decimal(str(quote.ask_price)))
-                
+
             else:  # SELL
                 # For sells, move price down towards bid (more aggressive)
                 if original_price:
@@ -705,13 +792,17 @@ class SmartExecutionStrategy:
                     new_price = original_price - adjustment
                 else:
                     # If no original price, use bid price plus small offset
-                    new_price = Decimal(str(quote.bid_price)) + self.config.bid_anchor_offset_cents
-                    
+                    new_price = (
+                        Decimal(str(quote.bid_price))
+                        + self.config.bid_anchor_offset_cents
+                    )
+
                 # Ensure we don't go below bid price
                 new_price = max(new_price, Decimal(str(quote.bid_price)))
 
-            return new_price
-            
+            # Quantize to cent precision to avoid sub-penny errors
+            return new_price.quantize(Decimal("0.01"))
+
         except Exception as e:
             logger.error(f"Error calculating re-peg price: {e}")
             return None

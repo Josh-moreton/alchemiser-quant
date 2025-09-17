@@ -9,6 +9,9 @@ layer acts as the "conductor" for complex workflows that span multiple modules.
 Now includes event-driven orchestration alongside traditional direct-call orchestrators
 for a modern, decoupled, and extensible architecture.
 
+Also includes CLI components that orchestrate user interactions and coordinate
+cross-module workflows through command-line interfaces.
+
 Exports:
     - SignalOrchestrator: Signal analysis workflow orchestration
     - TradingOrchestrator: Trading execution workflow orchestration
