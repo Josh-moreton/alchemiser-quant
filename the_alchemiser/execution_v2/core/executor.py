@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, TypedDict
+from typing import Any, TYPE_CHECKING, TypedDict
 
 from the_alchemiser.execution_v2.core.smart_execution_strategy import (
     SmartExecutionStrategy,
@@ -133,7 +133,8 @@ class Executor:
                 result = await self.smart_strategy.place_smart_order(request)
 
                 if result.success:
-                    logger.info(f"✅ Smart execution succeeded for {symbol}")
+                    # Success here means order was placed; fill will be checked later
+                    logger.info(f"✅ Smart execution placed order for {symbol}")
                     return ExecutionResult(
                         order_id=result.order_id,
                         symbol=symbol,
@@ -384,29 +385,31 @@ class Executor:
         orders = []
         placed = 0
         succeeded = 0
-        trade_value = Decimal("0")
 
-        # Execute all sell orders first
+        # Execute all sell orders first (placement only)
         for item in sell_items:
             order_result = await self._execute_single_item(item)
             orders.append(order_result)
             placed += 1
 
-            if order_result.success:
-                succeeded += 1
-                trade_value += abs(item.trade_amount)
+            if order_result.order_id:
                 logger.info(
-                    f"✅ SELL {item.symbol} completed successfully (ID: {order_result.order_id})"
+                    f"🧾 SELL {item.symbol} order placed (ID: {order_result.order_id})"
                 )
-            else:
+            elif not order_result.success:
                 logger.error(
-                    f"❌ SELL {item.symbol} failed: {order_result.error_message}"
+                    f"❌ SELL {item.symbol} placement failed: {order_result.error_message}"
                 )
 
-        # Monitor and re-peg sell orders that haven't filled
+        # Monitor and re-peg sell orders that haven't filled and await completion
         if self.smart_strategy and self.enable_smart_execution:
             logger.info("🔄 Monitoring SELL orders for re-pegging opportunities...")
-            await self._monitor_and_repeg_phase_orders("SELL", orders)
+            orders = await self._monitor_and_repeg_phase_orders("SELL", orders)
+
+        # Await completion and finalize statuses
+        orders, succeeded, trade_value = self._finalize_phase_orders(
+            phase_type="SELL", orders=orders, items=sell_items
+        )
 
         return orders, {
             "placed": placed,
@@ -472,29 +475,31 @@ class Executor:
         orders = []
         placed = 0
         succeeded = 0
-        trade_value = Decimal("0")
 
-        # Execute all buy orders first
+        # Execute all buy orders first (placement only)
         for item in buy_items:
             order_result = await self._execute_single_item(item)
             orders.append(order_result)
             placed += 1
 
-            if order_result.success:
-                succeeded += 1
-                trade_value += abs(item.trade_amount)
+            if order_result.order_id:
                 logger.info(
-                    f"✅ BUY {item.symbol} completed successfully (ID: {order_result.order_id})"
+                    f"🧾 BUY {item.symbol} order placed (ID: {order_result.order_id})"
                 )
-            else:
+            elif not order_result.success:
                 logger.error(
-                    f"❌ BUY {item.symbol} failed: {order_result.error_message}"
+                    f"❌ BUY {item.symbol} placement failed: {order_result.error_message}"
                 )
 
-        # Monitor and re-peg buy orders that haven't filled
+        # Monitor and re-peg buy orders that haven't filled and await completion
         if self.smart_strategy and self.enable_smart_execution:
             logger.info("🔄 Monitoring BUY orders for re-pegging opportunities...")
-            await self._monitor_and_repeg_phase_orders("BUY", orders)
+            orders = await self._monitor_and_repeg_phase_orders("BUY", orders)
+
+        # Await completion and finalize statuses
+        orders, succeeded, trade_value = self._finalize_phase_orders(
+            phase_type="BUY", orders=orders, items=buy_items
+        )
 
         return orders, {
             "placed": placed,
@@ -504,12 +509,15 @@ class Executor:
 
     async def _monitor_and_repeg_phase_orders(
         self, phase_type: str, orders: list[OrderResultDTO]
-    ) -> None:
+    ) -> list[OrderResultDTO]:
         """Monitor and re-peg orders from a specific execution phase.
 
         Args:
             phase_type: Type of phase ("SELL" or "BUY")
             orders: List of orders from this phase to monitor
+
+        Returns:
+            Updated list of orders with any re-pegged order IDs swapped in.
 
         """
         # Wait a moment for orders to potentially fill before checking for re-pegging
@@ -527,18 +535,15 @@ class Executor:
             logger.info(
                 f"📊 {phase_type} phase re-pegging: {len(repeg_results)} orders processed"
             )
-            for repeg_result in repeg_results:
-                if repeg_result.success:
-                    logger.info(
-                        f"✅ {phase_type} re-peg successful: {repeg_result.order_id} "
-                        f"(attempt {repeg_result.repegs_used})"
-                    )
-                else:
-                    logger.warning(
-                        f"⚠️ {phase_type} re-peg failed: {repeg_result.error_message}"
-                    )
+            replacement_map = self._build_replacement_map_from_repeg_results(
+                phase_type, repeg_results
+            )
+            if replacement_map:
+                orders = self._replace_order_ids(orders, replacement_map)
         else:
             logger.info(f"📊 {phase_type} phase: No re-pegging needed")
+
+        return orders
 
     def _cleanup_subscriptions(self, symbols: list[str]) -> None:
         """Clean up pricing subscriptions after execution.
@@ -629,9 +634,13 @@ class Executor:
             )
 
             if execution_result.success:
-                logger.info(f"✅ Successfully executed {item.action} for {item.symbol}")
+                logger.info(
+                    f"✅ {item.action} {item.symbol} order placed (ID: {execution_result.order_id})"
+                )
             else:
-                logger.error(f"❌ Failed to execute {item.action} for {item.symbol}")
+                logger.error(
+                    f"❌ Failed to place {item.action} for {item.symbol}"
+                )
 
             return order_result
 
@@ -710,6 +719,172 @@ class Executor:
         except Exception as e:
             logger.warning(f"Error getting position for {symbol}: {e}")
             return Decimal("0")
+
+    def _finalize_phase_orders(
+        self,
+        *,
+        phase_type: str,
+        orders: list[OrderResultDTO],
+        items: list[RebalancePlanItemDTO],
+    ) -> tuple[list[OrderResultDTO], int, Decimal]:
+        """Wait for placed orders to complete and rebuild results based on final status.
+
+        Args:
+            phase_type: "SELL" or "BUY" for logging context
+            orders: Initial order DTOs created at placement time
+            items: Corresponding plan items in the same order as orders
+
+        Returns:
+            Tuple of (updated_orders, succeeded_count, trade_value)
+
+        Notes:
+            - Success is defined strictly as FILLED
+            - PARTIALLY_FILLED is treated as not succeeded; we annotate error_message
+
+        """
+        try:
+            order_ids = [o.order_id for o in orders if o.order_id]
+            if not order_ids:
+                return orders, 0, Decimal("0")
+
+            max_wait = self._derive_max_wait_seconds()
+            final_status_map = self._get_final_status_map(order_ids, max_wait, phase_type)
+            updated_orders, succeeded, trade_value = self._rebuild_orders_with_final_status(
+                orders, items, final_status_map
+            )
+            logger.info(
+                f"📊 {phase_type} phase completion: {succeeded}/{len(orders)} FILLED"
+            )
+            return updated_orders, succeeded, trade_value
+        except Exception as e:
+            logger.error(f"Error finalizing {phase_type} phase orders: {e}")
+            return orders, 0, Decimal("0")
+
+    def _build_replacement_map_from_repeg_results(
+        self, phase_type: str, repeg_results: list[Any]
+    ) -> dict[str, str]:
+        """Build mapping from original to new order IDs for successful re-pegs."""
+        replacement_map: dict[str, str] = {}
+        for repeg_result in repeg_results:
+            try:
+                if getattr(repeg_result, "success", False):
+                    logger.info(
+                        f"✅ {phase_type} re-peg successful: {getattr(repeg_result, 'order_id', '')} "
+                        f"(attempt {getattr(repeg_result, 'repegs_used', 0)})"
+                    )
+                    meta = getattr(repeg_result, "metadata", None) or {}
+                    original_id = str(meta.get("original_order_id")) if isinstance(meta, dict) else ""
+                    new_id = getattr(repeg_result, "order_id", None) or ""
+                    if original_id and new_id:
+                        replacement_map[original_id] = new_id
+                else:
+                    logger.warning(
+                        f"⚠️ {phase_type} re-peg failed: {getattr(repeg_result, 'error_message', '')}"
+                    )
+            except Exception as exc:
+                logger.debug(
+                    f"Failed to process re-peg result for replacement mapping: {exc}"
+                )
+        return replacement_map
+
+    def _replace_order_ids(
+        self, orders: list[OrderResultDTO], replacement_map: dict[str, str]
+    ) -> list[OrderResultDTO]:
+        """Replace order IDs in the given order list according to replacement_map."""
+        updated: list[OrderResultDTO] = []
+        for o in orders:
+            if o.order_id and o.order_id in replacement_map:
+                updated.append(o.model_copy(update={"order_id": replacement_map[o.order_id]}))
+            else:
+                updated.append(o)
+        return updated
+
+    def _derive_max_wait_seconds(self) -> int:
+        """Compute a conservative max wait time for order fills from config."""
+        try:
+            if self.execution_config is not None:
+                wait_base = getattr(self.execution_config, "fill_wait_seconds", 15)
+                max_repegs = getattr(self.execution_config, "max_repegs_per_order", 5)
+                placement_timeout = getattr(
+                    self.execution_config, "order_placement_timeout_seconds", 30
+                )
+                max_wait = int(placement_timeout + wait_base * (max_repegs + 1))
+                return max(30, min(max_wait, 300))
+        except Exception as exc:
+            logger.debug(f"Using default max wait due to config error: {exc}")
+        return 60
+
+    def _get_final_status_map(
+        self,
+        order_ids: list[str],
+        max_wait: int,
+        phase_type: str,
+    ) -> dict[str, tuple[str, Decimal | None]]:
+        """Poll broker and return final status map for each order ID."""
+        try:
+            ws_result = self.alpaca_manager.wait_for_order_completion(
+                order_ids, max_wait_seconds=max_wait
+            )
+            if getattr(ws_result, "status", None) is None:
+                logger.warning(
+                    f"⚠️ {phase_type} phase: Could not determine completion status via polling"
+                )
+        except Exception as exc:
+            logger.warning(
+                f"{phase_type} phase: error while polling for completion: {exc}"
+            )
+
+        final_status_map: dict[str, tuple[str, Decimal | None]] = {}
+        for oid in order_ids:
+            try:
+                exec_res = self.alpaca_manager.get_order_execution_result(oid)
+                status_str = str(getattr(exec_res, "status", "accepted"))
+                avg_price: Decimal | None = getattr(exec_res, "avg_fill_price", None)  # type: ignore[assignment]
+                final_status_map[oid] = (status_str, avg_price)
+            except Exception as exc:
+                logger.warning(f"Failed to refresh order {oid}: {exc}")
+                final_status_map[oid] = ("rejected", None)
+        return final_status_map
+
+    def _rebuild_orders_with_final_status(
+        self,
+        orders: list[OrderResultDTO],
+        items: list[RebalancePlanItemDTO],
+        final_status_map: dict[str, tuple[str, Decimal | None]],
+    ) -> tuple[list[OrderResultDTO], int, Decimal]:
+        """Rebuild OrderResultDTOs with final semantics, compute success and trade value."""
+        updated_orders: list[OrderResultDTO] = []
+        succeeded = 0
+        trade_value = Decimal("0")
+
+        for idx, o in enumerate(orders):
+            if not o.order_id:
+                updated_orders.append(o)
+                continue
+
+            status, avg_price = final_status_map.get(o.order_id, ("rejected", None))
+            is_filled = status == "filled"
+            error_msg = None if is_filled else f"final status: {status}"
+            final_price = avg_price if avg_price is not None else o.price
+
+            new_o = o.model_copy(
+                update={
+                    "success": is_filled,
+                    "price": final_price,
+                    "error_message": error_msg,
+                }
+            )
+            updated_orders.append(new_o)
+
+            if is_filled:
+                succeeded += 1
+                try:
+                    corresponding_item = items[idx]
+                    trade_value += abs(corresponding_item.trade_amount)
+                except Exception:
+                    trade_value += abs(o.trade_amount)
+
+        return updated_orders, succeeded, trade_value
 
     def shutdown(self) -> None:
         """Shutdown the executor and cleanup resources."""

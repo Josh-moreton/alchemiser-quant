@@ -10,15 +10,16 @@ Supports signal analysis and trading execution with dependency injection.
 from __future__ import annotations
 
 import argparse
+from decimal import Decimal
 import logging
 import os
 import sys
-from decimal import Decimal
+from time import sleep
 from typing import Any
 
 # CLI formatter imports (moved from function-level)
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
-from the_alchemiser.orchestration.cli.cli_formatter import render_footer
+from the_alchemiser.orchestration.cli.cli_formatter import render_footer, render_account_info
 from the_alchemiser.orchestration.event_driven_orchestrator import (
     EventDrivenOrchestrator,
 )
@@ -223,6 +224,14 @@ class TradingSystem:
                     orders_executed, trading_result.get("execution_result")
                 )
 
+            # Display a post-trade portfolio snapshot after orders are filled
+            try:
+                self._display_post_trade_portfolio_summary()
+            except Exception as exc:
+                self.logger.warning(
+                    f"Post-trade portfolio summary unavailable: {exc}"
+                )
+
             # 5) Display tracking if requested
             if show_tracking:
                 self._display_post_execution_tracking(
@@ -409,6 +418,79 @@ class TradingSystem:
 
         except Exception as e:
             self.logger.warning(f"Failed to display execution results: {e}")
+
+    def _display_post_trade_portfolio_summary(self) -> None:
+        """Fetch and display the portfolio state after trade execution.
+
+        Shows current account totals and open positions to reflect the
+        post-execution portfolio snapshot.
+        """
+        try:
+            if self.container is None:
+                self.logger.warning(
+                    "Cannot display post-trade portfolio: DI container not initialized"
+                )
+                return
+
+            alpaca_manager = self.container.infrastructure.alpaca_manager()
+
+            # Brief delay to allow broker state to reflect fills
+            sleep(0.5)
+
+            account_info = alpaca_manager.get_account_dict() or {}
+            positions = alpaca_manager.get_positions() or []
+
+            normalized_positions: list[dict[str, Any]] = []
+            # Helper to coerce value to float safely
+            def _to_float(value: object) -> float:
+                try:
+                    return float(value or 0)
+                except Exception:
+                    return 0.0
+
+            for pos in positions:
+                try:
+                    if isinstance(pos, dict):
+                        symbol = str(pos.get("symbol", ""))
+                        qty = _to_float(pos.get("qty", 0))
+                        avg_entry_price = _to_float(pos.get("avg_entry_price", 0))
+                        current_price = _to_float(pos.get("current_price", 0))
+                        market_value = _to_float(pos.get("market_value", 0))
+                        unrealized_pl = _to_float(pos.get("unrealized_pl", 0))
+                        unrealized_plpc = _to_float(pos.get("unrealized_plpc", 0))
+                    else:
+                        symbol = str(getattr(pos, "symbol", ""))
+                        qty = _to_float(getattr(pos, "qty", 0))
+                        avg_entry_price = _to_float(getattr(pos, "avg_entry_price", 0))
+                        current_price = _to_float(getattr(pos, "current_price", 0))
+                        market_value = _to_float(getattr(pos, "market_value", 0))
+                        unrealized_pl = _to_float(getattr(pos, "unrealized_pl", 0))
+                        unrealized_plpc = _to_float(getattr(pos, "unrealized_plpc", 0))
+
+                    normalized_positions.append(
+                        {
+                            "symbol": symbol,
+                            "qty": qty,
+                            "avg_entry_price": avg_entry_price,
+                            "current_price": current_price,
+                            "market_value": market_value,
+                            "unrealized_pl": unrealized_pl,
+                            "unrealized_plpc": unrealized_plpc,
+                        }
+                    )
+                except Exception as exc:
+                    self.logger.debug(f"Skipping position in summary: {exc}")
+                    continue
+
+            render_account_info(
+                {
+                    "account": account_info,
+                    "open_positions": normalized_positions,
+                }
+            )
+
+        except Exception as e:
+            self.logger.warning(f"Failed to display post-trade portfolio: {e}")
 
     def _display_post_execution_tracking(self, *, paper_trading: bool) -> None:
         """Display strategy performance tracking after execution."""
