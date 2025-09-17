@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 
 
 @dataclass(frozen=True)
@@ -30,7 +29,7 @@ class StrategyContext:
     as_of: datetime | None = None
     """Optional timestamp for strategy calculation (defaults to current time)"""
 
-    params: dict[str, Any] | None = None  # type: ignore[misc] # Strategy configuration metadata
+    params: dict[str, str | int | float | bool] | None = None
     """Optional strategy-specific parameters (configuration metadata)"""
 
     def __post_init__(self) -> None:

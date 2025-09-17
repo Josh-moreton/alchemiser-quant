@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 from the_alchemiser.shared.config.confidence_config import ConfidenceConfig
+from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 from the_alchemiser.shared.math.math_utils import (
     calculate_moving_average_return,
     calculate_stdev_returns,
@@ -231,52 +232,53 @@ class KLMEngine(StrategyEngine):
 
     def _calculate_indicators(
         self, market_data: dict[str, pd.DataFrame]
-    ) -> dict[str, dict[str, float]]:
+    ) -> dict[str, TechnicalIndicatorDTO]:
         """Calculate technical indicators for all symbols with data."""
-        indicators = {}
+        indicators: dict[str, TechnicalIndicatorDTO] = {}
         for symbol, data in market_data.items():
             try:
-                symbol_indicators = {}
-
                 # Always operate on the Close price series
                 if data.empty or "Close" not in data.columns:
                     continue
                 close = data["Close"]
 
-                # Calculate common indicators used by KLM variants using Close series
-                symbol_indicators["rsi_10"] = safe_get_indicator(
-                    close, self.indicators.rsi, window=10
-                )
-                symbol_indicators["rsi_14"] = safe_get_indicator(
-                    close, self.indicators.rsi, window=14
-                )
-                # Additional RSI windows required by variants
-                symbol_indicators["rsi_11"] = safe_get_indicator(
-                    close, self.indicators.rsi, window=11
-                )
-                symbol_indicators["rsi_15"] = safe_get_indicator(
-                    close, self.indicators.rsi, window=15
-                )
-                symbol_indicators["rsi_21"] = safe_get_indicator(
-                    close, self.indicators.rsi, window=21
-                )
-                symbol_indicators["rsi_70"] = safe_get_indicator(
-                    close, self.indicators.rsi, window=70
-                )
-                symbol_indicators["sma_200"] = safe_get_indicator(
-                    close, self.indicators.moving_average, window=200
-                )
-                symbol_indicators["ma_return_90"] = calculate_moving_average_return(
-                    close, 90
-                )
-                symbol_indicators["stdev_return_5"] = calculate_stdev_returns(close, 5)
-                symbol_indicators["stdev_return_6"] = calculate_stdev_returns(close, 6)
+                # Calculate RSI indicators
+                rsi_10 = safe_get_indicator(close, self.indicators.rsi, window=10)
+                rsi_14 = safe_get_indicator(close, self.indicators.rsi, window=14)
+                rsi_21 = safe_get_indicator(close, self.indicators.rsi, window=21)
 
-                # Add current price and close price
-                symbol_indicators["close"] = float(close.iloc[-1])
-                symbol_indicators["current_price"] = float(close.iloc[-1])
+                # Calculate moving averages  
+                ma_200 = safe_get_indicator(close, self.indicators.moving_average, window=200)
+                
+                # Calculate returns
+                ma_return_90 = calculate_moving_average_return(close, 90)
+                stdev_return_5 = calculate_stdev_returns(close, 5)
+                stdev_return_6 = calculate_stdev_returns(close, 6)
 
-                indicators[symbol] = symbol_indicators
+                # Additional RSI windows required by variants - store in metadata
+                metadata = {
+                    "rsi_11": safe_get_indicator(close, self.indicators.rsi, window=11),
+                    "rsi_15": safe_get_indicator(close, self.indicators.rsi, window=15), 
+                    "rsi_70": safe_get_indicator(close, self.indicators.rsi, window=70),
+                    "stdev_return_5": stdev_return_5,
+                    "stdev_return_6": stdev_return_6,
+                    "close": float(close.iloc[-1]),
+                }
+
+                # Create TechnicalIndicatorDTO
+                indicators[symbol] = TechnicalIndicatorDTO(
+                    symbol=symbol,
+                    timestamp=datetime.utcnow(),
+                    current_price=Decimal(str(close.iloc[-1])),
+                    rsi_10=rsi_10,
+                    rsi_14=rsi_14,
+                    rsi_21=rsi_21,
+                    ma_200=ma_200,
+                    ma_return_90=ma_return_90,
+                    stdev_return_6=stdev_return_6,
+                    metadata=metadata,
+                    data_source="klm_engine"
+                )
 
             except Exception as e:
                 self.logger.debug(f"Error calculating indicators for {symbol}: {e}")
@@ -285,7 +287,7 @@ class KLMEngine(StrategyEngine):
 
     def _evaluate_ensemble(
         self,
-        indicators: dict[str, dict[str, float]],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame],
     ) -> tuple[str | dict[str, float], str, str, str]:
         """Evaluate all variants and select the best performer - maintains original logic."""
@@ -367,7 +369,7 @@ class KLMEngine(StrategyEngine):
 
     def _evaluate_all_variants(
         self,
-        indicators: dict[str, dict[str, float]],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame],
     ) -> list[tuple[BaseKLMVariant, KLMResult, float]]:
         """Evaluate all strategy variants and return results with performance scores."""

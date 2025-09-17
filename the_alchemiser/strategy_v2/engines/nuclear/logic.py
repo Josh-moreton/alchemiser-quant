@@ -14,7 +14,7 @@ Scope note:
 
 from __future__ import annotations
 
-from ...shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
+from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 
 
 def evaluate_nuclear_strategy(

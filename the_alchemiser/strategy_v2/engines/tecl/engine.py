@@ -516,7 +516,7 @@ class TECLEngine(StrategyEngine):
                 continue
 
             symbol_indicators = indicators[symbol]
-            rsi_10 = symbol_indicators.get("rsi_10")
+            rsi_10 = symbol_indicators.rsi_10
 
             if rsi_10 is None:
                 continue
@@ -549,14 +549,14 @@ class TECLEngine(StrategyEngine):
                 continue
 
             symbol_indicators = indicators[symbol]
-            current_price = symbol_indicators.get("current_price")
-            ma_200 = symbol_indicators.get("ma_200")
+            current_price = symbol_indicators.current_price
+            ma_200 = symbol_indicators.ma_200
 
             if current_price is None or ma_200 is None:
                 continue
 
             # Calculate percentage distance from MA
-            price_decimal = Decimal(str(current_price))
+            price_decimal = current_price
             ma_decimal = Decimal(str(ma_200))
 
             if ma_decimal > 0:

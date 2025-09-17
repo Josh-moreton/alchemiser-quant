@@ -290,7 +290,7 @@ class BaseKLMVariant(ABC):
         """
         # Priority 1: TQQQ oversold check
         if "TQQQ" in indicators:
-            tqqq_rsi = indicators["TQQQ"].get("rsi_10", 50)
+            tqqq_rsi = indicators["TQQQ"].rsi_10 or 50
             if tqqq_rsi < 30:
                 result = self.create_klm_decision(
                     "TECL",
@@ -302,7 +302,7 @@ class BaseKLMVariant(ABC):
 
         # Priority 2: SOXL oversold check
         if "SOXL" in indicators:
-            soxl_rsi = indicators["SOXL"].get("rsi_10", 50)
+            soxl_rsi = indicators["SOXL"].rsi_10 or 50
             if soxl_rsi < 30:
                 result = self.create_klm_decision(
                     "SOXL",
@@ -314,7 +314,7 @@ class BaseKLMVariant(ABC):
 
         # Priority 3: SPXL oversold check
         if "SPXL" in indicators:
-            spxl_rsi = indicators["SPXL"].get("rsi_10", 50)
+            spxl_rsi = indicators["SPXL"].rsi_10 or 50
             if spxl_rsi < 30:
                 result = self.create_klm_decision(
                     "SPXL",

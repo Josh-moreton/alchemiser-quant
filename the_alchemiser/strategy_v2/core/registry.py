@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Protocol
 
-from ...shared.dto.strategy_allocation_dto import StrategyAllocationDTO
+from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
 from ...shared.types.market_data_port import MarketDataPort
 
 
