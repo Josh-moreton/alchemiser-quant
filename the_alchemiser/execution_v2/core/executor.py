@@ -573,28 +573,34 @@ class Executor:
         try:
             side = "buy" if item.action == "BUY" else "sell"
 
-            # Calculate shares based on action type
+            # Determine quantity (shares) to trade
             if item.action == "SELL" and item.target_weight == Decimal("0.0"):
-                # For liquidation (0% target), get actual position quantity
-                shares = self._get_position_quantity(item.symbol)
+                # For liquidation (0% target), use actual position quantity
+                raw_shares = self._get_position_quantity(item.symbol)
+                shares = raw_shares.quantize(Decimal("0.000001"))
                 logger.info(
                     f"📊 Liquidating {item.symbol}: selling {shares} shares (full position)"
                 )
             else:
-                # For other orders, estimate shares from trade amount
-                # This is a simplified calculation - could be improved with real-time price
-                estimated_price = abs(
-                    item.trade_amount
-                    / max(item.current_value / Decimal("100"), Decimal("1"))
-                )
-                shares = (
-                    abs(item.trade_amount / estimated_price)
-                    if estimated_price > 0
-                    else Decimal("1")
+                # Estimate shares from trade amount using best available price
+                price = self._get_price_for_estimation(item.symbol)
+                if price is None or price <= Decimal("0"):
+                    # Safety fallback to 1 share if price discovery fails
+                    shares = Decimal("1")
+                    logger.warning(
+                        f"⚠️ Price unavailable for {item.symbol}; defaulting to 1 share"
+                    )
+                else:
+                    shares = (abs(item.trade_amount) / price).quantize(
+                        Decimal("0.000001")
+                    )
+
+                amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(
+                    Decimal("0.01")
                 )
                 logger.info(
                     f"📊 Executing {item.action} for {item.symbol}: "
-                    f"${item.trade_amount} (estimated {shares} shares)"
+                    f"${amount_fmt} (estimated {shares} shares)"
                 )
 
             # Use smart execution with async context
@@ -643,6 +649,42 @@ class Executor:
                 error_message=str(e),
                 timestamp=datetime.now(UTC),
             )
+
+    def _get_price_for_estimation(self, symbol: str) -> Decimal | None:
+        """Get best-available current price for share estimation.
+
+        Preference order:
+        1) Real-time pricing service (mid/optimized)
+        2) AlpacaManager current price utility
+
+        Returns:
+            Decimal price if available, otherwise None.
+
+        """
+        try:
+            # Try real-time pricing first if smart execution enabled
+            if self.pricing_service and self.enable_smart_execution:
+                try:
+                    price_rt = self.pricing_service.get_real_time_price(symbol)
+                    if price_rt is None:
+                        price_rt = self.pricing_service.get_optimized_price_for_order(
+                            symbol
+                        )
+                    if price_rt is not None and price_rt > 0:
+                        return Decimal(str(price_rt))
+                except Exception as exc:
+                    logger.debug(f"Real-time price lookup failed for {symbol}: {exc}")
+
+            # Fallback to AlpacaManager's current price
+            try:
+                price = self.alpaca_manager.get_current_price(symbol)
+                if price is not None and price > 0:
+                    return Decimal(str(price))
+            except Exception:
+                return None
+        except Exception:
+            return None
+        return None
 
     def _get_position_quantity(self, symbol: str) -> Decimal:
         """Get the actual quantity held for a symbol.
