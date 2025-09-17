@@ -663,7 +663,7 @@ class TradingSystem:
         orders_total = len(order_dtos)
         orders_succeeded = sum(1 for order in order_dtos if order.success)
         orders_failed = orders_total - orders_succeeded
-        total_value = sum(order.trade_amount for order in order_dtos)
+        total_value = sum((order.trade_amount for order in order_dtos), Decimal("0"))
         success_rate = orders_succeeded / orders_total if orders_total > 0 else 1.0
         
         if success and orders_failed == 0:
