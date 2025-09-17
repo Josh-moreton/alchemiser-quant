@@ -38,7 +38,8 @@ def build_allocation_comparison(
     """
     # Get portfolio value from account info
     portfolio_value = account_dict.get("portfolio_value")
-    if portfolio_value is None:
+    # Treat missing or zero portfolio_value as unavailable and fall back to equity
+    if portfolio_value in (None, 0, 0.0, "0", "0.0"):
         portfolio_value = account_dict.get("equity")
 
     if portfolio_value is None:

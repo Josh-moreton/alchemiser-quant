@@ -922,7 +922,9 @@ class TradingOrchestrator:
                 ),
                 # Money fields serialized as strings per policy
                 "filled_avg_price": str(order.price) if order.price else "0",
-                "estimated_value": str(abs(order.trade_amount)),
+                "estimated_value": (
+                    str(order.trade_amount) if order.trade_amount is not None else "0"
+                ),
                 "order_id": order.order_id,
                 "status": "FILLED" if order.success else "FAILED",
                 "error": order.error_message,

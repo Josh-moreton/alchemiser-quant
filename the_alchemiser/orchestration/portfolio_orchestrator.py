@@ -357,6 +357,7 @@ class PortfolioOrchestrator:
             if positions_list:
                 current_positions = {
                     pos.symbol: {
+                        "symbol": str(getattr(pos, "symbol", "")) or str(pos.symbol),
                         "qty": float(getattr(pos, "qty", 0)),
                         "market_value": float(getattr(pos, "market_value", 0)),
                         "avg_entry_price": float(getattr(pos, "avg_entry_price", 0)),
