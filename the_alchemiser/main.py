@@ -197,9 +197,13 @@ class TradingSystem:
                 )
 
             # Show pure strategy outputs first, then rebalance plan
-            self._display_signals_and_rebalance(signals_result)
+            # NOTE: Suppressed for clean CLI - presentation handled by CLI formatter
+            # self._display_signals_and_rebalance(signals_result)
 
             # PHASE 2: Execute trading (may place orders)
+            # Temporarily suppress verbose logs for cleaner CLI output
+            self._configure_quiet_logging()
+            
             try:
                 from rich.logging import RichHandler
                 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -243,6 +247,8 @@ class TradingSystem:
             except Exception:
                 # Fallback if Rich is unavailable
                 trading_result = orchestrator.execute_strategy_signals_with_trading()
+            finally:
+                self._restore_logging()
                 
             if trading_result is None:
                 return self._create_failure_result(
@@ -253,17 +259,19 @@ class TradingSystem:
                 )
 
             # Show execution results only (avoid re-printing signals/plan)
-            orders_executed = trading_result.get("orders_executed", [])
-            if orders_executed:
-                self._display_execution_results(
-                    orders_executed, trading_result.get("execution_result")
-                )
+            # NOTE: Suppressed for clean CLI - presentation handled by CLI formatter
+            # orders_executed = trading_result.get("orders_executed", [])
+            # if orders_executed:
+            #     self._display_execution_results(
+            #         orders_executed, trading_result.get("execution_result")
+            #     )
 
             # Display a post-trade portfolio snapshot after orders are filled
-            try:
-                self._display_post_trade_portfolio_summary()
-            except Exception as exc:
-                warnings.append(f"Post-trade portfolio summary unavailable: {exc}")
+            # NOTE: Suppressed for clean CLI - presentation handled by CLI formatter
+            # try:
+            #     self._display_post_trade_portfolio_summary()
+            # except Exception as exc:
+            #     warnings.append(f"Post-trade portfolio summary unavailable: {exc}")
 
             # 5) Display tracking if requested
             if show_tracking:
@@ -716,6 +724,33 @@ class TradingSystem:
             completed_at=completed_at,
             correlation_id=correlation_id,
         )
+    
+    def _configure_quiet_logging(self) -> None:
+        """Configure quiet logging to reduce CLI noise."""
+        # Store original levels for restoration
+        self._original_levels = {}
+        
+        # Modules to quiet down (these tend to be noisy during execution)
+        noisy_modules = [
+            "the_alchemiser.execution_v2",
+            "the_alchemiser.portfolio_v2", 
+            "the_alchemiser.strategy_v2",
+            "alpaca",
+            "urllib3",
+            "requests"
+        ]
+        
+        for module_name in noisy_modules:
+            logger = logging.getLogger(module_name)
+            self._original_levels[module_name] = logger.level
+            logger.setLevel(logging.WARNING)
+    
+    def _restore_logging(self) -> None:
+        """Restore original logging levels."""
+        if hasattr(self, '_original_levels'):
+            for module_name, level in self._original_levels.items():
+                logger = logging.getLogger(module_name)
+                logger.setLevel(level)
 
 
 def _resolve_log_level(*, is_production: bool) -> int:
@@ -863,11 +898,7 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
                 show_tracking=getattr(args, "show_tracking", False),
                 export_tracking_json=getattr(args, "export_tracking_json", None),
             )
-            # For compatibility, render footer but return DTO
-            if result.success:
-                render_footer("Operation completed successfully!")
-            else:
-                render_footer("Operation failed!")
+            # NOTE: CLI handles all footer rendering now - clean separation
             return result
         else:
             # This should never happen since we only accept "trade" mode now

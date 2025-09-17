@@ -148,12 +148,18 @@ def trade(
         # Import and run the main trading logic with DI
         from the_alchemiser.main import main
         from the_alchemiser.shared.dto.trade_run_result_dto import TradeRunResultDTO
+        from the_alchemiser.orchestration.cli.clean_formatter import render_trade_result
 
         # Suppress progress messages for JSON mode
         if not json_output:
-            console.print("[dim]📊 Analyzing market conditions...[/dim]")
-            time.sleep(0.5)  # Brief pause for UI
-            console.print("[dim]⚡ Generating strategy signals...[/dim]")
+            console.print(f"[bold yellow]Starting {mode_display} trading...[/bold yellow]")
+            
+            if not no_header:
+                console.print("[dim]📊 Analyzing market conditions...[/dim]")
+                time.sleep(0.5)  # Brief pause for UI
+                console.print("[dim]⚡ Generating strategy signals...[/dim]")
+                console.print("[dim]📋 Planning portfolio rebalance...[/dim]")
+                console.print("[dim]🚀 Executing trades...[/dim]")
 
         # Build argv for main function (no --live flag)
         argv = ["trade"]
@@ -166,27 +172,16 @@ def trade(
 
         # Handle the new DTO result type
         if isinstance(result, TradeRunResultDTO):
-            # JSON output mode
-            if json_output:
-                import json
-                import sys
-                json.dump(result.to_json_dict(), sys.stdout, indent=2)
-                sys.stdout.write("\n")
-                # Exit code based on success
-                if not result.success:
-                    raise typer.Exit(1)
-                return
+            # Use clean formatter for both JSON and regular output
+            render_trade_result(
+                result, 
+                json_output=json_output, 
+                verbose=verbose, 
+                console=console
+            )
             
-            # Normal CLI output
-            if not no_header:
-                console.print("[dim]✅ Trading completed![/dim]")
-
-            if result.success:
-                console.print(
-                    f"\n[bold green]{mode_display} trading completed successfully![/bold green]"
-                )
-            else:
-                console.print(f"\n[bold red]{mode_display} trading failed![/bold red]")
+            # Exit code based on success
+            if not result.success:
                 raise typer.Exit(1)
         else:
             # Legacy boolean result (should not happen)
