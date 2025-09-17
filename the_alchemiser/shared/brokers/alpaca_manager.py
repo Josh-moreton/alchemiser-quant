@@ -270,6 +270,19 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get positions: {e}")
             raise
 
+    def get_all_positions(self) -> list[Any]:
+        """Alias for `get_positions()` to mirror Alpaca SDK naming.
+
+        Note:
+        - Prefer using `get_positions()` throughout the codebase for consistency.
+        - This alias exists to reduce confusion for contributors familiar with the SDK.
+
+        Returns:
+            List of position objects with attributes like symbol, qty, market_value, etc.
+
+        """
+        return self.get_positions()
+
     def get_positions_dict(self) -> dict[str, float]:
         """Get all positions as dict mapping symbol to quantity.
 

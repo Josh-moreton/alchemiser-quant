@@ -78,9 +78,7 @@ def show_welcome() -> None:
 
     """
     welcome_text = Text()
-    welcome_text.append(
-        " The Alchemiser Quantitative Trading System\n", style=STYLE_BOLD_CYAN
-    )
+    welcome_text.append(" The Alchemiser Quantitative Trading System\n", style=STYLE_BOLD_CYAN)
     welcome_text.append("Advanced Multi-Strategy Trading System", style=STYLE_ITALIC)
 
     panel = Panel(
@@ -104,7 +102,7 @@ def trade(
     verbose: bool = typer.Option(  # noqa: FBT001
         default=False, help="Enable verbose output"
     ),
-    no_header: bool = typer.Option(
+    no_header: bool = typer.Option(  # noqa: FBT001
         default=False, help="Skip welcome header"
     ),
     show_tracking: bool = typer.Option(  # noqa: FBT001
@@ -137,13 +135,9 @@ def trade(
             f"[bold red]LIVE trading mode active (stage: {stage.upper()}). Proceeding without confirmation.[/bold red]"
         )
     else:
-        console.print(
-            f"[bold blue]PAPER trading mode active (stage: {stage.upper()}).[/bold blue]"
-        )
+        console.print(f"[bold blue]PAPER trading mode active (stage: {stage.upper()}).[/bold blue]")
 
-    mode_display = (
-        "[bold red]LIVE[/bold red]" if is_live else "[bold blue]PAPER[/bold blue]"
-    )
+    mode_display = "[bold red]LIVE[/bold red]" if is_live else "[bold blue]PAPER[/bold blue]"
     console.print(f"[bold yellow]Starting {mode_display} trading...[/bold yellow]")
 
     try:
@@ -217,9 +211,7 @@ def _determine_trading_mode() -> tuple[bool, bool, str]:
     _, _, endpoint = get_alpaca_keys()
     is_live = bool(endpoint and "paper" not in endpoint.lower())
     paper_trading = not is_live
-    mode_display = (
-        "[bold red]LIVE[/bold red]" if is_live else "[bold blue]PAPER[/bold blue]"
-    )
+    mode_display = "[bold red]LIVE[/bold red]" if is_live else "[bold blue]PAPER[/bold blue]"
 
     return is_live, paper_trading, mode_display
 
@@ -246,7 +238,7 @@ def _display_positions(alpaca_manager: AlpacaManager) -> None:
 
     """
     try:
-        positions = alpaca_manager.get_all_positions()
+        positions = alpaca_manager.get_positions()
         if positions:
             table = Table(title="Open Positions", show_lines=True, expand=True)
             table.add_column("Symbol", style=STYLE_BOLD_CYAN)
@@ -308,9 +300,7 @@ def status() -> None:
     # Show warning for live accounts
     _show_live_warning(is_live)
 
-    console.print(
-        f"[bold yellow]Fetching {mode_display} account status...[/bold yellow]"
-    )
+    console.print(f"[bold yellow]Fetching {mode_display} account status...[/bold yellow]")
 
     try:
         # Initialize DI container through TradingSystem
@@ -320,9 +310,7 @@ def status() -> None:
         trading_system = TradingSystem()
         container = trading_system.container
         if container is None:
-            raise RuntimeError(
-                "DI container not available - ensure system is properly initialized"
-            )
+            raise RuntimeError("DI container not available - ensure system is properly initialized")
 
         # Override the paper_trading provider so downstream providers pick the right keys/endpoints
         with suppress(AttributeError):
@@ -371,9 +359,7 @@ def deploy() -> None:
     """
     show_welcome()
 
-    console.print(
-        "[bold yellow]🔨 Building and deploying to AWS Lambda with SAM...[/bold yellow]"
-    )
+    console.print("[bold yellow]🔨 Building and deploying to AWS Lambda with SAM...[/bold yellow]")
 
     # Resolve the deploy script to an absolute, validated path
     repo_root = Path.cwd()
@@ -409,9 +395,7 @@ def deploy() -> None:
                 env=os.environ.copy(),
             )
 
-            console.print(
-                "[bold green]✅ Deployment completed successfully![/bold green]"
-            )
+            console.print("[bold green]✅ Deployment completed successfully![/bold green]")
             console.print("\n[dim]Deployment output:[/dim]")
             console.print(result.stdout)
 
@@ -423,9 +407,7 @@ def deploy() -> None:
             console.print(f"[bold red]❌ Deployment script not found: {e}[/bold red]")
             raise typer.Exit(1)
         except PermissionError as e:
-            console.print(
-                f"[bold red]❌ Permission denied during deployment: {e}[/bold red]"
-            )
+            console.print(f"[bold red]❌ Permission denied during deployment: {e}[/bold red]")
             raise typer.Exit(1)
         except (OSError, ValueError, AttributeError) as e:
             logger = get_logger(__name__)
@@ -446,21 +428,13 @@ def deploy() -> None:
 def version() -> None:
     """I  [bold]Show version information[/bold]."""
     version_info = Text()
-    version_info.append(
-        " The Alchemiser Quantitative Trading System\n", style=STYLE_BOLD_CYAN
-    )
+    version_info.append(" The Alchemiser Quantitative Trading System\n", style=STYLE_BOLD_CYAN)
     version_info.append("Version: 2.0.0\n", style="bold")
-    version_info.append(
-        f"Built: {datetime.now(UTC).strftime('%Y-%m-%d')}\n", style="dim"
-    )
-    version_info.append(
-        "Strategies: Nuclear, TECL, KLM, Multi-Strategy\n", style="green"
-    )
+    version_info.append(f"Built: {datetime.now(UTC).strftime('%Y-%m-%d')}\n", style="dim")
+    version_info.append("Strategies: Nuclear, TECL, KLM, Multi-Strategy\n", style="green")
     version_info.append("Platform: Alpaca Markets", style="blue")
 
-    console.print(
-        Panel(version_info, title="[bold]Version Info[/bold]", border_style="cyan")
-    )
+    console.print(Panel(version_info, title="[bold]Version Info[/bold]", border_style="cyan"))
 
 
 # Indicator validation command removed as part of CLI simplification.

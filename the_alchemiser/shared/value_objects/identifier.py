@@ -6,14 +6,12 @@ Typed identifier base class for domain entities.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Generic, Self, TypeVar
+from typing import Self
 from uuid import UUID, uuid4
-
-T_contra = TypeVar("T_contra", contravariant=True)
 
 
 @dataclass(frozen=True)
-class Identifier(Generic[T_contra]):
+class Identifier[T_contra]:
     """Base class for typed identifiers.
 
     Strongly-typed identifiers prevent accidental cross-entity ID usage.

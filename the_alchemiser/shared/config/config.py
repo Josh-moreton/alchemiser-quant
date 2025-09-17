@@ -51,7 +51,7 @@ class SecretsManagerSettings(BaseModel):
     """Configuration for AWS Secrets Manager access."""
 
     region_name: str = "eu-west-2"
-    secret_name: str = "the-alchemiser-secrets"
+    secret_name: str = "the-alchemiser-secrets"  # noqa: S105
 
 
 class StrategySettings(BaseModel):

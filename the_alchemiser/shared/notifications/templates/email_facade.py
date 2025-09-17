@@ -57,7 +57,9 @@ def build_error_email_html(title: str, message: str) -> str:
     return BaseEmailTemplate.wrap_content(content, f"The Alchemiser - {title}")
 
 
-def build_multi_strategy_email_html(result: MultiStrategyExecutionResultDTO, mode: str = "PAPER") -> str:
+def build_multi_strategy_email_html(
+    result: MultiStrategyExecutionResultDTO, mode: str = "PAPER"
+) -> str:
     """Build a multi-strategy execution report email.
 
     This function wraps the existing MultiStrategyReportBuilder.build_multi_strategy_report method.
@@ -169,7 +171,9 @@ class EmailTemplates:
         return build_multi_strategy_email_html(result, mode)
 
     @staticmethod
-    def build_multi_strategy_report_neutral(result: MultiStrategyExecutionResultDTO, mode: str = "PAPER") -> str:
+    def build_multi_strategy_report_neutral(
+        result: MultiStrategyExecutionResultDTO, mode: str = "PAPER"
+    ) -> str:
         """Generate a neutral multi-strategy execution report.
 
         This is an alias for multi_strategy_report to maintain backward compatibility.

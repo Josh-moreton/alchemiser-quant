@@ -102,8 +102,7 @@ class Executor:
         self,
         symbol: str,
         side: str,
-        quantity: float,
-        order_type: str = "market",
+        quantity: Decimal,
         correlation_id: str | None = None,
     ) -> ExecutionResult:
         """Execute an order with smart execution if enabled.
@@ -112,7 +111,6 @@ class Executor:
             symbol: Stock symbol
             side: "buy" or "sell"
             quantity: Number of shares
-            order_type: "market" or "limit"
             correlation_id: Correlation ID for tracking
 
         Returns:
@@ -127,7 +125,7 @@ class Executor:
                 request = SmartOrderRequest(
                     symbol=symbol,
                     side=side.upper(),
-                    quantity=quantity,
+                    quantity=Decimal(str(quantity)),
                     correlation_id=correlation_id or "",
                     urgency="NORMAL",
                 )
@@ -140,8 +138,8 @@ class Executor:
                         order_id=result.order_id,
                         symbol=symbol,
                         side=side,
-                        quantity=quantity,
-                        price=float(result.final_price) if result.final_price else None,
+                        quantity=Decimal(str(quantity)),
+                        price=(result.final_price if result.final_price else None),
                         status="submitted",
                         success=True,
                         execution_strategy=result.execution_strategy,
@@ -155,10 +153,10 @@ class Executor:
 
         # Fallback to regular market order
         logger.info(f"📈 Using standard market order for {symbol}")
-        return self._execute_market_order(symbol, side, quantity)
+        return self._execute_market_order(symbol, side, Decimal(str(quantity)))
 
     def _execute_market_order(
-        self, symbol: str, side: str, quantity: float
+        self, symbol: str, side: str, quantity: Decimal
     ) -> ExecutionResult:
         """Execute a standard market order.
 
@@ -175,7 +173,7 @@ class Executor:
             result = self.alpaca_manager.place_market_order(
                 symbol=symbol,
                 side=side.lower(),
-                qty=quantity,
+                qty=float(quantity),
             )
 
             return ExecutionResult(
@@ -183,7 +181,7 @@ class Executor:
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
-                price=result.price,
+                price=(result.price if result.price is not None else None),
                 status=result.status.lower() if result.status else "submitted",
                 success=result.status not in ["REJECTED", "CANCELED"],
                 execution_strategy="market_order",
@@ -228,7 +226,7 @@ class Executor:
         all_symbols = self._extract_all_symbols(plan)
 
         # Bulk subscribe to all symbols for efficient pricing
-        self._bulk_subscribe_symbols(all_symbols, plan.correlation_id)
+        self._bulk_subscribe_symbols(all_symbols)
 
         # Separate orders by type
         sell_items = [item for item in plan.items if item.action == "SELL"]
@@ -334,14 +332,11 @@ class Executor:
         logger.info(f"📋 Extracted {len(sorted_symbols)} unique symbols for execution")
         return sorted_symbols
 
-    def _bulk_subscribe_symbols(
-        self, symbols: list[str], correlation_id: str
-    ) -> dict[str, bool]:
+    def _bulk_subscribe_symbols(self, symbols: list[str]) -> dict[str, bool]:
         """Bulk subscribe to all symbols for efficient real-time pricing.
 
         Args:
             symbols: List of symbols to subscribe to
-            correlation_id: Correlation ID for tracking
 
         Returns:
             Dictionary mapping symbol to subscription success
@@ -523,7 +518,10 @@ class Executor:
         await asyncio.sleep(1)
 
         # Check for re-pegging opportunities on orders from this phase
-        repeg_results = await self.smart_strategy.check_and_repeg_orders()
+        if self.smart_strategy is not None:
+            repeg_results = await self.smart_strategy.check_and_repeg_orders()
+        else:
+            repeg_results = []
 
         if repeg_results:
             logger.info(
@@ -603,8 +601,7 @@ class Executor:
             execution_result = await self.execute_order(
                 symbol=item.symbol,
                 side=side,
-                quantity=float(shares),
-                order_type="limit",  # Use limit orders for smart execution
+                quantity=shares,
                 correlation_id=f"rebalance-{item.symbol}",
             )
 

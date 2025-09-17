@@ -195,7 +195,7 @@ class PortfolioOrchestrator:
             # Get current account info and positions
             alpaca_manager = self.container.infrastructure.alpaca_manager()
 
-            # Get account information as SDK object
+            # Get account information (may be SDK object or dict)
             account_info = alpaca_manager.get_account()
             if not account_info:
                 self.logger.warning("Could not retrieve account information")
@@ -206,29 +206,68 @@ class PortfolioOrchestrator:
             positions_dict = {
                 pos.symbol: float(pos.market_value) for pos in current_positions
             }
+            try:
+                total_mkt_val = sum(positions_dict.values()) if positions_dict else 0.0
+                self.logger.debug(
+                    "AllocationComparison: positions loaded",
+                    extra={
+                        "module": __name__,
+                        "position_count": len(positions_dict),
+                        "positions_total_market_value": f"{total_mkt_val:.2f}",
+                    },
+                )
+            except Exception as exc:
+                self.logger.debug(
+                    f"AllocationComparison: positions summary failed: {exc}"
+                )
 
             # Use shared utilities for allocation comparison
             from the_alchemiser.shared.utils.portfolio_calculations import (
                 build_allocation_comparison,
             )
 
-            # Convert SDK account to numeric dict for calculation
-            def _to_float_attr(obj: object, name: str) -> float:
-                try:
-                    raw = getattr(obj, name, None)
-                    if raw is None:
-                        return 0.0
-                    return (
-                        float(raw) if isinstance(raw, int | float) else float(str(raw))
-                    )
-                except (ValueError, TypeError):
-                    return 0.0
+            # Normalize account info to numeric dict for calculation
+            if isinstance(account_info, dict):
 
-            account_dict = {
-                "equity": _to_float_attr(account_info, "equity"),
-                "portfolio_value": _to_float_attr(account_info, "portfolio_value"),
-                "buying_power": _to_float_attr(account_info, "buying_power"),
-            }
+                def _to_float_val(value: object) -> float:
+                    try:
+                        if value is None:
+                            return 0.0
+                        return (
+                            float(value)
+                            if isinstance(value, int | float)
+                            else float(str(value))
+                        )
+                    except (ValueError, TypeError):
+                        return 0.0
+
+                account_dict = {
+                    "equity": _to_float_val(account_info.get("equity")),
+                    "portfolio_value": _to_float_val(
+                        account_info.get("portfolio_value")
+                    ),
+                    "buying_power": _to_float_val(account_info.get("buying_power")),
+                }
+            else:
+
+                def _to_float_attr(obj: object, name: str) -> float:
+                    try:
+                        raw = getattr(obj, name, None)
+                        if raw is None:
+                            return 0.0
+                        return (
+                            float(raw)
+                            if isinstance(raw, int | float)
+                            else float(str(raw))
+                        )
+                    except (ValueError, TypeError):
+                        return 0.0
+
+                account_dict = {
+                    "equity": _to_float_attr(account_info, "equity"),
+                    "portfolio_value": _to_float_attr(account_info, "portfolio_value"),
+                    "buying_power": _to_float_attr(account_info, "buying_power"),
+                }
 
             # Convert ConsolidatedPortfolioDTO to dict for existing utility function
             allocation_comparison_data = build_allocation_comparison(
@@ -244,6 +283,34 @@ class PortfolioOrchestrator:
                 deltas=allocation_comparison_data["deltas"],
             )
 
+            # Debug: detect zeroed DTOs and log context
+            try:
+                from decimal import Decimal as _D
+
+                tgt_sum = sum(allocation_comparison_dto.target_values.values(), _D("0"))
+                cur_sum = sum(
+                    allocation_comparison_dto.current_values.values(), _D("0")
+                )
+                zeroed = tgt_sum <= _D("0")
+                self.logger.debug(
+                    "AllocationComparison: built DTO",
+                    extra={
+                        "module": __name__,
+                        "target_sum": str(tgt_sum),
+                        "current_sum": str(cur_sum),
+                        "account_portfolio_value": account_dict.get("portfolio_value"),
+                        "account_equity": account_dict.get("equity"),
+                        "used_effective_base": account_dict.get("portfolio_value")
+                        or account_dict.get("equity"),
+                        "target_weights_sum": sum(
+                            consolidated_portfolio.to_dict_allocation().values()
+                        ),
+                        "dto_zeroed": zeroed,
+                    },
+                )
+            except Exception as exc:
+                self.logger.debug(f"AllocationComparison: DTO summary failed: {exc}")
+
             self.logger.info("Generated allocation comparison analysis")
 
             # DUAL-PATH: Emit AllocationComparisonCompleted event for event-driven consumers
@@ -255,7 +322,10 @@ class PortfolioOrchestrator:
                 }
 
                 # Calculate current allocations from positions
-                total_portfolio_value = float(account_info.portfolio_value)
+                # account_info may be an SDK object or a dict; use the normalized dict built above
+                total_portfolio_value = account_dict.get(
+                    "portfolio_value", 0.0
+                ) or account_dict.get("equity", 0.0)
                 current_allocations_decimal = {}
                 differences_decimal = {}
 
@@ -307,20 +377,32 @@ class PortfolioOrchestrator:
         try:
             alpaca_manager = self.container.infrastructure.alpaca_manager()
 
-            # Get account info (SDK object)
+            # Get account info (SDK object or dict)
             account_raw = alpaca_manager.get_account()
             account_info = None
             if account_raw:
-                portfolio_value_any = getattr(
-                    account_raw, "portfolio_value", None
-                ) or getattr(account_raw, "equity", None)
-                equity_any = getattr(account_raw, "equity", None) or getattr(
-                    account_raw, "portfolio_value", None
-                )
+                if isinstance(account_raw, dict):
+                    portfolio_value_any = account_raw.get(
+                        "portfolio_value"
+                    ) or account_raw.get("equity")
+                    equity_any = account_raw.get("equity") or account_raw.get(
+                        "portfolio_value"
+                    )
+                    cash_any = account_raw.get("cash", 0)
+                    buying_power_any = account_raw.get("buying_power", 0)
+                else:
+                    portfolio_value_any = getattr(
+                        account_raw, "portfolio_value", None
+                    ) or getattr(account_raw, "equity", None)
+                    equity_any = getattr(account_raw, "equity", None) or getattr(
+                        account_raw, "portfolio_value", None
+                    )
+                    cash_any = getattr(account_raw, "cash", 0)
+                    buying_power_any = getattr(account_raw, "buying_power", 0)
                 account_info = {
                     "portfolio_value": portfolio_value_any,
-                    "cash": getattr(account_raw, "cash", 0),
-                    "buying_power": getattr(account_raw, "buying_power", 0),
+                    "cash": cash_any,
+                    "buying_power": buying_power_any,
                     "equity": equity_any,
                 }
 
@@ -342,6 +424,7 @@ class PortfolioOrchestrator:
             if positions_list:
                 current_positions = {
                     pos.symbol: {
+                        "symbol": str(getattr(pos, "symbol", "")) or str(pos.symbol),
                         "qty": float(getattr(pos, "qty", 0)),
                         "market_value": float(getattr(pos, "market_value", 0)),
                         "avg_entry_price": float(getattr(pos, "avg_entry_price", 0)),

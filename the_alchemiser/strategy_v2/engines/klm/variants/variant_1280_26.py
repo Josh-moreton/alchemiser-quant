@@ -124,7 +124,9 @@ class KlmVariant128026(BaseKLMVariant):
         kmlm_rsi = indicators["KMLM"].rsi_10 or 50
         return xlk_rsi > kmlm_rsi
 
-    def _execute_kmlm_switcher_logic(self, indicators: dict[str, TechnicalIndicatorDTO]) -> KLMDecision:
+    def _execute_kmlm_switcher_logic(
+        self, indicators: dict[str, TechnicalIndicatorDTO]
+    ) -> KLMDecision:
         """Execute the KMLM switcher selection logic."""
         candidates = self._get_switcher_candidates(indicators)
 
@@ -172,7 +174,9 @@ class KlmVariant128026(BaseKLMVariant):
         self.log_klm_decision(result)
         return result
 
-    def _evaluate_ls_rotator_1280(self, indicators: dict[str, TechnicalIndicatorDTO]) -> KLMDecision:
+    def _evaluate_ls_rotator_1280(
+        self, indicators: dict[str, TechnicalIndicatorDTO]
+    ) -> KLMDecision:
         """Evaluate 1280/26 L/S Rotator using SQQQ/TLT select-top 1."""
         candidates = []
         for symbol in ["SQQQ", "TLT"]:

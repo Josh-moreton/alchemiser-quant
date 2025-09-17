@@ -45,15 +45,11 @@ class MarketBarDTO(BaseModel):
     volume: int = Field(..., ge=0, description="Trading volume")
 
     # Optional technical analysis fields
-    vwap: Decimal | None = Field(
-        default=None, gt=0, description="Volume weighted average price"
-    )
+    vwap: Decimal | None = Field(default=None, gt=0, description="Volume weighted average price")
     trade_count: int | None = Field(default=None, ge=0, description="Number of trades")
 
     # Data quality indicators
-    is_incomplete: bool = Field(
-        default=False, description="Whether bar data is incomplete"
-    )
+    is_incomplete: bool = Field(default=False, description="Whether bar data is incomplete")
     data_source: str | None = Field(default=None, description="Data source identifier")
 
     @field_validator("symbol")
@@ -78,11 +74,7 @@ class MarketBarDTO(BaseModel):
     @classmethod
     def validate_high_price(cls, v: Decimal, info: ValidationInfo) -> Decimal:
         """Validate high price is >= low price if both present."""
-        if (
-            hasattr(info, "data")
-            and "low_price" in info.data
-            and v < info.data["low_price"]
-        ):
+        if hasattr(info, "data") and "low_price" in info.data and v < info.data["low_price"]:
             raise ValueError("High price must be >= low price")
         return v
 
@@ -90,11 +82,7 @@ class MarketBarDTO(BaseModel):
     @classmethod
     def validate_low_price(cls, v: Decimal, info: ValidationInfo) -> Decimal:
         """Validate low price is <= high price if both present."""
-        if (
-            hasattr(info, "data")
-            and "high_price" in info.data
-            and v > info.data["high_price"]
-        ):
+        if hasattr(info, "data") and "high_price" in info.data and v > info.data["high_price"]:
             raise ValueError("Low price must be <= high price")
         return v
 
@@ -147,9 +135,7 @@ class MarketBarDTO(BaseModel):
                     timestamp_str = timestamp_str[:-1] + "+00:00"
                 data["timestamp"] = datetime.fromisoformat(timestamp_str)
             except ValueError as e:
-                raise ValueError(
-                    f"Invalid timestamp format: {data['timestamp']}"
-                ) from e
+                raise ValueError(f"Invalid timestamp format: {data['timestamp']}") from e
 
         # Convert string decimal fields back to Decimal
         decimal_fields = [
@@ -168,16 +154,12 @@ class MarketBarDTO(BaseModel):
                 try:
                     data[field_name] = Decimal(data[field_name])
                 except (ValueError, TypeError) as e:
-                    raise ValueError(
-                        f"Invalid {field_name} value: {data[field_name]}"
-                    ) from e
+                    raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
 
         return cls(**data)
 
     @classmethod
-    def from_alpaca_bar(
-        cls, bar_dict: dict[str, Any], symbol: str, timeframe: str
-    ) -> MarketBarDTO:
+    def from_alpaca_bar(cls, bar_dict: dict[str, Any], symbol: str, timeframe: str) -> MarketBarDTO:
         """Create MarketBarDTO from Alpaca SDK bar data.
 
         Args:
@@ -202,9 +184,7 @@ class MarketBarDTO(BaseModel):
             if isinstance(timestamp_value, datetime):
                 timestamp = timestamp_value
             else:
-                timestamp = datetime.fromisoformat(
-                    str(timestamp_value).replace("Z", "+00:00")
-                )
+                timestamp = datetime.fromisoformat(str(timestamp_value).replace("Z", "+00:00"))
 
             return cls(
                 timestamp=timestamp,
