@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 from the_alchemiser.shared.utils.common import ActionType
 
 if TYPE_CHECKING:
@@ -54,7 +55,7 @@ class KlmVariant53018(BaseKLMVariant):
 
     def evaluate(
         self,
-        indicators: dict[str, dict[str, float]],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame] | None = None,
     ) -> KLMDecision:
         """Evaluate the complete 530/18 Scale-In variant exactly as in CLJ.
@@ -104,14 +105,12 @@ class KlmVariant53018(BaseKLMVariant):
         # Step 9: "10. KMLM Switcher | Holy Grail" - the final complex branch
         return self._evaluate_holy_grail_kmlm_switcher(indicators)
 
-    def _evaluate_spy_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_spy_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """SPY Scale-In | VIX+ -> VIX++ (CLJ lines 782-796)."""
         if "SPY" not in indicators:
             return None
 
-        spy_rsi = indicators["SPY"].get("rsi_10", 50)
+        spy_rsi = indicators["SPY"].rsi_10 or 50
 
         if spy_rsi > 80:
             if spy_rsi > 82.5:
@@ -124,9 +123,7 @@ class KlmVariant53018(BaseKLMVariant):
                 )
             else:
                 # VIX Blend+ - Equal VIX allocation
-                allocation = (
-                    self.vix_blend_plus
-                )  # {UVXY: 0.333, VXX: 0.333, VIXM: 0.333}
+                allocation = self.vix_blend_plus  # {UVXY: 0.333, VXX: 0.333, VIXM: 0.333}
                 result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
@@ -138,14 +135,12 @@ class KlmVariant53018(BaseKLMVariant):
 
         return None
 
-    def _evaluate_ioo_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_ioo_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """IOO Scale-In | VIX+ -> VIX++ (identical pattern to SPY)."""
         if "IOO" not in indicators:
             return None
 
-        ioo_rsi = indicators["IOO"].get("rsi_10", 50)
+        ioo_rsi = indicators["IOO"].rsi_10 or 50
 
         if ioo_rsi > 80:
             if ioo_rsi > 82.5:
@@ -168,14 +163,12 @@ class KlmVariant53018(BaseKLMVariant):
 
         return None
 
-    def _evaluate_qqq_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_qqq_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """QQQ Scale-In | VIX+ -> VIX++ (threshold 79 vs 80)."""
         if "QQQ" not in indicators:
             return None
 
-        qqq_rsi = indicators["QQQ"].get("rsi_10", 50)
+        qqq_rsi = indicators["QQQ"].rsi_10 or 50
 
         if qqq_rsi > 79:  # Different threshold!
             if qqq_rsi > 82.5:
@@ -198,14 +191,12 @@ class KlmVariant53018(BaseKLMVariant):
 
         return None
 
-    def _evaluate_vtv_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_vtv_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """VTV Scale-In | VIX -> VIX+ (different pattern - uses VIXY)."""
         if "VTV" not in indicators:
             return None
 
-        vtv_rsi = indicators["VTV"].get("rsi_10", 50)
+        vtv_rsi = indicators["VTV"].rsi_10 or 50
 
         if vtv_rsi > 79:
             if vtv_rsi > 85:  # Higher threshold for VIX+
@@ -228,14 +219,12 @@ class KlmVariant53018(BaseKLMVariant):
 
         return None
 
-    def _evaluate_xlp_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_xlp_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """XLP Scale-In | VIX -> VIX+ (threshold 77, same pattern as VTV)."""
         if "XLP" not in indicators:
             return None
 
-        xlp_rsi = indicators["XLP"].get("rsi_10", 50)
+        xlp_rsi = indicators["XLP"].rsi_10 or 50
 
         if xlp_rsi > 77:  # Different threshold
             if xlp_rsi > 85:
@@ -258,14 +247,12 @@ class KlmVariant53018(BaseKLMVariant):
 
         return None
 
-    def _evaluate_xlf_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_xlf_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """XLF Scale-In | VIX -> VIX+ (threshold 81, same pattern)."""
         if "XLF" not in indicators:
             return None
 
-        xlf_rsi = indicators["XLF"].get("rsi_10", 50)
+        xlf_rsi = indicators["XLF"].rsi_10 or 50
 
         if xlf_rsi > 81:
             if xlf_rsi > 85:
@@ -295,7 +282,7 @@ class KlmVariant53018(BaseKLMVariant):
         if "RETL" not in indicators:
             return None
 
-        retl_rsi = indicators["RETL"].get("rsi_10", 50)
+        retl_rsi = indicators["RETL"].rsi_10 or 50
 
         if retl_rsi > 82:
             if retl_rsi > 85:
@@ -325,15 +312,25 @@ class KlmVariant53018(BaseKLMVariant):
 
         This is where 530/18 gets extremely complex with commodity allocations.
         """
-        if "SPY" not in indicators or "rsi_70" not in indicators["SPY"]:
+        if "SPY" not in indicators:
             return None
 
-        spy_rsi_70 = indicators["SPY"].get("rsi_70", 50)
+        spy_rsi_70 = (
+            indicators["SPY"].metadata.get("rsi_70", 50) if indicators["SPY"].metadata else 50
+        )
 
         if spy_rsi_70 > 63:
             # Complex "Overbought" logic with AGG > QQQ comparison
-            agg_rsi_15 = indicators.get("AGG", {}).get("rsi_15", 50)
-            qqq_rsi_15 = indicators.get("QQQ", {}).get("rsi_15", 50)
+            agg_rsi_15 = (
+                indicators["AGG"].metadata.get("rsi_15", 50)
+                if "AGG" in indicators and indicators["AGG"].metadata
+                else 50
+            )
+            qqq_rsi_15 = (
+                indicators["QQQ"].metadata.get("rsi_15", 50)
+                if "QQQ" in indicators and indicators["QQQ"].metadata
+                else 50
+            )
 
             if agg_rsi_15 > qqq_rsi_15:
                 # "All 3x Tech" allocation
@@ -377,7 +374,7 @@ class KlmVariant53018(BaseKLMVariant):
         6. Long/short rotator with stdev filtering
         """
         # Check VOX overbought
-        if "VOX" in indicators and indicators["VOX"].get("rsi_10", 0) > 79:
+        if "VOX" in indicators and (indicators["VOX"].rsi_10 or 0) > 79:
             allocation = self.vix_blend
             result = self.create_klm_decision(
                 allocation,
@@ -388,7 +385,7 @@ class KlmVariant53018(BaseKLMVariant):
             return result
 
         # Check XLP overbought
-        if "XLP" in indicators and indicators["XLP"].get("rsi_10", 0) > 75:
+        if "XLP" in indicators and (indicators["XLP"].rsi_10 or 0) > 75:
             allocation = self.vix_blend
             xlp_result = self.create_klm_decision(
                 allocation,
@@ -399,10 +396,18 @@ class KlmVariant53018(BaseKLMVariant):
             return xlp_result
 
         # TQQQ cumulative return check (< -12% over 6 periods)
-        tqqq_cum_return = indicators.get("TQQQ", {}).get("cumulative_return_6", 0)
+        tqqq_cum_return = (
+            indicators["TQQQ"].metadata.get("cumulative_return_6", 0)
+            if "TQQQ" in indicators and indicators["TQQQ"].metadata
+            else 0
+        )
         if tqqq_cum_return < -12:
             # Additional TQQQ daily return check (> 5.5% in 1 day)
-            tqqq_daily_return = indicators.get("TQQQ", {}).get("cumulative_return_1", 0)
+            tqqq_daily_return = (
+                indicators["TQQQ"].metadata.get("cumulative_return_1", 0)
+                if "TQQQ" in indicators and indicators["TQQQ"].metadata
+                else 0
+            )
             if tqqq_daily_return > 5.5:
                 allocation = self.vix_blend_plus
                 tqqq_result = self.create_klm_decision(
@@ -420,24 +425,22 @@ class KlmVariant53018(BaseKLMVariant):
         # Default to complex KMLM switcher logic
         return self._evaluate_kmlm_switcher_plus_fngu(indicators)
 
-    def _evaluate_holy_grail_pop_bot(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_holy_grail_pop_bot(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Pop bot logic within Holy Grail branch."""
         # TQQQ oversold (< 31, different from standard < 30)
-        if "TQQQ" in indicators and indicators["TQQQ"].get("rsi_10", 50) < 31:
+        if "TQQQ" in indicators and (indicators["TQQQ"].rsi_10 or 50) < 31:
             return self.create_klm_decision(
                 "TECL", ActionType.BUY.value, "Holy Grail Pop Bot: TQQQ RSI < 31 → TECL"
             )
 
         # SOXL oversold
-        if "SOXL" in indicators and indicators["SOXL"].get("rsi_10", 50) < 30:
+        if "SOXL" in indicators and (indicators["SOXL"].rsi_10 or 50) < 30:
             return self.create_klm_decision(
                 "SOXL", ActionType.BUY.value, "Holy Grail Pop Bot: SOXL RSI < 30 → SOXL"
             )
 
         # SPXL oversold
-        if "SPXL" in indicators and indicators["SPXL"].get("rsi_10", 50) < 30:
+        if "SPXL" in indicators and (indicators["SPXL"].rsi_10 or 50) < 30:
             return self.create_klm_decision(
                 "SPXL", ActionType.BUY.value, "Holy Grail Pop Bot: SPXL RSI < 30 → SPXL"
             )
@@ -452,14 +455,20 @@ class KlmVariant53018(BaseKLMVariant):
 
         This is the most sophisticated KMLM switcher in the ensemble.
         """
-        xlk_rsi = indicators.get("XLK", {}).get("rsi_10", 50)
-        kmlm_rsi = indicators.get("KMLM", {}).get("rsi_10", 50)
+        xlk_rsi = indicators["XLK"].rsi_10 or 50 if "XLK" in indicators else 50
+        kmlm_rsi = indicators["KMLM"].rsi_10 or 50 if "KMLM" in indicators else 50
 
         if xlk_rsi > kmlm_rsi:
             # Complex tech selection: TECL, SVXY, or "50% FNGU / 50% FNGU or Not"
             candidates = [
-                ("TECL", indicators.get("TECL", {}).get("rsi_10", 50)),
-                ("SVXY", indicators.get("SVXY", {}).get("rsi_10", 50)),
+                (
+                    "TECL",
+                    indicators["TECL"].rsi_10 or 50 if "TECL" in indicators else 50,
+                ),
+                (
+                    "SVXY",
+                    indicators["SVXY"].rsi_10 or 50 if "SVXY" in indicators else 50,
+                ),
                 ("FNGU_COMPLEX", 50),  # Placeholder for complex FNGU logic
             ]
 
@@ -469,14 +478,18 @@ class KlmVariant53018(BaseKLMVariant):
             if candidates[0][0] == "FNGU_COMPLEX":
                 # Implement "50% FNGU / 50% FNGU or Not" logic
                 # This involves moving-average-return filtering of FNGU/SPXL/XLE/XLK/AGG
-                _fngu_ma_return = indicators.get("FNGU", {}).get(
-                    "moving_average_return_20", 0
+                _fngu_ma_return = (
+                    indicators["FNGU"].metadata.get("moving_average_return_20", 0)
+                    if "FNGU" in indicators and indicators["FNGU"].metadata
+                    else 0
                 )  # Reserved for future use
                 comparison_candidates = []
                 for symbol in ["FNGU", "SPXL", "XLE", "XLK", "AGG"]:
                     if symbol in indicators:
-                        ma_return = indicators[symbol].get(
-                            "moving_average_return_20", 0
+                        ma_return = (
+                            indicators[symbol].metadata.get("moving_average_return_20", 0)
+                            if indicators[symbol].metadata
+                            else 0
                         )
                         comparison_candidates.append((symbol, ma_return))
 
@@ -515,7 +528,11 @@ class KlmVariant53018(BaseKLMVariant):
             rotator_candidates = []
             for symbol in ["SVXY", "VIXM", "FTLS", "KMLM", "UUP"]:
                 if symbol in indicators:
-                    stdev = indicators[symbol].get("stdev_return_6", 0.1)
+                    stdev = (
+                        indicators[symbol].metadata.get("stdev_return_6", 0.1)
+                        if indicators[symbol].metadata
+                        else 0.1
+                    )
                     rotator_candidates.append((symbol, stdev))
 
             if len(rotator_candidates) >= 3:
@@ -594,7 +611,7 @@ class KlmVariant53018(BaseKLMVariant):
 
     # Override the base class method since 530/18 doesn't use standard pattern
     def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
         """530/18 doesn't use the standard core KMLM switcher pattern.
 

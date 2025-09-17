@@ -23,9 +23,7 @@ _S3_PROTOCOL_PREFIX = "s3://"
 # Set of string values that, when present in configuration, indicate S3 logging should be enabled.
 _S3_ENABLED_VALUES = frozenset(["1", "true", "yes", "on"])
 # Set of environment variable names that, if present, indicate the code is running in an AWS Lambda environment.
-_LAMBDA_ENV_VARS = frozenset(
-    ["AWS_EXECUTION_ENV", "AWS_LAMBDA_RUNTIME_API", "LAMBDA_RUNTIME_DIR"]
-)
+_LAMBDA_ENV_VARS = frozenset(["AWS_EXECUTION_ENV", "AWS_LAMBDA_RUNTIME_API", "LAMBDA_RUNTIME_DIR"])
 
 # Context variables for request tracking
 request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
@@ -239,9 +237,7 @@ def generate_request_id() -> str:
     return str(uuid.uuid4())
 
 
-def log_with_context(
-    logger: logging.Logger, level: int, message: str, **context: object
-) -> None:
+def log_with_context(logger: logging.Logger, level: int, message: str, **context: object) -> None:
     """Log a message with additional context fields.
 
     Args:
@@ -344,9 +340,7 @@ def setup_logging(
     if not respect_existing_handlers or not root_logger.hasHandlers():
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(formatter)
-        console_handler.setLevel(
-            console_level if console_level is not None else log_level
-        )
+        console_handler.setLevel(console_level if console_level is not None else log_level)
         handlers.append(console_handler)
 
     # File handler if specified
@@ -486,9 +480,7 @@ def log_trade_event(
         "timestamp": datetime.now(UTC).isoformat() + "Z",
         **details,
     }
-    log_with_context(
-        logger, logging.INFO, f"Trading event: {event_type} for {symbol}", **context
-    )
+    log_with_context(logger, logging.INFO, f"Trading event: {event_type} for {symbol}", **context)
 
 
 def log_error_with_context(

@@ -27,7 +27,6 @@ class CLIOptions(TypedDict):
     verbose: bool
     quiet: bool
     live: bool
-    ignore_market_hours: bool
     force: bool
     no_header: bool
 

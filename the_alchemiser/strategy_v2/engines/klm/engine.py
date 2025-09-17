@@ -15,13 +15,14 @@ from __future__ import annotations
 import decimal
 import logging
 import math
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from the_alchemiser.shared.config.confidence_config import ConfidenceConfig
+from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 from the_alchemiser.shared.math.math_utils import (
     calculate_moving_average_return,
     calculate_stdev_returns,
@@ -134,9 +135,7 @@ class KLMEngine(StrategyEngine):
             + self.additional_symbols
         )
 
-        self.logger.info(
-            f"KLM Ensemble initialized with {len(self.strategy_variants)} variants"
-        )
+        self.logger.info(f"KLM Ensemble initialized with {len(self.strategy_variants)} variants")
 
     def get_required_symbols(self) -> list[str]:
         """Return all symbols required by the KLM ensemble."""
@@ -179,8 +178,8 @@ class KLMEngine(StrategyEngine):
                 return self._create_hold_signal("No indicators available", now)
 
             # Evaluate ensemble and get best variant result
-            symbol_or_allocation, action, detailed_reason, variant_name = (
-                self._evaluate_ensemble(indicators, market_data)
+            symbol_or_allocation, action, detailed_reason, variant_name = self._evaluate_ensemble(
+                indicators, market_data
             )
 
             # Convert to typed StrategySignal
@@ -231,52 +230,53 @@ class KLMEngine(StrategyEngine):
 
     def _calculate_indicators(
         self, market_data: dict[str, pd.DataFrame]
-    ) -> dict[str, dict[str, float]]:
+    ) -> dict[str, TechnicalIndicatorDTO]:
         """Calculate technical indicators for all symbols with data."""
-        indicators = {}
+        indicators: dict[str, TechnicalIndicatorDTO] = {}
         for symbol, data in market_data.items():
             try:
-                symbol_indicators = {}
-
                 # Always operate on the Close price series
                 if data.empty or "Close" not in data.columns:
                     continue
                 close = data["Close"]
 
-                # Calculate common indicators used by KLM variants using Close series
-                symbol_indicators["rsi_10"] = safe_get_indicator(
-                    close, self.indicators.rsi, window=10
-                )
-                symbol_indicators["rsi_14"] = safe_get_indicator(
-                    close, self.indicators.rsi, window=14
-                )
-                # Additional RSI windows required by variants
-                symbol_indicators["rsi_11"] = safe_get_indicator(
-                    close, self.indicators.rsi, window=11
-                )
-                symbol_indicators["rsi_15"] = safe_get_indicator(
-                    close, self.indicators.rsi, window=15
-                )
-                symbol_indicators["rsi_21"] = safe_get_indicator(
-                    close, self.indicators.rsi, window=21
-                )
-                symbol_indicators["rsi_70"] = safe_get_indicator(
-                    close, self.indicators.rsi, window=70
-                )
-                symbol_indicators["sma_200"] = safe_get_indicator(
-                    close, self.indicators.moving_average, window=200
-                )
-                symbol_indicators["ma_return_90"] = calculate_moving_average_return(
-                    close, 90
-                )
-                symbol_indicators["stdev_return_5"] = calculate_stdev_returns(close, 5)
-                symbol_indicators["stdev_return_6"] = calculate_stdev_returns(close, 6)
+                # Calculate RSI indicators
+                rsi_10 = safe_get_indicator(close, self.indicators.rsi, window=10)
+                rsi_14 = safe_get_indicator(close, self.indicators.rsi, window=14)
+                rsi_21 = safe_get_indicator(close, self.indicators.rsi, window=21)
 
-                # Add current price and close price
-                symbol_indicators["close"] = float(close.iloc[-1])
-                symbol_indicators["current_price"] = float(close.iloc[-1])
+                # Calculate moving averages
+                ma_200 = safe_get_indicator(close, self.indicators.moving_average, window=200)
 
-                indicators[symbol] = symbol_indicators
+                # Calculate returns
+                ma_return_90 = calculate_moving_average_return(close, 90)
+                stdev_return_5 = calculate_stdev_returns(close, 5)
+                stdev_return_6 = calculate_stdev_returns(close, 6)
+
+                # Additional RSI windows required by variants - store in metadata
+                metadata: dict[str, str | int | float | bool] = {
+                    "rsi_11": safe_get_indicator(close, self.indicators.rsi, window=11),
+                    "rsi_15": safe_get_indicator(close, self.indicators.rsi, window=15),
+                    "rsi_70": safe_get_indicator(close, self.indicators.rsi, window=70),
+                    "stdev_return_5": stdev_return_5,
+                    "stdev_return_6": stdev_return_6,
+                    "close": float(close.iloc[-1]),
+                }
+
+                # Create TechnicalIndicatorDTO
+                indicators[symbol] = TechnicalIndicatorDTO(
+                    symbol=symbol,
+                    timestamp=datetime.now(UTC),
+                    current_price=Decimal(str(close.iloc[-1])),
+                    rsi_10=rsi_10,
+                    rsi_14=rsi_14,
+                    rsi_21=rsi_21,
+                    ma_200=ma_200,
+                    ma_return_90=ma_return_90,
+                    stdev_return_6=stdev_return_6,
+                    metadata=metadata,
+                    data_source="klm_engine",
+                )
 
             except Exception as e:
                 self.logger.debug(f"Error calculating indicators for {symbol}: {e}")
@@ -285,7 +285,7 @@ class KLMEngine(StrategyEngine):
 
     def _evaluate_ensemble(
         self,
-        indicators: dict[str, dict[str, float]],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame],
     ) -> tuple[str | dict[str, float], str, str, str]:
         """Evaluate all variants and select the best performer - maintains original logic."""
@@ -307,20 +307,14 @@ class KLMEngine(StrategyEngine):
             return "BIL", ActionType.HOLD.value, "No valid variant result", "Default"
 
         # Extract result components with support for both tuple and KLMDecision formats
-        symbol_or_allocation, action, reason = self._extract_result_components(
-            best_result
-        )
+        symbol_or_allocation, action, reason = self._extract_result_components(best_result)
 
         # Validate the result components before proceeding
         if symbol_or_allocation is None:
-            self.logger.warning(
-                "Best variant returned None for symbol/allocation, using BIL"
-            )
+            self.logger.warning("Best variant returned None for symbol/allocation, using BIL")
             symbol_or_allocation = "BIL"
         if action is None or action not in ["BUY", "SELL", "HOLD"]:
-            self.logger.warning(
-                f"Best variant returned invalid action '{action}', using HOLD"
-            )
+            self.logger.warning(f"Best variant returned invalid action '{action}', using HOLD")
             action = ActionType.HOLD.value
         if reason is None:
             reason = "KLM Ensemble Selection"
@@ -367,7 +361,7 @@ class KLMEngine(StrategyEngine):
 
     def _evaluate_all_variants(
         self,
-        indicators: dict[str, dict[str, float]],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame],
     ) -> list[tuple[BaseKLMVariant, KLMResult, float]]:
         """Evaluate all strategy variants and return results with performance scores."""
@@ -504,7 +498,7 @@ class KLMEngine(StrategyEngine):
 
     def _build_detailed_klm_analysis(
         self,
-        indicators: dict[str, dict[str, float]],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame],
         selected_variant: BaseKLMVariant,
         symbol_or_allocation: str | dict[str, float],
@@ -524,9 +518,9 @@ class KLMEngine(StrategyEngine):
         analysis_lines.append("")
 
         # Get key market indicators
-        spy_rsi_10 = indicators.get("SPY", {}).get("rsi_10", 0.0)
-        spy_close = indicators.get("SPY", {}).get("close", 0.0)
-        spy_sma_200 = indicators.get("SPY", {}).get("sma_200", 0.0)
+        spy_rsi_10 = indicators["SPY"].rsi_10 if "SPY" in indicators else 0.0
+        spy_close = float(indicators["SPY"].current_price) if "SPY" in indicators else 0.0
+        spy_sma_200 = indicators["SPY"].ma_200 if "SPY" in indicators else 0.0
 
         analysis_lines.append(f"• SPY RSI(10): {spy_rsi_10:.1f}")
         analysis_lines.append(f"• SPY Price: ${spy_close:.2f}")
@@ -542,9 +536,7 @@ class KLMEngine(StrategyEngine):
         # Ensemble Selection Process
         analysis_lines.append("Ensemble Selection Process:")
         analysis_lines.append("")
-        analysis_lines.append(
-            f"• Evaluated {len(all_variant_results)} strategy variants"
-        )
+        analysis_lines.append(f"• Evaluated {len(all_variant_results)} strategy variants")
         analysis_lines.append(f"• Selected Variant: {selected_variant.name}")
         analysis_lines.append("• Selection Method: Volatility-adjusted performance")
         analysis_lines.append("")
@@ -562,25 +554,17 @@ class KLMEngine(StrategyEngine):
             # Single symbol
             symbol_name = symbol_or_allocation
             if symbol_name in ["FNGU", "SOXL", "TECL"]:
-                analysis_lines.append(
-                    f"• Target: {symbol_name} (3x leveraged technology)"
-                )
+                analysis_lines.append(f"• Target: {symbol_name} (3x leveraged technology)")
                 analysis_lines.append("• Rationale: High-conviction tech momentum play")
             elif symbol_name in ["SVIX", "UVXY"]:
                 analysis_lines.append(f"• Target: {symbol_name} (volatility hedge)")
-                analysis_lines.append(
-                    "• Rationale: Defensive positioning in overbought conditions"
-                )
+                analysis_lines.append("• Rationale: Defensive positioning in overbought conditions")
             elif symbol_name == "BIL":
                 analysis_lines.append("• Target: BIL (short-term treasury bills)")
-                analysis_lines.append(
-                    "• Rationale: Cash equivalent/defensive positioning"
-                )
+                analysis_lines.append("• Rationale: Cash equivalent/defensive positioning")
             else:
                 analysis_lines.append(f"• Target: {symbol_name}")
-                analysis_lines.append(
-                    "• Rationale: Variant-specific selection criteria"
-                )
+                analysis_lines.append("• Rationale: Variant-specific selection criteria")
 
         analysis_lines.append("")
 
@@ -616,14 +600,8 @@ class KLMEngine(StrategyEngine):
             for symbol_str, weight in symbol_or_allocation.items():
                 try:
                     # Validate weight is a valid number
-                    if (
-                        weight is None
-                        or not isinstance(weight, int | float)
-                        or math.isnan(weight)
-                    ):
-                        self.logger.warning(
-                            f"Invalid weight for {symbol_str}: {weight}, skipping"
-                        )
+                    if weight is None or not isinstance(weight, int | float) or math.isnan(weight):
+                        self.logger.warning(f"Invalid weight for {symbol_str}: {weight}, skipping")
                         continue
 
                     symbol = Symbol(symbol_str)
@@ -670,15 +648,9 @@ class KLMEngine(StrategyEngine):
                     f"Error creating signal for {symbol_or_allocation} with action {action}: {e}"
                 )
                 # Return hold signal as fallback
-                return self._create_hold_signal(
-                    f"Invalid symbol: {symbol_or_allocation}", now
-                )
+                return self._create_hold_signal(f"Invalid symbol: {symbol_or_allocation}", now)
 
-        return (
-            signals
-            if signals
-            else self._create_hold_signal("No valid signals generated", now)
-        )
+        return signals if signals else self._create_hold_signal("No valid signals generated", now)
 
     def _calculate_confidence(self, action: str, weight: float) -> Confidence:
         """Calculate confidence based on action and allocation weight.
@@ -726,9 +698,7 @@ class KLMEngine(StrategyEngine):
             or not isinstance(confidence_value, int | float)
             or math.isnan(confidence_value)
         ):
-            self.logger.warning(
-                f"Invalid confidence value: {confidence_value}, using default 0.5"
-            )
+            self.logger.warning(f"Invalid confidence value: {confidence_value}, using default 0.5")
             confidence_value = 0.5
 
         try:

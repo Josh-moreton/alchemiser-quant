@@ -11,10 +11,10 @@ Exports:
     - BaseCLI: Base CLI functionality
 """
 
-from .cli import app
 from .base_cli import BaseCLI
+from .cli import app
 
 __all__ = [
-    "app",
     "BaseCLI",
+    "app",
 ]

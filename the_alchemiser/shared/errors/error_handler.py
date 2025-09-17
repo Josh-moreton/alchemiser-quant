@@ -17,7 +17,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import wraps
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
     # Forward reference type aliases for type checking
@@ -390,9 +390,7 @@ class TradingSystemErrorHandler:
             return "Verify trading permissions, account status, and market hours"
         if category == ErrorCategory.CRITICAL:
             return "Review system logs, check AWS permissions, and verify deployment configuration"
-        return (
-            "Review logs for detailed error information and contact support if needed"
-        )
+        return "Review logs for detailed error information and contact support if needed"
 
     def handle_error(
         self,
@@ -418,21 +416,15 @@ class TradingSystemErrorHandler:
 
         # Log with appropriate level
         if category == ErrorCategory.CRITICAL:
-            self.logger.critical(
-                f"CRITICAL ERROR in {component}: {error}", exc_info=True
-            )
+            self.logger.critical(f"CRITICAL ERROR in {component}: {error}", exc_info=True)
         elif category in [
             ErrorCategory.TRADING,
             ErrorCategory.DATA,
             ErrorCategory.STRATEGY,
         ]:
-            self.logger.error(
-                f"{category.upper()} ERROR in {component}: {error}", exc_info=True
-            )
+            self.logger.error(f"{category.upper()} ERROR in {component}: {error}", exc_info=True)
         elif category == ErrorCategory.CONFIGURATION:
-            self.logger.error(
-                f"CONFIGURATION ERROR in {component}: {error}", exc_info=True
-            )
+            self.logger.error(f"CONFIGURATION ERROR in {component}: {error}", exc_info=True)
         else:
             self.logger.warning(f"{category.upper()} in {component}: {error}")
 
@@ -473,9 +465,7 @@ class TradingSystemErrorHandler:
         }
 
         # Handle each category explicitly
-        critical_errors = [
-            e for e in self.errors if e.category == ErrorCategory.CRITICAL
-        ]
+        critical_errors = [e for e in self.errors if e.category == ErrorCategory.CRITICAL]
         if critical_errors:
             summary["critical"] = {
                 "count": len(critical_errors),
@@ -496,27 +486,21 @@ class TradingSystemErrorHandler:
                 "errors": [e.to_dict() for e in data_errors],
             }
 
-        strategy_errors = [
-            e for e in self.errors if e.category == ErrorCategory.STRATEGY
-        ]
+        strategy_errors = [e for e in self.errors if e.category == ErrorCategory.STRATEGY]
         if strategy_errors:
             summary["strategy"] = {
                 "count": len(strategy_errors),
                 "errors": [e.to_dict() for e in strategy_errors],
             }
 
-        config_errors = [
-            e for e in self.errors if e.category == ErrorCategory.CONFIGURATION
-        ]
+        config_errors = [e for e in self.errors if e.category == ErrorCategory.CONFIGURATION]
         if config_errors:
             summary["configuration"] = {
                 "count": len(config_errors),
                 "errors": [e.to_dict() for e in config_errors],
             }
 
-        notification_errors = [
-            e for e in self.errors if e.category == ErrorCategory.NOTIFICATION
-        ]
+        notification_errors = [e for e in self.errors if e.category == ErrorCategory.NOTIFICATION]
         if notification_errors:
             summary["notification"] = {
                 "count": len(notification_errors),
@@ -597,12 +581,8 @@ class TradingSystemErrorHandler:
             "These errors affected trade execution:",
         )
         report = self._add_error_section(report, summary["data"], "📊 DATA ERRORS")
-        report = self._add_error_section(
-            report, summary["strategy"], "🧠 STRATEGY ERRORS"
-        )
-        return self._add_error_section(
-            report, summary["configuration"], "⚙️ CONFIGURATION ERRORS"
-        )
+        report = self._add_error_section(report, summary["strategy"], "🧠 STRATEGY ERRORS")
+        return self._add_error_section(report, summary["configuration"], "⚙️ CONFIGURATION ERRORS")
 
     def classify_order_error(
         self,
@@ -851,9 +831,7 @@ def retry_with_backoff(
                     if jitter:
                         # Add deterministic jitter based on attempt and timestamp
                         jitter_factor = (
-                            0.5
-                            + (hash(str(attempt) + str(int(time.time() * 1000))) % 500)
-                            / 1000
+                            0.5 + (hash(str(attempt) + str(int(time.time() * 1000))) % 500) / 1000
                         )
                         delay *= jitter_factor
 
@@ -913,10 +891,7 @@ class CircuitBreaker:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             if self.state == "OPEN":
-                if (
-                    self.last_failure_time
-                    and time.time() - self.last_failure_time < self.timeout
-                ):
+                if self.last_failure_time and time.time() - self.last_failure_time < self.timeout:
                     raise CircuitBreakerOpenError(
                         f"Circuit breaker is OPEN for {func.__name__}. "
                         f"Retry after {self.timeout}s timeout."
@@ -949,13 +924,11 @@ class CircuitBreaker:
 
 def categorize_error_severity(error: Exception) -> str:
     """Categorize error severity for monitoring."""
-    if isinstance(
-        error, InsufficientFundsError | (OrderExecutionError | PositionValidationError)
-    ):
+    if isinstance(error, InsufficientFundsError | (OrderExecutionError | PositionValidationError)):
         return ErrorSeverity.HIGH
-    if isinstance(
-        error, MarketDataError | DataProviderError
-    ) or _is_strategy_execution_error(error):
+    if isinstance(error, MarketDataError | DataProviderError) or _is_strategy_execution_error(
+        error
+    ):
         return ErrorSeverity.MEDIUM
     if isinstance(error, ConfigurationError):
         return ErrorSeverity.HIGH
@@ -1060,9 +1033,7 @@ class EnhancedErrorReporter:
 
     def _check_error_rates(self) -> None:
         """Check for high error rates and alert."""
-        error_rate = len(self.recent_errors) / (
-            self.error_rate_window / 60
-        )  # errors per minute
+        error_rate = len(self.recent_errors) / (self.error_rate_window / 60)  # errors per minute
 
         if error_rate > 10:  # More than 10 errors per minute
             logging.warning(f"High error rate detected: {error_rate:.1f} errors/minute")
@@ -1073,8 +1044,7 @@ class EnhancedErrorReporter:
             "total_error_types": len(self.error_counts),
             "error_counts": dict(self.error_counts),
             "recent_errors_count": len(self.recent_errors),
-            "error_rate_per_minute": len(self.recent_errors)
-            / (self.error_rate_window / 60),
+            "error_rate_per_minute": len(self.recent_errors) / (self.error_rate_window / 60),
             "most_common_errors": sorted(
                 self.error_counts.items(), key=lambda x: x[1], reverse=True
             )[:5],

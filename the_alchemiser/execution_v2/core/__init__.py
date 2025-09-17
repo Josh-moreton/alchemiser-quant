@@ -13,7 +13,7 @@ from the_alchemiser.execution_v2.core.settlement_monitor import SettlementMonito
 
 __all__ = [
     "ExecutionManager",
-    "ExecutionTracker", 
+    "ExecutionTracker",
     "Executor",
     "SettlementMonitor",
 ]

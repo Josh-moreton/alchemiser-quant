@@ -3,7 +3,7 @@
 
 Event-driven orchestration handlers for cross-cutting concerns.
 
-Provides event handlers for notifications, reconciliation, monitoring, and recovery 
+Provides event handlers for notifications, reconciliation, monitoring, and recovery
 across the trading workflow. Focused on cross-cutting concerns rather than domain execution.
 """
 
@@ -28,7 +28,7 @@ from the_alchemiser.shared.logging.logging_utils import get_logger
 class EventDrivenOrchestrator:
     """Event-driven orchestrator for cross-cutting workflow concerns.
 
-    Handles notifications, reconciliation, monitoring, and recovery across 
+    Handles notifications, reconciliation, monitoring, and recovery across
     the trading workflow without duplicating domain logic.
     """
 
@@ -66,7 +66,9 @@ class EventDrivenOrchestrator:
         self.event_bus.subscribe("RebalancePlanned", self)
         self.event_bus.subscribe("TradeExecuted", self)
 
-        self.logger.info("Registered event-driven orchestration handlers for cross-cutting concerns")
+        self.logger.info(
+            "Registered event-driven orchestration handlers for cross-cutting concerns"
+        )
 
     def handle_event(self, event: BaseEvent) -> None:
         """Handle events for cross-cutting orchestration concerns.
@@ -231,7 +233,7 @@ class EventDrivenOrchestrator:
 
             # Perform post-trade reconciliation
             self._perform_reconciliation(event)
-            
+
             # Send success notification
             self._send_trading_notification(event, success=True)
         else:
@@ -239,9 +241,9 @@ class EventDrivenOrchestrator:
                 f"EventDrivenOrchestrator: Trading workflow monitoring detected failure - {event.error_message}"
             )
 
-            # Send failure notification  
+            # Send failure notification
             self._send_trading_notification(event, success=False)
-            
+
             # Trigger recovery workflow
             self._trigger_recovery_workflow(event)
 
@@ -262,7 +264,7 @@ class EventDrivenOrchestrator:
             # Determine trading mode from container
             is_live = not self.container.config.paper_trading()
             mode_str = "LIVE" if is_live else "PAPER"
-            
+
             # Extract execution data
             execution_data = event.execution_results
             orders_placed = execution_data.get("orders_placed", 0)

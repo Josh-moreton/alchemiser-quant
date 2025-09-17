@@ -83,7 +83,9 @@ class BaseCLI:
             paper_trading: Whether to use paper trading mode. If None, uses container config.
 
         """
-        from the_alchemiser.orchestration.cli.strategy_tracking_utils import display_strategy_tracking
+        from the_alchemiser.orchestration.cli.strategy_tracking_utils import (
+            display_strategy_tracking,
+        )
 
         # Determine paper trading mode
         if paper_trading is None:

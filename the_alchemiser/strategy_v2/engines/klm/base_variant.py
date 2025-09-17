@@ -10,11 +10,11 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 from the_alchemiser.shared.utils.common import ActionType
 from the_alchemiser.shared.value_objects.core_types import KLMDecision
 
@@ -36,7 +36,7 @@ class BaseKLMVariant(ABC):
     @abstractmethod
     def evaluate(
         self,
-        indicators: dict[str, dict[str, float]],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame] | None = None,
     ) -> KLMDecision:
         """Evaluate the strategy variant and return trading decision.
@@ -56,14 +56,19 @@ class BaseKLMVariant(ABC):
 
     # Common filter operations used across variants
     def apply_stdev_return_filter(
-        self, candidates: list[str], indicators: dict[str, Any], window: int = 6
+        self,
+        candidates: list[str],
+        indicators: dict[str, TechnicalIndicatorDTO],
+        window: int = 6,
     ) -> list[tuple[str, float]]:
         """Apply (stdev-return {:window N}) filter as in Clojure."""
         filtered_candidates = []
         for symbol in candidates:
-            if symbol in indicators and "stdev_return_6" in indicators[symbol]:
-                stdev = indicators[symbol].get(f"stdev_return_{window}", 1.0)
-                filtered_candidates.append((symbol, stdev))
+            if symbol in indicators:
+                # Get the stdev_return from TechnicalIndicatorDTO
+                stdev = getattr(indicators[symbol], f"stdev_return_{window}", None)
+                if stdev is not None:
+                    filtered_candidates.append((symbol, stdev))
 
         # Sort by standard deviation (ascending for select-bottom)
         return sorted(filtered_candidates, key=lambda x: x[1])
@@ -83,7 +88,10 @@ class BaseKLMVariant(ABC):
         return sorted_candidates[:count]
 
     def apply_rsi_filter(
-        self, candidates: list[str], indicators: dict[str, Any], window: int = 10
+        self,
+        candidates: list[str],
+        indicators: dict[str, TechnicalIndicatorDTO],
+        window: int = 10,
     ) -> list[str]:
         """Filter candidates by RSI values.
 
@@ -100,13 +108,13 @@ class BaseKLMVariant(ABC):
 
         """
         filtered = []
-        rsi_key = f"rsi_{window}"
 
         for symbol in candidates:
-            if symbol in indicators and rsi_key in indicators[symbol]:
-                rsi_value = indicators[symbol][rsi_key]
+            if symbol in indicators:
+                # Get RSI value using the DTO method
+                rsi_value = indicators[symbol].get_rsi_by_period(window)
                 # Ensure RSI value is valid (between 0 and 100)
-                if isinstance(rsi_value, int | float) and 0 <= rsi_value <= 100:
+                if rsi_value is not None and 0 <= rsi_value <= 100:
                     filtered.append(symbol)
 
         return filtered
@@ -157,7 +165,7 @@ class BaseKLMVariant(ABC):
 
     # Common RSI overbought checks
     def check_primary_overbought_conditions(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision | None:
         """Complete 11-step overbought detection chain from CLJ.
 
@@ -168,54 +176,54 @@ class BaseKLMVariant(ABC):
         Returns KLMDecision if overbought condition met, None otherwise.
         """
         # Step 1: QQQE RSI(10) > 79
-        if "QQQE" in indicators and indicators["QQQE"].get("rsi_10", 0) > 79:
+        if "QQQE" in indicators and (indicators["QQQE"].rsi_10 or 0) > 79:
             return self.create_klm_decision("UVXY", "BUY", "QQQE RSI(10) > 79 → UVXY")
 
         # Step 2: VTV RSI(10) > 79
-        if "VTV" in indicators and indicators["VTV"].get("rsi_10", 0) > 79:
+        if "VTV" in indicators and (indicators["VTV"].rsi_10 or 0) > 79:
             return self.create_klm_decision("UVXY", "BUY", "VTV RSI(10) > 79 → UVXY")
 
         # Step 3: VOX RSI(10) > 79
-        if "VOX" in indicators and indicators["VOX"].get("rsi_10", 0) > 79:
+        if "VOX" in indicators and (indicators["VOX"].rsi_10 or 0) > 79:
             return self.create_klm_decision("UVXY", "BUY", "VOX RSI(10) > 79 → UVXY")
 
         # Step 4: TECL RSI(10) > 79
-        if "TECL" in indicators and indicators["TECL"].get("rsi_10", 0) > 79:
+        if "TECL" in indicators and (indicators["TECL"].rsi_10 or 0) > 79:
             return self.create_klm_decision("UVXY", "BUY", "TECL RSI(10) > 79 → UVXY")
 
         # Step 5: VOOG RSI(10) > 79
-        if "VOOG" in indicators and indicators["VOOG"].get("rsi_10", 0) > 79:
+        if "VOOG" in indicators and (indicators["VOOG"].rsi_10 or 0) > 79:
             return self.create_klm_decision("UVXY", "BUY", "VOOG RSI(10) > 79 → UVXY")
 
         # Step 6: VOOV RSI(10) > 79
-        if "VOOV" in indicators and indicators["VOOV"].get("rsi_10", 0) > 79:
+        if "VOOV" in indicators and (indicators["VOOV"].rsi_10 or 0) > 79:
             return self.create_klm_decision("UVXY", "BUY", "VOOV RSI(10) > 79 → UVXY")
 
         # Step 7: XLP RSI(10) > 75 (different threshold!)
-        if "XLP" in indicators and indicators["XLP"].get("rsi_10", 0) > 75:
+        if "XLP" in indicators and (indicators["XLP"].rsi_10 or 0) > 75:
             return self.create_klm_decision("UVXY", "BUY", "XLP RSI(10) > 75 → UVXY")
 
         # Step 8: TQQQ RSI(10) > 79
-        if "TQQQ" in indicators and indicators["TQQQ"].get("rsi_10", 0) > 79:
+        if "TQQQ" in indicators and (indicators["TQQQ"].rsi_10 or 0) > 79:
             return self.create_klm_decision("UVXY", "BUY", "TQQQ RSI(10) > 79 → UVXY")
 
         # Step 9: XLY RSI(10) > 80 (different threshold!)
-        if "XLY" in indicators and indicators["XLY"].get("rsi_10", 0) > 80:
+        if "XLY" in indicators and (indicators["XLY"].rsi_10 or 0) > 80:
             return self.create_klm_decision("UVXY", "BUY", "XLY RSI(10) > 80 → UVXY")
 
         # Step 10: FAS RSI(10) > 80
-        if "FAS" in indicators and indicators["FAS"].get("rsi_10", 0) > 80:
+        if "FAS" in indicators and (indicators["FAS"].rsi_10 or 0) > 80:
             return self.create_klm_decision("UVXY", "BUY", "FAS RSI(10) > 80 → UVXY")
 
         # Step 11: SPY RSI(10) > 80
-        if "SPY" in indicators and indicators["SPY"].get("rsi_10", 0) > 80:
+        if "SPY" in indicators and (indicators["SPY"].rsi_10 or 0) > 80:
             return self.create_klm_decision("UVXY", "BUY", "SPY RSI(10) > 80 → UVXY")
 
         # No overbought conditions met - proceed to Single Popped KMLM
         return None
 
     def evaluate_single_popped_kmlm(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
         """Single Popped KMLM logic - common across most standard variants.
 
@@ -225,7 +233,7 @@ class BaseKLMVariant(ABC):
         """
         # Check UVXY RSI(21) for strategy branching
         if "UVXY" in indicators:
-            uvxy_rsi_21 = indicators["UVXY"].get("rsi_21", 50)
+            uvxy_rsi_21 = indicators["UVXY"].rsi_21 or 50
 
             if uvxy_rsi_21 > 65:
                 # UVXY elevated - use BSC (Bond/Stock/Commodity) strategy
@@ -236,9 +244,7 @@ class BaseKLMVariant(ABC):
         # Fallback if UVXY data unavailable
         return self.evaluate_combined_pop_bot(indicators)
 
-    def evaluate_bsc_strategy(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def evaluate_bsc_strategy(self, indicators: dict[str, TechnicalIndicatorDTO]) -> KLMDecision:
         """BSC (Bond/Stock/Commodity) strategy when UVXY RSI(21) > 65.
 
         Logic from CLJ:
@@ -246,7 +252,7 @@ class BaseKLMVariant(ABC):
         - Else: SPXL (leveraged long position)
         """
         if "SPY" in indicators:
-            spy_rsi_21 = indicators["SPY"].get("rsi_21", 50)
+            spy_rsi_21 = indicators["SPY"].rsi_21 or 50
 
             if spy_rsi_21 > 30:
                 result = self.create_klm_decision(
@@ -270,7 +276,7 @@ class BaseKLMVariant(ABC):
         return result
 
     def evaluate_combined_pop_bot(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
         """Evaluate Combined Pop Bot strategy - standard across most variants.
 
@@ -282,7 +288,7 @@ class BaseKLMVariant(ABC):
         """
         # Priority 1: TQQQ oversold check
         if "TQQQ" in indicators:
-            tqqq_rsi = indicators["TQQQ"].get("rsi_10", 50)
+            tqqq_rsi = indicators["TQQQ"].rsi_10 or 50
             if tqqq_rsi < 30:
                 result = self.create_klm_decision(
                     "TECL",
@@ -294,7 +300,7 @@ class BaseKLMVariant(ABC):
 
         # Priority 2: SOXL oversold check
         if "SOXL" in indicators:
-            soxl_rsi = indicators["SOXL"].get("rsi_10", 50)
+            soxl_rsi = indicators["SOXL"].rsi_10 or 50
             if soxl_rsi < 30:
                 result = self.create_klm_decision(
                     "SOXL",
@@ -306,7 +312,7 @@ class BaseKLMVariant(ABC):
 
         # Priority 3: SPXL oversold check
         if "SPXL" in indicators:
-            spxl_rsi = indicators["SPXL"].get("rsi_10", 50)
+            spxl_rsi = indicators["SPXL"].rsi_10 or 50
             if spxl_rsi < 30:
                 result = self.create_klm_decision(
                     "SPXL",
@@ -321,7 +327,7 @@ class BaseKLMVariant(ABC):
 
     @abstractmethod
     def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
         """Core KMLM switcher - each variant implements its own logic.
 
@@ -376,7 +382,7 @@ class BaseKLMVariant(ABC):
         ]
 
     def create_equal_weight_allocation(
-        self, symbols: list[str], indicators: dict[str, Any]
+        self, symbols: list[str], indicators: dict[str, TechnicalIndicatorDTO]
     ) -> dict[str, float]:
         """Create equal weight allocation among available symbols."""
         available_symbols = [s for s in symbols if s in indicators]

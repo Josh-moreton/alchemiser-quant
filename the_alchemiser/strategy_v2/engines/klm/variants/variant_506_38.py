@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 from the_alchemiser.shared.utils.common import ActionType
 from the_alchemiser.shared.value_objects.core_types import KLMDecision
 
@@ -42,7 +43,7 @@ class KlmVariant50638(BaseKLMVariant):
 
     def evaluate(
         self,
-        indicators: dict[str, dict[str, float]],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame] | None = None,
     ) -> KLMDecision:
         """Evaluate the 506/38 variant strategy.
@@ -61,7 +62,7 @@ class KlmVariant50638(BaseKLMVariant):
         return self.evaluate_single_popped_kmlm(indicators)
 
     def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
         """Core KMLM switcher logic - CORRECTED to match CLJ exactly.
 
@@ -70,8 +71,8 @@ class KlmVariant50638(BaseKLMVariant):
         """
         # Step 1: XLK vs KMLM comparison for FNGU selection
         if "XLK" in indicators and "KMLM" in indicators:
-            xlk_rsi = indicators["XLK"]["rsi_10"]
-            kmlm_rsi = indicators["KMLM"]["rsi_10"]
+            xlk_rsi = indicators["XLK"].rsi_10 or 50
+            kmlm_rsi = indicators["KMLM"].rsi_10 or 50
 
             if xlk_rsi > kmlm_rsi:
                 # CLJ: filter (rsi {:window 10}) (select-bottom 1) [(asset "FNGU")]
@@ -88,7 +89,7 @@ class KlmVariant50638(BaseKLMVariant):
         return self._evaluate_long_short_rotator(indicators)
 
     def _evaluate_long_short_rotator(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
         """Long/Short Rotator - CORRECTED to match CLJ exactly.
 
@@ -103,9 +104,15 @@ class KlmVariant50638(BaseKLMVariant):
         # Apply volatility filter (stdev-return window 6)
         volatility_candidates = []
         for symbol in rotator_symbols:
-            if symbol in indicators and "stdev_return_6" in indicators[symbol]:
-                stdev = indicators[symbol]["stdev_return_6"]
-                volatility_candidates.append((symbol, stdev))
+            if symbol in indicators:
+                stdev = (
+                    indicators[symbol].metadata.get("stdev_return_6")
+                    if indicators[symbol].metadata
+                    and "stdev_return_6" in indicators[symbol].metadata
+                    else None
+                )
+                if stdev is not None:
+                    volatility_candidates.append((symbol, stdev))
 
         if volatility_candidates:
             # Select bottom 1 by volatility (lowest standard deviation) - exact CLJ logic

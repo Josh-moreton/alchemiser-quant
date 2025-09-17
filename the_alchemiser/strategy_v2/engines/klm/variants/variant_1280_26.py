@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 from the_alchemiser.shared.utils.common import ActionType
 from the_alchemiser.shared.value_objects.core_types import KLMDecision
 
@@ -40,7 +41,7 @@ class KlmVariant128026(BaseKLMVariant):
 
     def evaluate(
         self,
-        indicators: dict[str, dict[str, float]],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame] | None = None,
     ) -> KLMDecision:
         """Evaluate 1280/26 - completely different flow from 506/38.
@@ -66,7 +67,7 @@ class KlmVariant128026(BaseKLMVariant):
         Includes LABU when RSI < 25.
         """
         # Priority 1: TQQQ oversold
-        if "TQQQ" in indicators and indicators["TQQQ"]["rsi_10"] < 30:
+        if "TQQQ" in indicators and (indicators["TQQQ"].rsi_10 or 50) < 30:
             result = self.create_klm_decision(
                 "TECL", ActionType.BUY.value, "1280/26 Pop Bot: TQQQ RSI < 30 → TECL"
             )
@@ -74,7 +75,7 @@ class KlmVariant128026(BaseKLMVariant):
             return result
 
         # Priority 2: SOXL oversold
-        if "SOXL" in indicators and indicators["SOXL"]["rsi_10"] < 30:
+        if "SOXL" in indicators and (indicators["SOXL"].rsi_10 or 50) < 30:
             result = self.create_klm_decision(
                 "SOXL", ActionType.BUY.value, "1280/26 Pop Bot: SOXL RSI < 30 → SOXL"
             )
@@ -82,7 +83,7 @@ class KlmVariant128026(BaseKLMVariant):
             return result
 
         # Priority 3: SPXL oversold
-        if "SPXL" in indicators and indicators["SPXL"]["rsi_10"] < 30:
+        if "SPXL" in indicators and (indicators["SPXL"].rsi_10 or 50) < 30:
             result = self.create_klm_decision(
                 "SPXL", ActionType.BUY.value, "1280/26 Pop Bot: SPXL RSI < 30 → SPXL"
             )
@@ -90,7 +91,7 @@ class KlmVariant128026(BaseKLMVariant):
             return result
 
         # Priority 4: LABU oversold (KEY DIFFERENCE - this variant includes LABU)
-        if "LABU" in indicators and indicators["LABU"]["rsi_10"] < 25:
+        if "LABU" in indicators and (indicators["LABU"].rsi_10 or 50) < 25:
             result = self.create_klm_decision(
                 "LABU", ActionType.BUY.value, "1280/26 Pop Bot: LABU RSI < 25 → LABU"
             )
@@ -101,7 +102,7 @@ class KlmVariant128026(BaseKLMVariant):
         return self.evaluate_core_kmlm_switcher(indicators)
 
     def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
         """Evaluate core KMLM switcher for variant 1280/26.
 
@@ -110,7 +111,7 @@ class KlmVariant128026(BaseKLMVariant):
         """
         if self._should_use_kmlm_switcher(indicators):
             return self._execute_kmlm_switcher_logic(indicators)
-        
+
         # XLK <= KMLM → L/S Rotator
         return self._evaluate_ls_rotator_1280(indicators)
 
@@ -118,15 +119,15 @@ class KlmVariant128026(BaseKLMVariant):
         """Check if XLK > KMLM condition is met for switcher logic."""
         if "XLK" not in indicators or "KMLM" not in indicators:
             return False
-        
-        xlk_rsi = indicators["XLK"]["rsi_10"]
-        kmlm_rsi = indicators["KMLM"]["rsi_10"]
+
+        xlk_rsi = indicators["XLK"].rsi_10 or 50
+        kmlm_rsi = indicators["KMLM"].rsi_10 or 50
         return xlk_rsi > kmlm_rsi
 
     def _execute_kmlm_switcher_logic(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Execute the KMLM switcher selection logic."""
         candidates = self._get_switcher_candidates(indicators)
-        
+
         if len(candidates) >= 2:
             return self._create_dual_allocation_decision(candidates)
         if candidates:
@@ -134,12 +135,14 @@ class KlmVariant128026(BaseKLMVariant):
         # Fallback to L/S Rotator if no candidates
         return self._evaluate_ls_rotator_1280(indicators)
 
-    def _get_switcher_candidates(self, indicators: dict[str, dict[str, float]]) -> list[tuple[str, float]]:
+    def _get_switcher_candidates(
+        self, indicators: dict[str, dict[str, float]]
+    ) -> list[tuple[str, float]]:
         """Get RSI candidates for switcher selection from TECL, SOXL, SVIX."""
         candidates = []
         for symbol in ["TECL", "SOXL", "SVIX"]:
             if symbol in indicators:
-                rsi = indicators[symbol]["rsi_10"]
+                rsi = indicators[symbol].rsi_10 or 50
                 candidates.append((symbol, rsi))
         return candidates
 
@@ -149,7 +152,7 @@ class KlmVariant128026(BaseKLMVariant):
         symbols_for_allocation = [symbol for symbol, _ in bottom_2]
         allocation = dict.fromkeys(symbols_for_allocation, 0.5)
         selected_symbols = [symbol for symbol, _ in bottom_2]
-        
+
         result = self.create_klm_decision(
             allocation,
             ActionType.BUY.value,
@@ -169,14 +172,12 @@ class KlmVariant128026(BaseKLMVariant):
         self.log_klm_decision(result)
         return result
 
-    def _evaluate_ls_rotator_1280(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_ls_rotator_1280(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Evaluate 1280/26 L/S Rotator using SQQQ/TLT select-top 1."""
         candidates = []
         for symbol in ["SQQQ", "TLT"]:
             if symbol in indicators:
-                rsi = indicators[symbol]["rsi_10"]
+                rsi = indicators[symbol].rsi_10 or 50
                 candidates.append((symbol, rsi))
 
         if candidates:

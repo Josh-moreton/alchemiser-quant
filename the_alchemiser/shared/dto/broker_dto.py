@@ -45,9 +45,7 @@ class WebSocketResult(BaseModel):
     completed_order_ids: list[str] = Field(
         default_factory=list, description="Order IDs that completed during operation"
     )
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Additional metadata"
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
 
 class OrderExecutionResult(Result):

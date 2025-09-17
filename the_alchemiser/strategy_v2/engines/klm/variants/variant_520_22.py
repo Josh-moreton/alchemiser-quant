@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 from the_alchemiser.shared.utils.common import ActionType
 from the_alchemiser.shared.value_objects.core_types import KLMDecision
 
@@ -37,7 +38,7 @@ class KlmVariant52022(BaseKLMVariant):
 
     def evaluate(
         self,
-        indicators: dict[str, dict[str, float]],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame] | None = None,
     ) -> KLMDecision:
         """Evaluate 520/22 - same as 506/38 except KMLM Switcher and L/S Rotator."""
@@ -51,7 +52,7 @@ class KlmVariant52022(BaseKLMVariant):
         return self.evaluate_single_popped_kmlm(indicators)
 
     def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
         """Core KMLM switcher for variant 520/22.
 
@@ -59,15 +60,15 @@ class KlmVariant52022(BaseKLMVariant):
         CLJ shows: select-bottom 1 from [TECL, SVIX] (not TECL/SOXL/SVIX)
         """
         if "XLK" in indicators and "KMLM" in indicators:
-            xlk_rsi = indicators["XLK"]["rsi_10"]
-            kmlm_rsi = indicators["KMLM"]["rsi_10"]
+            xlk_rsi = indicators["XLK"].rsi_10 or 50
+            kmlm_rsi = indicators["KMLM"].rsi_10 or 50
 
             if xlk_rsi > kmlm_rsi:
                 # select-bottom 1 from TECL, SVIX only
                 candidates = []
                 for symbol in ["TECL", "SVIX"]:
                     if symbol in indicators:
-                        rsi = indicators[symbol]["rsi_10"]
+                        rsi = indicators[symbol].rsi_10 or 50
                         candidates.append((symbol, rsi))
 
                 if candidates:
@@ -86,17 +87,15 @@ class KlmVariant52022(BaseKLMVariant):
         # Fallback to L/S Rotator if XLK <= KMLM or missing data
         return self._evaluate_long_short_rotator(indicators)
 
-    def _evaluate_long_short_rotator(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_long_short_rotator(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """520/22 L/S Rotator - uses FTLS/KMLM/SSO/UUP (like 410/38)."""
         rotator_symbols = ["FTLS", "KMLM", "SSO", "UUP"]
 
         # Apply volatility filter (stdev-return window 6)
         volatility_candidates = []
         for symbol in rotator_symbols:
-            if symbol in indicators and "stdev_return_6" in indicators[symbol]:
-                stdev = indicators[symbol]["stdev_return_6"]
+            if symbol in indicators and hasattr(indicators[symbol], "stdev_return_6"):
+                stdev = getattr(indicators[symbol], "stdev_return_6", None) or 0.1
                 volatility_candidates.append((symbol, stdev))
 
         if volatility_candidates:

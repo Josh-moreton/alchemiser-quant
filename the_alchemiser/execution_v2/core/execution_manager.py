@@ -58,6 +58,7 @@ class ExecutionManager:
 
         # Run the async executor in a new event loop
         import asyncio
+
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
@@ -70,9 +71,7 @@ class ExecutionManager:
             # Event loop exists but not running, safe to use asyncio.run
             result = asyncio.run(self.executor.execute_rebalance_plan(plan))
 
-        logger.info(
-            f"✅ Execution complete: {result.success} ({result.orders_placed} orders)"
-        )
+        logger.info(f"✅ Execution complete: {result.success} ({result.orders_placed} orders)")
         return result
 
     @classmethod
@@ -98,9 +97,7 @@ class ExecutionManager:
             ExecutionManager instance with configured smart execution
 
         """
-        alpaca_manager = AlpacaManager(
-            api_key=api_key, secret_key=secret_key, paper=paper
-        )
+        alpaca_manager = AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper)
         return cls(
             alpaca_manager=alpaca_manager,
             execution_config=execution_config,

@@ -15,13 +15,14 @@ import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from ...shared.dto.strategy_allocation_dto import StrategyAllocationDTO
+from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
+
 from ..adapters.market_data_adapter import StrategyMarketDataAdapter
 from ..models.context import StrategyContext
 
 logger = logging.getLogger(__name__)
 
-# Constants for repeated literals  
+# Constants for repeated literals
 ORCHESTRATOR_COMPONENT = "strategy_v2.core.orchestrator"
 
 
@@ -116,9 +117,7 @@ class SingleStrategyOrchestrator:
             )
             raise ValueError(f"Strategy execution failed: {e}") from e
 
-    def _generate_sample_allocation(
-        self, context: StrategyContext
-    ) -> dict[str, Decimal]:
+    def _generate_sample_allocation(self, context: StrategyContext) -> dict[str, Decimal]:
         """Generate sample allocation for testing.
 
         Args:

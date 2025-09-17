@@ -108,9 +108,7 @@ class StrategySignalBase(TypedDict):
     """Base strategy signal type with core fields."""
 
     symbol: str | dict[str, float]  # Allow both symbol string and portfolio dict
-    action: (
-        Literal["BUY", "SELL", "HOLD"] | str
-    )  # Allow both strict and loose action values
+    action: Literal["BUY", "SELL", "HOLD"] | str  # Allow both strict and loose action values
     confidence: float
 
 

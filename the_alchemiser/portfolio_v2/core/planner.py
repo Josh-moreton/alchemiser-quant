@@ -186,7 +186,7 @@ class RebalancePlanCalculator:
 
         # Get all symbols we need to consider
         all_symbols = set(strategy.target_weights.keys()) | set(snapshot.positions.keys())
-        
+
         # Apply 95% reduction to avoid buying power issues with broker constraints
         # This ensures we don't try to use 100% of portfolio value which can
         # exceed available buying power

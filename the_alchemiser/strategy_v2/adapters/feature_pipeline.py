@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Any
 
 import numpy as np
+
+from the_alchemiser.shared.dto.market_bar_dto import MarketBarDTO
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +36,11 @@ class FeaturePipeline:
         self._tolerance = default_tolerance
         self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
-    def compute_returns(self, bars: list[dict[str, Any]]) -> list[float]:
+    def compute_returns(self, bars: list[MarketBarDTO]) -> list[float]:
         """Compute price returns from bar data.
 
         Args:
-            bars: List of bar dictionaries with 'c' (close) prices
+            bars: List of MarketBarDTO objects with closing prices
 
         Returns:
             List of returns (excluding first bar which has no prior price)
@@ -55,8 +56,8 @@ class FeaturePipeline:
         returns = []
         for i in range(1, len(bars)):
             try:
-                prev_close = float(bars[i - 1]["c"])
-                curr_close = float(bars[i]["c"])
+                prev_close = float(bars[i - 1].close_price)
+                curr_close = float(bars[i].close_price)
 
                 # Use direct comparison with a small epsilon for financial price data
                 if prev_close < 1e-6:
@@ -67,7 +68,7 @@ class FeaturePipeline:
                 else:
                     ret = (curr_close - prev_close) / prev_close
                     returns.append(ret)
-            except (KeyError, ValueError, TypeError) as e:
+            except (ValueError, TypeError) as e:
                 self._logger.warning(f"Invalid bar data in returns calculation: {e}")
                 returns.append(0.0)
 
@@ -211,12 +212,12 @@ class FeaturePipeline:
         return 1.0
 
     def _compute_price_position(
-        self, bars: list[dict[str, Any]], current_close: float, lookback_window: int
+        self, bars: list[MarketBarDTO], current_close: float, lookback_window: int
     ) -> float:
         """Compute price position within high-low range.
 
         Args:
-            bars: List of bar dictionaries
+            bars: List of MarketBarDTO objects
             current_close: Current closing price
             lookback_window: Window for high-low range calculation
 
@@ -226,8 +227,8 @@ class FeaturePipeline:
         """
         if len(bars) >= lookback_window:
             recent_bars = bars[-lookback_window:]
-            max_high = max(float(bar["h"]) for bar in recent_bars)
-            min_low = min(float(bar["l"]) for bar in recent_bars)
+            max_high = max(float(bar.high_price) for bar in recent_bars)
+            min_low = min(float(bar.low_price) for bar in recent_bars)
 
             # If there is a price range (max_high != min_low), calculate price_position;
             # otherwise, use the default value of 0.5 when no price range exists.
@@ -252,12 +253,12 @@ class FeaturePipeline:
         return 1.0
 
     def extract_price_features(
-        self, bars: list[dict[str, Any]], lookback_window: int = 20
+        self, bars: list[MarketBarDTO], lookback_window: int = 20
     ) -> dict[str, float]:
         """Extract common price-based features from bar data.
 
         Args:
-            bars: List of bar dictionaries
+            bars: List of MarketBarDTO objects
             lookback_window: Window for rolling calculations
 
         Returns:
@@ -274,8 +275,8 @@ class FeaturePipeline:
 
         try:
             # Extract prices
-            closes = [float(bar["c"]) for bar in bars]
-            volumes = [float(bar["v"]) for bar in bars]
+            closes = [float(bar.close_price) for bar in bars]
+            volumes = [bar.volume for bar in bars]
 
             # Current price
             features["current_price"] = closes[-1] if closes else 0.0
@@ -293,7 +294,9 @@ class FeaturePipeline:
             )
 
             # Volume features
-            features["volume_ratio"] = self._compute_volume_ratio(volumes, lookback_window)
+            features["volume_ratio"] = self._compute_volume_ratio(
+                [float(v) for v in volumes], lookback_window
+            )
 
         except Exception as e:
             self._logger.warning(f"Error extracting price features: {e}")

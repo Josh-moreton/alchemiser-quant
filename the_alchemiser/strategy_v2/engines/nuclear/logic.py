@@ -14,11 +14,11 @@ Scope note:
 
 from __future__ import annotations
 
-from typing import Any
+from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 
 
 def evaluate_nuclear_strategy(
-    indicators: dict[str, Any]
+    indicators: dict[str, TechnicalIndicatorDTO],
 ) -> tuple[str, str, str]:
     """Evaluate the Nuclear strategy from indicators only.
 
@@ -36,27 +36,27 @@ def evaluate_nuclear_strategy(
     """
 
     def _rsi(sym: str, window: int = 10) -> float | None:
-        d = indicators.get(sym)
-        if not d:
+        dto = indicators.get(sym)
+        if not dto:
             return None
-        key = f"rsi_{window}"
         try:
-            return float(d.get(key)) if key in d else None
+            return dto.get_rsi_by_period(window)
         except Exception:
             return None
 
     def _price(sym: str) -> float | None:
-        d = indicators.get(sym)
+        dto = indicators.get(sym)
         try:
-            return float(d.get("current_price")) if d and "current_price" in d else None
+            return float(dto.current_price) if dto and dto.current_price else None
         except Exception:
             return None
 
     def _ma(sym: str, window: int) -> float | None:
-        d = indicators.get(sym)
-        key = f"ma_{window}"
+        dto = indicators.get(sym)
+        if dto is None:
+            return None
         try:
-            return float(d.get(key)) if d and key in d else None
+            return dto.get_ma_by_period(window)
         except Exception:
             return None
 
@@ -80,12 +80,12 @@ def evaluate_nuclear_strategy(
                 "BUY",
                 f"SPY extremely overbought: RSI(10) {spy_rsi:.1f} > 81 - volatility hedge recommended",
             )
-        
+
         # Check other symbols for extreme overbought
         extreme_result = _check_extreme_overbought(["IOO", "TQQQ", "VTV", "XLF"])
         if extreme_result:
             return extreme_result
-            
+
         return (
             "UVXY_BTAL_PORTFOLIO",
             "BUY",
@@ -100,7 +100,7 @@ def evaluate_nuclear_strategy(
             ("VTV", ["XLF"]),
             ("XLF", []),
         ]
-        
+
         for leader, cascade_symbols in cascade_configs:
             lr = _rsi(leader, 10)
             if lr is not None and lr > 79.0:
@@ -110,12 +110,12 @@ def evaluate_nuclear_strategy(
                         "BUY",
                         f"{leader} extremely overbought: RSI(10) {lr:.1f} > 81 - hedge with UVXY",
                     )
-                
+
                 # Check cascade symbols for extreme overbought
                 extreme_result = _check_extreme_overbought(cascade_symbols)
                 if extreme_result:
                     return extreme_result
-                
+
                 return (
                     "UVXY_BTAL_PORTFOLIO",
                     "BUY",
@@ -144,9 +144,9 @@ def evaluate_nuclear_strategy(
     def _evaluate_oversold_conditions(spy_rsi: float) -> tuple[str, str, str] | None:
         """Evaluate oversold conditions for TQQQ and SPY."""
         # Check TQQQ oversold first
-        tqqq = indicators.get("TQQQ")
+        tqqq_dto = indicators.get("TQQQ")
         try:
-            tqqq_rsi_10 = float(tqqq["rsi_10"]) if tqqq and "rsi_10" in tqqq else None
+            tqqq_rsi_10 = tqqq_dto.rsi_10 if tqqq_dto else None
         except Exception:
             tqqq_rsi_10 = None
 
@@ -170,7 +170,7 @@ def evaluate_nuclear_strategy(
         """Evaluate bull vs bear market conditions."""
         spy_price = _price("SPY")
         spy_ma_200 = _ma("SPY", 200)
-        
+
         if spy_price is not None and spy_ma_200 is not None and spy_price > spy_ma_200:
             return (
                 "NUCLEAR_PORTFOLIO",
@@ -192,8 +192,8 @@ def evaluate_nuclear_strategy(
         )
 
     # Main evaluation logic
-    spy = indicators.get("SPY")
-    if not spy or "rsi_10" not in spy:
+    spy_dto = indicators.get("SPY")
+    if not spy_dto or spy_dto.rsi_10 is None:
         return (
             "SPY",
             "HOLD",
@@ -201,7 +201,7 @@ def evaluate_nuclear_strategy(
         )
 
     try:
-        spy_rsi_10 = float(spy["rsi_10"])
+        spy_rsi_10 = spy_dto.rsi_10
     except Exception:
         return (
             "SPY",

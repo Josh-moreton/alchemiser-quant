@@ -28,13 +28,9 @@ class KlmVariant41038(KlmVariant50638):
         super().__init__()
         # Override the name and description for this variant
         self.name = "410/38"
-        self.description = (
-            "MonkeyBusiness Simons variant - Same as 506/38 + SSO in rotator"
-        )
+        self.description = "MonkeyBusiness Simons variant - Same as 506/38 + SSO in rotator"
 
-    def _evaluate_long_short_rotator(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_long_short_rotator(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """410/38 L/S Rotator - SAME as 506/38 but includes SSO.
 
         CLJ: "Long/Short Rotator with FTLS KMLM SSO UUP"
@@ -46,8 +42,8 @@ class KlmVariant41038(KlmVariant50638):
         # Apply volatility filter (stdev-return window 6)
         volatility_candidates = []
         for symbol in rotator_symbols:
-            if symbol in indicators and "stdev_return_6" in indicators[symbol]:
-                stdev = indicators[symbol]["stdev_return_6"]
+            if symbol in indicators and hasattr(indicators[symbol], "stdev_return_6"):
+                stdev = getattr(indicators[symbol], "stdev_return_6", None) or 0.1
                 volatility_candidates.append((symbol, stdev))
 
         if volatility_candidates:

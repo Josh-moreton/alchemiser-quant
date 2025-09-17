@@ -15,7 +15,7 @@ class LambdaEventDTO(BaseModel):
     """DTO for AWS Lambda event data.
 
     Used for parsing Lambda events to determine trading mode and configuration.
-    Supports both trading and signal-only modes with market hours override.
+    Supports both trading and signal-only modes.
     """
 
     model_config = ConfigDict(
@@ -27,9 +27,6 @@ class LambdaEventDTO(BaseModel):
 
     mode: str | None = Field(default=None, description="Execution mode")
     trading_mode: str | None = Field(default=None, description="Trading mode (paper/live)")
-    ignore_market_hours: bool | None = Field(
-        default=None, description="Whether to ignore market hours"
-    )
     arguments: list[str] | None = Field(
         default=None, description="Additional command line arguments"
     )

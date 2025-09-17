@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 from the_alchemiser.shared.utils.common import ActionType
 from the_alchemiser.shared.value_objects.core_types import KLMDecision
 
@@ -35,7 +36,7 @@ class KlmVariant120028(BaseKLMVariant):
 
     def evaluate(
         self,
-        indicators: dict[str, dict[str, float]],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame] | None = None,
     ) -> KLMDecision:
         """Evaluate 1200/28 - same as 506/38 except KMLM Switcher."""
@@ -49,22 +50,22 @@ class KlmVariant120028(BaseKLMVariant):
         return self.evaluate_single_popped_kmlm(indicators)
 
     def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
         """Core KMLM switcher for variant 1200/28.
 
         KEY DIFFERENCE from 506/38: Uses select-bottom 1 from TECL/SOXL/SVIX (not FNGU)
         """
         if "XLK" in indicators and "KMLM" in indicators:
-            xlk_rsi = indicators["XLK"]["rsi_10"]
-            kmlm_rsi = indicators["KMLM"]["rsi_10"]
+            xlk_rsi = indicators["XLK"].rsi_10 or 50
+            kmlm_rsi = indicators["KMLM"].rsi_10 or 50
 
             if xlk_rsi > kmlm_rsi:
                 # select-bottom 1 from TECL, SOXL, SVIX
                 candidates = []
                 for symbol in ["TECL", "SOXL", "SVIX"]:
                     if symbol in indicators:
-                        rsi = indicators[symbol]["rsi_10"]
+                        rsi = indicators[symbol].rsi_10 or 50
                         candidates.append((symbol, rsi))
 
                 if candidates:
@@ -83,14 +84,12 @@ class KlmVariant120028(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator
         return self._evaluate_ls_rotator_1200(indicators)
 
-    def _evaluate_ls_rotator_1200(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_ls_rotator_1200(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """1200/28 L/S Rotator - uses SQQQ/TLT select-top 1."""
         candidates = []
         for symbol in ["SQQQ", "TLT"]:
             if symbol in indicators:
-                rsi = indicators[symbol]["rsi_10"]
+                rsi = indicators[symbol].rsi_10 or 50
                 candidates.append((symbol, rsi))
 
         if candidates:

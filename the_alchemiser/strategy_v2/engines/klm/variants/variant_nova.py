@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 from the_alchemiser.shared.utils.common import ActionType
 from the_alchemiser.shared.value_objects.core_types import KLMDecision
 
@@ -39,7 +40,7 @@ class KLMVariantNova(BaseKLMVariant):
 
     def evaluate(
         self,
-        indicators: dict[str, dict[str, float]],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame] | None = None,
     ) -> KLMDecision:
         """Evaluate Nova - same as others except UVIX check and individual stock selection."""
@@ -58,7 +59,7 @@ class KLMVariantNova(BaseKLMVariant):
         """Nova Single Popped KMLM - DIFFERENT: uses UVIX instead of UVXY."""
         # Check UVIX RSI(21) for strategy branching (not UVXY!)
         if "UVIX" in indicators:
-            uvix_rsi_21 = indicators["UVIX"]["rsi_21"]
+            uvix_rsi_21 = getattr(indicators["UVIX"], "rsi_21", None) or 50
 
             if uvix_rsi_21 > 65:
                 # UVIX elevated - use BSC strategy
@@ -70,7 +71,7 @@ class KLMVariantNova(BaseKLMVariant):
         return self.evaluate_combined_pop_bot(indicators)
 
     def evaluate_core_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
         """Core KMLM switcher for variant Nova.
 
@@ -78,8 +79,8 @@ class KLMVariantNova(BaseKLMVariant):
         CLJ shows: RSI(11) select-top 1 from FNGO/TSLA/MSFT/AAPL/NVDA/GOOGL/AMZN
         """
         if "XLK" in indicators and "KMLM" in indicators:
-            xlk_rsi = indicators["XLK"]["rsi_10"]
-            kmlm_rsi = indicators["KMLM"]["rsi_10"]
+            xlk_rsi = indicators["XLK"].rsi_10 or 50
+            kmlm_rsi = indicators["KMLM"].rsi_10 or 50
 
             if xlk_rsi > kmlm_rsi:
                 # Individual stock selection with RSI(11) and select-top 1
@@ -95,8 +96,8 @@ class KLMVariantNova(BaseKLMVariant):
                 candidates = []
 
                 for symbol in stock_symbols:
-                    if symbol in indicators and "rsi_11" in indicators[symbol]:
-                        rsi_11 = indicators[symbol]["rsi_11"]
+                    if symbol in indicators and hasattr(indicators[symbol], "rsi_11"):
+                        rsi_11 = getattr(indicators[symbol], "rsi_11", None) or 50
                         candidates.append((symbol, rsi_11))
 
                 if candidates:
@@ -121,17 +122,15 @@ class KLMVariantNova(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator (same as 520/22)
         return self._evaluate_ls_rotator_nova(indicators)
 
-    def _evaluate_ls_rotator_nova(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_ls_rotator_nova(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Nova L/S Rotator - same as 520/22 (FTLS/KMLM/SSO/UUP)."""
         # Volatility filter candidates: FTLS, KMLM, SSO, UUP
         rotator_symbols = ["FTLS", "KMLM", "SSO", "UUP"]
 
         candidates = []
         for symbol in rotator_symbols:
-            if symbol in indicators and "stdev_return_6" in indicators[symbol]:
-                stdev = indicators[symbol]["stdev_return_6"]
+            if symbol in indicators and hasattr(indicators[symbol], "stdev_return_6"):
+                stdev = getattr(indicators[symbol], "stdev_return_6", None) or 0.1
                 candidates.append((symbol, stdev))
 
         if candidates:
