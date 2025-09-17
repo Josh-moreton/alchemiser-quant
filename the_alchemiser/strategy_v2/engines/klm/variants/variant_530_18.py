@@ -375,7 +375,7 @@ class KlmVariant53018(BaseKLMVariant):
     def _evaluate_holy_grail_kmlm_switcher(
         self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
-        """"10. KMLM Switcher | Holy Grail" - The final complex branch.
+        """ "10. KMLM Switcher | Holy Grail" - The final complex branch.
 
         This includes:
         1. VOX RSI(10) > 79 → VIX Blend
@@ -465,7 +465,7 @@ class KlmVariant53018(BaseKLMVariant):
     def _evaluate_kmlm_switcher_plus_fngu(
         self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
-        """"KMLM Switcher + FNGU" with complex 50/50 FNGU logic.
+        """ "KMLM Switcher + FNGU" with complex 50/50 FNGU logic.
 
         This is the most sophisticated KMLM switcher in the ensemble.
         """
