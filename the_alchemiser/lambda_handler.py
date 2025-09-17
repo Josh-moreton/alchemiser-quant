@@ -45,10 +45,10 @@ def _determine_trading_mode(mode: str) -> str:
     """Determine trading mode based on endpoint configuration.
 
     Args:
-        mode: The execution mode (trade, bot, etc.)
+        mode: The execution mode (currently only 'trade').
 
     Returns:
-        Trading mode string (paper, live, or n/a)
+        Trading mode string (paper or live). Returns 'n/a' for unsupported modes.
 
     """
     if mode != "trade":
@@ -70,13 +70,6 @@ def _build_response_message(mode: str, trading_mode: str, *, result: bool) -> st
         Formatted response message
 
     """
-    if mode == "bot":
-        return (
-            "Signal analysis completed successfully"
-            if result
-            else "Signal analysis failed"
-        )
-
     mode_str = trading_mode.title()
     return (
         f"{mode_str} trading completed successfully"
@@ -182,64 +175,28 @@ def _handle_critical_error(
 def parse_event_mode(
     event: LambdaEventDTO | dict[str, Any],
 ) -> list[str]:  # Lambda event can be flexible dict or TypedDict
-    """Parse the Lambda event to determine which trading mode to execute.
+    """Parse the Lambda event. Trade-only system; always returns ['trade'].
 
     Args:
-        event: AWS Lambda event data containing mode configuration
+        event: AWS Lambda event data (ignored for mode selection)
 
     Returns:
-        List of command arguments for the main function
+        List of command arguments for the main function: ['trade']
 
-    Event Structure:
-        {
-            "mode": "trade" | "bot"           # Required: Operation mode
-        }
-
-    Examples:
-        Trading: {"mode": "trade"}
-        Signals only: {"mode": "bot"}
-        Empty event (safe default): {} or None → trading mode
-
-    Note: Trading mode (live/paper) is now determined by deployment environment,
-    not by event parameters.
+    Note: Trading mode (live/paper) is determined by deployment environment.
 
     """
-    # Default to trading mode
-    default_args = ["trade"]
+    # Convert dict to DTO if provided, for potential future use/validation
+    if isinstance(event, dict) and event:
+        _ = LambdaEventDTO(**event)
 
-    # Convert dict to DTO if needed
-    if isinstance(event, dict):
-        if not event:
-            logger.info(
-                "Empty event provided, using default trading mode with market hours ignored"
-            )
-            return default_args
-        # Convert dict to DTO for consistent handling
-        event = LambdaEventDTO(**event)
-
-    # Handle None or DTO without mode specified
-    if not event or not event.mode:
-        logger.info(
-            "No event or mode provided, using default trading mode with market hours ignored"
-        )
-        return default_args
-
-    # Extract mode (bot or trade)
-    mode = event.mode or "trade"
-    if mode not in ["bot", "trade"]:
-        logger.warning(f"Invalid mode '{mode}', defaulting to 'trade'")
-        mode = "trade"
-
-    # Build command arguments
-    args: list[str] = [mode]
-
-    logger.info(f"Parsed event to command: {' '.join(args)}")
-    return args
+    logger.info("Parsed event to command: trade")
+    return ["trade"]
 
 
 def lambda_handler(
-    event: LambdaEventDTO | None = None, context: Any = None
-) -> dict[str, Any]:  # noqa: ANN401  # AWS Lambda context is external object
+    event: LambdaEventDTO | None = None, context: object | None = None
+) -> dict[str, Any]:
     """AWS Lambda function handler for The Alchemiser trading system.
 
     This function serves as the entry point when the trading system is deployed
@@ -321,8 +278,8 @@ def lambda_handler(
         # Parse event to determine command arguments
         command_args = parse_event_mode(event or {})
 
-        # Extract mode information for response
-        mode = command_args[0] if command_args else "unknown"
+        # Extract mode information for response (trade-only)
+        mode = "trade"
 
         # Determine trading mode based on endpoint URL
         trading_mode = _determine_trading_mode(mode)
