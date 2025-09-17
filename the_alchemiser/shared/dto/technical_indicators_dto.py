@@ -9,7 +9,7 @@ and validation to ensure consistent indicator data across strategy engines.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -38,7 +38,9 @@ class TechnicalIndicatorDTO(BaseModel):
     data_source: str | None = Field(default=None, description="Data source identifier")
 
     # Price indicators
-    current_price: Decimal | None = Field(default=None, gt=0, description="Current/last price")
+    current_price: Decimal | None = Field(
+        default=None, gt=0, description="Current/last price"
+    )
 
     # RSI indicators (common windows)
     rsi_10: float | None = Field(
@@ -55,9 +57,15 @@ class TechnicalIndicatorDTO(BaseModel):
     )
 
     # Moving Average indicators
-    ma_20: float | None = Field(default=None, gt=0, description="20-period simple moving average")
-    ma_50: float | None = Field(default=None, gt=0, description="50-period simple moving average")
-    ma_200: float | None = Field(default=None, gt=0, description="200-period simple moving average")
+    ma_20: float | None = Field(
+        default=None, gt=0, description="20-period simple moving average"
+    )
+    ma_50: float | None = Field(
+        default=None, gt=0, description="50-period simple moving average"
+    )
+    ma_200: float | None = Field(
+        default=None, gt=0, description="200-period simple moving average"
+    )
 
     # Exponential Moving Averages
     ema_12: float | None = Field(
@@ -68,32 +76,56 @@ class TechnicalIndicatorDTO(BaseModel):
     )
 
     # Return indicators
-    ma_return_90: float | None = Field(default=None, description="90-period moving average return")
-    cum_return_60: float | None = Field(default=None, description="60-period cumulative return")
+    ma_return_90: float | None = Field(
+        default=None, description="90-period moving average return"
+    )
+    cum_return_60: float | None = Field(
+        default=None, description="60-period cumulative return"
+    )
     stdev_return_6: float | None = Field(
         default=None, ge=0, description="6-period return standard deviation"
     )
 
     # Volatility indicators
-    volatility_14: float | None = Field(default=None, ge=0, description="14-period volatility")
-    volatility_20: float | None = Field(default=None, ge=0, description="20-period volatility")
-    atr_14: float | None = Field(default=None, ge=0, description="14-period Average True Range")
+    volatility_14: float | None = Field(
+        default=None, ge=0, description="14-period volatility"
+    )
+    volatility_20: float | None = Field(
+        default=None, ge=0, description="20-period volatility"
+    )
+    atr_14: float | None = Field(
+        default=None, ge=0, description="14-period Average True Range"
+    )
 
     # MACD indicators
-    macd_line: float | None = Field(default=None, description="MACD line (12-26 EMA difference)")
+    macd_line: float | None = Field(
+        default=None, description="MACD line (12-26 EMA difference)"
+    )
     macd_signal: float | None = Field(
         default=None, description="MACD signal line (9-period EMA of MACD)"
     )
-    macd_histogram: float | None = Field(default=None, description="MACD histogram (MACD - Signal)")
+    macd_histogram: float | None = Field(
+        default=None, description="MACD histogram (MACD - Signal)"
+    )
 
     # Bollinger Bands
-    bb_upper: float | None = Field(default=None, gt=0, description="Bollinger Band upper bound")
-    bb_middle: float | None = Field(default=None, gt=0, description="Bollinger Band middle (SMA)")
-    bb_lower: float | None = Field(default=None, gt=0, description="Bollinger Band lower bound")
-    bb_width: float | None = Field(default=None, ge=0, description="Bollinger Band width")
+    bb_upper: float | None = Field(
+        default=None, gt=0, description="Bollinger Band upper bound"
+    )
+    bb_middle: float | None = Field(
+        default=None, gt=0, description="Bollinger Band middle (SMA)"
+    )
+    bb_lower: float | None = Field(
+        default=None, gt=0, description="Bollinger Band lower bound"
+    )
+    bb_width: float | None = Field(
+        default=None, ge=0, description="Bollinger Band width"
+    )
 
     # Volume indicators
-    volume_sma_20: float | None = Field(default=None, ge=0, description="20-period volume SMA")
+    volume_sma_20: float | None = Field(
+        default=None, ge=0, description="20-period volume SMA"
+    )
     volume_ratio: float | None = Field(
         default=None, ge=0, description="Current volume / average volume"
     )
@@ -102,8 +134,12 @@ class TechnicalIndicatorDTO(BaseModel):
     nuclear_strength: float | None = Field(
         default=None, description="Nuclear strategy specific indicator"
     )
-    klm_score: float | None = Field(default=None, description="KLM strategy specific score")
-    tecl_regime: str | None = Field(default=None, description="TECL strategy market regime")
+    klm_score: float | None = Field(
+        default=None, description="KLM strategy specific score"
+    )
+    tecl_regime: str | None = Field(
+        default=None, description="TECL strategy market regime"
+    )
 
     # Data quality
     calculation_window: int | None = Field(
@@ -139,7 +175,9 @@ class TechnicalIndicatorDTO(BaseModel):
         valid_regimes = {"BULL", "BEAR", "NEUTRAL", "TRANSITION"}
         regime_upper = v.strip().upper()
         if regime_upper not in valid_regimes:
-            raise ValueError(f"TECL regime must be one of {valid_regimes}, got {regime_upper}")
+            raise ValueError(
+                f"TECL regime must be one of {valid_regimes}, got {regime_upper}"
+            )
         return regime_upper
 
     def to_dict(self) -> dict[str, Any]:
@@ -183,7 +221,9 @@ class TechnicalIndicatorDTO(BaseModel):
                     timestamp_str = timestamp_str[:-1] + "+00:00"
                 data["timestamp"] = datetime.fromisoformat(timestamp_str)
             except ValueError as e:
-                raise ValueError(f"Invalid timestamp format: {data['timestamp']}") from e
+                raise ValueError(
+                    f"Invalid timestamp format: {data['timestamp']}"
+                ) from e
 
         # Convert string current_price back to Decimal
         if (
@@ -194,7 +234,9 @@ class TechnicalIndicatorDTO(BaseModel):
             try:
                 data["current_price"] = Decimal(data["current_price"])
             except (ValueError, TypeError) as e:
-                raise ValueError(f"Invalid current_price value: {data['current_price']}") from e
+                raise ValueError(
+                    f"Invalid current_price value: {data['current_price']}"
+                ) from e
 
         return cls(**data)
 
@@ -218,7 +260,7 @@ class TechnicalIndicatorDTO(BaseModel):
         """
         try:
             # Extract timestamp or use current time
-            timestamp = legacy_indicators.get("timestamp", datetime.utcnow())
+            timestamp = legacy_indicators.get("timestamp", datetime.now(UTC))
             if isinstance(timestamp, str):
                 timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
 
@@ -231,7 +273,9 @@ class TechnicalIndicatorDTO(BaseModel):
 
             # Map price indicators
             if "current_price" in legacy_indicators:
-                dto_data["current_price"] = Decimal(str(legacy_indicators["current_price"]))
+                dto_data["current_price"] = Decimal(
+                    str(legacy_indicators["current_price"])
+                )
 
             # Map RSI indicators
             for period in [10, 14, 20, 21]:
@@ -259,7 +303,9 @@ class TechnicalIndicatorDTO(BaseModel):
 
             # Map any remaining indicators to metadata
             mapped_keys = set(dto_data.keys()) | {"timestamp", "data_source"}
-            remaining = {k: v for k, v in legacy_indicators.items() if k not in mapped_keys}
+            remaining = {
+                k: v for k, v in legacy_indicators.items() if k not in mapped_keys
+            }
             if remaining:
                 dto_data["metadata"] = remaining
 

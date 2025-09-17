@@ -20,7 +20,10 @@ from the_alchemiser.execution_v2.models.execution_result import (
 )
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.dto.execution_dto import ExecutionResult
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO, RebalancePlanItemDTO
+from the_alchemiser.shared.dto.rebalance_plan_dto import (
+    RebalancePlanDTO,
+    RebalancePlanItemDTO,
+)
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 
 if TYPE_CHECKING:
@@ -46,6 +49,7 @@ class Executor:
         self,
         alpaca_manager: AlpacaManager,
         execution_config: ExecutionConfig | None = None,
+        *,
         enable_smart_execution: bool = True,
     ) -> None:
         """Initialize the executor.
@@ -87,7 +91,9 @@ class Executor:
                     self.enable_smart_execution = False
 
             except Exception as e:
-                logger.error(f"❌ Error initializing smart execution: {e}", exc_info=True)
+                logger.error(
+                    f"❌ Error initializing smart execution: {e}", exc_info=True
+                )
                 self.enable_smart_execution = False
                 self.pricing_service = None
                 self.smart_strategy = None
@@ -140,7 +146,9 @@ class Executor:
                         success=True,
                         execution_strategy=result.execution_strategy,
                     )
-                logger.warning(f"⚠️ Smart execution failed for {symbol}: {result.error_message}")
+                logger.warning(
+                    f"⚠️ Smart execution failed for {symbol}: {result.error_message}"
+                )
 
             except Exception as e:
                 logger.error(f"❌ Smart execution failed for {symbol}: {e}")
@@ -149,7 +157,9 @@ class Executor:
         logger.info(f"📈 Using standard market order for {symbol}")
         return self._execute_market_order(symbol, side, quantity)
 
-    def _execute_market_order(self, symbol: str, side: str, quantity: float) -> ExecutionResult:
+    def _execute_market_order(
+        self, symbol: str, side: str, quantity: float
+    ) -> ExecutionResult:
         """Execute a standard market order.
 
         Args:
@@ -191,7 +201,9 @@ class Executor:
                 execution_strategy="market_order_failed",
             )
 
-    async def execute_rebalance_plan(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
+    async def execute_rebalance_plan(
+        self, plan: RebalancePlanDTO
+    ) -> ExecutionResultDTO:
         """Execute a rebalance plan with settlement-aware sell-first, buy-second workflow.
 
         Enhanced execution flow:
@@ -236,7 +248,9 @@ class Executor:
         # Phase 1: Execute SELL orders and monitor settlement
         sell_order_ids: list[str] = []
         if sell_items:
-            logger.info("🔄 Phase 1: Executing SELL orders with settlement monitoring...")
+            logger.info(
+                "🔄 Phase 1: Executing SELL orders with settlement monitoring..."
+            )
 
             sell_orders, sell_stats = await self._execute_sell_phase(sell_items)
             orders.extend(sell_orders)
@@ -246,7 +260,9 @@ class Executor:
 
             # Collect successful sell order IDs for settlement monitoring
             sell_order_ids = [
-                order.order_id for order in sell_orders if order.success and order.order_id
+                order.order_id
+                for order in sell_orders
+                if order.success and order.order_id
             ]
 
         # Phase 2: Monitor settlement and execute BUY orders
@@ -254,8 +270,10 @@ class Executor:
             logger.info("🔄 Phase 2: Monitoring settlement and executing BUY orders...")
 
             # Wait for settlement and then execute buys
-            buy_orders, buy_stats = await self._execute_buy_phase_with_settlement_monitoring(
-                buy_items, sell_order_ids, plan.correlation_id, plan.plan_id
+            buy_orders, buy_stats = (
+                await self._execute_buy_phase_with_settlement_monitoring(
+                    buy_items, sell_order_ids, plan.correlation_id, plan.plan_id
+                )
             )
 
             orders.extend(buy_orders)
@@ -265,7 +283,9 @@ class Executor:
 
         elif buy_items:
             # No sells to wait for, execute buys immediately
-            logger.info("🔄 Phase 2: Executing BUY orders (no settlement monitoring needed)...")
+            logger.info(
+                "🔄 Phase 2: Executing BUY orders (no settlement monitoring needed)..."
+            )
 
             buy_orders, buy_stats = await self._execute_buy_phase(buy_items)
             orders.extend(buy_orders)
@@ -314,7 +334,9 @@ class Executor:
         logger.info(f"📋 Extracted {len(sorted_symbols)} unique symbols for execution")
         return sorted_symbols
 
-    def _bulk_subscribe_symbols(self, symbols: list[str], correlation_id: str) -> dict[str, bool]:
+    def _bulk_subscribe_symbols(
+        self, symbols: list[str], correlation_id: str
+    ) -> dict[str, bool]:
         """Bulk subscribe to all symbols for efficient real-time pricing.
 
         Args:
@@ -332,7 +354,9 @@ class Executor:
         if not symbols:
             return {}
 
-        logger.info(f"📡 Bulk subscribing to {len(symbols)} symbols for real-time pricing")
+        logger.info(
+            f"📡 Bulk subscribing to {len(symbols)} symbols for real-time pricing"
+        )
 
         # Use the enhanced bulk subscription method
         subscription_results = self.pricing_service.subscribe_symbols_bulk(
@@ -340,7 +364,9 @@ class Executor:
             priority=5.0,  # High priority for execution
         )
 
-        successful_subscriptions = sum(1 for success in subscription_results.values() if success)
+        successful_subscriptions = sum(
+            1 for success in subscription_results.values() if success
+        )
         logger.info(
             f"✅ Bulk subscription complete: {successful_subscriptions}/{len(symbols)} "
             "symbols subscribed"
@@ -378,14 +404,20 @@ class Executor:
                     f"✅ SELL {item.symbol} completed successfully (ID: {order_result.order_id})"
                 )
             else:
-                logger.error(f"❌ SELL {item.symbol} failed: {order_result.error_message}")
+                logger.error(
+                    f"❌ SELL {item.symbol} failed: {order_result.error_message}"
+                )
 
         # Monitor and re-peg sell orders that haven't filled
         if self.smart_strategy and self.enable_smart_execution:
             logger.info("🔄 Monitoring SELL orders for re-pegging opportunities...")
             await self._monitor_and_repeg_phase_orders("SELL", orders)
 
-        return orders, {"placed": placed, "succeeded": succeeded, "trade_value": trade_value}
+        return orders, {
+            "placed": placed,
+            "succeeded": succeeded,
+            "trade_value": trade_value,
+        }
 
     async def _execute_buy_phase_with_settlement_monitoring(
         self,
@@ -460,14 +492,20 @@ class Executor:
                     f"✅ BUY {item.symbol} completed successfully (ID: {order_result.order_id})"
                 )
             else:
-                logger.error(f"❌ BUY {item.symbol} failed: {order_result.error_message}")
+                logger.error(
+                    f"❌ BUY {item.symbol} failed: {order_result.error_message}"
+                )
 
         # Monitor and re-peg buy orders that haven't filled
         if self.smart_strategy and self.enable_smart_execution:
             logger.info("🔄 Monitoring BUY orders for re-pegging opportunities...")
             await self._monitor_and_repeg_phase_orders("BUY", orders)
 
-        return orders, {"placed": placed, "succeeded": succeeded, "trade_value": trade_value}
+        return orders, {
+            "placed": placed,
+            "succeeded": succeeded,
+            "trade_value": trade_value,
+        }
 
     async def _monitor_and_repeg_phase_orders(
         self, phase_type: str, orders: list[OrderResultDTO]
@@ -488,7 +526,9 @@ class Executor:
         repeg_results = await self.smart_strategy.check_and_repeg_orders()
 
         if repeg_results:
-            logger.info(f"📊 {phase_type} phase re-pegging: {len(repeg_results)} orders processed")
+            logger.info(
+                f"📊 {phase_type} phase re-pegging: {len(repeg_results)} orders processed"
+            )
             for repeg_result in repeg_results:
                 if repeg_result.success:
                     logger.info(
@@ -496,7 +536,9 @@ class Executor:
                         f"(attempt {repeg_result.repegs_used})"
                     )
                 else:
-                    logger.warning(f"⚠️ {phase_type} re-peg failed: {repeg_result.error_message}")
+                    logger.warning(
+                        f"⚠️ {phase_type} re-peg failed: {repeg_result.error_message}"
+                    )
         else:
             logger.info(f"📊 {phase_type} phase: No re-pegging needed")
 
@@ -544,7 +586,8 @@ class Executor:
                 # For other orders, estimate shares from trade amount
                 # This is a simplified calculation - could be improved with real-time price
                 estimated_price = abs(
-                    item.trade_amount / max(item.current_value / Decimal("100"), Decimal("1"))
+                    item.trade_amount
+                    / max(item.current_value / Decimal("100"), Decimal("1"))
                 )
                 shares = (
                     abs(item.trade_amount / estimated_price)
@@ -571,7 +614,11 @@ class Executor:
                 action=item.action,
                 trade_amount=abs(item.trade_amount),
                 shares=shares,
-                price=(Decimal(str(execution_result.price)) if execution_result.price else None),
+                price=(
+                    Decimal(str(execution_result.price))
+                    if execution_result.price
+                    else None
+                ),
                 order_id=execution_result.order_id,
                 success=execution_result.success,
                 error_message=getattr(execution_result, "error", None),
@@ -617,7 +664,9 @@ class Executor:
                 return Decimal("0")
 
             # Use qty_available to account for shares tied up in orders
-            qty = getattr(position, "qty_available", None) or getattr(position, "qty", 0)
+            qty = getattr(position, "qty_available", None) or getattr(
+                position, "qty", 0
+            )
             return Decimal(str(qty))
         except Exception as e:
             logger.warning(f"Error getting position for {symbol}: {e}")

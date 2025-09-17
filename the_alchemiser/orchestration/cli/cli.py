@@ -10,9 +10,12 @@ and reporting. Handles user commands and displays formatted output.
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 import time
+from contextlib import suppress
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import typer
@@ -101,7 +104,9 @@ def trade(
     verbose: bool = typer.Option(  # noqa: FBT001
         default=False, help="Enable verbose output"
     ),
-    no_header: bool = typer.Option(default=False, help="Skip welcome header"),
+    no_header: bool = typer.Option(
+        default=False, help="Skip welcome header"
+    ),  # noqa: FBT001
     show_tracking: bool = typer.Option(  # noqa: FBT001
         default=False,
         help="Display strategy performance tracking after execution",
@@ -320,11 +325,9 @@ def status() -> None:
             )
 
         # Override the paper_trading provider so downstream providers pick the right keys/endpoints
-        try:
-            container.config.paper_trading.override(paper_trading)
-        except AttributeError:
+        with suppress(AttributeError):
             # Non-fatal; container may not expose override in some DI test contexts
-            pass  # pragma: no cover
+            container.config.paper_trading.override(paper_trading)  # pragma: no cover
 
         # Get account info directly from AlpacaManager
         alpaca_manager = container.infrastructure.alpaca_manager()
@@ -372,7 +375,21 @@ def deploy() -> None:
         "[bold yellow]🔨 Building and deploying to AWS Lambda with SAM...[/bold yellow]"
     )
 
-    deploy_script = "scripts/deploy.sh"
+    # Resolve the deploy script to an absolute, validated path
+    repo_root = Path.cwd()
+    deploy_script_path = (repo_root / "scripts" / "deploy.sh").resolve()
+    try:
+        # Ensure script resides within the current working directory tree to avoid traversal
+        deploy_script_path.relative_to(repo_root)
+    except ValueError:
+        console.print("[bold red]❌ Invalid deployment script path.[/bold red]")
+        raise typer.Exit(1)
+
+    if not deploy_script_path.is_file():
+        console.print(
+            f"[bold red]❌ Deployment script not found at: {deploy_script_path}[/bold red]"
+        )
+        raise typer.Exit(1)
 
     with Progress(
         SpinnerColumn(),
@@ -382,8 +399,14 @@ def deploy() -> None:
         _task = progress.add_task("Running deployment script...", total=None)
 
         try:
-            result = subprocess.run(
-                ["bash", deploy_script], capture_output=True, text=True, check=True
+            # Use absolute bash path and explicit script path (no shell)
+            result = subprocess.run(  # noqa: S603
+                ["/bin/bash", str(deploy_script_path)],
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=str(repo_root),
+                env=os.environ.copy(),
             )
 
             console.print(
