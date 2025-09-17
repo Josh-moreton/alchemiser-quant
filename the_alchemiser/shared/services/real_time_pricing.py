@@ -440,7 +440,9 @@ class RealTimePricingService:
 
             # Ensure timestamp is a datetime
             timestamp = (
-                timestamp_raw if isinstance(timestamp_raw, datetime) else datetime.now(UTC)
+                timestamp_raw
+                if isinstance(timestamp_raw, datetime)
+                else datetime.now(UTC)
             )
 
             # Log for debugging
@@ -500,17 +502,21 @@ class RealTimePricingService:
                 symbol_raw = trade.symbol
                 price = trade.price
                 size = trade.size
-                volume = getattr(trade, "volume", size)  # New field for structured types
+                volume = getattr(
+                    trade, "volume", size
+                )  # New field for structured types
                 timestamp_raw = trade.timestamp
 
             # Ensure symbol is a string
             if not symbol_raw:
                 return
             symbol = str(symbol_raw)
-            
+
             # Ensure timestamp is a datetime
             timestamp = (
-                timestamp_raw if isinstance(timestamp_raw, datetime) else datetime.now(UTC)
+                timestamp_raw
+                if isinstance(timestamp_raw, datetime)
+                else datetime.now(UTC)
             )
 
             # Update last trade price with both legacy and structured storage
@@ -734,7 +740,9 @@ class RealTimePricingService:
 
     def get_stats(self) -> dict[str, str | int | float | datetime | bool]:
         """Get service statistics."""
-        last_hb = self._datetime_stats.get("last_heartbeat")  # May be absent until first trade
+        last_hb = self._datetime_stats.get(
+            "last_heartbeat"
+        )  # May be absent until first trade
         uptime = (
             (datetime.now(UTC) - last_hb).total_seconds()
             if isinstance(last_hb, datetime)
