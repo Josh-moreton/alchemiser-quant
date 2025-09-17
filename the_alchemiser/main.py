@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
 
 # CLI formatter imports (moved from function-level)
-from the_alchemiser.orchestration.cli.cli_formatter import (
+from the_alchemiser.orchestration.cli.cli_utilities import (
     render_footer,
 )
 from the_alchemiser.orchestration.event_driven_orchestrator import (

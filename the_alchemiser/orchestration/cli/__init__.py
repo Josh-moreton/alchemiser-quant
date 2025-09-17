@@ -8,13 +8,10 @@ orchestration as they coordinate between business units rather than being shared
 
 Exports:
     - app: Main CLI application (Typer app)
-    - BaseCLI: Base CLI functionality
 """
 
-from .base_cli import BaseCLI
 from .cli import app
 
 __all__ = [
-    "BaseCLI",
     "app",
 ]

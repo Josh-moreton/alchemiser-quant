@@ -24,7 +24,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich.text import Text
 
-from the_alchemiser.orchestration.cli.cli_formatter import render_account_info
+from the_alchemiser.orchestration.cli.cli_utilities import render_account_info
 
 # Delayed import to avoid complex dependency chains during module loading
 # from the_alchemiser.strategy_v2.data.market_data_service import MarketDataService
