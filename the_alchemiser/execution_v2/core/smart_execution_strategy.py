@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 class LiquidityMetadata(TypedDict, total=False):
     """Metadata for liquidity analysis and execution."""
-    
+
     # Core liquidity metrics
     liquidity_score: float
     volume_imbalance: float
@@ -45,7 +45,7 @@ class LiquidityMetadata(TypedDict, total=False):
     strategy_recommendation: str
     bid_volume: float
     ask_volume: float
-    
+
     # Market data context
     method: str
     mid: float
@@ -56,7 +56,7 @@ class LiquidityMetadata(TypedDict, total=False):
     spread_percent: float
     bid_size: float
     ask_size: float
-    
+
     # Execution context
     used_fallback: bool
     original_order_id: str
@@ -247,27 +247,29 @@ class SmartExecutionStrategy:
         # Fallback to REST API using the same data feed as strategy engines
         logger.info(f"📊 Falling back to REST API quote data for {symbol}")
         rest_quote = self.alpaca_manager.get_latest_quote(symbol)
-        
+
         if not rest_quote:
-            logger.error(f"❌ No quote data available for {symbol} (streaming and REST failed)")
+            logger.error(
+                f"❌ No quote data available for {symbol} (streaming and REST failed)"
+            )
             return None
-            
+
         bid_price, ask_price = rest_quote
-        
+
         # Create QuoteModel from REST data for consistent processing
         quote = QuoteModel(
             symbol=symbol,
             bid_price=bid_price,
             ask_price=ask_price,
             bid_size=0.0,  # REST API doesn't provide size data
-            ask_size=0.0,  # REST API doesn't provide size data  
+            ask_size=0.0,  # REST API doesn't provide size data
             timestamp=datetime.now(UTC),
         )
-        
+
         logger.info(
             f"✅ Got REST quote for {symbol}: bid=${bid_price:.2f}, ask=${ask_price:.2f}"
         )
-        
+
         return quote, True  # Used REST fallback
 
     def _calculate_simple_inside_spread_price(
@@ -577,17 +579,21 @@ class SmartExecutionStrategy:
         for order_id, request in list(self._active_orders.items()):
             try:
                 # Check if order is still active
-                order_status = self.alpaca_manager._check_order_completion_status(order_id)
+                order_status = self.alpaca_manager._check_order_completion_status(
+                    order_id
+                )
                 if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
                     orders_to_remove.append(order_id)
-                    logger.info(f"📊 Order {order_id} completed with status: {order_status}")
+                    logger.info(
+                        f"📊 Order {order_id} completed with status: {order_status}"
+                    )
                     continue
 
                 # Check if enough time has passed to consider re-pegging
                 placement_time = self._order_placement_times.get(order_id)
                 if not placement_time:
                     continue
-                    
+
                 time_elapsed = (current_time - placement_time).total_seconds()
                 if time_elapsed < self.config.fill_wait_seconds:
                     logger.debug(
@@ -610,7 +616,7 @@ class SmartExecutionStrategy:
                     "attempting re-peg..."
                 )
                 repeg_result = await self._attempt_repeg(order_id, request)
-                
+
                 if repeg_result:
                     repeg_results.append(repeg_result)
 
@@ -627,11 +633,11 @@ class SmartExecutionStrategy:
         self, order_id: str, request: SmartOrderRequest
     ) -> SmartOrderResult | None:
         """Attempt to re-peg an order with a more aggressive price.
-        
+
         Args:
             order_id: The order ID to re-peg
             request: Original order request
-            
+
         Returns:
             SmartOrderResult if re-peg was attempted, None if skipped
 
@@ -640,7 +646,7 @@ class SmartExecutionStrategy:
             # Cancel the existing order
             logger.info(f"❌ Canceling order {order_id} for re-pegging")
             cancel_success = self.alpaca_manager.cancel_order(order_id)
-            
+
             if not cancel_success:
                 logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
                 return None
@@ -650,15 +656,19 @@ class SmartExecutionStrategy:
                 request.symbol, float(request.quantity)
             )
             if not validated:
-                logger.warning(f"⚠️ No valid quote for {request.symbol}, skipping re-peg")
+                logger.warning(
+                    f"⚠️ No valid quote for {request.symbol}, skipping re-peg"
+                )
                 return None
-                
+
             quote, _ = validated
-            
+
             # Calculate more aggressive price for re-peg
             original_anchor = self._order_anchor_prices.get(order_id)
-            new_price = self._calculate_repeg_price(quote, request.side, original_anchor)
-            
+            new_price = self._calculate_repeg_price(
+                quote, request.side, original_anchor
+            )
+
             if not new_price:
                 logger.warning(f"⚠️ Cannot calculate re-peg price for {request.symbol}")
                 return None
@@ -668,7 +678,7 @@ class SmartExecutionStrategy:
                 f"📈 Re-pegging {request.symbol} {request.side} from "
                 f"${original_anchor} to ${new_price}"
             )
-            
+
             executed_order = self.alpaca_manager.place_limit_order(
                 symbol=request.symbol,
                 side=request.side.lower(),
@@ -680,7 +690,7 @@ class SmartExecutionStrategy:
             # Update tracking
             self._repeg_counts[order_id] = self._repeg_counts.get(order_id, 0) + 1
             repeg_count = self._repeg_counts[order_id]
-            
+
             if executed_order.order_id:
                 # Update tracking with new order ID
                 self._cleanup_order_tracking(order_id)
@@ -693,7 +703,7 @@ class SmartExecutionStrategy:
                     f"✅ Re-peg successful: new order {executed_order.order_id} "
                     f"at ${new_price} (attempt {repeg_count})"
                 )
-                
+
                 return SmartOrderResult(
                     success=True,
                     order_id=executed_order.order_id,
@@ -704,13 +714,15 @@ class SmartExecutionStrategy:
                     placement_timestamp=datetime.now(UTC),
                     metadata={
                         "original_order_id": order_id,
-                        "original_price": float(original_anchor) if original_anchor else None,
+                        "original_price": (
+                            float(original_anchor) if original_anchor else None
+                        ),
                         "new_price": float(new_price),
                         "bid_price": quote.bid_price,
                         "ask_price": quote.ask_price,
                     },
                 )
-            
+
             # If we get here, re-peg failed (no order ID returned)
             logger.error(f"❌ Re-peg failed for {request.symbol}: no order ID returned")
             return SmartOrderResult(
@@ -719,7 +731,7 @@ class SmartExecutionStrategy:
                 execution_strategy="smart_repeg_failed",
                 repegs_used=repeg_count,
             )
-                
+
         except Exception as e:
             logger.error(f"❌ Error during re-peg attempt for {order_id}: {e}")
             return SmartOrderResult(
@@ -732,12 +744,12 @@ class SmartExecutionStrategy:
         self, quote: QuoteModel, side: str, original_price: Decimal | None
     ) -> Decimal | None:
         """Calculate a more aggressive price for re-pegging.
-        
+
         Args:
             quote: Current market quote
             side: Order side ("BUY" or "SELL")
             original_price: Original order price
-            
+
         Returns:
             New more aggressive price, or None if cannot calculate
 
@@ -752,11 +764,14 @@ class SmartExecutionStrategy:
                     new_price = original_price + adjustment
                 else:
                     # If no original price, use ask price minus small offset
-                    new_price = Decimal(str(quote.ask_price)) - self.config.ask_anchor_offset_cents
-                    
+                    new_price = (
+                        Decimal(str(quote.ask_price))
+                        - self.config.ask_anchor_offset_cents
+                    )
+
                 # Ensure we don't exceed ask price
                 new_price = min(new_price, Decimal(str(quote.ask_price)))
-                
+
             else:  # SELL
                 # For sells, move price down towards bid (more aggressive)
                 if original_price:
@@ -766,13 +781,16 @@ class SmartExecutionStrategy:
                     new_price = original_price - adjustment
                 else:
                     # If no original price, use bid price plus small offset
-                    new_price = Decimal(str(quote.bid_price)) + self.config.bid_anchor_offset_cents
-                    
+                    new_price = (
+                        Decimal(str(quote.bid_price))
+                        + self.config.bid_anchor_offset_cents
+                    )
+
                 # Ensure we don't go below bid price
                 new_price = max(new_price, Decimal(str(quote.bid_price)))
 
             return new_price
-            
+
         except Exception as e:
             logger.error(f"Error calculating re-peg price: {e}")
             return None
