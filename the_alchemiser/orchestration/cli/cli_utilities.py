@@ -147,7 +147,7 @@ def render_account_info(
             recent_pl_pct = profit_loss_pct[-1] if profit_loss_pct else 0
 
             pl_color = "green" if recent_pl >= 0 else "red"
-            pl_sign = "" if recent_pl >= 0 else ""
+            pl_sign = "+" if recent_pl > 0 else ""
             
             content_lines.append(
                 f"[bold {pl_color}]Daily P&L:[/bold {pl_color}] "
@@ -182,7 +182,7 @@ def render_account_info(
             total_unrealized_pl += unrealized_pl
 
             pl_color = "green" if unrealized_pl >= 0 else "red"
-            pl_sign = "" if unrealized_pl >= 0 else ""
+            pl_sign = "+" if unrealized_pl > 0 else ""
 
             positions_table.add_row(
                 symbol,
@@ -195,7 +195,7 @@ def render_account_info(
 
         # Add totals row
         total_pl_color = "green" if total_unrealized_pl >= 0 else "red"
-        total_pl_sign = "" if total_unrealized_pl >= 0 else ""
+        total_pl_sign = "+" if total_unrealized_pl > 0 else ""
         total_pl_pct = (
             total_unrealized_pl / (total_market_value - total_unrealized_pl)
             if (total_market_value - total_unrealized_pl) != 0
