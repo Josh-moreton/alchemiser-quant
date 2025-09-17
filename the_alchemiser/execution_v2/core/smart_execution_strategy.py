@@ -324,7 +324,9 @@ class SmartExecutionStrategy:
             "spread_percent": float((ask - bid) / bid * 100) if bid > 0 else 0.0,
             "used_fallback": True,  # Mark as fallback pricing
         }
-        return anchor, metadata
+        # Quantize to cent precision to avoid sub-penny errors
+        anchor_quantized = anchor.quantize(Decimal("0.01"))
+        return anchor_quantized, metadata
 
     def calculate_liquidity_aware_price(
         self, quote: QuoteModel, side: str, order_size: float
@@ -457,11 +459,16 @@ class SmartExecutionStrategy:
                 )
 
             # Place limit order with optimal pricing
+            # Ensure price is properly quantized to avoid sub-penny precision errors
+            quantized_price = Decimal(str(float(optimal_price))).quantize(
+                Decimal("0.01")
+            )
+
             result = self.alpaca_manager.place_limit_order(
                 symbol=request.symbol,
                 side=request.side.lower(),
                 quantity=float(request.quantity),
-                limit_price=float(optimal_price),
+                limit_price=float(quantized_price),
                 time_in_force="day",
             )
 
@@ -641,6 +648,7 @@ class SmartExecutionStrategy:
         Returns:
             SmartOrderResult if re-peg was attempted, None if skipped
 
+
         """
         try:
             # Cancel the existing order
@@ -679,11 +687,14 @@ class SmartExecutionStrategy:
                 f"${original_anchor} to ${new_price}"
             )
 
+            # Ensure price is properly quantized to avoid sub-penny precision errors
+            quantized_price = new_price.quantize(Decimal("0.01"))
+
             executed_order = self.alpaca_manager.place_limit_order(
                 symbol=request.symbol,
                 side=request.side.lower(),
                 quantity=float(request.quantity),
-                limit_price=float(new_price),
+                limit_price=float(quantized_price),
                 time_in_force="day",
             )
 
@@ -789,7 +800,8 @@ class SmartExecutionStrategy:
                 # Ensure we don't go below bid price
                 new_price = max(new_price, Decimal(str(quote.bid_price)))
 
-            return new_price
+            # Quantize to cent precision to avoid sub-penny errors
+            return new_price.quantize(Decimal("0.01"))
 
         except Exception as e:
             logger.error(f"Error calculating re-peg price: {e}")
