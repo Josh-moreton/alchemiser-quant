@@ -45,7 +45,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.brokers.alpaca_utils import (
     create_stock_data_stream,
