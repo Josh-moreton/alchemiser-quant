@@ -529,7 +529,9 @@ class KLMEngine(StrategyEngine):
 
         # Get key market indicators
         spy_rsi_10 = indicators["SPY"].rsi_10 if "SPY" in indicators else 0.0
-        spy_close = float(indicators["SPY"].current_price) if "SPY" in indicators else 0.0
+        spy_close = (
+            float(indicators["SPY"].current_price) if "SPY" in indicators else 0.0
+        )
         spy_sma_200 = indicators["SPY"].ma_200 if "SPY" in indicators else 0.0
 
         analysis_lines.append(f"• SPY RSI(10): {spy_rsi_10:.1f}")
