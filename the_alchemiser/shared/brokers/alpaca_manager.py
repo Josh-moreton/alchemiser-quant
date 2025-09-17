@@ -146,7 +146,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         try:
             # Extract basic fields from order object
-            order_id = getattr(order, "id", "unknown")
+            order_id_raw = getattr(order, "id", None)
+            order_id = str(order_id_raw) if order_id_raw is not None else "unknown"
             status = getattr(order, "status", "unknown")
             filled_qty = Decimal(str(getattr(order, "filled_qty", 0)))
             avg_fill_price = getattr(order, "avg_fill_price", None)
@@ -1397,10 +1398,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 logger.error(f"Failed to start TradingStream: {exc}")
                 self._trading_ws_connected = False
 
-    def _on_order_update(self, data: dict[str, Any] | object) -> None:
-        """Order update callback for TradingStream.
+    async def _on_order_update(self, data: dict[str, Any] | object) -> None:
+        """Order update callback for TradingStream (async).
 
-        Handles both SDK models and dict payloads.
+        Handles both SDK models and dict payloads. Must be async for TradingStream.
         """
         try:
             if hasattr(data, "event"):
@@ -1459,6 +1460,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             if is_terminal:
                 evt = self._order_events.get(order_id)
                 if evt:
+                    # Safe to set from event loop thread; non-blocking
                     evt.set()
         except Exception as exc:
             logger.error(f"Error in TradingStream order update: {exc}")

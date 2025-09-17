@@ -520,28 +520,61 @@ class Executor:
             Updated list of orders with any re-pegged order IDs swapped in.
 
         """
-        # Wait a moment for orders to potentially fill before checking for re-pegging
+        # Loop re-pegging attempts up to configured max + market escalation
         import asyncio
+        import time
 
-        await asyncio.sleep(1)
-
-        # Check for re-pegging opportunities on orders from this phase
-        if self.smart_strategy is not None:
-            repeg_results = await self.smart_strategy.check_and_repeg_orders()
-        else:
-            repeg_results = []
-
-        if repeg_results:
+        if not self.smart_strategy:
             logger.info(
-                f"📊 {phase_type} phase re-pegging: {len(repeg_results)} orders processed"
+                f"📊 {phase_type} phase: Smart strategy disabled; skipping re-peg loop"
             )
-            replacement_map = self._build_replacement_map_from_repeg_results(
-                phase_type, repeg_results
-            )
-            if replacement_map:
-                orders = self._replace_order_ids(orders, replacement_map)
-        else:
-            logger.info(f"📊 {phase_type} phase: No re-pegging needed")
+            return orders
+
+        # Derive loop bounds
+        max_repegs = 5
+        wait_between_checks = 1
+        max_total_wait = 60
+        try:
+            if self.execution_config is not None:
+                max_repegs = getattr(self.execution_config, "max_repegs_per_order", 5)
+                wait_between_checks = max(
+                    1, int(getattr(self.execution_config, "fill_wait_seconds", 15))
+                )
+                placement_timeout = int(
+                    getattr(
+                        self.execution_config, "order_placement_timeout_seconds", 30
+                    )
+                )
+                max_total_wait = int(
+                    placement_timeout + wait_between_checks * (max_repegs + 1)
+                )
+                max_total_wait = max(30, min(max_total_wait, 300))
+        except Exception as exc:
+            logger.debug(f"Error deriving re-peg loop bounds: {exc}")
+
+        start_time = time.time()
+        attempts = 0
+        while (time.time() - start_time) < max_total_wait:
+            # Give existing orders time to fill before checking
+            await asyncio.sleep(wait_between_checks)
+
+            repeg_results = await self.smart_strategy.check_and_repeg_orders()
+
+            if repeg_results:
+                logger.info(
+                    f"📊 {phase_type} phase re-pegging: {len(repeg_results)} orders processed (attempt {attempts + 1})"
+                )
+                replacement_map = self._build_replacement_map_from_repeg_results(
+                    phase_type, repeg_results
+                )
+                if replacement_map:
+                    orders = self._replace_order_ids(orders, replacement_map)
+            else:
+                logger.info(
+                    f"📊 {phase_type} phase: No re-pegging needed (attempt {attempts + 1})"
+                )
+
+            attempts += 1
 
         return orders
 

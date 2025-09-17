@@ -611,12 +611,21 @@ class SmartExecutionStrategy:
                     )
                     continue
 
-                # Check if we've reached max re-pegs
-                if self._repeg_counts[order_id] >= self.config.max_repegs_per_order:
+                # Check if we've reached max re-pegs — escalate to market
+                if (
+                    self._repeg_counts.get(order_id, 0)
+                    >= self.config.max_repegs_per_order
+                ):
                     logger.info(
                         f"⚠️ Order {order_id} reached max re-pegs "
-                        f"({self.config.max_repegs_per_order}), leaving as-is"
+                        f"({self.config.max_repegs_per_order}), escalating to market order"
                     )
+                    escalation_result = await self._escalate_to_market(
+                        order_id, request
+                    )
+                    if escalation_result is not None:
+                        repeg_results.append(escalation_result)
+                    # After escalation, skip further processing for this order_id
                     continue
 
                 # Attempt re-pegging
@@ -637,6 +646,96 @@ class SmartExecutionStrategy:
             self._cleanup_order_tracking(order_id)
 
         return repeg_results
+
+    async def _escalate_to_market(
+        self, order_id: str, request: SmartOrderRequest
+    ) -> SmartOrderResult | None:
+        """Cancel current limit order and place a market order (final escalation).
+
+        Args:
+            order_id: Existing limit order ID to cancel
+            request: Original smart order request details
+
+        Returns:
+            SmartOrderResult describing the escalation outcome, or None if cancel failed
+
+        """
+        try:
+            logger.info(
+                f"🛑 Escalating order {order_id} to market: canceling existing limit order"
+            )
+            cancel_success = self.alpaca_manager.cancel_order(order_id)
+            if not cancel_success:
+                logger.warning(
+                    f"⚠️ Failed to cancel order {order_id}; cannot escalate to market"
+                )
+                return None
+
+            # Place market order
+            executed_order = self.alpaca_manager.place_market_order(
+                symbol=request.symbol,
+                side=request.side.lower(),
+                qty=float(request.quantity),
+                is_complete_exit=request.is_complete_exit,
+            )
+
+            # Clean up old tracking regardless of outcome
+            original_anchor = self._order_anchor_prices.get(order_id)
+            self._cleanup_order_tracking(order_id)
+
+            # Successful placement if not rejected/canceled
+            if executed_order.order_id and executed_order.status not in [
+                "REJECTED",
+                "CANCELED",
+            ]:
+                metadata: LiquidityMetadata = {
+                    "original_order_id": order_id,
+                    "original_price": (
+                        float(original_anchor) if original_anchor is not None else None
+                    ),
+                    "new_price": (
+                        float(executed_order.price)
+                        if executed_order.price is not None
+                        else 0.0
+                    ),
+                }
+                logger.info(
+                    f"✅ Market escalation successful: new order {executed_order.order_id}"
+                )
+                return SmartOrderResult(
+                    success=True,
+                    order_id=executed_order.order_id,
+                    final_price=(
+                        executed_order.price
+                        if executed_order.price is not None
+                        else None
+                    ),
+                    anchor_price=original_anchor,
+                    repegs_used=self.config.max_repegs_per_order,
+                    execution_strategy="market_escalation",
+                    placement_timestamp=executed_order.execution_timestamp,
+                    metadata=metadata,
+                )
+
+            # Placement failed
+            logger.error(
+                f"❌ Market escalation failed for {request.symbol}: status={executed_order.status}"
+            )
+            return SmartOrderResult(
+                success=False,
+                order_id=executed_order.order_id,
+                error_message=getattr(executed_order, "error_message", None)
+                or "Market escalation placement failed",
+                execution_strategy="market_escalation_failed",
+                placement_timestamp=executed_order.execution_timestamp,
+            )
+        except Exception as exc:
+            logger.error(f"❌ Error during market escalation for {order_id}: {exc}")
+            return SmartOrderResult(
+                success=False,
+                error_message=str(exc),
+                execution_strategy="market_escalation_error",
+            )
 
     async def _attempt_repeg(
         self, order_id: str, request: SmartOrderRequest
