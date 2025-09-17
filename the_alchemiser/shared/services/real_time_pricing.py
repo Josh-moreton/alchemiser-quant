@@ -102,6 +102,7 @@ class RealTimePricingService:
         self,
         api_key: str | None = None,
         secret_key: str | None = None,
+        *,
         paper_trading: bool = True,
         max_symbols: int = 30,
     ) -> None:
@@ -298,7 +299,9 @@ class RealTimePricingService:
                     task.cancel()
 
                 if pending:
-                    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                    loop.run_until_complete(
+                        asyncio.gather(*pending, return_exceptions=True)
+                    )
 
                 loop.close()
             except Exception as e:
@@ -355,7 +358,9 @@ class RealTimePricingService:
                     # If we get here, the stream closed normally
                     logging.info("📡 Real-time data stream closed normally")
                     break  # No symbols to subscribe to - wait for symbols to be added
-                logging.info("📡 No symbols to subscribe to, waiting for subscription requests...")
+                logging.info(
+                    "📡 No symbols to subscribe to, waiting for subscription requests..."
+                )
                 self._connected = True  # Mark as ready to receive subscriptions
 
                 # Wait for subscriptions to be added
@@ -366,7 +371,9 @@ class RealTimePricingService:
 
                 # If symbols were added, restart the loop to set up subscriptions
                 if symbols_to_subscribe:
-                    logging.info(f"📡 New subscriptions detected: {sorted(symbols_to_subscribe)}")
+                    logging.info(
+                        f"📡 New subscriptions detected: {sorted(symbols_to_subscribe)}"
+                    )
                     # Reset connection state to force re-setup
                     self._connected = False
                     continue
@@ -377,15 +384,21 @@ class RealTimePricingService:
 
             except Exception as e:
                 retry_count += 1
-                delay = min(base_delay * (2 ** (retry_count - 1)), 30.0)  # Cap at 30 seconds
+                delay = min(
+                    base_delay * (2 ** (retry_count - 1)), 30.0
+                )  # Cap at 30 seconds
 
-                logging.error(f"❌ Real-time data stream error (attempt {retry_count}): {e}")
+                logging.error(
+                    f"❌ Real-time data stream error (attempt {retry_count}): {e}"
+                )
 
                 if retry_count < max_retries and self._should_reconnect:
                     logging.info(f"⏱️ Retrying in {delay:.1f} seconds...")
                     await asyncio.sleep(delay)
                 else:
-                    logging.error("🚨 Max retries exceeded, stopping real-time pricing service")
+                    logging.error(
+                        "🚨 Max retries exceeded, stopping real-time pricing service"
+                    )
                     break
             finally:
                 self._connected = False
@@ -425,7 +438,9 @@ class RealTimePricingService:
                 timestamp = getattr(data, "timestamp", None)
 
             # Log for debugging
-            self.logger.debug(f"📊 Quote received for {symbol}: bid={bid_price}, ask={ask_price}")
+            self.logger.debug(
+                f"📊 Quote received for {symbol}: bid={bid_price}, ask={ask_price}"
+            )
 
             # Store complete quote data
             self._latest_quotes[symbol] = data
@@ -479,7 +494,9 @@ class RealTimePricingService:
                 symbol = trade.symbol
                 price = trade.price
                 size = trade.size
-                volume = getattr(trade, "volume", size)  # New field for structured types
+                volume = getattr(
+                    trade, "volume", size
+                )  # New field for structured types
                 timestamp = trade.timestamp
 
             if not symbol:
@@ -562,7 +579,9 @@ class RealTimePricingService:
                         self._last_update.pop(symbol, None)
 
                     if symbols_to_remove:
-                        logging.info(f"🧹 Cleaned up {len(symbols_to_remove)} old quotes")
+                        logging.info(
+                            f"🧹 Cleaned up {len(symbols_to_remove)} old quotes"
+                        )
 
             except Exception as e:
                 logging.error(f"Error during quote cleanup: {e}")
@@ -728,7 +747,9 @@ class RealTimePricingService:
         """
         import os
 
-        feed = (os.getenv("ALPACA_FEED") or os.getenv("ALPACA_DATA_FEED") or "iex").lower()
+        feed = (
+            os.getenv("ALPACA_FEED") or os.getenv("ALPACA_DATA_FEED") or "iex"
+        ).lower()
         if feed not in {"iex", "sip"}:
             self.logger.warning(f"Unknown ALPACA_FEED '{feed}', defaulting to 'iex'")
             return "iex"
@@ -751,7 +772,9 @@ class RealTimePricingService:
             priority = time.time()  # Use current timestamp as default priority
 
         results: dict[str, bool] = {}
-        normalized_symbols = [symbol.upper().strip() for symbol in symbols if symbol.strip()]
+        normalized_symbols = [
+            symbol.upper().strip() for symbol in symbols if symbol.strip()
+        ]
 
         if not normalized_symbols:
             return results
@@ -801,7 +824,9 @@ class RealTimePricingService:
                     self._subscription_priority.pop(symbol_to_remove, None)
                     available_slots += 1
                     self._stats["subscription_limit_hits"] += 1
-                    logging.info(f"📊 Replaced {symbol_to_remove} for higher priority symbols")
+                    logging.info(
+                        f"📊 Replaced {symbol_to_remove} for higher priority symbols"
+                    )
 
             # Add new symbols
             successfully_added = 0
@@ -815,11 +840,15 @@ class RealTimePricingService:
             # Mark symbols we couldn't subscribe to due to limits
             for symbol in symbols_to_add[available_slots:]:
                 results[symbol] = False
-                logging.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
+                logging.warning(
+                    f"⚠️ Cannot subscribe to {symbol} - subscription limit reached"
+                )
 
         # Restart stream if we added new symbols and are connected
         if successfully_added > 0 and self._connected:
-            logging.info(f"🔄 Restarting stream to add {successfully_added} new subscriptions")
+            logging.info(
+                f"🔄 Restarting stream to add {successfully_added} new subscriptions"
+            )
             self._restart_stream_for_new_subscription()
 
         logging.info(
@@ -850,7 +879,9 @@ class RealTimePricingService:
                     self._subscribed_symbols,
                     key=lambda s: self._subscription_priority.get(s, 0),
                 )
-                lowest_priority = self._subscription_priority.get(lowest_priority_symbol, 0)
+                lowest_priority = self._subscription_priority.get(
+                    lowest_priority_symbol, 0
+                )
 
                 if priority > lowest_priority:
                     # Unsubscribe lowest priority symbol
@@ -872,8 +903,12 @@ class RealTimePricingService:
                 self._subscription_priority[symbol] = priority
                 needs_restart = self._connected  # Only restart if already connected
 
-                logging.info(f"📡 Added {symbol} to subscription list (priority: {priority:.1f})")
-                logging.debug(f"📊 Current subscriptions: {sorted(self._subscribed_symbols)}")
+                logging.info(
+                    f"📡 Added {symbol} to subscription list (priority: {priority:.1f})"
+                )
+                logging.debug(
+                    f"📊 Current subscriptions: {sorted(self._subscribed_symbols)}"
+                )
                 self._stats["total_subscriptions"] += 1
             else:
                 # Update priority for existing subscription
@@ -919,7 +954,9 @@ class RealTimePricingService:
             start_time = time.time()
             while time.time() - start_time < 5.0:
                 if self._connected:
-                    logging.info("✅ Stream restarted successfully with new subscriptions")
+                    logging.info(
+                        "✅ Stream restarted successfully with new subscriptions"
+                    )
                     break
                 time.sleep(0.1)
 
@@ -1008,7 +1045,9 @@ class RealTimePricingService:
             # Check if we have recent data for this symbol
             if symbol in self._quotes and symbol in self._last_update:
                 # If data is very recent (within 1 second), use it immediately
-                time_since_update = (datetime.now(UTC) - self._last_update[symbol]).total_seconds()
+                time_since_update = (
+                    datetime.now(UTC) - self._last_update[symbol]
+                ).total_seconds()
                 if time_since_update < 1.0:
                     break
 
@@ -1036,7 +1075,9 @@ class RealTimePricingManager:
     existing trading systems while maintaining backward compatibility.
     """
 
-    def __init__(self, api_key: str, secret_key: str, *, paper_trading: bool = True) -> None:
+    def __init__(
+        self, api_key: str, secret_key: str, *, paper_trading: bool = True
+    ) -> None:
         """Initialize real-time pricing manager.
 
         Args:
@@ -1087,7 +1128,11 @@ class RealTimePricingManager:
         primary_provider = type(
             "PriceProvider",
             (),
-            {"get_current_price": lambda _, sym: self.pricing_service.get_real_time_price(sym)},
+            {
+                "get_current_price": lambda _, sym: self.pricing_service.get_real_time_price(
+                    sym
+                )
+            },
         )()
 
         # Create fallback provider wrapper if available
@@ -1105,7 +1150,9 @@ class RealTimePricingManager:
                 },
             )()
 
-        return get_current_price_with_fallback(primary_provider, fallback_provider, symbol)
+        return get_current_price_with_fallback(
+            primary_provider, fallback_provider, symbol
+        )
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
         """Get latest bid/ask quote with real-time data priority.

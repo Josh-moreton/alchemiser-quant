@@ -42,7 +42,9 @@ class PortfolioStateReader:
         """
         self._data_adapter = data_adapter
 
-    def build_portfolio_snapshot(self, symbols: set[str] | None = None) -> PortfolioSnapshot:
+    def build_portfolio_snapshot(
+        self, symbols: set[str] | None = None
+    ) -> PortfolioSnapshot:
         """Build current portfolio snapshot with positions, prices, and cash.
 
         Args:
@@ -71,12 +73,9 @@ class PortfolioStateReader:
 
             # Step 2: Determine which symbols we need prices for
             position_symbols = set(positions.keys())
-            if symbols is None:
-                # Use all symbols from current positions
-                price_symbols = position_symbols
-            else:
-                # Use requested symbols plus any symbols we have positions in
-                price_symbols = symbols.union(position_symbols)
+            price_symbols = (
+                position_symbols if symbols is None else symbols.union(position_symbols)
+            )
 
             # Step 3: Get current prices for all required symbols
             prices = {}
@@ -110,7 +109,9 @@ class PortfolioStateReader:
                     "Snapshot total value validation failed - continuing anyway",
                     module=MODULE_NAME,
                     action="build_snapshot",
-                    calculated_total=str(snapshot.get_total_position_value() + snapshot.cash),
+                    calculated_total=str(
+                        snapshot.get_total_position_value() + snapshot.cash
+                    ),
                     snapshot_total=str(snapshot.total_value),
                 )
 
