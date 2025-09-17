@@ -341,7 +341,7 @@ class KLMEngine(StrategyEngine):
         """
         # Check if it's a KLMDecision (TypedDict)
         if isinstance(result, dict) and "symbol" in result and "action" in result:
-            klm_decision: KLMDecision = result  # type: ignore[assignment]
+            klm_decision: KLMDecision = result
             return (
                 klm_decision["symbol"],
                 klm_decision["action"],
@@ -465,7 +465,13 @@ class KLMEngine(StrategyEngine):
     ) -> tuple[KLMResult, BaseKLMVariant | None]:
         """Select the best performing variant from results."""
         if not variant_results:
-            return None, None
+            # Return a default "no decision" result
+            no_decision: KLMDecision = {
+                "symbol": "CASH",
+                "action": "HOLD", 
+                "reasoning": "No valid variant results available"
+            }
+            return no_decision, None
 
         # Sort by performance score (descending)
         sorted_results = sorted(variant_results, key=lambda x: x[2], reverse=True)
@@ -519,14 +525,14 @@ class KLMEngine(StrategyEngine):
 
         # Get key market indicators
         spy_rsi_10 = indicators["SPY"].rsi_10 if "SPY" in indicators else 0.0
-        spy_close = float(indicators["SPY"].current_price) if "SPY" in indicators else 0.0
+        spy_close = float(indicators["SPY"].current_price) if "SPY" in indicators and indicators["SPY"].current_price is not None else 0.0
         spy_sma_200 = indicators["SPY"].ma_200 if "SPY" in indicators else 0.0
 
         analysis_lines.append(f"• SPY RSI(10): {spy_rsi_10:.1f}")
         analysis_lines.append(f"• SPY Price: ${spy_close:.2f}")
-        analysis_lines.append(f"• SPY 200-day MA: ${spy_sma_200:.2f}")
+        analysis_lines.append(f"• SPY 200-day MA: ${spy_sma_200 or 0.0:.2f}")
 
-        if spy_close > spy_sma_200:
+        if spy_close > (spy_sma_200 or 0.0):
             analysis_lines.append("• Market Regime: BULLISH (above 200-day MA)")
         else:
             analysis_lines.append("• Market Regime: BEARISH (below 200-day MA)")

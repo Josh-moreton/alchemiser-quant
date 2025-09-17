@@ -105,14 +105,11 @@ class KlmVariant50638(BaseKLMVariant):
         volatility_candidates = []
         for symbol in rotator_symbols:
             if symbol in indicators:
-                stdev = (
-                    indicators[symbol].metadata.get("stdev_return_6")
-                    if indicators[symbol].metadata
-                    and "stdev_return_6" in indicators[symbol].metadata
-                    else None
-                )
-                if stdev is not None:
-                    volatility_candidates.append((symbol, stdev))
+                metadata = indicators[symbol].metadata
+                if metadata is not None and "stdev_return_6" in metadata:
+                    stdev = metadata.get("stdev_return_6")
+                    if stdev is not None:
+                        volatility_candidates.append((symbol, float(stdev)))
 
         if volatility_candidates:
             # Select bottom 1 by volatility (lowest standard deviation) - exact CLJ logic

@@ -75,6 +75,7 @@ class PositionInfo(TypedDict):
     market_value: str | float
     avg_entry_price: str | float
     unrealized_pl: str | float
+    unrealized_plpc: str | float  # Unrealized profit/loss percentage
     side: Literal["long", "short"]
     asset_id: str
     asset_class: Literal["crypto", "us_equity"]

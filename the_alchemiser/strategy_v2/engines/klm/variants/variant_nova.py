@@ -54,12 +54,12 @@ class KLMVariantNova(BaseKLMVariant):
         return self._evaluate_single_popped_kmlm_nova(indicators)
 
     def _evaluate_single_popped_kmlm_nova(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
         """Nova Single Popped KMLM - DIFFERENT: uses UVIX instead of UVXY."""
         # Check UVIX RSI(21) for strategy branching (not UVXY!)
         if "UVIX" in indicators:
-            uvix_rsi_21 = getattr(indicators["UVIX"], "rsi_21", None) or 50
+            uvix_rsi_21 = indicators["UVIX"].rsi_21 or 50
 
             if uvix_rsi_21 > 65:
                 # UVIX elevated - use BSC strategy
@@ -122,7 +122,7 @@ class KLMVariantNova(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator (same as 520/22)
         return self._evaluate_ls_rotator_nova(indicators)
 
-    def _evaluate_ls_rotator_nova(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def _evaluate_ls_rotator_nova(self, indicators: dict[str, TechnicalIndicatorDTO]) -> KLMDecision:
         """Nova L/S Rotator - same as 520/22 (FTLS/KMLM/SSO/UUP)."""
         # Volatility filter candidates: FTLS, KMLM, SSO, UUP
         rotator_symbols = ["FTLS", "KMLM", "SSO", "UUP"]
