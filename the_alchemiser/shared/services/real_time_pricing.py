@@ -154,7 +154,7 @@ class RealTimePricingService:
         self._max_quote_age = 300  # maximum age of quotes in seconds
 
         # Initialize missing attributes for smart execution
-        self._subscription_priority: dict[str, int] = {}
+        self._subscription_priority: dict[str, float] = {}
         self._latest_quotes: dict[str, AlpacaQuoteData] = {}
         self._stats: dict[str, int] = {
             "quotes_received": 0,
@@ -162,6 +162,7 @@ class RealTimePricingService:
             "trades_received": 0,
             "subscription_limit_hits": 0,
         }
+        self._datetime_stats: dict[str, datetime] = {}
         self._latest_bid: dict[str, float] = {}
         self._latest_ask: dict[str, float] = {}
         self._last_quote_time: dict[str, datetime] = {}
@@ -429,13 +430,20 @@ class RealTimePricingService:
                 ask_price = data.get("ap")
                 bid_size = data.get("bs")
                 ask_size = data.get("as")
-                timestamp = data.get("t")
+                timestamp_raw = data.get("t")
             else:
                 bid_price = getattr(data, "bid_price", None)
                 ask_price = getattr(data, "ask_price", None)
                 bid_size = getattr(data, "bid_size", None)
                 ask_size = getattr(data, "ask_size", None)
-                timestamp = getattr(data, "timestamp", None)
+                timestamp_raw = getattr(data, "timestamp", None)
+
+            # Ensure timestamp is a datetime
+            timestamp = (
+                timestamp_raw
+                if isinstance(timestamp_raw, datetime)
+                else datetime.now(UTC)
+            )
 
             # Log for debugging
             self.logger.debug(
@@ -460,7 +468,7 @@ class RealTimePricingService:
                         bid=float(bid_price),
                         ask=float(ask_price),
                         last_price=last_price,
-                        timestamp=timestamp or datetime.now(UTC),
+                        timestamp=timestamp,
                     )
 
                     # Create new structured QuoteModel
@@ -468,9 +476,9 @@ class RealTimePricingService:
                         symbol=symbol,
                         bid_price=float(bid_price),
                         ask_price=float(ask_price),
-                        bid_size=int(bid_size) if bid_size is not None else None,
-                        ask_size=int(ask_size) if ask_size is not None else None,
-                        timestamp=timestamp or datetime.now(UTC),
+                        bid_size=float(bid_size) if bid_size is not None else 0.0,
+                        ask_size=float(ask_size) if ask_size is not None else 0.0,
+                        timestamp=timestamp,
                     )
 
             # Update statistics
@@ -485,22 +493,31 @@ class RealTimePricingService:
         try:
             # Handle both Trade objects and dictionary format
             if isinstance(trade, dict):
-                symbol = trade.get("symbol")
+                symbol_raw = trade.get("symbol")
                 price = trade.get("price", 0)
                 size = trade.get("size", 0)
                 volume = trade.get("volume", size)  # New field for structured types
-                timestamp = trade.get("timestamp", datetime.now(UTC))
+                timestamp_raw = trade.get("timestamp", datetime.now(UTC))
             else:
-                symbol = trade.symbol
+                symbol_raw = trade.symbol
                 price = trade.price
                 size = trade.size
                 volume = getattr(
                     trade, "volume", size
                 )  # New field for structured types
-                timestamp = trade.timestamp
+                timestamp_raw = trade.timestamp
 
-            if not symbol:
+            # Ensure symbol is a string
+            if not symbol_raw:
                 return
+            symbol = str(symbol_raw)
+
+            # Ensure timestamp is a datetime
+            timestamp = (
+                timestamp_raw
+                if isinstance(timestamp_raw, datetime)
+                else datetime.now(UTC)
+            )
 
             # Update last trade price with both legacy and structured storage
             with self._quotes_lock:
@@ -514,7 +531,7 @@ class RealTimePricingService:
                         bid=current_quote.bid,
                         ask=current_quote.ask,
                         last_price=float(price or 0),
-                        timestamp=timestamp or datetime.now(UTC),
+                        timestamp=timestamp,
                     )
                 else:
                     # Create new quote with trade price only
@@ -522,7 +539,7 @@ class RealTimePricingService:
                         bid=0.0,
                         ask=0.0,
                         last_price=float(price or 0),
-                        timestamp=timestamp or datetime.now(UTC),
+                        timestamp=timestamp,
                     )
 
                 # New structured PriceDataModel storage
@@ -532,7 +549,7 @@ class RealTimePricingService:
                 self._price_data[symbol] = PriceDataModel(
                     symbol=symbol,
                     price=float(price or 0),
-                    timestamp=timestamp or datetime.now(UTC),
+                    timestamp=timestamp,
                     bid=bid_price,
                     ask=ask_price,
                     volume=int(volume or 0) if volume else None,
@@ -542,7 +559,7 @@ class RealTimePricingService:
                 self._stats["trades_received"] += 1
 
             # Update heartbeat
-            self._stats["last_heartbeat"] = datetime.now(UTC)
+            self._datetime_stats["last_heartbeat"] = datetime.now(UTC)
 
             logging.debug(f"💰 Trade: {symbol} ${float(price or 0):.2f} x {size}")
 
@@ -723,14 +740,17 @@ class RealTimePricingService:
 
     def get_stats(self) -> dict[str, str | int | float | datetime | bool]:
         """Get service statistics."""
-        last_hb = self._stats.get("last_heartbeat")  # May be absent until first trade
+        last_hb = self._datetime_stats.get(
+            "last_heartbeat"
+        )  # May be absent until first trade
         uptime = (
-            (datetime.now(UTC) - last_hb).total_seconds()  # type: ignore[arg-type]
-            if last_hb
+            (datetime.now(UTC) - last_hb).total_seconds()
+            if isinstance(last_hb, datetime)
             else 0
         )
         return {
             **self._stats,
+            **self._datetime_stats,
             "connected": self._connected,
             "symbols_tracked": len(self._quotes),
             "symbols_tracked_legacy": len(self._quotes),
@@ -786,7 +806,7 @@ class RealTimePricingService:
         with self._subscription_lock:
             # Process each symbol
             symbols_to_add = []
-            symbols_to_replace = []
+            symbols_to_replace: list[str] = []
 
             for symbol in normalized_symbols:
                 if symbol in self._subscribed_symbols:
@@ -992,7 +1012,7 @@ class RealTimePricingService:
             symbol: Stock symbol to subscribe to
 
         """
-        self.pricing_service.subscribe_for_trading(symbol)
+        self.subscribe_symbol(symbol)
 
     def subscribe_for_order_placement(self, symbol: str) -> None:
         """Subscribe to a symbol specifically for order placement.

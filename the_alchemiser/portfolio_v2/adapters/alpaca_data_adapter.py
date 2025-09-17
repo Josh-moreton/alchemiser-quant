@@ -182,7 +182,11 @@ class AlpacaDataAdapter:
             account_info = self._alpaca_manager.get_account()
             if not account_info:
                 raise RuntimeError("Account information unavailable")
-            cash = Decimal(str(getattr(account_info, "cash", "0")))
+            # account_info is now dict[str, Any], so access cash key directly
+            cash_value = account_info.get("cash")
+            if cash_value is None:
+                raise RuntimeError("Cash information not available in account")
+            cash = Decimal(str(cash_value))
 
             log_with_context(
                 logger,
