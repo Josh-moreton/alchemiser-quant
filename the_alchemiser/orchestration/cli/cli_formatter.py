@@ -384,18 +384,18 @@ def render_portfolio_allocation(
     c.print(table)
 
 
-def render_orders_executed(
-    orders_executed: list[dict[str, Any]],
-    console: Console | None = None,
-) -> None:
-    """Pretty-print trading execution summary."""
-    c = console or Console()
+def _to_float(v: object) -> float:
+    """Safely convert object to float with fallback to 0.0."""
+    try:
+        if isinstance(v, (int, float, str, Decimal)):
+            return float(v)
+        return 0.0
+    except (TypeError, ValueError):
+        return 0.0
 
-    if not orders_executed:
-        c.print(Panel("No trades executed", title="TRADING SUMMARY", style="yellow"))
-        return
 
-    # Analyze orders
+def _analyze_orders(orders_executed: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Analyze orders to separate buy and sell orders."""
     buy_orders: list[dict[str, Any]] = []
     sell_orders: list[dict[str, Any]] = []
 
@@ -412,17 +412,26 @@ def render_orders_executed(
             elif side_value == "SELL":
                 sell_orders.append(order)
 
-    def _to_float(v: object) -> float:
-        try:
-            return float(v)
-        except (TypeError, ValueError):
-            return 0.0
+    return buy_orders, sell_orders
 
+
+def _calculate_order_totals(buy_orders: list[dict[str, Any]], sell_orders: list[dict[str, Any]]) -> tuple[float, float, float]:
+    """Calculate total buy value, sell value, and net value."""
     total_buy_value = sum(_to_float(o.get("estimated_value", 0)) for o in buy_orders)
     total_sell_value = sum(_to_float(o.get("estimated_value", 0)) for o in sell_orders)
     net_value = total_buy_value - total_sell_value
+    return total_buy_value, total_sell_value, net_value
 
-    # Create summary table
+
+def _create_trading_summary_table(
+    buy_orders: list[dict[str, Any]], 
+    sell_orders: list[dict[str, Any]], 
+    orders_executed: list[dict[str, Any]],
+    total_buy_value: float, 
+    total_sell_value: float, 
+    net_value: float
+) -> Table:
+    """Create and populate the trading summary table."""
     table = Table(title="TRADING SUMMARY", show_lines=True, expand=True)
     table.add_column("Type", style="bold", justify="center")
     table.add_column("Orders", style="cyan", justify="center")
@@ -433,30 +442,57 @@ def render_orders_executed(
     table.add_row(
         "[bold]Net", f"[bold]{len(orders_executed)}", f"[bold]${net_value:+,.2f}"
     )
+    return table
 
-    c.print(table)
+
+def _create_order_details_table(orders_executed: list[dict[str, Any]]) -> Table:
+    """Create and populate the detailed order table."""
+    detail_table = Table(title="Order Details", show_lines=False)
+    detail_table.add_column("Symbol", style="cyan")
+    detail_table.add_column("Side", style="bold")
+    detail_table.add_column("Quantity", style="white", justify="right")
+    detail_table.add_column("Value", style="green", justify="right")
+
+    for order in orders_executed:
+        side = str(order.get("side", "")).replace("OrderSide.", "")
+        side_color = "green" if side == "BUY" else "red"
+
+        qty_val = _to_float(order.get("qty", 0))
+        est_val = _to_float(order.get("estimated_value", 0))
+        detail_table.add_row(
+            order.get("symbol", "N/A"),
+            f"[{side_color}]{side}[/{side_color}]",
+            f"{qty_val:.6f}",
+            f"${est_val:,.2f}",
+        )
+
+    return detail_table
+
+
+def render_orders_executed(
+    orders_executed: list[dict[str, Any]],
+    console: Console | None = None,
+) -> None:
+    """Pretty-print trading execution summary."""
+    c = console or Console()
+
+    if not orders_executed:
+        c.print(Panel("No trades executed", title="TRADING SUMMARY", style="yellow"))
+        return
+
+    # Analyze orders and calculate totals
+    buy_orders, sell_orders = _analyze_orders(orders_executed)
+    total_buy_value, total_sell_value, net_value = _calculate_order_totals(buy_orders, sell_orders)
+
+    # Create and display summary table
+    summary_table = _create_trading_summary_table(
+        buy_orders, sell_orders, orders_executed, total_buy_value, total_sell_value, net_value
+    )
+    c.print(summary_table)
 
     # Detailed order list if needed
     if len(orders_executed) <= 10:  # Only show details for small number of orders
-        detail_table = Table(title="Order Details", show_lines=False)
-        detail_table.add_column("Symbol", style="cyan")
-        detail_table.add_column("Side", style="bold")
-        detail_table.add_column("Quantity", style="white", justify="right")
-        detail_table.add_column("Value", style="green", justify="right")
-
-        for order in orders_executed:
-            side = str(order.get("side", "")).replace("OrderSide.", "")
-            side_color = "green" if side == "BUY" else "red"
-
-            qty_val = _to_float(order.get("qty", 0))
-            est_val = _to_float(order.get("estimated_value", 0))
-            detail_table.add_row(
-                order.get("symbol", "N/A"),
-                f"[{side_color}]{side}[/{side_color}]",
-                f"{qty_val:.6f}",
-                f"${est_val:,.2f}",
-            )
-
+        detail_table = _create_order_details_table(orders_executed)
         c.print(detail_table)
 
 
@@ -539,25 +575,16 @@ def _format_money(value: float | int | Decimal | str | MoneyLike) -> str:
     return "-"
 
 
-def render_account_info(
-    account_info: dict[str, Any], console: Console | None = None
-) -> None:
-    """Render account information including P&L data."""
-    c = console or Console()
-
-    if not account_info:
-        c.print(
-            Panel(
-                "Account information not available", title="ACCOUNT INFO", style="red"
-            )
-        )
-        return
-
+def _extract_account_data(account_info: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
+    """Extract account data, portfolio history, and positions from account info."""
     account_data = account_info.get("account", account_info)  # Support both formats
     portfolio_history = account_info.get("portfolio_history", {})
     open_positions = account_info.get("open_positions", [])
+    return account_data, portfolio_history, open_positions
 
-    # Account basics - fail fast if portfolio_value not available
+
+def _validate_portfolio_value(account_data: dict[str, Any]) -> None:
+    """Validate that portfolio value is available in account data."""
     portfolio_value = account_data.get("portfolio_value") or account_data.get("equity")
     if portfolio_value is None:
         raise ValueError(
@@ -565,18 +592,35 @@ def render_account_info(
             "Check API connection and account status. "
             "Cannot display portfolio information without portfolio value."
         )
+
+
+def _format_account_displays(account_data: dict[str, Any]) -> tuple[str, str, str]:
+    """Format portfolio value, cash, and buying power displays."""
+    portfolio_value = account_data.get("portfolio_value") or account_data.get("equity")
     cash = account_data.get("cash", 0)
     buying_power = account_data.get("buying_power", 0)
 
-    # Always use typed domain Money display (using typed domain)
-    # If account_data contains nested money fields, honor them; otherwise fallback
-    pv_display = _format_money(
-        account_data.get("portfolio_value_money", portfolio_value)
-    )
-    cash_display = _format_money(account_data.get("cash_money", cash))
-    bp_display = _format_money(account_data.get("buying_power_money", buying_power))
+    # Safely handle potential None values by providing fallbacks
+    pv_money = account_data.get("portfolio_value_money")
+    # Ensure we have a valid value for _format_money
+    pv_value = pv_money if pv_money is not None else (portfolio_value if portfolio_value is not None else 0)
+    pv_display = _format_money(pv_value)
+    
+    cash_money = account_data.get("cash_money")
+    cash_value = cash_money if cash_money is not None else cash
+    cash_display = _format_money(cash_value)
+    
+    bp_money = account_data.get("buying_power_money")
+    bp_value = bp_money if bp_money is not None else buying_power
+    bp_display = _format_money(bp_value)
+    
+    return pv_display, cash_display, bp_display
 
-    # Create account summary with P&L
+
+def _build_account_content_lines(
+    pv_display: str, cash_display: str, bp_display: str, portfolio_history: dict[str, Any]
+) -> list[str]:
+    """Build content lines for account summary including P&L if available."""
     content_lines = [
         f"[bold green]Portfolio Value:[/bold green] {pv_display}",
         f"[bold blue]Available Cash:[/bold blue] {cash_display}",
@@ -599,6 +643,89 @@ def render_account_info(
                 f"[bold {pl_color}]Total P&L:[/bold {pl_color}] {pl_sign}${latest_pl:,.2f} ({pl_sign}{latest_pl_pct:.2%})"
             )
 
+    return content_lines
+
+
+def _create_positions_table() -> Table:
+    """Create the positions table with appropriate columns."""
+    positions_table = Table(title="Open Positions", show_lines=True, box=None)
+    positions_table.add_column("Symbol", style=STYLE_BOLD_CYAN)
+    positions_table.add_column("Qty", style="white", justify="right")
+    positions_table.add_column("Avg Price", style="white", justify="right")
+    positions_table.add_column("Current Price", style="white", justify="right")
+    positions_table.add_column("Market Value", style="white", justify="right")
+    positions_table.add_column("Unrealized P&L", style="white", justify="right")
+    return positions_table
+
+
+def _add_position_row(table: Table, position: dict[str, Any]) -> tuple[float, float]:
+    """Add a single position row to the table and return market value and unrealized P&L."""
+    symbol = position.get("symbol", "N/A")
+    qty = float(position.get("qty", 0))
+    avg_price = float(position.get("avg_entry_price", 0))
+    current_price = float(position.get("current_price", 0))
+    market_value = float(position.get("market_value", 0))
+    unrealized_pl = float(position.get("unrealized_pl", 0))
+    unrealized_plpc = float(position.get("unrealized_plpc", 0))
+
+    # Color coding for P&L
+    pl_color = "green" if unrealized_pl >= 0 else "red"
+    pl_sign = "+" if unrealized_pl >= 0 else ""
+
+    table.add_row(
+        symbol,
+        f"{qty:.4f}",
+        _format_money(avg_price),
+        _format_money(current_price),
+        _format_money(market_value),
+        f"[{pl_color}]{pl_sign}{_format_money(unrealized_pl)} ({pl_sign}{unrealized_plpc:.2%})[/{pl_color}]",
+    )
+
+    return market_value, unrealized_pl
+
+
+def _add_positions_totals_row(
+    table: Table, total_market_value: float, total_unrealized_pl: float
+) -> None:
+    """Add totals row to positions table."""
+    total_pl_color = "green" if total_unrealized_pl >= 0 else "red"
+    total_pl_sign = "+" if total_unrealized_pl >= 0 else ""
+    total_pl_pct = (
+        (total_unrealized_pl / total_market_value) * 100
+        if total_market_value > 0
+        else 0
+    )
+
+    table.add_row(
+        "[bold]TOTAL[/bold]",
+        "",
+        "",
+        "",
+        f"[bold]{_format_money(total_market_value)}[/bold]",
+        f"[bold {total_pl_color}]{total_pl_sign}{_format_money(total_unrealized_pl)} ({total_pl_sign}{total_pl_pct:.2%})[/bold {total_pl_color}]",
+    )
+
+
+def render_account_info(
+    account_info: dict[str, Any], console: Console | None = None
+) -> None:
+    """Render account information including P&L data."""
+    c = console or Console()
+
+    if not account_info:
+        c.print(
+            Panel(
+                "Account information not available", title="ACCOUNT INFO", style="red"
+            )
+        )
+        return
+
+    account_data, portfolio_history, open_positions = _extract_account_data(account_info)
+    _validate_portfolio_value(account_data)
+    
+    pv_display, cash_display, bp_display = _format_account_displays(account_data)
+    content_lines = _build_account_content_lines(pv_display, cash_display, bp_display, portfolio_history)
+    
     content = "\n".join(content_lines)
     c.print(Panel(content, title="ACCOUNT INFO", style=STYLE_BOLD_WHITE))
 
@@ -609,60 +736,18 @@ def render_account_info(
             open_positions, max_rows=50
         )
 
-        positions_table = Table(title="Open Positions", show_lines=True, box=None)
-        positions_table.add_column("Symbol", style=STYLE_BOLD_CYAN)
-        positions_table.add_column("Qty", style="white", justify="right")
-        positions_table.add_column("Avg Price", style="white", justify="right")
-        positions_table.add_column("Current Price", style="white", justify="right")
-        positions_table.add_column("Market Value", style="white", justify="right")
-        positions_table.add_column("Unrealized P&L", style="white", justify="right")
-
+        positions_table = _create_positions_table()
         total_market_value: float = 0.0
         total_unrealized_pl: float = 0.0
 
         for position in display_positions:
-            symbol = position.get("symbol", "N/A")
-            qty = float(position.get("qty", 0))
-            avg_price = float(position.get("avg_entry_price", 0))
-            current_price = float(position.get("current_price", 0))
-            market_value = float(position.get("market_value", 0))
-            unrealized_pl = float(position.get("unrealized_pl", 0))
-            unrealized_plpc = float(position.get("unrealized_plpc", 0))
-
+            market_value, unrealized_pl = _add_position_row(positions_table, position)
             total_market_value += market_value
             total_unrealized_pl += unrealized_pl
 
-            # Color coding for P&L
-            pl_color = "green" if unrealized_pl >= 0 else "red"
-            pl_sign = "+" if unrealized_pl >= 0 else ""
-
-            positions_table.add_row(
-                symbol,
-                f"{qty:.4f}",
-                _format_money(avg_price),
-                _format_money(current_price),
-                _format_money(market_value),
-                f"[{pl_color}]{pl_sign}{_format_money(unrealized_pl)} ({pl_sign}{unrealized_plpc:.2%})[/{pl_color}]",
-            )
-
         # Add totals row
         if len(open_positions) > 1:
-            total_pl_color = "green" if total_unrealized_pl >= 0 else "red"
-            total_pl_sign = "+" if total_unrealized_pl >= 0 else ""
-            total_pl_pct = (
-                (total_unrealized_pl / total_market_value) * 100
-                if total_market_value > 0
-                else 0
-            )
-
-            positions_table.add_row(
-                "[bold]TOTAL[/bold]",
-                "",
-                "",
-                "",
-                f"[bold]{_format_money(total_market_value)}[/bold]",
-                f"[bold {total_pl_color}]{total_pl_sign}{_format_money(total_unrealized_pl)} ({total_pl_sign}{total_pl_pct:.2%})[/bold {total_pl_color}]",
-            )
+            _add_positions_totals_row(positions_table, total_market_value, total_unrealized_pl)
 
         # Add truncation notice if needed
         if was_truncated:
@@ -867,7 +952,7 @@ def render_target_vs_current_allocations(
                 sum(target_values.values(), _D("0")) if target_values else _D("0")
             )
         except Exception:
-            total_targets = 0  # Trigger fallback safely
+            total_targets = _D("0")  # Trigger fallback safely
 
         if not target_values or total_targets <= _D("0"):
             target_values, current_values, deltas, portfolio_value = (
@@ -958,6 +1043,77 @@ __all__ = [
 ]
 
 
+def _get_order_status_color(order_status: str) -> str:
+    """Get color for order status display."""
+    if order_status == "FILLED":
+        return "green"
+    if order_status in {"NEW", "PARTIALLY_FILLED"}:
+        return "yellow"
+    return "red"
+
+
+def _normalize_orders_to_summaries(orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Normalize orders to summary dicts."""
+    summaries: list[dict[str, Any]] = []
+    for item in orders:
+        if isinstance(item, dict) and "summary" in item:
+            maybe = item.get("summary")
+            if isinstance(maybe, dict):
+                summaries.append(maybe)
+        elif isinstance(item, dict):
+            summaries.append(item)
+    return summaries
+
+
+def _create_enriched_orders_table() -> Table:
+    """Create the enriched orders table with appropriate columns."""
+    table = Table(title="Open Orders (Enriched)", show_lines=False, expand=True)
+    table.add_column("ID", style="dim", justify="left")
+    table.add_column("Symbol", style=STYLE_BOLD_CYAN, justify="center")
+    table.add_column("Type", style="white", justify="center")
+    table.add_column("Qty", style="white", justify="right")
+    table.add_column("Limit", style="white", justify="right")
+    table.add_column("Status", style="bold", justify="center")
+    table.add_column("Created", style="dim", justify="left")
+    return table
+
+
+def _format_order_quantity(qty: object) -> str:
+    """Format order quantity with safe fallback."""
+    try:
+        if isinstance(qty, (int, float, str, Decimal)):
+            return f"{float(qty):.6f}"
+        return "-"
+    except Exception:
+        return "-"
+
+
+def _add_enriched_order_row(table: Table, summary: dict[str, Any]) -> None:
+    """Add a single enriched order row to the table."""
+    oid = str(summary.get("id", ""))
+    short_id = oid[:8] + "…" if len(oid) > 12 else oid
+    symbol = str(summary.get("symbol", ""))
+    otype = str(summary.get("type", "")).upper()
+    qty = summary.get("qty", 0.0)
+    qty_str = _format_order_quantity(qty)
+    limit = summary.get("limit_price")
+    limit_str = _format_money(limit) if limit is not None else "-"
+    status = str(summary.get("status", "")).upper()
+    created = str(summary.get("created_at", ""))
+
+    status_color = _get_order_status_color(status)
+
+    table.add_row(
+        short_id,
+        symbol,
+        otype,
+        qty_str,
+        limit_str,
+        f"[{status_color}]{status}[/{status_color}]",
+        created,
+    )
+
+
 def render_enriched_order_summaries(
     orders: list[dict[str, Any]],
     console: Console | None = None,
@@ -973,15 +1129,7 @@ def render_enriched_order_summaries(
         c.print(Panel("No open orders", title="Open Orders (Enriched)", style="yellow"))
         return
 
-    # Normalize to summary dicts
-    summaries: list[dict[str, Any]] = []
-    for item in orders:
-        if isinstance(item, dict) and "summary" in item:
-            maybe = item.get("summary")
-            if isinstance(maybe, dict):
-                summaries.append(maybe)
-        elif isinstance(item, dict):
-            summaries.append(item)
+    summaries = _normalize_orders_to_summaries(orders)
 
     if not summaries:
         c.print(
@@ -993,50 +1141,10 @@ def render_enriched_order_summaries(
         )
         return
 
-    table = Table(title="Open Orders (Enriched)", show_lines=False, expand=True)
-    table.add_column("ID", style="dim", justify="left")
-    table.add_column("Symbol", style=STYLE_BOLD_CYAN, justify="center")
-    table.add_column("Type", style="white", justify="center")
-    table.add_column("Qty", style="white", justify="right")
-    table.add_column("Limit", style="white", justify="right")
-    table.add_column("Status", style="bold", justify="center")
-    table.add_column("Created", style="dim", justify="left")
+    table = _create_enriched_orders_table()
 
-    for s in summaries[:50]:  # cap to avoid very large output
-        oid = str(s.get("id", ""))
-        short_id = oid[:8] + "…" if len(oid) > 12 else oid
-        symbol = str(s.get("symbol", ""))
-        otype = str(s.get("type", "")).upper()
-        qty = s.get("qty", 0.0)
-        try:
-            qty_str = f"{float(qty):.6f}"
-        except Exception:
-            qty_str = "-"
-        limit = s.get("limit_price")
-        limit_str = _format_money(limit) if limit is not None else "-"
-        status = str(s.get("status", "")).upper()
-        created = str(s.get("created_at", ""))
-
-        # Determine status color based on order state
-        def _get_status_color(order_status: str) -> str:
-            """Get color for order status display."""
-            if order_status == "FILLED":
-                return "green"
-            if order_status in {"NEW", "PARTIALLY_FILLED"}:
-                return "yellow"
-            return "red"
-
-        status_color = _get_status_color(status)
-
-        table.add_row(
-            short_id,
-            symbol,
-            otype,
-            qty_str,
-            limit_str,
-            f"[{status_color}]{status}[/{status_color}]",
-            created,
-        )
+    for summary in summaries[:50]:  # cap to avoid very large output
+        _add_enriched_order_row(table, summary)
 
     c.print(table)
 
