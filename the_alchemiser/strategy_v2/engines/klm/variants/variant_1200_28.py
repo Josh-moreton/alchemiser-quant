@@ -56,15 +56,15 @@ class KlmVariant120028(BaseKLMVariant):
         KEY DIFFERENCE from 506/38: Uses select-bottom 1 from TECL/SOXL/SVIX (not FNGU)
         """
         if "XLK" in indicators and "KMLM" in indicators:
-            xlk_rsi = indicators["XLK"]["rsi_10"]
-            kmlm_rsi = indicators["KMLM"]["rsi_10"]
+            xlk_rsi = indicators["XLK"].rsi_10 or 50
+            kmlm_rsi = indicators["KMLM"].rsi_10 or 50
 
             if xlk_rsi > kmlm_rsi:
                 # select-bottom 1 from TECL, SOXL, SVIX
                 candidates = []
                 for symbol in ["TECL", "SOXL", "SVIX"]:
                     if symbol in indicators:
-                        rsi = indicators[symbol]["rsi_10"]
+                        rsi = indicators[symbol].rsi_10 or 50
                         candidates.append((symbol, rsi))
 
                 if candidates:
@@ -90,7 +90,7 @@ class KlmVariant120028(BaseKLMVariant):
         candidates = []
         for symbol in ["SQQQ", "TLT"]:
             if symbol in indicators:
-                rsi = indicators[symbol]["rsi_10"]
+                rsi = indicators[symbol].rsi_10 or 50
                 candidates.append((symbol, rsi))
 
         if candidates:

@@ -59,15 +59,15 @@ class KlmVariant83021(BaseKLMVariant):
         CLJ shows: select-top 1 from TECL/SOXL/SVIX (opposite of other variants)
         """
         if "XLK" in indicators and "KMLM" in indicators:
-            xlk_rsi = indicators["XLK"]["rsi_10"]
-            kmlm_rsi = indicators["KMLM"]["rsi_10"]
+            xlk_rsi = indicators["XLK"].rsi_10 or 50
+            kmlm_rsi = indicators["KMLM"].rsi_10 or 50
 
             if xlk_rsi > kmlm_rsi:
                 # select-TOP 1 from TECL, SOXL, SVIX (highest RSI)
                 candidates = []
                 for symbol in ["TECL", "SOXL", "SVIX"]:
                     if symbol in indicators:
-                        rsi = indicators[symbol]["rsi_10"]
+                        rsi = indicators[symbol].rsi_10 or 50
                         candidates.append((symbol, rsi))
 
                 if candidates:
@@ -91,8 +91,8 @@ class KlmVariant83021(BaseKLMVariant):
     ) -> KLMDecision:
         """830/21 Bond Check - uses BND moving-average-return logic."""
         # Check BND moving average return (window 20)
-        if "BND" in indicators and "ma_return_90" in indicators["BND"]:
-            bnd_ma_return = indicators["BND"]["ma_return_90"]
+        if "BND" in indicators and hasattr(indicators["BND"], "ma_return_90"):
+            bnd_ma_return = getattr(indicators["BND"], "ma_return_90", None) or 0.0
 
             if bnd_ma_return > 0:
                 # Positive BND return → KMLM/SPLV path
@@ -112,8 +112,8 @@ class KlmVariant83021(BaseKLMVariant):
         # Select between KMLM and SPLV using volatility filter
         candidates = []
         for symbol in ["KMLM", "SPLV"]:
-            if symbol in indicators and "stdev_return_6" in indicators[symbol]:
-                stdev = indicators[symbol]["stdev_return_6"]
+            if symbol in indicators and hasattr(indicators[symbol], "stdev_return_6"):
+                stdev = getattr(indicators[symbol], "stdev_return_6", None) or 0.1
                 candidates.append((symbol, stdev))
 
         if candidates:
@@ -137,8 +137,8 @@ class KlmVariant83021(BaseKLMVariant):
         # Select from TLT, LABD, TZA using volatility filter
         candidates = []
         for symbol in ["TLT", "LABD", "TZA"]:
-            if symbol in indicators and "stdev_return_6" in indicators[symbol]:
-                stdev = indicators[symbol]["stdev_return_6"]
+            if symbol in indicators and hasattr(indicators[symbol], "stdev_return_6"):
+                stdev = getattr(indicators[symbol], "stdev_return_6", None) or 0.1
                 candidates.append((symbol, stdev))
 
         if candidates:

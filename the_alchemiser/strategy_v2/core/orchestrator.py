@@ -21,7 +21,7 @@ from ..models.context import StrategyContext
 
 logger = logging.getLogger(__name__)
 
-# Constants for repeated literals  
+# Constants for repeated literals
 ORCHESTRATOR_COMPONENT = "strategy_v2.core.orchestrator"
 
 

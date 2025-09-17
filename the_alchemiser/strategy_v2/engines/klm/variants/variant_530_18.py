@@ -329,8 +329,8 @@ class KlmVariant53018(BaseKLMVariant):
             return None
 
         spy_rsi_70 = (
-            indicators["SPY"].metadata.get("rsi_70", 50) 
-            if indicators["SPY"].metadata 
+            indicators["SPY"].metadata.get("rsi_70", 50)
+            if indicators["SPY"].metadata
             else 50
         )
 
@@ -478,8 +478,14 @@ class KlmVariant53018(BaseKLMVariant):
         if xlk_rsi > kmlm_rsi:
             # Complex tech selection: TECL, SVXY, or "50% FNGU / 50% FNGU or Not"
             candidates = [
-                ("TECL", indicators["TECL"].rsi_10 or 50 if "TECL" in indicators else 50),
-                ("SVXY", indicators.get("SVXY", {}).get("rsi_10", 50)),
+                (
+                    "TECL",
+                    indicators["TECL"].rsi_10 or 50 if "TECL" in indicators else 50,
+                ),
+                (
+                    "SVXY",
+                    indicators["SVXY"].rsi_10 or 50 if "SVXY" in indicators else 50,
+                ),
                 ("FNGU_COMPLEX", 50),  # Placeholder for complex FNGU logic
             ]
 
@@ -489,14 +495,20 @@ class KlmVariant53018(BaseKLMVariant):
             if candidates[0][0] == "FNGU_COMPLEX":
                 # Implement "50% FNGU / 50% FNGU or Not" logic
                 # This involves moving-average-return filtering of FNGU/SPXL/XLE/XLK/AGG
-                _fngu_ma_return = indicators.get("FNGU", {}).get(
-                    "moving_average_return_20", 0
+                _fngu_ma_return = (
+                    indicators["FNGU"].metadata.get("moving_average_return_20", 0)
+                    if "FNGU" in indicators and indicators["FNGU"].metadata
+                    else 0
                 )  # Reserved for future use
                 comparison_candidates = []
                 for symbol in ["FNGU", "SPXL", "XLE", "XLK", "AGG"]:
                     if symbol in indicators:
-                        ma_return = indicators[symbol].get(
-                            "moving_average_return_20", 0
+                        ma_return = (
+                            indicators[symbol].metadata.get(
+                                "moving_average_return_20", 0
+                            )
+                            if indicators[symbol].metadata
+                            else 0
                         )
                         comparison_candidates.append((symbol, ma_return))
 
@@ -535,7 +547,11 @@ class KlmVariant53018(BaseKLMVariant):
             rotator_candidates = []
             for symbol in ["SVXY", "VIXM", "FTLS", "KMLM", "UUP"]:
                 if symbol in indicators:
-                    stdev = indicators[symbol].get("stdev_return_6", 0.1)
+                    stdev = (
+                        indicators[symbol].metadata.get("stdev_return_6", 0.1)
+                        if indicators[symbol].metadata
+                        else 0.1
+                    )
                     rotator_candidates.append((symbol, stdev))
 
             if len(rotator_candidates) >= 3:

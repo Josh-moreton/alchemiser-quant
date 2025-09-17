@@ -100,12 +100,14 @@ class StrategyMarketDataAdapter:
                     end_date=end_str,
                     timeframe=timeframe,
                 )
-                
+
                 # Convert legacy bar dictionaries to MarketBarDTO objects
                 typed_bars = []
                 for bar_dict in bars:
                     try:
-                        bar_dto = MarketBarDTO.from_alpaca_bar(bar_dict, symbol, timeframe)
+                        bar_dto = MarketBarDTO.from_alpaca_bar(
+                            bar_dict, symbol, timeframe
+                        )
                         typed_bars.append(bar_dto)
                     except ValueError as e:
                         self._logger.warning(
@@ -113,7 +115,7 @@ class StrategyMarketDataAdapter:
                             extra={"component": _COMPONENT},
                         )
                         continue
-                
+
                 result[symbol] = typed_bars
                 self._logger.debug(
                     f"Fetched {len(typed_bars)} bars for {symbol} "

@@ -247,9 +247,11 @@ class KLMEngine(StrategyEngine):
                 rsi_14 = safe_get_indicator(close, self.indicators.rsi, window=14)
                 rsi_21 = safe_get_indicator(close, self.indicators.rsi, window=21)
 
-                # Calculate moving averages  
-                ma_200 = safe_get_indicator(close, self.indicators.moving_average, window=200)
-                
+                # Calculate moving averages
+                ma_200 = safe_get_indicator(
+                    close, self.indicators.moving_average, window=200
+                )
+
                 # Calculate returns
                 ma_return_90 = calculate_moving_average_return(close, 90)
                 stdev_return_5 = calculate_stdev_returns(close, 5)
@@ -258,7 +260,7 @@ class KLMEngine(StrategyEngine):
                 # Additional RSI windows required by variants - store in metadata
                 metadata = {
                     "rsi_11": safe_get_indicator(close, self.indicators.rsi, window=11),
-                    "rsi_15": safe_get_indicator(close, self.indicators.rsi, window=15), 
+                    "rsi_15": safe_get_indicator(close, self.indicators.rsi, window=15),
                     "rsi_70": safe_get_indicator(close, self.indicators.rsi, window=70),
                     "stdev_return_5": stdev_return_5,
                     "stdev_return_6": stdev_return_6,
@@ -277,7 +279,7 @@ class KLMEngine(StrategyEngine):
                     ma_return_90=ma_return_90,
                     stdev_return_6=stdev_return_6,
                     metadata=metadata,
-                    data_source="klm_engine"
+                    data_source="klm_engine",
                 )
 
             except Exception as e:
@@ -506,7 +508,7 @@ class KLMEngine(StrategyEngine):
 
     def _build_detailed_klm_analysis(
         self,
-        indicators: dict[str, dict[str, float]],
+        indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame],
         selected_variant: BaseKLMVariant,
         symbol_or_allocation: str | dict[str, float],
@@ -526,9 +528,9 @@ class KLMEngine(StrategyEngine):
         analysis_lines.append("")
 
         # Get key market indicators
-        spy_rsi_10 = indicators.get("SPY", {}).get("rsi_10", 0.0)
-        spy_close = indicators.get("SPY", {}).get("close", 0.0)
-        spy_sma_200 = indicators.get("SPY", {}).get("sma_200", 0.0)
+        spy_rsi_10 = indicators["SPY"].rsi_10 if "SPY" in indicators else 0.0
+        spy_close = float(indicators["SPY"].current_price) if "SPY" in indicators else 0.0
+        spy_sma_200 = indicators["SPY"].ma_200 if "SPY" in indicators else 0.0
 
         analysis_lines.append(f"• SPY RSI(10): {spy_rsi_10:.1f}")
         analysis_lines.append(f"• SPY Price: ${spy_close:.2f}")

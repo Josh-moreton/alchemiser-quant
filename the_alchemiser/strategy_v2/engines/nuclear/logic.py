@@ -18,7 +18,7 @@ from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicato
 
 
 def evaluate_nuclear_strategy(
-    indicators: dict[str, TechnicalIndicatorDTO]
+    indicators: dict[str, TechnicalIndicatorDTO],
 ) -> tuple[str, str, str]:
     """Evaluate the Nuclear strategy from indicators only.
 
@@ -78,12 +78,12 @@ def evaluate_nuclear_strategy(
                 "BUY",
                 f"SPY extremely overbought: RSI(10) {spy_rsi:.1f} > 81 - volatility hedge recommended",
             )
-        
+
         # Check other symbols for extreme overbought
         extreme_result = _check_extreme_overbought(["IOO", "TQQQ", "VTV", "XLF"])
         if extreme_result:
             return extreme_result
-            
+
         return (
             "UVXY_BTAL_PORTFOLIO",
             "BUY",
@@ -98,7 +98,7 @@ def evaluate_nuclear_strategy(
             ("VTV", ["XLF"]),
             ("XLF", []),
         ]
-        
+
         for leader, cascade_symbols in cascade_configs:
             lr = _rsi(leader, 10)
             if lr is not None and lr > 79.0:
@@ -108,12 +108,12 @@ def evaluate_nuclear_strategy(
                         "BUY",
                         f"{leader} extremely overbought: RSI(10) {lr:.1f} > 81 - hedge with UVXY",
                     )
-                
+
                 # Check cascade symbols for extreme overbought
                 extreme_result = _check_extreme_overbought(cascade_symbols)
                 if extreme_result:
                     return extreme_result
-                
+
                 return (
                     "UVXY_BTAL_PORTFOLIO",
                     "BUY",
@@ -168,7 +168,7 @@ def evaluate_nuclear_strategy(
         """Evaluate bull vs bear market conditions."""
         spy_price = _price("SPY")
         spy_ma_200 = _ma("SPY", 200)
-        
+
         if spy_price is not None and spy_ma_200 is not None and spy_price > spy_ma_200:
             return (
                 "NUCLEAR_PORTFOLIO",
