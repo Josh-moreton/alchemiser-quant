@@ -393,14 +393,25 @@ class TradingSystem:
             order_id = order.get("order_id", "")
             order_id_redacted = f"...{order_id[-6:]}" if len(order_id) > 6 else order_id
             
+            # Calculate trade amount from qty * price if notional not available
+            qty = Decimal(str(order.get("qty", 0)))
+            filled_price = order.get("filled_avg_price")
+            
+            if order.get("notional"):
+                trade_amount = Decimal(str(order.get("notional")))
+            elif filled_price and qty:
+                trade_amount = qty * Decimal(str(filled_price))
+            else:
+                trade_amount = Decimal("0")
+            
             order_dtos.append(OrderResultSummaryDTO(
                 symbol=order.get("symbol", ""),
                 action=order.get("side", "").upper(),
-                trade_amount=Decimal(str(order.get("notional", 0))),
-                shares=Decimal(str(order.get("qty", 0))),
+                trade_amount=trade_amount,
+                shares=qty,
                 price=(
-                    Decimal(str(order.get("filled_avg_price", 0))) 
-                    if order.get("filled_avg_price") 
+                    Decimal(str(filled_price)) 
+                    if filled_price 
                     else None
                 ),
                 order_id_redacted=order_id_redacted,
