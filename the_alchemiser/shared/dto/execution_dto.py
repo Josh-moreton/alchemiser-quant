@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 
 
@@ -20,12 +21,12 @@ class ExecutionResult:
 
     symbol: str
     side: str
-    quantity: float
+    quantity: Decimal
     status: str
     success: bool
     execution_strategy: str
     order_id: str | None = None
-    price: float | None = None
+    price: Decimal | None = None
     error: str | None = None
     timestamp: datetime | None = None
     metadata: dict[str, Any] | None = None

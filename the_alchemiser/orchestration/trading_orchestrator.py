@@ -920,8 +920,9 @@ class TradingOrchestrator:
                 "filled_qty": (
                     float(order.shares) if order.success and order.shares else 0
                 ),
-                "filled_avg_price": float(order.price) if order.price else 0,
-                "estimated_value": float(abs(order.trade_amount)),
+                # Money fields serialized as strings per policy
+                "filled_avg_price": str(order.price) if order.price else "0",
+                "estimated_value": str(abs(order.trade_amount)),
                 "order_id": order.order_id,
                 "status": "FILLED" if order.success else "FAILED",
                 "error": order.error_message,
@@ -942,7 +943,7 @@ class TradingOrchestrator:
         for order in execution_result.orders:
             if order.success:
                 shares_price_str = (
-                    f"{float(order.shares):.4f} shares @ ${float(order.price):.2f}"
+                    f"{order.shares} shares @ ${order.price}"
                     if order.shares is not None and order.price is not None
                     else "shares/price unavailable"
                 )
@@ -991,20 +992,21 @@ class TradingOrchestrator:
                 "orders_succeeded": (
                     execution_result.orders_succeeded if execution_result else 0
                 ),
+                # Money serialized as string to avoid float exposure per policy
                 "total_trade_value": (
-                    float(execution_result.total_trade_value)
-                    if execution_result
-                    else 0.0
+                    str(execution_result.total_trade_value) if execution_result else "0"
                 ),
                 "orders": (
                     [
                         {
                             "symbol": order.symbol,
                             "action": order.action,
+                            # Quantities are non-financial; keep as float for consumers
                             "shares": float(order.shares) if order.shares else 0.0,
-                            "price": float(order.price) if order.price else 0.0,
+                            # Money fields serialized as strings
+                            "price": str(order.price) if order.price is not None else "0",
                             "trade_amount": (
-                                float(order.trade_amount) if order.trade_amount else 0.0
+                                str(order.trade_amount) if order.trade_amount else "0"
                             ),
                             "success": order.success,
                             "error_message": order.error_message,
