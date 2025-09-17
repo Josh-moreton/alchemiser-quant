@@ -638,9 +638,7 @@ class Executor:
                     f"✅ {item.action} {item.symbol} order placed (ID: {execution_result.order_id})"
                 )
             else:
-                logger.error(
-                    f"❌ Failed to place {item.action} for {item.symbol}"
-                )
+                logger.error(f"❌ Failed to place {item.action} for {item.symbol}")
 
             return order_result
 
@@ -748,9 +746,11 @@ class Executor:
                 return orders, 0, Decimal("0")
 
             max_wait = self._derive_max_wait_seconds()
-            final_status_map = self._get_final_status_map(order_ids, max_wait, phase_type)
-            updated_orders, succeeded, trade_value = self._rebuild_orders_with_final_status(
-                orders, items, final_status_map
+            final_status_map = self._get_final_status_map(
+                order_ids, max_wait, phase_type
+            )
+            updated_orders, succeeded, trade_value = (
+                self._rebuild_orders_with_final_status(orders, items, final_status_map)
             )
             logger.info(
                 f"📊 {phase_type} phase completion: {succeeded}/{len(orders)} FILLED"
@@ -773,7 +773,11 @@ class Executor:
                         f"(attempt {getattr(repeg_result, 'repegs_used', 0)})"
                     )
                     meta = getattr(repeg_result, "metadata", None) or {}
-                    original_id = str(meta.get("original_order_id")) if isinstance(meta, dict) else ""
+                    original_id = (
+                        str(meta.get("original_order_id"))
+                        if isinstance(meta, dict)
+                        else ""
+                    )
                     new_id = getattr(repeg_result, "order_id", None) or ""
                     if original_id and new_id:
                         replacement_map[original_id] = new_id
@@ -794,7 +798,9 @@ class Executor:
         updated: list[OrderResultDTO] = []
         for o in orders:
             if o.order_id and o.order_id in replacement_map:
-                updated.append(o.model_copy(update={"order_id": replacement_map[o.order_id]}))
+                updated.append(
+                    o.model_copy(update={"order_id": replacement_map[o.order_id]})
+                )
             else:
                 updated.append(o)
         return updated

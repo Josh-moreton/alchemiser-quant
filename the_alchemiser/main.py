@@ -19,7 +19,10 @@ from typing import Any
 
 # CLI formatter imports (moved from function-level)
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
-from the_alchemiser.orchestration.cli.cli_formatter import render_footer, render_account_info
+from the_alchemiser.orchestration.cli.cli_formatter import (
+    render_footer,
+    render_account_info,
+)
 from the_alchemiser.orchestration.event_driven_orchestrator import (
     EventDrivenOrchestrator,
 )
@@ -228,9 +231,7 @@ class TradingSystem:
             try:
                 self._display_post_trade_portfolio_summary()
             except Exception as exc:
-                self.logger.warning(
-                    f"Post-trade portfolio summary unavailable: {exc}"
-                )
+                self.logger.warning(f"Post-trade portfolio summary unavailable: {exc}")
 
             # 5) Display tracking if requested
             if show_tracking:
@@ -441,6 +442,7 @@ class TradingSystem:
             positions = alpaca_manager.get_positions() or []
 
             normalized_positions: list[dict[str, Any]] = []
+
             # Helper to coerce value to float safely
             def _to_float(value: object) -> float:
                 try:
