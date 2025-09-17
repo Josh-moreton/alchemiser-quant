@@ -710,6 +710,8 @@ class SmartExecutionStrategy:
                         "ask_price": quote.ask_price,
                     },
                 )
+            
+            # If we get here, re-peg failed (no order ID returned)
             logger.error(f"❌ Re-peg failed for {request.symbol}: no order ID returned")
             return SmartOrderResult(
                 success=False,
