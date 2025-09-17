@@ -223,8 +223,10 @@ class SignalOrchestrator:
 
         return failed_strategies, fallback_strategies
 
-    def _extract_strategy_name(self, strategy_type: StrategyType) -> str:
+    def _extract_strategy_name(self, strategy_type: StrategyType | str) -> str:
         """Extract strategy name from strategy type."""
+        if isinstance(strategy_type, str):
+            return strategy_type
         return strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
 
     def _log_all_strategies_affected(
@@ -399,6 +401,10 @@ class SignalOrchestrator:
         symbol = signal.get("symbol")
 
         if strategy_name.upper() == "NUCLEAR":
+            if symbol is None:
+                return 0
+            if isinstance(symbol, str):
+                symbol = Symbol(symbol)
             return self._count_nuclear_positions(signal, symbol, consolidated_portfolio)
         if strategy_name.upper() in ["TECL", "KLM"]:
             # Single position strategies
@@ -428,9 +434,9 @@ class SignalOrchestrator:
         if signal.get("action") != "BUY":
             return 0
 
-        if symbol == "UVXY_BTAL_PORTFOLIO":
+        if symbol.value == "UVXY_BTAL_PORTFOLIO":
             return 2  # UVXY and BTAL
-        if symbol == "UVXY":
+        if symbol.value == "UVXY":
             return 1  # Just UVXY
         # For NUCLEAR_PORTFOLIO, count actual symbols in consolidated portfolio
         if isinstance(symbol, str) and "NUCLEAR_PORTFOLIO" in symbol:

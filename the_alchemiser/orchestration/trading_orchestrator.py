@@ -178,9 +178,15 @@ class TradingOrchestrator:
                 # This should trigger the portfolio orchestrator to analyze allocation and emit RebalancePlanned
                 # For now, let's call the portfolio orchestrator method that will emit the event
                 try:
+                    # Convert Decimal values to float for DTO compatibility
+                    allocation_dict_float = {
+                        symbol: float(allocation) 
+                        for symbol, allocation in event.consolidated_portfolio.items()
+                    }
+                    
                     # Create a consolidated portfolio DTO from the signals
                     portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
-                        allocation_dict=event.consolidated_portfolio,
+                        allocation_dict=allocation_dict_float,
                         correlation_id=event.correlation_id,
                         source_strategies=source_strategies,
                     )
@@ -384,6 +390,10 @@ class TradingOrchestrator:
             self.workflow_state["rebalancing_in_progress"] = True
 
             # Create rebalance plan from allocation comparison
+            if account_info is None:
+                self.logger.error("❌ No account information available for rebalancing")
+                return None
+                
             rebalance_plan = self._create_rebalance_plan_from_allocation(
                 allocation_comparison, account_info
             )

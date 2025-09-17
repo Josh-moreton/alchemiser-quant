@@ -109,3 +109,7 @@ class StrategyOrderTrackerProtocol(Protocol):
     def get_orders_for_strategy(self, strategy_name: str) -> list[StrategyOrderProtocol]:
         """Get orders for strategy."""
         ...
+
+    def get_strategy_summary(self, strategy_name: str) -> StrategyPnLSummaryProtocol | None:
+        """Get strategy summary for strategy."""
+        ...

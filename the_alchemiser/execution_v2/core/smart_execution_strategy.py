@@ -60,7 +60,7 @@ class LiquidityMetadata(TypedDict, total=False):
     # Execution context
     used_fallback: bool
     original_order_id: str
-    original_price: float
+    original_price: float | None
     new_price: float
 
 
@@ -86,6 +86,7 @@ class ExecutionConfig:
     quote_freshness_seconds: int = 5  # Require quote within 5 seconds
     order_placement_timeout_seconds: int = 30  # Timeout for order placement
     fill_wait_seconds: int = 15  # Wait time before attempting re-peg
+    max_wait_time_seconds: int = 30  # Maximum wait time for quote data
 
     # Anchoring offsets (in cents)
     bid_anchor_offset_cents: Decimal = Decimal("0.01")  # Place at bid + $0.01 for buys
@@ -292,7 +293,7 @@ class SmartExecutionStrategy:
             if ask > 0 and bid > 0:
                 anchor = max(anchor, mid)
 
-        metadata = {
+        metadata: LiquidityMetadata = {
             "method": "simple_inside_spread_fallback",
             "mid": float(mid),
             "bid": float(bid),
@@ -348,7 +349,7 @@ class SmartExecutionStrategy:
             )
 
         # Create metadata for logging and monitoring
-        metadata = {
+        metadata: LiquidityMetadata = {
             "liquidity_score": analysis.liquidity_score,
             "volume_imbalance": analysis.volume_imbalance,
             "confidence": analysis.confidence,
@@ -476,15 +477,7 @@ class SmartExecutionStrategy:
                         f"after {self.config.fill_wait_seconds}s"
                     )
 
-                return SmartOrderResult(
-                    success=True,
-                    order_id=result.order_id,
-                    final_price=optimal_price,
-                    anchor_price=optimal_price,
-                    repegs_used=0,
-                    execution_strategy=f"smart_liquidity_{analysis_metadata['strategy_recommendation']}",
-                    placement_timestamp=placement_time,
-                    metadata={
+                    metadata_dict: LiquidityMetadata = {
                         **analysis_metadata,
                         "bid_price": quote.bid_price,
                         "ask_price": quote.ask_price,
@@ -494,7 +487,16 @@ class SmartExecutionStrategy:
                         "bid_size": quote.bid_size,
                         "ask_size": quote.ask_size,
                         "used_fallback": used_fallback,
-                    },
+                    }
+                return SmartOrderResult(
+                    success=True,
+                    order_id=result.order_id,
+                    final_price=optimal_price,
+                    anchor_price=optimal_price,
+                    repegs_used=0,
+                    execution_strategy=f"smart_liquidity_{analysis_metadata['strategy_recommendation']}",
+                    placement_timestamp=placement_time,
+                    metadata=metadata_dict,
                 )
             return SmartOrderResult(
                 success=False,
@@ -685,6 +687,13 @@ class SmartExecutionStrategy:
                     f"at ${new_price} (attempt {repeg_count})"
                 )
 
+                metadata_dict: LiquidityMetadata = {
+                    "original_order_id": order_id,
+                    "original_price": (float(original_anchor) if original_anchor else None),
+                    "new_price": float(new_price),
+                    "bid_price": quote.bid_price,
+                    "ask_price": quote.ask_price,
+                }
                 return SmartOrderResult(
                     success=True,
                     order_id=executed_order.order_id,
@@ -693,13 +702,7 @@ class SmartExecutionStrategy:
                     repegs_used=repeg_count,
                     execution_strategy=f"smart_repeg_{repeg_count}",
                     placement_timestamp=datetime.now(UTC),
-                    metadata={
-                        "original_order_id": order_id,
-                        "original_price": (float(original_anchor) if original_anchor else None),
-                        "new_price": float(new_price),
-                        "bid_price": quote.bid_price,
-                        "ask_price": quote.ask_price,
-                    },
+                    metadata=metadata_dict,
                 )
 
             # If we get here, re-peg failed (no order ID returned)
@@ -800,12 +803,24 @@ class SmartExecutionStrategy:
             Quote data or None if timeout
 
         """
-        timeout = timeout or self.max_wait_time
+        timeout = timeout or self.config.max_wait_time_seconds
         start_time = time.time()
 
+        # Return None if no pricing service available
+        if self.pricing_service is None:
+            logger.warning(f"⚠️ No pricing service available for {symbol}")
+            return None
+
         # Initial quick check
-        quote = self.pricing_service.get_latest_quote(symbol)
-        if quote:
+        real_time_quote = self.pricing_service.get_real_time_quote(symbol)
+        if real_time_quote:
+            quote = {
+                "bid_price": real_time_quote.bid,
+                "ask_price": real_time_quote.ask,
+                "bid_size": 0,  # Not available in RealTimeQuote
+                "ask_size": 0,  # Not available in RealTimeQuote
+                "timestamp": real_time_quote.timestamp.timestamp(),
+            }
             logger.info(f"✅ Got immediate quote for {symbol}")
             return quote
 
@@ -822,8 +837,15 @@ class SmartExecutionStrategy:
         max_interval = 1.0  # Cap at 1 second
 
         while time.time() - start_time < timeout:
-            quote = self.pricing_service.get_latest_quote(symbol)
-            if quote:
+            real_time_quote = self.pricing_service.get_real_time_quote(symbol)
+            if real_time_quote:
+                quote = {
+                    "bid_price": real_time_quote.bid,
+                    "ask_price": real_time_quote.ask,
+                    "bid_size": 0,  # Not available in RealTimeQuote
+                    "ask_size": 0,  # Not available in RealTimeQuote
+                    "timestamp": real_time_quote.timestamp.timestamp(),
+                }
                 logger.info(f"✅ Got quote for {symbol} after {time.time() - start_time:.1f}s")
                 return quote
 
@@ -895,16 +917,25 @@ class SmartExecutionStrategy:
             Quote data or None if not available
 
         """
+        # Return None if no pricing service available
+        if self.pricing_service is None:
+            return None
+            
         # Try to get structured quote data first
         quote_data = self.pricing_service.get_quote_data(symbol)
         if quote_data:
             # Convert to dict format for compatibility
+            timestamp_value = (
+                quote_data.timestamp.timestamp() 
+                if hasattr(quote_data.timestamp, 'timestamp') 
+                else float(quote_data.timestamp)
+            )
             return {
                 "bid_price": quote_data.bid_price,
                 "ask_price": quote_data.ask_price,
                 "bid_size": quote_data.bid_size,
                 "ask_size": quote_data.ask_size,
-                "timestamp": quote_data.timestamp,
+                "timestamp": timestamp_value,
             }
 
         # Fallback to bid/ask spread
@@ -916,7 +947,7 @@ class SmartExecutionStrategy:
                 "ask_price": ask,
                 "bid_size": 0,  # Unknown
                 "ask_size": 0,  # Unknown
-                "timestamp": datetime.now(UTC),
+                "timestamp": datetime.now(UTC).timestamp(),
             }
 
         return None

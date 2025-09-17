@@ -127,7 +127,7 @@ class Executor:
                 request = SmartOrderRequest(
                     symbol=symbol,
                     side=side.upper(),
-                    quantity=quantity,
+                    quantity=Decimal(str(quantity)),
                     correlation_id=correlation_id or "",
                     urgency="NORMAL",
                 )
@@ -183,7 +183,7 @@ class Executor:
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
-                price=result.price,
+                price=float(result.price) if result.price is not None else None,
                 status=result.status.lower() if result.status else "submitted",
                 success=result.status not in ["REJECTED", "CANCELED"],
                 execution_strategy="market_order",
@@ -523,7 +523,10 @@ class Executor:
         await asyncio.sleep(1)
 
         # Check for re-pegging opportunities on orders from this phase
-        repeg_results = await self.smart_strategy.check_and_repeg_orders()
+        if self.smart_strategy is not None:
+            repeg_results = await self.smart_strategy.check_and_repeg_orders()
+        else:
+            repeg_results = []
 
         if repeg_results:
             logger.info(
