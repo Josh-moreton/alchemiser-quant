@@ -157,7 +157,7 @@ class StrategyAllocationDTO(BaseModel):
             return None
 
         if not isinstance(portfolio_value, str):
-            return portfolio_value
+            return Decimal(portfolio_value)
 
         try:
             return Decimal(portfolio_value)
