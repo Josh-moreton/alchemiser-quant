@@ -212,8 +212,12 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         )
 
     # Trading Operations
-    def get_account(self) -> TradeAccount | None:
-        """Get account information as SDK object (back to original contract)."""
+    def get_account(self) -> dict[str, Any] | None:
+        """Get account information as dict (protocol compliance)."""
+        return self.get_account_dict()
+
+    def get_account_object(self) -> TradeAccount | None:
+        """Get account information as SDK object."""
         return self._get_account_object()
 
     def get_account_dict(self) -> dict[str, Any] | None:
