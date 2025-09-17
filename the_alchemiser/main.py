@@ -22,6 +22,9 @@ from the_alchemiser.orchestration.event_driven_orchestrator import (
     EventDrivenOrchestrator,
 )
 
+# DTO imports
+from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
+
 # Signal analyzer import removed - signal functionality integrated into trading workflow
 from the_alchemiser.shared.config.config import Settings, load_settings
 
@@ -69,9 +72,7 @@ class TradingSystem:
         global _di_container
 
         self.container = ApplicationContainer()
-        _di_container = (
-            self.container
-        )  # Keep global for backward compatibility during transition
+        _di_container = self.container  # Keep global for backward compatibility during transition
         ServiceFactory.initialize(self.container)
         self.logger.info("Dependency injection initialized")
 
@@ -79,9 +80,7 @@ class TradingSystem:
         """Initialize event-driven orchestration system."""
         try:
             if self.container is None:
-                self.logger.warning(
-                    "Cannot initialize event orchestration: DI container not ready"
-                )
+                self.logger.warning("Cannot initialize event orchestration: DI container not ready")
                 return
 
             # Initialize event-driven orchestrator
@@ -102,9 +101,7 @@ class TradingSystem:
         """
         try:
             if self.container is None:
-                self.logger.warning(
-                    "Cannot emit StartupEvent: DI container not initialized"
-                )
+                self.logger.warning("Cannot emit StartupEvent: DI container not initialized")
                 return
 
             # Get event bus from container
@@ -129,9 +126,7 @@ class TradingSystem:
 
             # Emit the event
             event_bus.publish(event)
-            self.logger.debug(
-                f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}"
-            )
+            self.logger.debug(f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}")
 
         except Exception as e:
             # Don't let startup event emission failure break the system
@@ -165,32 +160,26 @@ class TradingSystem:
             # Display header
             render_header("Analyzing market conditions...", "Multi-Strategy Trading")
 
-            # Execute full workflow
-            exec_result = orchestrator.execute_strategy_signals_with_trading()
-            if exec_result is None:
+            # PHASE 1: Signals-only analysis (no trading yet)
+            signals_result = orchestrator.execute_strategy_signals()
+            if signals_result is None:
+                render_footer("Signal analysis failed - check logs for details")
+                return False
+
+            # Show pure strategy outputs first, then rebalance plan
+            self._display_signals_and_rebalance(signals_result)
+
+            # PHASE 2: Execute trading (may place orders)
+            trading_result = orchestrator.execute_strategy_signals_with_trading()
+            if trading_result is None:
                 render_footer("Trading execution failed - check logs for details")
                 return False
 
-            # Display results if available
-            if (
-                exec_result.get("strategy_signals")
-                or exec_result.get("consolidated_portfolio")
-                or exec_result.get("account_info")
-            ):
-                self._display_comprehensive_results(
-                    exec_result.get("strategy_signals", {}),
-                    exec_result.get("consolidated_portfolio", {}),
-                    exec_result.get("account_info"),
-                    exec_result.get("current_positions"),
-                    exec_result.get("allocation_comparison"),
-                    exec_result.get("open_orders", []),
-                )
-
-            # 4) Display execution results
-            orders_executed = exec_result.get("orders_executed", [])
+            # Show execution results only (avoid re-printing signals/plan)
+            orders_executed = trading_result.get("orders_executed", [])
             if orders_executed:
                 self._display_execution_results(
-                    orders_executed, exec_result.get("execution_result")
+                    orders_executed, trading_result.get("execution_result")
                 )
 
             # 5) Display tracking if requested
@@ -199,18 +188,16 @@ class TradingSystem:
 
             # 6) Export tracking summary if requested
             if export_tracking_json:
-                self._export_tracking_summary(
-                    export_tracking_json, not orchestrator.live_trading
-                )
+                self._export_tracking_summary(export_tracking_json, not orchestrator.live_trading)
 
             # 7) Send notification
             try:
                 mode_str = "LIVE" if orchestrator.live_trading else "PAPER"
-                orchestrator.send_trading_notification(exec_result, mode_str)
+                orchestrator.send_trading_notification(trading_result, mode_str)
             except Exception as exc:
                 self.logger.warning(f"Failed to send trading notification: {exc}")
 
-            success = bool(exec_result.get("success", False))
+            success = bool(trading_result.get("success", False))
             if success:
                 render_footer("Trading execution completed successfully!")
             else:
@@ -230,6 +217,30 @@ class TradingSystem:
             render_footer("System error occurred!")
             return False
 
+    def _display_signals_and_rebalance(self, result: dict[str, Any]) -> None:
+        """Display strategy signals followed by rebalance plan."""
+        from the_alchemiser.orchestration.cli.cli_formatter import (
+            render_comprehensive_trading_results,
+            render_strategy_signals,
+        )
+
+        try:
+            strategy_signals = result.get("strategy_signals", {})
+            if strategy_signals:
+                render_strategy_signals(strategy_signals)
+
+            # Show only account + allocation sections (no open orders, no strategy signals again)
+            render_comprehensive_trading_results(
+                {},
+                result.get("consolidated_portfolio", {}),
+                result.get("account_info"),
+                result.get("current_positions"),
+                result.get("allocation_comparison"),
+                [],
+            )
+        except Exception as e:
+            self.logger.warning(f"Failed to display signals/rebalance: {e}")
+
     def _display_comprehensive_results(
         self,
         strategy_signals: dict[str, Any],
@@ -243,12 +254,8 @@ class TradingSystem:
         from the_alchemiser.orchestration.cli.cli_formatter import (
             render_comprehensive_trading_results,
         )
-        from the_alchemiser.shared.config.config import load_settings
 
         try:
-            settings = load_settings()
-            allocations = settings.strategy.default_strategy_allocations
-
             render_comprehensive_trading_results(
                 strategy_signals,
                 consolidated_portfolio,
@@ -263,7 +270,7 @@ class TradingSystem:
     def _display_execution_results(
         self,
         orders_executed: list[dict[str, Any]],
-        execution_result: Any | None = None,
+        execution_result: ExecutionResultDTO | None = None,
     ) -> None:
         """Display execution results including order details and summary."""
         try:
@@ -325,9 +332,7 @@ class TradingSystem:
             if execution_result:
                 try:
                     success_rate = getattr(execution_result, "success_rate", 1.0)
-                    total_value = getattr(
-                        execution_result, "total_trade_value", Decimal(0)
-                    )
+                    total_value = getattr(execution_result, "total_trade_value", Decimal(0))
 
                     summary_content = [
                         f"[bold green]Execution Success Rate:[/bold green] {success_rate:.1%}",
@@ -357,7 +362,7 @@ class TradingSystem:
         except Exception as e:
             self.logger.warning(f"Failed to display execution results: {e}")
 
-    def _display_post_execution_tracking(self, paper_trading: bool) -> None:
+    def _display_post_execution_tracking(self, paper_trading: bool) -> None:  # noqa: FBT001
         """Display strategy performance tracking after execution."""
         try:
             from rich.console import Console
@@ -384,11 +389,9 @@ class TradingSystem:
                     )
                 )
             except ImportError:
-                self.logger.warning(
-                    "Strategy tracking display unavailable (rich not available)"
-                )
+                self.logger.warning("Strategy tracking display unavailable (rich not available)")
 
-    def _export_tracking_summary(self, export_path: str, paper_trading: bool) -> None:
+    def _export_tracking_summary(self, export_path: str, paper_trading: bool) -> None:  # noqa: FBT001
         """Export tracking summary to JSON file."""
         try:
             import json
@@ -408,14 +411,10 @@ class TradingSystem:
                     strategy_summary = tracker.get_strategy_summary(strategy_name)
                     if strategy_summary:
                         strategy_data[strategy_name] = {
-                            "total_profit_loss": float(
-                                strategy_summary.total_profit_loss
-                            ),
+                            "total_profit_loss": float(strategy_summary.total_profit_loss),
                             "total_orders": strategy_summary.total_orders,
                             "success_rate": strategy_summary.success_rate,
-                            "avg_profit_per_trade": float(
-                                strategy_summary.avg_profit_per_trade
-                            ),
+                            "avg_profit_per_trade": float(strategy_summary.avg_profit_per_trade),
                         }
                 except Exception as e:
                     self.logger.debug(f"Could not get summary for {strategy_name}: {e}")
@@ -570,9 +569,7 @@ def main(argv: list[str] | None = None) -> bool:
             _, _, endpoint = get_alpaca_keys()
             is_live = endpoint and "paper" not in endpoint.lower()
             mode_label = "LIVE TRADING ⚠️" if is_live else "Paper Trading"
-            render_header(
-                "The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}"
-            )
+            render_header("The Alchemiser Trading System", f"{args.mode.upper()} | {mode_label}")
 
         # Execute trading with integrated signal analysis
         if args.mode == "trade":
