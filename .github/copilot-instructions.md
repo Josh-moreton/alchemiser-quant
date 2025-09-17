@@ -346,3 +346,87 @@ FINAL NOTE:
 This document supersedes older references to DDD bounded contexts and layered architecture.
 All new code must align with the five-module structure and dependency rules outlined above.
 """
+
+# Extended Typing Architecture Rules (Authoritative)
+
+The following rules extend and clarify the TYPING & CODE QUALITY section. They are binding for all
+changes and supersede conflicting older patterns.
+
+## Problem Statement
+
+Mixed usage of data types across layers creates type confusion and protocol violations. The same
+logical data must not appear alternately as external SDK objects, ad-hoc dicts, and `Any`.
+
+## Core Architectural Rules
+
+1) Layer-Specific Type Ownership
+
+     - External SDK: e.g., `TradeAccount`, `Order`, `Position` (SDK boundary only)
+     - Execution layer: `AccountInfoDTO`, `ExecutionResultDTO` (domain representations)
+     - Strategy layer: `StrategySignalDTO`
+     - Portfolio layer: `PortfolioStateDTO`, `RebalancePlanDTO`
+     - Shared/protocol: Cross-module DTOs and Protocols (authoritative interfaces)
+     - Orchestration: Consumes/produces DTOs/events only (no SDK objects, no raw dicts)
+     - Serialization: Use `dict[str, ...]` strictly at IO boundaries via Pydantic v2 methods
+
+2) Conversion Points (Pydantic v2)
+
+     - SDK → Domain DTO at adapters only
+     - Domain DTO → dict via `model_dump()` for transport/logging
+     - dict → Domain DTO via `model_validate()` for input
+     - Never let raw dicts flow through business logic
+
+3) Naming Conventions
+
+     - Private SDK accessors: `_get_*_raw() -> Any  # type: ignore[misc]`
+     - Primary business interface: typed DTO return, e.g., `get_account() -> AccountInfoDTO | None`
+     - Optional serialization helpers: `get_*_dict() -> dict[str, Any] | None`
+
+## ANN401 Policy (No unbounded Any)
+
+- Prohibited:
+  - Business logic parameters/returns typed as `Any`
+  - DTO fields as plain `Any`
+  - Protocol methods with `Any` parameters
+
+- Acceptable with `# type: ignore[misc]` and comment:
+  - External SDK client/objects at adapter boundaries
+  - Generic decorator internals
+  - DTO `.metadata` fields used strictly for JSON passthrough
+
+## Replacement Patterns
+
+- Use concrete unions instead of `Any` for inputs.
+- Use `TypeVar`/`ParamSpec` for reusable utilities.
+- Use Protocols to express behavioral interfaces instead of `Any`.
+- Prefer specific dict value unions over `dict[str, Any]` where dicts are required.
+
+## Implementation Strategy (Pydantic v2)
+
+1) Create DTOs in `shared/dto/` with `ConfigDict(strict=True, frozen=True, validate_assignment=True)`
+     and typed Decimal fields for money/quantities.
+
+2) Update Protocols in `shared/protocols/` to return DTOs, not dicts.
+
+3) Implement adapters (e.g., Alpaca manager) to convert SDK → DTO at the edge; expose legacy
+     `*_dict()` only as temporary shims during migration.
+
+4) Migrate callers to consume DTOs incrementally, then remove dict-based methods.
+
+## Migration Order (Priority)
+
+- Phase 1 (Quick wins): remove `| Any` unions, fix CLI param/return types, tighten utils.
+- Phase 2 (SDK integration): broker/data adapters return DTOs with proper types.
+- Phase 3 (Business logic): strategy/portfolio/execution consume DTOs, no raw dict usage.
+- Phase 4 (Infrastructure): generics for helpers, decorators with precise Parameter specs.
+
+## Numeric & Money Policy
+
+- Decimal for all money/quantities; no float arithmetic for finance.
+- Non-financial float comparisons via `math.isclose` or epsilon helpers only.
+
+## Enforcement
+
+- MyPy strict: disallow_untyped_defs, disallow_incomplete_defs.
+- ANN401 violations must be resolved per above; if a temporary exception is unavoidable at an SDK
+  boundary, include `# type: ignore[misc]` with a justification comment and a migration TODO.
