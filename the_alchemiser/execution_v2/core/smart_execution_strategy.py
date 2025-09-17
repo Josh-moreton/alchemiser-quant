@@ -213,7 +213,7 @@ class SmartExecutionStrategy:
         if self.pricing_service:
             # Wait for quote data to arrive from stream
             logger.info(f"⏳ Waiting for streaming quote data for {symbol}...")
-            max_wait_time = 10.0  # Maximum 10 seconds to wait
+            max_wait_time = 30.0  # Maximum 30 seconds to wait
             check_interval = 0.1  # Check every 100ms
             elapsed = 0.0
 
@@ -307,6 +307,8 @@ class SmartExecutionStrategy:
             "mid": float(mid),
             "bid": float(bid),
             "ask": float(ask),
+            "bid_price": float(bid),  # Ensure consistency with normal analysis
+            "ask_price": float(ask),  # Ensure consistency with normal analysis
             "strategy_recommendation": "normal_liquidity_fallback",
             "liquidity_score": 0.5,  # Normal/moderate score for fallback
             "volume_imbalance": 0.0,
@@ -315,6 +317,9 @@ class SmartExecutionStrategy:
             "volume_ratio": 0.0,
             "bid_volume": 0.0,
             "ask_volume": 0.0,
+            "bid_size": 0.0,  # REST API doesn't provide size data
+            "ask_size": 0.0,  # REST API doesn't provide size data
+            "spread_percent": float((ask - bid) / bid * 100) if bid > 0 else 0.0,
             "used_fallback": True,  # Mark as fallback pricing
         }
         return anchor, metadata
