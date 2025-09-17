@@ -5,33 +5,42 @@ Execution-related data transfer objects for order placement and tracking.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from pydantic import BaseModel, ConfigDict, Field
 
-@dataclass
-class ExecutionResult:
+
+class ExecutionResult(BaseModel):
     """Result of an order execution attempt.
 
     Contains all information about the order placement,
     whether successful or failed.
+    
+    Migrated from dataclass to Pydantic v2 for architecture compliance.
     """
 
-    symbol: str
-    side: str
-    quantity: Decimal
-    status: str
-    success: bool
-    execution_strategy: str
-    order_id: str | None = None
-    price: Decimal | None = None
-    error: str | None = None
-    timestamp: datetime | None = None
-    metadata: dict[str, Any] | None = None
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
 
-    def __post_init__(self) -> None:
-        """Set default timestamp if not provided."""
-        if self.timestamp is None:
-            self.timestamp = datetime.now(UTC)
+    symbol: str = Field(description="Trading symbol")
+    side: str = Field(description="Order side (buy/sell)")
+    quantity: Decimal = Field(description="Order quantity")
+    status: str = Field(description="Execution status")
+    success: bool = Field(description="Whether execution was successful")
+    execution_strategy: str = Field(description="Execution strategy used")
+    order_id: str | None = Field(default=None, description="Order ID if available")
+    price: Decimal | None = Field(default=None, description="Execution price")
+    error: str | None = Field(default=None, description="Error message if failed")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        description="Execution timestamp"
+    )
+    metadata: dict[str, Any] | None = Field(
+        default=None,
+        description="Additional execution metadata"
+    )
