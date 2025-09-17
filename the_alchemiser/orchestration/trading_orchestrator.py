@@ -1004,7 +1004,9 @@ class TradingOrchestrator:
                             # Quantities are non-financial; keep as float for consumers
                             "shares": float(order.shares) if order.shares else 0.0,
                             # Money fields serialized as strings
-                            "price": str(order.price) if order.price is not None else "0",
+                            "price": (
+                                str(order.price) if order.price is not None else "0"
+                            ),
                             "trade_amount": (
                                 str(order.trade_amount) if order.trade_amount else "0"
                             ),
