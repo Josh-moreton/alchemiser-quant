@@ -147,8 +147,8 @@ def trade(
     try:
         # Import and run the main trading logic with DI
         from the_alchemiser.main import main
-        from the_alchemiser.shared.dto.trade_run_result_dto import TradeRunResultDTO
         from the_alchemiser.orchestration.cli.clean_formatter import render_trade_result
+        from the_alchemiser.shared.dto.trade_run_result_dto import TradeRunResultDTO
 
         # Suppress progress messages for JSON mode
         if not json_output:

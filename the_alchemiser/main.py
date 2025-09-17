@@ -16,7 +16,10 @@ import sys
 from datetime import datetime
 from decimal import Decimal
 from time import sleep
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
 
 # CLI formatter imports (moved from function-level)
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
@@ -156,6 +159,7 @@ class TradingSystem:
         
         Returns:
             TradeRunResultDTO with complete execution results and metadata
+
         """
         import uuid
         from datetime import UTC, datetime
@@ -649,7 +653,7 @@ class TradingSystem:
                 execution_duration_seconds=(completed_at - started_at).total_seconds()
             ),
             orders=[],
-            warnings=warnings + [error_message],
+            warnings=[*warnings, error_message],
             trading_mode="UNKNOWN",
             started_at=started_at,
             completed_at=completed_at,
@@ -659,7 +663,7 @@ class TradingSystem:
     def _create_success_result(
         self,
         trading_result: dict[str, Any],
-        orchestrator: Any,  # TradingOrchestrator type
+        orchestrator: TradingOrchestrator,
         started_at: datetime,
         completed_at: datetime,
         correlation_id: str,
@@ -719,7 +723,7 @@ class TradingSystem:
             ),
             orders=order_dtos,
             warnings=warnings,
-            trading_mode="LIVE" if getattr(orchestrator, 'live_trading', False) else "PAPER",
+            trading_mode="LIVE" if getattr(orchestrator, "live_trading", False) else "PAPER",
             started_at=started_at,
             completed_at=completed_at,
             correlation_id=correlation_id,
@@ -747,7 +751,7 @@ class TradingSystem:
     
     def _restore_logging(self) -> None:
         """Restore original logging levels."""
-        if hasattr(self, '_original_levels'):
+        if hasattr(self, "_original_levels"):
             for module_name, level in self._original_levels.items():
                 logger = logging.getLogger(module_name)
                 logger.setLevel(level)
@@ -894,15 +898,13 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
 
         # Execute trading with integrated signal analysis
         if args.mode == "trade":
-            result = system.execute_trading(
+            # NOTE: CLI handles all footer rendering now - clean separation
+            return system.execute_trading(
                 show_tracking=getattr(args, "show_tracking", False),
                 export_tracking_json=getattr(args, "export_tracking_json", None),
             )
-            # NOTE: CLI handles all footer rendering now - clean separation
-            return result
-        else:
-            # This should never happen since we only accept "trade" mode now
-            return False
+        # This should never happen since we only accept "trade" mode now
+        return False
 
     except (ConfigurationError, ValueError, ImportError) as e:
         # Use TradingSystemErrorHandler for boundary logging - exactly once
