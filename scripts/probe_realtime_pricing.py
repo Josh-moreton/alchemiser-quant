@@ -62,9 +62,7 @@ def probe(symbol: str, seconds: float, environment: Literal["paper", "live"]) ->
         level=getattr(logging, root_level, logging.INFO),
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
     )
-    logging.getLogger("the_alchemiser.shared.services.real_time_pricing").setLevel(
-        logging.DEBUG
-    )
+    logging.getLogger("the_alchemiser.shared.services.real_time_pricing").setLevel(logging.DEBUG)
 
     logger = logging.getLogger("probe")
 
@@ -151,9 +149,7 @@ def main(argv: list[str]) -> int:
 
     Parses arguments and launches the probe routine.
     """
-    parser = argparse.ArgumentParser(
-        description="Probe realtime pricing stream for a symbol"
-    )
+    parser = argparse.ArgumentParser(description="Probe realtime pricing stream for a symbol")
     parser.add_argument("--symbol", default="BTAL", help="Symbol to subscribe to")
     parser.add_argument(
         "--seconds",

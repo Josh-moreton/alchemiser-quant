@@ -49,7 +49,7 @@ def build_allocation_comparison(
 
     # Convert portfolio_value to Decimal for precise calculations
     portfolio_value_decimal = Decimal(str(portfolio_value))
-    
+
     # Apply 95% reduction to avoid buying power issues with broker constraints
     # This ensures we don't try to use 100% of portfolio value which can
     # exceed available buying power

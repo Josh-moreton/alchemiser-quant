@@ -59,9 +59,7 @@ class StrategyRegistry:
         """
         if strategy_id not in self._strategies:
             available = list(self._strategies.keys())
-            raise KeyError(
-                f"Strategy '{strategy_id}' not found. Available strategies: {available}"
-            )
+            raise KeyError(f"Strategy '{strategy_id}' not found. Available strategies: {available}")
         return self._strategies[strategy_id]
 
     def list_strategies(self) -> list[str]:

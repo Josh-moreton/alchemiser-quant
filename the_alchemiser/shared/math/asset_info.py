@@ -38,9 +38,7 @@ class FractionabilityDetector:
     implementation for authoritative fractionability information.
     """
 
-    def __init__(
-        self, asset_metadata_provider: AssetMetadataProvider | None = None
-    ) -> None:
+    def __init__(self, asset_metadata_provider: AssetMetadataProvider | None = None) -> None:
         """Initialize with optional AssetMetadataProvider.
 
         Args:
@@ -108,9 +106,7 @@ class FractionabilityDetector:
             return provider_result
 
         # Fallback to backup prediction if provider unavailable
-        logging.info(
-            f"🔄 Using fallback prediction for {symbol} (provider unavailable)"
-        )
+        logging.info(f"🔄 Using fallback prediction for {symbol} (provider unavailable)")
         fallback_result = self._fallback_fractionability_prediction(symbol)
 
         # Cache the fallback result with a warning
@@ -146,9 +142,7 @@ class FractionabilityDetector:
 
         # Check if it's non-fractionable first
         if not self.is_fractionable(symbol):
-            return (
-                AssetType.LEVERAGED_ETF
-            )  # Most non-fractionable assets are leveraged products
+            return AssetType.LEVERAGED_ETF  # Most non-fractionable assets are leveraged products
 
         # Regular ETFs (common patterns)
         if symbol in [
@@ -230,12 +224,8 @@ class FractionabilityDetector:
         """Get statistics about the fractionability cache."""
         return {
             "cached_symbols": len(self._fractionability_cache),
-            "fractionable_count": sum(
-                1 for v in self._fractionability_cache.values() if v
-            ),
-            "non_fractionable_count": sum(
-                1 for v in self._fractionability_cache.values() if not v
-            ),
+            "fractionable_count": sum(1 for v in self._fractionability_cache.values() if v),
+            "non_fractionable_count": sum(1 for v in self._fractionability_cache.values() if not v),
         }
 
 

@@ -50,9 +50,7 @@ def create_timeframe(amount: int, unit: str) -> TimeFrame:
 
 
 # Alpaca client factory functions
-def create_trading_client(
-    api_key: str, secret_key: str, *, paper: bool = True
-) -> TradingClient:
+def create_trading_client(api_key: str, secret_key: str, *, paper: bool = True) -> TradingClient:
     """Create an Alpaca TradingClient."""
     return TradingClient(api_key=api_key, secret_key=secret_key, paper=paper)
 
@@ -62,16 +60,12 @@ def create_data_client(api_key: str, secret_key: str) -> StockHistoricalDataClie
     return StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
 
 
-def create_trading_stream(
-    api_key: str, secret_key: str, *, paper: bool = True
-) -> TradingStream:
+def create_trading_stream(api_key: str, secret_key: str, *, paper: bool = True) -> TradingStream:
     """Create an Alpaca TradingStream."""
     return TradingStream(api_key=api_key, secret_key=secret_key, paper=paper)
 
 
-def create_stock_data_stream(
-    api_key: str, secret_key: str, feed: str = "iex"
-) -> StockDataStream:
+def create_stock_data_stream(api_key: str, secret_key: str, feed: str = "iex") -> StockDataStream:
     """Create an Alpaca StockDataStream."""
     from alpaca.data.enums import DataFeed
 

@@ -122,9 +122,7 @@ class KLMVariantNova(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator (same as 520/22)
         return self._evaluate_ls_rotator_nova(indicators)
 
-    def _evaluate_ls_rotator_nova(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_ls_rotator_nova(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Nova L/S Rotator - same as 520/22 (FTLS/KMLM/SSO/UUP)."""
         # Volatility filter candidates: FTLS, KMLM, SSO, UUP
         rotator_symbols = ["FTLS", "KMLM", "SSO", "UUP"]

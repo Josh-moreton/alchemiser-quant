@@ -85,9 +85,7 @@ def dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummaryDTO:
         if isinstance(strategy_data, dict):
             # Ensure strategy_name is in the data
             strategy_data_with_name = {**strategy_data, "strategy_name": strategy_name}
-            strategy_summary[strategy_name] = dict_to_strategy_summary_dto(
-                strategy_data_with_name
-            )
+            strategy_summary[strategy_name] = dict_to_strategy_summary_dto(strategy_data_with_name)
 
     # Handle trading summary
     trading_summary_data = data.get("trading_summary", {})

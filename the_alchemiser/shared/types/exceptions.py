@@ -271,9 +271,7 @@ class NotificationError(AlchemiserError):
 class S3OperationError(AlchemiserError):
     """Raised when S3 operations fail."""
 
-    def __init__(
-        self, message: str, bucket: str | None = None, key: str | None = None
-    ) -> None:
+    def __init__(self, message: str, bucket: str | None = None, key: str | None = None) -> None:
         """Raise when interacting with Amazon S3 fails."""
         super().__init__(message)
         self.bucket = bucket

@@ -244,9 +244,7 @@ class BaseKLMVariant(ABC):
         # Fallback if UVXY data unavailable
         return self.evaluate_combined_pop_bot(indicators)
 
-    def evaluate_bsc_strategy(
-        self, indicators: dict[str, TechnicalIndicatorDTO]
-    ) -> KLMDecision:
+    def evaluate_bsc_strategy(self, indicators: dict[str, TechnicalIndicatorDTO]) -> KLMDecision:
         """BSC (Bond/Stock/Commodity) strategy when UVXY RSI(21) > 65.
 
         Logic from CLJ:

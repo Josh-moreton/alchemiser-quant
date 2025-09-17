@@ -87,9 +87,7 @@ class KlmVariant52022(BaseKLMVariant):
         # Fallback to L/S Rotator if XLK <= KMLM or missing data
         return self._evaluate_long_short_rotator(indicators)
 
-    def _evaluate_long_short_rotator(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_long_short_rotator(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """520/22 L/S Rotator - uses FTLS/KMLM/SSO/UUP (like 410/38)."""
         rotator_symbols = ["FTLS", "KMLM", "SSO", "UUP"]
 

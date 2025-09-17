@@ -32,9 +32,7 @@ class ServiceFactory:
         paper: bool | None = None,
     ) -> ExecutionManager:
         """Create ExecutionManager using DI or traditional method."""
-        if cls._container is not None and all(
-            x is None for x in [api_key, secret_key, paper]
-        ):
+        if cls._container is not None and all(x is None for x in [api_key, secret_key, paper]):
             # Use DI container - get ExecutionManager from services
             # The provider returns Any due to dependency injector limitation
             return cls._container.services.execution_manager()  # type: ignore[no-any-return]

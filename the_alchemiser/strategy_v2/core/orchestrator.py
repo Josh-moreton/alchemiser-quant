@@ -117,9 +117,7 @@ class SingleStrategyOrchestrator:
             )
             raise ValueError(f"Strategy execution failed: {e}") from e
 
-    def _generate_sample_allocation(
-        self, context: StrategyContext
-    ) -> dict[str, Decimal]:
+    def _generate_sample_allocation(self, context: StrategyContext) -> dict[str, Decimal]:
         """Generate sample allocation for testing.
 
         Args:

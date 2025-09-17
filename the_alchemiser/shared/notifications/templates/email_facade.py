@@ -182,6 +182,4 @@ class EmailTemplates:
         account_info: dict[str, object] | None = None,
     ) -> str:
         """Generate a general trading report using existing builder classes."""
-        return build_trading_report_html(
-            trading_summary, strategy_signals, account_info
-        )
+        return build_trading_report_html(trading_summary, strategy_signals, account_info)

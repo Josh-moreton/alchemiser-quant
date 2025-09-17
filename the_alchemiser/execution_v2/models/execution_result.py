@@ -52,8 +52,7 @@ class ExecutionResultDTO(BaseModel):
     total_trade_value: Decimal = Field(..., description="Total dollar value traded")
     execution_timestamp: datetime = Field(..., description="Execution completion timestamp")
     metadata: dict[str, Any] | None = Field(
-        default=None,
-        description="Additional execution metadata only"
+        default=None, description="Additional execution metadata only"
     )  # Arbitrary JSON-serializable metadata for serialization only; type safety is not required, so Any is justified.
 
     @property

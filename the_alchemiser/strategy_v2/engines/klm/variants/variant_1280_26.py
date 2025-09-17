@@ -115,9 +115,7 @@ class KlmVariant128026(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator
         return self._evaluate_ls_rotator_1280(indicators)
 
-    def _should_use_kmlm_switcher(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> bool:
+    def _should_use_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> bool:
         """Check if XLK > KMLM condition is met for switcher logic."""
         if "XLK" not in indicators or "KMLM" not in indicators:
             return False
@@ -126,9 +124,7 @@ class KlmVariant128026(BaseKLMVariant):
         kmlm_rsi = indicators["KMLM"].rsi_10 or 50
         return xlk_rsi > kmlm_rsi
 
-    def _execute_kmlm_switcher_logic(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _execute_kmlm_switcher_logic(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Execute the KMLM switcher selection logic."""
         candidates = self._get_switcher_candidates(indicators)
 
@@ -150,9 +146,7 @@ class KlmVariant128026(BaseKLMVariant):
                 candidates.append((symbol, rsi))
         return candidates
 
-    def _create_dual_allocation_decision(
-        self, candidates: list[tuple[str, float]]
-    ) -> KLMDecision:
+    def _create_dual_allocation_decision(self, candidates: list[tuple[str, float]]) -> KLMDecision:
         """Create decision for dual allocation (bottom 2 RSI)."""
         bottom_2 = self.apply_select_bottom_filter(candidates, 2)
         symbols_for_allocation = [symbol for symbol, _ in bottom_2]
@@ -167,9 +161,7 @@ class KlmVariant128026(BaseKLMVariant):
         self.log_klm_decision(result)
         return result
 
-    def _create_single_allocation_decision(
-        self, candidate: tuple[str, float]
-    ) -> KLMDecision:
+    def _create_single_allocation_decision(self, candidate: tuple[str, float]) -> KLMDecision:
         """Create decision for single allocation when only one candidate."""
         selected_symbol = candidate[0]
         result = self.create_klm_decision(
@@ -180,9 +172,7 @@ class KlmVariant128026(BaseKLMVariant):
         self.log_klm_decision(result)
         return result
 
-    def _evaluate_ls_rotator_1280(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_ls_rotator_1280(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Evaluate 1280/26 L/S Rotator using SQQQ/TLT select-top 1."""
         candidates = []
         for symbol in ["SQQQ", "TLT"]:

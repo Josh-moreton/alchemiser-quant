@@ -87,7 +87,5 @@ class MarketDataError(StrategyV2Error):
             **kwargs: Additional context
 
         """
-        super().__init__(
-            message, "strategy_v2.adapters.market_data_adapter", None, **kwargs
-        )
+        super().__init__(message, "strategy_v2.adapters.market_data_adapter", None, **kwargs)
         self.symbol = symbol

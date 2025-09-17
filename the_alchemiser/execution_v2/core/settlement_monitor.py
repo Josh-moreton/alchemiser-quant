@@ -7,7 +7,7 @@ and buying power release to coordinate sell-first, buy-second execution workflow
 
 Key Features:
 - Async settlement monitoring with configurable polling intervals
-- Event emission for order settlement completion  
+- Event emission for order settlement completion
 - Buying power calculation and release tracking
 - Integration with existing AlpacaManager polling infrastructure
 - Proper correlation ID tracking for execution workflow coordination
@@ -91,16 +91,16 @@ class SettlementMonitor:
                 settlement_result = await self._monitor_single_order_settlement(
                     order_id, correlation_id
                 )
-                
+
                 if settlement_result:
                     settled_orders.append(order_id)
                     settlement_details[order_id] = settlement_result
-                    
+
                     # Calculate buying power released (for sell orders, this is the settled value)
                     if settlement_result.get("side") == "SELL":
                         settled_value = settlement_result.get("settled_value", Decimal("0"))
                         total_buying_power_released += settled_value
-                        
+
                         logger.info(
                             f"✅ Sell order {order_id} settled: ${settled_value} "
                             "buying power released"
@@ -148,16 +148,16 @@ class SettlementMonitor:
 
         """
         start_time = datetime.now(UTC)
-        
+
         while (datetime.now(UTC) - start_time).total_seconds() < self.max_wait_seconds:
             try:
                 # Check order status using existing AlpacaManager method
                 order_status = self.alpaca_manager._check_order_completion_status(order_id)
-                
+
                 if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
                     # Order reached final state, get full order details
                     order_details = await self._get_order_settlement_details(order_id)
-                    
+
                     if order_details and order_status == "FILLED":
                         # Emit individual settlement event
                         if self.event_bus:
@@ -174,19 +174,19 @@ class SettlementMonitor:
                                 settlement_price=order_details["settlement_price"],
                                 settled_value=order_details["settled_value"],
                                 buying_power_released=(
-                                    order_details["settled_value"] 
-                                    if order_details["side"] == "SELL" 
+                                    order_details["settled_value"]
+                                    if order_details["side"] == "SELL"
                                     else Decimal("0")
                                 ),
                                 original_correlation_id=correlation_id,
                             )
                             await self.event_bus.emit(settlement_event)
-                    
+
                     return order_details
-                
+
                 # Wait before next check
                 await asyncio.sleep(self.polling_interval)
-                
+
             except Exception as e:
                 logger.warning(f"Error checking order {order_id} status: {e}")
                 await asyncio.sleep(self.polling_interval)
@@ -207,7 +207,7 @@ class SettlementMonitor:
         try:
             # Use AlpacaManager to get order details
             order = self.alpaca_manager._trading_client.get_order_by_id(order_id)
-            
+
             if not order:
                 return None
 
@@ -216,7 +216,7 @@ class SettlementMonitor:
             side = getattr(order, "side", "").upper()
             filled_qty = getattr(order, "filled_qty", 0)
             filled_avg_price = getattr(order, "filled_avg_price", 0)
-            
+
             settled_quantity = Decimal(str(filled_qty)) if filled_qty else Decimal("0")
             settlement_price = Decimal(str(filled_avg_price)) if filled_avg_price else Decimal("0")
             settled_value = settled_quantity * settlement_price
@@ -238,6 +238,7 @@ class SettlementMonitor:
     def _generate_event_id(self) -> str:
         """Generate a unique event ID."""
         import uuid
+
         return str(uuid.uuid4())
 
     async def wait_for_settlement_threshold(
@@ -268,7 +269,7 @@ class SettlementMonitor:
         while (datetime.now(UTC) - start_time).total_seconds() < self.max_wait_seconds:
             for order_id in sell_order_ids:
                 settlement_details = await self._get_order_settlement_details(order_id)
-                
+
                 if settlement_details and settlement_details.get("side") == "SELL":
                     settled_value = settlement_details.get("settled_value", Decimal("0"))
                     accumulated_buying_power += settled_value
@@ -289,9 +290,9 @@ class SettlementMonitor:
         completed_tasks = [
             task_id for task_id, task in self._active_monitors.items() if task.done()
         ]
-        
+
         for task_id in completed_tasks:
             del self._active_monitors[task_id]
-            
+
         if completed_tasks:
             logger.debug(f"🧹 Cleaned up {len(completed_tasks)} completed monitoring tasks")

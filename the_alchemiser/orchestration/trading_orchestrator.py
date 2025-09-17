@@ -97,9 +97,7 @@ class TradingOrchestrator:
             elif isinstance(event, RebalancePlanned):
                 self._handle_rebalance_planned_coordination(event)
             else:
-                self.logger.debug(
-                    f"TradingOrchestrator ignoring event type: {event.event_type}"
-                )
+                self.logger.debug(f"TradingOrchestrator ignoring event type: {event.event_type}")
 
         except Exception as e:
             self.logger.error(
@@ -157,16 +155,12 @@ class TradingOrchestrator:
                 # Populate workflow results with account data for CLI
                 if (
                     hasattr(self, "workflow_results")
-                    and self.workflow_state.get("last_correlation_id")
-                    == event.correlation_id
+                    and self.workflow_state.get("last_correlation_id") == event.correlation_id
                 ):
-
                     self.workflow_results.update(
                         {
                             "account_info": account_data.get("account_info"),
-                            "current_positions": account_data.get(
-                                "current_positions", {}
-                            ),
+                            "current_positions": account_data.get("current_positions", {}),
                             "open_orders": account_data.get("open_orders", []),
                         }
                     )
@@ -178,11 +172,7 @@ class TradingOrchestrator:
 
                 # Extract strategy names from signals
                 source_strategies = list(
-                    {
-                        signal.strategy_name
-                        for signal in event.signals
-                        if signal.strategy_name
-                    }
+                    {signal.strategy_name for signal in event.signals if signal.strategy_name}
                 )
 
                 # This should trigger the portfolio orchestrator to analyze allocation and emit RebalancePlanned
@@ -197,9 +187,7 @@ class TradingOrchestrator:
 
                     # Trigger allocation comparison which should emit RebalancePlanned
                     allocation_comparison = (
-                        self.portfolio_orchestrator.analyze_allocation_comparison(
-                            portfolio_dto
-                        )
+                        self.portfolio_orchestrator.analyze_allocation_comparison(portfolio_dto)
                     )
 
                     if allocation_comparison:
@@ -209,9 +197,7 @@ class TradingOrchestrator:
                             and self.workflow_state.get("last_correlation_id")
                             == event.correlation_id
                         ):
-                            self.workflow_results["allocation_comparison"] = (
-                                allocation_comparison
-                            )
+                            self.workflow_results["allocation_comparison"] = allocation_comparison
 
                         self.logger.info(
                             "✅ Portfolio rebalancing analysis completed - RebalancePlanned event should be emitted"
@@ -227,9 +213,7 @@ class TradingOrchestrator:
                     self.workflow_state["rebalancing_in_progress"] = False
 
             else:
-                self.logger.error(
-                    "Cannot trigger rebalancing: account data not available"
-                )
+                self.logger.error("Cannot trigger rebalancing: account data not available")
                 self.workflow_state["rebalancing_in_progress"] = False
 
         except Exception as e:
@@ -262,9 +246,7 @@ class TradingOrchestrator:
         try:
             # Execute trades using ExecutionManager
             execution_manager = self.container.services.execution_manager()
-            execution_result = execution_manager.execute_rebalance_plan(
-                event.rebalance_plan
-            )
+            execution_result = execution_manager.execute_rebalance_plan(event.rebalance_plan)
 
             self.logger.info(
                 f"✅ Trade execution completed: {execution_result.orders_succeeded}/"
@@ -273,11 +255,8 @@ class TradingOrchestrator:
 
             # Populate workflow results for CLI if this is the active correlation
             if self.workflow_state.get("last_correlation_id") == event.correlation_id:
-
                 # Convert ExecutionResultDTO to format expected by CLI
-                orders_executed = self._convert_execution_result_to_orders(
-                    execution_result
-                )
+                orders_executed = self._convert_execution_result_to_orders(execution_result)
                 self.workflow_results.update(
                     {
                         "orders_executed": orders_executed,
@@ -303,9 +282,7 @@ class TradingOrchestrator:
             self.workflow_state.update(
                 {
                     "trading_in_progress": False,
-                    "last_successful_step": (
-                        "trading" if execution_success else "trading_failed"
-                    ),
+                    "last_successful_step": ("trading" if execution_success else "trading_failed"),
                 }
             )
 
@@ -325,9 +302,7 @@ class TradingOrchestrator:
                     execution_timestamp=datetime.now(UTC),
                     metadata={"error": str(e)},
                 )
-                self._emit_trade_executed_event(
-                    failed_result, success=False, error_message=str(e)
-                )
+                self._emit_trade_executed_event(failed_result, success=False, error_message=str(e))
             except Exception as emit_error:
                 self.logger.warning(f"Failed to emit failure event: {emit_error}")
 
@@ -395,10 +370,8 @@ class TradingOrchestrator:
             open_orders = account_data.get("open_orders", [])
 
             # Create allocation comparison
-            allocation_comparison = (
-                self.portfolio_orchestrator.analyze_allocation_comparison(
-                    consolidated_portfolio_dto
-                )
+            allocation_comparison = self.portfolio_orchestrator.analyze_allocation_comparison(
+                consolidated_portfolio_dto
             )
 
             if not allocation_comparison:
@@ -419,21 +392,15 @@ class TradingOrchestrator:
             execution_result = None
 
             if rebalance_plan:
-                self.logger.info(
-                    f"🚀 Executing trades: {len(rebalance_plan.items)} items"
-                )
+                self.logger.info(f"🚀 Executing trades: {len(rebalance_plan.items)} items")
                 self.workflow_state["trading_in_progress"] = True
 
                 # Execute the rebalance plan
                 execution_manager = self.container.services.execution_manager()
-                execution_result = execution_manager.execute_rebalance_plan(
-                    rebalance_plan
-                )
+                execution_result = execution_manager.execute_rebalance_plan(rebalance_plan)
 
                 # Convert ExecutionResultDTO to format expected by CLI
-                orders_executed = self._convert_execution_result_to_orders(
-                    execution_result
-                )
+                orders_executed = self._convert_execution_result_to_orders(execution_result)
 
                 self.logger.info(
                     f"✅ Trade execution completed: {execution_result.orders_succeeded}/"
@@ -443,17 +410,12 @@ class TradingOrchestrator:
                 # Emit TradeExecuted event for monitoring (EventDrivenOrchestrator)
                 execution_success = execution_result.success and (
                     execution_result.orders_placed == 0
-                    or execution_result.orders_succeeded
-                    == execution_result.orders_placed
+                    or execution_result.orders_succeeded == execution_result.orders_placed
                 )
-                self._emit_trade_executed_event(
-                    execution_result, success=execution_success
-                )
+                self._emit_trade_executed_event(execution_result, success=execution_success)
 
             else:
-                self.logger.info(
-                    "📊 No significant trades needed - portfolio already balanced"
-                )
+                self.logger.info("📊 No significant trades needed - portfolio already balanced")
 
                 # Create empty execution result
                 execution_result = ExecutionResultDTO(
@@ -552,9 +514,7 @@ class TradingOrchestrator:
             # Get account data for context (optional for signal-only mode)
             account_data = self.portfolio_orchestrator.get_comprehensive_account_data()
             account_info = account_data.get("account_info") if account_data else None
-            current_positions = (
-                account_data.get("current_positions", {}) if account_data else {}
-            )
+            current_positions = account_data.get("current_positions", {}) if account_data else {}
             open_orders = account_data.get("open_orders", []) if account_data else []
 
             # For signal-only mode, we can optionally get allocation comparison for analysis
@@ -662,9 +622,7 @@ class TradingOrchestrator:
             send_error_notification_if_needed()
 
         except NotificationError as notification_error:
-            self.logger.warning(
-                f"Failed to send error notification: {notification_error}"
-            )
+            self.logger.warning(f"Failed to send error notification: {notification_error}")
 
     def execute_trading_workflow(self) -> bool:
         """Execute complete trading workflow.
@@ -763,9 +721,7 @@ class TradingOrchestrator:
             )
 
             if not plan_items:
-                self.logger.info(
-                    "No significant trades needed - all deltas below threshold"
-                )
+                self.logger.info("No significant trades needed - all deltas below threshold")
                 return None
 
             # Create final rebalance plan
@@ -779,9 +735,7 @@ class TradingOrchestrator:
 
     def _extract_portfolio_value(self, account_info: dict[str, Any]) -> Decimal:
         """Extract portfolio value from account info."""
-        portfolio_value = account_info.get(
-            "portfolio_value", account_info.get("equity", 0)
-        )
+        portfolio_value = account_info.get("portfolio_value", account_info.get("equity", 0))
         return Decimal(str(portfolio_value))
 
     def _create_plan_items(
@@ -900,9 +854,7 @@ class TradingOrchestrator:
                 "symbol": order.symbol,
                 "side": order.action,
                 "qty": float(order.shares) if order.shares else 0,
-                "filled_qty": (
-                    float(order.shares) if order.success and order.shares else 0
-                ),
+                "filled_qty": (float(order.shares) if order.success and order.shares else 0),
                 "filled_avg_price": float(order.price) if order.price else 0,
                 "estimated_value": float(abs(order.trade_amount)),
                 "order_id": order.order_id,
@@ -913,9 +865,7 @@ class TradingOrchestrator:
 
         return orders_executed
 
-    def _log_detailed_execution_results(
-        self, execution_result: ExecutionResultDTO
-    ) -> None:
+    def _log_detailed_execution_results(self, execution_result: ExecutionResultDTO) -> None:
         """Log detailed execution results for each order.
 
         Args:
@@ -934,9 +884,7 @@ class TradingOrchestrator:
                     f"(Order ID: {order.order_id})"
                 )
             else:
-                self.logger.error(
-                    f"❌ {order.action} {order.symbol} FAILED: {order.error_message}"
-                )
+                self.logger.error(f"❌ {order.action} {order.symbol} FAILED: {order.error_message}")
 
         # Log summary
         self.logger.info(
@@ -968,16 +916,10 @@ class TradingOrchestrator:
 
             # Create execution results dictionary
             execution_data = {
-                "orders_placed": (
-                    execution_result.orders_placed if execution_result else 0
-                ),
-                "orders_succeeded": (
-                    execution_result.orders_succeeded if execution_result else 0
-                ),
+                "orders_placed": (execution_result.orders_placed if execution_result else 0),
+                "orders_succeeded": (execution_result.orders_succeeded if execution_result else 0),
                 "total_trade_value": (
-                    float(execution_result.total_trade_value)
-                    if execution_result
-                    else 0.0
+                    float(execution_result.total_trade_value) if execution_result else 0.0
                 ),
                 "orders": (
                     [

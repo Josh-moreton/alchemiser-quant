@@ -105,9 +105,7 @@ class KlmVariant53018(BaseKLMVariant):
         # Step 9: "10. KMLM Switcher | Holy Grail" - the final complex branch
         return self._evaluate_holy_grail_kmlm_switcher(indicators)
 
-    def _evaluate_spy_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_spy_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """SPY Scale-In | VIX+ -> VIX++ (CLJ lines 782-796)."""
         if "SPY" not in indicators:
             return None
@@ -125,9 +123,7 @@ class KlmVariant53018(BaseKLMVariant):
                 )
             else:
                 # VIX Blend+ - Equal VIX allocation
-                allocation = (
-                    self.vix_blend_plus
-                )  # {UVXY: 0.333, VXX: 0.333, VIXM: 0.333}
+                allocation = self.vix_blend_plus  # {UVXY: 0.333, VXX: 0.333, VIXM: 0.333}
                 result = self.create_klm_decision(
                     allocation,
                     ActionType.BUY.value,
@@ -139,9 +135,7 @@ class KlmVariant53018(BaseKLMVariant):
 
         return None
 
-    def _evaluate_ioo_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_ioo_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """IOO Scale-In | VIX+ -> VIX++ (identical pattern to SPY)."""
         if "IOO" not in indicators:
             return None
@@ -169,9 +163,7 @@ class KlmVariant53018(BaseKLMVariant):
 
         return None
 
-    def _evaluate_qqq_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_qqq_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """QQQ Scale-In | VIX+ -> VIX++ (threshold 79 vs 80)."""
         if "QQQ" not in indicators:
             return None
@@ -199,9 +191,7 @@ class KlmVariant53018(BaseKLMVariant):
 
         return None
 
-    def _evaluate_vtv_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_vtv_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """VTV Scale-In | VIX -> VIX+ (different pattern - uses VIXY)."""
         if "VTV" not in indicators:
             return None
@@ -229,9 +219,7 @@ class KlmVariant53018(BaseKLMVariant):
 
         return None
 
-    def _evaluate_xlp_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_xlp_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """XLP Scale-In | VIX -> VIX+ (threshold 77, same pattern as VTV)."""
         if "XLP" not in indicators:
             return None
@@ -259,9 +247,7 @@ class KlmVariant53018(BaseKLMVariant):
 
         return None
 
-    def _evaluate_xlf_scale_in(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision | None:
+    def _evaluate_xlf_scale_in(self, indicators: dict[str, dict[str, float]]) -> KLMDecision | None:
         """XLF Scale-In | VIX -> VIX+ (threshold 81, same pattern)."""
         if "XLF" not in indicators:
             return None
@@ -330,9 +316,7 @@ class KlmVariant53018(BaseKLMVariant):
             return None
 
         spy_rsi_70 = (
-            indicators["SPY"].metadata.get("rsi_70", 50)
-            if indicators["SPY"].metadata
-            else 50
+            indicators["SPY"].metadata.get("rsi_70", 50) if indicators["SPY"].metadata else 50
         )
 
         if spy_rsi_70 > 63:
@@ -441,9 +425,7 @@ class KlmVariant53018(BaseKLMVariant):
         # Default to complex KMLM switcher logic
         return self._evaluate_kmlm_switcher_plus_fngu(indicators)
 
-    def _evaluate_holy_grail_pop_bot(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_holy_grail_pop_bot(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """Pop bot logic within Holy Grail branch."""
         # TQQQ oversold (< 31, different from standard < 30)
         if "TQQQ" in indicators and (indicators["TQQQ"].rsi_10 or 50) < 31:
@@ -505,9 +487,7 @@ class KlmVariant53018(BaseKLMVariant):
                 for symbol in ["FNGU", "SPXL", "XLE", "XLK", "AGG"]:
                     if symbol in indicators:
                         ma_return = (
-                            indicators[symbol].metadata.get(
-                                "moving_average_return_20", 0
-                            )
+                            indicators[symbol].metadata.get("moving_average_return_20", 0)
                             if indicators[symbol].metadata
                             else 0
                         )

@@ -40,6 +40,4 @@ class ConfigProviders(containers.DeclarativeContainer):
     email_recipient = providers.Factory(lambda settings: settings.email.to_email, settings=settings)
 
     # Execution configuration
-    execution = providers.Factory(
-        lambda settings: settings.execution, settings=settings
-    )
+    execution = providers.Factory(lambda settings: settings.execution, settings=settings)

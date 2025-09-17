@@ -26,9 +26,7 @@ class LambdaEventDTO(BaseModel):
     )
 
     mode: str | None = Field(default=None, description="Execution mode")
-    trading_mode: str | None = Field(
-        default=None, description="Trading mode (paper/live)"
-    )
+    trading_mode: str | None = Field(default=None, description="Trading mode (paper/live)")
     arguments: list[str] | None = Field(
         default=None, description="Additional command line arguments"
     )

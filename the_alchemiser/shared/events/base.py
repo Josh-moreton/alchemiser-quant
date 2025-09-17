@@ -32,9 +32,7 @@ class BaseEvent(BaseModel):
     )
 
     # Required correlation fields for traceability
-    correlation_id: str = Field(
-        ..., min_length=1, description="Unique correlation identifier"
-    )
+    correlation_id: str = Field(..., min_length=1, description="Unique correlation identifier")
     causation_id: str = Field(
         ..., min_length=1, description="Causation identifier for traceability"
     )
@@ -45,9 +43,7 @@ class BaseEvent(BaseModel):
     timestamp: datetime = Field(..., description="Event timestamp")
 
     # Event source and context
-    source_module: str = Field(
-        ..., min_length=1, description="Module that emitted the event"
-    )
+    source_module: str = Field(..., min_length=1, description="Module that emitted the event")
     source_component: str | None = Field(
         default=None, description="Specific component that emitted the event"
     )
@@ -100,8 +96,6 @@ class BaseEvent(BaseModel):
                     timestamp_str = timestamp_str[:-1] + "+00:00"
                 data["timestamp"] = datetime.fromisoformat(timestamp_str)
             except ValueError as e:
-                raise ValueError(
-                    f"Invalid timestamp format: {data['timestamp']}"
-                ) from e
+                raise ValueError(f"Invalid timestamp format: {data['timestamp']}") from e
 
         return cls(**data)

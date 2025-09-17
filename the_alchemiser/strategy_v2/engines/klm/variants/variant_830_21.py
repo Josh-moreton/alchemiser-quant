@@ -87,9 +87,7 @@ class KlmVariant83021(BaseKLMVariant):
         # Fallback to Bond Check logic if XLK <= KMLM or missing data
         return self._evaluate_bond_check(indicators)
 
-    def _evaluate_bond_check(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_bond_check(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """830/21 Bond Check - uses BND moving-average-return logic."""
         # Check BND moving average return (window 20)
         if "BND" in indicators and hasattr(indicators["BND"], "ma_return_90"):
@@ -106,9 +104,7 @@ class KlmVariant83021(BaseKLMVariant):
             "KMLM", ActionType.BUY.value, "830/21 Bond Check: KMLM fallback"
         )
 
-    def _evaluate_kmlm_splv_path(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_kmlm_splv_path(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """KMLM/SPLV path when BND MA return > 0."""
         # Select between KMLM and SPLV using volatility filter
         candidates = []
@@ -131,9 +127,7 @@ class KlmVariant83021(BaseKLMVariant):
             "KMLM", ActionType.BUY.value, "830/21 KMLM/SPLV: KMLM fallback"
         )
 
-    def _evaluate_tlt_path(
-        self, indicators: dict[str, dict[str, float]]
-    ) -> KLMDecision:
+    def _evaluate_tlt_path(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
         """TLT/LABD/TZA path when BND MA return <= 0."""
         # Select from TLT, LABD, TZA using volatility filter
         candidates = []

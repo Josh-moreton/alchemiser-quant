@@ -930,7 +930,7 @@ def render_enriched_order_summaries(
             if order_status in {"NEW", "PARTIALLY_FILLED"}:
                 return "yellow"
             return "red"
-        
+
         status_color = _get_status_color(status)
 
         table.add_row(

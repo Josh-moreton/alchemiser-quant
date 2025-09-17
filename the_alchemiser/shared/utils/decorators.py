@@ -62,9 +62,7 @@ def translate_service_errors(
             except tuple(error_types.keys()) as e:
                 # Convert to custom exception type
                 custom_error_type = error_types.get(type(e), DataProviderError)
-                translated_error = custom_error_type(
-                    f"Service error in {func.__name__}: {e}"
-                )
+                translated_error = custom_error_type(f"Service error in {func.__name__}: {e}")
                 translated_error.__cause__ = e
 
                 if default_return is not None:
@@ -72,9 +70,7 @@ def translate_service_errors(
                 raise translated_error
             except Exception as e:
                 # Handle unexpected errors
-                translated_error = DataProviderError(
-                    f"Unexpected error in {func.__name__}: {e}"
-                )
+                translated_error = DataProviderError(f"Unexpected error in {func.__name__}: {e}")
                 translated_error.__cause__ = e
 
                 if default_return is not None:

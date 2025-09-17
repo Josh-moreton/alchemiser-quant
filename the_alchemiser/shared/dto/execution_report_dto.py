@@ -181,16 +181,16 @@ class ExecutionReportDTO(BaseModel):
 
         """
         data = self.model_dump()
-        
+
         # Convert datetime fields to ISO strings
         self._convert_datetime_fields(data)
-        
+
         # Convert Decimal fields to string for JSON serialization
         self._convert_decimal_fields(data)
-        
+
         # Convert nested orders
         self._convert_nested_orders(data)
-        
+
         return data
 
     def _convert_datetime_fields(self, data: dict[str, Any]) -> None:
@@ -204,7 +204,7 @@ class ExecutionReportDTO(BaseModel):
         """Convert Decimal fields to string for JSON serialization."""
         decimal_fields = [
             "total_value_traded",
-            "total_commissions", 
+            "total_commissions",
             "total_fees",
             "net_cash_flow",
             "success_rate",
@@ -218,7 +218,7 @@ class ExecutionReportDTO(BaseModel):
         """Convert nested order objects to dictionaries with proper serialization."""
         if "orders" not in data:
             return
-        
+
         orders_data = []
         for order in data["orders"]:
             order_dict = dict(order)
@@ -236,7 +236,7 @@ class ExecutionReportDTO(BaseModel):
         """Convert Decimal fields in order dictionary."""
         order_decimal_fields = [
             "quantity",
-            "filled_quantity", 
+            "filled_quantity",
             "price",
             "total_value",
             "commission",

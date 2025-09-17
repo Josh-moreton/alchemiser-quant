@@ -45,11 +45,7 @@ def safe_get_indicator(
                 return input_data["Close"]
             # Use the first numeric column as a fallback
             numeric_cols = input_data.select_dtypes(include=["number"]).columns
-            return (
-                input_data[numeric_cols[0]]
-                if len(numeric_cols) > 0
-                else pd.Series(dtype=float)
-            )
+            return input_data[numeric_cols[0]] if len(numeric_cols) > 0 else pd.Series(dtype=float)
         return input_data
 
     def _get_last_valid_value(result_series: pd.Series) -> float | None:
@@ -76,9 +72,7 @@ def safe_get_indicator(
             )
         else:
             tail_repr = series.tail(1) if hasattr(series, "tail") else series
-            logging.warning(
-                f"Indicator {func_name} returned no results for data: {tail_repr}"
-            )
+            logging.warning(f"Indicator {func_name} returned no results for data: {tail_repr}")
 
     def _get_data_repr(
         input_data: pd.Series | pd.DataFrame,

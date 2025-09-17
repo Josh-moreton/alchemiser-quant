@@ -40,9 +40,7 @@ class PortfolioSnapshot:
 
         for symbol, quantity in self.positions.items():
             if quantity < 0:
-                raise ValueError(
-                    f"Position quantity cannot be negative for {symbol}: {quantity}"
-                )
+                raise ValueError(f"Position quantity cannot be negative for {symbol}: {quantity}")
 
         for symbol, price in self.prices.items():
             if price <= 0:
