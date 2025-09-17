@@ -13,7 +13,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 from ..utils.timezone_utils import ensure_timezone_aware
 
@@ -72,7 +72,7 @@ class MarketBarDTO(BaseModel):
 
     @field_validator("high_price")
     @classmethod
-    def validate_high_price(cls, v: Decimal, info) -> Decimal:
+    def validate_high_price(cls, v: Decimal, info: ValidationInfo) -> Decimal:
         """Validate high price is >= low price if both present."""
         if hasattr(info, "data") and "low_price" in info.data:
             if v < info.data["low_price"]:
@@ -81,7 +81,7 @@ class MarketBarDTO(BaseModel):
 
     @field_validator("low_price")
     @classmethod
-    def validate_low_price(cls, v: Decimal, info) -> Decimal:
+    def validate_low_price(cls, v: Decimal, info: ValidationInfo) -> Decimal:
         """Validate low price is <= high price if both present."""
         if hasattr(info, "data") and "high_price" in info.data:
             if v > info.data["high_price"]:

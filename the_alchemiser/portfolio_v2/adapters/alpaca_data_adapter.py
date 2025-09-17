@@ -180,7 +180,9 @@ class AlpacaDataAdapter:
 
         try:
             account_info = self._alpaca_manager.get_account()
-            cash = Decimal(str(account_info.cash))
+            if not account_info:
+                raise RuntimeError("Account information unavailable")
+            cash = Decimal(str(getattr(account_info, "cash", "0")))
 
             log_with_context(
                 logger,

@@ -59,7 +59,7 @@ class KlmVariant128026(BaseKLMVariant):
         return self._evaluate_combined_pop_bot_with_labu(indicators)
 
     def _evaluate_combined_pop_bot_with_labu(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> KLMDecision:
         """Evaluate combined Pop Bot for 1280/26.
 
@@ -115,7 +115,7 @@ class KlmVariant128026(BaseKLMVariant):
         # XLK <= KMLM → L/S Rotator
         return self._evaluate_ls_rotator_1280(indicators)
 
-    def _should_use_kmlm_switcher(self, indicators: dict[str, dict[str, float]]) -> bool:
+    def _should_use_kmlm_switcher(self, indicators: dict[str, TechnicalIndicatorDTO]) -> bool:
         """Check if XLK > KMLM condition is met for switcher logic."""
         if "XLK" not in indicators or "KMLM" not in indicators:
             return False
@@ -124,7 +124,7 @@ class KlmVariant128026(BaseKLMVariant):
         kmlm_rsi = indicators["KMLM"].rsi_10 or 50
         return xlk_rsi > kmlm_rsi
 
-    def _execute_kmlm_switcher_logic(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def _execute_kmlm_switcher_logic(self, indicators: dict[str, TechnicalIndicatorDTO]) -> KLMDecision:
         """Execute the KMLM switcher selection logic."""
         candidates = self._get_switcher_candidates(indicators)
 
@@ -136,7 +136,7 @@ class KlmVariant128026(BaseKLMVariant):
         return self._evaluate_ls_rotator_1280(indicators)
 
     def _get_switcher_candidates(
-        self, indicators: dict[str, dict[str, float]]
+        self, indicators: dict[str, TechnicalIndicatorDTO]
     ) -> list[tuple[str, float]]:
         """Get RSI candidates for switcher selection from TECL, SOXL, SVIX."""
         candidates = []
@@ -172,7 +172,7 @@ class KlmVariant128026(BaseKLMVariant):
         self.log_klm_decision(result)
         return result
 
-    def _evaluate_ls_rotator_1280(self, indicators: dict[str, dict[str, float]]) -> KLMDecision:
+    def _evaluate_ls_rotator_1280(self, indicators: dict[str, TechnicalIndicatorDTO]) -> KLMDecision:
         """Evaluate 1280/26 L/S Rotator using SQQQ/TLT select-top 1."""
         candidates = []
         for symbol in ["SQQQ", "TLT"]:

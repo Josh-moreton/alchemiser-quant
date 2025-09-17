@@ -53,6 +53,7 @@ from the_alchemiser.shared.brokers.alpaca_utils import (
 from the_alchemiser.shared.types.market_data import PriceDataModel, QuoteModel
 
 if TYPE_CHECKING:
+    from alpaca.data.live import StockDataStream
     from alpaca.data.models import Quote, Trade
 
     # Type aliases for static type checking - can be either dict or Alpaca objects
@@ -134,7 +135,7 @@ class RealTimePricingService:
 
         # Initialize streaming state
         self._stream_thread: threading.Thread | None = None
-        self._stream = None
+        self._stream: StockDataStream | None = None
         self._should_reconnect = False
         self._connected = False
 
@@ -153,7 +154,7 @@ class RealTimePricingService:
 
         # Initialize missing attributes for smart execution
         self._subscription_priority: dict[str, int] = {}
-        self._latest_quotes: dict[str, dict] = {}
+        self._latest_quotes: dict[str, AlpacaQuoteData] = {}
         self._stats: dict[str, int] = {
             "quotes_received": 0,
             "total_subscriptions": 0,
@@ -399,8 +400,11 @@ class RealTimePricingService:
 
         """
         try:
-            # Extract symbol from data
-            symbol = data.symbol if hasattr(data, "symbol") else data.get("S", "")
+            # Extract symbol from data and ensure it's a string
+            if hasattr(data, "symbol"):
+                symbol = str(data.symbol)
+            else:
+                symbol = str(data.get("S", "")) if isinstance(data, dict) else ""
 
             if not symbol:
                 self.logger.warning("Received quote with no symbol")
