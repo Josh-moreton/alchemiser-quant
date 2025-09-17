@@ -12,7 +12,6 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
-import time
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
@@ -142,7 +141,6 @@ def trade(
         console.print(f"[bold blue]PAPER trading mode active (stage: {stage.upper()}).[/bold blue]")
 
     mode_display = "[bold red]LIVE[/bold red]" if is_live else "[bold blue]PAPER[/bold blue]"
-    console.print(f"[bold yellow]Starting {mode_display} trading...[/bold yellow]")
 
     try:
         # Import and run the main trading logic with DI
@@ -150,16 +148,9 @@ def trade(
         from the_alchemiser.orchestration.cli.clean_formatter import render_trade_result
         from the_alchemiser.shared.dto.trade_run_result_dto import TradeRunResultDTO
 
-        # Suppress progress messages for JSON mode
+        # Show minimal progress for non-JSON mode
         if not json_output:
             console.print(f"[bold yellow]Starting {mode_display} trading...[/bold yellow]")
-            
-            if not no_header:
-                console.print("[dim]📊 Analyzing market conditions...[/dim]")
-                time.sleep(0.5)  # Brief pause for UI
-                console.print("[dim]⚡ Generating strategy signals...[/dim]")
-                console.print("[dim]📋 Planning portfolio rebalance...[/dim]")
-                console.print("[dim]🚀 Executing trades...[/dim]")
 
         # Build argv for main function (no --live flag)
         argv = ["trade"]

@@ -209,47 +209,10 @@ class TradingSystem:
             self._configure_quiet_logging()
             
             try:
-                from rich.logging import RichHandler
-                from rich.progress import Progress, SpinnerColumn, TextColumn
-
-                with Progress(
-                    SpinnerColumn(),
-                    TextColumn("[progress.description]{task.description}"),
-                    transient=True,
-                ) as progress:
-                    _task = progress.add_task(
-                        "🚀 Executing trades... Submitting orders and monitoring fills",
-                        total=None,
-                    )
-
-                    # Temporarily surface INFO logs to the CLI for live feedback
-                    root_logger = logging.getLogger()
-                    rich_handler = RichHandler(
-                        console=progress.console,
-                        show_time=False,
-                        show_level=False,
-                        show_path=False,
-                        markup=True,
-                    )
-
-                    # Limit to our app logs to avoid noisy third-party streams
-                    class _OnlyAlchemiser(logging.Filter):
-                        def filter(self, record: logging.LogRecord) -> bool:
-                            return record.name.startswith("the_alchemiser")
-
-                    rich_handler.addFilter(_OnlyAlchemiser())
-                    root_original_level = root_logger.level
-                    root_logger.setLevel(logging.INFO)
-                    root_logger.addHandler(rich_handler)
-                    try:
-                        trading_result = (
-                            orchestrator.execute_strategy_signals_with_trading()
-                        )
-                    finally:
-                        root_logger.removeHandler(rich_handler)
-                        root_logger.setLevel(root_original_level)
+                # Execute trading with minimal output - no Rich progress spinner
+                trading_result = orchestrator.execute_strategy_signals_with_trading()
             except Exception:
-                # Fallback if Rich is unavailable
+                # Fallback if anything fails
                 trading_result = orchestrator.execute_strategy_signals_with_trading()
             finally:
                 self._restore_logging()
@@ -739,6 +702,12 @@ class TradingSystem:
             "the_alchemiser.execution_v2",
             "the_alchemiser.portfolio_v2", 
             "the_alchemiser.strategy_v2",
+            "the_alchemiser.orchestration",
+            "the_alchemiser.orchestration.trading_orchestrator",
+            "the_alchemiser.orchestration.signal_orchestrator", 
+            "the_alchemiser.orchestration.strategy_orchestrator",
+            "the_alchemiser.orchestration.portfolio_orchestrator",
+            "the_alchemiser.orchestration.event_driven_orchestrator",
             "alpaca",
             "urllib3",
             "requests"
