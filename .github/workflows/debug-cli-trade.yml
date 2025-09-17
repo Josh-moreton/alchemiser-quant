@@ -41,7 +41,7 @@ jobs:
           EMAIL__PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
         run: |
           set +e
-          poetry run python -m the_alchemiser.main trade --ignore-market-hours > cli_output.log 2>&1
+          poetry run alchemiser trade > cli_output.log 2>&1
           exit_code=$?
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
           
