@@ -64,6 +64,11 @@ class Executor:
         self.enable_smart_execution = enable_smart_execution
         self.execution_config = execution_config
 
+        # Add async locks for execution coordination
+        self._execution_lock = asyncio.Lock()
+        self._settlement_lock = asyncio.Lock()
+        self._phase_lock = asyncio.Lock()
+
         # Initialize pricing service for smart execution
         self.pricing_service: RealTimePricingService | None = None
         self.smart_strategy: SmartExecutionStrategy | None = None
@@ -205,11 +210,12 @@ class Executor:
     ) -> ExecutionResultDTO:
         """Execute a rebalance plan with settlement-aware sell-first, buy-second workflow.
 
-        Enhanced execution flow:
-        1. Extract and bulk-subscribe to all symbols upfront
-        2. Execute SELL orders in parallel where possible
-        3. Monitor settlement and buying power release
-        4. Execute BUY orders once sufficient buying power is available
+        Enhanced execution flow with proper async coordination:
+        1. Serialize critical execution phases to prevent race conditions
+        2. Extract and bulk-subscribe to all symbols upfront
+        3. Execute SELL orders in parallel where possible
+        4. Monitor settlement and buying power release atomically
+        5. Execute BUY orders once sufficient buying power is available
 
         Args:
             plan: RebalancePlanDTO containing the rebalance plan
@@ -218,105 +224,139 @@ class Executor:
             ExecutionResultDTO with execution results
 
         """
-        logger.info(
-            f"🚀 Executing rebalance plan {plan.plan_id} with {len(plan.items)} items "
-            "(enhanced settlement-aware)"
-        )
-
-        # Extract all symbols upfront for bulk subscription
-        all_symbols = self._extract_all_symbols(plan)
-
-        # Bulk subscribe to all symbols for efficient pricing
-        self._bulk_subscribe_symbols(all_symbols)
-
-        # Separate orders by type
-        sell_items = [item for item in plan.items if item.action == "SELL"]
-        buy_items = [item for item in plan.items if item.action == "BUY"]
-        hold_items = [item for item in plan.items if item.action == "HOLD"]
-
-        logger.info(
-            f"📊 Execution plan: {len(sell_items)} SELLs, {len(buy_items)} BUYs, "
-            f"{len(hold_items)} HOLDs"
-        )
-
-        orders: list[OrderResultDTO] = []
-        orders_placed = 0
-        orders_succeeded = 0
-        total_trade_value = Decimal("0")
-
-        # Phase 1: Execute SELL orders and monitor settlement
-        sell_order_ids: list[str] = []
-        if sell_items:
-            logger.info(
-                "🔄 Phase 1: Executing SELL orders with settlement monitoring..."
-            )
-
-            sell_orders, sell_stats = await self._execute_sell_phase(sell_items)
-            orders.extend(sell_orders)
-            orders_placed += sell_stats["placed"]
-            orders_succeeded += sell_stats["succeeded"]
-            total_trade_value += sell_stats["trade_value"]
-
-            # Collect successful sell order IDs for settlement monitoring
-            sell_order_ids = [
-                order.order_id
-                for order in sell_orders
-                if order.success and order.order_id
-            ]
-
-        # Phase 2: Monitor settlement and execute BUY orders
-        if buy_items and sell_order_ids:
-            logger.info("🔄 Phase 2: Monitoring settlement and executing BUY orders...")
-
-            # Wait for settlement and then execute buys
-            buy_orders, buy_stats = (
-                await self._execute_buy_phase_with_settlement_monitoring(
-                    buy_items, sell_order_ids, plan.correlation_id, plan.plan_id
+        # Serialize entire execution to prevent concurrent executions
+        async with self._execution_lock:
+            try:
+                logger.info(
+                    f"🚀 Executing rebalance plan {plan.plan_id} with {len(plan.items)} items "
+                    "(enhanced settlement-aware with async coordination)"
                 )
-            )
 
-            orders.extend(buy_orders)
-            orders_placed += buy_stats["placed"]
-            orders_succeeded += buy_stats["succeeded"]
-            total_trade_value += buy_stats["trade_value"]
+                # Extract all symbols upfront for bulk subscription
+                all_symbols = self._extract_all_symbols(plan)
 
-        elif buy_items:
-            # No sells to wait for, execute buys immediately
-            logger.info(
-                "🔄 Phase 2: Executing BUY orders (no settlement monitoring needed)..."
-            )
+                # Bulk subscribe to all symbols for efficient pricing
+                self._bulk_subscribe_symbols(all_symbols)
 
-            buy_orders, buy_stats = await self._execute_buy_phase(buy_items)
-            orders.extend(buy_orders)
-            orders_placed += buy_stats["placed"]
-            orders_succeeded += buy_stats["succeeded"]
-            total_trade_value += buy_stats["trade_value"]
+                # Separate orders by type
+                sell_items = [item for item in plan.items if item.action == "SELL"]
+                buy_items = [item for item in plan.items if item.action == "BUY"]
+                hold_items = [item for item in plan.items if item.action == "HOLD"]
 
-        # Log HOLD items
-        for item in hold_items:
-            logger.info(f"⏸️ Holding {item.symbol} - no action required")
+                logger.info(
+                    f"📊 Execution plan: {len(sell_items)} SELLs, {len(buy_items)} BUYs, "
+                    f"{len(hold_items)} HOLDs"
+                )
 
-        # Clean up subscriptions after execution
-        self._cleanup_subscriptions(all_symbols)
+                orders: list[OrderResultDTO] = []
+                orders_placed = 0
+                orders_succeeded = 0
+                total_trade_value = Decimal("0")
 
-        # Create execution result
-        execution_result = ExecutionResultDTO(
-            success=orders_succeeded == orders_placed and orders_placed > 0,
-            plan_id=plan.plan_id,
-            correlation_id=plan.correlation_id,
-            orders=orders,
-            orders_placed=orders_placed,
-            orders_succeeded=orders_succeeded,
-            total_trade_value=total_trade_value,
-            execution_timestamp=datetime.now(UTC),
-        )
+                # Phase 1: Execute SELL orders and monitor settlement
+                sell_order_ids: list[str] = []
+                if sell_items:
+                    try:
+                        logger.info(
+                            "🔄 Phase 1: Executing SELL orders with settlement monitoring..."
+                        )
 
-        logger.info(
-            f"✅ Rebalance plan {plan.plan_id} completed: "
-            f"{orders_succeeded}/{orders_placed} orders succeeded"
-        )
+                        sell_orders, sell_stats = await self._execute_sell_phase(sell_items)
+                        orders.extend(sell_orders)
+                        orders_placed += sell_stats["placed"]
+                        orders_succeeded += sell_stats["succeeded"]
+                        total_trade_value += sell_stats["trade_value"]
 
-        return execution_result
+                        # Collect successful sell order IDs for settlement monitoring
+                        sell_order_ids = [
+                            order.order_id
+                            for order in sell_orders
+                            if order.success and order.order_id
+                        ]
+                        
+                    except Exception as e:
+                        logger.error(f"❌ Error in sell phase: {e}", exc_info=True)
+                        # Continue with execution even if sell phase partially fails
+
+                # Phase 2: Monitor settlement and execute BUY orders
+                if buy_items and sell_order_ids:
+                    try:
+                        logger.info("🔄 Phase 2: Monitoring settlement and executing BUY orders...")
+
+                        # Wait for settlement and then execute buys
+                        buy_orders, buy_stats = (
+                            await self._execute_buy_phase_with_settlement_monitoring(
+                                buy_items, sell_order_ids, plan.correlation_id, plan.plan_id
+                            )
+                        )
+
+                        orders.extend(buy_orders)
+                        orders_placed += buy_stats["placed"]
+                        orders_succeeded += buy_stats["succeeded"]
+                        total_trade_value += buy_stats["trade_value"]
+                        
+                    except Exception as e:
+                        logger.error(f"❌ Error in buy phase with settlement monitoring: {e}", exc_info=True)
+
+                elif buy_items:
+                    try:
+                        # No sells to wait for, execute buys immediately
+                        logger.info(
+                            "🔄 Phase 2: Executing BUY orders (no settlement monitoring needed)..."
+                        )
+
+                        buy_orders, buy_stats = await self._execute_buy_phase(buy_items)
+                        orders.extend(buy_orders)
+                        orders_placed += buy_stats["placed"]
+                        orders_succeeded += buy_stats["succeeded"]
+                        total_trade_value += buy_stats["trade_value"]
+                        
+                    except Exception as e:
+                        logger.error(f"❌ Error in buy phase: {e}", exc_info=True)
+
+                # Log HOLD items
+                for item in hold_items:
+                    logger.info(f"⏸️ Holding {item.symbol} - no action required")
+
+                # Clean up subscriptions after execution
+                try:
+                    self._cleanup_subscriptions(all_symbols)
+                except Exception as e:
+                    logger.error(f"❌ Error cleaning up subscriptions: {e}", exc_info=True)
+
+                # Create execution result
+                execution_result = ExecutionResultDTO(
+                    success=orders_succeeded == orders_placed and orders_placed > 0,
+                    plan_id=plan.plan_id,
+                    correlation_id=plan.correlation_id,
+                    orders=orders,
+                    orders_placed=orders_placed,
+                    orders_succeeded=orders_succeeded,
+                    total_trade_value=total_trade_value,
+                    execution_timestamp=datetime.now(UTC),
+                )
+
+                logger.info(
+                    f"✅ Rebalance plan {plan.plan_id} completed: "
+                    f"{orders_succeeded}/{orders_placed} orders succeeded"
+                )
+
+                return execution_result
+                
+            except Exception as e:
+                logger.error(f"❌ Critical error in rebalance execution: {e}", exc_info=True)
+                # Return a failed execution result
+                return ExecutionResultDTO(
+                    success=False,
+                    plan_id=plan.plan_id,
+                    correlation_id=plan.correlation_id,
+                    orders=orders if 'orders' in locals() else [],
+                    orders_placed=orders_placed if 'orders_placed' in locals() else 0,
+                    orders_succeeded=0,
+                    total_trade_value=Decimal("0"),
+                    execution_timestamp=datetime.now(UTC),
+                    metadata={"error": str(e), "error_type": "critical_execution_error"},
+                )
 
     def _extract_all_symbols(self, plan: RebalancePlanDTO) -> list[str]:
         """Extract all symbols from the rebalance plan.
@@ -382,40 +422,41 @@ class Executor:
             Tuple of (order results, execution statistics)
 
         """
-        orders = []
-        placed = 0
-        succeeded = 0
+        async with self._phase_lock:
+            orders = []
+            placed = 0
+            succeeded = 0
 
-        # Execute all sell orders first (placement only)
-        for item in sell_items:
-            order_result = await self._execute_single_item(item)
-            orders.append(order_result)
-            placed += 1
+            # Execute all sell orders first (placement only)
+            for item in sell_items:
+                order_result = await self._execute_single_item(item)
+                orders.append(order_result)
+                placed += 1
 
-            if order_result.order_id:
-                logger.info(
-                    f"🧾 SELL {item.symbol} order placed (ID: {order_result.order_id})"
-                )
-            elif not order_result.success:
-                logger.error(
-                    f"❌ SELL {item.symbol} placement failed: {order_result.error_message}"
-                )
+                if order_result.order_id:
+                    logger.info(
+                        f"🧾 SELL {item.symbol} order placed (ID: {order_result.order_id})"
+                    )
+                elif not order_result.success:
+                    logger.error(
+                        f"❌ SELL {item.symbol} placement failed: {order_result.error_message}"
+                    )
 
-        # Monitor and re-peg sell orders that haven't filled and await completion
-        if self.smart_strategy and self.enable_smart_execution:
-            logger.info("🔄 Monitoring SELL orders for re-pegging opportunities...")
-            orders = await self._monitor_and_repeg_phase_orders("SELL", orders)
+            # Monitor and re-peg sell orders that haven't filled and await completion
+            if self.smart_strategy and self.enable_smart_execution:
+                logger.info("🔄 Monitoring SELL orders for re-pegging opportunities...")
+                orders = await self._monitor_and_repeg_phase_orders("SELL", orders)
 
-        # Await completion and finalize statuses
-        orders, succeeded, trade_value = self._finalize_phase_orders(
-            phase_type="SELL", orders=orders, items=sell_items
-        )
+            # Await completion and finalize statuses
+            orders, succeeded, trade_value = self._finalize_phase_orders(
+                phase_type="SELL", orders=orders, items=sell_items
+            )
 
-        return orders, {
-            "placed": placed,
-            "succeeded": succeeded,
-            "trade_value": trade_value,
-        }
+            return orders, {
+                "placed": placed,
+                "succeeded": succeeded,
+                "trade_value": trade_value,
+            }
 
     async def _execute_buy_phase_with_settlement_monitoring(
         self,
@@ -424,7 +465,7 @@ class Executor:
         correlation_id: str,
         plan_id: str,
     ) -> tuple[list[OrderResultDTO], ExecutionStats]:
-        """Execute buy phase with settlement monitoring.
+        """Execute buy phase with atomic settlement monitoring.
 
         Args:
             buy_items: List of buy order items
@@ -436,29 +477,31 @@ class Executor:
             Tuple of (order results, execution statistics)
 
         """
-        # Initialize settlement monitor
-        from .settlement_monitor import SettlementMonitor
+        # Use settlement lock to ensure atomic settlement monitoring
+        async with self._settlement_lock:
+            # Initialize settlement monitor
+            from .settlement_monitor import SettlementMonitor
 
-        settlement_monitor = SettlementMonitor(
-            alpaca_manager=self.alpaca_manager,
-            event_bus=None,  # Could integrate with event bus later
-            polling_interval_seconds=0.5,
-            max_wait_seconds=60,
-        )
+            settlement_monitor = SettlementMonitor(
+                alpaca_manager=self.alpaca_manager,
+                event_bus=None,  # Could integrate with event bus later
+                polling_interval_seconds=0.5,
+                max_wait_seconds=60,
+            )
 
-        # Monitor sell order settlements
-        logger.info(f"👀 Monitoring settlement of {len(sell_order_ids)} sell orders...")
-        settlement_result = await settlement_monitor.monitor_sell_orders_settlement(
-            sell_order_ids, correlation_id, plan_id
-        )
+            # Monitor sell order settlements atomically
+            logger.info(f"👀 Monitoring settlement of {len(sell_order_ids)} sell orders...")
+            settlement_result = await settlement_monitor.monitor_sell_orders_settlement(
+                sell_order_ids, correlation_id, plan_id
+            )
 
-        logger.info(
-            f"💰 Settlement complete: ${settlement_result.total_buying_power_released} "
-            "buying power released"
-        )
+            logger.info(
+                f"💰 Settlement complete: ${settlement_result.total_buying_power_released} "
+                "buying power released"
+            )
 
-        # Now execute buy orders with released buying power
-        return await self._execute_buy_phase(buy_items)
+            # Now execute buy orders with released buying power
+            return await self._execute_buy_phase(buy_items)
 
     async def _execute_buy_phase(
         self, buy_items: list[RebalancePlanItemDTO]
@@ -472,40 +515,41 @@ class Executor:
             Tuple of (order results, execution statistics)
 
         """
-        orders = []
-        placed = 0
-        succeeded = 0
+        async with self._phase_lock:
+            orders = []
+            placed = 0
+            succeeded = 0
 
-        # Execute all buy orders first (placement only)
-        for item in buy_items:
-            order_result = await self._execute_single_item(item)
-            orders.append(order_result)
-            placed += 1
+            # Execute all buy orders first (placement only)
+            for item in buy_items:
+                order_result = await self._execute_single_item(item)
+                orders.append(order_result)
+                placed += 1
 
-            if order_result.order_id:
-                logger.info(
-                    f"🧾 BUY {item.symbol} order placed (ID: {order_result.order_id})"
-                )
-            elif not order_result.success:
-                logger.error(
-                    f"❌ BUY {item.symbol} placement failed: {order_result.error_message}"
-                )
+                if order_result.order_id:
+                    logger.info(
+                        f"🧾 BUY {item.symbol} order placed (ID: {order_result.order_id})"
+                    )
+                elif not order_result.success:
+                    logger.error(
+                        f"❌ BUY {item.symbol} placement failed: {order_result.error_message}"
+                    )
 
-        # Monitor and re-peg buy orders that haven't filled and await completion
-        if self.smart_strategy and self.enable_smart_execution:
-            logger.info("🔄 Monitoring BUY orders for re-pegging opportunities...")
-            orders = await self._monitor_and_repeg_phase_orders("BUY", orders)
+            # Monitor and re-peg buy orders that haven't filled and await completion
+            if self.smart_strategy and self.enable_smart_execution:
+                logger.info("🔄 Monitoring BUY orders for re-pegging opportunities...")
+                orders = await self._monitor_and_repeg_phase_orders("BUY", orders)
 
-        # Await completion and finalize statuses
-        orders, succeeded, trade_value = self._finalize_phase_orders(
-            phase_type="BUY", orders=orders, items=buy_items
-        )
+            # Await completion and finalize statuses
+            orders, succeeded, trade_value = self._finalize_phase_orders(
+                phase_type="BUY", orders=orders, items=buy_items
+            )
 
-        return orders, {
-            "placed": placed,
-            "succeeded": succeeded,
-            "trade_value": trade_value,
-        }
+            return orders, {
+                "placed": placed,
+                "succeeded": succeeded,
+                "trade_value": trade_value,
+            }
 
     async def _monitor_and_repeg_phase_orders(
         self, phase_type: str, orders: list[OrderResultDTO]
