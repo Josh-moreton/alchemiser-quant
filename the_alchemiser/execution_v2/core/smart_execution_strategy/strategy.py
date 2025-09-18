@@ -17,7 +17,12 @@ from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 
 from .market_timing import should_place_order_now
-from .models import ExecutionConfig, LiquidityMetadata, SmartOrderRequest, SmartOrderResult
+from .models import (
+    ExecutionConfig,
+    LiquidityMetadata,
+    SmartOrderRequest,
+    SmartOrderResult,
+)
 from .pricing import PricingCalculator
 from .quotes import QuoteProvider
 from .repeg import RepegManager
@@ -144,9 +149,39 @@ class SmartExecutionStrategy:
                     )
                 )
 
+            # Validate optimal price before proceeding
+            if optimal_price <= 0:
+                logger.error(
+                    f"⚠️ Invalid optimal price ${optimal_price} calculated for {request.symbol} {request.side}. "
+                    f"This should not happen after validation - falling back to market order."
+                )
+                if request.urgency == "HIGH":
+                    return await self._place_market_order_fallback(request)
+                return SmartOrderResult(
+                    success=False,
+                    error_message=f"Invalid optimal price calculated for {request.symbol}",
+                    execution_strategy="smart_limit_failed",
+                )
+
             # Place limit order with optimal pricing
             # Ensure price is properly quantized to avoid sub-penny precision errors
-            quantized_price = Decimal(str(float(optimal_price))).quantize(Decimal("0.01"))
+            quantized_price = Decimal(str(float(optimal_price))).quantize(
+                Decimal("0.01")
+            )
+
+            # Final validation before placing order
+            if quantized_price <= 0:
+                logger.error(
+                    f"⚠️ Quantized optimal price ${quantized_price} is invalid for {request.symbol}. "
+                    f"This should not happen after validation - falling back to market order."
+                )
+                if request.urgency == "HIGH":
+                    return await self._place_market_order_fallback(request)
+                return SmartOrderResult(
+                    success=False,
+                    error_message=f"Invalid quantized price calculated for {request.symbol}",
+                    execution_strategy="smart_limit_failed",
+                )
 
             result = self.alpaca_manager.place_limit_order(
                 symbol=request.symbol,
@@ -181,7 +216,9 @@ class SmartExecutionStrategy:
                     **analysis_metadata,
                     "bid_price": quote.bid_price,
                     "ask_price": quote.ask_price,
-                    "spread_percent": (quote.ask_price - quote.bid_price) / quote.bid_price * 100,
+                    "spread_percent": (quote.ask_price - quote.bid_price)
+                    / quote.bid_price
+                    * 100,
                     "bid_size": quote.bid_size,
                     "ask_size": quote.ask_size,
                     "used_fallback": used_fallback,
@@ -214,7 +251,9 @@ class SmartExecutionStrategy:
             # Clean up subscription after order placement
             self.quote_provider.cleanup_subscription(request.symbol)
 
-    async def _place_market_order_fallback(self, request: SmartOrderRequest) -> SmartOrderResult:
+    async def _place_market_order_fallback(
+        self, request: SmartOrderRequest
+    ) -> SmartOrderResult:
         """Fallback to market order for high urgency situations.
 
         Args:
@@ -286,7 +325,9 @@ class SmartExecutionStrategy:
         """
         return self.quote_provider.wait_for_quote_data(symbol, timeout)
 
-    def validate_quote_liquidity(self, symbol: str, quote: dict[str, float | int]) -> bool:
+    def validate_quote_liquidity(
+        self, symbol: str, quote: dict[str, float | int]
+    ) -> bool:
         """Validate that the quote has sufficient liquidity.
 
         Args:

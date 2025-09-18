@@ -57,14 +57,18 @@ class PricingCalculator:
         if side.upper() == "BUY":
             optimal_price = Decimal(str(analysis.recommended_bid_price))
             volume_available = analysis.volume_at_recommended_bid
-            strategy_rec = self.liquidity_analyzer.get_execution_strategy_recommendation(
-                analysis, side.lower(), order_size
+            strategy_rec = (
+                self.liquidity_analyzer.get_execution_strategy_recommendation(
+                    analysis, side.lower(), order_size
+                )
             )
         else:
             optimal_price = Decimal(str(analysis.recommended_ask_price))
             volume_available = analysis.volume_at_recommended_ask
-            strategy_rec = self.liquidity_analyzer.get_execution_strategy_recommendation(
-                analysis, side.lower(), order_size
+            strategy_rec = (
+                self.liquidity_analyzer.get_execution_strategy_recommendation(
+                    analysis, side.lower(), order_size
+                )
             )
 
         # Create metadata for logging and monitoring
@@ -156,6 +160,16 @@ class PricingCalculator:
         }
         # Quantize to cent precision to avoid sub-penny errors
         anchor_quantized = anchor.quantize(Decimal("0.01"))
+
+        # Validate that the calculated anchor price is positive and reasonable
+        min_price = Decimal("0.01")  # Minimum 1 cent
+        if anchor_quantized <= 0:
+            logger.warning(
+                f"Invalid anchor price {anchor_quantized} calculated for {quote.symbol} {side}, "
+                f"using minimum price ${min_price}"
+            )
+            anchor_quantized = min_price
+
         return anchor_quantized, metadata
 
     def calculate_repeg_price(
@@ -182,7 +196,10 @@ class PricingCalculator:
                     new_price = original_price + adjustment
                 else:
                     # If no original price, use ask price minus small offset
-                    new_price = Decimal(str(quote.ask_price)) - self.config.ask_anchor_offset_cents
+                    new_price = (
+                        Decimal(str(quote.ask_price))
+                        - self.config.ask_anchor_offset_cents
+                    )
 
                 # Ensure we don't exceed ask price
                 new_price = min(new_price, Decimal(str(quote.ask_price)))
@@ -196,13 +213,31 @@ class PricingCalculator:
                     new_price = original_price - adjustment
                 else:
                     # If no original price, use bid price plus small offset
-                    new_price = Decimal(str(quote.bid_price)) + self.config.bid_anchor_offset_cents
+                    new_price = (
+                        Decimal(str(quote.bid_price))
+                        + self.config.bid_anchor_offset_cents
+                    )
 
                 # Ensure we don't go below bid price
                 new_price = max(new_price, Decimal(str(quote.bid_price)))
 
             # Quantize to cent precision to avoid sub-penny errors
-            return new_price.quantize(Decimal("0.01"))
+            new_price = new_price.quantize(Decimal("0.01"))
+
+            # Validate that the calculated price is positive and reasonable
+            min_price = Decimal("0.01")  # Minimum 1 cent
+            if new_price <= 0:
+                logger.warning(
+                    f"Invalid re-peg price {new_price} calculated for {quote.symbol} {side}, "
+                    f"falling back to original price or minimum price"
+                )
+                # Use original price if available and valid, otherwise use minimum
+                if original_price and original_price > min_price:
+                    new_price = original_price
+                else:
+                    new_price = min_price
+
+            return new_price
 
         except Exception as e:
             logger.error(f"Error calculating re-peg price: {e}")
