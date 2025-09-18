@@ -493,6 +493,7 @@ class TradingOrchestrator:
                 "account_info": account_info,
                 "current_positions": current_positions,
                 "allocation_comparison": allocation_comparison,
+                "rebalance_plan": rebalance_plan,
                 "orders_executed": orders_executed,
                 "execution_result": execution_result,
                 "open_orders": open_orders,

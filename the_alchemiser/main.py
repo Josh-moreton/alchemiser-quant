@@ -203,9 +203,9 @@ class TradingSystem:
             # Show brief signals summary
             self._display_signals_summary(signals_result)
 
-            # PHASE 2: Execute trading (may place orders)
-            print("🚀 Executing rebalance plan...")
-
+            # PHASE 2: Execute trading (may place orders)  
+            print("⚖️  Generating portfolio rebalance plan...")
+            
             # Temporarily suppress verbose logs for cleaner CLI output
             self._configure_quiet_logging()
 
@@ -225,6 +225,11 @@ class TradingSystem:
                     correlation_id,
                     warnings,
                 )
+
+            # Show rebalance plan details
+            self._display_rebalance_plan(trading_result)
+
+            print("🚀 Executing rebalance plan...")
 
             # 5) Display tracking if requested
             if show_tracking:
@@ -275,62 +280,114 @@ class TradingSystem:
             )
 
     def _display_signals_summary(self, signals_result: dict[str, Any]) -> None:
-        """Display a brief summary of generated signals."""
+        """Display a brief summary of generated signals and target allocations."""
         try:
-            # Extract signal count and normalize strategy names
-            signal_count = 0
-            strategy_names: list[str] = []
-
+            # Extract and display individual strategy signals with their recommended symbols
             strategy_signals = signals_result.get("strategy_signals", {})
             if isinstance(strategy_signals, dict):
+                signal_details = []
                 for raw_name, data in strategy_signals.items():
                     name = str(raw_name)
                     if name.startswith("StrategyType."):
                         name = name.split(".", 1)[1]
-                    strategy_names.append(name)
-
+                    
                     if isinstance(data, dict):
                         action = str(data.get("action", "")).upper()
                         if action in {"BUY", "SELL"}:
-                            if data.get("is_multi_symbol") and isinstance(
-                                data.get("symbols"), list
-                            ):
-                                sym_count = len(data.get("symbols", []))
-                                signal_count += sym_count if sym_count > 0 else 1
-                            else:
-                                signal_count += 1 if data.get("symbol") else 0
+                            if data.get("is_multi_symbol") and isinstance(data.get("symbols"), list):
+                                symbols = data.get("symbols", [])
+                                if symbols:
+                                    symbol_str = ", ".join(symbols)
+                                    signal_details.append(f"{name}: {action} {symbol_str}")
+                            elif data.get("symbol"):
+                                signal_details.append(f"{name}: {action} {data.get('symbol')}")
 
-            strategies_str = (
-                ", ".join(strategy_names) if strategy_names else "No strategies"
-            )
-            print(
-                f"📋 Generated {signal_count} signals from strategies: {strategies_str}"
-            )
+                if signal_details:
+                    print("📋 Strategy signals generated:")
+                    for detail in signal_details:
+                        print(f"   → {detail}")
+                else:
+                    print("📋 No actionable signals generated")
 
-            # Show rebalance plan summary if available
+            # Show consolidated target allocations
             if "consolidated_portfolio" in signals_result:
                 portfolio = signals_result["consolidated_portfolio"]
-                # In current workflow this is a dict of allocations; show non-zero allocations
                 if isinstance(portfolio, dict):
                     non_zero = [
                         (s, float(w)) for s, w in portfolio.items() if float(w) != 0.0
                     ]
-                    trade_count = len(non_zero)
-                    if trade_count > 0:
-                        print(
-                            f"⚖️  Portfolio rebalance plan: {trade_count} positions targeted"
-                        )
-                        # List symbols with target weights as percentages, sorted desc
+                    if non_zero:
+                        # Sort by allocation percentage descending
                         non_zero.sort(key=lambda x: x[1], reverse=True)
-                        details = ", ".join(
+                        allocations = ", ".join(
                             f"{sym} {weight*100:.1f}%" for sym, weight in non_zero
                         )
-                        print(f"   → Targets: {details}")
+                        print(f"🎯 Final recommended allocations: {allocations}")
                     else:
-                        print("⚖️  Portfolio rebalance plan: Portfolio already balanced")
+                        print("🎯 Final recommended allocations: 100% cash")
         except Exception as e:
             # Non-fatal: summary display is best-effort
             self.logger.debug(f"Failed to display signals summary: {e}")
+
+    def _display_rebalance_plan(self, trading_result: dict[str, Any]) -> None:
+        """Display the rebalance plan with buy/sell order details."""
+        try:
+            rebalance_plan = trading_result.get("rebalance_plan")
+            
+            if rebalance_plan is None:
+                print("⚖️  Portfolio rebalance plan: Portfolio already balanced")
+                return
+                
+            # If rebalance_plan is a DTO, get the items
+            if hasattr(rebalance_plan, 'items'):
+                plan_items = rebalance_plan.items
+            elif isinstance(rebalance_plan, dict) and 'items' in rebalance_plan:
+                plan_items = rebalance_plan['items']
+            else:
+                # Fallback: no detailed plan available
+                print("⚖️  Portfolio rebalance plan: Orders required")
+                return
+                
+            if not plan_items:
+                print("⚖️  Portfolio rebalance plan: Portfolio already balanced")
+                return
+                
+            # Group items by action
+            buy_orders = []
+            sell_orders = []
+            
+            for item in plan_items:
+                # Handle both DTO and dict representations
+                if hasattr(item, 'action'):
+                    action = item.action
+                    symbol = item.symbol
+                    trade_amount = item.trade_amount
+                elif isinstance(item, dict):
+                    action = item.get('action', '').upper()
+                    symbol = item.get('symbol', '')
+                    trade_amount = item.get('trade_amount', 0)
+                else:
+                    continue
+                    
+                if action == 'BUY' and float(trade_amount) > 0:
+                    buy_orders.append(f"{symbol} ${abs(float(trade_amount)):,.0f}")
+                elif action == 'SELL' and float(trade_amount) < 0:
+                    sell_orders.append(f"{symbol} ${abs(float(trade_amount)):,.0f}")
+            
+            # Display the plan
+            if buy_orders or sell_orders:
+                print("⚖️  Portfolio rebalance plan:")
+                if buy_orders:
+                    print(f"   → BUY: {', '.join(buy_orders)}")
+                if sell_orders:
+                    print(f"   → SELL: {', '.join(sell_orders)}")
+            else:
+                print("⚖️  Portfolio rebalance plan: Portfolio already balanced")
+                
+        except Exception as e:
+            # Non-fatal: summary display is best-effort
+            self.logger.debug(f"Failed to display rebalance plan: {e}")
+            print("⚖️  Portfolio rebalance plan: Orders required")
 
     def _display_post_execution_tracking(self, *, paper_trading: bool) -> None:
         """Display strategy performance tracking after execution."""
