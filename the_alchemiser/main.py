@@ -299,8 +299,10 @@ class TradingSystem:
                         print(f"⚖️  Portfolio rebalance plan: {trade_count} trades required")
                     else:
                         print("⚖️  Portfolio rebalance plan: Portfolio already balanced")
+        except Exception as e:
+            # Non-fatal: summary display is best-effort
+            self.logger.debug(f"Failed to display signals summary: {e}")
     def _display_post_execution_tracking(self, *, paper_trading: bool) -> None:
-
         """Display strategy performance tracking after execution."""
         try:
             from rich.console import Console
