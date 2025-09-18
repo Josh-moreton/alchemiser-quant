@@ -9,7 +9,7 @@ notifications, moved from domain/types.py as part of the Pydantic migration.
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import TypedDict
 
 from the_alchemiser.shared.value_objects.core_types import OrderDetails, StrategyPnLSummary
 
@@ -29,7 +29,7 @@ class ReportingData(TypedDict):
     """General reporting data structure."""
 
     timestamp: str
-    portfolio_summary: dict[str, Any]
+    portfolio_summary: dict[str, str | int | bool | None]
     performance_metrics: dict[str, float]
     recent_trades: list[OrderDetails]
 
@@ -41,7 +41,7 @@ class EmailReportData(TypedDict):
     subject: str
     html_content: str
     recipient: str
-    metadata: dict[str, Any]
+    metadata: dict[str, str | int | bool | None]
 
 
 class EmailCredentials(TypedDict):
@@ -75,7 +75,7 @@ class BacktestResult(TypedDict):
     max_drawdown: float
     total_trades: int
     win_rate: float
-    metadata: dict[str, Any]
+    metadata: dict[str, str | int | bool | None]
 
 
 class PerformanceMetrics(TypedDict):

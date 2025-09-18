@@ -16,7 +16,6 @@ Key Features:
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -93,7 +92,7 @@ class MultiStrategySummaryDTO(BaseModel):
     allocation_comparison: AllocationComparisonDTO | None = None
 
     # Enriched account information
-    enriched_account: dict[str, Any] | None = None
+    enriched_account: dict[str, str | int | bool | None] | None = None
 
     # Closed P&L subset for performance display
-    closed_pnl_subset: dict[str, Any] | None = None
+    closed_pnl_subset: dict[str, str | int | bool | None] | None = None

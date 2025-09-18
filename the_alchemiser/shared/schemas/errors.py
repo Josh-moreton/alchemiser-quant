@@ -9,7 +9,7 @@ systems, moved from domain/types.py as part of the Pydantic migration.
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import TypedDict
 
 
 # Error Detail Types
@@ -23,7 +23,7 @@ class ErrorDetailInfo(TypedDict):
     component: str
     timestamp: str
     traceback: str
-    additional_data: dict[str, Any]
+    additional_data: dict[str, str | int | bool | None]
     suggested_action: str | None
 
 
@@ -66,5 +66,5 @@ class ErrorContextData(TypedDict):
     request_id: str | None
     user_id: str | None
     session_id: str | None
-    additional_data: dict[str, Any]
+    additional_data: dict[str, str | int | bool | None]
     timestamp: str

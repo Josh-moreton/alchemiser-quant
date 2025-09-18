@@ -162,7 +162,7 @@ class TechnicalIndicatorDTO(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> TechnicalIndicatorDTO:
+    def from_dict(cls, data: dict[str, str | int | bool | None]) -> TechnicalIndicatorDTO:
         """Create DTO from dictionary.
 
         Args:
@@ -200,7 +200,7 @@ class TechnicalIndicatorDTO(BaseModel):
 
     @classmethod
     def from_legacy_dict(
-        cls, symbol: str, legacy_indicators: dict[str, Any]
+        cls, symbol: str, legacy_indicators: dict[str, str | int | bool | None]
     ) -> TechnicalIndicatorDTO:
         """Create TechnicalIndicatorDTO from legacy indicator dictionary.
 
@@ -275,7 +275,7 @@ class TechnicalIndicatorDTO(BaseModel):
             Dictionary in the format expected by existing strategy engines.
 
         """
-        result: dict[str, Any] = {}
+        result: dict[str, str | int | bool | None] = {}
 
         # Add current price
         if self.current_price is not None:

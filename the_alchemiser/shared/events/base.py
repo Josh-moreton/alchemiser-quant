@@ -50,7 +50,8 @@ class BaseEvent(BaseModel):
 
     # Optional metadata for extensibility (JSON passthrough only)
     metadata: dict[str, str | int | bool | None] | None = Field(
-        default=None, description="Additional event-specific metadata (JSON-serializable types only)"
+        default=None,
+        description="Additional event-specific metadata (JSON-serializable types only)",
     )
 
     def __init__(self, **data: str | datetime | dict[str, Any] | None) -> None:
@@ -75,7 +76,7 @@ class BaseEvent(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> BaseEvent:
+    def from_dict(cls, data: dict[str, str | int | bool | None]) -> BaseEvent:
         """Create event from dictionary.
 
         Args:

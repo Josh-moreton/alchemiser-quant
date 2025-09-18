@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -51,7 +50,8 @@ class ConsolidatedPortfolioDTO(BaseModel):
 
     # Optional context (JSON-serializable types only)
     constraints: dict[str, str | int | bool | None] | None = Field(
-        default=None, description="Optional consolidation constraints and metadata (JSON-serializable types)"
+        default=None,
+        description="Optional consolidation constraints and metadata (JSON-serializable types)",
     )
 
     @field_validator("target_allocations")

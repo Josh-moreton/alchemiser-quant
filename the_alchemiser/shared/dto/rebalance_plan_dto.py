@@ -107,7 +107,9 @@ class RebalancePlanDTO(BaseModel):
     )
 
     # Optional metadata
-    metadata: dict[str, Any] | None = Field(default=None, description="Additional plan metadata")
+    metadata: dict[str, str | int | bool | None] | None = Field(
+        default=None, description="Additional plan metadata"
+    )
 
     @field_validator("execution_urgency")
     @classmethod
@@ -170,7 +172,7 @@ class RebalancePlanDTO(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> RebalancePlanDTO:
+    def from_dict(cls, data: dict[str, str | int | bool | None]) -> RebalancePlanDTO:
         """Create DTO from dictionary.
 
         Args:
@@ -197,7 +199,7 @@ class RebalancePlanDTO(BaseModel):
         return cls(**data)
 
     @classmethod
-    def _convert_items_from_dict(cls, items: list[Any]) -> list[RebalancePlanItemDTO]:
+    def _convert_items_from_dict(cls, items: list[str | int | bool]) -> list[RebalancePlanItemDTO]:
         """Convert items list from dictionary format.
 
         Args:

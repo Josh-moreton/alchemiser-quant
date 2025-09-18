@@ -36,7 +36,7 @@ class SignalsBuilder:
         return "Below", "#EF4444"
 
     @staticmethod
-    def _format_indicator_row(symbol: str, indicators: dict[str, Any]) -> str:
+    def _format_indicator_row(symbol: str, indicators: dict[str, str | int | bool | None]) -> str:
         """Format a single indicator row for technical indicators table."""
         rsi_10 = indicators.get("rsi_10", 0)
         rsi_20 = indicators.get("rsi_20", 0)
@@ -153,7 +153,7 @@ class SignalsBuilder:
 
     @staticmethod
     def build_detailed_strategy_signals(
-        strategy_signals: dict[Any, Any], strategy_summary: dict[str, Any]
+        strategy_signals: dict[Any, Any], strategy_summary: dict[str, str | int | bool | None]
     ) -> str:
         """Build detailed strategy signals HTML section."""
         if not strategy_signals:

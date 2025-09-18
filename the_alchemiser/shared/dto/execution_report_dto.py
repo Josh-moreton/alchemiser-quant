@@ -193,14 +193,14 @@ class ExecutionReportDTO(BaseModel):
 
         return data
 
-    def _convert_datetime_fields(self, data: dict[str, Any]) -> None:
+    def _convert_datetime_fields(self, data: dict[str, str | int | bool | None]) -> None:
         """Convert datetime fields to ISO string format."""
         datetime_fields = ["timestamp", "execution_start_time", "execution_end_time"]
         for field_name in datetime_fields:
             if data.get(field_name):
                 data[field_name] = data[field_name].isoformat()
 
-    def _convert_decimal_fields(self, data: dict[str, Any]) -> None:
+    def _convert_decimal_fields(self, data: dict[str, str | int | bool | None]) -> None:
         """Convert Decimal fields to string for JSON serialization."""
         decimal_fields = [
             "total_value_traded",
@@ -214,7 +214,7 @@ class ExecutionReportDTO(BaseModel):
             if data.get(field_name) is not None:
                 data[field_name] = str(data[field_name])
 
-    def _convert_nested_orders(self, data: dict[str, Any]) -> None:
+    def _convert_nested_orders(self, data: dict[str, str | int | bool | None]) -> None:
         """Convert nested order objects to dictionaries with proper serialization."""
         if "orders" not in data:
             return
@@ -227,12 +227,12 @@ class ExecutionReportDTO(BaseModel):
             orders_data.append(order_dict)
         data["orders"] = orders_data
 
-    def _convert_order_datetime(self, order_dict: dict[str, Any]) -> None:
+    def _convert_order_datetime(self, order_dict: dict[str, str | int | bool | None]) -> None:
         """Convert datetime fields in order dictionary."""
         if order_dict.get("execution_timestamp"):
             order_dict["execution_timestamp"] = order_dict["execution_timestamp"].isoformat()
 
-    def _convert_order_decimals(self, order_dict: dict[str, Any]) -> None:
+    def _convert_order_decimals(self, order_dict: dict[str, str | int | bool | None]) -> None:
         """Convert Decimal fields in order dictionary."""
         order_decimal_fields = [
             "quantity",
@@ -247,7 +247,7 @@ class ExecutionReportDTO(BaseModel):
                 order_dict[field_name] = str(order_dict[field_name])
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> ExecutionReportDTO:
+    def from_dict(cls, data: dict[str, str | int | bool | None]) -> ExecutionReportDTO:
         """Create DTO from dictionary.
 
         Args:
@@ -281,7 +281,7 @@ class ExecutionReportDTO(BaseModel):
         return cls(**data)
 
     @classmethod
-    def _convert_orders_from_dict(cls, orders: list[Any]) -> list[ExecutedOrderDTO]:
+    def _convert_orders_from_dict(cls, orders: list[str | int | bool]) -> list[ExecutedOrderDTO]:
         """Convert orders list from dictionary format.
 
         Args:

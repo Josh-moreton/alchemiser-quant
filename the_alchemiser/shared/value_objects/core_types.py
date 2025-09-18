@@ -198,7 +198,7 @@ class IndicatorData(TypedDict):
     indicator_name: str
     value: float
     timestamp: str
-    parameters: dict[str, Any]
+    parameters: dict[str, str | int | bool | None]
 
 
 class PriceData(TypedDict):
@@ -226,7 +226,7 @@ class DataProviderResult(TypedDict):
     """Generic result wrapper for data provider responses."""
 
     success: bool
-    data: dict[str, Any] | None
+    data: dict[str, str | int | bool | None] | None
     error_message: str | None
     timestamp: str
 
@@ -267,7 +267,7 @@ class ErrorContext(TypedDict):
     timestamp: str
     component: str
     operation: str
-    additional_data: dict[str, Any]
+    additional_data: dict[str, str | int | bool | None]
 
 
 # Phase 13: CLI Types (moved to interfaces/schemas/cli.py)

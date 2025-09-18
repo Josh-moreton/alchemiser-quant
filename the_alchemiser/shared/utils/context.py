@@ -28,7 +28,7 @@ class ErrorContextData:
     request_id: str | None = None
     user_id: str | None = None
     session_id: str | None = None
-    additional_data: dict[str, Any] | None = None
+    additional_data: dict[str, str | int | bool | None] | None = None
 
     def __post_init__(self) -> None:
         """Post-initialization to handle mutable defaults."""
@@ -58,7 +58,7 @@ def create_error_context(
 ) -> ErrorContextData:
     """Create standardized error context."""
     # Cast kwargs to the expected type for additional_data
-    additional_data: dict[str, Any] = dict(kwargs) if kwargs else {}
+    additional_data: dict[str, str | int | bool | None] = dict(kwargs) if kwargs else {}
 
     return ErrorContextData(
         operation=operation,

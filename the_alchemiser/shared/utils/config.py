@@ -6,8 +6,6 @@ Currently under construction - no logic implemented yet.
 
 from __future__ import annotations
 
-from typing import Any
-
 
 class ModularConfig:
     """Placeholder configuration class.
@@ -18,7 +16,7 @@ class ModularConfig:
 
     def __init__(self) -> None:
         """Initialize configuration."""
-        self._config: dict[str, Any] = {}
+        self._config: dict[str, str | int | bool | None] = {}
 
     def get(self, key: str, default: object = None) -> object:
         """Get configuration value.

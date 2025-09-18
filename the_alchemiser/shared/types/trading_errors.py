@@ -5,8 +5,6 @@ Trading error classification for error handling.
 
 from __future__ import annotations
 
-from typing import Any
-
 from the_alchemiser.shared.types.exceptions import AlchemiserError
 
 
@@ -14,7 +12,10 @@ class OrderError(AlchemiserError):
     """Error related to order processing and execution."""
 
     def __init__(
-        self, message: str, order_id: str | None = None, context: dict[str, Any] | None = None
+        self,
+        message: str,
+        order_id: str | None = None,
+        context: dict[str, str | int | bool | None] | None = None,
     ) -> None:
         """Initialize order error.
 

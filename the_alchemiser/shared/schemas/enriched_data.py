@@ -9,8 +9,6 @@ open orders retrieval and order history.
 
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel, ConfigDict
 
 from the_alchemiser.shared.schemas.base import Result
@@ -25,9 +23,9 @@ class EnrichedOrderView(BaseModel):
         validate_assignment=True,
     )
 
-    raw: dict[str, Any]
-    domain: dict[str, Any]  # Domain order object serialized
-    summary: dict[str, Any]  # Order summary
+    raw: dict[str, str | int | bool | None]
+    domain: dict[str, str | int | bool | None]  # Domain order object serialized
+    summary: dict[str, str | int | bool | None]  # Order summary
 
 
 class OpenOrdersView(Result):
@@ -52,8 +50,8 @@ class EnrichedPositionView(BaseModel):
         validate_assignment=True,
     )
 
-    raw: dict[str, Any]
-    summary: dict[str, Any]  # Position summary
+    raw: dict[str, str | int | bool | None]
+    summary: dict[str, str | int | bool | None]  # Position summary
 
 
 class EnrichedPositionsView(Result):

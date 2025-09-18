@@ -39,10 +39,10 @@ class BaseCLI:
 
     def _display_comprehensive_results(
         self,
-        strategy_signals: dict[str, Any],
+        strategy_signals: dict[str, str | int | bool | None],
         consolidated_portfolio: dict[str, float],
-        account_info: dict[str, Any] | None = None,
-        current_positions: dict[str, Any] | None = None,
+        account_info: dict[str, str | int | bool | None] | None = None,
+        current_positions: dict[str, str | int | bool | None] | None = None,
         allocation_comparison: AllocationComparisonDTO | None = None,
         open_orders: list[dict[str, Any]] | None = None,
     ) -> None:

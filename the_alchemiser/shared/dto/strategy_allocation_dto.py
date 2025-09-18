@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -47,7 +46,8 @@ class StrategyAllocationDTO(BaseModel):
         default=None, description="Optional timestamp when allocation was calculated"
     )
     constraints: dict[str, str | int | bool | None] | None = Field(
-        default=None, description="Optional allocation constraints and metadata (JSON-serializable types)"
+        default=None,
+        description="Optional allocation constraints and metadata (JSON-serializable types)",
     )
 
     @field_validator("target_weights")
@@ -99,7 +99,7 @@ class StrategyAllocationDTO(BaseModel):
         return ensure_timezone_aware(v)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> StrategyAllocationDTO:
+    def from_dict(cls, data: dict[str, str | int | bool | None]) -> StrategyAllocationDTO:
         """Create DTO from dictionary with type conversion.
 
         Args:

@@ -139,7 +139,7 @@ class OrderRequestDTO(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> OrderRequestDTO:
+    def from_dict(cls, data: dict[str, str | int | bool | None]) -> OrderRequestDTO:
         """Create DTO from dictionary.
 
         Args:
@@ -276,7 +276,7 @@ class MarketDataDTO(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> MarketDataDTO:
+    def from_dict(cls, data: dict[str, str | int | bool | None]) -> MarketDataDTO:
         """Create DTO from dictionary."""
         # Convert string timestamp back to datetime
         if "timestamp" in data and isinstance(data["timestamp"], str):

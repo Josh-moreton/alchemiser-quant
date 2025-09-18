@@ -13,7 +13,6 @@ Provides specific event classes for the system workflow:
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
 
 from pydantic import Field
 
@@ -37,7 +36,7 @@ class StartupEvent(BaseEvent):
 
     # Startup-specific fields
     startup_mode: str = Field(..., description="Startup mode (signal, trade, etc.)")
-    configuration: dict[str, Any] | None = Field(
+    configuration: dict[str, str | int | bool | None] | None = Field(
         default=None, description="Startup configuration parameters"
     )
 
@@ -85,7 +84,9 @@ class TradeExecuted(BaseEvent):
     event_type: str = Field(default="TradeExecuted", description=EVENT_TYPE_DESCRIPTION)
 
     # Trade execution fields
-    execution_results: dict[str, Any] = Field(..., description="Trade execution results")
+    execution_results: dict[str, str | int | bool | None] = Field(
+        ..., description="Trade execution results"
+    )
     portfolio_state_after: PortfolioStateDTO | None = Field(
         default=None, description="Portfolio state after execution"
     )
@@ -103,12 +104,14 @@ class TradeExecutionStarted(BaseEvent):
     event_type: str = Field(default="TradeExecutionStarted", description=EVENT_TYPE_DESCRIPTION)
 
     # Execution startup fields
-    execution_plan: dict[str, Any] = Field(..., description="Trading execution plan")
+    execution_plan: dict[str, str | int | bool | None] = Field(
+        ..., description="Trading execution plan"
+    )
     portfolio_state_before: PortfolioStateDTO | None = Field(
         default=None, description="Portfolio state before execution"
     )
     trade_mode: str = Field(..., description="Trading mode (live/paper)")
-    market_conditions: dict[str, Any] | None = Field(
+    market_conditions: dict[str, str | int | bool | None] | None = Field(
         default=None, description="Market conditions at execution start"
     )
 
@@ -130,7 +133,7 @@ class PortfolioStateChanged(BaseEvent):
         ..., description="Portfolio state after change"
     )
     change_type: str = Field(..., description="Type of change (rebalance, trade, etc.)")
-    change_summary: dict[str, Any] = Field(
+    change_summary: dict[str, str | int | bool | None] = Field(
         default_factory=dict, description="Summary of changes made"
     )
 
@@ -155,7 +158,7 @@ class AllocationComparisonCompleted(BaseEvent):
         ..., description="Differences requiring rebalancing"
     )
     rebalancing_required: bool = Field(..., description="Whether rebalancing is needed")
-    comparison_metadata: dict[str, Any] = Field(
+    comparison_metadata: dict[str, str | int | bool | None] = Field(
         default_factory=dict, description="Additional comparison analysis data"
     )
 
@@ -198,7 +201,7 @@ class BulkSettlementCompleted(BaseEvent):
         ..., description="List of order IDs that completed settlement"
     )
     total_buying_power_released: Decimal = Field(..., description="Total buying power released")
-    settlement_details: dict[str, Any] = Field(
+    settlement_details: dict[str, str | int | bool | None] = Field(
         default_factory=dict, description="Detailed settlement information"
     )
     execution_plan_id: str | None = Field(default=None, description="Associated execution plan ID")
@@ -219,6 +222,6 @@ class ExecutionPhaseCompleted(BaseEvent):
     completed_orders: list[str] = Field(..., description="Order IDs completed in this phase")
     successful_orders: list[str] = Field(..., description="Successfully completed order IDs")
     failed_orders: list[str] = Field(default_factory=list, description="Failed order IDs")
-    phase_metadata: dict[str, Any] = Field(
+    phase_metadata: dict[str, str | int | bool | None] = Field(
         default_factory=dict, description="Phase execution metadata"
     )

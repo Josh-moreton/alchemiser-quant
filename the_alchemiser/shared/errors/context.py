@@ -17,7 +17,7 @@ class ErrorContextData:
     function: str | None = None
     operation: str | None = None
     correlation_id: str | None = None
-    additional_data: dict[str, Any] | None = None
+    additional_data: dict[str, str | int | bool | None] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""

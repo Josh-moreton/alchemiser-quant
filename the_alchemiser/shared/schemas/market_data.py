@@ -63,7 +63,7 @@ class SpreadAnalysisResult(Result):
     )
 
     symbol: str | None = None
-    spread_analysis: dict[str, Any] | None = None
+    spread_analysis: dict[str, str | int | bool | None] | None = None
     error: str | None = None
 
 

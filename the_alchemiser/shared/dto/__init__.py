@@ -6,8 +6,6 @@ and serialization helpers.
 
 from __future__ import annotations
 
-from typing import Any
-
 # Placeholder DTO classes for future implementation (to be enhanced in Phase 2)
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -38,7 +36,7 @@ from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicato
 
 class ConfigurationDTO(BaseModel):
     """Placeholder for configuration data transfer.
-    
+
     Proper Pydantic v2 DTO to replace placeholder class.
     Will be enhanced with specific config fields in Phase 2.
     """
@@ -50,14 +48,14 @@ class ConfigurationDTO(BaseModel):
     )
 
     config_data: dict[str, str | int | bool | None] = Field(
-        default_factory=dict, 
-        description="Configuration data (JSON-serializable types for Phase 1 scaffolding)"
+        default_factory=dict,
+        description="Configuration data (JSON-serializable types for Phase 1 scaffolding)",
     )
 
 
 class ErrorDTO(BaseModel):
     """Placeholder for error data transfer.
-    
+
     Proper Pydantic v2 DTO to replace placeholder class.
     Will be enhanced with specific error fields in Phase 2.
     """
@@ -71,8 +69,7 @@ class ErrorDTO(BaseModel):
     error_type: str = Field(description="Type of error")
     message: str = Field(description="Error message")
     context: dict[str, str | int | bool | None] = Field(
-        default_factory=dict,
-        description="Error context data (JSON-serializable types only)"
+        default_factory=dict, description="Error context data (JSON-serializable types only)"
     )
 
 

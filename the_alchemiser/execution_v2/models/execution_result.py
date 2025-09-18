@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -51,7 +50,7 @@ class ExecutionResultDTO(BaseModel):
     orders_succeeded: int = Field(..., description="Number of successful orders")
     total_trade_value: Decimal = Field(..., description="Total dollar value traded")
     execution_timestamp: datetime = Field(..., description="Execution completion timestamp")
-    metadata: dict[str, Any] | None = Field(
+    metadata: dict[str, str | int | bool | None] | None = Field(
         default=None, description="Additional execution metadata only"
     )  # Arbitrary JSON-serializable metadata for serialization only; type safety is not required, so Any is justified.
 

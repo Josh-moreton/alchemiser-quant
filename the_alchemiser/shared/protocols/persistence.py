@@ -40,7 +40,7 @@ class PersistenceHandler(Protocol):
         """
         ...
 
-    def write_json(self, uri: str, data: dict[str, Any]) -> bool:
+    def write_json(self, uri: str, data: dict[str, str | int | bool | None]) -> bool:
         """Write JSON data to storage.
 
         Args:

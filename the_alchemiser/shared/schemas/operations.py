@@ -15,8 +15,6 @@ Key Features:
 
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import ConfigDict
 
 from the_alchemiser.shared.schemas.base import Result
@@ -31,7 +29,7 @@ class OperationResult(Result):
         validate_assignment=True,
     )
 
-    details: dict[str, Any] | None = None
+    details: dict[str, str | int | bool | None] | None = None
 
 
 class OrderCancellationResult(Result):

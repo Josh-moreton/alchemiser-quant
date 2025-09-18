@@ -16,7 +16,9 @@ from typing import Any
 class AlchemiserError(Exception):
     """Base exception class for all Alchemiser-specific errors."""
 
-    def __init__(self, message: str, context: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, message: str, context: dict[str, str | int | bool | None] | None = None
+    ) -> None:
         """Initialize base error with optional contextual data."""
         super().__init__(message)
         self.message = message
@@ -76,7 +78,7 @@ class OrderExecutionError(TradingClientError):
         retry_count: int = 0,
     ) -> None:
         """Create an order execution error with contextual details."""
-        context: dict[str, Any] = {}
+        context: dict[str, str | int | bool | None] = {}
         if symbol:
             context["symbol"] = symbol
         if order_type:
@@ -211,7 +213,7 @@ class PortfolioError(AlchemiserError):
         correlation_id: str | None = None,
     ) -> None:
         """Initialize portfolio error with context."""
-        context: dict[str, Any] = {}
+        context: dict[str, str | int | bool | None] = {}
         if module:
             context["module"] = module
         if operation:
@@ -356,7 +358,7 @@ class StrategyExecutionError(AlchemiserError):
         operation: str | None = None,
     ) -> None:
         """Raise when strategy execution encounters an error."""
-        context: dict[str, Any] = {}
+        context: dict[str, str | int | bool | None] = {}
         if strategy_name:
             context["strategy_name"] = strategy_name
         if symbol:

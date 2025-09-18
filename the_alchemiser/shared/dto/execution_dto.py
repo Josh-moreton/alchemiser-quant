@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -17,7 +16,7 @@ class ExecutionResult(BaseModel):
 
     Contains all information about the order placement,
     whether successful or failed.
-    
+
     Migrated from dataclass to Pydantic v2 for architecture compliance.
     """
 
@@ -37,10 +36,8 @@ class ExecutionResult(BaseModel):
     price: Decimal | None = Field(default=None, description="Execution price")
     error: str | None = Field(default=None, description="Error message if failed")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
-        description="Execution timestamp"
+        default_factory=lambda: datetime.now(UTC), description="Execution timestamp"
     )
-    metadata: dict[str, Any] | None = Field(
-        default=None,
-        description="Additional execution metadata"
+    metadata: dict[str, str | int | bool | None] | None = Field(
+        default=None, description="Additional execution metadata"
     )

@@ -45,7 +45,7 @@ class PerformanceBuilder:
         return buy_orders, sell_orders
 
     @staticmethod
-    def _format_order_row(order: dict[str, Any]) -> str:
+    def _format_order_row(order: dict[str, str | int | bool | None]) -> str:
         """Format a single order as an HTML table row."""
         side = order.get("side", "N/A")
         symbol = order.get("symbol", "N/A")
@@ -126,7 +126,7 @@ class PerformanceBuilder:
         """
 
     @staticmethod
-    def build_trading_summary(trading_summary: dict[str, Any]) -> str:
+    def build_trading_summary(trading_summary: dict[str, str | int | bool | None]) -> str:
         """Build enhanced trading summary HTML section."""
         if not trading_summary:
             return BaseEmailTemplate.create_alert_box("Trading summary not available", "warning")
@@ -177,7 +177,7 @@ class PerformanceBuilder:
         """
 
     @staticmethod
-    def build_strategy_performance(strategy_summary: dict[str, Any]) -> str:
+    def build_strategy_performance(strategy_summary: dict[str, str | int | bool | None]) -> str:
         """Build strategy performance summary."""
         if not strategy_summary:
             return BaseEmailTemplate.create_alert_box(
@@ -235,7 +235,7 @@ class PerformanceBuilder:
     # ====== NEUTRAL MODE FUNCTIONS (NO DOLLAR VALUES/PERCENTAGES) ======
 
     @staticmethod
-    def _format_order_row_neutral(order: dict[str, Any]) -> str:
+    def _format_order_row_neutral(order: dict[str, str | int | bool | None]) -> str:
         """Format a single order as an HTML table row for neutral mode."""
         side = order.get("side", "N/A")
         symbol = order.get("symbol", "N/A")

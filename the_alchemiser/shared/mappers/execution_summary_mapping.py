@@ -33,7 +33,9 @@ from the_alchemiser.shared.schemas.execution_summary import (
 )
 
 
-def dict_to_allocation_summary_dto(data: dict[str, Any]) -> AllocationSummaryDTO:
+def dict_to_allocation_summary_dto(
+    data: dict[str, str | int | bool | None],
+) -> AllocationSummaryDTO:
     """Convert allocation summary dict to AllocationSummaryDTO."""
     return AllocationSummaryDTO(
         total_allocation=Decimal(str(data.get("total_allocation", 0.0))),
@@ -42,7 +44,9 @@ def dict_to_allocation_summary_dto(data: dict[str, Any]) -> AllocationSummaryDTO
     )
 
 
-def dict_to_strategy_pnl_summary_dto(data: dict[str, Any]) -> StrategyPnLSummaryDTO:
+def dict_to_strategy_pnl_summary_dto(
+    data: dict[str, str | int | bool | None],
+) -> StrategyPnLSummaryDTO:
     """Convert strategy P&L summary dict to StrategyPnLSummaryDTO."""
     return StrategyPnLSummaryDTO(
         total_pnl=Decimal(str(data.get("total_pnl", 0.0))),
@@ -52,7 +56,7 @@ def dict_to_strategy_pnl_summary_dto(data: dict[str, Any]) -> StrategyPnLSummary
     )
 
 
-def dict_to_strategy_summary_dto(data: dict[str, Any]) -> StrategySummaryDTO:
+def dict_to_strategy_summary_dto(data: dict[str, str | int | bool | None]) -> StrategySummaryDTO:
     """Convert individual strategy summary dict to StrategySummaryDTO."""
     return StrategySummaryDTO(
         strategy_name=data.get("strategy_name", "unknown"),
@@ -62,7 +66,7 @@ def dict_to_strategy_summary_dto(data: dict[str, Any]) -> StrategySummaryDTO:
     )
 
 
-def dict_to_trading_summary_dto(data: dict[str, Any]) -> TradingSummaryDTO:
+def dict_to_trading_summary_dto(data: dict[str, str | int | bool | None]) -> TradingSummaryDTO:
     """Convert trading summary dict to TradingSummaryDTO."""
     return TradingSummaryDTO(
         total_orders=data.get("total_orders", 0),
@@ -72,7 +76,7 @@ def dict_to_trading_summary_dto(data: dict[str, Any]) -> TradingSummaryDTO:
     )
 
 
-def dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummaryDTO:
+def dict_to_execution_summary_dto(data: dict[str, str | int | bool | None]) -> ExecutionSummaryDTO:
     """Convert execution summary dict to ExecutionSummaryDTO."""
     # Handle allocation summary
     allocations_data = data.get("allocations", {})
@@ -112,7 +116,7 @@ def dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummaryDTO:
     )
 
 
-def dict_to_portfolio_state_dto(data: dict[str, Any]) -> PortfolioStateDTO:
+def dict_to_portfolio_state_dto(data: dict[str, str | int | bool | None]) -> PortfolioStateDTO:
     """Convert portfolio state dict to PortfolioStateDTO.
 
     Maps from actual portfolio data structure (from build_portfolio_state_data)
@@ -158,7 +162,7 @@ def dict_to_portfolio_state_dto(data: dict[str, Any]) -> PortfolioStateDTO:
 
 
 def allocation_comparison_to_dict(
-    allocation_comparison: dict[str, Any] | AllocationSummaryDTO,
+    allocation_comparison: dict[str, str | int | bool | None] | AllocationSummaryDTO,
 ) -> dict[str, Any]:
     """Convert allocation comparison DTO to dictionary format.
 

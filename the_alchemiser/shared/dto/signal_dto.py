@@ -104,7 +104,7 @@ class StrategySignalDTO(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> StrategySignalDTO:
+    def from_dict(cls, data: dict[str, str | int | bool | None]) -> StrategySignalDTO:
         """Create DTO from dictionary.
 
         Args:

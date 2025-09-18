@@ -16,7 +16,7 @@ from typing import Any
 
 def build_allocation_comparison(
     consolidated_portfolio: dict[str, float],
-    account_dict: dict[str, Any],
+    account_dict: dict[str, str | int | bool | None],
     positions_dict: dict[str, float],
 ) -> dict[str, Any]:
     """Build allocation comparison between target and current portfolio states.

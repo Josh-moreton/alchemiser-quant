@@ -47,8 +47,8 @@ class ErrorSummaryData(TypedDict):
 class ErrorReportSummary(TypedDict):
     """Error report summary."""
 
-    critical: dict[str, Any] | None
-    trading: dict[str, Any] | None
+    critical: dict[str, str | int | bool | None] | None
+    trading: dict[str, str | int | bool | None] | None
 
 
 class ErrorNotificationData(TypedDict):
@@ -151,7 +151,7 @@ except ImportError:
             function: str | None = None,
             operation: str | None = None,
             correlation_id: str | None = None,
-            additional_data: dict[str, Any] | None = None,
+            additional_data: dict[str, str | int | bool | None] | None = None,
         ) -> None:
             """Initialize ErrorContextData."""
             self.module = module
@@ -205,7 +205,7 @@ class ErrorDetails:
         category: str,
         context: str,
         component: str,
-        additional_data: dict[str, Any] | None = None,
+        additional_data: dict[str, str | int | bool | None] | None = None,
         suggested_action: str | None = None,
     ) -> None:
         """Store detailed error information."""
@@ -397,7 +397,7 @@ class TradingSystemErrorHandler:
         error: Exception,
         context: str,
         component: str,
-        additional_data: dict[str, Any] | None = None,
+        additional_data: dict[str, str | int | bool | None] | None = None,
     ) -> ErrorDetails:
         """Handle an error with detailed logging and categorization."""
         category = self.categorize_error(error, context)
@@ -454,7 +454,7 @@ class TradingSystemErrorHandler:
     def get_error_summary(self) -> dict[str, Any]:
         """Get a summary of all errors by category."""
         # Initialize summary with all categories as None
-        summary: dict[str, Any] = {
+        summary: dict[str, str | int | bool | None] = {
             "critical": None,
             "trading": None,
             "data": None,
@@ -524,7 +524,7 @@ class TradingSystemErrorHandler:
         ]
         return len(non_notification_errors) > 0
 
-    def _format_error_entry(self, error: dict[str, Any]) -> str:
+    def _format_error_entry(self, error: dict[str, str | int | bool | None]) -> str:
         """Format a single error entry for the report."""
         entry = f"**Component:** {error['component']}\n"
         entry += f"**Context:** {error['context']}\n"
@@ -538,7 +538,7 @@ class TradingSystemErrorHandler:
     def _add_error_section(
         self,
         report: str,
-        category_data: dict[str, Any] | None,
+        category_data: dict[str, str | int | bool | None] | None,
         title: str,
         description: str = "",
     ) -> str:
@@ -588,7 +588,7 @@ class TradingSystemErrorHandler:
         self,
         error: Exception,
         order_id: str | None = None,
-        additional_context: dict[str, Any] | None = None,
+        additional_context: dict[str, str | int | bool | None] | None = None,
     ) -> OrderError:
         """Classify an order-related error using the structured error classification system.
 
@@ -717,7 +717,7 @@ def handle_trading_error(
     error: Exception,
     context: str,
     component: str,
-    additional_data: dict[str, Any] | None = None,
+    additional_data: dict[str, str | int | bool | None] | None = None,
 ) -> ErrorDetails:
     """Handle errors in trading operations (convenience wrapper)."""
     return _error_handler.handle_error(error, context, component, additional_data)
@@ -976,7 +976,7 @@ class EnhancedErrorReporter:
     def report_error_with_context(
         self,
         error: Exception,
-        context: dict[str, Any] | None = None,
+        context: dict[str, str | int | bool | None] | None = None,
         *,
         is_critical: bool = False,
         operation: str | None = None,

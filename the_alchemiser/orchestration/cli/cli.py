@@ -16,7 +16,6 @@ import time
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import typer
 from rich.console import Console
@@ -323,7 +322,7 @@ def status() -> None:
         if not _acct:
             console.print("[bold red]No account information available[/bold red]")
             raise typer.Exit(1)
-        account_info: dict[str, Any] = dict(_acct)
+        account_info: dict[str, str | int | bool | None] = dict(_acct)
 
         # Display account information
         render_account_info(dict(account_info))

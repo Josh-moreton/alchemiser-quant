@@ -77,7 +77,7 @@ class S3Handler:
             logging.error(f"Error reading text from {uri}: {e}")
             return None
 
-    def write_json(self, uri: str, data: dict[str, Any]) -> bool:
+    def write_json(self, uri: str, data: dict[str, str | int | bool | None]) -> bool:
         """Serialize dict to JSON and write to S3."""
         try:
             json_content = json.dumps(data, indent=2, default=str)

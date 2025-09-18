@@ -13,7 +13,6 @@ from collections.abc import Mapping
 from decimal import Decimal, InvalidOperation
 from typing import Any, Protocol, cast, runtime_checkable
 
-from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.shared.value_objects.core_types import (
     AccountInfo,
@@ -25,6 +24,15 @@ from .base import BaseEmailTemplate
 
 
 @runtime_checkable
+class ExecutionResultProtocol(Protocol):
+    """Protocol for execution results to avoid direct imports from execution_v2."""
+
+    def model_dump(self) -> dict[str, Any]:
+        """Serialize to dictionary."""
+        ...
+
+
+@runtime_checkable
 class ExecutionSummaryLike(Protocol):  # pragma: no cover - structural typing helper
     """Minimal protocol abstraction for execution summary display.
 
@@ -33,15 +41,14 @@ class ExecutionSummaryLike(Protocol):  # pragma: no cover - structural typing he
     future domain ExecutionAggregate model) without widespread refactors.
     """
 
-    execution_summary: dict[str, Any]
+    execution_summary: dict[str, str | int | bool | None]
 
 
 ExecutionLike = (
-    ExecutionResultDTO
+    ExecutionResultProtocol
     | MultiStrategyExecutionResultDTO
     | Mapping[str, Any]
     | ExecutionSummaryLike
-    | Any
 )
 
 
@@ -59,7 +66,7 @@ def _normalise_result(result: ExecutionLike) -> dict[str, Any]:
         return dict(result)
 
     # Fallback: pull known attributes off an object-like container
-    extracted: dict[str, Any] = {}
+    extracted: dict[str, str | int | bool | None] = {}
     for attr in (
         "final_portfolio_state",
         "execution_summary",
@@ -80,7 +87,7 @@ class PortfolioBuilder:
     """Builds portfolio-related HTML content for emails."""
 
     @staticmethod
-    def _extract_current_positions(data: dict[str, Any]) -> dict[str, Any]:
+    def _extract_current_positions(data: dict[str, str | int | bool | None]) -> dict[str, Any]:
         """Extract current positions from execution result data."""
         # Use account_after open_positions from Alpaca Pydantic models
         account_after = data.get("account_info_after", {})
@@ -95,7 +102,7 @@ class PortfolioBuilder:
         return {}
 
     @staticmethod
-    def _extract_portfolio_value(data: dict[str, Any]) -> float:
+    def _extract_portfolio_value(data: dict[str, str | int | bool | None]) -> float:
         """Extract portfolio value from account data."""
         account_after = data.get("account_info_after", {})
 
@@ -116,7 +123,9 @@ class PortfolioBuilder:
             ) from e
 
     @staticmethod
-    def _extract_current_values(current_positions: dict[str, Any]) -> dict[str, float]:
+    def _extract_current_values(
+        current_positions: dict[str, str | int | bool | None],
+    ) -> dict[str, float]:
         """Extract current market values from positions."""
         current_values: dict[str, float] = {}
         for symbol, pos in current_positions.items():
@@ -653,7 +662,7 @@ class PortfolioBuilder:
         """
 
     @staticmethod
-    def build_orders_table_neutral(orders: list[Any]) -> str:
+    def build_orders_table_neutral(orders: list[str | int | bool]) -> str:
         """Build a neutral orders table without financial values."""
         if not orders:
             return """

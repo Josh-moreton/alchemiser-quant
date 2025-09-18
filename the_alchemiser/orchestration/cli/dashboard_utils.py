@@ -122,7 +122,8 @@ def extract_positions_data(
 
 
 def extract_strategies_data(
-    strategy_signals: dict[str, Any], strategy_allocations: dict[str, Any]
+    strategy_signals: dict[str, str | int | bool | None],
+    strategy_allocations: dict[str, str | int | bool | None],
 ) -> dict[str, dict[str, Any]]:
     """Extract strategies data for dashboard.
 

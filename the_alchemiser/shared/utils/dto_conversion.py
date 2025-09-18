@@ -65,7 +65,7 @@ def convert_string_to_decimal(
 
 
 def convert_datetime_fields_from_dict(
-    data: dict[str, Any],
+    data: dict[str, str | int | bool | None],
     datetime_fields: list[str],
 ) -> None:
     """Convert string datetime fields to datetime objects in-place.
@@ -81,7 +81,7 @@ def convert_datetime_fields_from_dict(
 
 
 def convert_decimal_fields_from_dict(
-    data: dict[str, Any],
+    data: dict[str, str | int | bool | None],
     decimal_fields: list[str],
 ) -> None:
     """Convert string decimal fields to Decimal objects in-place.
@@ -101,7 +101,7 @@ def convert_decimal_fields_from_dict(
 
 
 def convert_datetime_fields_to_dict(
-    data: dict[str, Any],
+    data: dict[str, str | int | bool | None],
     datetime_fields: list[str],
 ) -> None:
     """Convert datetime fields to ISO strings in-place.
@@ -117,7 +117,7 @@ def convert_datetime_fields_to_dict(
 
 
 def convert_decimal_fields_to_dict(
-    data: dict[str, Any],
+    data: dict[str, str | int | bool | None],
     decimal_fields: list[str],
 ) -> None:
     """Convert Decimal fields to strings in-place.
@@ -132,7 +132,7 @@ def convert_decimal_fields_to_dict(
             data[field_name] = str(data[field_name])
 
 
-def convert_nested_order_data(order_data: dict[str, Any]) -> dict[str, Any]:
+def convert_nested_order_data(order_data: dict[str, str | int | bool | None]) -> dict[str, Any]:
     """Convert order data fields for ExecutedOrderDTO.
 
     Args:
@@ -162,7 +162,9 @@ def convert_nested_order_data(order_data: dict[str, Any]) -> dict[str, Any]:
     return order_data
 
 
-def convert_nested_rebalance_item_data(item_data: dict[str, Any]) -> dict[str, Any]:
+def convert_nested_rebalance_item_data(
+    item_data: dict[str, str | int | bool | None],
+) -> dict[str, Any]:
     """Convert rebalance item data fields for RebalancePlanItemDTO.
 
     Args:

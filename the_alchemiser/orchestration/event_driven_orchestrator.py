@@ -49,7 +49,7 @@ class EventDrivenOrchestrator:
         self._register_handlers()
 
         # Track workflow state for monitoring and recovery
-        self.workflow_state: dict[str, Any] = {
+        self.workflow_state: dict[str, str | int | bool | None] = {
             "startup_completed": False,
             "signal_generation_in_progress": False,
             "rebalancing_in_progress": False,
@@ -247,9 +247,7 @@ class EventDrivenOrchestrator:
             # Trigger recovery workflow
             self._trigger_recovery_workflow(event)
 
-    def _send_trading_notification(
-        self, event: TradeExecuted, *, success: bool
-    ) -> None:
+    def _send_trading_notification(self, event: TradeExecuted, *, success: bool) -> None:
         """Send trading completion notification.
 
         Args:
@@ -301,9 +299,7 @@ class EventDrivenOrchestrator:
                 text_content=f"Trading execution completed. Success: {success}",
             )
 
-            self.logger.info(
-                f"Trading notification sent successfully (success={success})"
-            )
+            self.logger.info(f"Trading notification sent successfully (success={success})")
 
         except Exception as e:
             # Don't let notification failure break the workflow

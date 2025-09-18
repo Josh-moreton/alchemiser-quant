@@ -5,7 +5,7 @@ Service factory using dependency injection.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Protocol
 
 from the_alchemiser.shared.config.container import (
     ApplicationContainer,
@@ -14,8 +14,8 @@ from the_alchemiser.shared.config.container import (
 
 class ExecutionManagerProtocol(Protocol):
     """Protocol for execution manager to avoid direct imports."""
-    
-    def execute_orders(self, orders: Any) -> Any:  # type: ignore[misc]
+
+    def execute_orders(self, orders: list[dict[str, str | int | bool | None]]) -> dict[str, str | int | bool | None]:  # type: ignore[misc]
         """Execute orders - implementation in execution_v2 module."""
         ...
 
@@ -47,10 +47,12 @@ class ServiceFactory:
             return cls._container.services.execution_manager()  # type: ignore[no-any-return]
 
         # Direct instantiation for backward compatibility
-        api_key = api_key or "default_key"
-        secret_key = secret_key or "default_secret"
-        paper = paper if paper is not None else True
-        return ExecutionManager.create_with_config(api_key, secret_key, paper=paper)
+        # TODO: Replace with proper factory method from execution_v2
+        # This is a temporary placeholder - actual implementation should be in execution_v2
+        raise NotImplementedError(
+            "ExecutionManager creation should be handled by orchestration layer, "
+            "not by shared service factory. This violates module boundaries."
+        )
 
     @classmethod
     def get_container(cls) -> ApplicationContainer | None:

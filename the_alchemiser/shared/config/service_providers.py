@@ -5,7 +5,7 @@ Service layer providers for dependency injection.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Protocol
 
 from dependency_injector import containers, providers
 
@@ -14,10 +14,11 @@ from the_alchemiser.shared.events.bus import EventBus
 
 class ExecutionManagerProtocol(Protocol):
     """Protocol for execution manager to avoid direct imports."""
-    
-    def execute_orders(self, orders: Any) -> Any:  # type: ignore[misc]
+
+    def execute_orders(self, orders: list[dict[str, str | int | bool | None]]) -> dict[str, str | int | bool | None]:  # type: ignore[misc]
         """Execute orders - implementation in execution_v2 module."""
         ...
+
 
 # - AccountService → Use AlpacaManager directly
 # - TradingServiceManager → Use ExecutionManager from execution_v2
@@ -37,13 +38,13 @@ class ServiceProviders(containers.DeclarativeContainer):
     # Event bus (singleton for the application)
     event_bus = providers.Singleton(EventBus)
 
-    # V2 execution manager
-    execution_manager = providers.Factory(
-        ExecutionManager,
-        alpaca_manager=infrastructure.alpaca_manager,
-        enable_smart_execution=providers.Factory(
-            lambda exec_settings: exec_settings.enable_smart_execution,
-            exec_settings=config.execution,
-        ),
-    )
+    # TODO: V2 execution manager - will be configured by orchestration layer
+    # execution_manager = providers.Factory(
+    #     ExecutionManager,
+    #     alpaca_manager=infrastructure.alpaca_manager,
+    #     enable_smart_execution=providers.Factory(
+    #         lambda exec_settings: exec_settings.enable_smart_execution,
+    #         exec_settings=config.execution,
+    #     ),
+    # )
     # These will be replaced with v2 equivalents as they are migrated

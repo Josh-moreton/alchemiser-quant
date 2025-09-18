@@ -16,7 +16,6 @@ Key Features:
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -87,7 +86,7 @@ class RiskMetricsResult(Result):
         validate_assignment=True,
     )
 
-    risk_metrics: dict[str, Any] | None = None
+    risk_metrics: dict[str, str | int | bool | None] | None = None
 
 
 class TradeEligibilityResult(BaseModel):
@@ -101,7 +100,7 @@ class TradeEligibilityResult(BaseModel):
 
     eligible: bool
     reason: str | None = None
-    details: dict[str, Any] | None = None
+    details: dict[str, str | int | bool | None] | None = None
     symbol: str | None = None
     quantity: int | None = None
     side: str | None = None
@@ -117,7 +116,7 @@ class PortfolioAllocationResult(Result):
         validate_assignment=True,
     )
 
-    allocation_data: dict[str, Any] | None = None
+    allocation_data: dict[str, str | int | bool | None] | None = None
 
 
 class EnrichedAccountSummaryView(BaseModel):
@@ -129,7 +128,7 @@ class EnrichedAccountSummaryView(BaseModel):
         validate_assignment=True,
     )
 
-    raw: dict[str, Any]
+    raw: dict[str, str | int | bool | None]
     summary: AccountSummary
 
 

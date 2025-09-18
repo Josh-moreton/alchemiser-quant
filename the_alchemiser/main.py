@@ -68,9 +68,7 @@ class TradingSystem:
         global _di_container
 
         self.container = ApplicationContainer()
-        _di_container = (
-            self.container
-        )  # Keep global for backward compatibility during transition
+        _di_container = self.container  # Keep global for backward compatibility during transition
         ServiceFactory.initialize(self.container)
         self.logger.info("Dependency injection initialized")
 
@@ -78,9 +76,7 @@ class TradingSystem:
         """Initialize event-driven orchestration system."""
         try:
             if self.container is None:
-                self.logger.warning(
-                    "Cannot initialize event orchestration: DI container not ready"
-                )
+                self.logger.warning("Cannot initialize event orchestration: DI container not ready")
                 return
 
             # Initialize event-driven orchestrator
@@ -101,9 +97,7 @@ class TradingSystem:
         """
         try:
             if self.container is None:
-                self.logger.warning(
-                    "Cannot emit StartupEvent: DI container not initialized"
-                )
+                self.logger.warning("Cannot emit StartupEvent: DI container not initialized")
                 return
 
             # Get event bus from container
@@ -128,9 +122,7 @@ class TradingSystem:
 
             # Emit the event
             event_bus.publish(event)
-            self.logger.debug(
-                f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}"
-            )
+            self.logger.debug(f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}")
 
         except Exception as e:
             # Don't let startup event emission failure break the system
@@ -207,9 +199,7 @@ class TradingSystem:
                     root_logger.setLevel(logging.INFO)
                     root_logger.addHandler(rich_handler)
                     try:
-                        trading_result = (
-                            orchestrator.execute_strategy_signals_with_trading()
-                        )
+                        trading_result = orchestrator.execute_strategy_signals_with_trading()
                     finally:
                         root_logger.removeHandler(rich_handler)
                         root_logger.setLevel(root_original_level)
@@ -235,9 +225,7 @@ class TradingSystem:
 
             # 5) Display tracking if requested
             if show_tracking:
-                self._display_post_execution_tracking(
-                    paper_trading=not orchestrator.live_trading
-                )
+                self._display_post_execution_tracking(paper_trading=not orchestrator.live_trading)
 
             # 6) Export tracking summary if requested
             if export_tracking_json:
@@ -273,7 +261,7 @@ class TradingSystem:
             render_footer("System error occurred!")
             return False
 
-    def _display_signals_and_rebalance(self, result: dict[str, Any]) -> None:
+    def _display_signals_and_rebalance(self, result: dict[str, str | int | bool | None]) -> None:
         """Display strategy signals followed by rebalance plan."""
         from the_alchemiser.orchestration.cli.cli_formatter import (
             render_comprehensive_trading_results,
@@ -299,10 +287,10 @@ class TradingSystem:
 
     def _display_comprehensive_results(
         self,
-        strategy_signals: dict[str, Any],
+        strategy_signals: dict[str, str | int | bool | None],
         consolidated_portfolio: dict[str, float],
-        account_info: dict[str, Any] | None = None,
-        current_positions: dict[str, Any] | None = None,
+        account_info: dict[str, str | int | bool | None] | None = None,
+        current_positions: dict[str, str | int | bool | None] | None = None,
         allocation_comparison: AllocationComparisonDTO | None = None,
         open_orders: list[dict[str, Any]] | None = None,
     ) -> None:
@@ -388,9 +376,7 @@ class TradingSystem:
             if execution_result:
                 try:
                     success_rate = getattr(execution_result, "success_rate", 1.0)
-                    total_value = getattr(
-                        execution_result, "total_trade_value", Decimal(0)
-                    )
+                    total_value = getattr(execution_result, "total_trade_value", Decimal(0))
 
                     summary_content = [
                         f"[bold green]Execution Success Rate:[/bold green] {success_rate:.1%}",
@@ -523,13 +509,9 @@ class TradingSystem:
                     )
                 )
             except ImportError:
-                self.logger.warning(
-                    "Strategy tracking display unavailable (rich not available)"
-                )
+                self.logger.warning("Strategy tracking display unavailable (rich not available)")
 
-    def _export_tracking_summary(
-        self, *, export_path: str, paper_trading: bool
-    ) -> None:
+    def _export_tracking_summary(self, *, export_path: str, paper_trading: bool) -> None:
         """Export tracking summary to JSON file."""
         try:
             import json
@@ -549,14 +531,10 @@ class TradingSystem:
                     strategy_summary = tracker.get_strategy_summary(strategy_name)
                     if strategy_summary:
                         strategy_data[strategy_name] = {
-                            "total_profit_loss": float(
-                                strategy_summary.total_profit_loss
-                            ),
+                            "total_profit_loss": float(strategy_summary.total_profit_loss),
                             "total_orders": strategy_summary.total_orders,
                             "success_rate": strategy_summary.success_rate,
-                            "avg_profit_per_trade": float(
-                                strategy_summary.avg_profit_per_trade
-                            ),
+                            "avg_profit_per_trade": float(strategy_summary.avg_profit_per_trade),
                         }
                 except Exception as e:
                     self.logger.debug(f"Could not get summary for {strategy_name}: {e}")

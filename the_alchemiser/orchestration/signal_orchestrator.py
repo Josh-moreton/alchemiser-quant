@@ -163,7 +163,7 @@ class SignalOrchestrator:
 
     def validate_signal_quality(
         self,
-        strategy_signals: dict[str, Any],
+        strategy_signals: dict[str, str | int | bool | None],
     ) -> bool:
         """Validate that signal analysis produced meaningful results.
 
@@ -204,7 +204,7 @@ class SignalOrchestrator:
         return True
 
     def _categorize_strategy_failures(
-        self, strategy_signals: dict[str, Any]
+        self, strategy_signals: dict[str, str | int | bool | None]
     ) -> tuple[list[str], list[str]]:
         """Categorize strategies into failed and fallback groups based on reasoning."""
         failed_strategies = []
@@ -325,7 +325,9 @@ class SignalOrchestrator:
             return None
 
     def _emit_signal_generated_event(
-        self, strategy_signals: dict[str, Any], consolidated_portfolio: dict[str, float]
+        self,
+        strategy_signals: dict[str, str | int | bool | None],
+        consolidated_portfolio: dict[str, float],
     ) -> None:
         """Emit SignalGenerated event for event-driven architecture.
 
@@ -390,7 +392,7 @@ class SignalOrchestrator:
     def count_positions_for_strategy(
         self,
         strategy_name: str,
-        strategy_signals: dict[str, Any],
+        strategy_signals: dict[str, str | int | bool | None],
         consolidated_portfolio: dict[str, float],
     ) -> int:
         """Count positions for a specific strategy."""
@@ -414,7 +416,7 @@ class SignalOrchestrator:
         return len([s for s in strategy_symbols if s in consolidated_portfolio])
 
     def _find_signal_for_strategy(
-        self, strategy_name: str, strategy_signals: dict[str, Any]
+        self, strategy_name: str, strategy_signals: dict[str, str | int | bool | None]
     ) -> dict[str, Any] | None:
         """Find signal for a specific strategy by name."""
         strategy_key = strategy_name.upper()
@@ -426,7 +428,7 @@ class SignalOrchestrator:
 
     def _count_nuclear_positions(
         self,
-        signal: dict[str, Any],
+        signal: dict[str, str | int | bool | None],
         symbol: Symbol,
         consolidated_portfolio: dict[str, float],
     ) -> int:
@@ -460,7 +462,7 @@ class SignalOrchestrator:
     def _get_symbols_for_strategy(
         self,
         strategy_name: str,
-        strategy_signals: dict[str, Any],
+        strategy_signals: dict[str, str | int | bool | None],
     ) -> set[str]:
         """Get symbols associated with a strategy."""
         # Convert strategy name to strategy type key
