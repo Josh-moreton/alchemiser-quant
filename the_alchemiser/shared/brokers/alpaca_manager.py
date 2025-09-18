@@ -15,11 +15,13 @@ Phase 3 Update: Moved to shared module to resolve architectural boundary violati
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import threading
 import time
 from datetime import UTC, datetime
 from decimal import Decimal
+from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal
 
 # Type checking imports to avoid circular dependencies
@@ -49,6 +51,16 @@ if TYPE_CHECKING:
     pass
 
 logger = logging.getLogger(__name__)
+
+
+class TradingStreamConnectionState(Enum):
+    """Connection states for TradingStream WebSocket management."""
+
+    DISCONNECTED = "disconnected"
+    CONNECTING = "connecting"
+    CONNECTED = "connected"
+    RECONNECTING = "reconnecting"
+    ERROR = "error"
 
 
 class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
@@ -103,14 +115,23 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to initialize Alpaca clients: {e}")
             raise
 
-        # Trading WebSocket (order updates) state
+        # Trading WebSocket (order updates) state with async coordination
         self._trading_stream: TradingStream | None = None
-        self._trading_stream_thread: threading.Thread | None = None
-        self._trading_ws_connected: bool = False
-        self._trading_ws_lock = threading.Lock()
+        self._trading_stream_task: asyncio.Task[None] | None = None
+        self._trading_connection_state = TradingStreamConnectionState.DISCONNECTED
+        
+        # Async locks for thread-safe coordination
+        self._trading_connection_lock: asyncio.Lock | None = None
+        self._order_events_lock: asyncio.Lock | None = None
+        
+        # Order tracking data structures
         self._order_events: dict[str, threading.Event] = {}
         self._order_status: dict[str, str] = {}
         self._order_avg_price: dict[str, Decimal | None] = {}
+        
+        # Deduplication tracking to prevent duplicate orders
+        self._pending_order_requests: dict[str, str] = {}  # request_key -> order_id
+        self._order_request_lock: asyncio.Lock | None = None
 
     @property
     def is_paper_trading(self) -> bool:
@@ -137,6 +158,180 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def trading_client(self) -> TradingClient:
         """Return underlying trading client for backward compatibility."""
         return self._trading_client
+
+    def _ensure_async_locks(self) -> None:
+        """Ensure async locks are initialized."""
+        if self._trading_connection_lock is None:
+            self._trading_connection_lock = asyncio.Lock()
+        if self._order_events_lock is None:
+            self._order_events_lock = asyncio.Lock()
+        if self._order_request_lock is None:
+            self._order_request_lock = asyncio.Lock()
+
+    def _generate_order_request_key(self, symbol: str, side: str, quantity: Decimal, order_type: str = "market") -> str:
+        """Generate a unique key for order deduplication."""
+        import hashlib
+        key_data = f"{symbol}:{side}:{quantity}:{order_type}:{time.time():.0f}"
+        return hashlib.sha256(key_data.encode()).hexdigest()[:12]  # Use SHA256 instead of MD5
+
+    async def _check_or_add_order_request_async(self, symbol: str, side: str, quantity: Decimal, order_type: str = "market") -> str | None:
+        """Check if order request is duplicate and add to tracking.
+        
+        Returns:
+            None if this is a new request (proceed with order)
+            order_id if this is a duplicate request (return existing order)
+
+        """
+        self._ensure_async_locks()
+        
+        request_key = self._generate_order_request_key(symbol, side, quantity, order_type)
+        
+        async with self._order_request_lock:  # type: ignore[union-attr]
+            # Check if we already have a pending order for this exact request
+            existing_order_id = self._pending_order_requests.get(request_key)
+            if existing_order_id:
+                # Check if the order is still pending
+                status = self._order_status.get(existing_order_id, "").lower()
+                if status not in {"filled", "canceled", "rejected", "expired"}:
+                    logger.info(f"🔄 Duplicate order request detected for {symbol} {side} {quantity}, returning existing order {existing_order_id}")
+                    return existing_order_id
+                else:
+                    # Previous order completed, remove from tracking
+                    self._pending_order_requests.pop(request_key, None)
+            
+            # This is a new request, add to tracking (will be set when order is placed)
+            return None
+
+    async def _register_placed_order_async(self, symbol: str, side: str, quantity: Decimal, order_id: str, order_type: str = "market") -> None:
+        """Register a successfully placed order for deduplication tracking."""
+        self._ensure_async_locks()
+        
+        request_key = self._generate_order_request_key(symbol, side, quantity, order_type)
+        
+        async with self._order_request_lock:  # type: ignore[union-attr]
+            self._pending_order_requests[request_key] = order_id
+            
+    def _check_or_add_order_request(self, symbol: str, side: str, quantity: Decimal, order_type: str = "market") -> str | None:
+        """Check if order request is duplicate (sync wrapper)."""
+        try:
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an async context
+                import concurrent.futures
+                
+                def run_async_check():
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        return new_loop.run_until_complete(
+                            self._check_or_add_order_request_async(symbol, side, quantity, order_type)
+                        )
+                    finally:
+                        new_loop.close()
+                
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_async_check)
+                    return future.result(timeout=5.0)
+                    
+            except RuntimeError:
+                # No event loop running
+                return asyncio.run(self._check_or_add_order_request_async(symbol, side, quantity, order_type))
+                
+        except Exception as e:
+            logger.error(f"Error checking order request: {e}")
+            return None
+
+    def _register_placed_order(self, symbol: str, side: str, quantity: Decimal, order_id: str, order_type: str = "market") -> None:
+        """Register a successfully placed order (sync wrapper)."""
+        try:
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an async context
+                import concurrent.futures
+                
+                def run_async_register():
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        new_loop.run_until_complete(
+                            self._register_placed_order_async(symbol, side, quantity, order_id, order_type)
+                        )
+                    finally:
+                        new_loop.close()
+                
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_async_register)
+                    future.result(timeout=5.0)
+                    
+            except RuntimeError:
+                # No event loop running
+                asyncio.run(self._register_placed_order_async(symbol, side, quantity, order_id, order_type))
+                
+        except Exception as e:
+            logger.error(f"Error registering placed order: {e}")
+
+    async def _ensure_trading_stream_async(self) -> None:
+        """Ensure TradingStream is running and subscribed to trade updates (async)."""
+        self._ensure_async_locks()
+        
+        async with self._trading_connection_lock:  # type: ignore[union-attr]
+            if self._trading_connection_state in [
+                TradingStreamConnectionState.CONNECTING, 
+                TradingStreamConnectionState.CONNECTED
+            ]:
+                return
+
+            try:
+                self._trading_connection_state = TradingStreamConnectionState.CONNECTING
+                logger.info("🔄 Starting TradingStream for order updates...")
+
+                self._trading_stream = TradingStream(
+                    self._api_key, self._secret_key, paper=self._paper
+                )
+                self._trading_stream.subscribe_trade_updates(self._on_order_update)
+
+                # Start the stream task
+                self._trading_stream_task = asyncio.create_task(self._run_trading_stream_async())
+                
+                # Wait for connection to be established
+                max_wait = 5.0
+                start_time = asyncio.get_event_loop().time()
+                
+                while (asyncio.get_event_loop().time() - start_time) < max_wait:
+                    if self._trading_connection_state == TradingStreamConnectionState.CONNECTED:
+                        logger.info("✅ TradingStream started (order updates)")
+                        return
+                    elif self._trading_connection_state == TradingStreamConnectionState.ERROR:
+                        break
+                    await asyncio.sleep(0.1)
+                
+                if self._trading_connection_state != TradingStreamConnectionState.CONNECTED:
+                    logger.error("❌ Failed to establish TradingStream connection")
+                    self._trading_connection_state = TradingStreamConnectionState.ERROR
+                    
+            except Exception as exc:
+                logger.error(f"Failed to start TradingStream: {exc}")
+                self._trading_connection_state = TradingStreamConnectionState.ERROR
+
+    async def _run_trading_stream_async(self) -> None:
+        """Run the TradingStream in async context."""
+        try:
+            if self._trading_stream is None:
+                return
+                
+            # Mark as connected before starting
+            async with self._trading_connection_lock:  # type: ignore[union-attr]
+                self._trading_connection_state = TradingStreamConnectionState.CONNECTED
+            
+            # Run the stream
+            await self._trading_stream._run_forever()
+            
+        except Exception as exc:
+            logger.error(f"TradingStream error: {exc}")
+        finally:
+            async with self._trading_connection_lock:  # type: ignore[union-attr]
+                if self._trading_connection_state != TradingStreamConnectionState.ERROR:
+                    self._trading_connection_state = TradingStreamConnectionState.DISCONNECTED
 
     # Helper methods for DTO mapping
     def _alpaca_order_to_execution_result(self, order: Order) -> OrderExecutionResult:
@@ -352,8 +547,22 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def place_order(
         self, order_request: LimitOrderRequest | MarketOrderRequest
     ) -> ExecutedOrderDTO:
-        """Place an order and return execution details."""
+        """Place an order and return execution details with deduplication."""
         try:
+            # Extract order details for deduplication check
+            symbol = str(getattr(order_request, "symbol", ""))
+            side = str(getattr(order_request, "side", ""))
+            quantity = Decimal(str(getattr(order_request, "qty", "0")))
+            order_type = "limit" if hasattr(order_request, "limit_price") else "market"
+            
+            # Check for duplicate order requests
+            existing_order_id = self._check_or_add_order_request(symbol, side, quantity, order_type)
+            if existing_order_id:
+                # Return existing order result instead of placing duplicate
+                logger.info(f"🔄 Returning existing order {existing_order_id} for duplicate request")
+                return self.get_order_execution_result(existing_order_id)
+            
+            # Place the new order
             order = self._trading_client.submit_order(order_request)
 
             # Avoid attribute assumptions for mypy
@@ -366,6 +575,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             order_status = getattr(order, "status", "SUBMITTED")
 
             logger.info(f"Successfully placed order: {order_id} for {order_symbol}")
+            
+            # Register the placed order for deduplication tracking
+            self._register_placed_order(symbol, side, quantity, order_id, order_type)
 
             # Handle price - use filled_avg_price if available, otherwise estimate
             price = Decimal("0.01")  # Default minimal price
@@ -1368,35 +1580,32 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     # ---- TradingStream helpers ----
     def _ensure_trading_stream(self) -> None:
-        """Ensure TradingStream is running and subscribed to trade updates."""
-        with self._trading_ws_lock:
-            if self._trading_stream and self._trading_ws_connected:
-                return
+        """Ensure TradingStream is running and subscribed to trade updates (sync wrapper)."""
+        try:
+            # Try to get existing event loop
             try:
-                self._trading_stream = TradingStream(
-                    self._api_key, self._secret_key, paper=self._paper
-                )
-                self._trading_stream.subscribe_trade_updates(self._on_order_update)
-
-                def _runner() -> None:
+                loop = asyncio.get_running_loop()
+                # We're in an async context, create a task
+                import concurrent.futures
+                
+                def run_async_ensure():
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
                     try:
-                        ts = self._trading_stream
-                        if ts is not None:
-                            ts.run()
-                    except Exception as exc:
-                        logger.error(f"TradingStream terminated: {exc}")
+                        new_loop.run_until_complete(self._ensure_trading_stream_async())
                     finally:
-                        self._trading_ws_connected = False
-
-                self._trading_ws_connected = True
-                self._trading_stream_thread = threading.Thread(
-                    target=_runner, name="AlpacaTradingWS", daemon=True
-                )
-                self._trading_stream_thread.start()
-                logger.info("✅ TradingStream started (order updates)")
-            except Exception as exc:
-                logger.error(f"Failed to start TradingStream: {exc}")
-                self._trading_ws_connected = False
+                        new_loop.close()
+                
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_async_ensure)
+                    future.result(timeout=10.0)
+                    
+            except RuntimeError:
+                # No event loop running, safe to use asyncio.run
+                asyncio.run(self._ensure_trading_stream_async())
+                
+        except Exception as e:
+            logger.error(f"Error ensuring trading stream: {e}")
 
     async def _on_order_update(self, data: dict[str, Any] | object) -> None:
         """Order update callback for TradingStream (async).
