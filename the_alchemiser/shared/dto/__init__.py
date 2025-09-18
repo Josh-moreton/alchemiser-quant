@@ -34,6 +34,11 @@ from the_alchemiser.shared.dto.rebalance_plan_dto import (
 from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
 from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
 from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
+from the_alchemiser.shared.dto.trade_run_result_dto import (
+    ExecutionSummaryDTO,
+    OrderResultSummaryDTO,
+    TradeRunResultDTO,
+)
 
 
 class ConfigurationDTO(BaseModel):
@@ -95,4 +100,8 @@ __all__ = [
     "StrategyAllocationDTO",
     "StrategySignalDTO",
     "TechnicalIndicatorDTO",
+    # Trade execution result DTOs
+    "ExecutionSummaryDTO",
+    "OrderResultSummaryDTO",
+    "TradeRunResultDTO",
 ]

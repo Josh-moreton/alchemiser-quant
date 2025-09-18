@@ -8,13 +8,17 @@ orchestration as they coordinate between business units rather than being shared
 
 Exports:
     - app: Main CLI application (Typer app)
-    - BaseCLI: Base CLI functionality
 """
 
-from .base_cli import BaseCLI
-from .cli import app
-
+# Lazy imports to avoid missing dependencies during import
 __all__ = [
-    "BaseCLI",
     "app",
 ]
+
+
+def __getattr__(name: str):
+    """Lazy import for CLI components."""
+    if name == "app":
+        from .cli import app
+        return app
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

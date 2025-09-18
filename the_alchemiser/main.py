@@ -13,21 +13,29 @@ import argparse
 import logging
 import os
 import sys
+from datetime import datetime
 from decimal import Decimal
-from time import sleep
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from the_alchemiser.orchestration.event_driven_orchestrator import (
+        EventDrivenOrchestrator,
+    )
+    from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
 
 # CLI formatter imports (moved from function-level)
-from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
-from the_alchemiser.orchestration.cli.cli_formatter import (
-    render_account_info,
+from the_alchemiser.orchestration.cli.cli_utilities import (
     render_footer,
 )
-from the_alchemiser.orchestration.event_driven_orchestrator import (
-    EventDrivenOrchestrator,
-)
+
+# Import moved to where it's used to avoid early dependency loading
 from the_alchemiser.shared.config.config import Settings, load_settings
 from the_alchemiser.shared.config.container import ApplicationContainer
+from the_alchemiser.shared.dto.trade_run_result_dto import (
+    ExecutionSummaryDTO,
+    OrderResultSummaryDTO,
+    TradeRunResultDTO,
+)
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.events import EventBus, StartupEvent
 from the_alchemiser.shared.logging.logging_utils import (
@@ -37,7 +45,6 @@ from the_alchemiser.shared.logging.logging_utils import (
     set_request_id,
     setup_logging,
 )
-from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 from the_alchemiser.shared.types.exceptions import (
     ConfigurationError,
     StrategyExecutionError,
@@ -84,6 +91,10 @@ class TradingSystem:
                 return
 
             # Initialize event-driven orchestrator
+            from the_alchemiser.orchestration.event_driven_orchestrator import (
+                EventDrivenOrchestrator,
+            )
+
             self.event_driven_orchestrator = EventDrivenOrchestrator(self.container)
             self.logger.info("Event-driven orchestration initialized")
 
@@ -143,18 +154,33 @@ class TradingSystem:
         *,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
-    ) -> bool:
+    ) -> TradeRunResultDTO:
         """Execute multi-strategy trading.
 
         Note: Trading mode (live/paper) is now determined by deployment stage.
+
+        Returns:
+            TradeRunResultDTO with complete execution results and metadata
+
         """
+        import uuid
+        from datetime import UTC, datetime
+
+        # Start timing and correlation tracking
+        started_at = datetime.now(UTC)
+        correlation_id = str(uuid.uuid4())
+        warnings: list[str] = []
+
         try:
             from the_alchemiser.orchestration.trading_orchestrator import (
                 TradingOrchestrator,
             )
 
             if self.container is None:
-                raise RuntimeError("DI container not initialized")
+                return self._create_failure_result(
+                    "DI container not initialized", started_at, correlation_id, warnings
+                )
+
             # Create trading orchestrator directly
             orchestrator = TradingOrchestrator(
                 settings=self.settings,
@@ -164,74 +190,46 @@ class TradingSystem:
             # Header suppressed to reduce duplicate banners in CLI output
 
             # PHASE 1: Signals-only analysis (no trading yet)
+            print("📊 Generating strategy signals...")
             signals_result = orchestrator.execute_strategy_signals()
             if signals_result is None:
-                render_footer("Signal analysis failed - check logs for details")
-                return False
-
-            # Show pure strategy outputs first, then rebalance plan
-            self._display_signals_and_rebalance(signals_result)
-
-            # PHASE 2: Execute trading (may place orders)
-            try:
-                from rich.logging import RichHandler
-                from rich.progress import Progress, SpinnerColumn, TextColumn
-
-                with Progress(
-                    SpinnerColumn(),
-                    TextColumn("[progress.description]{task.description}"),
-                    transient=True,
-                ) as progress:
-                    _task = progress.add_task(
-                        "🚀 Executing trades... Submitting orders and monitoring fills",
-                        total=None,
-                    )
-
-                    # Temporarily surface INFO logs to the CLI for live feedback
-                    root_logger = logging.getLogger()
-                    rich_handler = RichHandler(
-                        console=progress.console,
-                        show_time=False,
-                        show_level=False,
-                        show_path=False,
-                        markup=True,
-                    )
-
-                    # Limit to our app logs to avoid noisy third-party streams
-                    class _OnlyAlchemiser(logging.Filter):
-                        def filter(self, record: logging.LogRecord) -> bool:
-                            return record.name.startswith("the_alchemiser")
-
-                    rich_handler.addFilter(_OnlyAlchemiser())
-                    root_original_level = root_logger.level
-                    root_logger.setLevel(logging.INFO)
-                    root_logger.addHandler(rich_handler)
-                    try:
-                        trading_result = (
-                            orchestrator.execute_strategy_signals_with_trading()
-                        )
-                    finally:
-                        root_logger.removeHandler(rich_handler)
-                        root_logger.setLevel(root_original_level)
-            except Exception:
-                # Fallback if Rich is unavailable
-                trading_result = orchestrator.execute_strategy_signals_with_trading()
-            if trading_result is None:
-                render_footer("Trading execution failed - check logs for details")
-                return False
-
-            # Show execution results only (avoid re-printing signals/plan)
-            orders_executed = trading_result.get("orders_executed", [])
-            if orders_executed:
-                self._display_execution_results(
-                    orders_executed, trading_result.get("execution_result")
+                return self._create_failure_result(
+                    "Signal analysis failed - check logs for details",
+                    started_at,
+                    correlation_id,
+                    warnings,
                 )
 
-            # Display a post-trade portfolio snapshot after orders are filled
+            # Show brief signals summary
+            self._display_signals_summary(signals_result)
+
+            # PHASE 2: Execute trading (may place orders)  
+            print("⚖️  Generating portfolio rebalance plan...")
+            
+            # Temporarily suppress verbose logs for cleaner CLI output
+            self._configure_quiet_logging()
+
             try:
-                self._display_post_trade_portfolio_summary()
-            except Exception as exc:
-                self.logger.warning(f"Post-trade portfolio summary unavailable: {exc}")
+                # Execute trading with minimal output - no Rich progress spinner
+                trading_result = orchestrator.execute_strategy_signals_with_trading()
+            except Exception:
+                # Fallback if anything fails
+                trading_result = orchestrator.execute_strategy_signals_with_trading()
+            finally:
+                self._restore_logging()
+
+            if trading_result is None:
+                return self._create_failure_result(
+                    "Trading execution failed - check logs for details",
+                    started_at,
+                    correlation_id,
+                    warnings,
+                )
+
+            # Show rebalance plan details
+            self._display_rebalance_plan(trading_result)
+
+            print("🚀 Executing rebalance plan...")
 
             # 5) Display tracking if requested
             if show_tracking:
@@ -251,15 +249,22 @@ class TradingSystem:
                 mode_str = "LIVE" if orchestrator.live_trading else "PAPER"
                 orchestrator.send_trading_notification(trading_result, mode_str)
             except Exception as exc:
-                self.logger.warning(f"Failed to send trading notification: {exc}")
+                warnings.append(f"Failed to send trading notification: {exc}")
 
+            # Create successful result DTO
+            completed_at = datetime.now(UTC)
             success = bool(trading_result.get("success", False))
-            if success:
-                render_footer("Trading execution completed successfully!")
-            else:
-                render_footer("Trading execution failed - check logs for details")
 
-            return success
+            return self._create_success_result(
+                trading_result=trading_result,
+                orchestrator=orchestrator,
+                started_at=started_at,
+                completed_at=completed_at,
+                correlation_id=correlation_id,
+                warnings=warnings,
+                success=success,
+            )
+
         except (TradingClientError, StrategyExecutionError) as e:
             self.error_handler.handle_error(
                 error=e,
@@ -270,231 +275,119 @@ class TradingSystem:
                     "export_tracking_json": export_tracking_json,
                 },
             )
-            render_footer("System error occurred!")
-            return False
-
-    def _display_signals_and_rebalance(self, result: dict[str, Any]) -> None:
-        """Display strategy signals followed by rebalance plan."""
-        from the_alchemiser.orchestration.cli.cli_formatter import (
-            render_comprehensive_trading_results,
-            render_strategy_signals,
-        )
-
-        try:
-            strategy_signals = result.get("strategy_signals", {})
-            if strategy_signals:
-                render_strategy_signals(strategy_signals)
-
-            # Show only account + allocation sections (no open orders, no strategy signals again)
-            render_comprehensive_trading_results(
-                {},
-                result.get("consolidated_portfolio", {}),
-                result.get("account_info"),
-                result.get("current_positions"),
-                result.get("allocation_comparison"),
-                [],
-            )
-        except Exception as e:
-            self.logger.warning(f"Failed to display signals/rebalance: {e}")
-
-    def _display_comprehensive_results(
-        self,
-        strategy_signals: dict[str, Any],
-        consolidated_portfolio: dict[str, float],
-        account_info: dict[str, Any] | None = None,
-        current_positions: dict[str, Any] | None = None,
-        allocation_comparison: AllocationComparisonDTO | None = None,
-        open_orders: list[dict[str, Any]] | None = None,
-    ) -> None:
-        """Display comprehensive trading results."""
-        from the_alchemiser.orchestration.cli.cli_formatter import (
-            render_comprehensive_trading_results,
-        )
-
-        try:
-            render_comprehensive_trading_results(
-                strategy_signals,
-                consolidated_portfolio,
-                account_info,
-                current_positions,
-                allocation_comparison,
-                open_orders,
-            )
-        except Exception as e:
-            self.logger.warning(f"Failed to display comprehensive results: {e}")
-
-    def _display_execution_results(
-        self,
-        orders_executed: list[dict[str, Any]],
-        execution_result: ExecutionResultDTO | None = None,
-    ) -> None:
-        """Display execution results including order details and summary."""
-        try:
-            from rich.console import Console
-            from rich.panel import Panel
-            from rich.table import Table
-
-            from the_alchemiser.orchestration.cli.cli_formatter import (
-                render_orders_executed,
+            return self._create_failure_result(
+                f"System error: {e}", started_at, correlation_id, warnings
             )
 
-            console = Console()
+    def _display_signals_summary(self, signals_result: dict[str, Any]) -> None:
+        """Display a brief summary of generated signals and target allocations."""
+        try:
+            # Extract and display individual strategy signals with their recommended symbols
+            strategy_signals = signals_result.get("strategy_signals", {})
+            if isinstance(strategy_signals, dict):
+                signal_details = []
+                for raw_name, data in strategy_signals.items():
+                    name = str(raw_name)
+                    if name.startswith("StrategyType."):
+                        name = name.split(".", 1)[1]
+                    
+                    if isinstance(data, dict):
+                        action = str(data.get("action", "")).upper()
+                        if action in {"BUY", "SELL"}:
+                            if data.get("is_multi_symbol") and isinstance(data.get("symbols"), list):
+                                symbols = data.get("symbols", [])
+                                if symbols:
+                                    symbol_str = ", ".join(symbols)
+                                    signal_details.append(f"{name}: {action} {symbol_str}")
+                            elif data.get("symbol"):
+                                signal_details.append(f"{name}: {action} {data.get('symbol')}")
 
-            # Display orders executed using existing formatter
-            render_orders_executed(orders_executed)
+                if signal_details:
+                    print("📋 Strategy signals generated:")
+                    for detail in signal_details:
+                        print(f"   → {detail}")
+                else:
+                    print("📋 No actionable signals generated")
 
-            # Display detailed order status information
-            if orders_executed:
-                status_table = Table(title="Order Execution Details", show_lines=True)
-                status_table.add_column("Symbol", style="cyan", justify="center")
-                status_table.add_column("Action", style="bold", justify="center")
-                status_table.add_column("Status", style="bold", justify="center")
-                status_table.add_column("Order ID", style="dim", justify="center")
-                status_table.add_column("Error Details", style="red", justify="left")
-
-                for order in orders_executed:
-                    status = order.get("status", "UNKNOWN")
-                    order_id = order.get("order_id") or "N/A"
-                    error = order.get("error") or ""
-
-                    # Style status
-                    if status == "FILLED":
-                        status_display = "[bold green]✅ FILLED[/bold green]"
-                    elif status == "FAILED":
-                        status_display = "[bold red]❌ FAILED[/bold red]"
-                    else:
-                        status_display = f"[yellow]{status}[/yellow]"
-
-                    # Style action
-                    action = order.get("side", "").upper()
-                    if action == "BUY":
-                        action_display = "[green]BUY[/green]"
-                    elif action == "SELL":
-                        action_display = "[red]SELL[/red]"
-                    else:
-                        action_display = action
-
-                    status_table.add_row(
-                        order.get("symbol", "N/A"),
-                        action_display,
-                        status_display,
-                        order_id,
-                        error[:50] + "..." if len(error) > 50 else error,
-                    )
-
-                console.print(status_table)
-
-            # Display execution summary if available
-            if execution_result:
-                try:
-                    success_rate = getattr(execution_result, "success_rate", 1.0)
-                    total_value = getattr(
-                        execution_result, "total_trade_value", Decimal(0)
-                    )
-
-                    summary_content = [
-                        f"[bold green]Execution Success Rate:[/bold green] {success_rate:.1%}",
-                        f"[bold blue]Orders Placed:[/bold blue] {execution_result.orders_placed}",
-                        f"[bold green]Orders Succeeded:[/bold green] {execution_result.orders_succeeded}",
-                        f"[bold yellow]Total Trade Value:[/bold yellow] ${float(total_value):,.2f}",
+            # Show consolidated target allocations
+            if "consolidated_portfolio" in signals_result:
+                portfolio = signals_result["consolidated_portfolio"]
+                if isinstance(portfolio, dict):
+                    non_zero = [
+                        (s, float(w)) for s, w in portfolio.items() if float(w) != 0.0
                     ]
-
-                    if (
-                        hasattr(execution_result, "failure_count")
-                        and execution_result.failure_count > 0
-                    ):
-                        summary_content.append(
-                            f"[bold red]Orders Failed:[/bold red] {execution_result.failure_count}"
+                    if non_zero:
+                        # Sort by allocation percentage descending
+                        non_zero.sort(key=lambda x: x[1], reverse=True)
+                        allocations = ", ".join(
+                            f"{sym} {weight*100:.1f}%" for sym, weight in non_zero
                         )
-
-                    console.print(
-                        Panel(
-                            "\n".join(summary_content),
-                            title="Execution Summary",
-                            style="bold white",
-                        )
-                    )
-                except Exception as e:
-                    self.logger.warning(f"Failed to display execution summary: {e}")
-
-        except Exception as e:
-            self.logger.warning(f"Failed to display execution results: {e}")
-
-    def _display_post_trade_portfolio_summary(self) -> None:
-        """Fetch and display the portfolio state after trade execution.
-
-        Shows current account totals and open positions to reflect the
-        post-execution portfolio snapshot.
-        """
-        try:
-            if self.container is None:
-                self.logger.warning(
-                    "Cannot display post-trade portfolio: DI container not initialized"
-                )
-                return
-
-            alpaca_manager = self.container.infrastructure.alpaca_manager()
-
-            # Brief delay to allow broker state to reflect fills
-            sleep(0.5)
-
-            account_info = alpaca_manager.get_account_dict() or {}
-            positions = alpaca_manager.get_positions() or []
-
-            normalized_positions: list[dict[str, Any]] = []
-
-            # Helper to coerce value to float safely
-            from decimal import Decimal as _Dec
-
-            def _to_float(value: str | int | float | _Dec | None) -> float:
-                try:
-                    return float(value or 0)
-                except Exception:
-                    return 0.0
-
-            for pos in positions:
-                try:
-                    if isinstance(pos, dict):
-                        symbol = str(pos.get("symbol", ""))
-                        qty = _to_float(pos.get("qty", 0))
-                        avg_entry_price = _to_float(pos.get("avg_entry_price", 0))
-                        current_price = _to_float(pos.get("current_price", 0))
-                        market_value = _to_float(pos.get("market_value", 0))
-                        unrealized_pl = _to_float(pos.get("unrealized_pl", 0))
-                        unrealized_plpc = _to_float(pos.get("unrealized_plpc", 0))
+                        print(f"🎯 Final recommended allocations: {allocations}")
                     else:
-                        symbol = str(getattr(pos, "symbol", ""))
-                        qty = _to_float(getattr(pos, "qty", 0))
-                        avg_entry_price = _to_float(getattr(pos, "avg_entry_price", 0))
-                        current_price = _to_float(getattr(pos, "current_price", 0))
-                        market_value = _to_float(getattr(pos, "market_value", 0))
-                        unrealized_pl = _to_float(getattr(pos, "unrealized_pl", 0))
-                        unrealized_plpc = _to_float(getattr(pos, "unrealized_plpc", 0))
-
-                    normalized_positions.append(
-                        {
-                            "symbol": symbol,
-                            "qty": qty,
-                            "avg_entry_price": avg_entry_price,
-                            "current_price": current_price,
-                            "market_value": market_value,
-                            "unrealized_pl": unrealized_pl,
-                            "unrealized_plpc": unrealized_plpc,
-                        }
-                    )
-                except Exception as exc:
-                    self.logger.debug(f"Skipping position in summary: {exc}")
-                    continue
-
-            render_account_info(
-                {
-                    "account": account_info,
-                    "open_positions": normalized_positions,
-                }
-            )
-
+                        print("🎯 Final recommended allocations: 100% cash")
         except Exception as e:
-            self.logger.warning(f"Failed to display post-trade portfolio: {e}")
+            # Non-fatal: summary display is best-effort
+            self.logger.debug(f"Failed to display signals summary: {e}")
+
+    def _display_rebalance_plan(self, trading_result: dict[str, Any]) -> None:
+        """Display the rebalance plan with buy/sell order details."""
+        try:
+            rebalance_plan = trading_result.get("rebalance_plan")
+            
+            if rebalance_plan is None:
+                print("⚖️  Portfolio rebalance plan: Portfolio already balanced")
+                return
+                
+            # If rebalance_plan is a DTO, get the items
+            if hasattr(rebalance_plan, 'items'):
+                plan_items = rebalance_plan.items
+            elif isinstance(rebalance_plan, dict) and 'items' in rebalance_plan:
+                plan_items = rebalance_plan['items']
+            else:
+                # Fallback: no detailed plan available
+                print("⚖️  Portfolio rebalance plan: Orders required")
+                return
+                
+            if not plan_items:
+                print("⚖️  Portfolio rebalance plan: Portfolio already balanced")
+                return
+                
+            # Group items by action
+            buy_orders = []
+            sell_orders = []
+            
+            for item in plan_items:
+                # Handle both DTO and dict representations
+                if hasattr(item, 'action'):
+                    action = item.action
+                    symbol = item.symbol
+                    trade_amount = item.trade_amount
+                elif isinstance(item, dict):
+                    action = item.get('action', '').upper()
+                    symbol = item.get('symbol', '')
+                    trade_amount = item.get('trade_amount', 0)
+                else:
+                    continue
+                    
+                if action == 'BUY' and float(trade_amount) > 0:
+                    buy_orders.append(f"{symbol} ${abs(float(trade_amount)):,.0f}")
+                elif action == 'SELL' and float(trade_amount) < 0:
+                    sell_orders.append(f"{symbol} ${abs(float(trade_amount)):,.0f}")
+            
+            # Display the plan
+            if buy_orders or sell_orders:
+                print("⚖️  Portfolio rebalance plan:")
+                if buy_orders:
+                    print(f"   → BUY: {', '.join(buy_orders)}")
+                if sell_orders:
+                    print(f"   → SELL: {', '.join(sell_orders)}")
+            else:
+                print("⚖️  Portfolio rebalance plan: Portfolio already balanced")
+                
+        except Exception as e:
+            # Non-fatal: summary display is best-effort
+            self.logger.debug(f"Failed to display rebalance plan: {e}")
+            print("⚖️  Portfolio rebalance plan: Orders required")
 
     def _display_post_execution_tracking(self, *, paper_trading: bool) -> None:
         """Display strategy performance tracking after execution."""
@@ -572,6 +465,150 @@ class TradingSystem:
 
         except Exception as e:
             self.logger.warning(f"Failed to export tracking summary: {e}")
+
+    def _create_failure_result(
+        self,
+        error_message: str,
+        started_at: datetime,
+        correlation_id: str,
+        warnings: list[str],
+    ) -> TradeRunResultDTO:
+        """Create a failure result DTO."""
+        from datetime import UTC, datetime
+
+        completed_at = datetime.now(UTC)
+
+        return TradeRunResultDTO(
+            status="FAILURE",
+            success=False,
+            execution_summary=ExecutionSummaryDTO(
+                orders_total=0,
+                orders_succeeded=0,
+                orders_failed=0,
+                total_value=Decimal("0"),
+                success_rate=0.0,
+                execution_duration_seconds=(completed_at - started_at).total_seconds(),
+            ),
+            orders=[],
+            warnings=[*warnings, error_message],
+            trading_mode="UNKNOWN",
+            started_at=started_at,
+            completed_at=completed_at,
+            correlation_id=correlation_id,
+        )
+
+    def _create_success_result(
+        self,
+        trading_result: dict[str, Any],
+        orchestrator: TradingOrchestrator,
+        started_at: datetime,
+        completed_at: datetime,
+        correlation_id: str,
+        warnings: list[str],
+        success: bool,
+    ) -> TradeRunResultDTO:
+        """Create a success result DTO from trading results."""
+        orders_executed = trading_result.get("orders_executed", [])
+
+        # Convert orders to DTOs with ID redaction
+        order_dtos: list[OrderResultSummaryDTO] = []
+        for order in orders_executed:
+            order_id = order.get("order_id", "")
+            order_id_redacted = f"...{order_id[-6:]}" if len(order_id) > 6 else order_id
+
+            # Calculate trade amount from qty * price if notional not available
+            qty = Decimal(str(order.get("qty", 0)))
+            filled_price = order.get("filled_avg_price")
+
+            if order.get("notional"):
+                trade_amount = Decimal(str(order.get("notional")))
+            elif filled_price and qty:
+                trade_amount = qty * Decimal(str(filled_price))
+            else:
+                trade_amount = Decimal("0")
+
+            order_dtos.append(
+                OrderResultSummaryDTO(
+                    symbol=order.get("symbol", ""),
+                    action=order.get("side", "").upper(),
+                    trade_amount=trade_amount,
+                    shares=qty,
+                    price=(Decimal(str(filled_price)) if filled_price else None),
+                    order_id_redacted=order_id_redacted,
+                    order_id_full=order_id,
+                    success=order.get("status", "").upper() in ["FILLED", "COMPLETE"],
+                    error_message=order.get("error_message"),
+                    timestamp=order.get("filled_at") or completed_at,
+                )
+            )
+
+        # Calculate summary metrics
+        orders_total = len(order_dtos)
+        orders_succeeded = sum(1 for order in order_dtos if order.success)
+        orders_failed = orders_total - orders_succeeded
+        total_value = sum((order.trade_amount for order in order_dtos), Decimal("0"))
+        success_rate = orders_succeeded / orders_total if orders_total > 0 else 1.0
+
+        if success and orders_failed == 0:
+            status = "SUCCESS"
+        elif orders_succeeded > 0:
+            status = "PARTIAL"
+        else:
+            status = "FAILURE"
+
+        return TradeRunResultDTO(
+            status=status,
+            success=success,
+            execution_summary=ExecutionSummaryDTO(
+                orders_total=orders_total,
+                orders_succeeded=orders_succeeded,
+                orders_failed=orders_failed,
+                total_value=total_value,
+                success_rate=success_rate,
+                execution_duration_seconds=(completed_at - started_at).total_seconds(),
+            ),
+            orders=order_dtos,
+            warnings=warnings,
+            trading_mode=(
+                "LIVE" if getattr(orchestrator, "live_trading", False) else "PAPER"
+            ),
+            started_at=started_at,
+            completed_at=completed_at,
+            correlation_id=correlation_id,
+        )
+
+    def _configure_quiet_logging(self) -> None:
+        """Configure quiet logging to reduce CLI noise."""
+        # Store original levels for restoration
+        self._original_levels = {}
+
+        # Modules to quiet down (these tend to be noisy during execution)
+        noisy_modules = [
+            "the_alchemiser.execution_v2",
+            "the_alchemiser.portfolio_v2",
+            "the_alchemiser.strategy_v2",
+            "the_alchemiser.orchestration",
+            "the_alchemiser.orchestration.trading_orchestrator",
+            "the_alchemiser.orchestration.signal_orchestrator",
+            "the_alchemiser.orchestration.strategy_orchestrator",
+            "the_alchemiser.orchestration.portfolio_orchestrator",
+            "the_alchemiser.orchestration.event_driven_orchestrator",
+            "alpaca",
+            "urllib3",
+            "requests",
+        ]
+
+        for module_name in noisy_modules:
+            logger = logging.getLogger(module_name)
+            self._original_levels[module_name] = logger.level
+            logger.setLevel(logging.WARNING)
+
+    def _restore_logging(self) -> None:
+        """Restore original logging levels."""
+        if hasattr(self, "_original_levels"):
+            for module_name, level in self._original_levels.items():
+                logger = logging.getLogger(module_name)
+                logger.setLevel(level)
 
 
 def _resolve_log_level(*, is_production: bool) -> int:
@@ -682,14 +719,14 @@ Examples:
     return parser
 
 
-def main(argv: list[str] | None = None) -> bool:
+def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
     """Serve as main entry point for The Alchemiser Trading System.
 
     Args:
         argv: Command line arguments (uses sys.argv if None)
 
     Returns:
-        True if operation completed successfully, False otherwise
+        TradeRunResultDTO for trade execution, or bool for other operations
 
     """
     # Setup
@@ -715,21 +752,13 @@ def main(argv: list[str] | None = None) -> bool:
 
         # Execute trading with integrated signal analysis
         if args.mode == "trade":
-            success = system.execute_trading(
+            # NOTE: CLI handles all footer rendering now - clean separation
+            return system.execute_trading(
                 show_tracking=getattr(args, "show_tracking", False),
                 export_tracking_json=getattr(args, "export_tracking_json", None),
             )
-        else:
-            # This should never happen since we only accept "trade" mode now
-            success = False
-
-        # Display result
-        if success:
-            render_footer("Operation completed successfully!")
-        else:
-            render_footer("Operation failed!")
-
-        return success
+        # This should never happen since we only accept "trade" mode now
+        return False
 
     except (ConfigurationError, ValueError, ImportError) as e:
         # Use TradingSystemErrorHandler for boundary logging - exactly once

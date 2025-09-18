@@ -12,7 +12,6 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
-import time
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,7 +24,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich.text import Text
 
-from the_alchemiser.orchestration.cli.cli_formatter import render_account_info
+from the_alchemiser.orchestration.cli.cli_utilities import render_account_info
 
 # Delayed import to avoid complex dependency chains during module loading
 # from the_alchemiser.strategy_v2.data.market_data_service import MarketDataService
@@ -112,6 +111,9 @@ def trade(
     export_tracking_json: str | None = typer.Option(
         None, "--export-tracking-json", help="Export tracking summary to JSON file"
     ),
+    json_output: bool = typer.Option(  # noqa: FBT001
+        False, "--json", help="Output results as JSON (for automation)"
+    ),
 ) -> None:
     """💰 [bold green]Execute multi-strategy trading[/bold green].
 
@@ -132,22 +134,23 @@ def trade(
 
     if is_live:
         console.print(
-            f"[bold red]LIVE trading mode active (stage: {stage.upper()}). Proceeding without confirmation.[/bold red]"
+            f"[bold red]LIVE trading mode active (stage: {stage.upper()}). "
+            f"Proceeding without confirmation.[/bold red]"
         )
     else:
         console.print(f"[bold blue]PAPER trading mode active (stage: {stage.upper()}).[/bold blue]")
 
     mode_display = "[bold red]LIVE[/bold red]" if is_live else "[bold blue]PAPER[/bold blue]"
-    console.print(f"[bold yellow]Starting {mode_display} trading...[/bold yellow]")
 
     try:
         # Import and run the main trading logic with DI
         from the_alchemiser.main import main
+        from the_alchemiser.orchestration.cli.clean_formatter import render_trade_result
+        from the_alchemiser.shared.dto.trade_run_result_dto import TradeRunResultDTO
 
-        console.print("[dim]📊 Analyzing market conditions...[/dim]")
-        time.sleep(0.5)  # Brief pause for UI
-
-        console.print("[dim]⚡ Generating strategy signals...[/dim]")
+        # Show minimal progress for non-JSON mode
+        if not json_output:
+            console.print(f"[bold yellow]Starting {mode_display} trading...[/bold yellow]")
 
         # Build argv for main function (no --live flag)
         argv = ["trade"]
@@ -158,15 +161,43 @@ def trade(
 
         result = main(argv=argv)
 
-        console.print("[dim]✅ Trading completed![/dim]")
-
-        if result:
-            console.print(
-                f"\n[bold green]{mode_display} trading completed successfully![/bold green]"
+        # Handle the new DTO result type
+        if isinstance(result, TradeRunResultDTO):
+            # Use clean formatter for both JSON and regular output
+            render_trade_result(
+                result, 
+                json_output=json_output, 
+                verbose=verbose, 
+                console=console
             )
+            
+            # Exit code based on success
+            if not result.success:
+                raise typer.Exit(1)
         else:
-            console.print(f"\n[bold red]{mode_display} trading failed![/bold red]")
-            raise typer.Exit(1)
+            # Legacy boolean result (should not happen)
+            if not json_output:
+                console.print("[dim]✅ Trading completed![/dim]")
+                
+                if result:
+                    console.print(
+                        f"\n[bold green]{mode_display} trading completed successfully![/bold green]"
+                    )
+                else:
+                    console.print(f"\n[bold red]{mode_display} trading failed![/bold red]")
+                    raise typer.Exit(1)
+            else:
+                # Fallback JSON for boolean result
+                import json
+                import sys
+                json.dump({
+                    "status": "SUCCESS" if result else "FAILURE",
+                    "success": bool(result),
+                    "legacy_mode": True
+                }, sys.stdout, indent=2)
+                sys.stdout.write("\n")
+                if not result:
+                    raise typer.Exit(1)
 
     except TradingClientError as e:
         logger = get_logger(__name__)
@@ -249,13 +280,17 @@ def _display_positions(alpaca_manager: AlpacaManager) -> None:
             table.add_column("Unrlzd P&L", justify="right")
 
             for position in positions[:50]:  # Cap display to avoid huge tables
+                unrealized_display = (
+                    f"${float(position.unrealized_pl or 0.0):.2f} "
+                    f"({float(position.unrealized_plpc or 0.0):.2%})"
+                )
                 table.add_row(
                     str(position.symbol),
                     f"{float(position.qty):.4f}",
                     f"${float(position.avg_entry_price):.2f}",
                     f"${float(position.current_price or 0.0):.2f}",
                     f"${float(position.market_value or 0.0):.2f}",
-                    f"${float(position.unrealized_pl or 0.0):.2f} ({float(position.unrealized_plpc or 0.0):.2%})",
+                    unrealized_display,
                 )
 
             console.print()
@@ -451,6 +486,9 @@ def main(
         default=False,
         help="Suppress non-essential output",
     ),
+    json_output: bool = typer.Option(  # noqa: FBT001
+        False, "--json", help="Output results as JSON (for automation)"
+    ),
 ) -> None:
     """[bold]The Alchemiser - Advanced Multi-Strategy Quantitative Trading System[/bold].
 
@@ -466,13 +504,18 @@ def main(
 
     [dim]Use --help with any command for detailed information.[/dim]
     """
-    # Configure logging based on CLI options
+    # Configure logging based on CLI options  
     from the_alchemiser.shared.logging.logging_utils import setup_logging
 
+    # JSON mode implies quiet mode (no Rich formatting, minimal console output)
+    if json_output:
+        quiet = True
+        
     if verbose:
         log_level = logging.DEBUG
         console_level = logging.DEBUG
-        console.print("[dim]Verbose mode enabled[/dim]")
+        if not json_output:  # Only show verbose message for non-JSON output
+            console.print("[dim]Verbose mode enabled[/dim]")
     elif quiet:
         log_level = logging.WARNING
         console_level = logging.ERROR
@@ -492,6 +535,7 @@ def main(
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
     ctx.obj["quiet"] = quiet
+    ctx.obj["json_output"] = json_output
 
 
 if __name__ == "__main__":
