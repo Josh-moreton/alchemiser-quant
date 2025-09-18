@@ -146,7 +146,7 @@ class Executor:
                         execution_strategy=result.execution_strategy,
                     )
                 logger.warning(
-                    f"⚠️ Smart execution failed for {symbol}: {result.error_message}"
+                    f"⚠️ Smart execution failed for {symbol}: {result.error.message if result.error else 'Unknown error'}"
                 )
 
             except Exception as e:
@@ -398,7 +398,7 @@ class Executor:
                 )
             elif not order_result.success:
                 logger.error(
-                    f"❌ SELL {item.symbol} placement failed: {order_result.error_message}"
+                    f"❌ SELL {item.symbol} placement failed: {order_result.error.message if order_result.error else 'Unknown error'}"
                 )
 
         # Monitor and re-peg sell orders that haven't filled and await completion
@@ -488,7 +488,7 @@ class Executor:
                 )
             elif not order_result.success:
                 logger.error(
-                    f"❌ BUY {item.symbol} placement failed: {order_result.error_message}"
+                    f"❌ BUY {item.symbol} placement failed: {order_result.error.message if order_result.error else 'Unknown error'}"
                 )
 
         # Monitor and re-peg buy orders that haven't filled and await completion

@@ -11,6 +11,9 @@ from __future__ import annotations
 
 from typing import Any, Literal, TypedDict
 
+# Import for ErrorDTO
+from the_alchemiser.shared.dto import ErrorDTO
+
 # Order Status Literals - moved here to break circular dependency
 OrderStatusLiteral = Literal[
     "new",
@@ -227,7 +230,7 @@ class DataProviderResult(TypedDict):
 
     success: bool
     data: dict[str, Any] | None
-    error_message: str | None
+    error: ErrorDTO | None
     timestamp: str
 
 

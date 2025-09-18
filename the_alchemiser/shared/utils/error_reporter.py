@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Protocol
 
 from the_alchemiser.shared.dto import ErrorDTO
@@ -70,6 +69,7 @@ class ErrorReporter:
         
         Returns:
             ErrorDTO representing the reported error
+
         """
         # Create ErrorDTO from the exception
         error_dto = ErrorDTO.from_exception(

@@ -238,7 +238,7 @@ class EventDrivenOrchestrator:
             self._send_trading_notification(event, success=True)
         else:
             self.logger.error(
-                f"EventDrivenOrchestrator: Trading workflow monitoring detected failure - {event.error_message}"
+                f"EventDrivenOrchestrator: Trading workflow monitoring detected failure - {event.error.message if event.error else 'Unknown error'}"
             )
 
             # Send failure notification
@@ -289,7 +289,7 @@ class EventDrivenOrchestrator:
                 <p><strong>Timestamp:</strong> {event.timestamp}</p>
                 """
             else:
-                error_message = event.error_message or "Unknown error"
+                error_message = event.error.message if event.error else "Unknown error"
                 html_content = build_error_email_html(
                     "Trading Execution Failed",
                     f"Trading workflow failed: {error_message}",
@@ -350,7 +350,7 @@ class EventDrivenOrchestrator:
             # 3. Emit recovery events
             # 4. Alert system administrators
 
-            self.logger.warning(f"Recovery: Assessing failure - {event.error_message}")
+            self.logger.warning(f"Recovery: Assessing failure - {event.error.message if event.error else 'Unknown error'}")
             self.logger.info("Recovery: Determining corrective actions")
             self.logger.info("Recovery: Preparing system alerts")
 

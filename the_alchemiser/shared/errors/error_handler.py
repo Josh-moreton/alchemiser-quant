@@ -55,7 +55,6 @@ class ErrorNotificationData(TypedDict):
     title: str
     error_report: str
     html_content: str
-    html_content: str
 
 
 # Import exceptions

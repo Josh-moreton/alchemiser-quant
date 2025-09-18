@@ -27,6 +27,7 @@ from typing import TypedDict
 
 from the_alchemiser.execution_v2.utils.liquidity_analysis import LiquidityAnalyzer
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.dto import ErrorDTO
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 from the_alchemiser.shared.types.market_data import QuoteModel
 
@@ -124,7 +125,7 @@ class SmartOrderResult:
     anchor_price: Decimal | None = None
     repegs_used: int = 0
     execution_strategy: str = "smart_limit"
-    error_message: str | None = None
+    error: ErrorDTO | None = None
     placement_timestamp: datetime | None = None
     metadata: LiquidityMetadata | None = None
 
@@ -410,7 +411,12 @@ class SmartExecutionStrategy:
         if not self.should_place_order_now():
             return SmartOrderResult(
                 success=False,
-                error_message="Order delayed due to market timing restrictions",
+                error=ErrorDTO(
+                    error_type="MarketTimingError",
+                    message="Order delayed due to market timing restrictions",
+                    category="trading",
+                    component="SmartExecutionStrategy"
+                ),
                 execution_strategy="smart_limit_delayed",
             )
 
@@ -445,7 +451,13 @@ class SmartExecutionStrategy:
                     return await self._place_market_order_fallback(request)
                 return SmartOrderResult(
                     success=False,
-                    error_message=f"Quote validation failed for {request.symbol}",
+                    error=ErrorDTO(
+                        error_type="QuoteValidationError",
+                        message=f"Quote validation failed for {request.symbol}",
+                        category="trading",
+                        component="SmartExecutionStrategy",
+                        context={"symbol": request.symbol}
+                    ),
                     execution_strategy="smart_limit_failed",
                 )
 
@@ -518,7 +530,13 @@ class SmartExecutionStrategy:
                 )
             return SmartOrderResult(
                 success=False,
-                error_message=result.error or "Limit order placement failed",
+                error=ErrorDTO(
+                    error_type="OrderPlacementError",
+                    message=result.error or "Limit order placement failed",
+                    category="trading",
+                    component="SmartExecutionStrategy",
+                    context={"symbol": request.symbol}
+                ),
                 execution_strategy="smart_limit_failed",
                 placement_timestamp=placement_time,
             )
@@ -527,7 +545,12 @@ class SmartExecutionStrategy:
             logger.error(f"Error in smart order placement for {request.symbol}: {e}")
             return SmartOrderResult(
                 success=False,
-                error_message=str(e),
+                error=ErrorDTO.from_exception(
+                    e,
+                    category="trading",
+                    component="SmartExecutionStrategy",
+                    additional_context={"symbol": request.symbol}
+                ),
                 execution_strategy="smart_limit_error",
             )
         finally:
@@ -566,7 +589,13 @@ class SmartExecutionStrategy:
             )
         return SmartOrderResult(
             success=False,
-            error_message=executed_order.error_message,
+            error=ErrorDTO(
+                error_type="MarketOrderError",
+                message=getattr(executed_order, "error_message", None) or "Market order failed",
+                category="trading",
+                component="SmartExecutionStrategy",
+                context={"symbol": request.symbol, "status": executed_order.status}
+            ),
             execution_strategy="market_fallback_failed",
             placement_timestamp=executed_order.execution_timestamp,
         )
@@ -727,8 +756,13 @@ class SmartExecutionStrategy:
             return SmartOrderResult(
                 success=False,
                 order_id=executed_order.order_id,
-                error_message=getattr(executed_order, "error_message", None)
-                or "Market escalation placement failed",
+                error=ErrorDTO(
+                    error_type="MarketEscalationError", 
+                    message=getattr(executed_order, "error_message", None) or "Market escalation placement failed",
+                    category="trading",
+                    component="SmartExecutionStrategy",
+                    context={"symbol": request.symbol, "status": executed_order.status}
+                ),
                 execution_strategy="market_escalation_failed",
                 placement_timestamp=executed_order.execution_timestamp,
             )
@@ -736,7 +770,12 @@ class SmartExecutionStrategy:
             logger.error(f"❌ Error during market escalation for {order_id}: {exc}")
             return SmartOrderResult(
                 success=False,
-                error_message=str(exc),
+                error=ErrorDTO.from_exception(
+                    exc,
+                    category="trading",
+                    component="SmartExecutionStrategy",
+                    additional_context={"order_id": order_id}
+                ),
                 execution_strategy="market_escalation_error",
             )
 
@@ -842,7 +881,13 @@ class SmartExecutionStrategy:
             logger.error(f"❌ Re-peg failed for {request.symbol}: no order ID returned")
             return SmartOrderResult(
                 success=False,
-                error_message="Re-peg order placement failed",
+                error=ErrorDTO(
+                    error_type="RepegError",
+                    message="Re-peg order placement failed",
+                    category="trading",
+                    component="SmartExecutionStrategy",
+                    context={"symbol": request.symbol}
+                ),
                 execution_strategy="smart_repeg_failed",
                 repegs_used=new_repeg_count,
             )
@@ -851,7 +896,12 @@ class SmartExecutionStrategy:
             logger.error(f"❌ Error during re-peg attempt for {order_id}: {e}")
             return SmartOrderResult(
                 success=False,
-                error_message=str(e),
+                error=ErrorDTO.from_exception(
+                    e,
+                    category="trading",
+                    component="SmartExecutionStrategy",
+                    additional_context={"order_id": order_id}
+                ),
                 execution_strategy="smart_repeg_error",
             )
 

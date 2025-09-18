@@ -936,7 +936,7 @@ class TradingOrchestrator:
                 ),
                 "order_id": order.order_id,
                 "status": "FILLED" if order.success else "FAILED",
-                "error": order.error_message,
+                "error": order.error.model_dump() if order.error else None,
             }
             orders_executed.append(order_dict)
 
@@ -964,7 +964,7 @@ class TradingOrchestrator:
                 )
             else:
                 self.logger.error(
-                    f"❌ {order.action} {order.symbol} FAILED: {order.error_message}"
+                    f"❌ {order.action} {order.symbol} FAILED: {order.error.message if order.error else 'Unknown error'}"
                 )
 
         # Log summary
@@ -1022,7 +1022,7 @@ class TradingOrchestrator:
                                 str(order.trade_amount) if order.trade_amount else "0"
                             ),
                             "success": order.success,
-                            "error_message": order.error_message,
+                            "error": order.error.model_dump() if order.error else None,
                             "order_id": order.order_id,
                         }
                         for order in execution_result.orders

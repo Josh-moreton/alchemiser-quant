@@ -41,7 +41,7 @@ class ExecutionTracker:
             logger.warning(f"  Failed Orders: {result.failure_count}")
             for order in result.orders:
                 if not order.success:
-                    logger.warning(f"    ❌ {order.symbol}: {order.error_message}")
+                    logger.warning(f"    ❌ {order.symbol}: {order.error.message if order.error else 'Unknown error'}")
 
     @staticmethod
     def check_execution_health(result: ExecutionResultDTO) -> None:

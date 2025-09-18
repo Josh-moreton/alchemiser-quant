@@ -731,7 +731,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 completed_at=(
                     executed_order_dto.execution_timestamp if success else None
                 ),
-                error=executed_order_dto.error_message if not success else None,
+                error=executed_order_dto.error.message if not success and executed_order_dto.error else None,
             )
 
         except ValueError as e:
@@ -1229,7 +1229,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             if result.status not in ["REJECTED", "CANCELED"] and result.order_id:
                 return result.order_id
             logger.error(
-                f"Smart sell order failed for {symbol}: {result.error_message}"
+                f"Smart sell order failed for {symbol}: {result.error.message if result.error else 'Unknown error'}"
             )
             return None
 

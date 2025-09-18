@@ -44,6 +44,7 @@ class AlchemiserError(Exception):
             
         Returns:
             ErrorDTO instance representing this error
+
         """
         from the_alchemiser.shared.dto import ErrorDTO
         
