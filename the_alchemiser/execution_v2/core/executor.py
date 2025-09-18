@@ -335,6 +335,7 @@ class Executor:
             orders_succeeded=orders_succeeded,
             total_trade_value=total_trade_value,
             execution_timestamp=datetime.now(UTC),
+            metadata={"stale_orders_cancelled": stale_result["cancelled_count"]},
         )
 
         logger.info(
