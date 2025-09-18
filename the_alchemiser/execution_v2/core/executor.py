@@ -72,8 +72,12 @@ class Executor:
             try:
                 logger.info("🚀 Initializing smart execution with real-time pricing...")
 
-                # Create pricing service with proper credentials
-                self.pricing_service = RealTimePricingService()
+                # Create pricing service with proper credentials from alpaca_manager
+                self.pricing_service = RealTimePricingService(
+                    api_key=alpaca_manager.api_key,
+                    secret_key=alpaca_manager.secret_key,
+                    paper_trading=alpaca_manager.is_paper_trading,
+                )
 
                 # Start the pricing service
                 if self.pricing_service.start():
