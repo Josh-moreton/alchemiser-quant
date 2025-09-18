@@ -14,10 +14,18 @@ Contains:
 
 from __future__ import annotations
 
-# Conditional imports to handle missing dependencies
+# Import AlpacaManager for backward compatibility
+# Note: This may show deprecation warnings when instantiated
 try:
     from .alpaca_manager import AlpacaManager, create_alpaca_manager
+    _alpaca_available = True
+except ImportError as e:
+    # Handle cases where dependencies are not available
+    _alpaca_available = False
+    AlpacaManager = None  # type: ignore[misc,assignment]
+    create_alpaca_manager = None  # type: ignore[misc,assignment]
+
+if _alpaca_available:
     __all__ = ["AlpacaManager", "create_alpaca_manager"]
-except ImportError:
-    # Handle cases where alpaca SDK is not available
+else:
     __all__ = []
