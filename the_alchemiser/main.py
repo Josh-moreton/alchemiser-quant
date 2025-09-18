@@ -406,7 +406,11 @@ class TradingSystem:
         """Display stale order cancellation information."""
         try:
             execution_result = trading_result.get("execution_result")
-            if execution_result and hasattr(execution_result, "metadata") and execution_result.metadata:
+            if (
+                execution_result
+                and hasattr(execution_result, "metadata")
+                and execution_result.metadata
+            ):
                 stale_count = execution_result.metadata.get("stale_orders_cancelled", 0)
                 if stale_count > 0:
                     print(f"🗑️ Cancelled {stale_count} stale order(s)")
