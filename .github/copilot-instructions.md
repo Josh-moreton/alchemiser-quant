@@ -13,10 +13,8 @@ CORE ENFORCED RULES:
          - execution – broker API integrations, order placement, error handling
          - orchestration – cross-module workflow coordination and business process orchestration
          - shared – DTOs, utilities, logging, cross-cutting concerns
-5. Keep BUSINESS_UNITS_REPORT.md consistent when adding/removing files.
-6. No legacy fallbacks: never reintroduce removed legacy providers or silent downgrade paths.
-
-7. Event-driven reliability: all event producers and consumers MUST be idempotent and include
+5. No legacy fallbacks: never reintroduce removed legacy providers or silent downgrade paths.
+6. Event-driven reliability: all event producers and consumers MUST be idempotent and include
      correlation IDs; handlers must be safe under at-least-once delivery and tolerate reordering.
 
 -------------------------------------------------------------------------------
