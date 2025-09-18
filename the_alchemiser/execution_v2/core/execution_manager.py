@@ -59,7 +59,7 @@ class ExecutionManager:
         # Initialize TradingStream asynchronously in background - don't block on connection
         # This starts the WebSocket connection process early without waiting for completion
         import threading
-        
+
         def start_trading_stream_async() -> None:
             """Start TradingStream in background without blocking main execution."""
             try:
@@ -70,9 +70,7 @@ class ExecutionManager:
 
         # Start TradingStream initialization in a separate thread so it doesn't block execution
         stream_init_thread = threading.Thread(
-            target=start_trading_stream_async,
-            name="TradingStreamInit",
-            daemon=True
+            target=start_trading_stream_async, name="TradingStreamInit", daemon=True
         )
         stream_init_thread.start()
         logger.info("✅ TradingStream initialization started in background")
