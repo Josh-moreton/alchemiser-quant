@@ -26,10 +26,10 @@ The original AlpacaManager is maintained as a facade for backward compatibility.
 
 from __future__ import annotations
 
-# Re-export the main AlpacaManager facade for backward compatibility
-from ..alpaca_manager import AlpacaManager, create_alpaca_manager
+# The facade import is handled in the parent package to manage dependencies
+# Individual modules can be imported directly for new code:
+# from .config import AlpacaConfig
+# from .client import AlpacaClient
+# etc.
 
-__all__ = [
-    "AlpacaManager",
-    "create_alpaca_manager",
-]
+__all__ = []

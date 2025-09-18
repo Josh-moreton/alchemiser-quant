@@ -278,9 +278,14 @@ class StreamingManager:
         
         This is a placeholder that would need the order manager to check status.
         In the full implementation, this would be injected as a dependency.
+        
+        Args:
+            order_ids: List of order IDs to check
+            completed_orders: List to append completed order IDs to
         """
         # This method would need access to an order manager to check status
         # For now, it's a placeholder for the polling fallback functionality
+        # In a production implementation, this would be injected or use a service locator
         pass
 
     def get_order_status(self, order_id: str) -> str | None:

@@ -9,10 +9,15 @@ to specific broker implementations.
 Contains:
 - AlpacaManager: Primary broker integration (moved from execution module)
 - alpaca_utils: Utility functions for Alpaca integration
+- alpaca: Modular Alpaca implementation package
 """
 
 from __future__ import annotations
 
-from .alpaca_manager import AlpacaManager, create_alpaca_manager
-
-__all__ = ["AlpacaManager", "create_alpaca_manager"]
+# Conditional imports to handle missing dependencies
+try:
+    from .alpaca_manager import AlpacaManager, create_alpaca_manager
+    __all__ = ["AlpacaManager", "create_alpaca_manager"]
+except ImportError:
+    # Handle cases where alpaca SDK is not available
+    __all__ = []

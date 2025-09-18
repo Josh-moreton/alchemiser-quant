@@ -38,12 +38,6 @@ class MarketDataManager:
         """Get current price for a symbol.
 
         Returns the mid price between bid and ask, or None if not available.
-        Uses centralized price discovery utility for consistent calculation.
-
-        TODO: Consider migrating callers to use structured pricing types:
-        - RealTimePricingService.get_quote_data() for bid/ask spreads with market depth
-        - RealTimePricingService.get_price_data() for volume and enhanced trade data
-        - Enhanced price discovery with QuoteModel and PriceDataModel
         
         Args:
             symbol: Symbol to get price for
@@ -55,13 +49,17 @@ class MarketDataManager:
             AlpacaDataError: If operation fails
         """
         try:
-            # Import here to avoid circular dependency
-            from the_alchemiser.shared.utils.price_discovery_utils import (
-                get_current_price_from_quote,
-            )
-            
-            # Use price discovery utility with self as the manager
-            return get_current_price_from_quote(self._get_manager_for_price_discovery(), symbol)
+            quote_data = self.get_latest_quote(symbol)
+            if quote_data:
+                bid, ask = quote_data
+                # Calculate mid price or use available price
+                if bid > 0 and ask > 0:
+                    return (bid + ask) / 2.0
+                elif bid > 0:
+                    return bid
+                elif ask > 0:
+                    return ask
+            return None
         except Exception as e:
             logger.error(f"Failed to get current price for {symbol}: {e}")
             raise normalize_alpaca_error(e, f"Get current price for {symbol}") from e
@@ -299,22 +297,6 @@ class MarketDataManager:
                 continue
         
         return result
-
-    def _get_manager_for_price_discovery(self) -> Any:
-        """Get a manager object compatible with price discovery utils.
-        
-        This creates a wrapper that provides the expected interface for
-        the price discovery utility functions.
-        """
-        # Create a simple wrapper that provides the get_latest_quote method
-        class ManagerWrapper:
-            def __init__(self, market_data_manager: MarketDataManager) -> None:
-                self._manager = market_data_manager
-            
-            def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
-                return self._manager.get_latest_quote(symbol)
-        
-        return ManagerWrapper(self)
 
     def _safe_decimal(self, value: Any) -> Any:
         """Safely convert value to Decimal.
