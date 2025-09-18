@@ -223,6 +223,19 @@ class Executor:
             "(enhanced settlement-aware)"
         )
 
+        # Cancel any stale orders to free up buying power
+        stale_timeout_minutes = 30  # Default timeout
+        if self.execution_config:
+            stale_timeout_minutes = self.execution_config.stale_order_timeout_minutes
+            
+        logger.info(f"🧹 Checking for stale orders (older than {stale_timeout_minutes} minutes)...")
+        stale_result = self.alpaca_manager.cancel_stale_orders(stale_timeout_minutes)
+        
+        if stale_result["cancelled_count"] > 0:
+            logger.info(f"🗑️ Cancelled {stale_result['cancelled_count']} stale orders")
+        if stale_result["errors"]:
+            logger.warning(f"⚠️ Errors during stale order cancellation: {stale_result['errors']}")
+
         # Extract all symbols upfront for bulk subscription
         all_symbols = self._extract_all_symbols(plan)
 
