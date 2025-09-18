@@ -233,8 +233,34 @@ class Executor:
                     "(enhanced settlement-aware with async coordination)"
                 )
 
-                # Extract all symbols upfront for bulk subscription
-                all_symbols = self._extract_all_symbols(plan)
+        # DEBUG: Add explicit debug logging
+        logger.info("🔧 DEBUG: About to check for stale orders...")
+
+        # Cancel any stale orders to free up buying power
+        stale_timeout_minutes = 30  # Default timeout
+        if self.execution_config:
+            stale_timeout_minutes = self.execution_config.stale_order_timeout_minutes
+            logger.info(
+                f"🔧 DEBUG: Using execution_config timeout: {stale_timeout_minutes}"
+            )
+        else:
+            logger.info("🔧 DEBUG: No execution_config found, using default timeout")
+
+        logger.info(
+            f"🧹 Checking for stale orders (older than {stale_timeout_minutes} minutes)..."
+        )
+        stale_result = self.alpaca_manager.cancel_stale_orders(stale_timeout_minutes)
+        logger.info(f"🔧 DEBUG: Stale order result: {stale_result}")
+
+        if stale_result["cancelled_count"] > 0:
+            logger.info(f"🗑️ Cancelled {stale_result['cancelled_count']} stale orders")
+        if stale_result["errors"]:
+            logger.warning(
+                f"⚠️ Errors during stale order cancellation: {stale_result['errors']}"
+            )
+
+        # Extract all symbols upfront for bulk subscription
+        all_symbols = self._extract_all_symbols(plan)
 
                 # Bulk subscribe to all symbols for efficient pricing
                 self._bulk_subscribe_symbols(all_symbols)
@@ -274,7 +300,7 @@ class Executor:
                             for order in sell_orders
                             if order.success and order.order_id
                         ]
-                        
+
                     except Exception as e:
                         logger.error(f"❌ Error in sell phase: {e}", exc_info=True)
                         # Continue with execution even if sell phase partially fails
@@ -295,7 +321,7 @@ class Executor:
                         orders_placed += buy_stats["placed"]
                         orders_succeeded += buy_stats["succeeded"]
                         total_trade_value += buy_stats["trade_value"]
-                        
+
                     except Exception as e:
                         logger.error(f"❌ Error in buy phase with settlement monitoring: {e}", exc_info=True)
 
@@ -311,7 +337,7 @@ class Executor:
                         orders_placed += buy_stats["placed"]
                         orders_succeeded += buy_stats["succeeded"]
                         total_trade_value += buy_stats["trade_value"]
-                        
+
                     except Exception as e:
                         logger.error(f"❌ Error in buy phase: {e}", exc_info=True)
 
@@ -325,17 +351,18 @@ class Executor:
                 except Exception as e:
                     logger.error(f"❌ Error cleaning up subscriptions: {e}", exc_info=True)
 
-                # Create execution result
-                execution_result = ExecutionResultDTO(
-                    success=orders_succeeded == orders_placed and orders_placed > 0,
-                    plan_id=plan.plan_id,
-                    correlation_id=plan.correlation_id,
-                    orders=orders,
-                    orders_placed=orders_placed,
-                    orders_succeeded=orders_succeeded,
-                    total_trade_value=total_trade_value,
-                    execution_timestamp=datetime.now(UTC),
-                )
+        # Create execution result
+        execution_result = ExecutionResultDTO(
+            success=orders_succeeded == orders_placed and orders_placed > 0,
+            plan_id=plan.plan_id,
+            correlation_id=plan.correlation_id,
+            orders=orders,
+            orders_placed=orders_placed,
+            orders_succeeded=orders_succeeded,
+            total_trade_value=total_trade_value,
+            execution_timestamp=datetime.now(UTC),
+            metadata={"stale_orders_cancelled": stale_result["cancelled_count"]},
+        )
 
                 logger.info(
                     f"✅ Rebalance plan {plan.plan_id} completed: "
@@ -343,7 +370,7 @@ class Executor:
                 )
 
                 return execution_result
-                
+
             except Exception as e:
                 logger.error(f"❌ Critical error in rebalance execution: {e}", exc_info=True)
                 # Return a failed execution result
@@ -583,8 +610,12 @@ class Executor:
         try:
             if self.execution_config is not None:
                 max_repegs = getattr(self.execution_config, "max_repegs_per_order", 5)
-                fill_wait_seconds = int(getattr(self.execution_config, "fill_wait_seconds", 15))
-                wait_between_checks = max(1, min(fill_wait_seconds // 5, 5))  # Check 5x per fill_wait period
+                fill_wait_seconds = int(
+                    getattr(self.execution_config, "fill_wait_seconds", 15)
+                )
+                wait_between_checks = max(
+                    1, min(fill_wait_seconds // 5, 5)
+                )  # Check 5x per fill_wait period
                 placement_timeout = int(
                     getattr(
                         self.execution_config, "order_placement_timeout_seconds", 30
@@ -592,12 +623,16 @@ class Executor:
                 )
                 # Fix: Use fill_wait_seconds for total time calculation, not wait_between_checks
                 max_total_wait = int(
-                    placement_timeout + fill_wait_seconds * (max_repegs + 1) + 30  # +30s safety margin
+                    placement_timeout
+                    + fill_wait_seconds * (max_repegs + 1)
+                    + 30  # +30s safety margin
                 )
-                max_total_wait = max(60, min(max_total_wait, 600))  # Increased max to 10 minutes
+                max_total_wait = max(
+                    60, min(max_total_wait, 600)
+                )  # Increased max to 10 minutes
         except Exception as exc:
             logger.debug(f"Error deriving re-peg loop bounds: {exc}")
-        
+
         logger.info(
             f"📊 {phase_type} re-peg monitoring: max_repegs={max_repegs}, "
             f"fill_wait_seconds={fill_wait_seconds}, max_total_wait={max_total_wait}s"
@@ -606,10 +641,10 @@ class Executor:
         start_time = time.time()
         attempts = 0
         last_repeg_action_time = start_time
-        
+
         while (time.time() - start_time) < max_total_wait:
             elapsed_total = time.time() - start_time
-            
+
             # Give existing orders time to fill before checking
             await asyncio.sleep(wait_between_checks)
 
@@ -617,39 +652,57 @@ class Executor:
 
             if repeg_results:
                 last_repeg_action_time = time.time()
-                escalations = sum(1 for r in repeg_results if "escalation" in getattr(r, "execution_strategy", ""))
-                repegs = sum(1 for r in repeg_results if "repeg" in getattr(r, "execution_strategy", ""))
-                
+                escalations = sum(
+                    1
+                    for r in repeg_results
+                    if "escalation" in getattr(r, "execution_strategy", "")
+                )
+                repegs = sum(
+                    1
+                    for r in repeg_results
+                    if "repeg" in getattr(r, "execution_strategy", "")
+                )
+
                 logger.info(
                     f"📊 {phase_type} phase: {len(repeg_results)} orders processed "
                     f"(repegs: {repegs}, escalations: {escalations}) at {elapsed_total:.1f}s"
                 )
-                
+
                 # Log escalations prominently
                 if escalations > 0:
-                    logger.info(f"🚨 {phase_type} phase: {escalations} orders ESCALATED TO MARKET")
-                
+                    logger.info(
+                        f"🚨 {phase_type} phase: {escalations} orders ESCALATED TO MARKET"
+                    )
+
                 replacement_map = self._build_replacement_map_from_repeg_results(
                     phase_type, repeg_results
                 )
                 if replacement_map:
                     orders = self._replace_order_ids(orders, replacement_map)
-                    logger.info(f"📊 {phase_type} phase: {len(replacement_map)} order IDs replaced")
+                    logger.info(
+                        f"📊 {phase_type} phase: {len(replacement_map)} order IDs replaced"
+                    )
             else:
                 # Enhanced logging to show why no re-pegging occurred
-                active_orders = self.smart_strategy.get_active_order_count() if self.smart_strategy else 0
+                active_orders = (
+                    self.smart_strategy.get_active_order_count()
+                    if self.smart_strategy
+                    else 0
+                )
                 logger.debug(
                     f"📊 {phase_type} phase: No re-pegging needed "
                     f"(attempt {attempts + 1}, {elapsed_total:.1f}s elapsed, {active_orders} active orders)"
                 )
 
             attempts += 1
-            
+
             # Break early if we haven't had any re-peg activity for a while and no active orders
             time_since_last_action = time.time() - last_repeg_action_time
-            if (time_since_last_action > fill_wait_seconds * 2 and 
-                self.smart_strategy and 
-                self.smart_strategy.get_active_order_count() == 0):
+            if (
+                time_since_last_action > fill_wait_seconds * 2
+                and self.smart_strategy
+                and self.smart_strategy.get_active_order_count() == 0
+            ):
                 logger.info(
                     f"📊 {phase_type} phase: No active orders remaining, ending monitoring early "
                     f"(after {elapsed_total:.1f}s)"
@@ -933,13 +986,17 @@ class Executor:
         """Compute a conservative max wait time for order fills from config."""
         try:
             if self.execution_config is not None:
-                fill_wait_seconds = getattr(self.execution_config, "fill_wait_seconds", 15)
+                fill_wait_seconds = getattr(
+                    self.execution_config, "fill_wait_seconds", 15
+                )
                 max_repegs = getattr(self.execution_config, "max_repegs_per_order", 5)
                 placement_timeout = getattr(
                     self.execution_config, "order_placement_timeout_seconds", 30
                 )
                 # Fix: Use fill_wait_seconds for calculation, not wait_base
-                max_wait = int(placement_timeout + fill_wait_seconds * (max_repegs + 1) + 30)
+                max_wait = int(
+                    placement_timeout + fill_wait_seconds * (max_repegs + 1) + 30
+                )
                 return max(60, min(max_wait, 600))  # Increased max to 10 minutes
         except Exception as exc:
             logger.debug(f"Using default max wait due to config error: {exc}")

@@ -73,6 +73,8 @@ def _format_money(value: float | int | Decimal | str | MoneyLike) -> str:
 
     # Fallback to float conversion
     try:
+        if not isinstance(value, (int, float, str, Decimal)):
+            return str(value)
         float_val = float(value)
         return f"${float_val:,.2f}"
     except (ValueError, TypeError):
@@ -148,7 +150,7 @@ def render_account_info(
 
             pl_color = "green" if recent_pl >= 0 else "red"
             pl_sign = "+" if recent_pl > 0 else ""
-            
+
             content_lines.append(
                 f"[bold {pl_color}]Daily P&L:[/bold {pl_color}] "
                 f"[{pl_color}]{pl_sign}{_format_money(recent_pl)} ({pl_sign}{recent_pl_pct:.2%})[/{pl_color}]"
@@ -166,8 +168,8 @@ def render_account_info(
         positions_table.add_column("Market Value", style="green", justify="right")
         positions_table.add_column("Unrealized P&L", style="white", justify="right")
 
-        total_market_value = 0
-        total_unrealized_pl = 0
+        total_market_value: float = 0.0
+        total_unrealized_pl: float = 0.0
 
         for position in open_positions:
             symbol = position.get("symbol", "N/A")

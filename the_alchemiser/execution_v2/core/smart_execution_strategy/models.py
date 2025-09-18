@@ -53,9 +53,7 @@ class ExecutionConfig:
     market_open_delay_minutes: int = 5  # Wait 5 minutes after 9:30am ET
 
     # Spread limits
-    max_spread_percent: Decimal = Decimal(
-        "0.50"
-    )  # 0.50% maximum spread (increased from 0.25%)
+    max_spread_percent: Decimal = Decimal("0.50")  # 0.50% maximum spread (increased from 0.25%)
 
     # Re-pegging configuration
     repeg_threshold_percent: Decimal = Decimal("0.10")  # Re-peg if market moves >0.1%
@@ -63,15 +61,14 @@ class ExecutionConfig:
 
     # Volume requirements - ADJUSTED FOR LOW LIQUIDITY ETFS
     min_bid_ask_size: Decimal = Decimal("10")  # Reduced from 100 to 10 shares minimum
-    min_bid_ask_size_high_liquidity: Decimal = Decimal(
-        "100"
-    )  # For liquid stocks like SPY
+    min_bid_ask_size_high_liquidity: Decimal = Decimal("100")  # For liquid stocks like SPY
 
     # Order timing
     quote_freshness_seconds: int = 5  # Require quote within 5 seconds
     order_placement_timeout_seconds: int = 30  # Timeout for order placement
     fill_wait_seconds: int = 15  # Wait time before attempting re-peg
     max_wait_time_seconds: int = 30  # Maximum wait time for quote data
+    stale_order_timeout_minutes: int = 1  # Cancel orders older than this many minutes
 
     # Anchoring offsets (in cents)
     bid_anchor_offset_cents: Decimal = Decimal("0.01")  # Place at bid + $0.01 for buys

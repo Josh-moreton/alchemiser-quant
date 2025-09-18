@@ -26,7 +26,7 @@ class CleanCliFormatter:
 
     def __init__(self, console: Console | None = None, *, verbose: bool = False) -> None:
         """Initialize formatter.
-        
+
         Args:
             console: Rich console instance (creates new if None)
             verbose: Whether to show verbose output
@@ -48,7 +48,7 @@ class CleanCliFormatter:
 
     def render_result(self, result: TradeRunResultDTO) -> None:
         """Render trading execution result in clean format.
-        
+
         Args:
             result: Trade execution result DTO
 
@@ -70,8 +70,7 @@ class CleanCliFormatter:
             )
         else:
             self.console.print(
-                "[bold]Execution summary:[/bold] No orders executed "
-                "(portfolio already balanced)"
+                "[bold]Execution summary:[/bold] No orders executed (portfolio already balanced)"
             )
 
         # Verbose details
@@ -89,11 +88,7 @@ class CleanCliFormatter:
 
     def _get_status_color(self, status: str) -> str:
         """Get color for status."""
-        color_map = {
-            "SUCCESS": "green",
-            "PARTIAL": "yellow", 
-            "FAILURE": "red"
-        }
+        color_map = {"SUCCESS": "green", "PARTIAL": "yellow", "FAILURE": "red"}
         return color_map.get(status, "white")
 
     def _render_order_details(self, orders: list[Any]) -> None:
@@ -117,7 +112,7 @@ class CleanCliFormatter:
 
             # Status with color
             status_text = "✅ SUCCESS" if order.success else "❌ FAILED"
-            
+
             # Price display
             price_display = f"${order.price:.2f}" if order.price else "—"
 
@@ -128,7 +123,7 @@ class CleanCliFormatter:
                 f"${order.trade_amount:,.2f}",
                 price_display,
                 order_id_display,
-                status_text
+                status_text,
             )
 
         self.console.print()
@@ -142,28 +137,25 @@ class CleanCliFormatter:
         self.console.print()
         warning_text = Text("Warnings:")
         warning_text.stylize("bold yellow")
-        
+
         for warning in warnings:
             warning_text.append(f"\n  • {warning}")
-        
+
         panel = Panel(
-            warning_text,
-            border_style="yellow",
-            title="⚠️  Non-Critical Issues",
-            title_align="left"
+            warning_text, border_style="yellow", title="⚠️  Non-Critical Issues", title_align="left"
         )
         self.console.print(panel)
 
 
 def render_trade_result(
-    result: TradeRunResultDTO, 
+    result: TradeRunResultDTO,
     *,
     json_output: bool = False,
     verbose: bool = False,
-    console: Console | None = None
+    console: Console | None = None,
 ) -> None:
     """Render trade result with appropriate formatting.
-    
+
     Args:
         result: Trade execution result
         json_output: Whether to output JSON instead of rich formatting

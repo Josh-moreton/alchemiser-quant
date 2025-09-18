@@ -43,7 +43,7 @@ from the_alchemiser.shared.dto.trade_run_result_dto import (
 
 class ConfigurationDTO(BaseModel):
     """Placeholder for configuration data transfer.
-    
+
     Proper Pydantic v2 DTO to replace placeholder class.
     Will be enhanced with specific config fields in Phase 2.
     """
@@ -55,14 +55,14 @@ class ConfigurationDTO(BaseModel):
     )
 
     config_data: dict[str, Any] = Field(
-        default_factory=dict, 
-        description="Configuration data (flexible for Phase 1 scaffolding)"
+        default_factory=dict,
+        description="Configuration data (flexible for Phase 1 scaffolding)",
     )
 
 
 class ErrorDTO(BaseModel):
     """Placeholder for error data transfer.
-    
+
     Proper Pydantic v2 DTO to replace placeholder class.
     Will be enhanced with specific error fields in Phase 2.
     """
@@ -75,10 +75,7 @@ class ErrorDTO(BaseModel):
 
     error_type: str = Field(description="Type of error")
     message: str = Field(description="Error message")
-    context: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Error context data"
-    )
+    context: dict[str, Any] = Field(default_factory=dict, description="Error context data")
 
 
 __all__ = [
@@ -88,10 +85,12 @@ __all__ = [
     # Implemented DTOs
     "ExecutedOrderDTO",
     "ExecutionReportDTO",
+    "ExecutionSummaryDTO",
     "LambdaEventDTO",
     "MarketBarDTO",
     "MarketDataDTO",
     "OrderRequestDTO",
+    "OrderResultSummaryDTO",
     "PortfolioMetricsDTO",
     "PortfolioStateDTO",
     "PositionDTO",
@@ -100,8 +99,5 @@ __all__ = [
     "StrategyAllocationDTO",
     "StrategySignalDTO",
     "TechnicalIndicatorDTO",
-    # Trade execution result DTOs
-    "ExecutionSummaryDTO",
-    "OrderResultSummaryDTO",
     "TradeRunResultDTO",
 ]
