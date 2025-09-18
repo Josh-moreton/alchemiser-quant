@@ -15,27 +15,13 @@ Globals:
         # Logging
         LOGGING__LEVEL: INFO
 
-        # Note: Alpaca credentials loaded from AWS Secrets Manager at runtime
-
-        # Alpaca Configuration
+        # Alpaca Configuration (LIVE trading in Lambda)
         ALPACA__ENDPOINT: https://api.alpaca.markets
-        ALPACA__PAPER_ENDPOINT: https://paper-api.alpaca.markets/v2
-        ALPACA__CASH_RESERVE_PCT: 0.05
-        ALPACA__SLIPPAGE_BPS: 5
-        ALPACA__ENABLE_WEBSOCKET_ORDERS: true
+        ALPACA__CASH_RESERVE_PCT: 0.02
 
-        # AWS Configuration
-        AWS__ACCOUNT_ID: 211125653762
-        AWS__REGION: us-east-1
-
-        # Alerts
-        ALERTS__ALERT_CONFIG_S3: s3://the-alchemiser-v2-s3/alert_config.json
-        ALERTS__COOLDOWN_MINUTES: 30
-
-        # Secrets Manager
+        # Secrets Manager (credentials loaded at runtime)
         SECRETS_MANAGER__REGION_NAME: us-east-1
         SECRETS_MANAGER__SECRET_NAME: the-alchemiser-v2-secrets
-
 
         # Email Configuration
         EMAIL__SMTP_SERVER: smtp.mail.me.com
@@ -43,17 +29,6 @@ Globals:
         EMAIL__FROM_EMAIL: josh@rwxt.org
         EMAIL__TO_EMAIL: josh@rwxt.org
         EMAIL__NEUTRAL_MODE: true
-
-        # Data Configuration
-        DATA__CACHE_DURATION: 300
-        DATA__DEFAULT_SYMBOL: AAPL
-
-        # Tracking Configuration
-        TRACKING__S3_BUCKET: the-alchemiser-v2-s3
-        TRACKING__STRATEGY_ORDERS_PATH: strategy_orders/
-        TRACKING__STRATEGY_POSITIONS_PATH: strategy_positions/
-        TRACKING__STRATEGY_PNL_HISTORY_PATH: strategy_pnl_history/
-        TRACKING__ORDER_HISTORY_LIMIT: 1000
 
 Resources:
   # Lambda Layer for dependencies

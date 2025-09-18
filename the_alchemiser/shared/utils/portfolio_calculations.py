@@ -13,6 +13,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.shared.config.config import load_settings
+
 
 def build_allocation_comparison(
     consolidated_portfolio: dict[str, float],
@@ -51,10 +53,12 @@ def build_allocation_comparison(
     # Convert portfolio_value to Decimal for precise calculations
     portfolio_value_decimal = Decimal(str(portfolio_value))
 
-    # Apply 95% reduction to avoid buying power issues with broker constraints
+    # Apply cash reserve to avoid buying power issues with broker constraints
     # This ensures we don't try to use 100% of portfolio value which can
     # exceed available buying power
-    effective_portfolio_value = portfolio_value_decimal * Decimal("0.95")
+    settings = load_settings()
+    usage_multiplier = Decimal(str(1.0 - settings.alpaca.cash_reserve_pct))
+    effective_portfolio_value = portfolio_value_decimal * usage_multiplier
 
     # Calculate target values in dollars using effective portfolio value
     target_values = {}

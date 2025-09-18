@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 
 """Typed configuration loader for The Alchemiser."""
 
@@ -22,7 +26,7 @@ class AlpacaSettings(BaseModel):
     endpoint: str = "https://api.alpaca.markets"
     paper_endpoint: str = "https://paper-api.alpaca.markets/v2"
     paper_trading: bool = True
-    cash_reserve_pct: float = 0.05
+    cash_reserve_pct: float = 0.02  # 2% cash reserve to avoid buying power issues
     slippage_bps: int = 5
     enable_websocket_orders: bool = True
     # Credentials - typically loaded from .env file or environment variables

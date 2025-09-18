@@ -12,9 +12,13 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO, RebalancePlanItemDTO
+from the_alchemiser.shared.dto.rebalance_plan_dto import (
+    RebalancePlanDTO,
+    RebalancePlanItemDTO,
+)
 from the_alchemiser.shared.logging.logging_utils import log_with_context
 from the_alchemiser.shared.types.exceptions import PortfolioError
+from the_alchemiser.shared.config.config import load_settings
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
@@ -38,7 +42,10 @@ class RebalancePlanCalculator:
         """Initialize calculator."""
 
     def build_plan(
-        self, strategy: StrategyAllocationDTO, snapshot: PortfolioSnapshot, correlation_id: str
+        self,
+        strategy: StrategyAllocationDTO,
+        snapshot: PortfolioSnapshot,
+        correlation_id: str,
     ) -> RebalancePlanDTO:
         """Build rebalance plan from strategy allocation and portfolio snapshot.
 
@@ -168,7 +175,10 @@ class RebalancePlanCalculator:
         return snapshot.total_value
 
     def _calculate_dollar_values(
-        self, strategy: StrategyAllocationDTO, snapshot: PortfolioSnapshot, portfolio_value: Decimal
+        self,
+        strategy: StrategyAllocationDTO,
+        snapshot: PortfolioSnapshot,
+        portfolio_value: Decimal,
     ) -> tuple[dict[str, Decimal], dict[str, Decimal]]:
         """Calculate target and current dollar values for all symbols.
 
@@ -185,12 +195,16 @@ class RebalancePlanCalculator:
         current_values = {}
 
         # Get all symbols we need to consider
-        all_symbols = set(strategy.target_weights.keys()) | set(snapshot.positions.keys())
+        all_symbols = set(strategy.target_weights.keys()) | set(
+            snapshot.positions.keys()
+        )
 
-        # Apply 95% reduction to avoid buying power issues with broker constraints
+        # Apply cash reserve to avoid buying power issues with broker constraints
         # This ensures we don't try to use 100% of portfolio value which can
         # exceed available buying power
-        effective_portfolio_value = portfolio_value * Decimal("0.95")
+        settings = load_settings()
+        usage_multiplier = Decimal(str(1.0 - settings.alpaca.cash_reserve_pct))
+        effective_portfolio_value = portfolio_value * usage_multiplier
 
         for symbol in all_symbols:
             # Calculate target value using effective portfolio value
