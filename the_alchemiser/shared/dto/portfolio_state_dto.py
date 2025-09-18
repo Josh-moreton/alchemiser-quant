@@ -128,8 +128,9 @@ class PortfolioStateDTO(BaseModel):
     last_rebalance_time: datetime | None = Field(
         default=None, description="Last rebalancing timestamp"
     )
-    metadata: dict[str, Any] | None = Field(
-        default=None, description="Additional portfolio metadata"
+    # Optional metadata (JSON passthrough only)
+    metadata: dict[str, str | int | bool | None] | None = Field(
+        default=None, description="Additional portfolio metadata (JSON-serializable types only)"
     )
 
     @field_validator("timestamp", "last_rebalance_time")

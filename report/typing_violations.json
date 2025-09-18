@@ -1,0 +1,3796 @@
+{
+  "summary": {
+    "total_violations": 301,
+    "files_analyzed": 182,
+    "lines_analyzed": 35245,
+    "violations_by_severity": {
+      "MEDIUM": 287,
+      "HIGH": 14
+    },
+    "violations_by_type": {
+      "ANN401_PARAM": 154,
+      "ANN401_RETURN": 87,
+      "INCORRECT_NAMING_PATTERN": 18,
+      "MISSING_DTO_SUFFIX": 28,
+      "ANN401_DTO_FIELD": 13,
+      "FORBIDDEN_CROSS_MODULE_IMPORT": 1
+    }
+  },
+  "violations": [
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/main.py",
+      "line": 276,
+      "column": 45,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'result'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'result'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/main.py",
+      "line": 302,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/main.py",
+      "line": 304,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'account_info'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'account_info'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/main.py",
+      "line": 305,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'current_positions'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'current_positions'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/main.py",
+      "line": 307,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'open_orders'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]] | None",
+        "context": "parameter 'open_orders'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/main.py",
+      "line": 328,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'orders_executed'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]]",
+        "context": "parameter 'orders_executed'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/lambda_handler.py",
+      "line": 170,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'event'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "LambdaEventDTO | dict[str, Any]",
+        "context": "parameter 'event'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/lambda_handler.py",
+      "line": 191,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 86,
+      "column": 28,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'account_info'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | object",
+        "context": "parameter 'account_info'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 109,
+      "column": 26,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'current_positions'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[Any]",
+        "context": "parameter 'current_positions'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 179,
+      "column": 40,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'account_raw'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | object",
+        "context": "parameter 'account_raw'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 179,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 216,
+      "column": 43,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'positions_list'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[Any]",
+        "context": "parameter 'positions_list'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 216,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, dict[str, Any]]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 240,
+      "column": 28,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'orders_list'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[Any]",
+        "context": "parameter 'orders_list'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 240,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 284,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 325,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 493,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 589,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 589,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_comprehensive_account_data' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 618,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 650,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, dict[str, Any]]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 671,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/portfolio_orchestrator.py",
+      "line": 777,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/trading_orchestrator.py",
+      "line": 345,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/trading_orchestrator.py",
+      "line": 516,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/trading_orchestrator.py",
+      "line": 608,
+      "column": 40,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'result'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'result'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/trading_orchestrator.py",
+      "line": 709,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/trading_orchestrator.py",
+      "line": 744,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'account_info'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'account_info'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/trading_orchestrator.py",
+      "line": 788,
+      "column": 39,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'account_info'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'account_info'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/trading_orchestrator.py",
+      "line": 901,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/trading_orchestrator.py",
+      "line": 1072,
+      "column": 14,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'execution_plan'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'execution_plan'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/event_driven_orchestrator.py",
+      "line": 365,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/event_driven_orchestrator.py",
+      "line": 365,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_workflow_status' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/signal_orchestrator.py",
+      "line": 54,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "tuple[dict[str, Any], ConsolidatedPortfolioDTO]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/signal_orchestrator.py",
+      "line": 87,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/signal_orchestrator.py",
+      "line": 166,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/signal_orchestrator.py",
+      "line": 207,
+      "column": 14,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/signal_orchestrator.py",
+      "line": 285,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "tuple[dict[str, Any], dict[str, float]] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/signal_orchestrator.py",
+      "line": 328,
+      "column": 14,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/signal_orchestrator.py",
+      "line": 393,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/signal_orchestrator.py",
+      "line": 417,
+      "column": 34,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/signal_orchestrator.py",
+      "line": 416,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/signal_orchestrator.py",
+      "line": 429,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'signal'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'signal'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/signal_orchestrator.py",
+      "line": 463,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/strategy_orchestrator.py",
+      "line": 278,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/base_cli.py",
+      "line": 42,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/base_cli.py",
+      "line": 44,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'account_info'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'account_info'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/base_cli.py",
+      "line": 45,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'current_positions'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'current_positions'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/base_cli.py",
+      "line": 47,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'open_orders'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]] | None",
+        "context": "parameter 'open_orders'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 54,
+      "column": 25,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 54,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "tuple[list[Any], bool]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 87,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[Any, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 86,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, dict[str, Any]]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 107,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'indicators'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'indicators'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 125,
+      "column": 19,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'indicators'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'indicators'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 135,
+      "column": 25,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'indicators'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'indicators'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 144,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'all_indicators'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, dict[str, Any]]",
+        "context": "parameter 'all_indicators'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 169,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[Any, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 272,
+      "column": 39,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'signal'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'signal'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 324,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[Any, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 388,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'orders_executed'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]]",
+        "context": "parameter 'orders_executed'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 553,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'account_info'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'account_info'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 715,
+      "column": 52,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'account_info'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'account_info'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 752,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'account_info'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'account_info'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 753,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'current_positions'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'current_positions'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 855,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'account_info'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'account_info'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 856,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'current_positions'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'current_positions'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 920,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'sell_orders'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]]",
+        "context": "parameter 'sell_orders'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 921,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'buy_orders'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]]",
+        "context": "parameter 'buy_orders'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 972,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'orders'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]]",
+        "context": "parameter 'orders'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1139,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'enriched_account'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'enriched_account'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1137,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1155,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'base_account'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'base_account'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1181,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'base_account'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'base_account'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1212,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'enriched_account'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'enriched_account'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1236,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'enriched_account'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'enriched_account'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1289,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'enriched_account'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'enriched_account'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1404,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'account_info'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'account_info'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1405,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'current_positions'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'current_positions'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1426,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'account_info'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'account_info'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1427,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'current_positions'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'current_positions'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1456,
+      "column": 27,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'open_orders'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]] | None",
+        "context": "parameter 'open_orders'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1468,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1470,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'account_info'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'account_info'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1471,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'current_positions'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'current_positions'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1473,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'open_orders'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]] | None",
+        "context": "parameter 'open_orders'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1507,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/cli_formatter.py",
+      "line": 1553,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/dashboard_utils.py",
+      "line": 20,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/dashboard_utils.py",
+      "line": 51,
+      "column": 30,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'account_info'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "AccountInfo | dict[str, Any]",
+        "context": "parameter 'account_info'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/dashboard_utils.py",
+      "line": 90,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'open_positions'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[PositionInfo] | list[dict[str, Any]]",
+        "context": "parameter 'open_positions'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/dashboard_utils.py",
+      "line": 89,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/dashboard_utils.py",
+      "line": 125,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/dashboard_utils.py",
+      "line": 125,
+      "column": 38,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_allocations'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'strategy_allocations'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/dashboard_utils.py",
+      "line": 124,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, dict[str, Any]]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/dashboard_utils.py",
+      "line": 154,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'orders_executed'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]]",
+        "context": "parameter 'orders_executed'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/orchestration/cli/dashboard_utils.py",
+      "line": 153,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/utils/dto_conversion.py",
+      "line": 68,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/utils/dto_conversion.py",
+      "line": 84,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/utils/dto_conversion.py",
+      "line": 104,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/utils/dto_conversion.py",
+      "line": 120,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/utils/dto_conversion.py",
+      "line": 135,
+      "column": 30,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'order_data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'order_data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/utils/dto_conversion.py",
+      "line": 135,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/utils/dto_conversion.py",
+      "line": 165,
+      "column": 39,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'item_data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'item_data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/utils/dto_conversion.py",
+      "line": 165,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/utils/context.py",
+      "line": 39,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/utils/service_factory.py",
+      "line": 18,
+      "column": 29,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'orders'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "Any",
+        "context": "parameter 'orders'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/utils/service_factory.py",
+      "line": 18,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "Any",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/utils/portfolio_calculations.py",
+      "line": 19,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'account_dict'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'account_dict'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/utils/portfolio_calculations.py",
+      "line": 17,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/utils/serialization.py",
+      "line": 25,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/services/market_data_service.py",
+      "line": 197,
+      "column": 36,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'bar_data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "Any",
+        "context": "parameter 'bar_data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/context.py",
+      "line": 22,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 154,
+      "column": 12,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'additional_data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'additional_data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 163,
+      "column": 8,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 208,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'additional_data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'additional_data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 221,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 296,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 400,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'additional_data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'additional_data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 454,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 454,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_error_summary' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 527,
+      "column": 34,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'error'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'error'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 541,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'category_data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'category_data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 591,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'additional_context'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'additional_context'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 663,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 694,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 720,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'additional_data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'additional_data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 785,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "Callable[[Callable[..., Any]], Callable[..., Any]]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 809,
+      "column": 18,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'func'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "Callable[..., Any]",
+        "context": "parameter 'func'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 809,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "Callable[..., Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 811,
+      "column": 8,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "Any",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 885,
+      "column": 23,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'func'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "Callable[..., Any]",
+        "context": "parameter 'func'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 885,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "Callable[..., Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 892,
+      "column": 8,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "Any",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 979,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'context'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'context'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 1041,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 1041,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_error_summary' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 1073,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "Callable[[Callable[..., Any]], Callable[..., Any]]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 1093,
+      "column": 18,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'func'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "Callable[..., Any]",
+        "context": "parameter 'func'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 1093,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "Callable[..., Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/errors/error_handler.py",
+      "line": 1095,
+      "column": 8,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "Any",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/events/base.py",
+      "line": 20,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'BaseEvent' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'BaseEventDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/events/base.py",
+      "line": 62,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/events/base.py",
+      "line": 78,
+      "column": 23,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/events/bus.py",
+      "line": 195,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/events/bus.py",
+      "line": 195,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_stats' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/types/exceptions.py",
+      "line": 19,
+      "column": 37,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'context'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'context'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/types/exceptions.py",
+      "line": 26,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/types/strategy_value_objects.py",
+      "line": 19,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'Confidence' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'ConfidenceDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/types/strategy_value_objects.py",
+      "line": 31,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'StrategySignal' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'StrategySignalDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/types/trading_errors.py",
+      "line": 17,
+      "column": 57,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'context'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "parameter 'context'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/config/service_providers.py",
+      "line": 18,
+      "column": 29,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'orders'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "Any",
+        "context": "parameter 'orders'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/config/service_providers.py",
+      "line": 18,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "Any",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/config/config.py",
+      "line": 11,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'LoggingSettings' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'LoggingSettingsDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/config/config.py",
+      "line": 19,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'AlpacaSettings' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'AlpacaSettingsDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/config/config.py",
+      "line": 33,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'AwsSettings' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'AwsSettingsDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/config/config.py",
+      "line": 43,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'AlertsSettings' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'AlertsSettingsDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/config/config.py",
+      "line": 50,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'SecretsManagerSettings' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'SecretsManagerSettingsDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/config/config.py",
+      "line": 57,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'StrategySettings' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'StrategySettingsDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/config/config.py",
+      "line": 67,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'EmailSettings' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'EmailSettingsDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/config/config.py",
+      "line": 78,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'DataSettings' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'DataSettingsDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/config/config.py",
+      "line": 85,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'TrackingSettings' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'TrackingSettingsDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/config/config.py",
+      "line": 95,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'ExecutionSettings' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'ExecutionSettingsDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/protocols/repository.py",
+      "line": 19,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/protocols/repository.py",
+      "line": 19,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_account' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/protocols/repository.py",
+      "line": 39,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/protocols/repository.py",
+      "line": 39,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_quote' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/protocols/repository.py",
+      "line": 64,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/protocols/repository.py",
+      "line": 64,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_account' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/protocols/repository.py",
+      "line": 185,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "Any",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/protocols/persistence.py",
+      "line": 43,
+      "column": 35,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/protocols/persistence.py",
+      "line": 56,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/mappers/execution_summary_mapping.py",
+      "line": 36,
+      "column": 35,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/mappers/execution_summary_mapping.py",
+      "line": 45,
+      "column": 37,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/mappers/execution_summary_mapping.py",
+      "line": 55,
+      "column": 33,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/mappers/execution_summary_mapping.py",
+      "line": 65,
+      "column": 32,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/mappers/execution_summary_mapping.py",
+      "line": 75,
+      "column": 34,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/mappers/execution_summary_mapping.py",
+      "line": 115,
+      "column": 32,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/mappers/execution_summary_mapping.py",
+      "line": 161,
+      "column": 4,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'allocation_comparison'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | AllocationSummaryDTO",
+        "context": "parameter 'allocation_comparison'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/mappers/execution_summary_mapping.py",
+      "line": 160,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/mappers/market_data_mappers.py",
+      "line": 45,
+      "column": 19,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'rows'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "Iterable[dict[str, Any]]",
+        "context": "parameter 'rows'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/portfolio_state_dto.py",
+      "line": 153,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/portfolio_state_dto.py",
+      "line": 171,
+      "column": 41,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/portfolio_state_dto.py",
+      "line": 178,
+      "column": 40,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/portfolio_state_dto.py",
+      "line": 185,
+      "column": 46,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/portfolio_state_dto.py",
+      "line": 192,
+      "column": 35,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/portfolio_state_dto.py",
+      "line": 202,
+      "column": 39,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'position_dict'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'position_dict'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/portfolio_state_dto.py",
+      "line": 222,
+      "column": 33,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/portfolio_state_dto.py",
+      "line": 244,
+      "column": 23,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/portfolio_state_dto.py",
+      "line": 270,
+      "column": 38,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/portfolio_state_dto.py",
+      "line": 284,
+      "column": 37,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/portfolio_state_dto.py",
+      "line": 299,
+      "column": 43,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/portfolio_state_dto.py",
+      "line": 316,
+      "column": 32,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/portfolio_state_dto.py",
+      "line": 329,
+      "column": 36,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'position_data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'position_data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/portfolio_state_dto.py",
+      "line": 367,
+      "column": 30,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/signal_dto.py",
+      "line": 86,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/signal_dto.py",
+      "line": 107,
+      "column": 23,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/broker_dto.py",
+      "line": 29,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'WebSocketResult' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'WebSocketResultDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/execution_report_dto.py",
+      "line": 176,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/execution_report_dto.py",
+      "line": 196,
+      "column": 39,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/execution_report_dto.py",
+      "line": 203,
+      "column": 38,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/execution_report_dto.py",
+      "line": 217,
+      "column": 37,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/execution_report_dto.py",
+      "line": 230,
+      "column": 38,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'order_dict'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'order_dict'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/execution_report_dto.py",
+      "line": 235,
+      "column": 38,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'order_dict'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'order_dict'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/execution_report_dto.py",
+      "line": 250,
+      "column": 23,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/execution_report_dto.py",
+      "line": 284,
+      "column": 39,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'orders'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[Any]",
+        "context": "parameter 'orders'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/order_request_dto.py",
+      "line": 114,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/order_request_dto.py",
+      "line": 142,
+      "column": 23,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/order_request_dto.py",
+      "line": 250,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/order_request_dto.py",
+      "line": 279,
+      "column": 23,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/strategy_allocation_dto.py",
+      "line": 102,
+      "column": 23,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/technical_indicators_dto.py",
+      "line": 145,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/technical_indicators_dto.py",
+      "line": 165,
+      "column": 23,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/technical_indicators_dto.py",
+      "line": 203,
+      "column": 26,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'legacy_indicators'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'legacy_indicators'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/technical_indicators_dto.py",
+      "line": 271,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/technical_indicators_dto.py",
+      "line": 278,
+      "column": 8,
+      "type": "ANN401_DTO_FIELD",
+      "severity": "HIGH",
+      "message": "Unbounded 'Any' usage in DTO field 'result'",
+      "suggested_fix": "Use concrete types: str | int | bool or dict[str, str] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "DTO field 'result'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/execution_dto.py",
+      "line": 15,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'ExecutionResult' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'ExecutionResultDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/execution_dto.py",
+      "line": 43,
+      "column": 4,
+      "type": "ANN401_DTO_FIELD",
+      "severity": "HIGH",
+      "message": "Unbounded 'Any' usage in DTO field 'metadata'",
+      "suggested_fix": "Use concrete types: str | int | bool or dict[str, str] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "DTO field 'metadata'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/rebalance_plan_dto.py",
+      "line": 110,
+      "column": 4,
+      "type": "ANN401_DTO_FIELD",
+      "severity": "HIGH",
+      "message": "Unbounded 'Any' usage in DTO field 'metadata'",
+      "suggested_fix": "Use concrete types: str | int | bool or dict[str, str] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "DTO field 'metadata'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/rebalance_plan_dto.py",
+      "line": 131,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/rebalance_plan_dto.py",
+      "line": 173,
+      "column": 23,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/rebalance_plan_dto.py",
+      "line": 200,
+      "column": 38,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'items'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[Any]",
+        "context": "parameter 'items'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/market_bar_dto.py",
+      "line": 89,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/market_bar_dto.py",
+      "line": 117,
+      "column": 23,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/market_bar_dto.py",
+      "line": 162,
+      "column": 29,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'bar_dict'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'bar_dict'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/dto/market_bar_dto.py",
+      "line": 205,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 227,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 227,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_account' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 235,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 269,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "list[Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 269,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_positions' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 285,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "list[Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 285,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_all_positions' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 754,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "list[Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 754,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_orders' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 861,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 861,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_quote' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 887,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 887,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_historical_bars' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 1068,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 1068,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_asset_info' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 1107,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 1107,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_market_calendar' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 1136,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 1136,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_portfolio_history' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 1169,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/brokers/alpaca_manager.py",
+      "line": 1169,
+      "column": 4,
+      "type": "INCORRECT_NAMING_PATTERN",
+      "severity": "MEDIUM",
+      "message": "Method 'get_activities' should return DTO, not Any/dict",
+      "suggested_fix": "Return specific DTO type or rename to get_*_dict() for serialization",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/base.py",
+      "line": 15,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'Result' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'ResultDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/execution_summary.py",
+      "line": 27,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'AllocationSummary' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'AllocationSummaryDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/execution_summary.py",
+      "line": 42,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'StrategyPnLSummary' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'StrategyPnLSummaryDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/execution_summary.py",
+      "line": 58,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'StrategySummary' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'StrategySummaryDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/execution_summary.py",
+      "line": 74,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'TradingSummary' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'TradingSummaryDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/execution_summary.py",
+      "line": 90,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'ExecutionSummary' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'ExecutionSummaryDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/execution_summary.py",
+      "line": 121,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'PortfolioState' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'PortfolioStateDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/accounts.py",
+      "line": 26,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'AccountSummary' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'AccountSummaryDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/accounts.py",
+      "line": 52,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'AccountMetrics' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'AccountMetricsDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/accounts.py",
+      "line": 93,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'TradeEligibilityResult' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'TradeEligibilityResultDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/accounts.py",
+      "line": 104,
+      "column": 4,
+      "type": "ANN401_DTO_FIELD",
+      "severity": "HIGH",
+      "message": "Unbounded 'Any' usage in DTO field 'details'",
+      "suggested_fix": "Use concrete types: str | int | bool or dict[str, str] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "DTO field 'details'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/accounts.py",
+      "line": 123,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'EnrichedAccountSummaryView' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'EnrichedAccountSummaryViewDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/accounts.py",
+      "line": 132,
+      "column": 4,
+      "type": "ANN401_DTO_FIELD",
+      "severity": "HIGH",
+      "message": "Unbounded 'Any' usage in DTO field 'raw'",
+      "suggested_fix": "Use concrete types: str | int | bool or dict[str, str] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "DTO field 'raw'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/enriched_data.py",
+      "line": 19,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'EnrichedOrderView' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'EnrichedOrderViewDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/enriched_data.py",
+      "line": 28,
+      "column": 4,
+      "type": "ANN401_DTO_FIELD",
+      "severity": "HIGH",
+      "message": "Unbounded 'Any' usage in DTO field 'raw'",
+      "suggested_fix": "Use concrete types: str | int | bool or dict[str, str] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "DTO field 'raw'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/enriched_data.py",
+      "line": 29,
+      "column": 4,
+      "type": "ANN401_DTO_FIELD",
+      "severity": "HIGH",
+      "message": "Unbounded 'Any' usage in DTO field 'domain'",
+      "suggested_fix": "Use concrete types: str | int | bool or dict[str, str] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "DTO field 'domain'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/enriched_data.py",
+      "line": 30,
+      "column": 4,
+      "type": "ANN401_DTO_FIELD",
+      "severity": "HIGH",
+      "message": "Unbounded 'Any' usage in DTO field 'summary'",
+      "suggested_fix": "Use concrete types: str | int | bool or dict[str, str] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "DTO field 'summary'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/enriched_data.py",
+      "line": 46,
+      "column": 0,
+      "type": "MISSING_DTO_SUFFIX",
+      "severity": "MEDIUM",
+      "message": "DTO class 'EnrichedPositionView' should end with 'DTO' suffix",
+      "suggested_fix": "Rename to 'EnrichedPositionViewDTO'",
+      "context": {}
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/enriched_data.py",
+      "line": 55,
+      "column": 4,
+      "type": "ANN401_DTO_FIELD",
+      "severity": "HIGH",
+      "message": "Unbounded 'Any' usage in DTO field 'raw'",
+      "suggested_fix": "Use concrete types: str | int | bool or dict[str, str] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "DTO field 'raw'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/enriched_data.py",
+      "line": 56,
+      "column": 4,
+      "type": "ANN401_DTO_FIELD",
+      "severity": "HIGH",
+      "message": "Unbounded 'Any' usage in DTO field 'summary'",
+      "suggested_fix": "Use concrete types: str | int | bool or dict[str, str] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "DTO field 'summary'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/common.py",
+      "line": 96,
+      "column": 4,
+      "type": "ANN401_DTO_FIELD",
+      "severity": "HIGH",
+      "message": "Unbounded 'Any' usage in DTO field 'enriched_account'",
+      "suggested_fix": "Use concrete types: str | int | bool or dict[str, str] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "DTO field 'enriched_account'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/schemas/common.py",
+      "line": 99,
+      "column": 4,
+      "type": "ANN401_DTO_FIELD",
+      "severity": "HIGH",
+      "message": "Unbounded 'Any' usage in DTO field 'closed_pnl_subset'",
+      "suggested_fix": "Use concrete types: str | int | bool or dict[str, str] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "DTO field 'closed_pnl_subset'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/persistence/s3_handler.py",
+      "line": 80,
+      "column": 35,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/persistence/s3_handler.py",
+      "line": 89,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/persistence/local_handler.py",
+      "line": 93,
+      "column": 35,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/persistence/local_handler.py",
+      "line": 102,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/signals.py",
+      "line": 39,
+      "column": 43,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'indicators'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'indicators'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/signals.py",
+      "line": 70,
+      "column": 33,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'signal'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "Any",
+        "context": "parameter 'signal'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/signals.py",
+      "line": 101,
+      "column": 35,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[Any, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/signals.py",
+      "line": 156,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[Any, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/signals.py",
+      "line": 156,
+      "column": 42,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_summary'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'strategy_summary'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/signals.py",
+      "line": 229,
+      "column": 37,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[Any, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/signals.py",
+      "line": 315,
+      "column": 39,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_signals'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[Any, Any]",
+        "context": "parameter 'strategy_signals'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/performance.py",
+      "line": 20,
+      "column": 30,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'side'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "Any",
+        "context": "parameter 'side'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/performance.py",
+      "line": 28,
+      "column": 8,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'orders'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]]",
+        "context": "parameter 'orders'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/performance.py",
+      "line": 27,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "tuple[list[dict[str, Any]], list[dict[str, Any]]]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/performance.py",
+      "line": 48,
+      "column": 26,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'order'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'order'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/performance.py",
+      "line": 77,
+      "column": 31,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'orders'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]] | None",
+        "context": "parameter 'orders'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/performance.py",
+      "line": 129,
+      "column": 30,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'trading_summary'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'trading_summary'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/performance.py",
+      "line": 180,
+      "column": 35,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'strategy_summary'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'strategy_summary'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/performance.py",
+      "line": 238,
+      "column": 34,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'order'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'order'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/performance.py",
+      "line": 266,
+      "column": 39,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'orders'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[dict[str, Any]] | None",
+        "context": "parameter 'orders'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/portfolio.py",
+      "line": 16,
+      "column": 0,
+      "type": "FORBIDDEN_CROSS_MODULE_IMPORT",
+      "severity": "HIGH",
+      "message": "Forbidden import from shared to execution_v2",
+      "suggested_fix": "Use shared DTOs/events for cross-module communication",
+      "context": {
+        "from_module": "shared",
+        "to_module": "execution_v2"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/portfolio.py",
+      "line": 48,
+      "column": 0,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/portfolio.py",
+      "line": 83,
+      "column": 35,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/portfolio.py",
+      "line": 83,
+      "column": 4,
+      "type": "ANN401_RETURN",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in return type",
+      "suggested_fix": "Return specific DTO types or Optional[ConcreteType] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "return type"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/portfolio.py",
+      "line": 98,
+      "column": 33,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'data'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'data'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/portfolio.py",
+      "line": 119,
+      "column": 32,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'current_positions'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "dict[str, Any]",
+        "context": "parameter 'current_positions'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/portfolio.py",
+      "line": 155,
+      "column": 33,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'qty'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "Any",
+        "context": "parameter 'qty'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/shared/notifications/templates/portfolio.py",
+      "line": 656,
+      "column": 35,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'orders'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[Any]",
+        "context": "parameter 'orders'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/execution_v2/core/executor.py",
+      "line": 837,
+      "column": 31,
+      "type": "ANN401_PARAM",
+      "severity": "MEDIUM",
+      "message": "Unbounded 'Any' usage in parameter 'repeg_results'",
+      "suggested_fix": "Use Union types or specific interfaces instead of Any",
+      "context": {
+        "annotation": "list[Any]",
+        "context": "parameter 'repeg_results'"
+      }
+    },
+    {
+      "file": "/home/runner/work/alchemiser-quant/alchemiser-quant/the_alchemiser/execution_v2/models/execution_result.py",
+      "line": 54,
+      "column": 4,
+      "type": "ANN401_DTO_FIELD",
+      "severity": "HIGH",
+      "message": "Unbounded 'Any' usage in DTO field 'metadata'",
+      "suggested_fix": "Use concrete types: str | int | bool or dict[str, str] instead of Any",
+      "context": {
+        "annotation": "dict[str, Any] | None",
+        "context": "DTO field 'metadata'"
+      }
+    }
+  ]
+}

@@ -57,7 +57,9 @@ class StrategySignalDTO(BaseModel):
     signal_strength: Decimal | None = Field(
         default=None, ge=0, description="Raw signal strength value"
     )
-    metadata: dict[str, Any] | None = Field(default=None, description="Additional signal metadata")
+    metadata: dict[str, str | int | bool | None] | None = Field(
+        default=None, description="Additional signal metadata (JSON-serializable types only)"
+    )
 
     @field_validator("symbol")
     @classmethod

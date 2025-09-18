@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check
+.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check typing-audit
 
 # Default target
 help:
@@ -19,6 +19,7 @@ help:
 	@echo "  format          Format code with Ruff (formatter + fixes)"
 	@echo "  lint            Run linting"
 	@echo "  type-check      Run MyPy type checking"
+	@echo "  typing-audit    Run typing architecture audit"
 	@echo "  import-check    Check module dependency rules"
 	@echo "  migration-check Full migration validation suite"
 	@echo "  clean           Clean build artifacts"
@@ -62,11 +63,15 @@ type-check:
 	@echo "🔍 Running MyPy type checking (matching VS Code configuration)..."
 	poetry run mypy the_alchemiser/ --config-file=pyproject.toml
 
+typing-audit:
+	@echo "🔍 Running typing architecture audit..."
+	poetry run python tools/typing_audit.py
+
 import-check:
 	@echo "🔍 Checking module dependency rules..."
 	poetry run lint-imports
 
-migration-check: lint type-check import-check
+migration-check: lint type-check typing-audit import-check
 	@echo "🚀 Running full migration validation suite..."
 	@echo "✅ Migration validation complete!"
 

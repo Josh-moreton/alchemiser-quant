@@ -49,9 +49,9 @@ class ConfigurationDTO(BaseModel):
         validate_assignment=True,
     )
 
-    config_data: dict[str, Any] = Field(
+    config_data: dict[str, str | int | bool | None] = Field(
         default_factory=dict, 
-        description="Configuration data (flexible for Phase 1 scaffolding)"
+        description="Configuration data (JSON-serializable types for Phase 1 scaffolding)"
     )
 
 
@@ -70,9 +70,9 @@ class ErrorDTO(BaseModel):
 
     error_type: str = Field(description="Type of error")
     message: str = Field(description="Error message")
-    context: dict[str, Any] = Field(
+    context: dict[str, str | int | bool | None] = Field(
         default_factory=dict,
-        description="Error context data"
+        description="Error context data (JSON-serializable types only)"
     )
 
 

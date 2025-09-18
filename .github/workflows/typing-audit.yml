@@ -1,0 +1,100 @@
+name: Typing Architecture Audit
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'the_alchemiser/**/*.py'
+      - 'tools/typing_audit.py'
+      - 'pyproject.toml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'the_alchemiser/**/*.py'
+      - 'tools/typing_audit.py' 
+      - 'pyproject.toml'
+
+jobs:
+  typing-audit:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+        installer-parallel: true
+    
+    - name: Load cached venv
+      id: cached-poetry-dependencies
+      uses: actions/cache@v3
+      with:
+        path: .venv
+        key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+    
+    - name: Install dependencies
+      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+      run: poetry install --with dev
+    
+    - name: Run typing architecture audit
+      run: |
+        poetry run python tools/typing_audit.py
+        
+    - name: Check CI enforcement
+      run: |
+        poetry run python tools/check_fail_on_severity.py
+        
+    - name: Upload audit reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: typing-audit-reports
+        path: |
+          report/typing_violations.json
+          report/typing_summary.md
+        retention-days: 30
+    
+    - name: Comment PR with audit summary
+      uses: actions/github-script@v6
+      if: github.event_name == 'pull_request' && always()
+      with:
+        script: |
+          const fs = require('fs');
+          
+          try {
+            const reportPath = 'report/typing_summary.md';
+            if (fs.existsSync(reportPath)) {
+              const summary = fs.readFileSync(reportPath, 'utf8');
+              
+              const comment = `## 🔍 Typing Architecture Audit Results
+              
+              ${summary}
+              
+              <details>
+              <summary>📋 Full report available in workflow artifacts</summary>
+              
+              - Download \`typing-audit-reports\` artifact for detailed JSON report
+              - Review high-priority violations before merge
+              - See typing guidelines: [docs/typing-guidelines.md](docs/typing-guidelines.md)
+              
+              </details>`;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+          } catch (error) {
+            console.log('Could not post audit summary:', error.message);
+          }

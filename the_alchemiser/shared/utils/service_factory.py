@@ -5,10 +5,19 @@ Service factory using dependency injection.
 
 from __future__ import annotations
 
-from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
+from typing import Any, Protocol
+
 from the_alchemiser.shared.config.container import (
     ApplicationContainer,
 )
+
+
+class ExecutionManagerProtocol(Protocol):
+    """Protocol for execution manager to avoid direct imports."""
+    
+    def execute_orders(self, orders: Any) -> Any:  # type: ignore[misc]
+        """Execute orders - implementation in execution_v2 module."""
+        ...
 
 
 class ServiceFactory:
@@ -30,7 +39,7 @@ class ServiceFactory:
         secret_key: str | None = None,
         *,
         paper: bool | None = None,
-    ) -> ExecutionManager:
+    ) -> ExecutionManagerProtocol:
         """Create ExecutionManager using DI or traditional method."""
         if cls._container is not None and all(x is None for x in [api_key, secret_key, paper]):
             # Use DI container - get ExecutionManager from services

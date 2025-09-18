@@ -49,9 +49,9 @@ class ConsolidatedPortfolioDTO(BaseModel):
         default_factory=list, description="Names of contributing strategies"
     )
 
-    # Optional context
-    constraints: dict[str, Any] | None = Field(
-        default=None, description="Optional consolidation constraints and metadata"
+    # Optional context (JSON-serializable types only)
+    constraints: dict[str, str | int | bool | None] | None = Field(
+        default=None, description="Optional consolidation constraints and metadata (JSON-serializable types)"
     )
 
     @field_validator("target_allocations")

@@ -5,10 +5,19 @@ Service layer providers for dependency injection.
 
 from __future__ import annotations
 
+from typing import Any, Protocol
+
 from dependency_injector import containers, providers
 
-from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
 from the_alchemiser.shared.events.bus import EventBus
+
+
+class ExecutionManagerProtocol(Protocol):
+    """Protocol for execution manager to avoid direct imports."""
+    
+    def execute_orders(self, orders: Any) -> Any:  # type: ignore[misc]
+        """Execute orders - implementation in execution_v2 module."""
+        ...
 
 # - AccountService → Use AlpacaManager directly
 # - TradingServiceManager → Use ExecutionManager from execution_v2

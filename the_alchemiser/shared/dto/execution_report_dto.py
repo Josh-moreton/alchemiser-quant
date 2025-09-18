@@ -152,8 +152,8 @@ class ExecutionReportDTO(BaseModel):
     market_conditions: str | None = Field(
         default=None, description="Market conditions during execution"
     )
-    metadata: dict[str, Any] | None = Field(
-        default=None, description="Additional execution metadata"
+    metadata: dict[str, str | int | bool | None] | None = Field(
+        default=None, description="Additional execution metadata (JSON-serializable types only)"
     )
 
     @field_validator("timestamp", "execution_start_time", "execution_end_time")

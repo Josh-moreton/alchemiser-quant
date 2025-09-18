@@ -48,9 +48,9 @@ class BaseEvent(BaseModel):
         default=None, description="Specific component that emitted the event"
     )
 
-    # Optional metadata for extensibility
-    metadata: dict[str, Any] | None = Field(
-        default=None, description="Additional event-specific metadata"
+    # Optional metadata for extensibility (JSON passthrough only)
+    metadata: dict[str, str | int | bool | None] | None = Field(
+        default=None, description="Additional event-specific metadata (JSON-serializable types only)"
     )
 
     def __init__(self, **data: str | datetime | dict[str, Any] | None) -> None:

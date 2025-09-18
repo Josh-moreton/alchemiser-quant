@@ -46,8 +46,8 @@ class StrategyAllocationDTO(BaseModel):
     as_of: datetime | None = Field(
         default=None, description="Optional timestamp when allocation was calculated"
     )
-    constraints: dict[str, Any] | None = Field(
-        default=None, description="Optional allocation constraints and metadata"
+    constraints: dict[str, str | int | bool | None] | None = Field(
+        default=None, description="Optional allocation constraints and metadata (JSON-serializable types)"
     )
 
     @field_validator("target_weights")

@@ -83,7 +83,9 @@ class OrderRequestDTO(BaseModel):
     rebalance_plan_id: str | None = Field(
         default=None, description="Associated rebalance plan ID if applicable"
     )
-    metadata: dict[str, Any] | None = Field(default=None, description="Additional order metadata")
+    metadata: dict[str, str | int | bool | None] | None = Field(
+        default=None, description="Additional order metadata (JSON-serializable types only)"
+    )
 
     @field_validator("symbol")
     @classmethod
@@ -228,9 +230,9 @@ class MarketDataDTO(BaseModel):
         default=None, ge=0, le=1, description="Data quality score (0-1)"
     )
 
-    # Optional metadata
-    metadata: dict[str, Any] | None = Field(
-        default=None, description="Additional market data metadata"
+    # Optional metadata (JSON-serializable types only)
+    metadata: dict[str, str | int | bool | None] | None = Field(
+        default=None, description="Additional market data metadata (JSON-serializable types only)"
     )
 
     @field_validator("symbol")
