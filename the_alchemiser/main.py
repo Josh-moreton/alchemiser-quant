@@ -190,6 +190,7 @@ class TradingSystem:
             # Header suppressed to reduce duplicate banners in CLI output
 
             # PHASE 1: Signals-only analysis (no trading yet)
+            print("📊 Generating strategy signals...")
             signals_result = orchestrator.execute_strategy_signals()
             if signals_result is None:
                 return self._create_failure_result(
@@ -199,7 +200,12 @@ class TradingSystem:
                     warnings,
                 )
 
+            # Show brief signals summary
+            self._display_signals_summary(signals_result)
+
             # PHASE 2: Execute trading (may place orders)
+            print("🚀 Executing rebalance plan...")
+            
             # Temporarily suppress verbose logs for cleaner CLI output
             self._configure_quiet_logging()
 
@@ -268,7 +274,33 @@ class TradingSystem:
                 f"System error: {e}", started_at, correlation_id, warnings
             )
 
+    def _display_signals_summary(self, signals_result: dict[str, Any]) -> None:
+        """Display a brief summary of generated signals."""
+        try:
+            # Extract signal count and strategies
+            signal_count = 0
+            strategy_names = []
+            
+            if "strategy_signals" in signals_result:
+                for strategy_name, signals in signals_result["strategy_signals"].items():
+                    strategy_names.append(strategy_name)
+                    if signals and isinstance(signals, list):
+                        signal_count += len(signals)
+            
+            strategies_str = ", ".join(strategy_names) if strategy_names else "No strategies"
+            print(f"📋 Generated {signal_count} signals from strategies: {strategies_str}")
+            
+            # Show rebalance plan summary if available
+            if "consolidated_portfolio" in signals_result:
+                portfolio = signals_result["consolidated_portfolio"]
+                if portfolio and "trades" in portfolio:
+                    trade_count = len(portfolio["trades"])
+                    if trade_count > 0:
+                        print(f"⚖️  Portfolio rebalance plan: {trade_count} trades required")
+                    else:
+                        print("⚖️  Portfolio rebalance plan: Portfolio already balanced")
     def _display_post_execution_tracking(self, *, paper_trading: bool) -> None:
+
         """Display strategy performance tracking after execution."""
         try:
             from rich.console import Console
