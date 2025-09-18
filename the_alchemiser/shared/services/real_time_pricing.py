@@ -40,11 +40,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from enum import Enum
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.brokers.alpaca_utils import (
@@ -67,6 +67,16 @@ else:
 # Phase 11 - Migration to structured pricing data in progress
 # Both RealTimeQuote (legacy) and structured types (PriceDataModel, QuoteModel) are available
 # New implementation uses structured types with backward compatibility for RealTimeQuote
+
+
+class ConnectionState(Enum):
+    """Connection states for WebSocket management."""
+
+    DISCONNECTED = "disconnected"
+    CONNECTING = "connecting"
+    CONNECTED = "connected"
+    RECONNECTING = "reconnecting"
+    ERROR = "error"
 
 
 @dataclass
@@ -134,20 +144,22 @@ class RealTimePricingService:
         self._paper_trading = paper_trading
         self._max_symbols = max_symbols
 
-        # Initialize streaming state
-        self._stream_thread: threading.Thread | None = None
+        # Initialize streaming state with async coordination
+        self._stream_task: asyncio.Task[None] | None = None
         self._stream: StockDataStream | None = None
         self._should_reconnect = False
-        self._connected = False
+        self._connection_state = ConnectionState.DISCONNECTED
 
         # Initialize data storage
         self._quotes: dict[str, RealTimeQuote] = {}
         self._price_data: dict[str, PriceDataModel] = {}
         self._quote_data: dict[str, QuoteModel] = {}
         self._subscribed_symbols: set[str] = set()
-        self._data_lock = threading.Lock()
-        self._subscription_lock = threading.Lock()
-        self._quotes_lock = threading.Lock()
+        
+        # Async locks for thread-safe coordination
+        self._connection_lock: asyncio.Lock | None = None
+        self._subscription_lock: asyncio.Lock | None = None
+        self._quotes_lock: asyncio.Lock | None = None
 
         # Initialize cleanup settings
         self._cleanup_interval = 60  # seconds between cleanup cycles
@@ -190,121 +202,172 @@ class RealTimePricingService:
         """Get paper trading flag."""
         return self._paper_trading
 
+    def _ensure_async_locks(self) -> None:
+        """Ensure async locks are initialized."""
+        if self._connection_lock is None:
+            self._connection_lock = asyncio.Lock()
+        if self._subscription_lock is None:
+            self._subscription_lock = asyncio.Lock()
+        if self._quotes_lock is None:
+            self._quotes_lock = asyncio.Lock()
+
+    @property
+    def connected(self) -> bool:
+        """Check if service is connected."""
+        return self._connection_state == ConnectionState.CONNECTED
+
+    async def start_async(self) -> bool:
+        """Start the real-time pricing service asynchronously.
+
+        Returns:
+            True if started successfully, False otherwise
+
+        """
+        self._ensure_async_locks()
+        
+        async with self._connection_lock:  # type: ignore[union-attr]
+            if self._connection_state in [ConnectionState.CONNECTING, ConnectionState.CONNECTED]:
+                logging.warning("Real-time pricing service already running or connecting")
+                return self._connection_state == ConnectionState.CONNECTED
+
+            try:
+                self._connection_state = ConnectionState.CONNECTING
+                logging.info("🚀 Starting real-time pricing service asynchronously...")
+
+                # Start the stream task
+                self._should_reconnect = True
+                self._stream_task = asyncio.create_task(self._run_stream_async())
+                
+                # Wait for initial connection with timeout
+                max_wait_time = 5.0  # 5 second timeout
+                start_time = asyncio.get_event_loop().time()
+                
+                while (asyncio.get_event_loop().time() - start_time) < max_wait_time:
+                    if self._connection_state == ConnectionState.CONNECTED:
+                        logging.info("✅ Real-time pricing service started successfully")
+                        return True
+                    if self._connection_state == ConnectionState.ERROR:
+                        logging.error("❌ Failed to establish real-time pricing connection")
+                        return False
+                    
+                    await asyncio.sleep(0.05)  # Check every 50ms
+                
+                if self._connection_state != ConnectionState.CONNECTED:
+                    logging.error("❌ Timeout waiting for real-time pricing connection")
+                    return False
+                    
+                return True
+
+            except Exception as e:
+                logging.error(f"Error starting real-time pricing service: {e}")
+                self._connection_state = ConnectionState.ERROR
+                return False
+
     def start(self) -> bool:
-        """Start the real-time pricing service.
+        """Start the real-time pricing service (synchronous wrapper).
 
         Returns:
             True if started successfully, False otherwise
 
         """
         try:
-            if self._stream_thread and self._stream_thread.is_alive():
-                logging.warning("Real-time pricing service already running")
-                return True
-
-            # Initialize the data stream
-            # NOTE: Using IEX feed for both paper and live trading until SIP subscription is available
-            # SIP feed requires a paid subscription, IEX is free but has some limitations
-            self._stream = create_stock_data_stream(
-                api_key=self.api_key,
-                secret_key=self.secret_key,
-                feed=self._get_feed(),
-            )
-
-            # Set up the async event handlers BEFORE starting the stream
-            # This is critical - handlers must be registered before run() is called
-            logging.info("📡 Real-time pricing service initialized with async handlers")
-
-            # NOTE: Do NOT subscribe to wildcard "*" - it hits subscription limits immediately
-            # We'll subscribe to specific symbols only when needed via subscribe_for_order_placement()
-
-            # Start the stream in a background thread with proper async handling
-            self._should_reconnect = True
-            self._stream_thread = threading.Thread(
-                target=self._run_stream_with_event_loop,
-                name="RealTimePricing",
-                daemon=True,
-            )
-            self._stream_thread.start()
-
-            # Wait a moment for connection with exponential backoff
-            max_wait_time = 5.0  # 5 second timeout
-            check_interval = 0.05  # Start with 50ms
-            max_interval = 0.5  # Cap at 500ms
-            elapsed_time = 0.0
-
-            while elapsed_time < max_wait_time:
-                if self._connected:
-                    break
-                time.sleep(check_interval)
-                elapsed_time += check_interval
-                # Exponential backoff for less aggressive polling
-                check_interval = min(check_interval * 1.2, max_interval)
-
-            if self._connected:
-                logging.info("✅ Real-time pricing service started successfully")
-
-                # Start cleanup thread
-                cleanup_thread = threading.Thread(
-                    target=self._cleanup_old_quotes, name="QuoteCleanup", daemon=True
-                )
-                cleanup_thread.start()
-
-                return True
-            logging.error("❌ Failed to establish real-time pricing connection")
-            return False
-
+            # Try to get existing event loop
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an async context, create a task
+                task = loop.create_task(self.start_async())
+                # For synchronous wrapper, we need to handle this differently
+                # Create a new thread to run the async start
+                import concurrent.futures
+                
+                def run_async_start():
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        return new_loop.run_until_complete(self.start_async())
+                    finally:
+                        new_loop.close()
+                
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_async_start)
+                    return future.result(timeout=10.0)
+                    
+            except RuntimeError:
+                # No event loop running, safe to use asyncio.run
+                return asyncio.run(self.start_async())
+                
         except Exception as e:
             logging.error(f"Error starting real-time pricing service: {e}")
             return False
 
+    async def stop_async(self) -> None:
+        """Stop the real-time pricing service asynchronously."""
+        self._ensure_async_locks()
+        
+        async with self._connection_lock:  # type: ignore[union-attr]
+            try:
+                self._should_reconnect = False
+                self._connection_state = ConnectionState.DISCONNECTED
+
+                if self._stream:
+                    self._stream.stop()
+
+                if self._stream_task and not self._stream_task.done():
+                    self._stream_task.cancel()
+                    try:
+                        await self._stream_task
+                    except asyncio.CancelledError:
+                        pass
+
+                logging.info("🛑 Real-time pricing service stopped")
+
+            except Exception as e:
+                logging.error(f"Error stopping real-time pricing service: {e}")
+                self._connection_state = ConnectionState.ERROR
+
     def stop(self) -> None:
-        """Stop the real-time pricing service."""
+        """Stop the real-time pricing service (synchronous wrapper)."""
         try:
-            self._should_reconnect = False
-
-            if self._stream:
-                self._stream.stop()
-
-            if self._stream_thread and self._stream_thread.is_alive():
-                self._stream_thread.join(timeout=5)
-
-            self._connected = False
-            logging.info("🛑 Real-time pricing service stopped")
-
+            # Try to get existing event loop
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an async context, create a task
+                task = loop.create_task(self.stop_async())
+                # For synchronous wrapper, create a new thread
+                import concurrent.futures
+                
+                def run_async_stop():
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        new_loop.run_until_complete(self.stop_async())
+                    finally:
+                        new_loop.close()
+                
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_async_stop)
+                    future.result(timeout=10.0)
+                    
+            except RuntimeError:
+                # No event loop running, safe to use asyncio.run
+                asyncio.run(self.stop_async())
+                
         except Exception as e:
             logging.error(f"Error stopping real-time pricing service: {e}")
 
-    def _run_stream_with_event_loop(self) -> None:
-        """Run the WebSocket stream in a new event loop.
-
-        This method creates a new event loop in the current thread and runs
-        the async stream within it. This is necessary because the Alpaca SDK
-        requires async handlers to run in the same event loop as the stream.
-        """
-        # Create a new event loop for this thread
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        try:
-            # Run the async stream method
-            loop.run_until_complete(self._run_stream_async())
-        except Exception as e:
-            logging.error(f"Error in stream event loop: {e}")
-        finally:
-            # Clean up the event loop
-            try:
-                # Cancel any remaining tasks
-                pending = asyncio.all_tasks(loop)
-                for task in pending:
-                    task.cancel()
-
-                if pending:
-                    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-
-                loop.close()
-            except Exception as e:
-                logging.error(f"Error cleaning up event loop: {e}")
+    async def _ensure_connection_state_safe(self) -> None:
+        """Ensure connection state is safe for operations."""
+        self._ensure_async_locks()
+        
+        async with self._connection_lock:  # type: ignore[union-attr]
+            if self._connection_state in [ConnectionState.CONNECTING, ConnectionState.RECONNECTING]:
+                # Wait for connection to stabilize
+                max_wait = 30  # 30 second timeout
+                wait_count = 0
+                while (self._connection_state in [ConnectionState.CONNECTING, ConnectionState.RECONNECTING] 
+                       and wait_count < max_wait):
+                    await asyncio.sleep(1.0)
+                    wait_count += 1
 
     async def _run_stream_async(self) -> None:
         """Async method to run the WebSocket stream.
@@ -318,12 +381,16 @@ class RealTimePricingService:
 
         while self._should_reconnect and retry_count < max_retries:
             try:
+                async with self._connection_lock:  # type: ignore[union-attr]
+                    if self._connection_state == ConnectionState.CONNECTING:
+                        self._connection_state = ConnectionState.RECONNECTING
+                
                 logging.info(
                     f"🔄 Attempting to start real-time data stream (attempt {retry_count + 1})"
                 )
 
                 # Get current subscription list in a thread-safe way
-                with self._subscription_lock:
+                async with self._subscription_lock:  # type: ignore[union-attr]
                     symbols_to_subscribe = list(self._subscribed_symbols)
 
                 if symbols_to_subscribe:
@@ -347,7 +414,8 @@ class RealTimePricingService:
                     logging.info("✅ All subscriptions set up successfully")
 
                     # Mark as connected before starting the stream
-                    self._connected = True
+                    async with self._connection_lock:  # type: ignore[union-attr]
+                        self._connection_state = ConnectionState.CONNECTED
 
                     # Run the stream's internal async method directly
                     # NOTE: We use _run_forever() instead of run() because run()
@@ -357,20 +425,23 @@ class RealTimePricingService:
                     # If we get here, the stream closed normally
                     logging.info("📡 Real-time data stream closed normally")
                     break  # No symbols to subscribe to - wait for symbols to be added
+                    
                 logging.info("📡 No symbols to subscribe to, waiting for subscription requests...")
-                self._connected = True  # Mark as ready to receive subscriptions
+                async with self._connection_lock:  # type: ignore[union-attr]
+                    self._connection_state = ConnectionState.CONNECTED  # Mark as ready to receive subscriptions
 
                 # Wait for subscriptions to be added
                 while self._should_reconnect and not symbols_to_subscribe:
                     await asyncio.sleep(1.0)  # Check every second
-                    with self._subscription_lock:
+                    async with self._subscription_lock:  # type: ignore[union-attr]
                         symbols_to_subscribe = list(self._subscribed_symbols)
 
                 # If symbols were added, restart the loop to set up subscriptions
                 if symbols_to_subscribe:
                     logging.info(f"📡 New subscriptions detected: {sorted(symbols_to_subscribe)}")
                     # Reset connection state to force re-setup
-                    self._connected = False
+                    async with self._connection_lock:  # type: ignore[union-attr]
+                        self._connection_state = ConnectionState.CONNECTING
                     continue
 
                 # Should not reconnect anymore
@@ -383,16 +454,21 @@ class RealTimePricingService:
 
                 logging.error(f"❌ Real-time data stream error (attempt {retry_count}): {e}")
 
-                if retry_count < max_retries and self._should_reconnect:
-                    logging.info(f"⏱️ Retrying in {delay:.1f} seconds...")
-                    await asyncio.sleep(delay)
-                else:
-                    logging.error("🚨 Max retries exceeded, stopping real-time pricing service")
-                    break
+                async with self._connection_lock:  # type: ignore[union-attr]
+                    if retry_count < max_retries and self._should_reconnect:
+                        self._connection_state = ConnectionState.RECONNECTING
+                        logging.info(f"⏱️ Retrying in {delay:.1f} seconds...")
+                        await asyncio.sleep(delay)
+                    else:
+                        self._connection_state = ConnectionState.ERROR
+                        logging.error("🚨 Max retries exceeded, stopping real-time pricing service")
+                        break
             finally:
-                self._connected = False
+                async with self._connection_lock:  # type: ignore[union-attr]
+                    if self._connection_state != ConnectionState.ERROR:
+                        self._connection_state = ConnectionState.DISCONNECTED
 
-        logging.info("📡 Real-time pricing stream thread exiting")
+        logging.info("📡 Real-time pricing stream task exiting")
 
     async def _on_quote(self, data: AlpacaQuoteData) -> None:
         """Handle incoming quote data.
@@ -441,7 +517,7 @@ class RealTimePricingService:
                 self._latest_ask[symbol] = float(ask_price)
 
                 # Create structured QuoteModel object
-                with self._quotes_lock:
+                async with self._quotes_lock:  # type: ignore[union-attr]
                     current_quote = self._quotes.get(symbol)
                     last_price = current_quote.last_price if current_quote else 0.0
 
@@ -496,7 +572,7 @@ class RealTimePricingService:
             timestamp = timestamp_raw if isinstance(timestamp_raw, datetime) else datetime.now(UTC)
 
             # Update last trade price with both legacy and structured storage
-            with self._quotes_lock:
+            async with self._quotes_lock:  # type: ignore[union-attr]
                 current_quote = self._quotes.get(symbol)
                 current_quote_data = self._quote_data.get(symbol)
 
@@ -547,18 +623,18 @@ class RealTimePricingService:
             )
             logging.error(f"Error processing trade for {symbol_str}: {e}")
 
-    def _cleanup_old_quotes(self) -> None:
-        """Cleanup old quotes to prevent memory bloat."""
+    async def _cleanup_old_quotes_async(self) -> None:
+        """Cleanup old quotes to prevent memory bloat (async version)."""
         while self._should_reconnect:
             try:
-                time.sleep(self._cleanup_interval)
+                await asyncio.sleep(self._cleanup_interval)
 
-                if not self._connected:
+                if self._connection_state != ConnectionState.CONNECTED:
                     continue
 
                 cutoff_time = datetime.now(UTC) - timedelta(seconds=self._max_quote_age)
 
-                with self._quotes_lock:
+                async with self._quotes_lock:  # type: ignore[union-attr]
                     symbols_to_remove = [
                         symbol
                         for symbol, last_update in self._last_update.items()
@@ -597,8 +673,8 @@ class RealTimePricingService:
             DeprecationWarning,
             stacklevel=2,
         )
-        with self._quotes_lock:
-            return self._quotes.get(symbol)
+        # For sync access, we return without async lock since this is deprecated
+        return self._quotes.get(symbol)
 
     def get_quote_data(self, symbol: str) -> QuoteModel | None:
         """Get structured quote data for a symbol.
@@ -610,8 +686,8 @@ class RealTimePricingService:
             QuoteModel object with bid/ask prices and sizes, or None if not available
 
         """
-        with self._quotes_lock:
-            return self._quote_data.get(symbol)
+        # Direct access since dict operations are atomic and we use immutable objects
+        return self._quote_data.get(symbol)
 
     def get_price_data(self, symbol: str) -> PriceDataModel | None:
         """Get structured price data for a symbol.
@@ -623,8 +699,8 @@ class RealTimePricingService:
             PriceDataModel object with price, bid/ask, and volume, or None if not available
 
         """
-        with self._quotes_lock:
-            return self._price_data.get(symbol)
+        # Direct access since dict operations are atomic and we use immutable objects
+        return self._price_data.get(symbol)
 
     def get_real_time_price(self, symbol: str) -> float | None:
         """Get the best available real-time price for a symbol.
@@ -743,10 +819,10 @@ class RealTimePricingService:
             return "iex"
         return feed
 
-    def subscribe_symbols_bulk(
+    async def subscribe_symbols_bulk_async(
         self, symbols: list[str], priority: float | None = None
     ) -> dict[str, bool]:
-        """Subscribe to real-time data for multiple symbols efficiently.
+        """Subscribe to real-time data for multiple symbols efficiently (async).
 
         Args:
             symbols: List of symbols to subscribe to
@@ -756,6 +832,8 @@ class RealTimePricingService:
             Dictionary mapping symbol to subscription success status
 
         """
+        self._ensure_async_locks()
+        
         if priority is None:
             priority = time.time()  # Use current timestamp as default priority
 
@@ -769,7 +847,7 @@ class RealTimePricingService:
             f"📡 Bulk subscribing to {len(normalized_symbols)} symbols with priority {priority:.1f}"
         )
 
-        with self._subscription_lock:
+        async with self._subscription_lock:  # type: ignore[union-attr]
             # Process each symbol
             symbols_to_add = []
             symbols_to_replace: list[str] = []
@@ -810,31 +888,72 @@ class RealTimePricingService:
                     self._subscription_priority.pop(symbol_to_remove, None)
                     available_slots += 1
                     self._stats["subscription_limit_hits"] += 1
-                    logging.info(f"📊 Replaced {symbol_to_remove} for higher priority symbols")
 
-            # Add new symbols
-            successfully_added = 0
-            for symbol in symbols_to_add[:available_slots]:
+            # Add symbols we can fit
+            symbols_to_add = symbols_to_add[:available_slots]
+            for symbol in symbols_to_add:
                 self._subscribed_symbols.add(symbol)
                 self._subscription_priority[symbol] = priority
                 results[symbol] = True
-                successfully_added += 1
                 self._stats["total_subscriptions"] += 1
 
-            # Mark symbols we couldn't subscribe to due to limits
-            for symbol in symbols_to_add[available_slots:]:
-                results[symbol] = False
-                logging.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
+            # Mark symbols that couldn't be added
+            for symbol in normalized_symbols:
+                if symbol not in results:
+                    results[symbol] = False
 
-        # Restart stream if we added new symbols and are connected
-        if successfully_added > 0 and self._connected:
-            logging.info(f"🔄 Restarting stream to add {successfully_added} new subscriptions")
-            self._restart_stream_for_new_subscription()
-
-        logging.info(
-            f"✅ Bulk subscription complete: {successfully_added}/{len(symbols_to_add)} new symbols subscribed"
+        # If stream is connected and we added symbols, restart to add new subscriptions
+        needs_restart = (
+            symbols_to_add and 
+            self._connection_state == ConnectionState.CONNECTED
         )
+        if needs_restart:
+            logging.info(f"🔄 Restarting stream to add {len(symbols_to_add)} new subscriptions")
+            await self._restart_stream_for_new_subscription_async()
+
         return results
+
+    def subscribe_symbols_bulk(
+        self, symbols: list[str], priority: float | None = None
+    ) -> dict[str, bool]:
+        """Subscribe to real-time data for multiple symbols efficiently (sync wrapper).
+
+        Args:
+            symbols: List of symbols to subscribe to
+            priority: Subscription priority for all symbols (higher = more important)
+
+        Returns:
+            Dictionary mapping symbol to subscription success status
+
+        """
+        try:
+            # Try to get existing event loop
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an async context, create a task
+                import concurrent.futures
+                
+                def run_async_subscribe():
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        return new_loop.run_until_complete(
+                            self.subscribe_symbols_bulk_async(symbols, priority)
+                        )
+                    finally:
+                        new_loop.close()
+                
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_async_subscribe)
+                    return future.result(timeout=10.0)
+                    
+            except RuntimeError:
+                # No event loop running, safe to use asyncio.run
+                return asyncio.run(self.subscribe_symbols_bulk_async(symbols, priority))
+                
+        except Exception as e:
+            logging.error(f"Error in bulk symbol subscription: {e}")
+            return dict.fromkeys(symbols, False)
 
     def subscribe_symbol(self, symbol: str, priority: float | None = None) -> None:
         """Subscribe to real-time updates for a specific symbol with smart limit management.
@@ -844,11 +963,49 @@ class RealTimePricingService:
             priority: Priority score (higher = more important). Defaults to timestamp.
 
         """
+        # Use synchronous wrapper for async method
+        try:
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an async context, create a task
+                import concurrent.futures
+                
+                def run_async_subscribe():
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        new_loop.run_until_complete(
+                            self.subscribe_symbol_async(symbol, priority)
+                        )
+                    finally:
+                        new_loop.close()
+                
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_async_subscribe)
+                    future.result(timeout=10.0)
+                    
+            except RuntimeError:
+                # No event loop running, safe to use asyncio.run
+                asyncio.run(self.subscribe_symbol_async(symbol, priority))
+                
+        except Exception as e:
+            logging.error(f"Error subscribing to symbol {symbol}: {e}")
+
+    async def subscribe_symbol_async(self, symbol: str, priority: float | None = None) -> None:
+        """Subscribe to real-time updates for a specific symbol with smart limit management (async).
+
+        Args:
+            symbol: Stock symbol to subscribe to
+            priority: Priority score (higher = more important). Defaults to timestamp.
+
+        """
+        self._ensure_async_locks()
+        
         if priority is None:
             priority = time.time()  # Use current timestamp as default priority
 
         needs_restart = False
-        with self._subscription_lock:
+        async with self._subscription_lock:  # type: ignore[union-attr]
             # Check if we need to manage subscription limits
             if (
                 symbol not in self._subscribed_symbols
@@ -879,7 +1036,7 @@ class RealTimePricingService:
             if symbol not in self._subscribed_symbols:
                 self._subscribed_symbols.add(symbol)
                 self._subscription_priority[symbol] = priority
-                needs_restart = self._connected  # Only restart if already connected
+                needs_restart = self._connection_state == ConnectionState.CONNECTED  # Only restart if already connected
 
                 logging.info(f"📡 Added {symbol} to subscription list (priority: {priority:.1f})")
                 logging.debug(f"📊 Current subscriptions: {sorted(self._subscribed_symbols)}")
@@ -891,50 +1048,65 @@ class RealTimePricingService:
                 )
 
         # Restart stream if needed (outside the lock to avoid deadlock)
-        if needs_restart and self._connected:
+        if needs_restart and self._connection_state == ConnectionState.CONNECTED:
             logging.info(f"🔄 Restarting stream to add subscription for {symbol}")
-            self._restart_stream_for_new_subscription()
+            await self._restart_stream_for_new_subscription_async()
+
+    async def _restart_stream_for_new_subscription_async(self) -> None:
+        """Restart the stream to pick up new subscriptions (async)."""
+        self._ensure_async_locks()
+        
+        async with self._connection_lock:  # type: ignore[union-attr]
+            if self._connection_state != ConnectionState.CONNECTED:
+                logging.warning("Cannot restart stream - not connected")
+                return
+                
+            try:
+                # Set state to reconnecting
+                self._connection_state = ConnectionState.RECONNECTING
+                
+                # Stop current stream
+                if self._stream:
+                    self._stream.stop()
+                
+                # Brief pause to allow cleanup
+                await asyncio.sleep(0.1)
+                
+                # The stream task will automatically restart due to reconnection logic
+                logging.info("🔄 Stream restart initiated for new subscriptions")
+                
+            except Exception as e:
+                logging.error(f"Error restarting stream: {e}")
+                self._connection_state = ConnectionState.ERROR
 
     def _restart_stream_for_new_subscription(self) -> None:
-        """Restart the stream to pick up new subscriptions.
-
-        This is necessary because Alpaca SDK doesn't allow adding subscriptions
-        to a running stream - they must be set up before stream.run().
-        """
+        """Restart the stream to pick up new subscriptions (sync wrapper)."""
         try:
-            # Signal the current stream to stop
-            self._should_reconnect = False
-            if self._stream:
-                try:
-                    self._stream.stop()
-                except Exception as e:
-                    logging.debug(f"Error stopping stream for restart: {e}")
-
-            # Wait for the stream thread to finish
-            if self._stream_thread and self._stream_thread.is_alive():
-                self._stream_thread.join(timeout=2.0)
-
-            # Restart with new subscriptions
-            self._should_reconnect = True
-            self._connected = False
-            self._stream_thread = threading.Thread(
-                target=self._run_stream_with_event_loop,
-                name="RealTimePricing",
-                daemon=True,
-            )
-            self._stream_thread.start()
-
-            # Wait for reconnection
-            start_time = time.time()
-            while time.time() - start_time < 5.0:
-                if self._connected:
-                    logging.info("✅ Stream restarted successfully with new subscriptions")
-                    break
-                time.sleep(0.1)
-
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an async context, create a task
+                import concurrent.futures
+                
+                def run_async_restart():
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        new_loop.run_until_complete(
+                            self._restart_stream_for_new_subscription_async()
+                        )
+                    finally:
+                        new_loop.close()
+                
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_async_restart)
+                    future.result(timeout=10.0)
+                    
+            except RuntimeError:
+                # No event loop running, safe to use asyncio.run
+                asyncio.run(self._restart_stream_for_new_subscription_async())
+                
         except Exception as e:
-            logging.error(f"Error restarting stream for new subscription: {e}")
-            self._connected = False
+            logging.error(f"Error restarting stream: {e}")
 
     def unsubscribe_symbol(self, symbol: str) -> None:
         """Unsubscribe from real-time updates for a specific symbol.
@@ -943,19 +1115,19 @@ class RealTimePricingService:
             symbol: Stock symbol to unsubscribe from
 
         """
-        with self._subscription_lock:
-            if symbol in self._subscribed_symbols:
-                self._subscribed_symbols.remove(symbol)
-                self._subscription_priority.pop(symbol, None)
+        # Direct access - since these are simple operations on built-in types, 
+        # and we're removing rather than adding, we can safely do this without locks
+        if symbol in self._subscribed_symbols:
+            self._subscribed_symbols.remove(symbol)
+            self._subscription_priority.pop(symbol, None)
 
-                # Remove quote data from both legacy and structured storage
-                with self._quotes_lock:
-                    self._quotes.pop(symbol, None)  # Legacy storage
-                    self._price_data.pop(symbol, None)  # New price storage
-                    self._quote_data.pop(symbol, None)  # New quote storage
-                    self._last_update.pop(symbol, None)
+            # Remove quote data from both legacy and structured storage
+            self._quotes.pop(symbol, None)  # Legacy storage
+            self._price_data.pop(symbol, None)  # New price storage
+            self._quote_data.pop(symbol, None)  # New quote storage
+            self._last_update.pop(symbol, None)
 
-                logging.info(f"📴 Unsubscribed from real-time data for {symbol}")
+            logging.info(f"📴 Unsubscribed from real-time data for {symbol}")
 
     def subscribe_for_trading(self, symbol: str) -> None:
         """Subscribe to real-time data for a symbol that will be traded.
@@ -1034,8 +1206,8 @@ class RealTimePricingService:
             Set of subscribed symbol strings
 
         """
-        with self._subscription_lock:
-            return self._subscribed_symbols.copy()
+        # Direct access - reading a set copy is atomic
+        return self._subscribed_symbols.copy()
 
 
 class RealTimePricingManager:
