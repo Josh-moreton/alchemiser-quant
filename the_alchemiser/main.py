@@ -221,6 +221,9 @@ class TradingSystem:
             # Show rebalance plan details
             self._display_rebalance_plan(trading_result)
 
+            # Show stale order cancellation info
+            self._display_stale_order_info(trading_result)
+
             print("🚀 Executing rebalance plan...")
 
             # 5) Display tracking if requested
@@ -382,6 +385,22 @@ class TradingSystem:
             print("📋 Rebalance plan generated:")
             print("   → BUY: (details unavailable)")
             print("   → SELL: (details unavailable)")
+
+    def _display_stale_order_info(self, trading_result: dict[str, Any]) -> None:
+        """Display stale order cancellation information."""
+        try:
+            execution_result = trading_result.get("execution_result")
+            if (
+                execution_result
+                and hasattr(execution_result, "metadata")
+                and execution_result.metadata
+            ):
+                stale_count = execution_result.metadata.get("stale_orders_cancelled", 0)
+                if stale_count > 0:
+                    print(f"🗑️ Cancelled {stale_count} stale order(s)")
+        except Exception as e:
+            # Non-fatal: stale order display is best-effort
+            self.logger.debug(f"Failed to display stale order info: {e}")
 
     def _display_post_execution_tracking(self, *, paper_trading: bool) -> None:
         """Display strategy performance tracking after execution."""

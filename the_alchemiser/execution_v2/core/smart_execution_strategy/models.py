@@ -68,6 +68,7 @@ class ExecutionConfig:
     order_placement_timeout_seconds: int = 30  # Timeout for order placement
     fill_wait_seconds: int = 15  # Wait time before attempting re-peg
     max_wait_time_seconds: int = 30  # Maximum wait time for quote data
+    stale_order_timeout_minutes: int = 1  # Cancel orders older than this many minutes
 
     # Anchoring offsets (in cents)
     bid_anchor_offset_cents: Decimal = Decimal("0.01")  # Place at bid + $0.01 for buys
