@@ -339,10 +339,10 @@ class TradingSystem:
                 return
                 
             # If rebalance_plan is a DTO, get the items
-            if hasattr(rebalance_plan, 'items'):
+            if hasattr(rebalance_plan, "items"):
                 plan_items = rebalance_plan.items
-            elif isinstance(rebalance_plan, dict) and 'items' in rebalance_plan:
-                plan_items = rebalance_plan['items']
+            elif isinstance(rebalance_plan, dict) and "items" in rebalance_plan:
+                plan_items = rebalance_plan["items"]
             else:
                 # Fallback: no detailed plan available
                 print("⚖️  Portfolio rebalance plan: Orders required")
@@ -358,20 +358,20 @@ class TradingSystem:
             
             for item in plan_items:
                 # Handle both DTO and dict representations
-                if hasattr(item, 'action'):
+                if hasattr(item, "action"):
                     action = item.action
                     symbol = item.symbol
                     trade_amount = item.trade_amount
                 elif isinstance(item, dict):
-                    action = item.get('action', '').upper()
-                    symbol = item.get('symbol', '')
-                    trade_amount = item.get('trade_amount', 0)
+                    action = item.get("action", "").upper()
+                    symbol = item.get("symbol", "")
+                    trade_amount = item.get("trade_amount", 0)
                 else:
                     continue
                     
-                if action == 'BUY' and float(trade_amount) > 0:
+                if action == "BUY" and float(trade_amount) > 0:
                     buy_orders.append(f"{symbol} ${abs(float(trade_amount)):,.0f}")
-                elif action == 'SELL' and float(trade_amount) < 0:
+                elif action == "SELL" and float(trade_amount) < 0:
                     sell_orders.append(f"{symbol} ${abs(float(trade_amount)):,.0f}")
             
             # Display the plan
