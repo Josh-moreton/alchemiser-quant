@@ -209,6 +209,32 @@ class LiquidityAnalyzer:
         recommended_bid = recommended_bid.quantize(self.tick_size)
         recommended_ask = recommended_ask.quantize(self.tick_size)
 
+        # Validate that recommended prices are positive and reasonable
+        # This prevents issues with bad quote data leading to zero or negative limit prices
+        min_price = Decimal("0.01")  # Minimum 1 cent
+
+        if recommended_bid <= 0:
+            logger.warning(
+                f"Invalid recommended bid price {recommended_bid} for {quote.symbol}, "
+                f"using fallback of ${min_price}"
+            )
+            recommended_bid = min_price
+
+        if recommended_ask <= 0:
+            logger.warning(
+                f"Invalid recommended ask price {recommended_ask} for {quote.symbol}, "
+                f"using fallback of ${min_price}"
+            )
+            recommended_ask = min_price
+
+        # Ensure ask >= bid (basic sanity check)
+        if recommended_ask < recommended_bid:
+            logger.warning(
+                f"Ask price {recommended_ask} < bid price {recommended_bid} for {quote.symbol}, "
+                f"adjusting ask to match bid"
+            )
+            recommended_ask = recommended_bid
+
         return {"bid": float(recommended_bid), "ask": float(recommended_ask)}
 
     def _calculate_confidence(

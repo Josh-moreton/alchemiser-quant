@@ -14,7 +14,12 @@ from decimal import Decimal
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 
-from .models import ExecutionConfig, LiquidityMetadata, SmartOrderRequest, SmartOrderResult
+from .models import (
+    ExecutionConfig,
+    LiquidityMetadata,
+    SmartOrderRequest,
+    SmartOrderResult,
+)
 from .pricing import PricingCalculator
 from .quotes import QuoteProvider
 from .tracking import OrderTracker
@@ -251,6 +256,14 @@ class RepegManager:
                 logger.warning(f"⚠️ Cannot calculate re-peg price for {request.symbol}")
                 return None
 
+            # Additional validation to ensure price is positive and reasonable
+            if new_price <= Decimal("0.01"):
+                logger.error(
+                    f"⚠️ Invalid re-peg price ${new_price} for {request.symbol} {request.side}, "
+                    f"price must be > $0.01. Skipping re-peg."
+                )
+                return None
+
             # Update tracking BEFORE placing new order to ensure count persistence
             old_repeg_count = self.order_tracker.get_repeg_count(order_id)
             new_repeg_count = old_repeg_count + 1
@@ -262,6 +275,14 @@ class RepegManager:
 
             # Ensure price is properly quantized to avoid sub-penny precision errors
             quantized_price = new_price.quantize(Decimal("0.01"))
+
+            # Final validation before placing order
+            if quantized_price <= 0:
+                logger.error(
+                    f"⚠️ Quantized re-peg price ${quantized_price} is invalid for {request.symbol}. "
+                    f"This should not happen after validation - skipping re-peg."
+                )
+                return None
 
             executed_order = self.alpaca_manager.place_limit_order(
                 symbol=request.symbol,

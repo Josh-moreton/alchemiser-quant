@@ -17,7 +17,12 @@ from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 
 from .market_timing import should_place_order_now
-from .models import ExecutionConfig, LiquidityMetadata, SmartOrderRequest, SmartOrderResult
+from .models import (
+    ExecutionConfig,
+    LiquidityMetadata,
+    SmartOrderRequest,
+    SmartOrderResult,
+)
 from .pricing import PricingCalculator
 from .quotes import QuoteProvider
 from .repeg import RepegManager
@@ -144,9 +149,37 @@ class SmartExecutionStrategy:
                     )
                 )
 
+            # Validate optimal price before proceeding
+            if optimal_price <= 0:
+                logger.error(
+                    f"⚠️ Invalid optimal price ${optimal_price} calculated for {request.symbol} {request.side}. "
+                    f"This should not happen after validation - falling back to market order."
+                )
+                if request.urgency == "HIGH":
+                    return await self._place_market_order_fallback(request)
+                return SmartOrderResult(
+                    success=False,
+                    error_message=f"Invalid optimal price calculated for {request.symbol}",
+                    execution_strategy="smart_limit_failed",
+                )
+
             # Place limit order with optimal pricing
             # Ensure price is properly quantized to avoid sub-penny precision errors
             quantized_price = Decimal(str(float(optimal_price))).quantize(Decimal("0.01"))
+
+            # Final validation before placing order
+            if quantized_price <= 0:
+                logger.error(
+                    f"⚠️ Quantized optimal price ${quantized_price} is invalid for {request.symbol}. "
+                    f"This should not happen after validation - falling back to market order."
+                )
+                if request.urgency == "HIGH":
+                    return await self._place_market_order_fallback(request)
+                return SmartOrderResult(
+                    success=False,
+                    error_message=f"Invalid quantized price calculated for {request.symbol}",
+                    execution_strategy="smart_limit_failed",
+                )
 
             result = self.alpaca_manager.place_limit_order(
                 symbol=request.symbol,

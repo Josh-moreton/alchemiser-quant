@@ -156,6 +156,16 @@ class PricingCalculator:
         }
         # Quantize to cent precision to avoid sub-penny errors
         anchor_quantized = anchor.quantize(Decimal("0.01"))
+
+        # Validate that the calculated anchor price is positive and reasonable
+        min_price = Decimal("0.01")  # Minimum 1 cent
+        if anchor_quantized <= 0:
+            logger.warning(
+                f"Invalid anchor price {anchor_quantized} calculated for {quote.symbol} {side}, "
+                f"using minimum price ${min_price}"
+            )
+            anchor_quantized = min_price
+
         return anchor_quantized, metadata
 
     def calculate_repeg_price(
@@ -202,7 +212,22 @@ class PricingCalculator:
                 new_price = max(new_price, Decimal(str(quote.bid_price)))
 
             # Quantize to cent precision to avoid sub-penny errors
-            return new_price.quantize(Decimal("0.01"))
+            new_price = new_price.quantize(Decimal("0.01"))
+
+            # Validate that the calculated price is positive and reasonable
+            min_price = Decimal("0.01")  # Minimum 1 cent
+            if new_price <= 0:
+                logger.warning(
+                    f"Invalid re-peg price {new_price} calculated for {quote.symbol} {side}, "
+                    f"falling back to original price or minimum price"
+                )
+                # Use original price if available and valid, otherwise use minimum
+                if original_price and original_price > min_price:
+                    new_price = original_price
+                else:
+                    new_price = min_price
+
+            return new_price
 
         except Exception as e:
             logger.error(f"Error calculating re-peg price: {e}")
