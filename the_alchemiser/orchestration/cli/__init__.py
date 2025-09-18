@@ -16,9 +16,10 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> object:
     """Lazy import for CLI components."""
     if name == "app":
         from .cli import app
+
         return app
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

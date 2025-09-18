@@ -79,9 +79,7 @@ def _format_money(value: float | int | Decimal | str | MoneyLike) -> str:
         return str(value)
 
 
-def render_footer(
-    message: str, *, success: bool = True, console: Console | None = None
-) -> None:
+def render_footer(message: str, *, success: bool = True, console: Console | None = None) -> None:
     """Render a footer message."""
     c = console or Console()
 
@@ -94,18 +92,12 @@ def render_footer(
     c.print()
 
 
-def render_account_info(
-    account_info: dict[str, Any], console: Console | None = None
-) -> None:
+def render_account_info(account_info: dict[str, Any], console: Console | None = None) -> None:
     """Render account information including P&L data."""
     c = console or Console()
 
     if not account_info:
-        c.print(
-            Panel(
-                "Account information not available", title="ACCOUNT INFO", style="red"
-            )
-        )
+        c.print(Panel("Account information not available", title="ACCOUNT INFO", style="red"))
         return
 
     account_data = account_info.get("account", account_info)  # Support both formats
@@ -124,9 +116,7 @@ def render_account_info(
     buying_power = account_data.get("buying_power", 0)
 
     # Format money values
-    pv_display = _format_money(
-        account_data.get("portfolio_value_money", portfolio_value)
-    )
+    pv_display = _format_money(account_data.get("portfolio_value_money", portfolio_value))
     cash_display = _format_money(account_data.get("cash_money", cash))
     bp_display = _format_money(account_data.get("buying_power_money", buying_power))
 
@@ -148,7 +138,7 @@ def render_account_info(
 
             pl_color = "green" if recent_pl >= 0 else "red"
             pl_sign = "+" if recent_pl > 0 else ""
-            
+
             content_lines.append(
                 f"[bold {pl_color}]Daily P&L:[/bold {pl_color}] "
                 f"[{pl_color}]{pl_sign}{_format_money(recent_pl)} ({pl_sign}{recent_pl_pct:.2%})[/{pl_color}]"

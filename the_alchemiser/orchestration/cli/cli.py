@@ -66,6 +66,8 @@ app = typer.Typer(
 )
 console = Console()
 
+DEFAULT_JSON_OUTPUT = False
+
 
 def show_welcome() -> None:
     """Render the CLI welcome banner.
@@ -112,7 +114,7 @@ def trade(
         None, "--export-tracking-json", help="Export tracking summary to JSON file"
     ),
     json_output: bool = typer.Option(  # noqa: FBT001
-        False, "--json", help="Output results as JSON (for automation)"
+        "--json", default=DEFAULT_JSON_OUTPUT, help="Output results as JSON (for automation)"
     ),
 ) -> None:
     """💰 [bold green]Execute multi-strategy trading[/bold green].
@@ -164,13 +166,8 @@ def trade(
         # Handle the new DTO result type
         if isinstance(result, TradeRunResultDTO):
             # Use clean formatter for both JSON and regular output
-            render_trade_result(
-                result, 
-                json_output=json_output, 
-                verbose=verbose, 
-                console=console
-            )
-            
+            render_trade_result(result, json_output=json_output, verbose=verbose, console=console)
+
             # Exit code based on success
             if not result.success:
                 raise typer.Exit(1)
@@ -178,7 +175,7 @@ def trade(
             # Legacy boolean result (should not happen)
             if not json_output:
                 console.print("[dim]✅ Trading completed![/dim]")
-                
+
                 if result:
                     console.print(
                         f"\n[bold green]{mode_display} trading completed successfully![/bold green]"
@@ -190,11 +187,16 @@ def trade(
                 # Fallback JSON for boolean result
                 import json
                 import sys
-                json.dump({
-                    "status": "SUCCESS" if result else "FAILURE",
-                    "success": bool(result),
-                    "legacy_mode": True
-                }, sys.stdout, indent=2)
+
+                json.dump(
+                    {
+                        "status": "SUCCESS" if result else "FAILURE",
+                        "success": bool(result),
+                        "legacy_mode": True,
+                    },
+                    sys.stdout,
+                    indent=2,
+                )
                 sys.stdout.write("\n")
                 if not result:
                     raise typer.Exit(1)
@@ -487,7 +489,7 @@ def main(
         help="Suppress non-essential output",
     ),
     json_output: bool = typer.Option(  # noqa: FBT001
-        False, "--json", help="Output results as JSON (for automation)"
+        "--json", default=DEFAULT_JSON_OUTPUT, help="Output results as JSON (for automation)"
     ),
 ) -> None:
     """[bold]The Alchemiser - Advanced Multi-Strategy Quantitative Trading System[/bold].
@@ -504,13 +506,13 @@ def main(
 
     [dim]Use --help with any command for detailed information.[/dim]
     """
-    # Configure logging based on CLI options  
+    # Configure logging based on CLI options
     from the_alchemiser.shared.logging.logging_utils import setup_logging
 
     # JSON mode implies quiet mode (no Rich formatting, minimal console output)
     if json_output:
         quiet = True
-        
+
     if verbose:
         log_level = logging.DEBUG
         console_level = logging.DEBUG

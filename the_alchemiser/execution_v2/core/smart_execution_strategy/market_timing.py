@@ -39,9 +39,7 @@ def should_place_order_now(config: ExecutionConfig) -> bool:
 
     # Check if we're in the restricted window (9:30-9:35am ET)
     market_open_time = dt_time(9, 30)  # 9:30am ET
-    restricted_end_time = dt_time(
-        9, 30 + config.market_open_delay_minutes
-    )  # 9:35am ET
+    restricted_end_time = dt_time(9, 30 + config.market_open_delay_minutes)  # 9:35am ET
 
     if market_open_time <= current_time <= restricted_end_time:
         logger.info(

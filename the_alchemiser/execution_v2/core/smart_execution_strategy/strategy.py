@@ -107,7 +107,9 @@ class SmartExecutionStrategy:
 
             # Retry up to 3 times with increasing waits
             for attempt in range(3):
-                validated = self.quote_provider.get_quote_with_validation(request.symbol, order_size)
+                validated = self.quote_provider.get_quote_with_validation(
+                    request.symbol, order_size
+                )
                 if validated:
                     quote, used_fallback = validated
                     break
@@ -130,19 +132,21 @@ class SmartExecutionStrategy:
 
             # Calculate optimal price: full liquidity analysis when streaming, simple when fallback
             if not used_fallback:
-                optimal_price, analysis_metadata = self.pricing_calculator.calculate_liquidity_aware_price(
-                    quote, request.side, order_size
+                optimal_price, analysis_metadata = (
+                    self.pricing_calculator.calculate_liquidity_aware_price(
+                        quote, request.side, order_size
+                    )
                 )
             else:
                 optimal_price, analysis_metadata = (
-                    self.pricing_calculator.calculate_simple_inside_spread_price(quote, request.side)
+                    self.pricing_calculator.calculate_simple_inside_spread_price(
+                        quote, request.side
+                    )
                 )
 
             # Place limit order with optimal pricing
             # Ensure price is properly quantized to avoid sub-penny precision errors
-            quantized_price = Decimal(str(float(optimal_price))).quantize(
-                Decimal("0.01")
-            )
+            quantized_price = Decimal(str(float(optimal_price))).quantize(Decimal("0.01"))
 
             result = self.alpaca_manager.place_limit_order(
                 symbol=request.symbol,
@@ -177,9 +181,7 @@ class SmartExecutionStrategy:
                     **analysis_metadata,
                     "bid_price": quote.bid_price,
                     "ask_price": quote.ask_price,
-                    "spread_percent": (quote.ask_price - quote.bid_price)
-                    / quote.bid_price
-                    * 100,
+                    "spread_percent": (quote.ask_price - quote.bid_price) / quote.bid_price * 100,
                     "bid_size": quote.bid_size,
                     "ask_size": quote.ask_size,
                     "used_fallback": used_fallback,
@@ -212,9 +214,7 @@ class SmartExecutionStrategy:
             # Clean up subscription after order placement
             self.quote_provider.cleanup_subscription(request.symbol)
 
-    async def _place_market_order_fallback(
-        self, request: SmartOrderRequest
-    ) -> SmartOrderResult:
+    async def _place_market_order_fallback(self, request: SmartOrderRequest) -> SmartOrderResult:
         """Fallback to market order for high urgency situations.
 
         Args:
@@ -286,9 +286,7 @@ class SmartExecutionStrategy:
         """
         return self.quote_provider.wait_for_quote_data(symbol, timeout)
 
-    def validate_quote_liquidity(
-        self, symbol: str, quote: dict[str, float | int]
-    ) -> bool:
+    def validate_quote_liquidity(self, symbol: str, quote: dict[str, float | int]) -> bool:
         """Validate that the quote has sufficient liquidity.
 
         Args:

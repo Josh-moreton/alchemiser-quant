@@ -23,28 +23,33 @@ Exports:
 # Lazy imports to avoid circular dependencies and missing dependencies during CLI operations
 __all__ = [
     "EventDrivenOrchestrator",
-    "MultiStrategyOrchestrator", 
+    "MultiStrategyOrchestrator",
     "PortfolioOrchestrator",
     "SignalOrchestrator",
     "TradingOrchestrator",
 ]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> object:
     """Lazy import for orchestration components."""
     if name == "EventDrivenOrchestrator":
         from .event_driven_orchestrator import EventDrivenOrchestrator
+
         return EventDrivenOrchestrator
     if name == "PortfolioOrchestrator":
         from .portfolio_orchestrator import PortfolioOrchestrator
+
         return PortfolioOrchestrator
     if name == "SignalOrchestrator":
         from .signal_orchestrator import SignalOrchestrator
+
         return SignalOrchestrator
     if name == "MultiStrategyOrchestrator":
         from .strategy_orchestrator import MultiStrategyOrchestrator
+
         return MultiStrategyOrchestrator
     if name == "TradingOrchestrator":
         from .trading_orchestrator import TradingOrchestrator
+
         return TradingOrchestrator
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
