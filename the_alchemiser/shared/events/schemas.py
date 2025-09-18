@@ -20,6 +20,7 @@ from pydantic import Field
 from ..dto.portfolio_state_dto import PortfolioStateDTO
 from ..dto.rebalance_plan_dto import RebalancePlanDTO
 from ..dto.signal_dto import StrategySignalDTO
+from ..dto import ErrorDTO
 from .base import BaseEvent
 
 # Constants
@@ -90,7 +91,7 @@ class TradeExecuted(BaseEvent):
         default=None, description="Portfolio state after execution"
     )
     success: bool = Field(..., description="Whether execution was successful")
-    error_message: str | None = Field(default=None, description="Error message if execution failed")
+    error: ErrorDTO | None = Field(default=None, description="Error details if execution failed")
 
 
 class TradeExecutionStarted(BaseEvent):

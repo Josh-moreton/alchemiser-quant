@@ -15,6 +15,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from . import ErrorDTO
+
 
 class OrderResultSummaryDTO(BaseModel):
     """Summary of a single order execution for CLI display."""
@@ -33,7 +35,7 @@ class OrderResultSummaryDTO(BaseModel):
     order_id_redacted: str | None = Field(default=None, description="Last 6 chars of order ID")
     order_id_full: str | None = Field(default=None, description="Full order ID (for verbose)")
     success: bool = Field(..., description="Order success flag")
-    error_message: str | None = Field(default=None, description="Error message if failed")
+    error: ErrorDTO | None = Field(default=None, description="Error details if failed")
     timestamp: datetime = Field(..., description="Order execution timestamp")
 
 
@@ -121,7 +123,7 @@ class TradeRunResultDTO(BaseModel):
                     "shares": str(order.shares),
                     "price": str(order.price) if order.price else None,
                     "success": order.success,
-                    "error_message": order.error_message,
+                    "error": order.error.model_dump() if order.error else None,
                     "timestamp": order.timestamp.isoformat(),
                 }
                 for order in self.orders

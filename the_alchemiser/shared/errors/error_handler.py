@@ -23,32 +23,28 @@ if TYPE_CHECKING:
     # Forward reference type aliases for type checking
     from .context import ErrorContextData
 
+# Import ErrorDTO for structured error handling
+from the_alchemiser.shared.dto import ErrorDTO
+
 # Type aliases for error handler data structures
 ErrorData = dict[str, str | int | float | bool | None]
 ErrorList = list[ErrorData]
 ContextDict = dict[str, str | int | float | bool | None]
 
 
-# Error schema types
-class ErrorDetailInfo(TypedDict):
-    """Error detail information."""
-
-    error_type: str
-    error_message: str
-
-
+# Updated error schema types using ErrorDTO
 class ErrorSummaryData(TypedDict):
     """Error summary data."""
 
     count: int
-    errors: list[dict[str, Any]]
+    errors: list[ErrorDTO]
 
 
 class ErrorReportSummary(TypedDict):
     """Error report summary."""
 
-    critical: dict[str, Any] | None
-    trading: dict[str, Any] | None
+    critical: ErrorSummaryData | None
+    trading: ErrorSummaryData | None
 
 
 class ErrorNotificationData(TypedDict):
@@ -58,6 +54,7 @@ class ErrorNotificationData(TypedDict):
     priority: str
     title: str
     error_report: str
+    html_content: str
     html_content: str
 
 
@@ -231,6 +228,22 @@ class ErrorDetails:
             "additional_data": self.additional_data,
             "suggested_action": self.suggested_action,
         }
+
+    def to_error_dto(self) -> ErrorDTO:
+        """Convert error details to ErrorDTO for structured error handling."""
+        return ErrorDTO(
+            error_type=type(self.error).__name__,
+            message=str(self.error),
+            category=self.category,
+            component=self.component,
+            context={
+                "operation_context": self.context,
+                **self.additional_data
+            },
+            timestamp=self.timestamp.isoformat(),
+            traceback=self.traceback,
+            suggested_action=self.suggested_action
+        )
 
 
 class EnhancedAlchemiserError(AlchemiserError):

@@ -29,6 +29,7 @@ from the_alchemiser.shared.dto.rebalance_plan_dto import (
     RebalancePlanDTO,
     RebalancePlanItemDTO,
 )
+from the_alchemiser.shared.dto import ErrorDTO
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
@@ -300,7 +301,12 @@ class TradingOrchestrator:
             self._emit_trade_executed_event(
                 execution_result,
                 success=execution_success,
-                error_message=None if execution_success else "Some orders failed",
+                error=None if execution_success else ErrorDTO(
+                    error_type="OrderExecutionError",
+                    message="Some orders failed",
+                    category="trading",
+                    component="TradingOrchestrator"
+                ),
             )
 
             # Update workflow state
@@ -330,7 +336,9 @@ class TradingOrchestrator:
                     metadata={"error": str(e)},
                 )
                 self._emit_trade_executed_event(
-                    failed_result, success=False, error_message=str(e)
+                    failed_result, 
+                    success=False, 
+                    error=ErrorDTO.from_exception(e, category="trading", component="TradingOrchestrator")
                 )
             except Exception as emit_error:
                 self.logger.warning(f"Failed to emit failure event: {emit_error}")
@@ -971,7 +979,7 @@ class TradingOrchestrator:
         execution_result: ExecutionResultDTO,
         *,
         success: bool,
-        error_message: str | None = None,
+        error: ErrorDTO | None = None,
     ) -> None:
         """Emit TradeExecuted event for event-driven architecture.
 
@@ -980,7 +988,7 @@ class TradingOrchestrator:
         Args:
             execution_result: The execution result from trading
             success: Whether the execution was successful overall
-            error_message: Error message if execution failed
+            error: Error details if execution failed
 
         """
         try:
@@ -1059,7 +1067,7 @@ class TradingOrchestrator:
                 execution_results=execution_data,
                 portfolio_state_after=portfolio_state_after,
                 success=success,
-                error_message=error_message,
+                error=error,
             )
 
             self.event_bus.publish(event)

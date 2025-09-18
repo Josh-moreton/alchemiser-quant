@@ -21,6 +21,7 @@ from ..utils.dto_conversion import (
     convert_nested_order_data,
 )
 from ..utils.timezone_utils import ensure_timezone_aware
+from . import ErrorDTO
 
 
 class ExecutedOrderDTO(BaseModel):
@@ -46,7 +47,7 @@ class ExecutedOrderDTO(BaseModel):
     # Optional fields
     commission: Decimal | None = Field(default=None, ge=0, description="Commission paid")
     fees: Decimal | None = Field(default=None, ge=0, description="Additional fees")
-    error_message: str | None = Field(default=None, description="Error message if failed")
+    error: ErrorDTO | None = Field(default=None, description="Error details if failed")
 
     @field_validator("symbol")
     @classmethod

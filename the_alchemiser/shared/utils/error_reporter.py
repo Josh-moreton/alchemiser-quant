@@ -14,6 +14,7 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Protocol
 
+from the_alchemiser.shared.dto import ErrorDTO
 from the_alchemiser.shared.types.exceptions import (
     InsufficientFundsError,
     MarketClosedError,
@@ -55,7 +56,7 @@ class ErrorReporter:
         """
         self.notification_manager = notification_manager
         self.error_counts: dict[str, int] = defaultdict(int)
-        self.critical_errors: list[ErrorContext] = []
+        self.critical_errors: list[ErrorDTO] = []
         self.error_rate_threshold = 10  # Max errors per operation type before alerting
 
     def report_error(
@@ -64,22 +65,31 @@ class ErrorReporter:
         context: ErrorContext | None = None,
         *,
         is_critical: bool = False,
-    ) -> None:
-        """Report an error with context for monitoring."""
-        error_data = {
-            "timestamp": datetime.now(UTC).isoformat(),
-            "error_type": error.__class__.__name__,
-            "message": str(error),
-            "context": context or {},
-            "is_critical": is_critical,
-        }
+    ) -> ErrorDTO:
+        """Report an error with context for monitoring.
+        
+        Returns:
+            ErrorDTO representing the reported error
+        """
+        # Create ErrorDTO from the exception
+        error_dto = ErrorDTO.from_exception(
+            error,
+            category="critical" if is_critical or self._is_critical_error(error) else "warning",
+            additional_context=context
+        )
 
-        # Add exception-specific context if available
-        if hasattr(error, "to_dict"):
-            error_data.update(error.to_dict())
-
-        # Log structured error
-        logger.error("Error reported", extra={"error_data": error_data})
+        # Log structured error using the ErrorDTO
+        logger.error(
+            "Error reported", 
+            extra={
+                "error_data": {
+                    "error_type": error_dto.error_type,
+                    "message": error_dto.message,
+                    "context": error_dto.context,
+                    "is_critical": is_critical,
+                }
+            }
+        )
 
         # Track error frequency
         error_key = f"{error.__class__.__name__}:{context.get('operation', 'unknown') if context else 'unknown'}"
@@ -87,11 +97,13 @@ class ErrorReporter:
 
         # Handle critical errors
         if is_critical or self._is_critical_error(error):
-            self.critical_errors.append(error_data)
-            self._handle_critical_error(error_data)
+            self.critical_errors.append(error_dto)
+            self._handle_critical_error(error_dto)
 
         # Check for error rate thresholds
         self._check_error_rates()
+        
+        return error_dto
 
     def _is_critical_error(self, error: Exception) -> bool:
         """Determine if an error is critical based on type."""
@@ -100,11 +112,18 @@ class ErrorReporter:
             InsufficientFundsError | SecurityError | OrderExecutionError | MarketClosedError,
         )
 
-    def _handle_critical_error(self, error_data: ErrorContext) -> None:
+    def _handle_critical_error(self, error_dto: ErrorDTO) -> None:
         """Handle critical errors with immediate notification."""
         if self.notification_manager:
             self.notification_manager.send_critical_alert(
-                f"Critical Error: {error_data['error_type']}", error_data
+                f"Critical Error: {error_dto.error_type}", 
+                {
+                    "error_type": error_dto.error_type,
+                    "message": error_dto.message,
+                    "context": error_dto.context,
+                    "timestamp": error_dto.timestamp,
+                    "component": error_dto.component,
+                }
             )
 
     def _check_error_rates(self) -> None:

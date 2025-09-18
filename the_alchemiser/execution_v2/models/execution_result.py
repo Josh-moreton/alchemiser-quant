@@ -11,6 +11,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from the_alchemiser.shared.dto import ErrorDTO
+
 
 class OrderResultDTO(BaseModel):
     """Result of a single order execution."""
@@ -28,7 +30,7 @@ class OrderResultDTO(BaseModel):
     price: Decimal | None = Field(default=None, description="Execution price")
     order_id: str | None = Field(default=None, description="Broker order ID")
     success: bool = Field(..., description="Order success flag")
-    error_message: str | None = Field(default=None, description="Error message if failed")
+    error: ErrorDTO | None = Field(default=None, description="Error details if failed")
     timestamp: datetime = Field(..., description="Order execution timestamp")
 
 

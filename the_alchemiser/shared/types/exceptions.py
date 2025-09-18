@@ -10,7 +10,10 @@ to enable better error handling and debugging throughout the application.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from the_alchemiser.shared.dto import ErrorDTO
 
 
 class AlchemiserError(Exception):
@@ -31,6 +34,28 @@ class AlchemiserError(Exception):
             "context": self.context,
             "timestamp": self.timestamp.isoformat(),
         }
+
+    def to_error_dto(self, category: str | None = None, component: str | None = None) -> ErrorDTO:
+        """Convert exception to ErrorDTO for structured error handling.
+        
+        Args:
+            category: Optional error category for grouping
+            component: Optional component name where error occurred
+            
+        Returns:
+            ErrorDTO instance representing this error
+        """
+        from the_alchemiser.shared.dto import ErrorDTO
+        
+        return ErrorDTO(
+            error_type=self.__class__.__name__,
+            message=self.message,
+            category=category,
+            component=component,
+            context=self.context,
+            timestamp=self.timestamp.isoformat(),
+            suggested_action=getattr(self, "suggested_action", None)
+        )
 
 
 class ConfigurationError(AlchemiserError):
