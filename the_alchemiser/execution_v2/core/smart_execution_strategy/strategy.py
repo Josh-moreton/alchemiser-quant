@@ -16,7 +16,6 @@ from decimal import Decimal
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 
-from .market_timing import should_place_order_now
 from .models import (
     ExecutionConfig,
     LiquidityMetadata,
@@ -68,15 +67,6 @@ class SmartExecutionStrategy:
             config=self.config,
         )
 
-    def should_place_order_now(self) -> bool:
-        """Check if it's appropriate to place orders based on market timing.
-
-        Returns:
-            True if orders can be placed, False if market timing is poor
-
-        """
-        return should_place_order_now(self.config)
-
     async def place_smart_order(self, request: SmartOrderRequest) -> SmartOrderResult:
         """Place a smart limit order with liquidity anchoring.
 
@@ -91,14 +81,6 @@ class SmartExecutionStrategy:
             f"🎯 Placing smart {request.side} order: {request.quantity} {request.symbol} "
             f"(urgency: {request.urgency})"
         )
-
-        # Check market timing
-        if not self.should_place_order_now():
-            return SmartOrderResult(
-                success=False,
-                error_message="Order delayed due to market timing restrictions",
-                execution_strategy="smart_limit_delayed",
-            )
 
         # Symbol should already be pre-subscribed by executor
         # Brief wait to allow any pending subscription to receive initial data
@@ -165,7 +147,9 @@ class SmartExecutionStrategy:
 
             # Place limit order with optimal pricing
             # Ensure price is properly quantized to avoid sub-penny precision errors
-            quantized_price = Decimal(str(float(optimal_price))).quantize(Decimal("0.01"))
+            quantized_price = Decimal(str(float(optimal_price))).quantize(
+                Decimal("0.01")
+            )
 
             # Final validation before placing order
             if quantized_price <= 0:
@@ -214,7 +198,9 @@ class SmartExecutionStrategy:
                     **analysis_metadata,
                     "bid_price": quote.bid_price,
                     "ask_price": quote.ask_price,
-                    "spread_percent": (quote.ask_price - quote.bid_price) / quote.bid_price * 100,
+                    "spread_percent": (quote.ask_price - quote.bid_price)
+                    / quote.bid_price
+                    * 100,
                     "bid_size": quote.bid_size,
                     "ask_size": quote.ask_size,
                     "used_fallback": used_fallback,
@@ -247,7 +233,9 @@ class SmartExecutionStrategy:
             # Clean up subscription after order placement
             self.quote_provider.cleanup_subscription(request.symbol)
 
-    async def _place_market_order_fallback(self, request: SmartOrderRequest) -> SmartOrderResult:
+    async def _place_market_order_fallback(
+        self, request: SmartOrderRequest
+    ) -> SmartOrderResult:
         """Fallback to market order for high urgency situations.
 
         Args:
@@ -319,7 +307,9 @@ class SmartExecutionStrategy:
         """
         return self.quote_provider.wait_for_quote_data(symbol, timeout)
 
-    def validate_quote_liquidity(self, symbol: str, quote: dict[str, float | int]) -> bool:
+    def validate_quote_liquidity(
+        self, symbol: str, quote: dict[str, float | int]
+    ) -> bool:
         """Validate that the quote has sufficient liquidity.
 
         Args:
