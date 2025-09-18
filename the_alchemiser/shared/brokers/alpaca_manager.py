@@ -754,16 +754,31 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def get_orders(self, status: str | None = None) -> list[Any]:
         """Get orders, optionally filtered by status."""
         try:
-            # Some stubs don't accept status kw; fetch and filter manually
-            orders = self._trading_client.get_orders()
+            from alpaca.trading.requests import GetOrdersRequest
+            from alpaca.trading.enums import QueryOrderStatus
+            
+            # Use proper request to get more orders (default limit is very low)
+            if status and status.lower() == "open":
+                # Use the API's built-in open status filter for efficiency
+                request = GetOrdersRequest(status=QueryOrderStatus.OPEN)
+                orders = self._trading_client.get_orders(request)
+            else:
+                # Get recent orders with higher limit to catch all relevant orders
+                request = GetOrdersRequest(limit=100)  # Increased from default
+                orders = self._trading_client.get_orders(request)
+                
             orders_list = list(orders)
-            if status:
+            
+            # Apply manual filtering for non-open status requests
+            if status and status.lower() != "open":
                 status_lower = status.lower()
+                # For other statuses, try exact match on the enum name
                 orders_list = [
                     o
                     for o in orders_list
-                    if str(getattr(o, "status", "")).lower() == status_lower
+                    if status_lower in str(getattr(o, "status", "")).lower()
                 ]
+                
             logger.debug(f"Successfully retrieved {len(orders_list)} orders")
             return orders_list
         except Exception as e:
@@ -1064,65 +1079,67 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             current_time = datetime.now(UTC)
             cutoff_time = current_time - timedelta(minutes=timeout_minutes)
-            
+
             # Get all open orders
             open_orders = self.get_orders(status="open")
-            
+
             cancelled_orders = []
             errors = []
-            
-            logger.info(f"🔍 Checking {len(open_orders)} open orders for staleness (>{timeout_minutes} minutes)")
-            
+
+            logger.info(
+                f"🔍 Checking {len(open_orders)} open orders for staleness (>{timeout_minutes} minutes)"
+            )
+
             for order in open_orders:
                 try:
                     # Get order submission time
                     submitted_at = getattr(order, "submitted_at", None)
                     if not submitted_at:
                         continue
-                        
+
                     # Handle string timestamps
                     if isinstance(submitted_at, str):
                         submitted_at = datetime.fromisoformat(
                             submitted_at.replace("Z", "+00:00")
                         )
-                    
+
                     # Check if order is stale
                     if submitted_at < cutoff_time:
                         order_id = str(getattr(order, "id", "unknown"))
                         symbol = getattr(order, "symbol", "unknown")
                         age_minutes = (current_time - submitted_at).total_seconds() / 60
-                        
+
                         logger.info(
                             f"🗑️ Cancelling stale order {order_id} for {symbol} "
                             f"(age: {age_minutes:.1f} minutes)"
                         )
-                        
+
                         if self.cancel_order(order_id):
                             cancelled_orders.append(order_id)
                         else:
                             errors.append(f"Failed to cancel order {order_id}")
-                            
+
                 except Exception as e:
                     order_id = str(getattr(order, "id", "unknown"))
                     error_msg = f"Error processing order {order_id}: {e}"
                     logger.error(error_msg)
                     errors.append(error_msg)
-            
+
             result = {
                 "cancelled_count": len(cancelled_orders),
                 "errors": errors,
                 "cancelled_orders": cancelled_orders,
             }
-            
+
             if cancelled_orders:
                 logger.info(
                     f"✅ Cancelled {len(cancelled_orders)} stale orders: {cancelled_orders}"
                 )
             else:
                 logger.info("✅ No stale orders found to cancel")
-                
+
             return result
-            
+
         except Exception as e:
             error_msg = f"Failed to cancel stale orders: {e}"
             logger.error(error_msg)
