@@ -73,6 +73,8 @@ def _format_money(value: float | int | Decimal | str | MoneyLike) -> str:
 
     # Fallback to float conversion
     try:
+        if not isinstance(value, (int, float, str, Decimal)):
+            return str(value)
         float_val = float(value)
         return f"${float_val:,.2f}"
     except (ValueError, TypeError):
@@ -156,8 +158,8 @@ def render_account_info(account_info: dict[str, Any], console: Console | None = 
         positions_table.add_column("Market Value", style="green", justify="right")
         positions_table.add_column("Unrealized P&L", style="white", justify="right")
 
-        total_market_value = 0
-        total_unrealized_pl = 0
+        total_market_value: float = 0.0
+        total_unrealized_pl: float = 0.0
 
         for position in open_positions:
             symbol = position.get("symbol", "N/A")

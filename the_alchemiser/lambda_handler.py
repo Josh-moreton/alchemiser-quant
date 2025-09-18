@@ -282,11 +282,14 @@ def lambda_handler(
         # main() loads settings internally; do not pass unsupported kwargs
         result = main(command_args)
 
+        # Normalize result for response formatting
+        result_ok = bool(result.success) if hasattr(result, "success") else bool(result)
+
         # Build response message
-        message = _build_response_message(mode, trading_mode, result=result)
+        message = _build_response_message(mode, trading_mode, result=result_ok)
 
         response = {
-            "status": "success" if result else "failed",
+            "status": "success" if result_ok else "failed",
             "mode": mode,
             "trading_mode": trading_mode,
             "message": message,
