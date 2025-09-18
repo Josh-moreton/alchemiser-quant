@@ -55,7 +55,8 @@ class ConfigurationDTO(BaseModel):
     )
 
     config_data: dict[str, Any] = Field(
-        default_factory=dict, description="Configuration data (flexible for Phase 1 scaffolding)"
+        default_factory=dict,
+        description="Configuration data (flexible for Phase 1 scaffolding)",
     )
 
 

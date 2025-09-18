@@ -114,7 +114,7 @@ def trade(
         None, "--export-tracking-json", help="Export tracking summary to JSON file"
     ),
     json_output: bool = typer.Option(  # noqa: FBT001
-        "--json", default=DEFAULT_JSON_OUTPUT, help="Output results as JSON (for automation)"
+        DEFAULT_JSON_OUTPUT, "--json", help="Output results as JSON (for automation)"
     ),
 ) -> None:
     """💰 [bold green]Execute multi-strategy trading[/bold green].
@@ -489,7 +489,7 @@ def main(
         help="Suppress non-essential output",
     ),
     json_output: bool = typer.Option(  # noqa: FBT001
-        "--json", default=DEFAULT_JSON_OUTPUT, help="Output results as JSON (for automation)"
+        DEFAULT_JSON_OUTPUT, "--json", help="Output results as JSON (for automation)"
     ),
 ) -> None:
     """[bold]The Alchemiser - Advanced Multi-Strategy Quantitative Trading System[/bold].
