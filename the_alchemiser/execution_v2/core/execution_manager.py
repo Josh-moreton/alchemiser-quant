@@ -118,7 +118,7 @@ class ExecutionManager:
 
         # Use price if available, otherwise calculate from trade_amount
         price = order.price
-        if not price and order.shares > 0:
+        if not price and order.shares and order.shares > 0:
             price = order.trade_amount / order.shares
 
         return ExecutedOrderDTO(
