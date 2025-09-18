@@ -18,12 +18,16 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from the_alchemiser.orchestration.event_driven_orchestrator import (
+        EventDrivenOrchestrator,
+    )
     from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
 
 # CLI formatter imports (moved from function-level)
 from the_alchemiser.orchestration.cli.cli_utilities import (
     render_footer,
 )
+
 # Import moved to where it's used to avoid early dependency loading
 from the_alchemiser.shared.config.config import Settings, load_settings
 from the_alchemiser.shared.config.container import ApplicationContainer
@@ -87,6 +91,10 @@ class TradingSystem:
                 return
 
             # Initialize event-driven orchestrator
+            from the_alchemiser.orchestration.event_driven_orchestrator import (
+                EventDrivenOrchestrator,
+            )
+
             self.event_driven_orchestrator = EventDrivenOrchestrator(self.container)
             self.logger.info("Event-driven orchestration initialized")
 
@@ -150,19 +158,19 @@ class TradingSystem:
         """Execute multi-strategy trading.
 
         Note: Trading mode (live/paper) is now determined by deployment stage.
-        
+
         Returns:
             TradeRunResultDTO with complete execution results and metadata
 
         """
         import uuid
         from datetime import UTC, datetime
-        
+
         # Start timing and correlation tracking
         started_at = datetime.now(UTC)
         correlation_id = str(uuid.uuid4())
         warnings: list[str] = []
-        
+
         try:
             from the_alchemiser.orchestration.trading_orchestrator import (
                 TradingOrchestrator,
@@ -170,12 +178,9 @@ class TradingSystem:
 
             if self.container is None:
                 return self._create_failure_result(
-                    "DI container not initialized", 
-                    started_at, 
-                    correlation_id,
-                    warnings
+                    "DI container not initialized", started_at, correlation_id, warnings
                 )
-                
+
             # Create trading orchestrator directly
             orchestrator = TradingOrchestrator(
                 settings=self.settings,
@@ -190,14 +195,14 @@ class TradingSystem:
                 return self._create_failure_result(
                     "Signal analysis failed - check logs for details",
                     started_at,
-                    correlation_id, 
-                    warnings
+                    correlation_id,
+                    warnings,
                 )
 
             # PHASE 2: Execute trading (may place orders)
             # Temporarily suppress verbose logs for cleaner CLI output
             self._configure_quiet_logging()
-            
+
             try:
                 # Execute trading with minimal output - no Rich progress spinner
                 trading_result = orchestrator.execute_strategy_signals_with_trading()
@@ -206,13 +211,13 @@ class TradingSystem:
                 trading_result = orchestrator.execute_strategy_signals_with_trading()
             finally:
                 self._restore_logging()
-                
+
             if trading_result is None:
                 return self._create_failure_result(
                     "Trading execution failed - check logs for details",
                     started_at,
                     correlation_id,
-                    warnings
+                    warnings,
                 )
 
             # 5) Display tracking if requested
@@ -238,7 +243,7 @@ class TradingSystem:
             # Create successful result DTO
             completed_at = datetime.now(UTC)
             success = bool(trading_result.get("success", False))
-            
+
             return self._create_success_result(
                 trading_result=trading_result,
                 orchestrator=orchestrator,
@@ -246,9 +251,9 @@ class TradingSystem:
                 completed_at=completed_at,
                 correlation_id=correlation_id,
                 warnings=warnings,
-                success=success
+                success=success,
             )
-            
+
         except (TradingClientError, StrategyExecutionError) as e:
             self.error_handler.handle_error(
                 error=e,
@@ -260,10 +265,7 @@ class TradingSystem:
                 },
             )
             return self._create_failure_result(
-                f"System error: {e}",
-                started_at,
-                correlation_id,
-                warnings
+                f"System error: {e}", started_at, correlation_id, warnings
             )
 
     def _display_post_execution_tracking(self, *, paper_trading: bool) -> None:
@@ -342,19 +344,19 @@ class TradingSystem:
 
         except Exception as e:
             self.logger.warning(f"Failed to export tracking summary: {e}")
-    
+
     def _create_failure_result(
-        self, 
-        error_message: str, 
-        started_at: datetime, 
+        self,
+        error_message: str,
+        started_at: datetime,
         correlation_id: str,
-        warnings: list[str]
+        warnings: list[str],
     ) -> TradeRunResultDTO:
         """Create a failure result DTO."""
         from datetime import UTC, datetime
-        
+
         completed_at = datetime.now(UTC)
-        
+
         return TradeRunResultDTO(
             status="FAILURE",
             success=False,
@@ -364,7 +366,7 @@ class TradingSystem:
                 orders_failed=0,
                 total_value=Decimal("0"),
                 success_rate=0.0,
-                execution_duration_seconds=(completed_at - started_at).total_seconds()
+                execution_duration_seconds=(completed_at - started_at).total_seconds(),
             ),
             orders=[],
             warnings=[*warnings, error_message],
@@ -373,7 +375,7 @@ class TradingSystem:
             completed_at=completed_at,
             correlation_id=correlation_id,
         )
-    
+
     def _create_success_result(
         self,
         trading_result: dict[str, Any],
@@ -382,59 +384,57 @@ class TradingSystem:
         completed_at: datetime,
         correlation_id: str,
         warnings: list[str],
-        success: bool
+        success: bool,
     ) -> TradeRunResultDTO:
         """Create a success result DTO from trading results."""
         orders_executed = trading_result.get("orders_executed", [])
-        
+
         # Convert orders to DTOs with ID redaction
         order_dtos: list[OrderResultSummaryDTO] = []
         for order in orders_executed:
             order_id = order.get("order_id", "")
             order_id_redacted = f"...{order_id[-6:]}" if len(order_id) > 6 else order_id
-            
+
             # Calculate trade amount from qty * price if notional not available
             qty = Decimal(str(order.get("qty", 0)))
             filled_price = order.get("filled_avg_price")
-            
+
             if order.get("notional"):
                 trade_amount = Decimal(str(order.get("notional")))
             elif filled_price and qty:
                 trade_amount = qty * Decimal(str(filled_price))
             else:
                 trade_amount = Decimal("0")
-            
-            order_dtos.append(OrderResultSummaryDTO(
-                symbol=order.get("symbol", ""),
-                action=order.get("side", "").upper(),
-                trade_amount=trade_amount,
-                shares=qty,
-                price=(
-                    Decimal(str(filled_price)) 
-                    if filled_price 
-                    else None
-                ),
-                order_id_redacted=order_id_redacted,
-                order_id_full=order_id,
-                success=order.get("status", "").upper() in ["FILLED", "COMPLETE"],
-                error_message=order.get("error_message"),
-                timestamp=order.get("filled_at") or completed_at
-            ))
-        
+
+            order_dtos.append(
+                OrderResultSummaryDTO(
+                    symbol=order.get("symbol", ""),
+                    action=order.get("side", "").upper(),
+                    trade_amount=trade_amount,
+                    shares=qty,
+                    price=(Decimal(str(filled_price)) if filled_price else None),
+                    order_id_redacted=order_id_redacted,
+                    order_id_full=order_id,
+                    success=order.get("status", "").upper() in ["FILLED", "COMPLETE"],
+                    error_message=order.get("error_message"),
+                    timestamp=order.get("filled_at") or completed_at,
+                )
+            )
+
         # Calculate summary metrics
         orders_total = len(order_dtos)
         orders_succeeded = sum(1 for order in order_dtos if order.success)
         orders_failed = orders_total - orders_succeeded
         total_value = sum((order.trade_amount for order in order_dtos), Decimal("0"))
         success_rate = orders_succeeded / orders_total if orders_total > 0 else 1.0
-        
+
         if success and orders_failed == 0:
             status = "SUCCESS"
         elif orders_succeeded > 0:
             status = "PARTIAL"
         else:
             status = "FAILURE"
-        
+
         return TradeRunResultDTO(
             status=status,
             success=success,
@@ -444,42 +444,44 @@ class TradingSystem:
                 orders_failed=orders_failed,
                 total_value=total_value,
                 success_rate=success_rate,
-                execution_duration_seconds=(completed_at - started_at).total_seconds()
+                execution_duration_seconds=(completed_at - started_at).total_seconds(),
             ),
             orders=order_dtos,
             warnings=warnings,
-            trading_mode="LIVE" if getattr(orchestrator, "live_trading", False) else "PAPER",
+            trading_mode=(
+                "LIVE" if getattr(orchestrator, "live_trading", False) else "PAPER"
+            ),
             started_at=started_at,
             completed_at=completed_at,
             correlation_id=correlation_id,
         )
-    
+
     def _configure_quiet_logging(self) -> None:
         """Configure quiet logging to reduce CLI noise."""
         # Store original levels for restoration
         self._original_levels = {}
-        
+
         # Modules to quiet down (these tend to be noisy during execution)
         noisy_modules = [
             "the_alchemiser.execution_v2",
-            "the_alchemiser.portfolio_v2", 
+            "the_alchemiser.portfolio_v2",
             "the_alchemiser.strategy_v2",
             "the_alchemiser.orchestration",
             "the_alchemiser.orchestration.trading_orchestrator",
-            "the_alchemiser.orchestration.signal_orchestrator", 
+            "the_alchemiser.orchestration.signal_orchestrator",
             "the_alchemiser.orchestration.strategy_orchestrator",
             "the_alchemiser.orchestration.portfolio_orchestrator",
             "the_alchemiser.orchestration.event_driven_orchestrator",
             "alpaca",
             "urllib3",
-            "requests"
+            "requests",
         ]
-        
+
         for module_name in noisy_modules:
             logger = logging.getLogger(module_name)
             self._original_levels[module_name] = logger.level
             logger.setLevel(logging.WARNING)
-    
+
     def _restore_logging(self) -> None:
         """Restore original logging levels."""
         if hasattr(self, "_original_levels"):

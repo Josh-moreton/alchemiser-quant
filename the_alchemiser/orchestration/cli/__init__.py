@@ -21,5 +21,4 @@ def __getattr__(name: str):
     if name == "app":
         from .cli import app
         return app
-    else:
-        raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

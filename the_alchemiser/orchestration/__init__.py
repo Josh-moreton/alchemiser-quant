@@ -35,17 +35,16 @@ def __getattr__(name: str):
     if name == "EventDrivenOrchestrator":
         from .event_driven_orchestrator import EventDrivenOrchestrator
         return EventDrivenOrchestrator
-    elif name == "PortfolioOrchestrator":
+    if name == "PortfolioOrchestrator":
         from .portfolio_orchestrator import PortfolioOrchestrator
         return PortfolioOrchestrator
-    elif name == "SignalOrchestrator":
+    if name == "SignalOrchestrator":
         from .signal_orchestrator import SignalOrchestrator
         return SignalOrchestrator
-    elif name == "MultiStrategyOrchestrator":
+    if name == "MultiStrategyOrchestrator":
         from .strategy_orchestrator import MultiStrategyOrchestrator
         return MultiStrategyOrchestrator
-    elif name == "TradingOrchestrator":
+    if name == "TradingOrchestrator":
         from .trading_orchestrator import TradingOrchestrator
         return TradingOrchestrator
-    else:
-        raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
