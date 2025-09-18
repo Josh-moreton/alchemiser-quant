@@ -251,8 +251,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def place_market_order(
         self,
         symbol: str,
-        qty: float,
         side: str,
+        qty: float,
         time_in_force: str = "day"
     ) -> ExecutedOrderDTO:
         """Place a market order (legacy wrapper)."""
