@@ -56,6 +56,14 @@ class ExecutionManager:
         """
         logger.info(f"🚀 NEW EXECUTION: {len(plan.items)} items (using execution_v2)")
 
+        # Initialize TradingStream before any orders are placed to avoid WebSocket connection delays
+        # This ensures real-time order updates are ready when execution begins
+        logger.info(
+            "📡 Preemptively initializing TradingStream for order monitoring..."
+        )
+        self.alpaca_manager._ensure_trading_stream()
+        logger.info("✅ TradingStream ready for order execution")
+
         # Run the async executor in a new event loop
         import asyncio
 
@@ -71,7 +79,9 @@ class ExecutionManager:
             # Event loop exists but not running, safe to use asyncio.run
             result = asyncio.run(self.executor.execute_rebalance_plan(plan))
 
-        logger.info(f"✅ Execution complete: {result.success} ({result.orders_placed} orders)")
+        logger.info(
+            f"✅ Execution complete: {result.success} ({result.orders_placed} orders)"
+        )
         return result
 
     @classmethod
@@ -97,7 +107,9 @@ class ExecutionManager:
             ExecutionManager instance with configured smart execution
 
         """
-        alpaca_manager = AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper)
+        alpaca_manager = AlpacaManager(
+            api_key=api_key, secret_key=secret_key, paper=paper
+        )
         return cls(
             alpaca_manager=alpaca_manager,
             execution_config=execution_config,
