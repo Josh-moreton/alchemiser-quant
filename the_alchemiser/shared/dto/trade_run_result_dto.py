@@ -56,7 +56,7 @@ class ExecutionSummaryDTO(BaseModel):
 
 class TradeRunResultDTO(BaseModel):
     """Complete result of a trade execution run.
-    
+
     This DTO replaces the boolean return from main.py and provides
     all information needed for CLI rendering and JSON output.
     """
@@ -70,26 +70,26 @@ class TradeRunResultDTO(BaseModel):
     # Core execution status
     status: str = Field(..., description="SUCCESS, FAILURE, or PARTIAL")
     success: bool = Field(..., description="Overall execution success flag")
-    
+
     # Execution summary
     execution_summary: ExecutionSummaryDTO = Field(..., description="Execution metrics")
-    
+
     # Order details (redacted by default)
     orders: list[OrderResultSummaryDTO] = Field(
         default_factory=list, description="Individual order results"
     )
-    
+
     # Warnings and notifications
     warnings: list[str] = Field(
         default_factory=list, description="Non-critical warnings (e.g., email failures)"
     )
-    
+
     # Execution metadata
     trading_mode: str = Field(..., description="PAPER or LIVE")
     started_at: datetime = Field(..., description="Execution start time")
     completed_at: datetime = Field(..., description="Execution completion time")
     correlation_id: str = Field(..., description="Correlation ID for traceability")
-    
+
     # Additional context
     metadata: dict[str, Any] | None = Field(
         default=None, description="Additional execution metadata"
@@ -99,7 +99,7 @@ class TradeRunResultDTO(BaseModel):
     def duration_seconds(self) -> float:
         """Calculate execution duration in seconds."""
         return (self.completed_at - self.started_at).total_seconds()
-    
+
     def to_json_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict for --json output."""
         return {

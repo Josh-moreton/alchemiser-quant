@@ -756,7 +756,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         try:
             from alpaca.trading.requests import GetOrdersRequest
             from alpaca.trading.enums import QueryOrderStatus
-            
+
             # Use proper request to get more orders (default limit is very low)
             if status and status.lower() == "open":
                 # Use the API's built-in open status filter for efficiency
@@ -766,9 +766,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 # Get recent orders with higher limit to catch all relevant orders
                 request = GetOrdersRequest(limit=100)  # Increased from default
                 orders = self._trading_client.get_orders(request)
-                
+
             orders_list = list(orders)
-            
+
             # Apply manual filtering for non-open status requests
             if status and status.lower() != "open":
                 status_lower = status.lower()
@@ -776,9 +776,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 orders_list = [
                     o
                     for o in orders_list
-                    if status_lower in str(getattr(o, "status", "")).lower()
+                    if str(getattr(o, "status", "")).lower() == status_lower
                 ]
-                
+
             logger.debug(f"Successfully retrieved {len(orders_list)} orders")
             return orders_list
         except Exception as e:
