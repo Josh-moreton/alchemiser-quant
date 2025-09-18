@@ -56,13 +56,26 @@ class ExecutionManager:
         """
         logger.info(f"🚀 NEW EXECUTION: {len(plan.items)} items (using execution_v2)")
 
-        # Initialize TradingStream before any orders are placed to avoid WebSocket connection delays
-        # This ensures real-time order updates are ready when execution begins
-        logger.info(
-            "📡 Preemptively initializing TradingStream for order monitoring..."
+        # Initialize TradingStream asynchronously in background - don't block on connection
+        # This starts the WebSocket connection process early without waiting for completion
+        import threading
+        
+        def start_trading_stream_async() -> None:
+            """Start TradingStream in background without blocking main execution."""
+            try:
+                logger.info("📡 Starting TradingStream initialization in background...")
+                self.alpaca_manager._ensure_trading_stream()
+            except Exception as e:
+                logger.warning(f"TradingStream background initialization failed: {e}")
+
+        # Start TradingStream initialization in a separate thread so it doesn't block execution
+        stream_init_thread = threading.Thread(
+            target=start_trading_stream_async,
+            name="TradingStreamInit",
+            daemon=True
         )
-        self.alpaca_manager._ensure_trading_stream()
-        logger.info("✅ TradingStream ready for order execution")
+        stream_init_thread.start()
+        logger.info("✅ TradingStream initialization started in background")
 
         # Run the async executor in a new event loop
         import asyncio
