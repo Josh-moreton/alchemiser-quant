@@ -100,8 +100,8 @@ class TradePerformanceService:
                 symbol=None,
                 current_prices=current_prices,
             )
-        except Exception:
-            logger.error("Failed to get all performance: {e}")
+        except Exception as e:
+            logger.error(f"Failed to get all performance: {e}")
             raise
 
     def get_open_positions(self, strategy_name: str | None = None) -> list[Lot]:
