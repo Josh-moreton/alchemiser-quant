@@ -6,6 +6,11 @@ and serialization helpers.
 
 from __future__ import annotations
 
+from typing import Any
+
+# Placeholder DTO classes for future implementation (to be enhanced in Phase 2)
+from pydantic import BaseModel, ConfigDict, Field
+
 # Import implemented DTOs
 from the_alchemiser.shared.dto.execution_report_dto import (
     ExecutedOrderDTO,
@@ -31,13 +36,44 @@ from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocation
 from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 
 
-# Placeholder DTO classes for future implementation
-class ConfigurationDTO:
-    """Placeholder for configuration data transfer."""
+class ConfigurationDTO(BaseModel):
+    """Placeholder for configuration data transfer.
+    
+    Proper Pydantic v2 DTO to replace placeholder class.
+    Will be enhanced with specific config fields in Phase 2.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    config_data: dict[str, Any] = Field(
+        default_factory=dict, 
+        description="Configuration data (flexible for Phase 1 scaffolding)"
+    )
 
 
-class ErrorDTO:
-    """Placeholder for error data transfer."""
+class ErrorDTO(BaseModel):
+    """Placeholder for error data transfer.
+    
+    Proper Pydantic v2 DTO to replace placeholder class.
+    Will be enhanced with specific error fields in Phase 2.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    error_type: str = Field(description="Type of error")
+    message: str = Field(description="Error message")
+    context: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Error context data"
+    )
 
 
 __all__ = [
