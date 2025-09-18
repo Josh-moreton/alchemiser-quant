@@ -57,18 +57,14 @@ class PricingCalculator:
         if side.upper() == "BUY":
             optimal_price = Decimal(str(analysis.recommended_bid_price))
             volume_available = analysis.volume_at_recommended_bid
-            strategy_rec = (
-                self.liquidity_analyzer.get_execution_strategy_recommendation(
-                    analysis, side.lower(), order_size
-                )
+            strategy_rec = self.liquidity_analyzer.get_execution_strategy_recommendation(
+                analysis, side.lower(), order_size
             )
         else:
             optimal_price = Decimal(str(analysis.recommended_ask_price))
             volume_available = analysis.volume_at_recommended_ask
-            strategy_rec = (
-                self.liquidity_analyzer.get_execution_strategy_recommendation(
-                    analysis, side.lower(), order_size
-                )
+            strategy_rec = self.liquidity_analyzer.get_execution_strategy_recommendation(
+                analysis, side.lower(), order_size
             )
 
         # Create metadata for logging and monitoring
@@ -196,10 +192,7 @@ class PricingCalculator:
                     new_price = original_price + adjustment
                 else:
                     # If no original price, use ask price minus small offset
-                    new_price = (
-                        Decimal(str(quote.ask_price))
-                        - self.config.ask_anchor_offset_cents
-                    )
+                    new_price = Decimal(str(quote.ask_price)) - self.config.ask_anchor_offset_cents
 
                 # Ensure we don't exceed ask price
                 new_price = min(new_price, Decimal(str(quote.ask_price)))
@@ -213,10 +206,7 @@ class PricingCalculator:
                     new_price = original_price - adjustment
                 else:
                     # If no original price, use bid price plus small offset
-                    new_price = (
-                        Decimal(str(quote.bid_price))
-                        + self.config.bid_anchor_offset_cents
-                    )
+                    new_price = Decimal(str(quote.bid_price)) + self.config.bid_anchor_offset_cents
 
                 # Ensure we don't go below bid price
                 new_price = max(new_price, Decimal(str(quote.bid_price)))

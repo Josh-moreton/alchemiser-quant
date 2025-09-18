@@ -46,9 +46,7 @@ class LiquidityAnalysis:
 class LiquidityAnalyzer:
     """Advanced liquidity analysis for smart execution."""
 
-    def __init__(
-        self, min_volume_threshold: float = 100.0, tick_size: float = 0.01
-    ) -> None:
+    def __init__(self, min_volume_threshold: float = 100.0, tick_size: float = 0.01) -> None:
         """Initialize liquidity analyzer.
 
         Args:
@@ -60,9 +58,7 @@ class LiquidityAnalyzer:
         # Convert tick_size to Decimal to avoid floating point precision issues
         self.tick_size = Decimal(str(tick_size))
 
-    def analyze_liquidity(
-        self, quote: QuoteModel, order_size: float
-    ) -> LiquidityAnalysis:
+    def analyze_liquidity(self, quote: QuoteModel, order_size: float) -> LiquidityAnalysis:
         """Perform comprehensive liquidity analysis.
 
         Args:
@@ -115,9 +111,7 @@ class LiquidityAnalyzer:
 
         return analysis
 
-    def _calculate_liquidity_score(
-        self, quote: QuoteModel, total_volume: float
-    ) -> float:
+    def _calculate_liquidity_score(self, quote: QuoteModel, total_volume: float) -> float:
         """Calculate overall liquidity score (0-100).
 
         Args:
@@ -137,9 +131,7 @@ class LiquidityAnalyzer:
 
         # Balance score (balanced book = higher score)
         if total_volume > 0:
-            volume_ratio = min(quote.bid_size, quote.ask_size) / max(
-                quote.bid_size, quote.ask_size
-            )
+            volume_ratio = min(quote.bid_size, quote.ask_size) / max(quote.bid_size, quote.ask_size)
             balance_score = volume_ratio * 20  # Up to 20 points for balance
         else:
             balance_score = 0
@@ -205,21 +197,13 @@ class LiquidityAnalyzer:
 
             # If heavy bid side (imbalance < -0.2), be more aggressive on buys
             if imbalance < -0.2:
-                recommended_bid = min(
-                    recommended_bid + self.tick_size, ask_price - self.tick_size
-                )
-                logger.debug(
-                    f"Heavy bid side detected, adjusting buy price to {recommended_bid}"
-                )
+                recommended_bid = min(recommended_bid + self.tick_size, ask_price - self.tick_size)
+                logger.debug(f"Heavy bid side detected, adjusting buy price to {recommended_bid}")
 
             # If heavy ask side (imbalance > 0.2), be more aggressive on sells
             elif imbalance > 0.2:
-                recommended_ask = max(
-                    recommended_ask - self.tick_size, bid_price + self.tick_size
-                )
-                logger.debug(
-                    f"Heavy ask side detected, adjusting sell price to {recommended_ask}"
-                )
+                recommended_ask = max(recommended_ask - self.tick_size, bid_price + self.tick_size)
+                logger.debug(f"Heavy ask side detected, adjusting sell price to {recommended_ask}")
 
         # Quantize prices to tick_size precision to avoid floating point errors
         recommended_bid = recommended_bid.quantize(self.tick_size)
@@ -283,9 +267,7 @@ class LiquidityAnalyzer:
         # Reduce confidence if order is very large relative to liquidity
         order_volume_ratio = order_size / max(total_volume, 1.0)
         if order_volume_ratio > 1.0:  # Order larger than available liquidity
-            size_penalty = min(
-                (order_volume_ratio - 1.0) * 0.5, 0.6
-            )  # Up to 60% penalty
+            size_penalty = min((order_volume_ratio - 1.0) * 0.5, 0.6)  # Up to 60% penalty
             confidence *= 1.0 - size_penalty
 
         return max(confidence, 0.1)  # Minimum 10% confidence
