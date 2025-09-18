@@ -427,6 +427,8 @@ class TradingOrchestrator:
             execution_result = None
 
             if rebalance_plan:
+                # Print a concise summary of the rebalance plan before executing
+                self._print_rebalance_plan_summary(rebalance_plan)
                 self.logger.info(
                     f"🚀 Executing trades: {len(rebalance_plan.items)} items"
                 )
@@ -1103,3 +1105,30 @@ class TradingOrchestrator:
         except Exception as e:
             # Don't let event emission failure break the traditional workflow
             self.logger.warning(f"Failed to emit TradeExecutionStarted event: {e}")
+
+    def _print_rebalance_plan_summary(self, plan: RebalancePlanDTO) -> None:
+        """Print a concise BUY/SELL summary of the rebalance plan before execution."""
+        try:
+            buy_lines: list[str] = []
+            sell_lines: list[str] = []
+
+            for item in plan.items:
+                action = item.action.upper()
+                symbol = item.symbol
+                amt = item.trade_amount
+                # Positive for BUY, negative for SELL per DTO contract
+                if action == "BUY" and amt > Decimal("0"):
+                    buy_lines.append(f"{symbol} ${abs(amt):,.0f}")
+                elif action == "SELL" and amt < Decimal("0"):
+                    sell_lines.append(f"{symbol} ${abs(amt):,.0f}")
+
+            if buy_lines or sell_lines:
+                print("📋 Rebalance plan generated:")
+                if sell_lines:
+                    print(f"   → SELL: {', '.join(sell_lines)}")
+                if buy_lines:
+                    print(f"   → BUY: {', '.join(buy_lines)}")
+            else:
+                print("📋 No trades required (portfolio balanced)")
+        except Exception as e:
+            self.logger.debug(f"Failed printing plan summary: {e}")

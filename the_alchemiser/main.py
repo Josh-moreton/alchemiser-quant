@@ -203,9 +203,9 @@ class TradingSystem:
             # Show brief signals summary
             self._display_signals_summary(signals_result)
 
-            # PHASE 2: Execute trading (may place orders)  
+            # PHASE 2: Execute trading (may place orders)
             print("⚖️  Generating portfolio rebalance plan...")
-            
+
             # Temporarily suppress verbose logs for cleaner CLI output
             self._configure_quiet_logging()
 
@@ -290,17 +290,23 @@ class TradingSystem:
                     name = str(raw_name)
                     if name.startswith("StrategyType."):
                         name = name.split(".", 1)[1]
-                    
+
                     if isinstance(data, dict):
                         action = str(data.get("action", "")).upper()
                         if action in {"BUY", "SELL"}:
-                            if data.get("is_multi_symbol") and isinstance(data.get("symbols"), list):
+                            if data.get("is_multi_symbol") and isinstance(
+                                data.get("symbols"), list
+                            ):
                                 symbols = data.get("symbols", [])
                                 if symbols:
                                     symbol_str = ", ".join(symbols)
-                                    signal_details.append(f"{name}: {action} {symbol_str}")
+                                    signal_details.append(
+                                        f"{name}: {action} {symbol_str}"
+                                    )
                             elif data.get("symbol"):
-                                signal_details.append(f"{name}: {action} {data.get('symbol')}")
+                                signal_details.append(
+                                    f"{name}: {action} {data.get('symbol')}"
+                                )
 
                 if signal_details:
                     print("📋 Strategy signals generated:")
@@ -330,14 +336,14 @@ class TradingSystem:
             self.logger.debug(f"Failed to display signals summary: {e}")
 
     def _display_rebalance_plan(self, trading_result: dict[str, Any]) -> None:
-        """Display the rebalance plan with buy/sell order details."""
+        """Display a concise BUY/SELL summary of the rebalance plan."""
         try:
             rebalance_plan = trading_result.get("rebalance_plan")
-            
+
             if rebalance_plan is None:
-                print("⚖️  Portfolio rebalance plan: Portfolio already balanced")
+                print("📋 No trades required (portfolio balanced)")
                 return
-                
+
             # If rebalance_plan is a DTO, get the items
             if hasattr(rebalance_plan, "items"):
                 plan_items = rebalance_plan.items
@@ -345,17 +351,19 @@ class TradingSystem:
                 plan_items = rebalance_plan["items"]
             else:
                 # Fallback: no detailed plan available
-                print("⚖️  Portfolio rebalance plan: Orders required")
+                print("📋 Rebalance plan generated:")
+                print("   → BUY: (details unavailable)")
+                print("   → SELL: (details unavailable)")
                 return
-                
+
             if not plan_items:
-                print("⚖️  Portfolio rebalance plan: Portfolio already balanced")
+                print("📋 No trades required (portfolio balanced)")
                 return
-                
+
             # Group items by action
             buy_orders = []
             sell_orders = []
-            
+
             for item in plan_items:
                 # Handle both DTO and dict representations
                 if hasattr(item, "action"):
@@ -368,26 +376,28 @@ class TradingSystem:
                     trade_amount = item.get("trade_amount", 0)
                 else:
                     continue
-                    
+
                 if action == "BUY" and float(trade_amount) > 0:
                     buy_orders.append(f"{symbol} ${abs(float(trade_amount)):,.0f}")
                 elif action == "SELL" and float(trade_amount) < 0:
                     sell_orders.append(f"{symbol} ${abs(float(trade_amount)):,.0f}")
-            
-            # Display the plan
+
+            # Display the plan in a concise summary similar to signals
             if buy_orders or sell_orders:
-                print("⚖️  Portfolio rebalance plan:")
-                if buy_orders:
-                    print(f"   → BUY: {', '.join(buy_orders)}")
+                print("📋 Rebalance plan generated:")
                 if sell_orders:
                     print(f"   → SELL: {', '.join(sell_orders)}")
+                if buy_orders:
+                    print(f"   → BUY: {', '.join(buy_orders)}")
             else:
-                print("⚖️  Portfolio rebalance plan: Portfolio already balanced")
-                
+                print("📋 No trades required (portfolio balanced)")
+
         except Exception as e:
             # Non-fatal: summary display is best-effort
             self.logger.debug(f"Failed to display rebalance plan: {e}")
-            print("⚖️  Portfolio rebalance plan: Orders required")
+            print("📋 Rebalance plan generated:")
+            print("   → BUY: (details unavailable)")
+            print("   → SELL: (details unavailable)")
 
     def _display_post_execution_tracking(self, *, paper_trading: bool) -> None:
         """Display strategy performance tracking after execution."""
