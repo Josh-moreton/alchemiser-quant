@@ -42,7 +42,7 @@ class ErrorCode(Enum):
 
 class ErrorSpec(BaseModel):
     """Specification for an error code with metadata and guidance.
-    
+
     Provides categorization, severity, retry guidance, and remediation hints
     for consistent error handling across the system.
     """
@@ -150,16 +150,16 @@ ERROR_CATALOG: dict[ErrorCode, ErrorSpec] = {
 
 def map_exception_to_error_code(exc: Exception) -> ErrorCode | None:
     """Map a known exception to its corresponding error code.
-    
+
     Maps domain exceptions from shared/types/exceptions.py to standardized
     error codes for consistent handling and reporting.
-    
+
     Args:
         exc: The exception to map
-        
+
     Returns:
         The corresponding ErrorCode if known, None otherwise
-        
+
     """
     # Import here to avoid circular imports
     from the_alchemiser.shared.types.exceptions import (
@@ -207,28 +207,28 @@ def map_exception_to_error_code(exc: Exception) -> ErrorCode | None:
 
 def get_error_spec(error_code: ErrorCode) -> ErrorSpec:
     """Get the error specification for a given error code.
-    
+
     Args:
         error_code: The error code to look up
-        
+
     Returns:
         The ErrorSpec for the given code
-        
+
     Raises:
         KeyError: If the error code is not found in the catalogue
-        
+
     """
     return ERROR_CATALOG[error_code]
 
 
 def get_suggested_action(error_code: ErrorCode) -> str:
     """Get the suggested remediation action for an error code.
-    
+
     Args:
         error_code: The error code to get action for
-        
+
     Returns:
         Suggested action string
-        
+
     """
     return ERROR_CATALOG[error_code].suggested_action

@@ -94,7 +94,9 @@ class TradeExecuted(BaseEvent):
     )
     success: bool = Field(..., description="Whether execution was successful")
     error_message: str | None = Field(default=None, description="Error message if execution failed")
-    error_code: str | None = Field(default=None, description="Structured error code if execution failed")
+    error_code: str | None = Field(
+        default=None, description="Structured error code if execution failed"
+    )
 
 
 class TradeExecutionStarted(BaseEvent):
