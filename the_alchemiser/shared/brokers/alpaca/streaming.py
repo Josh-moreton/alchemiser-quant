@@ -30,12 +30,12 @@ class StreamingManager:
 
     def __init__(self, config: AlpacaConfig) -> None:
         """Initialize with Alpaca configuration.
-        
+
         Args:
             config: AlpacaConfig instance
         """
         self._config = config
-        
+
         # Trading WebSocket (order updates) state
         self._trading_stream: TradingStream | None = None
         self._trading_stream_thread: threading.Thread | None = None
@@ -71,14 +71,18 @@ class StreamingManager:
                 local_start = time.time()
                 while remaining and (time.time() - local_start) < time_left:
                     self._process_pending_orders(remaining, completed_orders)
-                    remaining = [oid for oid in remaining if oid not in completed_orders]
+                    remaining = [
+                        oid for oid in remaining if oid not in completed_orders
+                    ]
                     if remaining:
                         time.sleep(0.3)
 
             success = len(completed_orders) == len(order_ids)
 
             return WebSocketResult(
-                status=(WebSocketStatus.COMPLETED if success else WebSocketStatus.TIMEOUT),
+                status=(
+                    WebSocketStatus.COMPLETED if success else WebSocketStatus.TIMEOUT
+                ),
                 message=f"Completed {len(completed_orders)}/{len(order_ids)} orders",
                 completed_order_ids=completed_orders,
                 metadata={"total_wait_time": time.time() - start_time},
@@ -97,38 +101,40 @@ class StreamingManager:
         self, order_ids: list[str], max_wait_seconds: int = 30
     ) -> WebSocketResultModel:
         """Wait for orders with typed model result.
-        
+
         Args:
             order_ids: List of order IDs to monitor
             max_wait_seconds: Maximum time to wait for completion
-            
+
         Returns:
             WebSocketResultModel instance
         """
         result = self.wait_for_order_completion(order_ids, max_wait_seconds)
-        
+
         # Map WebSocketStatus to string
         status_map = {
             WebSocketStatus.COMPLETED: "connected",
-            WebSocketStatus.TIMEOUT: "timeout", 
+            WebSocketStatus.TIMEOUT: "timeout",
             WebSocketStatus.ERROR: "error",
             WebSocketStatus.CONNECTED: "connected",
             WebSocketStatus.DISCONNECTED: "disconnected",
         }
-        
+
         status_str = status_map.get(result.status, "error")
-        
+
         return WebSocketResultModel(
             status=status_str,  # type: ignore[arg-type]
             completed_orders=result.completed_order_ids,
-            pending_orders=[oid for oid in order_ids if oid not in result.completed_order_ids],
+            pending_orders=[
+                oid for oid in order_ids if oid not in result.completed_order_ids
+            ],
             message=result.message,
             error=result.metadata.get("error") if result.metadata else None,
         )
 
     def ensure_trading_stream(self) -> None:
         """Ensure TradingStream is running and subscribed to trade updates.
-        
+
         Raises:
             AlpacaError: If stream setup fails
         """
@@ -137,7 +143,9 @@ class StreamingManager:
                 return
             try:
                 self._trading_stream = TradingStream(
-                    self._config.api_key, self._config.secret_key, paper=self._config.paper
+                    self._config.api_key,
+                    self._config.secret_key,
+                    paper=self._config.paper,
                 )
                 self._trading_stream.subscribe_trade_updates(self._on_order_update)
 
@@ -177,7 +185,7 @@ class StreamingManager:
 
     def is_connected(self) -> bool:
         """Check if trading stream is connected.
-        
+
         Returns:
             True if stream is connected and running
         """
@@ -193,7 +201,9 @@ class StreamingManager:
                 event_type = str(getattr(data, "event", "")).lower()
                 order = getattr(data, "order", None)
             else:
-                event_type = str(data.get("event", "")).lower() if isinstance(data, dict) else ""
+                event_type = (
+                    str(data.get("event", "")).lower() if isinstance(data, dict) else ""
+                )
                 order = data.get("order") if isinstance(data, dict) else None
 
             order_id = None
@@ -202,7 +212,8 @@ class StreamingManager:
 
             if order is not None:
                 order_id = str(
-                    getattr(order, "id", "") or (order.get("id") if isinstance(order, dict) else "")
+                    getattr(order, "id", "")
+                    or (order.get("id") if isinstance(order, dict) else "")
                 )
                 status = str(
                     getattr(order, "status", "")
@@ -247,7 +258,9 @@ class StreamingManager:
         except Exception as exc:
             logger.error(f"Error in TradingStream order update: {exc}")
 
-    def _wait_for_orders_via_ws(self, order_ids: list[str], timeout: float) -> list[str]:
+    def _wait_for_orders_via_ws(
+        self, order_ids: list[str], timeout: float
+    ) -> list[str]:
         """Use TradingStream updates to wait for orders to complete within timeout."""
         self.ensure_trading_stream()
 
@@ -273,12 +286,14 @@ class StreamingManager:
 
         return completed
 
-    def _process_pending_orders(self, order_ids: list[str], completed_orders: list[str]) -> None:
+    def _process_pending_orders(
+        self, order_ids: list[str], completed_orders: list[str]
+    ) -> None:
         """Process pending orders using external order manager.
-        
+
         This is a placeholder that would need the order manager to check status.
         In the full implementation, this would be injected as a dependency.
-        
+
         Args:
             order_ids: List of order IDs to check
             completed_orders: List to append completed order IDs to
@@ -290,10 +305,10 @@ class StreamingManager:
 
     def get_order_status(self, order_id: str) -> str | None:
         """Get cached order status from stream updates.
-        
+
         Args:
             order_id: Order ID to get status for
-            
+
         Returns:
             Status string if available, None otherwise
         """
@@ -301,10 +316,10 @@ class StreamingManager:
 
     def get_order_avg_price(self, order_id: str) -> Decimal | None:
         """Get cached average fill price from stream updates.
-        
+
         Args:
             order_id: Order ID to get price for
-            
+
         Returns:
             Average fill price if available, None otherwise
         """

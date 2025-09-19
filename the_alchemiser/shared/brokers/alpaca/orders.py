@@ -14,7 +14,11 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from alpaca.trading.enums import QueryOrderStatus
 from alpaca.trading.models import Order
-from alpaca.trading.requests import GetOrdersRequest, LimitOrderRequest, MarketOrderRequest
+from alpaca.trading.requests import (
+    GetOrdersRequest,
+    LimitOrderRequest,
+    MarketOrderRequest,
+)
 
 from ...dto.broker_dto import OrderExecutionResult
 from ...dto.execution_report_dto import ExecutedOrderDTO
@@ -32,7 +36,7 @@ class OrderManager:
 
     def __init__(self, client: AlpacaClient) -> None:
         """Initialize with Alpaca client.
-        
+
         Args:
             client: AlpacaClient instance
         """
@@ -42,10 +46,10 @@ class OrderManager:
         self, order_request: LimitOrderRequest | MarketOrderRequest
     ) -> ExecutedOrderDTO:
         """Place an order and return execution details.
-        
+
         Args:
             order_request: Order request to submit
-            
+
         Returns:
             ExecutedOrderDTO with order details
         """
@@ -155,17 +159,19 @@ class OrderManager:
             )
         except Exception as e:
             logger.error(f"Failed to get order execution result for {order_id}: {e}")
-            return self._create_error_execution_result(e, "Get order execution result", order_id)
+            return self._create_error_execution_result(
+                e, "Get order execution result", order_id
+            )
 
     def cancel_order(self, order_id: str) -> bool:
         """Cancel an order by ID.
-        
+
         Args:
             order_id: Order ID to cancel
-            
+
         Returns:
             True if successful, False otherwise
-            
+
         Raises:
             AlpacaOrderError: If operation fails
         """
@@ -191,7 +197,9 @@ class OrderManager:
                 # Get orders for specific symbol and cancel them
                 orders = self.get_orders(status="open")
                 symbol_orders = [
-                    order for order in orders if getattr(order, "symbol", None) == symbol
+                    order
+                    for order in orders
+                    if getattr(order, "symbol", None) == symbol
                 ]
                 for order in symbol_orders:
                     order_id = getattr(order, "id", None)
@@ -201,7 +209,9 @@ class OrderManager:
                 # Cancel all open orders
                 self._client.trading_client.cancel_orders()
 
-            logger.info("Successfully cancelled orders" + (f" for {symbol}" if symbol else ""))
+            logger.info(
+                "Successfully cancelled orders" + (f" for {symbol}" if symbol else "")
+            )
             return True
         except Exception as e:
             logger.error(f"Failed to cancel orders: {e}")
@@ -242,7 +252,9 @@ class OrderManager:
 
                     # Handle string timestamps
                     if isinstance(submitted_at, str):
-                        submitted_at = datetime.fromisoformat(submitted_at.replace("Z", "+00:00"))
+                        submitted_at = datetime.fromisoformat(
+                            submitted_at.replace("Z", "+00:00")
+                        )
 
                     # Check if order is stale
                     if submitted_at < cutoff_time:
@@ -292,13 +304,13 @@ class OrderManager:
 
     def get_orders(self, status: str | None = None) -> list[Any]:
         """Get orders, optionally filtered by status.
-        
+
         Args:
             status: Optional status filter (e.g., 'open', 'filled', 'cancelled')
-            
+
         Returns:
             List of order objects
-            
+
         Raises:
             AlpacaOrderError: If operation fails
         """
@@ -320,7 +332,9 @@ class OrderManager:
                 status_lower = status.lower()
                 # For other statuses, try exact match on the enum name
                 orders_list = [
-                    o for o in orders_list if str(getattr(o, "status", "")).lower() == status_lower
+                    o
+                    for o in orders_list
+                    if str(getattr(o, "status", "")).lower() == status_lower
                 ]
 
             logger.debug(f"Successfully retrieved {len(orders_list)} orders")
@@ -331,17 +345,17 @@ class OrderManager:
 
     def check_order_completion_status(self, order_id: str) -> str | None:
         """Check if a single order has reached a final state.
-        
+
         Args:
             order_id: Order ID to check
-            
+
         Returns:
             Order status string if order is in final state, None otherwise
         """
         try:
             order = self._client.trading_client.get_order_by_id(order_id)
             status = str(getattr(order, "status", "")).upper()
-            
+
             # Return status only if it's a final state
             if status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
                 return status
@@ -367,7 +381,9 @@ class OrderManager:
 
             # Map Alpaca status to OrderExecutionResult status
             status_str = str(status).upper()
-            mapped_status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"]
+            mapped_status: Literal[
+                "accepted", "filled", "partially_filled", "rejected", "canceled"
+            ]
             if status_str in ["FILLED", "CLOSED"]:
                 mapped_status = "filled"
             elif status_str == "CANCELED":
@@ -380,8 +396,14 @@ class OrderManager:
                 mapped_status = "accepted"
 
             # Handle timestamps
-            submitted_dt = submitted_at if isinstance(submitted_at, datetime) else datetime.now(UTC)
-            completed_dt = filled_at if isinstance(filled_at, datetime) else datetime.now(UTC)
+            submitted_dt = (
+                submitted_at
+                if isinstance(submitted_at, datetime)
+                else datetime.now(UTC)
+            )
+            completed_dt = (
+                filled_at if isinstance(filled_at, datetime) else datetime.now(UTC)
+            )
 
             # Handle average fill price
             avg_price = None
@@ -410,9 +432,9 @@ class OrderManager:
         self, error: Exception, context: str = "Operation", order_id: str = "unknown"
     ) -> OrderExecutionResult:
         """Create an error OrderExecutionResult."""
-        status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"] = (
-            "rejected"
-        )
+        status: Literal[
+            "accepted", "filled", "partially_filled", "rejected", "canceled"
+        ] = "rejected"
         return OrderExecutionResult(
             success=False,
             order_id=order_id,

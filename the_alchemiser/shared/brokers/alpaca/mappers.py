@@ -27,10 +27,10 @@ logger = logging.getLogger(__name__)
 
 def map_account_to_model(account: TradeAccount) -> AccountInfoModel:
     """Map Alpaca TradeAccount to AccountInfoModel.
-    
+
     Args:
         account: Alpaca TradeAccount object
-        
+
     Returns:
         AccountInfoModel instance
     """
@@ -48,10 +48,10 @@ def map_account_to_model(account: TradeAccount) -> AccountInfoModel:
 
 def map_account_to_dict(account: TradeAccount) -> dict[str, Any]:
     """Map Alpaca TradeAccount to dictionary.
-    
+
     Args:
         account: Alpaca TradeAccount object
-        
+
     Returns:
         Dictionary representation
     """
@@ -62,7 +62,7 @@ def map_account_to_dict(account: TradeAccount) -> dict[str, Any]:
             return data
     except Exception as exc:
         logger.debug(f"Falling back to manual account dict conversion: {exc}")
-    
+
     # Fallback: build dict from known attributes
     return {
         "id": get_attribute_safe(account, "id"),
@@ -78,10 +78,10 @@ def map_account_to_dict(account: TradeAccount) -> dict[str, Any]:
 
 def map_position_to_model(position: Position) -> PositionModel:
     """Map Alpaca Position to PositionModel.
-    
+
     Args:
         position: Alpaca Position object
-        
+
     Returns:
         PositionModel instance
     """
@@ -101,10 +101,10 @@ def map_position_to_model(position: Position) -> PositionModel:
 
 def map_order_to_model(order: Order) -> OrderModel:
     """Map Alpaca Order to OrderModel.
-    
+
     Args:
         order: Alpaca Order object
-        
+
     Returns:
         OrderModel instance
     """
@@ -136,10 +136,10 @@ def map_order_to_model(order: Order) -> OrderModel:
 
 def map_order_to_execution_result(order: Order) -> OrderExecutionResult:
     """Map Alpaca Order to OrderExecutionResult.
-    
+
     Args:
         order: Alpaca Order object
-        
+
     Returns:
         OrderExecutionResult instance
     """
@@ -155,7 +155,9 @@ def map_order_to_execution_result(order: Order) -> OrderExecutionResult:
 
         # Map Alpaca status to OrderExecutionResult status
         status_str = str(status).upper()
-        mapped_status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"]
+        mapped_status: Literal[
+            "accepted", "filled", "partially_filled", "rejected", "canceled"
+        ]
         if status_str in ["FILLED", "CLOSED"]:
             mapped_status = "filled"
         elif status_str == "CANCELED":
@@ -168,8 +170,12 @@ def map_order_to_execution_result(order: Order) -> OrderExecutionResult:
             mapped_status = "accepted"
 
         # Handle timestamps
-        submitted_dt = submitted_at if isinstance(submitted_at, datetime) else datetime.now(UTC)
-        completed_dt = filled_at if isinstance(filled_at, datetime) else datetime.now(UTC)
+        submitted_dt = (
+            submitted_at if isinstance(submitted_at, datetime) else datetime.now(UTC)
+        )
+        completed_dt = (
+            filled_at if isinstance(filled_at, datetime) else datetime.now(UTC)
+        )
 
         # Handle average fill price
         avg_price = None
@@ -196,15 +202,14 @@ def map_order_to_execution_result(order: Order) -> OrderExecutionResult:
 
 
 def map_order_to_executed_dto(
-    order: Order, 
-    order_request: Any = None
+    order: Order, order_request: Any = None
 ) -> ExecutedOrderDTO:
     """Map Alpaca Order to ExecutedOrderDTO.
-    
+
     Args:
         order: Alpaca Order object
         order_request: Optional original order request for fallback data
-        
+
     Returns:
         ExecutedOrderDTO instance
     """
@@ -221,7 +226,11 @@ def map_order_to_executed_dto(
     price = Decimal("0.01")  # Default minimal price
     if order_filled_avg_price:
         price = Decimal(str(order_filled_avg_price))
-    elif order_request and hasattr(order_request, "limit_price") and order_request.limit_price:
+    elif (
+        order_request
+        and hasattr(order_request, "limit_price")
+        and order_request.limit_price
+    ):
         price = Decimal(str(order_request.limit_price))
 
     # Extract enum values properly
@@ -254,18 +263,18 @@ def create_error_execution_result(
     error: Exception, context: str = "Operation", order_id: str = "unknown"
 ) -> OrderExecutionResult:
     """Create an error OrderExecutionResult.
-    
+
     Args:
         error: Exception that occurred
         context: Context string for error message
         order_id: Order ID if available
-        
+
     Returns:
         OrderExecutionResult with error details
     """
-    status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"] = (
-        "rejected"
-    )
+    status: Literal[
+        "accepted", "filled", "partially_filled", "rejected", "canceled"
+    ] = "rejected"
     return OrderExecutionResult(
         success=False,
         order_id=order_id,
@@ -285,13 +294,13 @@ def create_error_executed_dto(
     order_request: Any = None,
 ) -> ExecutedOrderDTO:
     """Create an error ExecutedOrderDTO.
-    
+
     Args:
         error: Exception that occurred
         symbol: Symbol for the failed order
         action: Action for the failed order
         order_request: Optional original order request for data extraction
-        
+
     Returns:
         ExecutedOrderDTO with error details
     """
