@@ -540,5 +540,203 @@ def main(
     ctx.obj["json_output"] = json_output
 
 
+@app.command()
+def ledger_list(
+    ctx: typer.Context,
+    strategy: str = typer.Option(None, "--strategy", "-s", help="Filter by strategy name"),
+    symbol: str = typer.Option(None, "--symbol", help="Filter by symbol"),
+    days: int = typer.Option(30, "--days", "-d", help="Number of days to look back"),
+    limit: int = typer.Option(100, "--limit", "-l", help="Maximum number of entries to show"),
+) -> None:
+    """List trade ledger entries with optional filtering."""
+    try:
+        from datetime import timedelta
+
+        from the_alchemiser.shared.dto.trade_ledger_dto import TradeLedgerQuery
+        from the_alchemiser.shared.persistence.trade_ledger_factory import get_default_trade_ledger
+
+        console = Console()
+
+        # Create query filters
+        end_date = datetime.now(UTC)
+        start_date = end_date - timedelta(days=days)
+
+        query = TradeLedgerQuery(
+            strategy_name=strategy,
+            symbol=symbol,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+            order_by="timestamp",
+            ascending=False,  # Most recent first
+        )
+
+        # Get trade ledger and query entries
+        ledger = get_default_trade_ledger()
+        entries = list(ledger.query(query))
+
+        if not entries:
+            console.print("No trade ledger entries found matching criteria.")
+            return
+
+        # Create table for display
+        table = Table(title=f"Trade Ledger Entries ({len(entries)} found)")
+        table.add_column("Date", style="cyan", no_wrap=True)
+        table.add_column("Strategy", style="green")
+        table.add_column("Symbol", style="yellow")
+        table.add_column("Side", style="magenta")
+        table.add_column("Quantity", style="blue", justify="right")
+        table.add_column("Price", style="blue", justify="right")
+        table.add_column("Value", style="blue", justify="right")
+
+        for entry in entries:
+            table.add_row(
+                entry.timestamp.strftime("%Y-%m-%d %H:%M"),
+                entry.strategy_name,
+                entry.symbol,
+                entry.side.value,
+                f"{entry.quantity:,.4f}",
+                f"${entry.price:,.2f}",
+                f"${entry.quantity * entry.price:,.2f}",
+            )
+
+        console.print(table)
+
+    except Exception as e:
+        console = Console()
+        console.print(f"[red]Error listing trade ledger entries: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def ledger_performance(
+    ctx: typer.Context,
+    strategy: str = typer.Option(None, "--strategy", "-s", help="Filter by strategy name"),
+    symbol: str = typer.Option(None, "--symbol", help="Filter by symbol"),
+) -> None:
+    """Show performance summary from trade ledger."""
+    try:
+        from the_alchemiser.shared.persistence.trade_ledger_factory import get_default_trade_ledger
+
+        console = Console()
+
+        # Get trade ledger and calculate performance
+        ledger = get_default_trade_ledger()
+        summaries = ledger.calculate_performance(
+            strategy=strategy,
+            symbol=symbol,
+            current_prices=None,  # TODO: Add price fetching for unrealized P&L
+        )
+
+        if not summaries:
+            console.print("No performance data found matching criteria.")
+            return
+
+        # Create table for display
+        table = Table(title="Performance Summary")
+        table.add_column("Strategy", style="green")
+        table.add_column("Symbol", style="yellow")
+        table.add_column("Realized P&L", style="blue", justify="right")
+        table.add_column("Open Qty", style="blue", justify="right")
+        table.add_column("Avg Cost", style="blue", justify="right")
+        table.add_column("Total Fees", style="red", justify="right")
+        table.add_column("Trades", style="cyan", justify="right")
+
+        for summary in summaries:
+            symbol_display = summary.symbol or "ALL"
+            avg_cost_display = f"${summary.average_cost_basis:,.2f}" if summary.average_cost_basis else "N/A"
+
+            table.add_row(
+                summary.strategy_name,
+                symbol_display,
+                f"${summary.realized_pnl:,.2f}",
+                f"{summary.open_quantity:,.4f}",
+                avg_cost_display,
+                f"${summary.total_fees:,.2f}",
+                str(summary.realized_trades),
+            )
+
+        console.print(table)
+
+    except Exception as e:
+        console = Console()
+        console.print(f"[red]Error calculating performance: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def ledger_attribution(
+    ctx: typer.Context,
+    symbol: str = typer.Argument(..., help="Symbol to analyze"),
+) -> None:
+    """Show detailed attribution for a symbol across strategies."""
+    try:
+        from the_alchemiser.shared.persistence.trade_ledger_factory import get_default_trade_ledger
+        from the_alchemiser.shared.services.trade_performance_service import TradePerformanceService
+
+        console = Console()
+
+        # Get trade performance service
+        ledger = get_default_trade_ledger()
+        service = TradePerformanceService(ledger)
+
+        # Get attribution report
+        report = service.get_attribution_report(symbol.upper())
+
+        if not report["strategies"]:
+            console.print(f"No trading data found for {symbol}")
+            return
+
+        # Display summary
+        console.print(Panel(
+            f"[bold]Attribution Report for {report['symbol']}[/bold]\n\n"
+            f"Total Realized P&L: ${report['total_realized_pnl']:,.2f}\n"
+            f"Total Open Quantity: {report['total_open_quantity']:,.4f}",
+            title="Summary"
+        ))
+
+        # Create strategy breakdown table
+        table = Table(title="Strategy Breakdown")
+        table.add_column("Strategy", style="green")
+        table.add_column("Realized P&L", style="blue", justify="right")
+        table.add_column("Unrealized P&L", style="blue", justify="right")
+        table.add_column("Open Qty", style="blue", justify="right")
+        table.add_column("Avg Cost", style="blue", justify="right")
+        table.add_column("Trades", style="cyan", justify="right")
+
+        for strategy_name, data in report["strategies"].items():
+            unrealized_display = f"${data['unrealized_pnl']:,.2f}" if data["unrealized_pnl"] else "N/A"
+            avg_cost_display = f"${data['average_cost_basis']:,.2f}" if data["average_cost_basis"] else "N/A"
+
+            table.add_row(
+                strategy_name,
+                f"${data['realized_pnl']:,.2f}",
+                unrealized_display,
+                f"{data['open_quantity']:,.4f}",
+                avg_cost_display,
+                str(data["realized_trades"]),
+            )
+
+        console.print(table)
+
+        # Show open lots if any
+        open_lots = report["open_lots_by_strategy"]
+        if open_lots:
+            console.print("\n[bold]Open Lots by Strategy:[/bold]")
+            for strategy_name, lots in open_lots.items():
+                if lots:
+                    console.print(f"\n[green]{strategy_name}:[/green]")
+                    for lot in lots:
+                        console.print(
+                            f"  • {lot['quantity']:,.4f} @ ${lot['cost_basis']:,.2f} "
+                            f"(opened {lot['opened_timestamp'][:10]})"
+                        )
+
+    except Exception as e:
+        console = Console()
+        console.print(f"[red]Error generating attribution report: {e}[/red]")
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":
     app()

@@ -39,6 +39,14 @@ from the_alchemiser.shared.dto.trade_run_result_dto import (
     OrderResultSummaryDTO,
     TradeRunResultDTO,
 )
+from the_alchemiser.shared.dto.trade_ledger_dto import (
+    AssetType,
+    Lot,
+    PerformanceSummary,
+    TradeLedgerEntry,
+    TradeLedgerQuery,
+    TradeSide,
+)
 
 
 class ConfigurationDTO(BaseModel):
@@ -100,4 +108,11 @@ __all__ = [
     "StrategySignalDTO",
     "TechnicalIndicatorDTO",
     "TradeRunResultDTO",
+    # Trade Ledger DTOs
+    "AssetType",
+    "Lot",
+    "PerformanceSummary",
+    "TradeLedgerEntry",
+    "TradeLedgerQuery",
+    "TradeSide",
 ]
