@@ -17,7 +17,9 @@ from ..protocols.trade_ledger import TradeLedger
 logger = logging.getLogger(__name__)
 
 
-def create_trade_ledger(*, paper_trading: bool = True, account_id: str | None = None) -> TradeLedger:
+def create_trade_ledger(
+    *, paper_trading: bool = True, account_id: str | None = None
+) -> TradeLedger:
     """Create appropriate trade ledger based on trading mode.
 
     Args:

@@ -38,5 +38,9 @@ class ServiceProviders(containers.DeclarativeContainer):
             lambda exec_settings: exec_settings.enable_smart_execution,
             exec_settings=config.execution,
         ),
+        enable_trade_ledger=providers.Factory(
+            lambda exec_settings: exec_settings.enable_trade_ledger,
+            exec_settings=config.execution,
+        ),
     )
     # These will be replaced with v2 equivalents as they are migrated

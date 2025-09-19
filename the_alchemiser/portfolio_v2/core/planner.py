@@ -12,13 +12,13 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.dto.rebalance_plan_dto import (
     RebalancePlanDTO,
     RebalancePlanItemDTO,
 )
 from the_alchemiser.shared.logging.logging_utils import log_with_context
 from the_alchemiser.shared.types.exceptions import PortfolioError
-from the_alchemiser.shared.config.config import load_settings
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
@@ -195,9 +195,7 @@ class RebalancePlanCalculator:
         current_values = {}
 
         # Get all symbols we need to consider
-        all_symbols = set(strategy.target_weights.keys()) | set(
-            snapshot.positions.keys()
-        )
+        all_symbols = set(strategy.target_weights.keys()) | set(snapshot.positions.keys())
 
         # Apply cash reserve to avoid buying power issues with broker constraints
         # This ensures we don't try to use 100% of portfolio value which can
