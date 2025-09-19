@@ -12,7 +12,7 @@ New code should use the modular alpaca package directly:
 
 Legacy compatibility is maintained for:
 1. All existing method signatures
-2. Import paths and class names  
+2. Import paths and class names
 3. Protocol implementations (TradingRepository, MarketDataRepository, AccountRepository)
 4. Error handling behavior
 """
@@ -64,7 +64,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     Implements:
     - TradingRepository: For order placement and position management
-    - MarketDataRepository: For market data and quotes  
+    - MarketDataRepository: For market data and quotes
     - AccountRepository: For account information and portfolio data
     """
 
@@ -92,7 +92,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             DeprecationWarning,
             stacklevel=2,
         )
-        
+
         # Initialize configuration and core client
         self._config = AlpacaConfig(
             api_key=api_key,
@@ -101,14 +101,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             base_url=base_url,
         )
         self._client = AlpacaClient(self._config)
-        
+
         # Initialize modular managers
         self._accounts = AccountManager(self._client)
         self._positions = PositionManager(self._client)
         self._orders = OrderManager(self._client)
         self._market_data = MarketDataManager(self._client)
         self._streaming = StreamingManager(self._config)
-        
+
         logger.info(f"AlpacaManager facade initialized - Paper: {paper}")
 
     # Properties for backward compatibility
@@ -162,7 +162,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Validate that the connection to Alpaca is working."""
         return self._accounts.validate_connection()
 
-    # Position operations - delegate to PositionManager  
+    # Position operations - delegate to PositionManager
     def get_positions(self) -> list[Any]:
         """Get all positions as list of position objects."""
         return self._positions.get_positions()
@@ -239,7 +239,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self, symbol: str, start_date: str, end_date: str, timeframe: str = "1Day"
     ) -> list[dict[str, Any]]:
         """Get historical bar data for a symbol."""
-        return self._market_data.get_historical_bars(symbol, start_date, end_date, timeframe)
+        return self._market_data.get_historical_bars(
+            symbol, start_date, end_date, timeframe
+        )
 
     # Streaming operations - delegate to StreamingManager
     def wait_for_order_completion(
@@ -253,22 +255,42 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self,
         symbol: str,
         side: str,
-        qty: float,
-        time_in_force: str = "day"
+        qty: float | None = None,
+        notional: float | None = None,
+        *,
+        is_complete_exit: bool = False,
     ) -> ExecutedOrderDTO:
-        """Place a market order (legacy wrapper)."""
+        """Place a market order (protocol-compliant method)."""
         from alpaca.trading.enums import OrderSide, TimeInForce
         from alpaca.trading.requests import MarketOrderRequest
-        
+
+        # Validate that either qty or notional is provided
+        if qty is None and notional is None:
+            raise ValueError("Either qty or notional must be provided")
+        if qty is not None and notional is not None:
+            raise ValueError("Cannot specify both qty and notional")
+
         # Map string parameters to enums
         order_side = OrderSide.BUY if side.upper() == "BUY" else OrderSide.SELL
-        tif = TimeInForce.DAY if time_in_force.upper() == "DAY" else TimeInForce.GTC
-        
+
+        # Handle complete exit scenario
+        if is_complete_exit:
+            # For complete exit, we should sell all shares
+            if order_side != OrderSide.SELL:
+                raise ValueError("Complete exit is only valid for SELL orders")
+            # Use qty if provided, otherwise we need to get current position
+            if qty is None:
+                current_position = self.get_position(symbol)
+                if current_position is None:
+                    raise ValueError(f"No position found for {symbol} to exit")
+                qty = float(getattr(current_position, "qty", 0))
+
         request = MarketOrderRequest(
             symbol=symbol,
             qty=qty,
+            notional=notional,
             side=order_side,
-            time_in_force=tif,
+            time_in_force=TimeInForce.DAY,
         )
         return self.place_order(request)
 
@@ -278,16 +300,16 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         qty: float,
         side: str,
         limit_price: float,
-        time_in_force: str = "day"
+        time_in_force: str = "day",
     ) -> ExecutedOrderDTO:
         """Place a limit order (legacy wrapper)."""
         from alpaca.trading.enums import OrderSide, TimeInForce
         from alpaca.trading.requests import LimitOrderRequest
-        
+
         # Map string parameters to enums
         order_side = OrderSide.BUY if side.upper() == "BUY" else OrderSide.SELL
         tif = TimeInForce.DAY if time_in_force.upper() == "DAY" else TimeInForce.GTC
-        
+
         request = LimitOrderRequest(
             symbol=symbol,
             qty=qty,
@@ -300,7 +322,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def place_smart_sell_order(self, symbol: str, qty: float) -> str | None:
         """Place a smart sell order (legacy method)."""
         try:
-            result = self.place_market_order(symbol, qty, "SELL")
+            result = self.place_market_order(symbol, "SELL", qty=qty)
             return result.order_id if result.status != "REJECTED" else None
         except Exception as e:
             logger.error(f"Smart sell order failed for {symbol}: {e}")
@@ -315,7 +337,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get market status: {e}")
             return False
 
-    def get_market_calendar(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+    def get_market_calendar(
+        self, start_date: str, end_date: str
+    ) -> list[dict[str, Any]]:
         """Get market calendar information (legacy method)."""
         try:
             calendar = self._client.trading_client.get_calendar()
@@ -385,15 +409,17 @@ def create_alpaca_manager(
 
     This function provides a clean way to create AlpacaManager instances
     and can be easily extended with additional configuration options.
-    
+
     Args:
         api_key: Alpaca API key
         secret_key: Alpaca secret key
         paper: Whether to use paper trading (default: True for safety)
         base_url: Optional custom base URL
-        
+
     Returns:
         AlpacaManager facade instance
 
     """
-    return AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url)
+    return AlpacaManager(
+        api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url
+    )

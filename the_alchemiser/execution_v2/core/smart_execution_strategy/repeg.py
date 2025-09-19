@@ -72,10 +72,14 @@ class RepegManager:
         for order_id, request in list(active_orders.items()):
             try:
                 # Check if order is still active
-                order_status = self.alpaca_manager._check_order_completion_status(order_id)
+                order_status = self.alpaca_manager._check_order_completion_status(
+                    order_id
+                )
                 if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
                     orders_to_remove.append(order_id)
-                    logger.info(f"📊 Order {order_id} completed with status: {order_status}")
+                    logger.info(
+                        f"📊 Order {order_id} completed with status: {order_status}"
+                    )
                     continue
 
                 # Check if enough time has passed to consider re-pegging
@@ -100,7 +104,9 @@ class RepegManager:
                         f"⚠️ Order {order_id} reached max re-pegs "
                         f"({current_repeg_count}/{self.config.max_repegs_per_order}), escalating to market order"
                     )
-                    escalation_result = await self._escalate_to_market(order_id, request)
+                    escalation_result = await self._escalate_to_market(
+                        order_id, request
+                    )
                     if escalation_result is not None:
                         repeg_results.append(escalation_result)
                     # After escalation, skip further processing for this order_id
@@ -174,7 +180,9 @@ class RepegManager:
                         float(original_anchor) if original_anchor is not None else None
                     ),
                     "new_price": (
-                        float(executed_order.price) if executed_order.price is not None else 0.0
+                        float(executed_order.price)
+                        if executed_order.price is not None
+                        else 0.0
                     ),
                 }
                 logger.info(
@@ -185,7 +193,9 @@ class RepegManager:
                     success=True,
                     order_id=executed_order.order_id,
                     final_price=(
-                        executed_order.price if executed_order.price is not None else None
+                        executed_order.price
+                        if executed_order.price is not None
+                        else None
                     ),
                     anchor_price=original_anchor,
                     repegs_used=self.config.max_repegs_per_order,
@@ -241,7 +251,9 @@ class RepegManager:
                 request.symbol, float(request.quantity)
             )
             if not validated:
-                logger.warning(f"⚠️ No valid quote for {request.symbol}, skipping re-peg")
+                logger.warning(
+                    f"⚠️ No valid quote for {request.symbol}, skipping re-peg"
+                )
                 return None
 
             quote, _ = validated
@@ -287,7 +299,7 @@ class RepegManager:
             executed_order = self.alpaca_manager.place_limit_order(
                 symbol=request.symbol,
                 side=request.side.lower(),
-                quantity=float(request.quantity),
+                qty=float(request.quantity),
                 limit_price=float(quantized_price),
                 time_in_force="day",
             )
@@ -305,7 +317,9 @@ class RepegManager:
 
                 metadata_dict: LiquidityMetadata = {
                     "original_order_id": order_id,
-                    "original_price": (float(original_anchor) if original_anchor else None),
+                    "original_price": (
+                        float(original_anchor) if original_anchor else None
+                    ),
                     "new_price": float(new_price),
                     "bid_price": quote.bid_price,
                     "ask_price": quote.ask_price,

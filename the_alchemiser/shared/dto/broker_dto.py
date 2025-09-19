@@ -21,6 +21,8 @@ from the_alchemiser.shared.schemas.base import Result
 class WebSocketStatus(str, Enum):
     """WebSocket operation status enumeration."""
 
+    CONNECTED = "connected"
+    DISCONNECTED = "disconnected"
     COMPLETED = "completed"
     TIMEOUT = "timeout"
     ERROR = "error"
@@ -45,7 +47,9 @@ class WebSocketResult(BaseModel):
     completed_order_ids: list[str] = Field(
         default_factory=list, description="Order IDs that completed during operation"
     )
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional metadata"
+    )
 
 
 class OrderExecutionResult(Result):

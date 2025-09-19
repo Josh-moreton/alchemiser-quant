@@ -168,7 +168,7 @@ class SmartExecutionStrategy:
             result = self.alpaca_manager.place_limit_order(
                 symbol=request.symbol,
                 side=request.side.lower(),
-                quantity=float(request.quantity),
+                qty=float(request.quantity),
                 limit_price=float(quantized_price),
                 time_in_force="day",
             )

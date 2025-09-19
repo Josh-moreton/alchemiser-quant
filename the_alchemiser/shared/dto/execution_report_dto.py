@@ -40,13 +40,29 @@ class ExecutedOrderDTO(BaseModel):
     filled_quantity: Decimal = Field(..., ge=0, description="Filled quantity")
     price: Decimal = Field(..., gt=0, description="Execution price")
     total_value: Decimal = Field(..., gt=0, description="Total execution value")
-    status: str = Field(..., description="Order status (FILLED, PARTIAL, REJECTED, etc.)")
+    status: str = Field(
+        ..., description="Order status (FILLED, PARTIAL, REJECTED, etc.)"
+    )
     execution_timestamp: datetime = Field(..., description="Order execution timestamp")
 
     # Optional fields
-    commission: Decimal | None = Field(default=None, ge=0, description="Commission paid")
+    commission: Decimal | None = Field(
+        default=None, ge=0, description="Commission paid"
+    )
     fees: Decimal | None = Field(default=None, ge=0, description="Additional fees")
-    error_message: str | None = Field(default=None, description="Error message if failed")
+    error_message: str | None = Field(
+        default=None, description="Error message if failed"
+    )
+
+    @property
+    def success(self) -> bool:
+        """Check if the order was successful (not rejected or failed)."""
+        return self.status not in {"REJECTED", "CANCELED", "FAILED"}
+
+    @property
+    def error(self) -> str | None:
+        """Get error message (alias for error_message for compatibility)."""
+        return self.error_message
 
     @field_validator("symbol")
     @classmethod
@@ -61,7 +77,9 @@ class ExecutedOrderDTO(BaseModel):
         valid_actions = {"BUY", "SELL"}
         action_upper = v.strip().upper()
         if action_upper not in valid_actions:
-            raise ValueError(f"Action must be one of {valid_actions}, got {action_upper}")
+            raise ValueError(
+                f"Action must be one of {valid_actions}, got {action_upper}"
+            )
         return action_upper
 
     @field_validator("status")
@@ -81,7 +99,9 @@ class ExecutedOrderDTO(BaseModel):
         }
         status_upper = v.strip().upper()
         if status_upper not in valid_statuses:
-            raise ValueError(f"Status must be one of {valid_statuses}, got {status_upper}")
+            raise ValueError(
+                f"Status must be one of {valid_statuses}, got {status_upper}"
+            )
         return status_upper
 
     @field_validator("execution_timestamp")
@@ -109,15 +129,21 @@ class ExecutionReportDTO(BaseModel):
     )
 
     # Required correlation fields
-    correlation_id: str = Field(..., min_length=1, description="Unique correlation identifier")
+    correlation_id: str = Field(
+        ..., min_length=1, description="Unique correlation identifier"
+    )
     causation_id: str = Field(
         ..., min_length=1, description="Causation identifier for traceability"
     )
     timestamp: datetime = Field(..., description="Report generation timestamp")
 
     # Report identification
-    execution_id: str = Field(..., min_length=1, description="Unique execution identifier")
-    session_id: str | None = Field(default=None, description="Trading session identifier")
+    execution_id: str = Field(
+        ..., min_length=1, description="Unique execution identifier"
+    )
+    session_id: str | None = Field(
+        default=None, description="Trading session identifier"
+    )
 
     # Execution summary
     total_orders: int = Field(..., ge=0, description="Total number of orders")
@@ -128,12 +154,16 @@ class ExecutionReportDTO(BaseModel):
     total_value_traded: Decimal = Field(..., ge=0, description="Total value traded")
     total_commissions: Decimal = Field(..., ge=0, description="Total commissions paid")
     total_fees: Decimal = Field(..., ge=0, description="Total fees paid")
-    net_cash_flow: Decimal = Field(..., description="Net cash flow (negative for net purchases)")
+    net_cash_flow: Decimal = Field(
+        ..., description="Net cash flow (negative for net purchases)"
+    )
 
     # Timing
     execution_start_time: datetime = Field(..., description="Execution start timestamp")
     execution_end_time: datetime = Field(..., description="Execution end timestamp")
-    total_duration_seconds: int = Field(..., ge=0, description="Total execution duration")
+    total_duration_seconds: int = Field(
+        ..., ge=0, description="Total execution duration"
+    )
 
     # Order details
     orders: list[ExecutedOrderDTO] = Field(
@@ -147,8 +177,12 @@ class ExecutionReportDTO(BaseModel):
     )
 
     # Optional metadata
-    broker_used: str | None = Field(default=None, description="Broker used for execution")
-    execution_strategy: str | None = Field(default=None, description="Execution strategy used")
+    broker_used: str | None = Field(
+        default=None, description="Broker used for execution"
+    )
+    execution_strategy: str | None = Field(
+        default=None, description="Execution strategy used"
+    )
     market_conditions: str | None = Field(
         default=None, description="Market conditions during execution"
     )
@@ -230,7 +264,9 @@ class ExecutionReportDTO(BaseModel):
     def _convert_order_datetime(self, order_dict: dict[str, Any]) -> None:
         """Convert datetime fields in order dictionary."""
         if order_dict.get("execution_timestamp"):
-            order_dict["execution_timestamp"] = order_dict["execution_timestamp"].isoformat()
+            order_dict["execution_timestamp"] = order_dict[
+                "execution_timestamp"
+            ].isoformat()
 
     def _convert_order_decimals(self, order_dict: dict[str, Any]) -> None:
         """Convert Decimal fields in order dictionary."""

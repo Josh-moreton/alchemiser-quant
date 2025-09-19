@@ -27,7 +27,7 @@ class PositionManager:
 
     def __init__(self, client: AlpacaClient) -> None:
         """Initialize with Alpaca client.
-        
+
         Args:
             client: AlpacaClient instance
 
@@ -39,7 +39,7 @@ class PositionManager:
 
         Returns:
             List of position objects with attributes like symbol, qty, market_value, etc.
-            
+
         Raises:
             AlpacaPositionError: If operation fails
 
@@ -92,7 +92,9 @@ class PositionManager:
                 else:
                     # Fallback to total qty if qty_available is not available
                     qty_raw = (
-                        getattr(pos, "qty", None) if not isinstance(pos, dict) else pos.get("qty")
+                        getattr(pos, "qty", None)
+                        if not isinstance(pos, dict)
+                        else pos.get("qty")
                     )
 
                 if symbol and qty_raw is not None:
@@ -118,10 +120,10 @@ class PositionManager:
 
     def get_position(self, symbol: str) -> Position | None:
         """Get position for a specific symbol.
-        
+
         Args:
             symbol: Symbol to get position for
-            
+
         Returns:
             Position object if found, None otherwise
 
@@ -129,17 +131,26 @@ class PositionManager:
         try:
             position = self._client.trading_client.get_open_position(symbol)
             logger.debug(f"Successfully retrieved position for {symbol}")
-            return position
+            # Ensure we return only Position object, not dict
+            if isinstance(position, Position):
+                return position
+            if position is None:
+                return None
+            # If it's a dict or other type, convert to None for type safety
+            logger.warning(
+                f"Unexpected position type for {symbol}: {type(position)}"
+            )
+            return None
         except Exception as e:
             logger.debug(f"No position found for {symbol}: {e}")
             return None
 
     def get_position_model(self, symbol: str) -> PositionModel | None:
         """Get position for a specific symbol as typed model.
-        
+
         Args:
             symbol: Symbol to get position for
-            
+
         Returns:
             PositionModel if found, None otherwise
 
@@ -147,19 +158,33 @@ class PositionManager:
         position = self.get_position(symbol)
         if not position:
             return None
-        
+
         try:
             return PositionModel(
                 symbol=str(getattr(position, "symbol", symbol)),
-                qty=self._safe_decimal(getattr(position, "qty", 0)),
-                qty_available=self._safe_decimal(getattr(position, "qty_available", None)),
-                market_value=self._safe_decimal(getattr(position, "market_value", None)),
+                qty=self._safe_decimal(getattr(position, "qty", 0)) or Decimal("0"),
+                qty_available=self._safe_decimal(
+                    getattr(position, "qty_available", None)
+                ),
+                market_value=self._safe_decimal(
+                    getattr(position, "market_value", None)
+                ),
                 cost_basis=self._safe_decimal(getattr(position, "cost_basis", None)),
-                unrealized_pl=self._safe_decimal(getattr(position, "unrealized_pl", None)),
-                unrealized_plpc=self._safe_decimal(getattr(position, "unrealized_plpc", None)),
-                current_price=self._safe_decimal(getattr(position, "current_price", None)),
-                lastday_price=self._safe_decimal(getattr(position, "lastday_price", None)),
-                change_today=self._safe_decimal(getattr(position, "change_today", None)),
+                unrealized_pl=self._safe_decimal(
+                    getattr(position, "unrealized_pl", None)
+                ),
+                unrealized_plpc=self._safe_decimal(
+                    getattr(position, "unrealized_plpc", None)
+                ),
+                current_price=self._safe_decimal(
+                    getattr(position, "current_price", None)
+                ),
+                lastday_price=self._safe_decimal(
+                    getattr(position, "lastday_price", None)
+                ),
+                change_today=self._safe_decimal(
+                    getattr(position, "change_today", None)
+                ),
             )
         except Exception as e:
             logger.error(f"Failed to create position model for {symbol}: {e}")
@@ -198,7 +223,7 @@ class PositionManager:
             asset = self._client.trading_client.get_asset(symbol)
             if not asset:
                 return None
-            
+
             # Convert asset object to dict
             return {
                 "id": getattr(asset, "id", None),
@@ -219,10 +244,10 @@ class PositionManager:
 
     def _safe_decimal(self, value: Any) -> Decimal | None:
         """Safely convert value to Decimal.
-        
+
         Args:
             value: Value to convert
-            
+
         Returns:
             Decimal value or None if conversion fails
 
