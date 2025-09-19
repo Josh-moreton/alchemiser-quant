@@ -248,12 +248,8 @@ class TradingSystem:
                     paper_trading=not orchestrator.live_trading,
                 )
 
-            # 7) Send notification
-            try:
-                mode_str = "LIVE" if orchestrator.live_trading else "PAPER"
-                orchestrator.send_trading_notification(trading_result, mode_str)
-            except Exception as exc:
-                warnings.append(f"Failed to send trading notification: {exc}")
+            # 7) Notifications are handled by EventDrivenOrchestrator via TradeExecuted events
+            #    Avoid direct sends here to prevent duplicate emails.
 
             # Create successful result DTO
             completed_at = datetime.now(UTC)

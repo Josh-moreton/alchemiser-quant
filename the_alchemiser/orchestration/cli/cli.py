@@ -773,7 +773,9 @@ def ledger_performance(
 
         for summary in summaries:
             symbol_display = summary.symbol or "ALL"
-            avg_cost_display = f"${summary.average_cost_basis:,.2f}" if summary.average_cost_basis else "N/A"
+            avg_cost_display = (
+                f"${summary.average_cost_basis:,.2f}" if summary.average_cost_basis else "N/A"
+            )
 
             table.add_row(
                 summary.strategy_name,
@@ -837,12 +839,14 @@ def ledger_attribution(
             return
 
         # Display summary
-        console.print(Panel(
-            f"[bold]Attribution Report for {report['symbol']}[/bold]\n\n"
-            f"Total Realized P&L: ${report['total_realized_pnl']:,.2f}\n"
-            f"Total Open Quantity: {report['total_open_quantity']:,.4f}",
-            title="Summary"
-        ))
+        console.print(
+            Panel(
+                f"[bold]Attribution Report for {report['symbol']}[/bold]\n\n"
+                f"Total Realized P&L: ${report['total_realized_pnl']:,.2f}\n"
+                f"Total Open Quantity: {report['total_open_quantity']:,.4f}",
+                title="Summary",
+            )
+        )
 
         # Create strategy breakdown table
         table = Table(title="Strategy Breakdown")
@@ -854,8 +858,12 @@ def ledger_attribution(
         table.add_column("Trades", style="cyan", justify="right")
 
         for strategy_name, data in report["strategies"].items():
-            unrealized_display = f"${data['unrealized_pnl']:,.2f}" if data["unrealized_pnl"] else "N/A"
-            avg_cost_display = f"${data['average_cost_basis']:,.2f}" if data["average_cost_basis"] else "N/A"
+            unrealized_display = (
+                f"${data['unrealized_pnl']:,.2f}" if data["unrealized_pnl"] else "N/A"
+            )
+            avg_cost_display = (
+                f"${data['average_cost_basis']:,.2f}" if data["average_cost_basis"] else "N/A"
+            )
 
             table.add_row(
                 strategy_name,

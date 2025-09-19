@@ -182,9 +182,7 @@ class ExecutionManager:
             # Event loop exists but not running, safe to use asyncio.run
             result = asyncio.run(self.executor.execute_rebalance_plan(plan))
 
-        logger.info(
-            f"✅ Execution complete: {result.success} ({result.orders_placed} orders)"
-        )
+        logger.info(f"✅ Execution complete: {result.success} ({result.orders_placed} orders)")
 
         # Record trades in ledger if enabled
         if self.enable_trade_ledger and self.trade_ledger_writer:
@@ -217,9 +215,7 @@ class ExecutionManager:
             ExecutionManager instance with configured smart execution
 
         """
-        alpaca_manager = AlpacaManager(
-            api_key=api_key, secret_key=secret_key, paper=paper
-        )
+        alpaca_manager = AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper)
         return cls(
             alpaca_manager=alpaca_manager,
             execution_config=execution_config,

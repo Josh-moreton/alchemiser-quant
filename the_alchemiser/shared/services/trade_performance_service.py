@@ -146,10 +146,7 @@ class TradePerformanceService:
             if strategy_name and not symbol:
                 # Looking for strategy total
                 for summary in summaries:
-                    if (
-                        summary.strategy_name == strategy_name
-                        and summary.symbol is None
-                    ):
+                    if summary.strategy_name == strategy_name and summary.symbol is None:
                         return summary.realized_pnl
             elif symbol and not strategy_name:
                 # Sum across all strategies for this symbol
@@ -160,10 +157,7 @@ class TradePerformanceService:
             elif strategy_name and symbol:
                 # Specific strategy-symbol combination
                 for summary in summaries:
-                    if (
-                        summary.strategy_name == strategy_name
-                        and summary.symbol == symbol
-                    ):
+                    if summary.strategy_name == strategy_name and summary.symbol == symbol:
                         return summary.realized_pnl
             else:
                 # Total across everything
@@ -210,10 +204,7 @@ class TradePerformanceService:
             if strategy_name and not symbol:
                 # Looking for strategy total
                 for summary in summaries:
-                    if (
-                        summary.strategy_name == strategy_name
-                        and summary.symbol is None
-                    ):
+                    if summary.strategy_name == strategy_name and summary.symbol is None:
                         return summary.unrealized_pnl
             elif symbol and not strategy_name:
                 # Sum across all strategies for this symbol

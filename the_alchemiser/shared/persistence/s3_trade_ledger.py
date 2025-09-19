@@ -138,9 +138,7 @@ class S3TradeLedger(BaseTradeLedger):
             logger.warning(f"Failed to load index for {date_str}, rebuilding: {e}")
             return self._rebuild_index_for_date(date_str)
 
-    def _save_index_for_date(
-        self, date_str: str, index: dict[tuple[str, str], str]
-    ) -> None:
+    def _save_index_for_date(self, date_str: str, index: dict[tuple[str, str], str]) -> None:
         """Save index for a specific date.
 
         Args:
@@ -352,9 +350,7 @@ class S3TradeLedger(BaseTradeLedger):
                 # Save updated index
                 self._save_index_for_date(date_str, index)
 
-                logger.info(
-                    f"Added {len(new_entries)} new ledger entries for {date_str}"
-                )
+                logger.info(f"Added {len(new_entries)} new ledger entries for {date_str}")
 
             except Exception as e:
                 logger.error(f"Failed to upsert entries for {date_str}: {e}")
@@ -406,9 +402,7 @@ class S3TradeLedger(BaseTradeLedger):
             logger.error(f"Failed to query trade ledger: {e}")
             raise
 
-    def _query_date(
-        self, date_str: str, filters: TradeLedgerQuery
-    ) -> list[TradeLedgerEntry]:
+    def _query_date(self, date_str: str, filters: TradeLedgerQuery) -> list[TradeLedgerEntry]:
         """Query entries for a specific date.
 
         Args:
@@ -446,9 +440,7 @@ class S3TradeLedger(BaseTradeLedger):
             logger.error(f"Failed to query date {date_str}: {e}")
             raise
 
-    def get_open_lots(
-        self, strategy: str | None = None, symbol: str | None = None
-    ) -> list[Lot]:
+    def get_open_lots(self, strategy: str | None = None, symbol: str | None = None) -> list[Lot]:
         """Get open lots for attribution tracking.
 
         Args:
@@ -502,9 +494,7 @@ class S3TradeLedger(BaseTradeLedger):
             )
 
             entries = list(self.query(query_filters))
-            return self._calculate_performance_from_entries(
-                entries, current_prices or {}
-            )
+            return self._calculate_performance_from_entries(entries, current_prices or {})
 
         except Exception as e:
             logger.error(f"Failed to calculate performance: {e}")
@@ -604,9 +594,7 @@ class S3TradeLedger(BaseTradeLedger):
                 if obj["Key"].endswith(".jsonl"):
                     try:
                         # Verify each file can be parsed
-                        obj_response = self.s3.get_object(
-                            Bucket=self.bucket, Key=obj["Key"]
-                        )
+                        obj_response = self.s3.get_object(Bucket=self.bucket, Key=obj["Key"])
                         content = obj_response["Body"].read().decode("utf-8")
 
                         file_entries = 0

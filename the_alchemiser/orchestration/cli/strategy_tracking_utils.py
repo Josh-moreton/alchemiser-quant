@@ -48,9 +48,7 @@ def _get_strategy_order_tracker(*, paper_trading: bool) -> StrategyOrderTrackerP
             "the_alchemiser.portfolio_v2.pnl.strategy_order_tracker"
         )
         tracker_class = tracker_module.StrategyOrderTracker
-        return cast(
-            StrategyOrderTrackerProtocol, tracker_class(paper_trading=paper_trading)
-        )
+        return cast(StrategyOrderTrackerProtocol, tracker_class(paper_trading=paper_trading))
     except ImportError as e:
         raise ImportError(
             f"Strategy tracking functionality not yet available in portfolio_v2: {e}. "
@@ -143,9 +141,7 @@ def _add_strategy_pnl_row(
             f"[{return_color}]{return_sign}{return_pct:.2f}%[/{return_color}]",
         )
     except Exception as e:
-        console.print(
-            f"[dim yellow]Error getting P&L for {strategy_name}: {e}[/dim yellow]"
-        )
+        console.print(f"[dim yellow]Error getting P&L for {strategy_name}: {e}[/dim yellow]")
 
 
 def display_strategy_tracking(*, paper_trading: bool) -> None:
@@ -184,9 +180,7 @@ def display_strategy_tracking(*, paper_trading: bool) -> None:
             return
 
         # Create tracking table
-        tracking_table = Table(
-            title="Strategy Performance Tracking", show_lines=True, expand=True
-        )
+        tracking_table = Table(title="Strategy Performance Tracking", show_lines=True, expand=True)
         tracking_table.add_column("Strategy", style=BOLD_MAGENTA_STYLE)
         tracking_table.add_column("Positions", justify="center")
         tracking_table.add_column("Total P&L", justify="right")
@@ -270,9 +264,7 @@ def display_detailed_strategy_positions(*, paper_trading: bool) -> None:
             console.print(strategy_table)
 
             # Show P&L summary for each strategy with positions
-            strategy_pnl_table = Table(
-                title="Strategy P&L Summary", show_lines=True, expand=True
-            )
+            strategy_pnl_table = Table(title="Strategy P&L Summary", show_lines=True, expand=True)
             strategy_pnl_table.add_column("Strategy", style=BOLD_MAGENTA_STYLE)
             strategy_pnl_table.add_column("Realized P&L", justify="right")
             strategy_pnl_table.add_column("Unrealized P&L", justify="right")
@@ -281,18 +273,14 @@ def display_detailed_strategy_positions(*, paper_trading: bool) -> None:
 
             strategies_with_data = {pos.strategy for pos in positions_summary}
             for strategy_name in strategies_with_data:
-                _add_strategy_pnl_row(
-                    strategy_pnl_table, tracker, strategy_name, console
-                )
+                _add_strategy_pnl_row(strategy_pnl_table, tracker, strategy_name, console)
 
             if strategy_pnl_table.rows:
                 console.print()
                 console.print(strategy_pnl_table)
         else:
             console.print()
-            console.print(
-                "[dim yellow]No strategy positions found in tracking system[/dim yellow]"
-            )
+            console.print("[dim yellow]No strategy positions found in tracking system[/dim yellow]")
 
     except Exception as e:  # Non-fatal UI enhancement
         logger.warning(f"Strategy detailed positions display unavailable: {e}")
