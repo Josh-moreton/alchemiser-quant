@@ -16,8 +16,8 @@ from alpaca.trading.enums import QueryOrderStatus
 from alpaca.trading.models import Order
 from alpaca.trading.requests import GetOrdersRequest, LimitOrderRequest, MarketOrderRequest
 
-from ..dto.broker_dto import OrderExecutionResult
-from ..dto.execution_report_dto import ExecutedOrderDTO
+from ...dto.broker_dto import OrderExecutionResult
+from ...dto.execution_report_dto import ExecutedOrderDTO
 from .exceptions import AlpacaOrderError, normalize_alpaca_error
 from .models import OrderExecutionModel, OrderModel
 

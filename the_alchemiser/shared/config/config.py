@@ -116,6 +116,8 @@ class ExecutionSettings(BaseModel):
     use_canonical_executor: bool = True
     # Smart execution with liquidity-aware volume analysis (enabled by default)
     enable_smart_execution: bool = True
+    # Trade ledger for per-strategy attribution and performance tracking (enabled by default)
+    enable_trade_ledger: bool = True
 
 
 class Settings(BaseSettings):

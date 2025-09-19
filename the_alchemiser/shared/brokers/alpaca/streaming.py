@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 from alpaca.trading.stream import TradingStream
 
-from ..dto.broker_dto import WebSocketResult, WebSocketStatus
+from ...dto.broker_dto import WebSocketResult, WebSocketStatus
 from .exceptions import AlpacaError, normalize_alpaca_error
 from .models import WebSocketResultModel
 
