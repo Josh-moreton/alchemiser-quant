@@ -84,6 +84,9 @@ class TradeExecuted(BaseEvent):
     # Override event_type with default
     event_type: str = Field(default="TradeExecuted", description=EVENT_TYPE_DESCRIPTION)
 
+    # Schema version for backward compatibility
+    schema_version: int = Field(default=2, ge=1, description="Event schema version")
+
     # Trade execution fields
     execution_results: dict[str, Any] = Field(..., description="Trade execution results")
     portfolio_state_after: PortfolioStateDTO | None = Field(
@@ -91,6 +94,9 @@ class TradeExecuted(BaseEvent):
     )
     success: bool = Field(..., description="Whether execution was successful")
     error_message: str | None = Field(default=None, description="Error message if execution failed")
+    error_code: str | None = Field(
+        default=None, description="Structured error code if execution failed"
+    )
 
 
 class TradeExecutionStarted(BaseEvent):
