@@ -731,8 +731,8 @@ class TradingOrchestrator:
                 self.logger.error("Strategy execution failed")
                 return False
 
-            # Send notification
-            self.send_trading_notification(result, mode_str)
+            # Note: Notification sending removed from wrapper method to avoid duplicates
+            # The main system handles notifications through direct method calls
 
             return bool(result.get("success", False))
 
@@ -763,8 +763,8 @@ class TradingOrchestrator:
                 self.logger.error("Strategy execution failed")
                 return None
 
-            # Send notification
-            self.send_trading_notification(result, mode_str)
+            # Note: Notification sending removed from wrapper method to avoid duplicates
+            # The main system handles notifications through direct method calls
 
             return result
 
