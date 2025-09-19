@@ -5,7 +5,6 @@ Description: >
 
   Multi-strategy algorithmic trading engine deployed as an AWS Lambda Function
 
-# Global configuration
 Globals:
   Function:
     Timeout: 900 # 15 minutes - max for Lambda
@@ -14,19 +13,15 @@ Globals:
       Variables:
         # Logging
         LOGGING__LEVEL: INFO
-
         # Trade Ledger
         EXECUTION__ENABLE_TRADE_LEDGER: true
-        S3_BUCKET_NAME: the-alchemiser-v2-s3
-
+        S3_BUCKET_NAME: !Ref TradeLedgerBucket
         # Alpaca Configuration (LIVE trading in Lambda)
         ALPACA__ENDPOINT: https://api.alpaca.markets
         ALPACA__CASH_RESERVE_PCT: 0.02
-
         # Secrets Manager (credentials loaded at runtime)
         SECRETS_MANAGER__REGION_NAME: us-east-1
         SECRETS_MANAGER__SECRET_NAME: the-alchemiser-v2-secrets
-
         # Email Configuration
         EMAIL__SMTP_SERVER: smtp.mail.me.com
         EMAIL__SMTP_PORT: 587
@@ -59,7 +54,6 @@ Resources:
       Role: !GetAtt TradingSystemExecutionRole.Arn
       Layers:
         - !Ref DependenciesLayer
-      # No Events here - using separate EventBridge Scheduler below
 
   # Dead Letter Queue for failed trading executions
   TradingSystemDLQ:
@@ -140,18 +134,18 @@ Resources:
                 Action:
                   - secretsmanager:GetSecretValue
                   - secretsmanager:DescribeSecret
-                Resource:
-                  - !Ref TradingSecrets
+                Resource: !Ref TradingSecrets
 
-              # S3 access for alerts and data storage
+              # S3 access for trade ledger storage
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !GetAtt TradeLedgerBucket.Arn
               - Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:PutObject
-                  - s3:ListBucket
-                Resource:
-                  - arn:aws:s3:::the-alchemiser-v2-s3
-                  - arn:aws:s3:::the-alchemiser-v2-s3/*
+                Resource: !Sub "${TradeLedgerBucket.Arn}/*"
 
               # CloudWatch Logs (enhanced logging)
               - Effect: Allow
@@ -163,11 +157,12 @@ Resources:
                   - logs:DescribeLogGroups
                 Resource: "*"
 
+
   # CloudWatch Log Group with retention
   TradingSystemLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${TradingSystemFunction}"
+      LogGroupName: /aws/lambda/the-alchemiser-v2-lambda
       RetentionInDays: 30
 
   # Secrets Manager Secret (managed by this stack, value set manually post-deploy)
@@ -179,11 +174,29 @@ Resources:
       Name: the-alchemiser-v2-secrets
       Description: "Secrets for The Alchemiser v2 (ALPACA_KEY/SECRET, optional TWELVEDATA_KEY, SMTP_PASSWORD)"
 
+  # S3 bucket for trade ledger storage (managed by this stack)
+  TradeLedgerBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: the-alchemiser-v2-s3
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      VersioningConfiguration:
+        Status: Enabled
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
 Outputs:
   TradingSystemFunction:
     Description: "Quantitative Trading System Lambda Function ARN"
-    Value: !GetAtt TradingSystemFunction.Arn
+    Value: !Ref TradingSystemFunction
 
   TradingSystemLogGroup:
     Description: "CloudWatch Log Group for monitoring"
-    Value: !Ref TradingSystemLogGroup
+    Value: /aws/lambda/the-alchemiser-v2-lambda

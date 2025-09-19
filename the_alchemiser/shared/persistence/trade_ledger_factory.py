@@ -43,7 +43,9 @@ def create_trade_ledger(
 
     bucket = os.getenv("S3_BUCKET_NAME")
     if not bucket:
-        raise ValueError("S3_BUCKET_NAME environment variable is required for live trading")
+        raise ValueError(
+            "S3_BUCKET_NAME environment variable is required for live trading"
+        )
 
     return S3TradeLedger(bucket=bucket, account_id=account_id)
 
@@ -59,8 +61,8 @@ def detect_paper_trading_from_environment() -> bool:
     if os.getenv("ALPACA_PAPER_TRADING", "").lower() in ("true", "1", "yes"):
         return True
 
-    # Check Alpaca endpoint to determine trading mode
-    endpoint = os.getenv("ALPACA_ENDPOINT", "")
+    # Check Alpaca endpoint to determine trading mode (support both styles)
+    endpoint = os.getenv("ALPACA_ENDPOINT", "") or os.getenv("ALPACA__ENDPOINT", "")
     if endpoint and "paper" in endpoint.lower():
         return True
 
