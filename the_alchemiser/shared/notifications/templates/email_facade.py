@@ -9,7 +9,7 @@ serve as wrappers around the existing template builder classes.
 
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.shared.value_objects.core_types import (
@@ -166,7 +166,9 @@ class EmailTemplates:
         return build_error_email_html(title, error_message)
 
     @staticmethod
-    def multi_strategy_report(result: MultiStrategyExecutionResultDTO, mode: str = "PAPER") -> str:
+    def multi_strategy_report(
+        result: MultiStrategyExecutionResultDTO, mode: str = "PAPER"
+    ) -> str:
         """Generate a multi-strategy execution report using existing MultiStrategyReportBuilder."""
         return build_multi_strategy_email_html(result, mode)
 
@@ -187,7 +189,9 @@ class EmailTemplates:
         account_info: dict[str, object] | None = None,
     ) -> str:
         """Generate a general trading report using existing builder classes."""
-        return build_trading_report_html(trading_summary, strategy_signals, account_info)
+        return build_trading_report_html(
+            trading_summary, strategy_signals, account_info
+        )
 
     # ================ NEW EMAIL TEMPLATES (Issue #1038) ================
 
@@ -197,20 +201,22 @@ class EmailTemplates:
         mode: str = "PAPER",
     ) -> str:
         """Generate successful trading run email - neutral mode with no dollar values.
-        
+
         This template shows portfolio rebalancing plan and trades made without exposing
         financial values, keeping the output neutral for security/privacy.
-        
+
         Args:
             result: Execution result containing trading data
             mode: Trading mode (PAPER/LIVE)
-            
+
         Returns:
             HTML email content for successful trading run
         """
         from .multi_strategy import MultiStrategyReportBuilder
-        
-        return MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, mode)
+
+        return MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
+            result, mode
+        )
 
     @staticmethod
     def failed_trading_run(
@@ -219,35 +225,31 @@ class EmailTemplates:
         context: dict[str, object] | None = None,
     ) -> str:
         """Generate failed trading run email with error summary.
-        
+
         This template provides structured error reporting for failed trading runs,
         including context and actionable information.
-        
+
         Args:
             error_details: Main error message or summary
-            mode: Trading mode (PAPER/LIVE) 
+            mode: Trading mode (PAPER/LIVE)
             context: Additional context information about the failure
-            
+
         Returns:
             HTML email content for failed trading run
         """
         header = BaseEmailTemplate.get_header("The Alchemiser")
         status_banner = BaseEmailTemplate.get_status_banner(
-            f"{mode.upper()} Trading Run Failed",
-            "Failed",
-            "#EF4444",
-            "❌"
+            f"{mode.upper()} Trading Run Failed", "Failed", "#EF4444", "❌"
         )
-        
+
         content_sections = []
-        
+
         # Main error section
         error_content = BaseEmailTemplate.create_alert_box(
-            f"<strong>Trading Execution Failed</strong><br>{error_details}",
-            "error"
+            f"<strong>Trading Execution Failed</strong><br>{error_details}", "error"
         )
         content_sections.append(error_content)
-        
+
         # Context section if provided
         if context:
             context_rows = ""
@@ -263,7 +265,7 @@ class EmailTemplates:
                         </td>
                     </tr>
                     """
-            
+
             if context_rows:
                 context_html = f"""
                 <div style="margin-top: 24px;">
@@ -278,7 +280,7 @@ class EmailTemplates:
                 </div>
                 """
                 content_sections.append(context_html)
-        
+
         # Action items section
         action_html = BaseEmailTemplate.create_alert_box(
             """
@@ -288,12 +290,12 @@ class EmailTemplates:
             • Review strategy configurations and market conditions<br>
             • Contact support if the issue persists
             """,
-            "warning"
+            "warning",
         )
         content_sections.append(action_html)
-        
+
         footer = BaseEmailTemplate.get_footer()
-        
+
         # Combine all content
         main_content = "".join(content_sections)
         content = f"""
@@ -306,48 +308,46 @@ class EmailTemplates:
         </tr>
         {footer}
         """
-        
-        return BaseEmailTemplate.wrap_content(content, f"The Alchemiser - {mode.upper()} Trading Failed")
+
+        return BaseEmailTemplate.wrap_content(
+            content, f"The Alchemiser - {mode.upper()} Trading Failed"
+        )
 
     @staticmethod
     def monthly_performance_summary(
         account_info: AccountInfo | EnrichedAccountInfo,
-        performance_data: dict[str, object] | None = None,
+        performance_data: dict[str, Any] | None = None,
         period_label: str = "Monthly",
     ) -> str:
         """Generate monthly performance summary with full financial details.
-        
+
         This template includes dollar values, P&L, and comprehensive account performance
         metrics for regular performance reporting.
-        
+
         Args:
             account_info: Current account information with financial details
             performance_data: Optional performance metrics and analytics
             period_label: Label for the reporting period (e.g., "Monthly", "Quarterly")
-            
+
         Returns:
             HTML email content for performance summary
         """
         from .portfolio import PortfolioBuilder
         from .performance import PerformanceBuilder
-        
+
         header = BaseEmailTemplate.get_header("The Alchemiser")
         status_banner = BaseEmailTemplate.get_status_banner(
-            f"{period_label} Performance Report",
-            "Complete",
-            "#10B981",
-            "📊"
+            f"{period_label} Performance Report", "Complete", "#10B981", "📊"
         )
-        
+
         content_sections = []
-        
+
         # Account summary with full financial details
         account_html = BaseEmailTemplate.create_section(
-            "💰 Account Summary",
-            PortfolioBuilder.build_account_summary(account_info)
+            "💰 Account Summary", PortfolioBuilder.build_account_summary(account_info)
         )
         content_sections.append(account_html)
-        
+
         # Performance metrics if available
         if performance_data:
             # Strategy performance
@@ -355,35 +355,38 @@ class EmailTemplates:
             if strategy_summary:
                 strategy_html = BaseEmailTemplate.create_section(
                     "📈 Strategy Performance",
-                    PerformanceBuilder.build_strategy_performance(strategy_summary)
+                    PerformanceBuilder.build_strategy_performance(strategy_summary),
                 )
                 content_sections.append(strategy_html)
-            
+
             # Trading activity summary
             trading_summary = performance_data.get("trading_summary", {})
             if trading_summary:
                 trading_html = BaseEmailTemplate.create_section(
                     "💼 Trading Activity",
-                    PerformanceBuilder.build_trading_summary(trading_summary)
+                    PerformanceBuilder.build_trading_summary(trading_summary),
                 )
                 content_sections.append(trading_html)
-            
+
             # Performance metrics table
             metrics = performance_data.get("metrics", {})
             if metrics:
                 metrics_rows = ""
                 for metric_name, metric_value in metrics.items():
-                    display_name = metric_name.replace('_', ' ').title()
+                    display_name = metric_name.replace("_", " ").title()
                     if isinstance(metric_value, (int, float)):
-                        if 'pct' in metric_name.lower() or 'percent' in metric_name.lower():
+                        if (
+                            "pct" in metric_name.lower()
+                            or "percent" in metric_name.lower()
+                        ):
                             formatted_value = f"{metric_value:.2%}"
-                        elif 'ratio' in metric_name.lower():
+                        elif "ratio" in metric_name.lower():
                             formatted_value = f"{metric_value:.2f}"
                         else:
                             formatted_value = f"${metric_value:,.2f}"
                     else:
                         formatted_value = str(metric_value)
-                    
+
                     metrics_rows += f"""
                     <tr>
                         <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
@@ -394,7 +397,7 @@ class EmailTemplates:
                         </td>
                     </tr>
                     """
-                
+
                 if metrics_rows:
                     metrics_html = f"""
                     <div style="margin-top: 24px;">
@@ -409,7 +412,7 @@ class EmailTemplates:
                     </div>
                     """
                     content_sections.append(metrics_html)
-        
+
         # Summary footer with key takeaways
         summary_html = BaseEmailTemplate.create_alert_box(
             f"""
@@ -418,12 +421,12 @@ class EmailTemplates:
             • All financial metrics calculated and reported<br>
             • Review detailed breakdowns above for strategic insights
             """,
-            "info"
+            "info",
         )
         content_sections.append(summary_html)
-        
+
         footer = BaseEmailTemplate.get_footer()
-        
+
         # Combine all content
         main_content = "".join(content_sections)
         content = f"""
@@ -436,5 +439,7 @@ class EmailTemplates:
         </tr>
         {footer}
         """
-        
-        return BaseEmailTemplate.wrap_content(content, f"The Alchemiser - {period_label} Performance Report")
+
+        return BaseEmailTemplate.wrap_content(
+            content, f"The Alchemiser - {period_label} Performance Report"
+        )
