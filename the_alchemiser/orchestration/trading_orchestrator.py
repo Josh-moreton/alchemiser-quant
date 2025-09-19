@@ -571,7 +571,7 @@ class TradingOrchestrator:
             return None
 
     def send_trading_notification(self, result: dict[str, Any], mode_str: str) -> None:
-        """Send trading completion notification.
+        """Send trading completion notification using enhanced email templates.
 
         Args:
             result: The execution result dictionary
@@ -580,25 +580,50 @@ class TradingOrchestrator:
         """
         try:
             from the_alchemiser.shared.notifications.email_utils import (
-                build_error_email_html,
+                EmailTemplates,
                 send_email_notification,
             )
 
-            # Create simple HTML content for the result
             success = result.get("success", False)
             message = result.get("message", "Trading execution completed")
 
             if success:
-                html_content = f"""
-                <h2>Trading Execution Report - {mode_str.upper()}</h2>
-                <p><strong>Status:</strong> Success</p>
-                <p><strong>Message:</strong> {message}</p>
-                <p><strong>Timestamp:</strong> {datetime.now(UTC)}</p>
-                """
+                # Use the new successful trading run template for better formatting
+                # Try to convert result to a format the template expects
+                try:
+                    # Create a mock result object for the template
+                    class MockResult:
+                        def __init__(self, result_dict: dict[str, Any]) -> None:
+                            self.success = result_dict.get("success", True)
+                            self.orders_executed = result_dict.get("orders_executed", [])
+                            self.strategy_signals = result_dict.get("strategy_signals", {})
+                    
+                    mock_result = MockResult(result)
+                    html_content = EmailTemplates.successful_trading_run(
+                        result=mock_result,
+                        mode=mode_str
+                    )
+                except Exception as template_error:
+                    # Fallback to simple HTML if template fails
+                    self.logger.warning(f"Template generation failed, using fallback: {template_error}")
+                    html_content = f"""
+                    <h2>Trading Execution Report - {mode_str.upper()}</h2>
+                    <p><strong>Status:</strong> Success</p>
+                    <p><strong>Message:</strong> {message}</p>
+                    <p><strong>Timestamp:</strong> {datetime.now(UTC)}</p>
+                    """
             else:
-                html_content = build_error_email_html(
-                    "Trading Execution Failed",
-                    message,
+                # Use the new failed trading run template for enhanced error reporting
+                context = {
+                    "execution_details": message,
+                    "timestamp": datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC'),
+                    "workflow_state": str(self.workflow_state.get("last_successful_step", "unknown"))
+                }
+                
+                html_content = EmailTemplates.failed_trading_run(
+                    error_details=message,
+                    mode=mode_str,
+                    context=context
                 )
 
             send_email_notification(
