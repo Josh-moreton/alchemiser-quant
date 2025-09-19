@@ -603,10 +603,9 @@ class TradingOrchestrator:
 
                     # Use the neutral report builder directly which is more flexible
                     result_adapter = ResultAdapter(result)
-                    # Type ignore: ResultAdapter provides compatible interface via getattr pattern
                     html_content = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
                         result_adapter,
-                        mode_str,  # type: ignore[arg-type]
+                        mode_str,
                     )
                 except Exception as template_error:
                     # Fallback to enhanced failed template if neutral builder fails

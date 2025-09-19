@@ -305,7 +305,7 @@ class EventDrivenOrchestrator:
                     result_adapter = EventResultAdapter(execution_data, event.correlation_id)
                     html_content = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
                         result_adapter,
-                        mode_str,  # type: ignore[arg-type]
+                        mode_str,
                     )
                 except Exception as template_error:
                     # Fallback to basic template if enhanced template fails
