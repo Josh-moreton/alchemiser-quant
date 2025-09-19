@@ -33,6 +33,7 @@ def map_account_to_model(account: TradeAccount) -> AccountInfoModel:
 
     Returns:
         AccountInfoModel instance
+
     """
     return AccountInfoModel(
         id=get_attribute_safe(account, "id"),
@@ -54,6 +55,7 @@ def map_account_to_dict(account: TradeAccount) -> dict[str, Any]:
 
     Returns:
         Dictionary representation
+
     """
     try:
         # Some SDK objects expose __dict__ with serializable fields
@@ -84,6 +86,7 @@ def map_position_to_model(position: Position) -> PositionModel:
 
     Returns:
         PositionModel instance
+
     """
     return PositionModel(
         symbol=str(get_attribute_safe(position, "symbol", "")),
@@ -107,6 +110,7 @@ def map_order_to_model(order: Order) -> OrderModel:
 
     Returns:
         OrderModel instance
+
     """
     return OrderModel(
         id=str(get_attribute_safe(order, "id", "")),
@@ -142,6 +146,7 @@ def map_order_to_execution_result(order: Order) -> OrderExecutionResult:
 
     Returns:
         OrderExecutionResult instance
+
     """
     try:
         # Extract basic fields from order object
@@ -212,6 +217,7 @@ def map_order_to_executed_dto(
 
     Returns:
         ExecutedOrderDTO instance
+
     """
     # Avoid attribute assumptions for mypy
     order_id = str(get_attribute_safe(order, "id", ""))
@@ -271,6 +277,7 @@ def create_error_execution_result(
 
     Returns:
         OrderExecutionResult with error details
+
     """
     status: Literal[
         "accepted", "filled", "partially_filled", "rejected", "canceled"
@@ -303,6 +310,7 @@ def create_error_executed_dto(
 
     Returns:
         ExecutedOrderDTO with error details
+
     """
     # Extract action from order request if available
     if order_request:

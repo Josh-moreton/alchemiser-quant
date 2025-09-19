@@ -23,7 +23,7 @@ import logging
 import warnings
 from typing import TYPE_CHECKING, Any
 
-from alpaca.trading.models import Order, Position, TradeAccount
+from alpaca.trading.models import Position, TradeAccount
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
 from the_alchemiser.shared.dto.broker_dto import (
@@ -83,6 +83,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             secret_key: Alpaca secret key
             paper: Whether to use paper trading (default: True for safety)
             base_url: Optional custom base URL
+
         """
         # Show deprecation warning for direct usage
         warnings.warn(
@@ -393,5 +394,6 @@ def create_alpaca_manager(
         
     Returns:
         AlpacaManager facade instance
+
     """
     return AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url)

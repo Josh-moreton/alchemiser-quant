@@ -30,6 +30,7 @@ class AlpacaConfig:
             secret_key: Alpaca secret key
             paper: Whether to use paper trading (default: True for safety)
             base_url: Optional custom base URL
+
         """
         self.api_key = api_key
         self.secret_key = secret_key
@@ -59,6 +60,7 @@ def load_config_from_env() -> AlpacaConfig | None:
     
     Returns:
         AlpacaConfig instance if env vars are present, None otherwise
+
     """
     api_key = os.getenv("ALPACA_API_KEY")
     secret_key = os.getenv("ALPACA_SECRET_KEY")

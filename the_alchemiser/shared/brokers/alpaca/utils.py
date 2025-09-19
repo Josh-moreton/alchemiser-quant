@@ -22,6 +22,7 @@ def safe_decimal(value: Any) -> Decimal | None:
         
     Returns:
         Decimal value or None if conversion fails
+
     """
     if value is None:
         return None
@@ -39,6 +40,7 @@ def safe_float(value: Any) -> float | None:
         
     Returns:
         Float value or None if conversion fails
+
     """
     if value is None:
         return None
@@ -56,6 +58,7 @@ def safe_int(value: Any) -> int | None:
         
     Returns:
         Int value or None if conversion fails
+
     """
     if value is None:
         return None
@@ -73,6 +76,7 @@ def extract_enum_value(enum_value: Any) -> str:
         
     Returns:
         String representation of the value
+
     """
     if hasattr(enum_value, "value"):
         return str(enum_value.value)
@@ -89,6 +93,7 @@ def get_attribute_safe(obj: Any, attr: str, default: Any = None) -> Any:
         
     Returns:
         Attribute value or default
+
     """
     try:
         if isinstance(obj, dict):
@@ -106,6 +111,7 @@ def is_final_order_status(status: str) -> bool:
         
     Returns:
         True if status is final, False otherwise
+
     """
     if not status:
         return False
@@ -124,13 +130,14 @@ def calculate_mid_price(bid: float, ask: float) -> float | None:
         
     Returns:
         Mid price or None if calculation not possible
+
     """
     try:
         if bid > 0 and ask > 0:
             return (bid + ask) / 2.0
-        elif bid > 0:
+        if bid > 0:
             return bid
-        elif ask > 0:
+        if ask > 0:
             return ask
         return None
     except (TypeError, ValueError):
@@ -145,6 +152,7 @@ def format_order_id(order_id: Any) -> str:
         
     Returns:
         Formatted order ID string
+
     """
     if order_id is None:
         return "unknown"
@@ -162,6 +170,7 @@ def validate_symbol(symbol: str) -> str:
         
     Raises:
         ValueError: If symbol is invalid
+
     """
     if not symbol or not isinstance(symbol, str):
         raise ValueError("Symbol must be a non-empty string")
@@ -181,6 +190,7 @@ def format_price_for_logging(price: float | Decimal | None) -> str:
         
     Returns:
         Formatted price string
+
     """
     if price is None:
         return "N/A"
@@ -198,6 +208,7 @@ def format_quantity_for_logging(qty: float | Decimal | None) -> str:
         
     Returns:
         Formatted quantity string
+
     """
     if qty is None:
         return "N/A"
@@ -215,13 +226,14 @@ def sanitize_for_logging(value: Any) -> Any:
         
     Returns:
         Sanitized value safe for logging
+
     """
     if isinstance(value, dict):
         return {k: sanitize_for_logging(v) for k, v in value.items() 
                 if k.lower() not in {"api_key", "secret_key", "password", "token"}}
-    elif isinstance(value, (list, tuple)):
+    if isinstance(value, (list, tuple)):
         return [sanitize_for_logging(item) for item in value]
-    elif isinstance(value, str):
+    if isinstance(value, str):
         # Don't log long strings that might contain sensitive data
         if len(value) > 100:
             return f"{value[:97]}..."

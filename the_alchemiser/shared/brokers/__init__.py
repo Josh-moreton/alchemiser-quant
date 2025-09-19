@@ -19,7 +19,7 @@ from __future__ import annotations
 try:
     from .alpaca_manager import AlpacaManager, create_alpaca_manager
     _alpaca_available = True
-except ImportError as e:
+except ImportError:
     # Handle cases where dependencies are not available
     _alpaca_available = False
     AlpacaManager = None  # type: ignore[misc,assignment]

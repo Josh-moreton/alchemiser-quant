@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from alpaca.trading.models import Position
 
-from .exceptions import AlpacaPositionError, normalize_alpaca_error
+from .exceptions import normalize_alpaca_error
 from .models import PositionModel
 
 if TYPE_CHECKING:
@@ -30,6 +30,7 @@ class PositionManager:
         
         Args:
             client: AlpacaClient instance
+
         """
         self._client = client
 
@@ -41,6 +42,7 @@ class PositionManager:
             
         Raises:
             AlpacaPositionError: If operation fails
+
         """
         try:
             positions = self._client.trading_client.get_all_positions()
@@ -60,6 +62,7 @@ class PositionManager:
 
         Returns:
             List of position objects with attributes like symbol, qty, market_value, etc.
+
         """
         return self.get_positions()
 
@@ -68,6 +71,7 @@ class PositionManager:
 
         Returns:
             Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
+
         """
         # Build symbol->qty mapping from positions
         # Use qty_available to account for shares tied up in open orders
@@ -108,6 +112,7 @@ class PositionManager:
 
         Returns:
             Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
+
         """
         return self.get_positions_dict()
 
@@ -119,6 +124,7 @@ class PositionManager:
             
         Returns:
             Position object if found, None otherwise
+
         """
         try:
             position = self._client.trading_client.get_open_position(symbol)
@@ -136,6 +142,7 @@ class PositionManager:
             
         Returns:
             PositionModel if found, None otherwise
+
         """
         position = self.get_position(symbol)
         if not position:
@@ -166,6 +173,7 @@ class PositionManager:
 
         Returns:
             Order ID if successful, None if failed.
+
         """
         try:
             order = self._client.trading_client.close_position(symbol)
@@ -184,6 +192,7 @@ class PositionManager:
 
         Returns:
             Asset information dictionary, or None if not found.
+
         """
         try:
             asset = self._client.trading_client.get_asset(symbol)
@@ -216,6 +225,7 @@ class PositionManager:
             
         Returns:
             Decimal value or None if conversion fails
+
         """
         if value is None:
             return None

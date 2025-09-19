@@ -28,6 +28,7 @@ class AlpacaClient:
         
         Args:
             config: AlpacaConfig instance with credentials and settings
+
         """
         self._config = config
         self._trading_client: TradingClient | None = None
@@ -74,6 +75,7 @@ class AlpacaClient:
         
         Returns:
             True if connection is valid, False otherwise
+
         """
         try:
             # Test connection by getting account info

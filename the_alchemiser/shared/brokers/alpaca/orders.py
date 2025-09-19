@@ -22,8 +22,7 @@ from alpaca.trading.requests import (
 
 from ...dto.broker_dto import OrderExecutionResult
 from ...dto.execution_report_dto import ExecutedOrderDTO
-from .exceptions import AlpacaOrderError, normalize_alpaca_error
-from .models import OrderExecutionModel, OrderModel
+from .exceptions import normalize_alpaca_error
 
 if TYPE_CHECKING:
     from .client import AlpacaClient
@@ -39,6 +38,7 @@ class OrderManager:
 
         Args:
             client: AlpacaClient instance
+
         """
         self._client = client
 
@@ -52,6 +52,7 @@ class OrderManager:
 
         Returns:
             ExecutedOrderDTO with order details
+
         """
         try:
             order = self._client.trading_client.submit_order(order_request)
@@ -146,6 +147,7 @@ class OrderManager:
 
         Returns:
             OrderExecutionResult reflecting the latest known state.
+
         """
         try:
             order = self._client.trading_client.get_order_by_id(order_id)
@@ -174,6 +176,7 @@ class OrderManager:
 
         Raises:
             AlpacaOrderError: If operation fails
+
         """
         try:
             self._client.trading_client.cancel_order_by_id(order_id)
@@ -191,6 +194,7 @@ class OrderManager:
 
         Returns:
             True if successful, False otherwise.
+
         """
         try:
             if symbol:
@@ -228,6 +232,7 @@ class OrderManager:
             - cancelled_count: Number of orders cancelled
             - errors: List of any errors encountered
             - cancelled_orders: List of order IDs that were cancelled
+
         """
         try:
             current_time = datetime.now(UTC)
@@ -313,6 +318,7 @@ class OrderManager:
 
         Raises:
             AlpacaOrderError: If operation fails
+
         """
         try:
             # Use proper request to get more orders (default limit is very low)
@@ -351,6 +357,7 @@ class OrderManager:
 
         Returns:
             Order status string if order is in final state, None otherwise
+
         """
         try:
             order = self._client.trading_client.get_order_by_id(order_id)

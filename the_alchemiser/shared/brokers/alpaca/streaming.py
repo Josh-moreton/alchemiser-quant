@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 from alpaca.trading.stream import TradingStream
 
 from ...dto.broker_dto import WebSocketResult, WebSocketStatus
-from .exceptions import AlpacaError, normalize_alpaca_error
+from .exceptions import normalize_alpaca_error
 from .models import WebSocketResultModel
 
 if TYPE_CHECKING:
@@ -33,6 +33,7 @@ class StreamingManager:
 
         Args:
             config: AlpacaConfig instance
+
         """
         self._config = config
 
@@ -56,6 +57,7 @@ class StreamingManager:
 
         Returns:
             WebSocketResult with completion status and completed order IDs
+
         """
         completed_orders: list[str] = []
         start_time = time.time()
@@ -108,6 +110,7 @@ class StreamingManager:
 
         Returns:
             WebSocketResultModel instance
+
         """
         result = self.wait_for_order_completion(order_ids, max_wait_seconds)
 
@@ -137,6 +140,7 @@ class StreamingManager:
 
         Raises:
             AlpacaError: If stream setup fails
+
         """
         with self._trading_ws_lock:
             if self._trading_stream and self._trading_ws_connected:
@@ -188,6 +192,7 @@ class StreamingManager:
 
         Returns:
             True if stream is connected and running
+
         """
         return self._trading_ws_connected and self._trading_stream is not None
 
@@ -297,11 +302,11 @@ class StreamingManager:
         Args:
             order_ids: List of order IDs to check
             completed_orders: List to append completed order IDs to
+
         """
         # This method would need access to an order manager to check status
         # For now, it's a placeholder for the polling fallback functionality
         # In a production implementation, this would be injected or use a service locator
-        pass
 
     def get_order_status(self, order_id: str) -> str | None:
         """Get cached order status from stream updates.
@@ -311,6 +316,7 @@ class StreamingManager:
 
         Returns:
             Status string if available, None otherwise
+
         """
         return self._order_status.get(order_id)
 
@@ -322,5 +328,6 @@ class StreamingManager:
 
         Returns:
             Average fill price if available, None otherwise
+
         """
         return self._order_avg_price.get(order_id)

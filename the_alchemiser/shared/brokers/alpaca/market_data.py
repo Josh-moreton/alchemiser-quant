@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
-from .exceptions import AlpacaDataError, normalize_alpaca_error
+from .exceptions import normalize_alpaca_error
 from .models import BarModel, QuoteModel
 
 if TYPE_CHECKING:
@@ -31,6 +31,7 @@ class MarketDataManager:
         
         Args:
             client: AlpacaClient instance
+
         """
         self._client = client
 
@@ -47,6 +48,7 @@ class MarketDataManager:
             
         Raises:
             AlpacaDataError: If operation fails
+
         """
         try:
             quote_data = self.get_latest_quote(symbol)
@@ -55,9 +57,9 @@ class MarketDataManager:
                 # Calculate mid price or use available price
                 if bid > 0 and ask > 0:
                     return (bid + ask) / 2.0
-                elif bid > 0:
+                if bid > 0:
                     return bid
-                elif ask > 0:
+                if ask > 0:
                     return ask
             return None
         except Exception as e:
@@ -75,6 +77,7 @@ class MarketDataManager:
             
         Raises:
             AlpacaDataError: If operation fails
+
         """
         try:
             prices = {}
@@ -97,6 +100,7 @@ class MarketDataManager:
 
         Returns:
             Tuple of (bid, ask) prices, or None if not available.
+
         """
         try:
             request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
@@ -139,6 +143,7 @@ class MarketDataManager:
 
         Returns:
             Dictionary with quote information or None if failed
+
         """
         try:
             request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
@@ -164,6 +169,7 @@ class MarketDataManager:
             
         Returns:
             QuoteModel instance, None if unavailable
+
         """
         quote_data = self.get_latest_quote(symbol)
         if not quote_data:
@@ -197,6 +203,7 @@ class MarketDataManager:
             
         Raises:
             AlpacaDataError: If operation fails
+
         """
         try:
             # Map timeframe strings to Alpaca TimeFrame objects (case-insensitive)
@@ -276,6 +283,7 @@ class MarketDataManager:
             
         Returns:
             List of BarModel instances
+
         """
         bars_data = self.get_historical_bars(symbol, start_date, end_date, timeframe)
         result = []
@@ -306,6 +314,7 @@ class MarketDataManager:
             
         Returns:
             Decimal value or original value if conversion fails
+
         """
         if value is None:
             return None

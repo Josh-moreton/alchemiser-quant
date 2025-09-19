@@ -18,6 +18,7 @@ class AlpacaError(Exception):
         Args:
             message: Error message
             original_error: Original exception that caused this error
+
         """
         super().__init__(message)
         self.original_error = original_error
@@ -56,6 +57,7 @@ def normalize_alpaca_error(error: Exception, context: str = "Operation") -> Alpa
         
     Returns:
         Appropriate AlpacaError subclass
+
     """
     error_str = str(error).lower()
     message = f"{context} failed: {error}"
@@ -63,15 +65,14 @@ def normalize_alpaca_error(error: Exception, context: str = "Operation") -> Alpa
     # Map common error patterns to specific exception types
     if "auth" in error_str or "unauthorized" in error_str or "forbidden" in error_str:
         return AlpacaAuthenticationError(message, original_error=error)
-    elif "connection" in error_str or "timeout" in error_str or "network" in error_str:
+    if "connection" in error_str or "timeout" in error_str or "network" in error_str:
         return AlpacaConnectionError(message, original_error=error)
-    elif "order" in error_str:
+    if "order" in error_str:
         return AlpacaOrderError(message, original_error=error)
-    elif "position" in error_str:
+    if "position" in error_str:
         return AlpacaPositionError(message, original_error=error)
-    elif "account" in error_str:
+    if "account" in error_str:
         return AlpacaAccountError(message, original_error=error)
-    elif "data" in error_str or "quote" in error_str or "bar" in error_str:
+    if "data" in error_str or "quote" in error_str or "bar" in error_str:
         return AlpacaDataError(message, original_error=error)
-    else:
-        return AlpacaError(message, original_error=error)
+    return AlpacaError(message, original_error=error)

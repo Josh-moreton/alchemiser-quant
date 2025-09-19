@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from alpaca.trading.models import TradeAccount
 
-from .exceptions import AlpacaAccountError, normalize_alpaca_error
+from .exceptions import normalize_alpaca_error
 from .models import AccountInfoModel
 
 if TYPE_CHECKING:
@@ -30,6 +30,7 @@ class AccountManager:
         
         Args:
             client: AlpacaClient instance
+
         """
         self._client = client
 
@@ -38,6 +39,7 @@ class AccountManager:
         
         Returns:
             Account information as dictionary, None if unavailable
+
         """
         return self.get_account_dict()
 
@@ -46,6 +48,7 @@ class AccountManager:
         
         Returns:
             TradeAccount object, None if unavailable
+
         """
         return self._get_account_object()
 
@@ -54,6 +57,7 @@ class AccountManager:
         
         Returns:
             Account information as dictionary, None if unavailable
+
         """
         account_obj = self._get_account_object()
         if not account_obj:
@@ -84,6 +88,7 @@ class AccountManager:
         
         Returns:
             AccountInfoModel instance, None if unavailable
+
         """
         account_obj = self._get_account_object()
         if not account_obj:
@@ -112,6 +117,7 @@ class AccountManager:
             
         Raises:
             AlpacaAccountError: If operation fails
+
         """
         try:
             account = self._get_account_object()
@@ -130,6 +136,7 @@ class AccountManager:
             
         Raises:
             AlpacaAccountError: If operation fails
+
         """
         try:
             account = self._get_account_object()
@@ -149,6 +156,7 @@ class AccountManager:
         
         Returns:
             True if connection is valid, False otherwise
+
         """
         try:
             account = self._get_account_object()
@@ -165,6 +173,7 @@ class AccountManager:
         
         Returns:
             TradeAccount object, None if unavailable
+
         """
         try:
             account = self._client.trading_client.get_account()
@@ -182,6 +191,7 @@ class AccountManager:
             
         Returns:
             Decimal value or None if conversion fails
+
         """
         if value is None:
             return None

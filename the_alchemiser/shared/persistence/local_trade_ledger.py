@@ -11,9 +11,8 @@ from __future__ import annotations
 
 import json
 import logging
-from collections import defaultdict
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -23,7 +22,6 @@ from ..dto.trade_ledger_dto import (
     PerformanceSummary,
     TradeLedgerEntry,
     TradeLedgerQuery,
-    TradeSide,
 )
 from .base_trade_ledger import BaseTradeLedger
 
