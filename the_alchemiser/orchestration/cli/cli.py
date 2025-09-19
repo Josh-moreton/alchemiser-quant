@@ -144,6 +144,9 @@ def trade(
 
     mode_display = "[bold red]LIVE[/bold red]" if is_live else "[bold blue]PAPER[/bold blue]"
 
+    # Initialize error handler for consistent error reporting and notifications
+    error_handler = TradingSystemErrorHandler()
+
     try:
         # Import and run the main trading logic with DI
         from the_alchemiser.main import main
@@ -202,34 +205,59 @@ def trade(
                     raise typer.Exit(1)
 
     except TradingClientError as e:
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "cli_trading_client_error",
-            function="trade",
-            command="trade",
-            error_type=type(e).__name__,
+        # Use error handler for consistent error reporting and email notifications
+        error_handler.handle_error(
+            error=e,
+            context="CLI trade command - trading client operation",
+            component="cli.trade",
+            additional_data={
+                "live_trading": is_live,
+                "error_type": type(e).__name__,
+                "command": "trade",
+                "arguments": {
+                    "verbose": verbose,
+                    "show_tracking": show_tracking,
+                    "export_tracking_json": export_tracking_json,
+                    "json_output": json_output,
+                }
+            },
         )
         console.print(f"\n[bold red]Trading client error: {e}[/bold red]")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
     except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
-        logger = get_logger(__name__)
-        log_error_with_context(
-            logger,
-            e,
-            "cli_trading_execution",
-            function="trade",
-            command="trade",
-            error_type="unexpected_error",
-            original_error=type(e).__name__,
+        # Use error handler for consistent error reporting and email notifications  
+        error_handler.handle_error(
+            error=e,
+            context="CLI trade command - system execution error",
+            component="cli.trade",
+            additional_data={
+                "live_trading": is_live,
+                "error_type": type(e).__name__,
+                "original_error": type(e).__name__,
+                "command": "trade",
+                "arguments": {
+                    "verbose": verbose,
+                    "show_tracking": show_tracking,
+                    "export_tracking_json": export_tracking_json,
+                    "json_output": json_output,
+                }
+            },
         )
         console.print(f"\n[bold red]Unexpected error: {e}[/bold red]")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
+    finally:
+        # Ensure error notifications are sent if any errors were captured
+        try:
+            from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+            send_error_notification_if_needed()
+        except Exception as e:
+            # Don't let notification failures break the command, but log them
+            logger = get_logger(__name__)
+            logger.warning(f"Failed to send error notification: {e}")
 
 
 def _determine_trading_mode() -> tuple[bool, bool, str]:
@@ -382,6 +410,29 @@ def status() -> None:
         )
         console.print(f"[bold red]Trading client error: {e}[/bold red]")
         raise typer.Exit(1)
+    except Exception as e:
+        # Handle any other unexpected errors with proper notification
+        error_handler.handle_error(
+            error=e,
+            context="CLI status command - unexpected system error",
+            component="cli.status",
+            additional_data={
+                "live_trading": is_live,
+                "error_type": type(e).__name__,
+                "command": "status",
+            },
+        )
+        console.print(f"[bold red]Unexpected error: {e}[/bold red]")
+        raise typer.Exit(1)
+    finally:
+        # Ensure error notifications are sent if any errors were captured
+        try:
+            from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+            send_error_notification_if_needed()
+        except Exception as e:
+            # Don't let notification failures break the command, but log them
+            logger = get_logger(__name__)
+            logger.warning(f"Failed to send error notification: {e}")
 
 
 # DSL count command removed as part of CLI simplification.
@@ -398,6 +449,9 @@ def deploy() -> None:
 
     console.print("[bold yellow]🔨 Building and deploying to AWS Lambda with SAM...[/bold yellow]")
 
+    # Initialize error handler for consistent error reporting and notifications
+    error_handler = TradingSystemErrorHandler()
+
     # Resolve the deploy script to an absolute, validated path
     repo_root = Path.cwd()
     deploy_script_path = (repo_root / "scripts" / "deploy.sh").resolve()
@@ -405,10 +459,29 @@ def deploy() -> None:
         # Ensure script resides within the current working directory tree to avoid traversal
         deploy_script_path.relative_to(repo_root)
     except ValueError:
+        error_handler.handle_error(
+            error=ValueError("Invalid deployment script path"),
+            context="CLI deploy command - script path validation",
+            component="cli.deploy",
+            additional_data={
+                "attempted_path": str(deploy_script_path),
+                "repo_root": str(repo_root),
+            },
+        )
         console.print("[bold red]❌ Invalid deployment script path.[/bold red]")
         raise typer.Exit(1)
 
     if not deploy_script_path.is_file():
+        error_handler.handle_error(
+            error=FileNotFoundError(f"Deployment script not found at: {deploy_script_path}"),
+            context="CLI deploy command - script file validation",
+            component="cli.deploy",
+            additional_data={
+                "script_path": str(deploy_script_path),
+                "exists": deploy_script_path.exists(),
+                "is_file": deploy_script_path.is_file(),
+            },
+        )
         console.print(
             f"[bold red]❌ Deployment script not found at: {deploy_script_path}[/bold red]"
         )
@@ -437,28 +510,66 @@ def deploy() -> None:
             console.print(result.stdout)
 
         except subprocess.CalledProcessError as e:
+            error_handler.handle_error(
+                error=e,
+                context="CLI deploy command - deployment script execution failed",
+                component="cli.deploy",
+                additional_data={
+                    "return_code": e.returncode,
+                    "stderr": e.stderr,
+                    "stdout": e.stdout,
+                    "script_path": str(deploy_script_path),
+                },
+            )
             console.print("[bold red]❌ Deployment failed![/bold red]")
             console.print(f"[dim]Error output:[/dim]\n{e.stderr}")
             raise typer.Exit(1)
         except FileNotFoundError as e:
+            error_handler.handle_error(
+                error=e,
+                context="CLI deploy command - deployment script file not found",
+                component="cli.deploy",
+                additional_data={
+                    "script_path": str(deploy_script_path),
+                    "error_details": str(e),
+                },
+            )
             console.print(f"[bold red]❌ Deployment script not found: {e}[/bold red]")
             raise typer.Exit(1)
         except PermissionError as e:
+            error_handler.handle_error(
+                error=e,
+                context="CLI deploy command - permission denied during deployment",
+                component="cli.deploy",
+                additional_data={
+                    "script_path": str(deploy_script_path),
+                    "repo_root": str(repo_root),
+                },
+            )
             console.print(f"[bold red]❌ Permission denied during deployment: {e}[/bold red]")
             raise typer.Exit(1)
         except (OSError, ValueError, AttributeError) as e:
-            logger = get_logger(__name__)
-            log_error_with_context(
-                logger,
-                e,
-                "cli_deployment_error",
-                function="deploy",
-                command="deploy",
-                error_type="unexpected_error",
-                original_error=type(e).__name__,
+            error_handler.handle_error(
+                error=e,
+                context="CLI deploy command - unexpected deployment error",
+                component="cli.deploy",
+                additional_data={
+                    "error_type": type(e).__name__,
+                    "script_path": str(deploy_script_path),
+                    "repo_root": str(repo_root),
+                },
             )
             console.print(f"[bold red]❌ Unexpected deployment error: {e}[/bold red]")
             raise typer.Exit(1)
+        finally:
+            # Ensure error notifications are sent if any errors were captured
+            try:
+                from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+                send_error_notification_if_needed()
+            except Exception as e:
+                # Don't let notification failures break the command, but log them
+                logger = get_logger(__name__)
+                logger.warning(f"Failed to send error notification: {e}")
 
 
 @app.command()
@@ -603,8 +714,26 @@ def ledger_list(
         console.print(table)
 
     except Exception as e:
+        # Initialize error handler for consistent error reporting and notifications
+        error_handler = TradingSystemErrorHandler()
+        error_handler.handle_error(
+            error=e,
+            context="CLI ledger entries command - error listing trade ledger entries",
+            component="cli.ledger_entries",
+            additional_data={
+                "error_type": type(e).__name__,
+                "command": "ledger_entries",
+            },
+        )
         console = Console()
         console.print(f"[red]Error listing trade ledger entries: {e}[/red]")
+        # Send error notifications
+        try:
+            from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+            send_error_notification_if_needed()
+        except Exception as notification_error:
+            logger = get_logger(__name__)
+            logger.warning(f"Failed to send error notification: {notification_error}")
         raise typer.Exit(1)
 
 
@@ -659,8 +788,28 @@ def ledger_performance(
         console.print(table)
 
     except Exception as e:
+        # Initialize error handler for consistent error reporting and notifications
+        error_handler = TradingSystemErrorHandler()
+        error_handler.handle_error(
+            error=e,
+            context="CLI ledger performance command - error calculating performance",
+            component="cli.ledger_performance",
+            additional_data={
+                "error_type": type(e).__name__,
+                "command": "ledger_performance",
+                "strategy_filter": strategy,
+                "symbol_filter": symbol,
+            },
+        )
         console = Console()
         console.print(f"[red]Error calculating performance: {e}[/red]")
+        # Send error notifications
+        try:
+            from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+            send_error_notification_if_needed()
+        except Exception as notification_error:
+            logger = get_logger(__name__)
+            logger.warning(f"Failed to send error notification: {notification_error}")
         raise typer.Exit(1)
 
 
@@ -733,8 +882,27 @@ def ledger_attribution(
                         )
 
     except Exception as e:
+        # Initialize error handler for consistent error reporting and notifications
+        error_handler = TradingSystemErrorHandler()
+        error_handler.handle_error(
+            error=e,
+            context="CLI ledger attribution command - error generating attribution report",
+            component="cli.ledger_attribution",
+            additional_data={
+                "error_type": type(e).__name__,
+                "command": "ledger_attribution",
+                "symbol": symbol,
+            },
+        )
         console = Console()
         console.print(f"[red]Error generating attribution report: {e}[/red]")
+        # Send error notifications
+        try:
+            from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+            send_error_notification_if_needed()
+        except Exception as notification_error:
+            logger = get_logger(__name__)
+            logger.warning(f"Failed to send error notification: {notification_error}")
         raise typer.Exit(1)
 
 
