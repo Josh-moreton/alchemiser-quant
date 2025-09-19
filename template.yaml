@@ -15,6 +15,10 @@ Globals:
         # Logging
         LOGGING__LEVEL: INFO
 
+        # Trade Ledger
+        EXECUTION__ENABLE_TRADE_LEDGER: true
+        S3_BUCKET_NAME: the-alchemiser-v2-s3
+
         # Alpaca Configuration (LIVE trading in Lambda)
         ALPACA__ENDPOINT: https://api.alpaca.markets
         ALPACA__CASH_RESERVE_PCT: 0.02
