@@ -250,9 +250,7 @@ class EventDrivenOrchestrator:
             # Trigger recovery workflow
             self._trigger_recovery_workflow(event)
 
-    def _send_trading_notification(
-        self, event: TradeExecuted, *, success: bool
-    ) -> None:
+    def _send_trading_notification(self, event: TradeExecuted, *, success: bool) -> None:
         """Send trading completion notification.
 
         Args:
@@ -290,12 +288,12 @@ class EventDrivenOrchestrator:
                             self, execution_data: dict[str, Any], correlation_id: str
                         ) -> None:
                             self.success = True
-                            self.orders_executed: list[Any] = (
-                                []
-                            )  # Event data doesn't have detailed order info
-                            self.strategy_signals: dict[str, Any] = (
-                                {}
-                            )  # Event data doesn't have signal details
+                            self.orders_executed: list[
+                                Any
+                            ] = []  # Event data doesn't have detailed order info
+                            self.strategy_signals: dict[
+                                str, Any
+                            ] = {}  # Event data doesn't have signal details
                             self.correlation_id = correlation_id
                             # Add any other fields the template might use via getattr
                             self._execution_data = execution_data
@@ -304,17 +302,14 @@ class EventDrivenOrchestrator:
                             # Allow template to access any field from execution_data
                             return self._execution_data.get(name, None)
 
-                    result_adapter = EventResultAdapter(
-                        execution_data, event.correlation_id
-                    )
+                    result_adapter = EventResultAdapter(execution_data, event.correlation_id)
                     html_content = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-                        result_adapter, mode_str  # type: ignore[arg-type]
+                        result_adapter,
+                        mode_str,  # type: ignore[arg-type]
                     )
                 except Exception as template_error:
                     # Fallback to basic template if enhanced template fails
-                    self.logger.warning(
-                        f"Enhanced template failed, using basic: {template_error}"
-                    )
+                    self.logger.warning(f"Enhanced template failed, using basic: {template_error}")
                     html_content = f"""
                     <h2>Trading Execution Report - {mode_str.upper()}</h2>
                     <p><strong>Status:</strong> Success</p>
@@ -337,9 +332,7 @@ class EventDrivenOrchestrator:
                 text_content=f"Trading execution completed. Success: {success}",
             )
 
-            self.logger.info(
-                f"Trading notification sent successfully (success={success})"
-            )
+            self.logger.info(f"Trading notification sent successfully (success={success})")
 
         except Exception as e:
             # Don't let notification failure break the workflow

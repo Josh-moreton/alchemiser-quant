@@ -172,9 +172,7 @@ class EmailTemplates:
         account_info: dict[str, object] | None = None,
     ) -> str:
         """Generate a general trading report using existing builder classes."""
-        return build_trading_report_html(
-            trading_summary, strategy_signals, account_info
-        )
+        return build_trading_report_html(trading_summary, strategy_signals, account_info)
 
     # ================ NEW EMAIL TEMPLATES (Issue #1038) ================
 
@@ -198,9 +196,7 @@ class EmailTemplates:
         """
         from .multi_strategy import MultiStrategyReportBuilder
 
-        return MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-            result, mode
-        )
+        return MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, mode)
 
     @staticmethod
     def failed_trading_run(
@@ -243,7 +239,7 @@ class EmailTemplates:
                     context_rows += f"""
                     <tr>
                         <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
-                            {key.replace('_', ' ').title()}:
+                            {key.replace("_", " ").title()}:
                         </td>
                         <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
                             {value}
@@ -361,10 +357,7 @@ class EmailTemplates:
                 for metric_name, metric_value in metrics.items():
                     display_name = metric_name.replace("_", " ").title()
                     if isinstance(metric_value, (int, float)):
-                        if (
-                            "pct" in metric_name.lower()
-                            or "percent" in metric_name.lower()
-                        ):
+                        if "pct" in metric_name.lower() or "percent" in metric_name.lower():
                             formatted_value = f"{metric_value:.2%}"
                         elif "ratio" in metric_name.lower():
                             formatted_value = f"{metric_value:.2f}"

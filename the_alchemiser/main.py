@@ -76,9 +76,7 @@ class TradingSystem:
         global _di_container
 
         self.container = ApplicationContainer()
-        _di_container = (
-            self.container
-        )  # Keep global for backward compatibility during transition
+        _di_container = self.container  # Keep global for backward compatibility during transition
         ServiceFactory.initialize(self.container)
         self.logger.info("Dependency injection initialized")
 
@@ -86,9 +84,7 @@ class TradingSystem:
         """Initialize event-driven orchestration system."""
         try:
             if self.container is None:
-                self.logger.warning(
-                    "Cannot initialize event orchestration: DI container not ready"
-                )
+                self.logger.warning("Cannot initialize event orchestration: DI container not ready")
                 return
 
             # Initialize event-driven orchestrator
@@ -113,9 +109,7 @@ class TradingSystem:
         """
         try:
             if self.container is None:
-                self.logger.warning(
-                    "Cannot emit StartupEvent: DI container not initialized"
-                )
+                self.logger.warning("Cannot emit StartupEvent: DI container not initialized")
                 return
 
             # Get event bus from container
@@ -140,9 +134,7 @@ class TradingSystem:
 
             # Emit the event
             event_bus.publish(event)
-            self.logger.debug(
-                f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}"
-            )
+            self.logger.debug(f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}")
 
         except Exception as e:
             # Don't let startup event emission failure break the system
@@ -237,9 +229,7 @@ class TradingSystem:
 
             # 5) Display tracking if requested
             if show_tracking:
-                self._display_post_execution_tracking(
-                    paper_trading=not orchestrator.live_trading
-                )
+                self._display_post_execution_tracking(paper_trading=not orchestrator.live_trading)
 
             # 6) Export tracking summary if requested
             if export_tracking_json:
@@ -277,11 +267,14 @@ class TradingSystem:
             )
             # Send error notifications for trading system errors
             try:
-                from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+                from the_alchemiser.shared.errors.error_handler import (
+                    send_error_notification_if_needed,
+                )
+
                 send_error_notification_if_needed()
             except Exception as notification_error:
                 self.logger.warning(f"Failed to send error notification: {notification_error}")
-            
+
             return self._create_failure_result(
                 f"System error: {e}", started_at, correlation_id, warnings
             )
@@ -307,13 +300,9 @@ class TradingSystem:
                                 symbols = data.get("symbols", [])
                                 if symbols:
                                     symbol_str = ", ".join(symbols)
-                                    signal_details.append(
-                                        f"{name}: {action} {symbol_str}"
-                                    )
+                                    signal_details.append(f"{name}: {action} {symbol_str}")
                             elif data.get("symbol"):
-                                signal_details.append(
-                                    f"{name}: {action} {data.get('symbol')}"
-                                )
+                                signal_details.append(f"{name}: {action} {data.get('symbol')}")
 
                 if signal_details:
                     print("📋 Strategy signals generated:")
@@ -451,13 +440,9 @@ class TradingSystem:
                     )
                 )
             except ImportError:
-                self.logger.warning(
-                    "Strategy tracking display unavailable (rich not available)"
-                )
+                self.logger.warning("Strategy tracking display unavailable (rich not available)")
 
-    def _export_tracking_summary(
-        self, *, export_path: str, paper_trading: bool
-    ) -> None:
+    def _export_tracking_summary(self, *, export_path: str, paper_trading: bool) -> None:
         """Export tracking summary to JSON file."""
         try:
             import json
@@ -477,14 +462,10 @@ class TradingSystem:
                     strategy_summary = tracker.get_strategy_summary(strategy_name)
                     if strategy_summary:
                         strategy_data[strategy_name] = {
-                            "total_profit_loss": float(
-                                strategy_summary.total_profit_loss
-                            ),
+                            "total_profit_loss": float(strategy_summary.total_profit_loss),
                             "total_orders": strategy_summary.total_orders,
                             "success_rate": strategy_summary.success_rate,
-                            "avg_profit_per_trade": float(
-                                strategy_summary.avg_profit_per_trade
-                            ),
+                            "avg_profit_per_trade": float(strategy_summary.avg_profit_per_trade),
                         }
                 except Exception as e:
                     self.logger.debug(f"Could not get summary for {strategy_name}: {e}")
@@ -605,9 +586,7 @@ class TradingSystem:
             ),
             orders=order_dtos,
             warnings=warnings,
-            trading_mode=(
-                "LIVE" if getattr(orchestrator, "live_trading", False) else "PAPER"
-            ),
+            trading_mode=("LIVE" if getattr(orchestrator, "live_trading", False) else "PAPER"),
             started_at=started_at,
             completed_at=completed_at,
             correlation_id=correlation_id,
@@ -810,10 +789,13 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
         # Send error notifications for initialization and execution errors
         try:
             from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+
             send_error_notification_if_needed()
         except Exception as notification_error:
-            logging.getLogger(__name__).warning(f"Failed to send error notification: {notification_error}")
-        
+            logging.getLogger(__name__).warning(
+                f"Failed to send error notification: {notification_error}"
+            )
+
         render_footer("System error occurred!")
         return False
     except Exception as e:
@@ -824,7 +806,7 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
             context="application execution - unhandled exception",
             component="main",
             additional_data={
-                "mode": getattr(args, 'mode', 'unknown'),
+                "mode": getattr(args, "mode", "unknown"),
                 "error_type": type(e).__name__,
                 "request_id": request_id,
             },
@@ -832,10 +814,13 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
         # Send error notifications for unhandled exceptions
         try:
             from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+
             send_error_notification_if_needed()
         except Exception as notification_error:
-            logging.getLogger(__name__).warning(f"Failed to send error notification: {notification_error}")
-        
+            logging.getLogger(__name__).warning(
+                f"Failed to send error notification: {notification_error}"
+            )
+
         render_footer("Unexpected system error occurred!")
         return False
 
@@ -843,7 +828,7 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
 if __name__ == "__main__":
     result = main()
     # Handle both TradeRunResultDTO and boolean return types
-    if hasattr(result, 'success'):
+    if hasattr(result, "success"):
         # TradeRunResultDTO case - check success field
         sys.exit(0 if result.success else 1)
     else:

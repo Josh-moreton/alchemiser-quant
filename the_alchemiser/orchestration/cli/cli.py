@@ -33,7 +33,6 @@ from the_alchemiser.shared.config.secrets_manager import secrets_manager
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.logging.logging_utils import (
     get_logger,
-    log_error_with_context,
 )
 from the_alchemiser.shared.types.exceptions import (
     TradingClientError,
@@ -219,7 +218,7 @@ def trade(
                     "show_tracking": show_tracking,
                     "export_tracking_json": export_tracking_json,
                     "json_output": json_output,
-                }
+                },
             },
         )
         console.print(f"\n[bold red]Trading client error: {e}[/bold red]")
@@ -227,7 +226,7 @@ def trade(
             console.print_exception()
         raise typer.Exit(1)
     except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
-        # Use error handler for consistent error reporting and email notifications  
+        # Use error handler for consistent error reporting and email notifications
         error_handler.handle_error(
             error=e,
             context="CLI trade command - system execution error",
@@ -242,7 +241,7 @@ def trade(
                     "show_tracking": show_tracking,
                     "export_tracking_json": export_tracking_json,
                     "json_output": json_output,
-                }
+                },
             },
         )
         console.print(f"\n[bold red]Unexpected error: {e}[/bold red]")
@@ -253,6 +252,7 @@ def trade(
         # Ensure error notifications are sent if any errors were captured
         try:
             from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+
             send_error_notification_if_needed()
         except Exception as e:
             # Don't let notification failures break the command, but log them
@@ -428,6 +428,7 @@ def status() -> None:
         # Ensure error notifications are sent if any errors were captured
         try:
             from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+
             send_error_notification_if_needed()
         except Exception as e:
             # Don't let notification failures break the command, but log them
@@ -564,7 +565,10 @@ def deploy() -> None:
         finally:
             # Ensure error notifications are sent if any errors were captured
             try:
-                from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+                from the_alchemiser.shared.errors.error_handler import (
+                    send_error_notification_if_needed,
+                )
+
                 send_error_notification_if_needed()
             except Exception as e:
                 # Don't let notification failures break the command, but log them
@@ -730,6 +734,7 @@ def ledger_list(
         # Send error notifications
         try:
             from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+
             send_error_notification_if_needed()
         except Exception as notification_error:
             logger = get_logger(__name__)
@@ -808,6 +813,7 @@ def ledger_performance(
         # Send error notifications
         try:
             from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+
             send_error_notification_if_needed()
         except Exception as notification_error:
             logger = get_logger(__name__)
@@ -907,6 +913,7 @@ def ledger_attribution(
         # Send error notifications
         try:
             from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+
             send_error_notification_if_needed()
         except Exception as notification_error:
             logger = get_logger(__name__)
