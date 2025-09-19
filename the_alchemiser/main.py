@@ -275,6 +275,13 @@ class TradingSystem:
                     "export_tracking_json": export_tracking_json,
                 },
             )
+            # Send error notifications for trading system errors
+            try:
+                from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+                send_error_notification_if_needed()
+            except Exception as notification_error:
+                self.logger.warning(f"Failed to send error notification: {notification_error}")
+            
             return self._create_failure_result(
                 f"System error: {e}", started_at, correlation_id, warnings
             )
@@ -800,9 +807,45 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
                 "mode": args.mode,
             },
         )
+        # Send error notifications for initialization and execution errors
+        try:
+            from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+            send_error_notification_if_needed()
+        except Exception as notification_error:
+            logging.getLogger(__name__).warning(f"Failed to send error notification: {notification_error}")
+        
         render_footer("System error occurred!")
+        return False
+    except Exception as e:
+        # Catch-all for any unhandled exceptions to ensure proper error reporting and notifications
+        error_handler = TradingSystemErrorHandler()
+        error_handler.handle_error(
+            error=e,
+            context="application execution - unhandled exception",
+            component="main",
+            additional_data={
+                "mode": getattr(args, 'mode', 'unknown'),
+                "error_type": type(e).__name__,
+                "request_id": request_id,
+            },
+        )
+        # Send error notifications for unhandled exceptions
+        try:
+            from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+            send_error_notification_if_needed()
+        except Exception as notification_error:
+            logging.getLogger(__name__).warning(f"Failed to send error notification: {notification_error}")
+        
+        render_footer("Unexpected system error occurred!")
         return False
 
 
 if __name__ == "__main__":
-    sys.exit(0 if main() else 1)
+    result = main()
+    # Handle both TradeRunResultDTO and boolean return types
+    if hasattr(result, 'success'):
+        # TradeRunResultDTO case - check success field
+        sys.exit(0 if result.success else 1)
+    else:
+        # Boolean case - use directly
+        sys.exit(0 if result else 1)
