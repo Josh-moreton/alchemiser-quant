@@ -19,9 +19,6 @@ if TYPE_CHECKING:
 
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
 from the_alchemiser.orchestration.portfolio_orchestrator import PortfolioOrchestrator
-from the_alchemiser.shared.notifications.templates.multi_strategy import (
-    MultiStrategyReportBuilder,
-)
 from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.dto.portfolio_state_dto import (
@@ -41,6 +38,9 @@ from the_alchemiser.shared.events import (
     TradeExecutionStarted,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.notifications.templates.multi_strategy import (
+    MultiStrategyReportBuilder,
+)
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 from the_alchemiser.shared.types.exceptions import (
     NotificationError,
@@ -646,10 +646,8 @@ class TradingOrchestrator:
                     # Use the neutral report builder directly which is more flexible
                     result_adapter = ResultAdapter(result)
                     # Type ignore: ResultAdapter provides compatible interface via getattr pattern
-                    html_content = (
-                        MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-                            result_adapter, mode_str  # type: ignore[arg-type]
-                        )
+                    html_content = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
+                        result_adapter, mode_str  # type: ignore[arg-type]
                     )
                 except Exception as template_error:
                     # Fallback to simple HTML if template fails

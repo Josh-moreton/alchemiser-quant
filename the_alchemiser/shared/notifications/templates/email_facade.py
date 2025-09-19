@@ -211,6 +211,7 @@ class EmailTemplates:
 
         Returns:
             HTML email content for successful trading run
+
         """
         from .multi_strategy import MultiStrategyReportBuilder
 
@@ -236,6 +237,7 @@ class EmailTemplates:
 
         Returns:
             HTML email content for failed trading run
+
         """
         header = BaseEmailTemplate.get_header("The Alchemiser")
         status_banner = BaseEmailTemplate.get_status_banner(
@@ -331,9 +333,10 @@ class EmailTemplates:
 
         Returns:
             HTML email content for performance summary
+
         """
-        from .portfolio import PortfolioBuilder
         from .performance import PerformanceBuilder
+        from .portfolio import PortfolioBuilder
 
         header = BaseEmailTemplate.get_header("The Alchemiser")
         status_banner = BaseEmailTemplate.get_status_banner(
