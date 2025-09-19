@@ -705,8 +705,9 @@ class TradingOrchestrator:
                     error_details=message, mode=mode_str, context=context
                 )
 
+            status_tag = "SUCCESS" if success else "FAILURE"
             send_email_notification(
-                subject=f"📈 The Alchemiser - {mode_str.upper()} Trading Report",
+                subject=f"[{status_tag}] 📈 The Alchemiser - {mode_str.upper()} Trading Report",
                 html_content=html_content,
                 text_content=f"Trading execution completed. Success: {success}",
             )
