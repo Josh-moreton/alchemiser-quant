@@ -650,16 +650,45 @@ class TradingOrchestrator:
                         result_adapter, mode_str  # type: ignore[arg-type]
                     )
                 except Exception as template_error:
-                    # Fallback to simple HTML if template fails
+                    # Fallback to enhanced failed template if neutral builder fails
                     self.logger.warning(
-                        f"Template generation failed, using fallback: {template_error}"
+                        f"Template generation failed, using enhanced fallback: {template_error}"
                     )
-                    html_content = f"""
-                    <h2>Trading Execution Report - {mode_str.upper()}</h2>
-                    <p><strong>Status:</strong> Success</p>
-                    <p><strong>Message:</strong> {message}</p>
-                    <p><strong>Timestamp:</strong> {datetime.now(UTC)}</p>
-                    """
+                    try:
+                        # Use the enhanced failed template as fallback for consistency
+                        context = {
+                            "execution_details": message,
+                            "timestamp": datetime.now(UTC).strftime(
+                                "%Y-%m-%d %H:%M:%S UTC"
+                            ),
+                            "workflow_state": "template_generation_failed",
+                        }
+                        html_content = EmailTemplates.failed_trading_run(
+                            error_details=f"Template generation failed: {template_error}",
+                            mode=mode_str,
+                            context=context,
+                        )
+                    except Exception as enhanced_error:
+                        # Final fallback to basic template only if enhanced template also fails
+                        self.logger.error(
+                            f"Enhanced template fallback also failed: {enhanced_error}"
+                        )
+                        html_content = f"""
+                        <h2>Trading Execution Report - {mode_str.upper()}</h2>
+                        <p><strong>Status:</strong> Success</p>
+                        <p><strong>Message:</strong> {message}</p>
+                        <p><strong>Timestamp:</strong> {datetime.now(UTC)}</p>
+                        """
+                        # Final fallback to basic template only if enhanced template also fails
+                        self.logger.error(
+                            f"Enhanced template fallback also failed: {enhanced_error}"
+                        )
+                        html_content = f"""
+                        <h2>Trading Execution Report - {mode_str.upper()}</h2>
+                        <p><strong>Status:</strong> Success</p>
+                        <p><strong>Message:</strong> {message}</p>
+                        <p><strong>Timestamp:</strong> {datetime.now(UTC)}</p>
+                        """
             else:
                 # Use the new failed trading run template for enhanced error reporting
                 context = {
