@@ -23,6 +23,9 @@ from the_alchemiser.shared.events import (
     TradeExecuted,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.notifications.templates.multi_strategy import (
+    MultiStrategyReportBuilder,
+)
 
 
 class EventDrivenOrchestrator:
@@ -247,7 +250,9 @@ class EventDrivenOrchestrator:
             # Trigger recovery workflow
             self._trigger_recovery_workflow(event)
 
-    def _send_trading_notification(self, event: TradeExecuted, *, success: bool) -> None:
+    def _send_trading_notification(
+        self, event: TradeExecuted, *, success: bool
+    ) -> None:
         """Send trading completion notification.
 
         Args:
@@ -277,15 +282,48 @@ class EventDrivenOrchestrator:
                 total_trade_value_float = 0.0
 
             if success:
-                html_content = f"""
-                <h2>Trading Execution Report - {mode_str.upper()}</h2>
-                <p><strong>Status:</strong> Success</p>
-                <p><strong>Orders Placed:</strong> {orders_placed}</p>
-                <p><strong>Orders Succeeded:</strong> {orders_succeeded}</p>
-                <p><strong>Total Trade Value:</strong> ${total_trade_value_float:,.2f}</p>
-                <p><strong>Correlation ID:</strong> {event.correlation_id}</p>
-                <p><strong>Timestamp:</strong> {event.timestamp}</p>
-                """
+                # Use enhanced successful trading run template instead of basic HTML
+                try:
+                    # Create a result adapter for the enhanced template
+                    class EventResultAdapter:
+                        def __init__(
+                            self, execution_data: dict[str, Any], correlation_id: str
+                        ) -> None:
+                            self.success = True
+                            self.orders_executed: list[Any] = (
+                                []
+                            )  # Event data doesn't have detailed order info
+                            self.strategy_signals: dict[str, Any] = (
+                                {}
+                            )  # Event data doesn't have signal details
+                            self.correlation_id = correlation_id
+                            # Add any other fields the template might use via getattr
+                            self._execution_data = execution_data
+
+                        def __getattr__(self, name: str) -> object:
+                            # Allow template to access any field from execution_data
+                            return self._execution_data.get(name, None)
+
+                    result_adapter = EventResultAdapter(
+                        execution_data, event.correlation_id
+                    )
+                    html_content = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
+                        result_adapter, mode_str  # type: ignore[arg-type]
+                    )
+                except Exception as template_error:
+                    # Fallback to basic template if enhanced template fails
+                    self.logger.warning(
+                        f"Enhanced template failed, using basic: {template_error}"
+                    )
+                    html_content = f"""
+                    <h2>Trading Execution Report - {mode_str.upper()}</h2>
+                    <p><strong>Status:</strong> Success</p>
+                    <p><strong>Orders Placed:</strong> {orders_placed}</p>
+                    <p><strong>Orders Succeeded:</strong> {orders_succeeded}</p>
+                    <p><strong>Total Trade Value:</strong> ${total_trade_value_float:,.2f}</p>
+                    <p><strong>Correlation ID:</strong> {event.correlation_id}</p>
+                    <p><strong>Timestamp:</strong> {event.timestamp}</p>
+                    """
             else:
                 error_message = event.error_message or "Unknown error"
                 html_content = build_error_email_html(
@@ -299,7 +337,9 @@ class EventDrivenOrchestrator:
                 text_content=f"Trading execution completed. Success: {success}",
             )
 
-            self.logger.info(f"Trading notification sent successfully (success={success})")
+            self.logger.info(
+                f"Trading notification sent successfully (success={success})"
+            )
 
         except Exception as e:
             # Don't let notification failure break the workflow
