@@ -28,9 +28,7 @@ logger = logging.getLogger(__name__)
 class BaseTradeLedger:
     """Base class providing shared business logic for trade ledger implementations."""
 
-    def _matches_filters(
-        self, entry: TradeLedgerEntry, filters: TradeLedgerQuery
-    ) -> bool:
+    def _matches_filters(self, entry: TradeLedgerEntry, filters: TradeLedgerQuery) -> bool:
         """Check if entry matches query filters.
 
         Args:
@@ -61,9 +59,7 @@ class BaseTradeLedger:
 
         return not (filters.end_date and entry.timestamp > filters.end_date)
 
-    def _calculate_lots_from_entries(
-        self, entries: list[TradeLedgerEntry]
-    ) -> list[Lot]:
+    def _calculate_lots_from_entries(self, entries: list[TradeLedgerEntry]) -> list[Lot]:
         """Calculate open lots from trade ledger entries using FIFO matching.
 
         Args:
@@ -86,9 +82,7 @@ class BaseTradeLedger:
             sells = [e for e in position_entries if e.side == TradeSide.SELL]
 
             # Track remaining quantities for FIFO matching
-            buy_queue = [
-                (buy.quantity, buy.price, buy.timestamp, buy.ledger_id) for buy in buys
-            ]
+            buy_queue = [(buy.quantity, buy.price, buy.timestamp, buy.ledger_id) for buy in buys]
             total_sold = sum(sell.quantity for sell in sells)
 
             # Match sells against buys (FIFO)
@@ -193,30 +187,22 @@ class BaseTradeLedger:
             symbol_lots = [lot for lot in lots if lot.symbol == symbol]
 
             # Calculate open position metrics
-            open_quantity = sum(
-                lot.remaining_quantity for lot in symbol_lots
-            ) or Decimal("0")
+            open_quantity = sum(lot.remaining_quantity for lot in symbol_lots) or Decimal("0")
             avg_cost: Decimal | None = None
             if open_quantity > 0:
-                total_cost = sum(
-                    lot.remaining_quantity * lot.cost_basis for lot in symbol_lots
-                )
+                total_cost = sum(lot.remaining_quantity * lot.cost_basis for lot in symbol_lots)
                 avg_cost = total_cost / open_quantity
 
             # Calculate unrealized P&L
             current_price = current_prices.get(symbol)
             unrealized_pnl = None
             if current_price and open_quantity > 0 and avg_cost:
-                unrealized_pnl = open_quantity * (
-                    Decimal(str(current_price)) - avg_cost
-                )
+                unrealized_pnl = open_quantity * (Decimal(str(current_price)) - avg_cost)
 
         else:
             # Strategy total across all symbols
             all_lots = self._calculate_lots_from_entries(entries)
-            open_quantity = sum(lot.remaining_quantity for lot in all_lots) or Decimal(
-                "0"
-            )
+            open_quantity = sum(lot.remaining_quantity for lot in all_lots) or Decimal("0")
             avg_cost = None  # Can't meaningfully average across different symbols
 
             # Calculate total unrealized P&L across all symbols
@@ -242,9 +228,7 @@ class BaseTradeLedger:
 
         # Calculate realized P&L (simplified - should use proper FIFO matching)
         total_buy_value = sum(buy.quantity * buy.price for buy in buys) or Decimal("0")
-        total_sell_value = sum(sell.quantity * sell.price for sell in sells) or Decimal(
-            "0"
-        )
+        total_sell_value = sum(sell.quantity * sell.price for sell in sells) or Decimal("0")
         realized_pnl = total_sell_value - total_buy_value
 
         # Count realized trades (simplified - number of sells)

@@ -129,9 +129,7 @@ class TradeLedgerWriter:
                 # Batch write to trade ledger
                 self.trade_ledger.upsert_many(entries)
 
-                logger.info(
-                    f"Recorded {len(entries)} trade ledger entries for {strategy_name}"
-                )
+                logger.info(f"Recorded {len(entries)} trade ledger entries for {strategy_name}")
             else:
                 logger.debug("No filled orders to record in trade ledger")
 
@@ -217,7 +215,5 @@ class TradeLedgerWriter:
             # Metadata
             schema_version=1,
             source="execution_v2.core",
-            notes=(
-                executed_order.error_message if executed_order.error_message else None
-            ),
+            notes=(executed_order.error_message if executed_order.error_message else None),
         )
