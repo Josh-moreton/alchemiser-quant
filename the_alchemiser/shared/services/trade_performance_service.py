@@ -146,25 +146,33 @@ class TradePerformanceService:
             if strategy_name and not symbol:
                 # Looking for strategy total
                 for summary in summaries:
-                    if summary.strategy_name == strategy_name and summary.symbol is None:
+                    if (
+                        summary.strategy_name == strategy_name
+                        and summary.symbol is None
+                    ):
                         return summary.realized_pnl
             elif symbol and not strategy_name:
                 # Sum across all strategies for this symbol
-                result = sum(s.realized_pnl for s in summaries if s.symbol == symbol)
-                return result or Decimal("0")
+                return sum(
+                    (s.realized_pnl for s in summaries if s.symbol == symbol),
+                    Decimal("0"),
+                )
             elif strategy_name and symbol:
                 # Specific strategy-symbol combination
                 for summary in summaries:
-                    if summary.strategy_name == strategy_name and summary.symbol == symbol:
+                    if (
+                        summary.strategy_name == strategy_name
+                        and summary.symbol == symbol
+                    ):
                         return summary.realized_pnl
             else:
                 # Total across everything
-                result = sum(
-                    s.realized_pnl
-                    for s in summaries
-                    if s.symbol is None  # Only strategy totals to avoid double counting
+                return sum(
+                    (
+                        s.realized_pnl for s in summaries if s.symbol is None
+                    ),  # Only strategy totals to avoid double counting
+                    Decimal("0"),
                 )
-                return result or Decimal("0")
 
             return Decimal("0")
 
@@ -202,7 +210,10 @@ class TradePerformanceService:
             if strategy_name and not symbol:
                 # Looking for strategy total
                 for summary in summaries:
-                    if summary.strategy_name == strategy_name and summary.symbol is None:
+                    if (
+                        summary.strategy_name == strategy_name
+                        and summary.symbol is None
+                    ):
                         return summary.unrealized_pnl
             elif symbol and not strategy_name:
                 # Sum across all strategies for this symbol
@@ -335,13 +346,20 @@ class TradePerformanceService:
 
             # For each symbol, verify quantities balance
             for symbol, entries in entries_by_symbol.items():
-                buy_quantity = sum(e.quantity for e in entries if e.side.value == "BUY")
-                sell_quantity = sum(e.quantity for e in entries if e.side.value == "SELL")
+                buy_quantity = sum(
+                    (e.quantity for e in entries if e.side.value == "BUY"), Decimal("0")
+                )
+                sell_quantity = sum(
+                    (e.quantity for e in entries if e.side.value == "SELL"),
+                    Decimal("0"),
+                )
                 net_quantity = buy_quantity - sell_quantity
 
                 # Get total open quantity from summaries
                 symbol_summaries = [s for s in all_summaries if s.symbol == symbol]
-                total_open_from_summaries = sum(s.open_quantity for s in symbol_summaries)
+                total_open_from_summaries = sum(
+                    (s.open_quantity for s in symbol_summaries), Decimal("0")
+                )
 
                 if abs(net_quantity - total_open_from_summaries) > Decimal("0.001"):
                     issues.append(

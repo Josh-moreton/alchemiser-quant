@@ -14,16 +14,17 @@ import json
 import logging
 from collections import defaultdict
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
+
+from botocore.exceptions import ClientError
 
 from ..dto.trade_ledger_dto import (
     Lot,
     PerformanceSummary,
     TradeLedgerEntry,
     TradeLedgerQuery,
-    TradeSide,
 )
 from .base_trade_ledger import BaseTradeLedger
 
@@ -58,6 +59,21 @@ class S3TradeLedger(BaseTradeLedger):
         # In-memory index cache (loaded on demand)
         self._index_cache: dict[tuple[str, str], str] | None = None
         self._index_cache_date: str | None = None
+
+    def _is_no_such_key_error(self, error: Exception) -> bool:
+        """Check if an exception is a NoSuchKey error from S3.
+
+        Args:
+            error: Exception to check
+
+        Returns:
+            True if this is a NoSuchKey error
+
+        """
+        return (
+            isinstance(error, ClientError)
+            and error.response.get("Error", {}).get("Code") == "NoSuchKey"
+        )
 
     def _get_ledger_key(self, timestamp: datetime) -> str:
         """Get S3 key for ledger file based on timestamp.
@@ -111,17 +127,20 @@ class S3TradeLedger(BaseTradeLedger):
 
             return index
 
-        except self.s3.exceptions.NoSuchKey:
-            # Index doesn't exist yet
-            empty_index: dict[tuple[str, str], str] = {}
-            self._index_cache = empty_index
-            self._index_cache_date = date_str
-            return empty_index
         except Exception as e:
+            # Check if this is a NoSuchKey error (index doesn't exist yet)
+            if self._is_no_such_key_error(e):
+                empty_index: dict[tuple[str, str], str] = {}
+                self._index_cache = empty_index
+                self._index_cache_date = date_str
+                return empty_index
+            # For other errors, try to rebuild the index
             logger.warning(f"Failed to load index for {date_str}, rebuilding: {e}")
             return self._rebuild_index_for_date(date_str)
 
-    def _save_index_for_date(self, date_str: str, index: dict[tuple[str, str], str]) -> None:
+    def _save_index_for_date(
+        self, date_str: str, index: dict[tuple[str, str], str]
+    ) -> None:
         """Save index for a specific date.
 
         Args:
@@ -185,12 +204,13 @@ class S3TradeLedger(BaseTradeLedger):
             logger.info(f"Rebuilt index for {date_str} with {len(index)} entries")
             self._save_index_for_date(date_str, index)
 
-        except self.s3.exceptions.NoSuchKey:
-            # Ledger file doesn't exist yet, empty index is correct
-            logger.info(f"No ledger file found for {date_str}, using empty index")
         except Exception as e:
-            logger.error(f"Failed to rebuild index for {date_str}: {e}")
-            raise
+            # Check if this is a NoSuchKey error (ledger file doesn't exist yet)
+            if self._is_no_such_key_error(e):
+                logger.info(f"No ledger file found for {date_str}, using empty index")
+            else:
+                logger.error(f"Failed to rebuild index for {date_str}: {e}")
+                raise
 
         return index
 
@@ -231,8 +251,10 @@ class S3TradeLedger(BaseTradeLedger):
             try:
                 response = self.s3.get_object(Bucket=self.bucket, Key=ledger_key)
                 existing_content = response["Body"].read().decode("utf-8")
-            except self.s3.exceptions.NoSuchKey:
-                pass
+            except Exception as e:
+                # Check if this is a NoSuchKey error (file doesn't exist yet)
+                if not self._is_no_such_key_error(e):
+                    raise
 
             # Append new entry
             new_content = existing_content + json.dumps(serialized) + "\n"
@@ -305,8 +327,10 @@ class S3TradeLedger(BaseTradeLedger):
                 try:
                     response = self.s3.get_object(Bucket=self.bucket, Key=ledger_key)
                     existing_content = response["Body"].read().decode("utf-8")
-                except self.s3.exceptions.NoSuchKey:
-                    pass
+                except Exception as e:
+                    # Check if this is a NoSuchKey error (file doesn't exist yet)
+                    if not self._is_no_such_key_error(e):
+                        raise
 
                 # Append new entries
                 new_lines = []
@@ -328,7 +352,9 @@ class S3TradeLedger(BaseTradeLedger):
                 # Save updated index
                 self._save_index_for_date(date_str, index)
 
-                logger.info(f"Added {len(new_entries)} new ledger entries for {date_str}")
+                logger.info(
+                    f"Added {len(new_entries)} new ledger entries for {date_str}"
+                )
 
             except Exception as e:
                 logger.error(f"Failed to upsert entries for {date_str}: {e}")
@@ -363,7 +389,7 @@ class S3TradeLedger(BaseTradeLedger):
                 entries.extend(date_entries)
 
                 # Move to next day
-                current_date = current_date.replace(day=current_date.day + 1)
+                current_date = current_date + timedelta(days=1)
 
             # Sort results
             entries.sort(
@@ -380,7 +406,9 @@ class S3TradeLedger(BaseTradeLedger):
             logger.error(f"Failed to query trade ledger: {e}")
             raise
 
-    def _query_date(self, date_str: str, filters: TradeLedgerQuery) -> list[TradeLedgerEntry]:
+    def _query_date(
+        self, date_str: str, filters: TradeLedgerQuery
+    ) -> list[TradeLedgerEntry]:
         """Query entries for a specific date.
 
         Args:
@@ -411,14 +439,16 @@ class S3TradeLedger(BaseTradeLedger):
 
             return entries
 
-        except self.s3.exceptions.NoSuchKey:
-            # No ledger file for this date
-            return []
         except Exception as e:
+            # Check if this is a NoSuchKey error (no ledger file for this date)
+            if self._is_no_such_key_error(e):
+                return []
             logger.error(f"Failed to query date {date_str}: {e}")
             raise
 
-    def get_open_lots(self, strategy: str | None = None, symbol: str | None = None) -> list[Lot]:
+    def get_open_lots(
+        self, strategy: str | None = None, symbol: str | None = None
+    ) -> list[Lot]:
         """Get open lots for attribution tracking.
 
         Args:
@@ -472,7 +502,9 @@ class S3TradeLedger(BaseTradeLedger):
             )
 
             entries = list(self.query(query_filters))
-            return self._calculate_performance_from_entries(entries, current_prices or {})
+            return self._calculate_performance_from_entries(
+                entries, current_prices or {}
+            )
 
         except Exception as e:
             logger.error(f"Failed to calculate performance: {e}")
@@ -492,7 +524,7 @@ class S3TradeLedger(BaseTradeLedger):
             # For efficiency, we'd ideally have an order index, but for now scan recent dates
             entries = []
             end_date = datetime.now(UTC)
-            start_date = end_date.replace(day=end_date.day - 30)  # Last 30 days
+            start_date = end_date - timedelta(days=30)  # Last 30 days
 
             current_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
             while current_date <= end_date:
@@ -501,7 +533,7 @@ class S3TradeLedger(BaseTradeLedger):
                 entries.extend(date_entries)
 
                 # Move to next day
-                current_date = current_date.replace(day=current_date.day + 1)
+                current_date = current_date + timedelta(days=1)
 
             return sorted(entries, key=lambda e: e.timestamp)
 
@@ -541,9 +573,10 @@ class S3TradeLedger(BaseTradeLedger):
 
             return entries
 
-        except self.s3.exceptions.NoSuchKey:
-            return []
         except Exception as e:
+            # Check if this is a NoSuchKey error (no ledger file for this date)
+            if self._is_no_such_key_error(e):
+                return []
             logger.error(f"Failed to get entries by order for {date_str}: {e}")
             raise
 
@@ -571,7 +604,9 @@ class S3TradeLedger(BaseTradeLedger):
                 if obj["Key"].endswith(".jsonl"):
                     try:
                         # Verify each file can be parsed
-                        obj_response = self.s3.get_object(Bucket=self.bucket, Key=obj["Key"])
+                        obj_response = self.s3.get_object(
+                            Bucket=self.bucket, Key=obj["Key"]
+                        )
                         content = obj_response["Body"].read().decode("utf-8")
 
                         file_entries = 0

@@ -13,6 +13,7 @@ import logging
 import uuid
 from decimal import Decimal
 
+from ..config.symbols_config import classify_symbol
 from ..dto.execution_report_dto import ExecutedOrderDTO
 from ..dto.trade_ledger_dto import AssetType, TradeLedgerEntry, TradeSide
 from ..persistence.trade_ledger_factory import get_default_trade_ledger
@@ -180,8 +181,9 @@ class TradeLedgerWriter:
         except ValueError:
             raise ValueError(f"Invalid trade side: {executed_order.action}")
 
-        # Estimate asset type (basic classification)
-        asset_type = self._classify_asset_type(executed_order.symbol)
+        # Estimate asset type (uses shared symbol classification)
+        asset_type_str = classify_symbol(executed_order.symbol)
+        asset_type = AssetType(asset_type_str) if asset_type_str else None
 
         # Calculate fees (if available)
         fees = executed_order.fees or Decimal("0")
@@ -215,23 +217,7 @@ class TradeLedgerWriter:
             # Metadata
             schema_version=1,
             source="execution_v2.core",
-            notes=executed_order.error_message if executed_order.error_message else None,
+            notes=(
+                executed_order.error_message if executed_order.error_message else None
+            ),
         )
-
-    def _classify_asset_type(self, symbol: str) -> AssetType | None:
-        """Classify asset type based on symbol.
-
-        Args:
-            symbol: Trading symbol
-
-        Returns:
-            Asset type classification or None if unknown
-
-        """
-        # This is a basic classification - in production would use
-        # a proper symbol reference service
-        if symbol.upper() in ["SPY", "QQQ", "IWM", "TECL", "TQQQ", "SOXL"]:
-            return AssetType.ETF
-
-        # Default to stock for now
-        return AssetType.STOCK
