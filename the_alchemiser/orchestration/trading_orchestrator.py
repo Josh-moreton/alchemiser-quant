@@ -1053,6 +1053,43 @@ class TradingOrchestrator:
 
         """
         try:
+            # Import catalog to map error codes
+            from the_alchemiser.shared.errors.catalog import map_exception_to_error_code
+            from the_alchemiser.shared.types.exceptions import (
+                InsufficientFundsError,
+                MarketClosedError,
+                OrderTimeoutError,
+            )
+
+            # Derive error code from failure patterns if not successful
+            error_code = None
+            if not success and execution_result:
+                # Look at order error messages to infer the type of error
+                for order in execution_result.orders:
+                    if not order.success and order.error_message:
+                        msg = str(order.error_message).lower()
+                        # Try to map common error patterns to exception types for code derivation
+                        mapped_exc: Exception | None = None
+                        if any(s in msg for s in [
+                            "market hours", "market closed", "outside trading hours",
+                            "after hours", "pre-market", "premarket"
+                        ]):
+                            mapped_exc = MarketClosedError("Market closed")
+                        elif any(s in msg for s in [
+                            "insufficient funds", "insufficient cash", "buying power"
+                        ]):
+                            mapped_exc = InsufficientFundsError("Insufficient funds")
+                        elif any(s in msg for s in [
+                            "timeout", "timed out", "execution timeout"
+                        ]):
+                            mapped_exc = OrderTimeoutError("Order timeout")
+                        
+                        if mapped_exc:
+                            error_code_enum = map_exception_to_error_code(mapped_exc)
+                            if error_code_enum:
+                                error_code = error_code_enum.value
+                                break  # Use first mappable error
+            
             # Derive a more descriptive error message if not provided
             if not success:
                 derived_error: str | None = error_message
@@ -1180,6 +1217,7 @@ class TradingOrchestrator:
                 portfolio_state_after=portfolio_state_after,
                 success=success,
                 error_message=error_message,
+                error_code=error_code,
             )
 
             self.event_bus.publish(event)

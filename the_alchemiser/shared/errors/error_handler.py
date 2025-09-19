@@ -207,6 +207,7 @@ class ErrorDetails:
         component: str,
         additional_data: dict[str, Any] | None = None,
         suggested_action: str | None = None,
+        error_code: str | None = None,
     ) -> None:
         """Store detailed error information."""
         self.error = error
@@ -215,6 +216,7 @@ class ErrorDetails:
         self.component = component
         self.additional_data = additional_data or {}
         self.suggested_action = suggested_action
+        self.error_code = error_code
         self.timestamp = datetime.now(UTC)
         self.traceback = traceback.format_exc()
 
@@ -230,6 +232,7 @@ class ErrorDetails:
             "traceback": self.traceback,
             "additional_data": self.additional_data,
             "suggested_action": self.suggested_action,
+            "error_code": self.error_code,
         }
 
 
@@ -402,8 +405,14 @@ class TradingSystemErrorHandler:
         additional_data: dict[str, Any] | None = None,
     ) -> ErrorDetails:
         """Handle an error with detailed logging and categorization."""
+        from .catalog import map_exception_to_error_code
+
         category = self.categorize_error(error, context)
         suggested_action = self.get_suggested_action(error, category)
+        
+        # Map exception to error code from catalogue
+        error_code_enum = map_exception_to_error_code(error)
+        error_code = error_code_enum.value if error_code_enum else None
 
         error_details = ErrorDetails(
             error=error,
@@ -412,14 +421,17 @@ class TradingSystemErrorHandler:
             component=component,
             additional_data=additional_data,
             suggested_action=suggested_action,
+            error_code=error_code,
         )
 
         self.errors.append(error_details)
 
-        # Log with appropriate level
+        # Log with appropriate level and include error_code
+        log_extra = {"error_code": error_code} if error_code else {}
+        
         if category == ErrorCategory.CRITICAL:
             self.logger.critical(
-                f"CRITICAL ERROR in {component}: {error}", exc_info=True
+                f"CRITICAL ERROR in {component}: {error}", exc_info=True, extra={"extra_fields": log_extra}
             )
         elif category in [
             ErrorCategory.TRADING,
@@ -427,14 +439,14 @@ class TradingSystemErrorHandler:
             ErrorCategory.STRATEGY,
         ]:
             self.logger.error(
-                f"{category.upper()} ERROR in {component}: {error}", exc_info=True
+                f"{category.upper()} ERROR in {component}: {error}", exc_info=True, extra={"extra_fields": log_extra}
             )
         elif category == ErrorCategory.CONFIGURATION:
             self.logger.error(
-                f"CONFIGURATION ERROR in {component}: {error}", exc_info=True
+                f"CONFIGURATION ERROR in {component}: {error}", exc_info=True, extra={"extra_fields": log_extra}
             )
         else:
-            self.logger.warning(f"{category.upper()} in {component}: {error}")
+            self.logger.warning(f"{category.upper()} in {component}: {error}", extra={"extra_fields": log_extra})
 
         return error_details
 
@@ -766,6 +778,19 @@ def send_error_notification_if_needed() -> ErrorNotificationData | None:
             severity = "⚠️ SYSTEM"
             priority = "MEDIUM"
 
+        # Find primary error code for subject (first non-None error code)
+        primary_error_code = None
+        for error_detail in _error_handler.errors:
+            if error_detail.error_code:
+                primary_error_code = error_detail.error_code
+                break
+
+        # Build subject with error code if available
+        if primary_error_code:
+            subject = f"[FAILURE][{priority}][{primary_error_code}] The Alchemiser - {severity} Error Report"
+        else:
+            subject = f"[FAILURE][{priority}] The Alchemiser - {severity} Error Report"
+
         # Build HTML email
         html_content = EmailTemplates.build_error_report(
             title=f"{severity} Alert - Trading System Errors",
@@ -774,7 +799,7 @@ def send_error_notification_if_needed() -> ErrorNotificationData | None:
 
         # Send notification
         success = send_email_notification(
-            subject=f"[FAILURE][{priority}] The Alchemiser - {severity} Error Report",
+            subject=subject,
             html_content=html_content,
             text_content=error_report,
         )

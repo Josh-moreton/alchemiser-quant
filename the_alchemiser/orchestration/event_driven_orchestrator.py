@@ -335,8 +335,15 @@ class EventDrivenOrchestrator:
                 )
 
             status_tag = "SUCCESS" if success else "FAILURE"
+            
+            # Include error code in subject if available for failures
+            if not success and hasattr(event, "error_code") and event.error_code:
+                subject = f"[{status_tag}][{event.error_code}] 📈 The Alchemiser - {mode_str.upper()} Trading Report"
+            else:
+                subject = f"[{status_tag}] 📈 The Alchemiser - {mode_str.upper()} Trading Report"
+                
             send_email_notification(
-                subject=f"[{status_tag}] 📈 The Alchemiser - {mode_str.upper()} Trading Report",
+                subject=subject,
                 html_content=html_content,
                 text_content=f"Trading execution completed. Success: {success}",
             )
