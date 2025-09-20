@@ -34,11 +34,25 @@ from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.shared.utils.common import ActionType
 from the_alchemiser.shared.value_objects.symbol import Symbol
-from the_alchemiser.strategy_v2.engines.klm.variants.variant_original import KlmVariantOriginal
 from the_alchemiser.strategy_v2.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
 
 from .base_variant import BaseKLMVariant
+from .variants import (
+    KLMVariant520_22 as KlmVariant52022,
+)
+from .variants import (
+    KLMVariant530_18 as KlmVariant53018,
+)
+from .variants import (
+    KlmVariant41038,
+    KlmVariant50638,
+    KlmVariant83021,
+    KlmVariant120028,
+    KlmVariant128026,
+    KLMVariantNova,
+)
+from .variants import KlmVariantOriginal
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.value_objects.core_types import KLMDecision
@@ -72,11 +86,10 @@ class KLMEngine(StrategyEngine):
         self.strategy_variants: list[BaseKLMVariant] = [
             # ONLY USE THE ORIGINAL VARIANT
             KlmVariantOriginal(),  # Exact match to original CLJ strategy
-            
             # DISABLED - All other variants are modifications/experiments
             # KlmVariant128026(),   # Closest but not exact (uniform thresholds)
             # KlmVariant50638(),    # Has Single Popped KMLM logic
-            # KlmVariant120028(),   # Has Single Popped KMLM logic  
+            # KlmVariant120028(),   # Has Single Popped KMLM logic
             # KlmVariant52022(),    # Different L/S rotator
             # KlmVariant53018(),    # Complex scale-in logic
             # KlmVariant41038(),    # MonkeyBusiness Simons
@@ -126,7 +139,9 @@ class KLMEngine(StrategyEngine):
             + self.additional_symbols
         )
 
-        self.logger.info(f"KLM Ensemble initialized with {len(self.strategy_variants)} variants")
+        self.logger.info(
+            f"KLM Ensemble initialized with {len(self.strategy_variants)} variants"
+        )
 
     def get_required_symbols(self) -> list[str]:
         """Return all symbols required by the KLM ensemble."""
@@ -169,8 +184,8 @@ class KLMEngine(StrategyEngine):
                 return self._create_hold_signal("No indicators available", now)
 
             # Evaluate ensemble and get best variant result
-            symbol_or_allocation, action, detailed_reason, variant_name = self._evaluate_ensemble(
-                indicators, market_data
+            symbol_or_allocation, action, detailed_reason, variant_name = (
+                self._evaluate_ensemble(indicators, market_data)
             )
 
             # Convert to typed StrategySignal
@@ -237,7 +252,9 @@ class KLMEngine(StrategyEngine):
                 rsi_21 = safe_get_indicator(close, self.indicators.rsi, window=21)
 
                 # Calculate moving averages
-                ma_200 = safe_get_indicator(close, self.indicators.moving_average, window=200)
+                ma_200 = safe_get_indicator(
+                    close, self.indicators.moving_average, window=200
+                )
 
                 # Calculate returns
                 ma_return_90 = calculate_moving_average_return(close, 90)
@@ -298,14 +315,20 @@ class KLMEngine(StrategyEngine):
             return "BIL", ActionType.HOLD.value, "No valid variant result", "Default"
 
         # Extract result components with support for both tuple and KLMDecision formats
-        symbol_or_allocation, action, reason = self._extract_result_components(best_result)
+        symbol_or_allocation, action, reason = self._extract_result_components(
+            best_result
+        )
 
         # Validate the result components before proceeding
         if symbol_or_allocation is None:
-            self.logger.warning("Best variant returned None for symbol/allocation, using BIL")
+            self.logger.warning(
+                "Best variant returned None for symbol/allocation, using BIL"
+            )
             symbol_or_allocation = "BIL"
         if action is None or action not in ["BUY", "SELL", "HOLD"]:
-            self.logger.warning(f"Best variant returned invalid action '{action}', using HOLD")
+            self.logger.warning(
+                f"Best variant returned invalid action '{action}', using HOLD"
+            )
             action = ActionType.HOLD.value
         if reason is None:
             reason = "KLM Ensemble Selection"
@@ -537,7 +560,9 @@ class KLMEngine(StrategyEngine):
         # Ensemble Selection Process
         analysis_lines.append("Ensemble Selection Process:")
         analysis_lines.append("")
-        analysis_lines.append(f"• Evaluated {len(all_variant_results)} strategy variants")
+        analysis_lines.append(
+            f"• Evaluated {len(all_variant_results)} strategy variants"
+        )
         analysis_lines.append(f"• Selected Variant: {selected_variant.name}")
         analysis_lines.append("• Selection Method: Volatility-adjusted performance")
         analysis_lines.append("")
@@ -555,17 +580,25 @@ class KLMEngine(StrategyEngine):
             # Single symbol
             symbol_name = symbol_or_allocation
             if symbol_name in ["FNGU", "SOXL", "TECL"]:
-                analysis_lines.append(f"• Target: {symbol_name} (3x leveraged technology)")
+                analysis_lines.append(
+                    f"• Target: {symbol_name} (3x leveraged technology)"
+                )
                 analysis_lines.append("• Rationale: High-conviction tech momentum play")
             elif symbol_name in ["SVIX", "UVXY"]:
                 analysis_lines.append(f"• Target: {symbol_name} (volatility hedge)")
-                analysis_lines.append("• Rationale: Defensive positioning in overbought conditions")
+                analysis_lines.append(
+                    "• Rationale: Defensive positioning in overbought conditions"
+                )
             elif symbol_name == "BIL":
                 analysis_lines.append("• Target: BIL (short-term treasury bills)")
-                analysis_lines.append("• Rationale: Cash equivalent/defensive positioning")
+                analysis_lines.append(
+                    "• Rationale: Cash equivalent/defensive positioning"
+                )
             else:
                 analysis_lines.append(f"• Target: {symbol_name}")
-                analysis_lines.append("• Rationale: Variant-specific selection criteria")
+                analysis_lines.append(
+                    "• Rationale: Variant-specific selection criteria"
+                )
 
         analysis_lines.append("")
 
@@ -601,8 +634,14 @@ class KLMEngine(StrategyEngine):
             for symbol_str, weight in symbol_or_allocation.items():
                 try:
                     # Validate weight is a valid number
-                    if weight is None or not isinstance(weight, int | float) or math.isnan(weight):
-                        self.logger.warning(f"Invalid weight for {symbol_str}: {weight}, skipping")
+                    if (
+                        weight is None
+                        or not isinstance(weight, int | float)
+                        or math.isnan(weight)
+                    ):
+                        self.logger.warning(
+                            f"Invalid weight for {symbol_str}: {weight}, skipping"
+                        )
                         continue
 
                     symbol = Symbol(symbol_str)
@@ -649,9 +688,15 @@ class KLMEngine(StrategyEngine):
                     f"Error creating signal for {symbol_or_allocation} with action {action}: {e}"
                 )
                 # Return hold signal as fallback
-                return self._create_hold_signal(f"Invalid symbol: {symbol_or_allocation}", now)
+                return self._create_hold_signal(
+                    f"Invalid symbol: {symbol_or_allocation}", now
+                )
 
-        return signals if signals else self._create_hold_signal("No valid signals generated", now)
+        return (
+            signals
+            if signals
+            else self._create_hold_signal("No valid signals generated", now)
+        )
 
     def _calculate_confidence(self, action: str, weight: float) -> Confidence:
         """Calculate confidence based on action and allocation weight.
@@ -699,7 +744,9 @@ class KLMEngine(StrategyEngine):
             or not isinstance(confidence_value, int | float)
             or math.isnan(confidence_value)
         ):
-            self.logger.warning(f"Invalid confidence value: {confidence_value}, using default 0.5")
+            self.logger.warning(
+                f"Invalid confidence value: {confidence_value}, using default 0.5"
+            )
             confidence_value = 0.5
 
         try:
