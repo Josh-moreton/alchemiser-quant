@@ -85,7 +85,7 @@ echo ""
 
 # Deploy the application
 echo "🚀 Deploying to AWS..."
-sam deploy --no-fail-on-empty-changeset
+sam deploy --no-fail-on-empty-changeset --resolve-s3
 
 echo ""
 echo "✅ Deployment complete!"
