@@ -86,15 +86,6 @@ class KLMEngine(StrategyEngine):
         self.strategy_variants: list[BaseKLMVariant] = [
             # ONLY USE THE ORIGINAL VARIANT
             KlmVariantOriginal(),  # Exact match to original CLJ strategy
-            # DISABLED - All other variants are modifications/experiments
-            # KlmVariant128026(),   # Closest but not exact (uniform thresholds)
-            # KlmVariant50638(),    # Has Single Popped KMLM logic
-            # KlmVariant120028(),   # Has Single Popped KMLM logic
-            # KlmVariant52022(),    # Different L/S rotator
-            # KlmVariant53018(),    # Complex scale-in logic
-            # KlmVariant41038(),    # MonkeyBusiness Simons
-            # KLMVariantNova(),     # Uses individual stocks
-            # KlmVariant83021(),    # Has Bond Check logic
         ]
 
         # Symbol universe for the ensemble - EXACT as per original KLM strategy
