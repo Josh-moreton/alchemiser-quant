@@ -34,24 +34,11 @@ from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.percentage import Percentage
 from the_alchemiser.shared.utils.common import ActionType
 from the_alchemiser.shared.value_objects.symbol import Symbol
+from the_alchemiser.strategy_v2.engines.klm.variants.variant_original import KlmVariantOriginal
 from the_alchemiser.strategy_v2.indicators.indicator_utils import safe_get_indicator
 from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
 
 from .base_variant import BaseKLMVariant
-from .variants import (
-    KLMVariant520_22 as KlmVariant52022,
-)
-from .variants import (
-    KLMVariant530_18 as KlmVariant53018,
-)
-from .variants import (
-    KlmVariant41038,
-    KlmVariant50638,
-    KlmVariant83021,
-    KlmVariant120028,
-    KlmVariant128026,
-    KLMVariantNova,
-)
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.value_objects.core_types import KLMDecision
@@ -83,14 +70,18 @@ class KLMEngine(StrategyEngine):
 
         # Initialize all strategy variants
         self.strategy_variants: list[BaseKLMVariant] = [
-            KlmVariant50638(),  # Standard overbought detection
-            KlmVariant128026(),  # Variant with parameter differences
-            KlmVariant120028(),  # Another parameter variant
-            KlmVariant52022(),  # "Original" baseline
-            KlmVariant53018(),  # Scale-In strategy (most complex)
-            KlmVariant41038(),  # MonkeyBusiness Simons
-            KLMVariantNova(),  # Short-term optimization
-            KlmVariant83021(),  # MonkeyBusiness Simons V2
+            # ONLY USE THE ORIGINAL VARIANT
+            KlmVariantOriginal(),  # Exact match to original CLJ strategy
+            
+            # DISABLED - All other variants are modifications/experiments
+            # KlmVariant128026(),   # Closest but not exact (uniform thresholds)
+            # KlmVariant50638(),    # Has Single Popped KMLM logic
+            # KlmVariant120028(),   # Has Single Popped KMLM logic  
+            # KlmVariant52022(),    # Different L/S rotator
+            # KlmVariant53018(),    # Complex scale-in logic
+            # KlmVariant41038(),    # MonkeyBusiness Simons
+            # KLMVariantNova(),     # Uses individual stocks
+            # KlmVariant83021(),    # Has Bond Check logic
         ]
 
         # Symbol universe for the ensemble - EXACT as per original KLM strategy

@@ -15,6 +15,7 @@ from .variant_830_21 import KlmVariant83021
 from .variant_1200_28 import KlmVariant120028
 from .variant_1280_26 import KlmVariant128026
 from .variant_nova import KLMVariantNova
+from .variant_original import KlmVariantOriginal
 
 __all__ = [
     "KLMVariant520_22",
@@ -25,4 +26,5 @@ __all__ = [
     "KlmVariant83021",
     "KlmVariant120028",
     "KlmVariant128026",
+    "KlmVariantOriginal",
 ]
