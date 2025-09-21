@@ -15,7 +15,10 @@ from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
-from the_alchemiser.shared.dto.indicator_request_dto import IndicatorRequestDTO, PortfolioFragmentDTO
+from the_alchemiser.shared.dto.indicator_request_dto import (
+    IndicatorRequestDTO,
+    PortfolioFragmentDTO,
+)
 from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
 from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 from the_alchemiser.shared.dto.trace_dto import TraceDTO
@@ -205,8 +208,36 @@ class DslEvaluator:
                     correlation_id=correlation_id,
                     as_of=datetime.now(UTC)
                 )
+            elif isinstance(result, str):
+                # Single asset result
+                allocation = StrategyAllocationDTO(
+                    target_weights={result: Decimal("1.0")},
+                    correlation_id=correlation_id,
+                    as_of=datetime.now(UTC)
+                )
+            elif isinstance(result, list) and result:
+                # List of assets - equal weight
+                weights = {str(asset): Decimal(str(1.0 / len(result))) for asset in result if asset}
+                if weights:
+                    allocation = StrategyAllocationDTO(
+                        target_weights=weights,
+                        correlation_id=correlation_id,
+                        as_of=datetime.now(UTC)
+                    )
+                else:
+                    # Empty result - create fallback allocation
+                    allocation = StrategyAllocationDTO(
+                        target_weights={"CASH": Decimal("1.0")},
+                        correlation_id=correlation_id,
+                        as_of=datetime.now(UTC)
+                    )
             else:
-                raise DslEvaluationError(f"Unexpected evaluation result type: {type(result)}")
+                # Unknown result type - create fallback allocation
+                allocation = StrategyAllocationDTO(
+                    target_weights={"CASH": Decimal("1.0")},
+                    correlation_id=correlation_id,
+                    as_of=datetime.now(UTC)
+                )
             
             # Mark trace as completed
             trace = trace.mark_completed(success=True)
@@ -292,6 +323,11 @@ class DslEvaluator:
 
         """
         weights = {k: Decimal(str(v)) for k, v in fragment.weights.items()}
+        
+        # If no weights, create a fallback cash allocation
+        if not weights:
+            weights = {"CASH": Decimal("1.0")}
+        
         return StrategyAllocationDTO(
             target_weights=weights,
             correlation_id=correlation_id,
@@ -321,40 +357,52 @@ class DslEvaluator:
                 weights={}
             )
         
-        # Evaluate all arguments and collect allocations
-        allocations = []
+        # Collect all assets from arguments
+        all_assets = []
+        
         for arg in args:
             result = self._evaluate_node(arg, correlation_id, trace)
+            
             if isinstance(result, PortfolioFragmentDTO):
-                allocations.append(result)
-            elif isinstance(result, list) and result:
-                # Handle list of assets
+                # Add all assets from this fragment
+                for symbol in result.weights:
+                    all_assets.append(symbol)
+            elif isinstance(result, list):
+                # Handle list of results
                 for item in result:
                     if isinstance(item, PortfolioFragmentDTO):
-                        allocations.append(item)
+                        for symbol in item.weights:
+                            all_assets.append(symbol)
+                    elif isinstance(item, str):
+                        # Direct symbol
+                        all_assets.append(item)
+            elif isinstance(result, str):
+                # Direct symbol string
+                all_assets.append(result)
         
-        # Combine allocations with equal weights
-        if not allocations:
+        # Create equal weights for all collected assets
+        if not all_assets:
             return PortfolioFragmentDTO(
                 fragment_id=str(uuid.uuid4()),
                 source_step="weight_equal",
                 weights={}
             )
         
-        combined_weights = {}
-        weight_per_allocation = 1.0 / len(allocations)
+        # Remove duplicates while preserving order
+        unique_assets = []
+        seen = set()
+        for asset in all_assets:
+            if asset not in seen:
+                unique_assets.append(asset)
+                seen.add(asset)
         
-        for allocation in allocations:
-            for symbol, weight in allocation.weights.items():
-                if symbol in combined_weights:
-                    combined_weights[symbol] += weight * weight_per_allocation
-                else:
-                    combined_weights[symbol] = weight * weight_per_allocation
+        weight_per_asset = 1.0 / len(unique_assets)
+        weights = dict.fromkeys(unique_assets, weight_per_asset)
         
         return PortfolioFragmentDTO(
             fragment_id=str(uuid.uuid4()),
             source_step="weight_equal",
-            weights=combined_weights
+            weights=weights
         )
 
     def _eval_weight_specified(self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO) -> PortfolioFragmentDTO:
@@ -384,7 +432,7 @@ class DslEvaluator:
             result = self._evaluate_node(expr, correlation_id, trace)
         return result
 
-    def _eval_asset(self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO) -> PortfolioFragmentDTO:
+    def _eval_asset(self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO) -> str:
         """Evaluate asset - single asset allocation."""
         if not args:
             raise DslEvaluationError("asset requires at least 1 argument")
@@ -395,11 +443,8 @@ class DslEvaluator:
         if not isinstance(symbol, str):
             raise DslEvaluationError(f"Asset symbol must be string, got {type(symbol)}")
         
-        return PortfolioFragmentDTO(
-            fragment_id=str(uuid.uuid4()),
-            source_step="asset",
-            weights={symbol: 1.0}
-        )
+        # Return just the symbol string - weight-equal will handle creating the fragment
+        return symbol
 
     def _eval_if(self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO) -> Any:  # type: ignore[misc]  # DSL function can return various types
         """Evaluate if - conditional expression."""

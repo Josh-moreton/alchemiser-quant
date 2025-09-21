@@ -24,6 +24,7 @@ from the_alchemiser.shared.events.dsl_events import (
 )
 from the_alchemiser.shared.events.handlers import EventHandler
 from the_alchemiser.shared.logging.logging_utils import get_logger
+
 from .dsl_evaluator import DslEvaluator, IndicatorService
 from .sexpr_parser import SexprParseError, SexprParser
 
