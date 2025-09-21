@@ -1,4 +1,4 @@
-"""Business Unit: strategy | Status: current
+"""Business Unit: strategy | Status: current.
 
 Original KLM strategy - exact match to CLJ implementation.
 """
@@ -31,7 +31,7 @@ class KlmVariantOriginal(BaseKLMVariant):
         )
 
     def get_overbought_config(self) -> dict[str, Any]:
-        """Overbought detection with EXACT thresholds from CLJ.
+        """Get overbought detection configuration with EXACT thresholds from CLJ.
 
         Note: Different thresholds for XLP (75), XLY (80), FAS (80), SPY (80).
         """
@@ -54,7 +54,7 @@ class KlmVariantOriginal(BaseKLMVariant):
         }
 
     def get_combined_pop_config(self) -> dict[str, Any]:
-        """Combined Pop Bot with EXACT thresholds from CLJ.
+        """Get Combined Pop Bot configuration with EXACT thresholds from CLJ.
 
         Note: LABU has different threshold (25) vs others (30).
         """
@@ -232,41 +232,38 @@ class KlmVariantOriginal(BaseKLMVariant):
             if selected_symbols:
                 # weight-equal across selected symbols
                 equal_weight = 1.0 / len(selected_symbols)
-                allocation = {symbol: equal_weight for symbol in selected_symbols}
+                allocation = dict.fromkeys(selected_symbols, equal_weight)
                 reasoning = (
                     f"KMLM Switcher: XLK RSI({xlk_rsi:.1f}) > KMLM RSI({kmlm_rsi:.1f}) "
                     f"→ Tech branch, selected {selected_symbols}"
                 )
                 return self.create_klm_decision(allocation, ActionType.BUY.value, reasoning)
-            else:
-                # Fallback if no tech symbols available
-                return self.create_klm_decision(
-                    "TECL",
-                    ActionType.BUY.value,
-                    f"KMLM Switcher: XLK RSI({xlk_rsi:.1f}) > KMLM RSI({kmlm_rsi:.1f}) → TECL (fallback)",
-                )
-        else:
-            # L/S Rotator: select-top 1 from [SQQQ, TLT]
-            ls_symbols = ["SQQQ", "TLT"]
-            selected_symbols = self._filter_and_select_by_rsi(
-                ls_symbols, indicators, "top", 1
+            # Fallback if no tech symbols available
+            return self.create_klm_decision(
+                "TECL",
+                ActionType.BUY.value,
+                f"KMLM Switcher: XLK RSI({xlk_rsi:.1f}) > KMLM RSI({kmlm_rsi:.1f}) → TECL (fallback)",
             )
+        # L/S Rotator: select-top 1 from [SQQQ, TLT]
+        ls_symbols = ["SQQQ", "TLT"]
+        selected_symbols = self._filter_and_select_by_rsi(
+            ls_symbols, indicators, "top", 1
+        )
 
-            if selected_symbols:
-                # 100% weight to selected symbol
-                selected_symbol = selected_symbols[0]
-                reasoning = (
-                    f"KMLM Switcher: XLK RSI({xlk_rsi:.1f}) ≤ KMLM RSI({kmlm_rsi:.1f}) "
-                    f"→ L/S Rotator, selected {selected_symbol}"
-                )
-                return self.create_klm_decision(selected_symbol, ActionType.BUY.value, reasoning)
-            else:
-                # Fallback if no L/S symbols available
-                return self.create_klm_decision(
-                    "TLT",
-                    ActionType.BUY.value,
-                    f"KMLM Switcher: XLK RSI({xlk_rsi:.1f}) ≤ KMLM RSI({kmlm_rsi:.1f}) → TLT (fallback)",
-                )
+        if selected_symbols:
+            # 100% weight to selected symbol
+            selected_symbol = selected_symbols[0]
+            reasoning = (
+                f"KMLM Switcher: XLK RSI({xlk_rsi:.1f}) ≤ KMLM RSI({kmlm_rsi:.1f}) "
+                f"→ L/S Rotator, selected {selected_symbol}"
+            )
+            return self.create_klm_decision(selected_symbol, ActionType.BUY.value, reasoning)
+        # Fallback if no L/S symbols available
+        return self.create_klm_decision(
+            "TLT",
+            ActionType.BUY.value,
+            f"KMLM Switcher: XLK RSI({xlk_rsi:.1f}) ≤ KMLM RSI({kmlm_rsi:.1f}) → TLT (fallback)",
+        )
 
     def _filter_and_select_by_rsi(
         self,

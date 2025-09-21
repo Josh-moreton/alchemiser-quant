@@ -39,18 +39,8 @@ from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
 
 from .base_variant import BaseKLMVariant
 from .variants import (
-    KlmVariant52022,
-    KlmVariant53018,
+    KlmVariantOriginal,
 )
-from .variants import (
-    KlmVariant41038,
-    KlmVariant50638,
-    KlmVariant83021,
-    KlmVariant120028,
-    KlmVariant128026,
-    KLMVariantNova,
-)
-from .variants import KlmVariantOriginal
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.value_objects.core_types import KLMDecision
