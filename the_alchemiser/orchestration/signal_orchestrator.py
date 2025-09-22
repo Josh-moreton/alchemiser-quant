@@ -97,12 +97,13 @@ class SignalOrchestrator:
                 # For strategies with multiple signals (like Nuclear portfolio expansion),
                 # combine them into a single display entry with all symbols
                 if len(signals) > 1:
-                    # Multiple signals - show all symbols
+                    # Multiple signals - present a concise primary symbol; keep full list separately
                     symbols = [signal.symbol.value for signal in signals if signal.action == "BUY"]
                     primary_signal = signals[0]  # Use first signal for other attributes
+                    primary_symbol = primary_signal.symbol.value
                     strategy_signals[str(strategy_type)] = {
-                        "symbol": (", ".join(symbols) if symbols else primary_signal.symbol.value),
-                        "symbols": symbols,  # Keep individual symbols for other processing
+                        "symbol": primary_symbol,
+                        "symbols": symbols,  # Keep individual symbols for other processing and display
                         "action": primary_signal.action,
                         "confidence": float(primary_signal.confidence.value),
                         "reasoning": primary_signal.reasoning,
@@ -341,11 +342,19 @@ class SignalOrchestrator:
                 strategy_name = (
                     strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
                 )
+                # Use short symbol for DTO (max length 10). If multi, pick first from list.
+                raw_symbol = signal_data.get("symbol", "UNKNOWN")
+                if signal_data.get("is_multi_symbol") and isinstance(signal_data.get("symbols"), list):
+                    symbols_list = signal_data.get("symbols") or []
+                    if symbols_list:
+                        raw_symbol = symbols_list[0]
+                # Enforce 10-char max for StrategySignalDTO.symbol
+                sanitized_symbol = str(raw_symbol)[:10]
                 signal_dto = StrategySignalDTO(
                     correlation_id=correlation_id,
                     causation_id=causation_id,
                     timestamp=datetime.now(UTC),
-                    symbol=signal_data.get("symbol", "UNKNOWN"),
+                    symbol=sanitized_symbol,
                     action=signal_data.get("action", "HOLD"),
                     confidence=Decimal(str(signal_data.get("confidence", 0.0))),
                     reasoning=signal_data.get("reasoning", "Signal generated"),

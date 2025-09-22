@@ -175,8 +175,8 @@ class TradingOrchestrator:
 
                 # Reconstruct consolidated portfolio from event signals for rebalancing
                 from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-                                ConsolidatedPortfolioDTO,
-                            )
+                    ConsolidatedPortfolioDTO,
+                )
 
                 # Extract strategy names from signals
                 source_strategies = list(
@@ -381,6 +381,7 @@ class TradingOrchestrator:
             from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
                 ConsolidatedPortfolioDTO,
             )
+
             consolidated_portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
                 allocation_dict=consolidated_portfolio_dict,
                 correlation_id=str(uuid.uuid4()),
@@ -568,6 +569,7 @@ class TradingOrchestrator:
             from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
                 ConsolidatedPortfolioDTO,
             )
+
             consolidated_portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
                 allocation_dict=consolidated_portfolio_dict,
                 correlation_id=str(uuid.uuid4()),
