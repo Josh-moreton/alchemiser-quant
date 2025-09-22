@@ -12,6 +12,10 @@ ENV/
 .clj-kondo/
 .ruff-cache/
 
+# Backup files
+*.backup
+*.bak
+
 # Node.js (not used but prevent accidental commits)
 node_modules/
 package-lock.json
