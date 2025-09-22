@@ -59,8 +59,7 @@ class SexprParser:
 
         # Compile patterns
         self.compiled_patterns = [
-            (re.compile(pattern), token_type)
-            for pattern, token_type in self.token_patterns
+            (re.compile(pattern), token_type) for pattern, token_type in self.token_patterns
         ]
 
     def tokenize(self, text: str) -> list[tuple[str, str]]:
@@ -96,9 +95,7 @@ class SexprParser:
                     break
 
             if not matched:
-                raise SexprParseError(
-                    f"Unexpected character: {text[position]}", position
-                )
+                raise SexprParseError(f"Unexpected character: {text[position]}", position)
 
         return tokens
 
@@ -123,9 +120,7 @@ class SexprParser:
 
         if remaining < len(tokens):
             remaining_tokens = tokens[remaining:]
-            raise SexprParseError(
-                f"Unexpected tokens after expression: {remaining_tokens}"
-            )
+            raise SexprParseError(f"Unexpected tokens after expression: {remaining_tokens}")
 
         return ast
 
@@ -189,9 +184,7 @@ class SexprParser:
 
         raise SexprParseError(f"Missing closing {end_token}")
 
-    def _parse_map(
-        self, tokens: list[tuple[str, str]], index: int
-    ) -> tuple[ASTNodeDTO, int]:
+    def _parse_map(self, tokens: list[tuple[str, str]], index: int) -> tuple[ASTNodeDTO, int]:
         """Parse a map expression.
 
         Args:

@@ -43,9 +43,7 @@ def create_trade_ledger(
 
     bucket = os.getenv("S3_BUCKET_NAME")
     if not bucket:
-        raise ValueError(
-            "S3_BUCKET_NAME environment variable is required for live trading"
-        )
+        raise ValueError("S3_BUCKET_NAME environment variable is required for live trading")
 
     return S3TradeLedger(bucket=bucket, account_id=account_id)
 

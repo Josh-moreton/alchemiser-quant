@@ -32,10 +32,10 @@ class ASTNodeDTO(BaseModel):
     # Node identification
     node_type: str = Field(..., min_length=1, description="Type of AST node (symbol, list, atom)")
     value: str | Decimal | None = Field(default=None, description="Node value for atoms")
-    
+
     # Tree structure
     children: list[ASTNodeDTO] = Field(default_factory=list, description="Child nodes")
-    
+
     # Metadata
     metadata: dict[str, Any] | None = Field(
         default=None, description="Additional node metadata for evaluation"
@@ -44,60 +44,46 @@ class ASTNodeDTO(BaseModel):
     @classmethod
     def symbol(cls, name: str, metadata: dict[str, Any] | None = None) -> ASTNodeDTO:
         """Create a symbol node.
-        
+
         Args:
             name: Symbol name
             metadata: Optional metadata
-            
+
         Returns:
             ASTNodeDTO representing a symbol
 
         """
-        return cls(
-            node_type="symbol",
-            value=name,
-            metadata=metadata
-        )
+        return cls(node_type="symbol", value=name, metadata=metadata)
 
     @classmethod
     def atom(cls, value: str | Decimal, metadata: dict[str, Any] | None = None) -> ASTNodeDTO:
         """Create an atom node.
-        
+
         Args:
             value: Atom value
             metadata: Optional metadata
-            
+
         Returns:
             ASTNodeDTO representing an atom
 
         """
-        return cls(
-            node_type="atom",
-            value=value,
-            metadata=metadata
-        )
+        return cls(node_type="atom", value=value, metadata=metadata)
 
     @classmethod
     def list_node(
-        cls, 
-        children: list[ASTNodeDTO], 
-        metadata: dict[str, Any] | None = None
+        cls, children: list[ASTNodeDTO], metadata: dict[str, Any] | None = None
     ) -> ASTNodeDTO:
         """Create a list node.
-        
+
         Args:
             children: Child nodes
             metadata: Optional metadata
-            
+
         Returns:
             ASTNodeDTO representing a list
 
         """
-        return cls(
-            node_type="list",
-            children=children,
-            metadata=metadata
-        )
+        return cls(node_type="list", children=children, metadata=metadata)
 
     def is_symbol(self) -> bool:
         """Check if node is a symbol."""

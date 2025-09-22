@@ -30,9 +30,7 @@ class DslStrategyEngine:
     orchestration system by implementing the StrategyEngine protocol.
     """
 
-    def __init__(
-        self, market_data_port: MarketDataPort, strategy_file: str | None = None
-    ) -> None:
+    def __init__(self, market_data_port: MarketDataPort, strategy_file: str | None = None) -> None:
         """Initialize DSL strategy engine.
 
         Args:
@@ -60,9 +58,7 @@ class DslStrategyEngine:
             market_data_service=self.market_data_port,
         )
 
-        self.logger.info(
-            f"DSL Strategy Engine initialized with file: {self.strategy_file}"
-        )
+        self.logger.info(f"DSL Strategy Engine initialized with file: {self.strategy_file}")
 
     def generate_signals(self, timestamp: datetime) -> list[StrategySignal]:
         """Generate strategy signals using DSL engine.

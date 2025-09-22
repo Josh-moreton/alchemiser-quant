@@ -31,31 +31,29 @@ class IndicatorRequestDTO(BaseModel):
     # Request identification
     request_id: str = Field(..., min_length=1, description="Unique request identifier")
     correlation_id: str = Field(..., min_length=1, description="Correlation ID for tracking")
-    
+
     # Indicator specification
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
     indicator_type: str = Field(..., min_length=1, description="Type of indicator (rsi, ma, etc.)")
     parameters: dict[str, Any] = Field(default_factory=dict, description="Indicator parameters")
-    
+
     # Optional metadata
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional request metadata")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional request metadata"
+    )
 
     @classmethod
     def rsi_request(
-        cls, 
-        request_id: str, 
-        correlation_id: str, 
-        symbol: str, 
-        window: int = 14
+        cls, request_id: str, correlation_id: str, symbol: str, window: int = 14
     ) -> IndicatorRequestDTO:
         """Create RSI indicator request.
-        
+
         Args:
             request_id: Unique request identifier
             correlation_id: Correlation ID for tracking
             symbol: Trading symbol
             window: RSI window period
-            
+
         Returns:
             IndicatorRequestDTO for RSI
 
@@ -65,25 +63,21 @@ class IndicatorRequestDTO(BaseModel):
             correlation_id=correlation_id,
             symbol=symbol,
             indicator_type="rsi",
-            parameters={"window": window}
+            parameters={"window": window},
         )
 
     @classmethod
     def moving_average_request(
-        cls, 
-        request_id: str, 
-        correlation_id: str, 
-        symbol: str, 
-        window: int = 200
+        cls, request_id: str, correlation_id: str, symbol: str, window: int = 200
     ) -> IndicatorRequestDTO:
         """Create moving average indicator request.
-        
+
         Args:
             request_id: Unique request identifier
             correlation_id: Correlation ID for tracking
             symbol: Trading symbol
             window: Moving average window period
-            
+
         Returns:
             IndicatorRequestDTO for moving average
 
@@ -93,7 +87,7 @@ class IndicatorRequestDTO(BaseModel):
             correlation_id=correlation_id,
             symbol=symbol,
             indicator_type="moving_average",
-            parameters={"window": window}
+            parameters={"window": window},
         )
 
 
@@ -114,32 +108,33 @@ class PortfolioFragmentDTO(BaseModel):
     # Fragment identification
     fragment_id: str = Field(..., min_length=1, description="Unique fragment identifier")
     source_step: str = Field(..., min_length=1, description="Evaluation step that created fragment")
-    
+
     # Allocation data
-    weights: dict[str, float] = Field(default_factory=dict, description="Symbol weights in fragment")
+    weights: dict[str, float] = Field(
+        default_factory=dict, description="Symbol weights in fragment"
+    )
     total_weight: float = Field(default=1.0, ge=0, le=1, description="Total weight of fragment")
-    
+
     # Metadata
     metadata: dict[str, Any] = Field(default_factory=dict, description="Fragment metadata")
 
     def normalize_weights(self) -> PortfolioFragmentDTO:
         """Normalize weights to sum to total_weight.
-        
+
         Returns:
             New PortfolioFragmentDTO with normalized weights
 
         """
         if not self.weights:
             return self
-        
+
         current_sum = sum(self.weights.values())
         if current_sum == 0:
             return self
-        
+
         scale_factor = self.total_weight / current_sum
         normalized_weights = {
-            symbol: weight * scale_factor 
-            for symbol, weight in self.weights.items()
+            symbol: weight * scale_factor for symbol, weight in self.weights.items()
         }
-        
+
         return self.model_copy(update={"weights": normalized_weights})

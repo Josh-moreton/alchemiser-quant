@@ -36,7 +36,9 @@ class StrategyEvaluationRequested(BaseEvent):
     """
 
     # Override event_type with default
-    event_type: str = Field(default="StrategyEvaluationRequested", description=EVENT_TYPE_DESCRIPTION)
+    event_type: str = Field(
+        default="StrategyEvaluationRequested", description=EVENT_TYPE_DESCRIPTION
+    )
 
     # Schema version for backward compatibility
     schema_version: int = Field(default=1, ge=1, description="Event schema version")
@@ -45,8 +47,10 @@ class StrategyEvaluationRequested(BaseEvent):
     strategy_id: str = Field(..., min_length=1, description="Strategy identifier to evaluate")
     strategy_config_path: str = Field(..., min_length=1, description="Path to .clj strategy file")
     universe: list[str] = Field(default_factory=list, description="Trading universe symbols")
-    as_of_date: str | None = Field(default=None, description="Optional evaluation date (ISO format)")
-    
+    as_of_date: str | None = Field(
+        default=None, description="Optional evaluation date (ISO format)"
+    )
+
     # Optional parameters
     parameters: dict[str, Any] = Field(default_factory=dict, description="Evaluation parameters")
 
@@ -68,11 +72,13 @@ class StrategyEvaluated(BaseEvent):
     allocation: StrategyAllocationDTO = Field(..., description="Final portfolio allocation")
     trace: TraceDTO = Field(..., description="Complete evaluation trace")
     success: bool = Field(..., description="Whether evaluation succeeded")
-    
+
     # Optional error information
-    error_message: str | None = Field(default=None, description="Error message if evaluation failed")
+    error_message: str | None = Field(
+        default=None, description="Error message if evaluation failed"
+    )
     error_code: str | None = Field(default=None, description="Structured error code if failed")
-    
+
     # Metadata
     evaluation_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional evaluation metadata"
@@ -95,7 +101,7 @@ class IndicatorComputed(BaseEvent):
     request_id: str = Field(..., min_length=1, description="Original request identifier")
     indicator: TechnicalIndicatorDTO = Field(..., description="Computed indicator data")
     computation_time_ms: float = Field(ge=0, description="Computation time in milliseconds")
-    
+
     # Optional metadata
     computation_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional computation metadata"
@@ -109,7 +115,9 @@ class PortfolioAllocationProduced(BaseEvent):
     """
 
     # Override event_type with default
-    event_type: str = Field(default="PortfolioAllocationProduced", description=EVENT_TYPE_DESCRIPTION)
+    event_type: str = Field(
+        default="PortfolioAllocationProduced", description=EVENT_TYPE_DESCRIPTION
+    )
 
     # Schema version for backward compatibility
     schema_version: int = Field(default=1, ge=1, description="Event schema version")
@@ -117,8 +125,10 @@ class PortfolioAllocationProduced(BaseEvent):
     # Allocation fields
     strategy_id: str = Field(..., min_length=1, description="Strategy that produced allocation")
     allocation: StrategyAllocationDTO = Field(..., description="Portfolio allocation result")
-    allocation_type: str = Field(..., min_length=1, description="Type of allocation (final, intermediate)")
-    
+    allocation_type: str = Field(
+        ..., min_length=1, description="Type of allocation (final, intermediate)"
+    )
+
     # Metadata
     allocation_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional allocation metadata"
@@ -140,9 +150,13 @@ class FilterEvaluated(BaseEvent):
     # Filter fields
     filter_expression: ASTNodeDTO = Field(..., description="Filter expression that was evaluated")
     input_symbols: list[str] = Field(default_factory=list, description="Input symbols to filter")
-    filtered_symbols: list[str] = Field(default_factory=list, description="Symbols that passed filter")
-    filter_criteria: dict[str, Any] = Field(default_factory=dict, description="Filter criteria used")
-    
+    filtered_symbols: list[str] = Field(
+        default_factory=list, description="Symbols that passed filter"
+    )
+    filter_criteria: dict[str, Any] = Field(
+        default_factory=dict, description="Filter criteria used"
+    )
+
     # Metadata
     filter_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional filter metadata"
@@ -162,14 +176,18 @@ class TopNSelected(BaseEvent):
     schema_version: int = Field(default=1, ge=1, description="Event schema version")
 
     # Selection fields
-    selection_expression: ASTNodeDTO = Field(..., description="Selection expression that was evaluated")
-    input_symbols: list[str] = Field(default_factory=list, description="Input symbols for selection")
+    selection_expression: ASTNodeDTO = Field(
+        ..., description="Selection expression that was evaluated"
+    )
+    input_symbols: list[str] = Field(
+        default_factory=list, description="Input symbols for selection"
+    )
     selected_symbols: list[str] = Field(default_factory=list, description="Selected symbols")
     selection_criteria: dict[str, Any] = Field(
         default_factory=dict, description="Selection criteria used"
     )
     n_selected: int = Field(ge=0, description="Number of symbols selected")
-    
+
     # Metadata
     selection_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional selection metadata"
@@ -189,13 +207,15 @@ class DecisionEvaluated(BaseEvent):
     schema_version: int = Field(default=1, ge=1, description="Event schema version")
 
     # Decision fields
-    decision_expression: ASTNodeDTO = Field(..., description="Decision expression that was evaluated")
+    decision_expression: ASTNodeDTO = Field(
+        ..., description="Decision expression that was evaluated"
+    )
     condition_result: bool = Field(..., description="Result of condition evaluation")
     branch_taken: str = Field(..., min_length=1, description="Branch taken (then/else)")
     branch_result: PortfolioFragmentDTO | None = Field(
         default=None, description="Result of branch evaluation"
     )
-    
+
     # Metadata
     decision_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional decision metadata"
