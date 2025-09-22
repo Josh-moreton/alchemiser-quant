@@ -13,12 +13,10 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
-from the_alchemiser.shared.types.strategy_value_objects import (
-    Confidence,
-    StrategySignal,
-)
+from the_alchemiser.shared.types.strategy_value_objects import Confidence, StrategySignal
 from the_alchemiser.strategy_v2.engines.dsl.engine import DslEngine, DslEngineError
 
 
@@ -42,8 +40,15 @@ class DslStrategyEngine:
         self.market_data_port = market_data_port  # Required by protocol
         self.logger = get_logger(__name__)
 
-        # Default strategy file if not provided
+        # Default strategy file if not provided (single-file fallback)
         self.strategy_file = strategy_file or "KLM.clj"
+
+        # Load settings to support multi-file execution
+        try:
+            self.settings = Settings()
+        except Exception:
+            # Minimal fallback settings if config load fails
+            self.settings = Settings(strategy=Settings().strategy)
 
         # Initialize DSL engine with project root as config path and real market data
         project_root = Path(__file__).parent.parent.parent.parent.parent
@@ -77,51 +82,60 @@ class DslStrategyEngine:
                 },
             )
 
-            # Evaluate DSL strategy
-            allocation, trace = self.dsl_engine.evaluate_strategy(
-                self.strategy_file, correlation_id
-            )
+            # Resolve configured files and normalized weights
+            dsl_files, normalized_file_weights = self._resolve_dsl_files_and_weights()
 
-            # Debug: Log what allocation we got
-            self.logger.info(
-                f"DSL evaluation result: {dict(allocation.target_weights)}",
-                extra={
-                    "correlation_id": correlation_id,
-                    "success": trace.success,
-                    "total_weight": sum(allocation.target_weights.values()),
-                },
-            )
+            # Evaluate each file and accumulate per-symbol weights scaled by file allocation
+            consolidated: dict[str, float] = {}
+            traces: dict[str, str] = {}
 
-            # Convert StrategyAllocationDTO to StrategySignal objects
-            signals = []
+            for f in dsl_files:
+                try:
+                    per_file_weights, trace_id, _, _ = self._evaluate_file(
+                        f, correlation_id, normalized_file_weights
+                    )
+                except Exception as e:  # pragma: no cover - safety net
+                    self.logger.error(f"DSL evaluation failed for {f}: {e}")
+                    continue
 
-            for symbol, weight in allocation.target_weights.items():
-                if weight > 0:  # Only create signals for positive allocations
+                for symbol, weight in per_file_weights.items():
+                    consolidated[symbol] = consolidated.get(symbol, 0.0) + weight
+                traces[f] = trace_id
+
+            # If nothing produced, fallback to CASH
+            if not consolidated:
+                return self._create_fallback_signals(timestamp)
+
+            # Normalize final consolidated weights to sum to 1.0 to avoid drift
+            consolidated = self._normalize_allocations(consolidated)
+
+            # Convert to StrategySignals
+            signals: list[StrategySignal] = []
+            for symbol, weight in consolidated.items():
+                if weight > 0:
                     signal = StrategySignal(
                         symbol=symbol,
-                        action="BUY",  # DSL allocations are buy signals
-                        confidence=Confidence(weight),  # Use weight as confidence
+                        action="BUY",
+                        confidence=Confidence(weight),
                         target_allocation=weight,
-                        reasoning=f"DSL allocation: {float(weight):.1%} from {self.strategy_file}",
+                        reasoning=f"DSL consolidated allocation: {weight:.1%}",
                         timestamp=timestamp,
                         strategy="DSL",
-                        data_source=f"dsl_engine:{self.strategy_file}",
+                        data_source="dsl_engine:multi",
                         metadata={
                             "correlation_id": correlation_id,
-                            "trace_id": trace.trace_id,
-                            "dsl_file": self.strategy_file,
-                            "evaluation_success": trace.success,
-                            "trace_entries": len(trace.entries),
+                            "dsl_files": dsl_files,
+                            "file_weights": normalized_file_weights,
+                            "trace_ids": traces,
                         },
                     )
                     signals.append(signal)
 
             self.logger.info(
-                f"Generated {len(signals)} DSL signals",
+                f"Generated {len(signals)} DSL consolidated signals",
                 extra={
                     "correlation_id": correlation_id,
                     "symbols": [s.symbol for s in signals],
-                    "success": trace.success,
                 },
             )
 
@@ -147,7 +161,7 @@ class DslStrategyEngine:
         fallback_signal = StrategySignal(
             symbol="CASH",
             action="BUY",
-            confidence=1.0,
+            confidence=Confidence(1.0),
             reasoning="DSL evaluation failed, fallback to cash position",
             timestamp=timestamp,
             strategy="DSL",
@@ -155,6 +169,63 @@ class DslStrategyEngine:
             metadata={"fallback": True, "dsl_file": self.strategy_file},
         )
         return [fallback_signal]
+
+    def _resolve_dsl_files_and_weights(self) -> tuple[list[str], dict[str, float]]:
+        """Resolve DSL files and normalize their weights to sum to 1.0.
+
+        Returns:
+            A tuple of (dsl_files, normalized_file_weights)
+
+        """
+        dsl_files = self.settings.strategy.dsl_files or [self.strategy_file]
+        dsl_allocs = self.settings.strategy.dsl_allocations or {self.strategy_file: 1.0}
+        total_alloc = sum(float(w) for w in dsl_allocs.values()) or 1.0
+        normalized_file_weights = {
+            f: (float(dsl_allocs.get(f, 0.0)) / total_alloc) for f in dsl_files
+        }
+        return dsl_files, normalized_file_weights
+
+    def _evaluate_file(
+        self, filename: str, correlation_id: str, normalized_file_weights: dict[str, float]
+    ) -> tuple[dict[str, float], str, float, float]:
+        """Evaluate a single DSL file and return scaled per-symbol weights.
+
+        Args:
+            filename: DSL file to evaluate
+            correlation_id: Correlation ID for tracing
+            normalized_file_weights: Precomputed normalized file weights
+
+        Returns:
+            Tuple of (per_file_scaled_weights, trace_id, file_weight, file_sum)
+
+        """
+        allocation, trace = self.dsl_engine.evaluate_strategy(filename, correlation_id)
+        file_weight = float(normalized_file_weights.get(filename, 0.0))
+        file_sum = float(sum(allocation.target_weights.values())) or 0.0
+
+        per_file_weights: dict[str, float] = {}
+        for symbol, weight in allocation.target_weights.items():
+            w = float(weight)
+            if w <= 0:
+                continue
+            per_file_weights[symbol] = file_weight * w
+
+        self.logger.info(
+            f"DSL evaluation for {filename}: {dict(allocation.target_weights)}",
+            extra={
+                "correlation_id": correlation_id,
+                "success": trace.success,
+                "file_weight": file_weight,
+                "file_sum": file_sum,
+            },
+        )
+
+        return per_file_weights, trace.trace_id, file_weight, file_sum
+
+    def _normalize_allocations(self, weights: dict[str, float]) -> dict[str, float]:
+        """Normalize a weights dict to sum to 1.0 (if possible)."""
+        total = sum(weights.values()) or 1.0
+        return {sym: w / total for sym, w in weights.items()}
 
     def validate_signals(self, signals: list[StrategySignal]) -> None:
         """Validate generated signals.
