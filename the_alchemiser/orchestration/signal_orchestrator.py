@@ -471,7 +471,9 @@ class SignalOrchestrator:
             symbols_list = signal.get("symbols")
             if isinstance(symbols_list, list):
                 return len([s for s in symbols_list if s in consolidated_portfolio])
-            return self._count_nuclear_portfolio_symbols(symbol_text, consolidated_portfolio)
+            return self._count_nuclear_portfolio_symbols(
+                symbol_text, consolidated_portfolio
+            )
         return 0
 
     def _count_nuclear_portfolio_symbols(
