@@ -85,12 +85,11 @@ class IndicatorService:
         indicator_type = request.indicator_type
         parameters = request.parameters
 
-        # Require real market data; no mocks (but allow fallback for testing)
-        use_fallback = not self.market_data_service or not self.technical_indicators
-
-        if use_fallback:
-            # For testing/development, provide reasonable fallback values
-            return self._get_fallback_indicator(request)
+        # Require real market data; no mocks
+        if not self.market_data_service or not self.technical_indicators:
+            raise DslEvaluationError(
+                "IndicatorService requires a MarketDataPort; no fallback indicators allowed"
+            )
 
         try:
             # Get real market data - 1 year of daily bars for reliable indicators
@@ -102,8 +101,7 @@ class IndicatorService:
             )
 
             if not bars:
-                # If no market data available, use fallback
-                return self._get_fallback_indicator(request)
+                raise DslEvaluationError(f"No market data available for symbol {symbol}")
 
             # Convert bars to pandas Series for technical indicators
             import pandas as pd
@@ -262,128 +260,9 @@ class IndicatorService:
             raise DslEvaluationError(f"Unsupported indicator type: {indicator_type}")
 
         except Exception as e:
-            # If any error occurs during indicator calculation, try fallback
-            try:
-                return self._get_fallback_indicator(request)
-            except Exception:
-                raise DslEvaluationError(
-                    f"Error getting indicator {indicator_type} for {symbol}: {e}"
-                ) from e
-
-    def _get_fallback_indicator(self, request: IndicatorRequestDTO) -> TechnicalIndicatorDTO:
-        """Generate fallback indicator values for testing/development.
-        
-        Args:
-            request: Indicator request
-            
-        Returns:
-            TechnicalIndicatorDTO with reasonable fallback values
-        """
-        symbol = request.symbol
-        indicator_type = request.indicator_type
-        parameters = request.parameters
-        window = parameters.get("window", 14)
-        
-        # Use the indicators module to generate mock values
-        indicator_value = TechnicalIndicators.generate_mock_indicator_value(
-            symbol, indicator_type, window
-        )
-        base_price = TechnicalIndicators.generate_mock_indicator_value(
-            symbol, "current_price", window
-        )
-        
-        if indicator_type == "rsi":
-            return TechnicalIndicatorDTO(
-                symbol=symbol,
-                timestamp=datetime.now(UTC),
-                rsi_14=indicator_value if window == 14 else None,
-                rsi_10=indicator_value if window == 10 else None,
-                rsi_20=indicator_value if window == 20 else None,
-                rsi_21=indicator_value if window == 21 else None,
-                current_price=Decimal(str(base_price)),
-                data_source="fallback_mock",
-                metadata={"value": indicator_value, "window": window},
-            )
-            
-        if indicator_type == "current_price":
-            return TechnicalIndicatorDTO(
-                symbol=symbol,
-                timestamp=datetime.now(UTC),
-                current_price=Decimal(str(indicator_value)),
-                data_source="fallback_mock",
-                metadata={"value": indicator_value},
-            )
-            
-        if indicator_type in {"moving_average", "moving_average_price"}:
-            return TechnicalIndicatorDTO(
-                symbol=symbol,
-                timestamp=datetime.now(UTC),
-                current_price=Decimal(str(base_price)),
-                ma_20=indicator_value if window == 20 else None,
-                ma_50=indicator_value if window == 50 else None,
-                ma_200=indicator_value if window == 200 else None,
-                data_source="fallback_mock",
-                metadata={"value": indicator_value, "window": window},
-            )
-            
-        if indicator_type == "moving_average_return":
-            return TechnicalIndicatorDTO(
-                symbol=symbol,
-                timestamp=datetime.now(UTC),
-                current_price=Decimal(str(base_price)),
-                ma_return_90=indicator_value if window == 90 else None,
-                data_source="fallback_mock",
-                metadata={"value": indicator_value, "window": window},
-            )
-            
-        if indicator_type == "cumulative_return":
-            return TechnicalIndicatorDTO(
-                symbol=symbol,
-                timestamp=datetime.now(UTC),
-                current_price=Decimal(str(base_price)),
-                cum_return_60=indicator_value if window == 60 else None,
-                data_source="fallback_mock",
-                metadata={"value": indicator_value, "window": window},
-            )
-            
-        if indicator_type == "exponential_moving_average_price":
-            return TechnicalIndicatorDTO(
-                symbol=symbol,
-                timestamp=datetime.now(UTC),
-                current_price=Decimal(str(base_price)),
-                ema_12=indicator_value if window == 12 else None,
-                ema_26=indicator_value if window == 26 else None,
-                data_source="fallback_mock",
-                metadata={"value": indicator_value, "window": window},
-            )
-            
-        if indicator_type == "stdev_return":
-            return TechnicalIndicatorDTO(
-                symbol=symbol,
-                timestamp=datetime.now(UTC),
-                current_price=Decimal(str(base_price)),
-                stdev_return_6=indicator_value if window == 6 else None,
-                data_source="fallback_mock",
-                metadata={"value": indicator_value, "window": window},
-            )
-            
-        if indicator_type == "max_drawdown":
-            return TechnicalIndicatorDTO(
-                symbol=symbol,
-                timestamp=datetime.now(UTC),
-                current_price=Decimal(str(base_price)),
-                data_source="fallback_mock",
-                metadata={"value": indicator_value, "window": window},
-            )
-            
-        # Default fallback for unknown indicators
-        return TechnicalIndicatorDTO(
-            symbol=symbol,
-            timestamp=datetime.now(UTC),
-            current_price=Decimal(str(base_price)),
-            data_source="fallback_mock",
-            metadata={"value": indicator_value, "window": window},
-        )
+            raise DslEvaluationError(
+                f"Error getting indicator {indicator_type} for {symbol}: {e}"
+            ) from e
 
 
 class DslEvaluator:
