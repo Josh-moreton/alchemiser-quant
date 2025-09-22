@@ -101,6 +101,7 @@ class DslStrategyEngine:
                         symbol=symbol,
                         action="BUY",  # DSL allocations are buy signals
                         confidence=Confidence(weight),  # Use weight as confidence
+                        target_allocation=weight,
                         reasoning=f"DSL allocation: {float(weight):.1%} from {self.strategy_file}",
                         timestamp=timestamp,
                         strategy="DSL",
