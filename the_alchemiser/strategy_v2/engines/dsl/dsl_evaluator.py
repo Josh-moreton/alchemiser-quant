@@ -153,7 +153,9 @@ class IndicatorService:
 
             if indicator_type == "moving_average":
                 window = int(parameters.get("window", 200))
-                ma_series = self.technical_indicators.moving_average(prices, window=window)
+                ma_series = self.technical_indicators.moving_average(
+                    prices, window=window
+                )
                 import pandas as pd
 
                 latest_ma = float(ma_series.iloc[-1]) if len(ma_series) > 0 else None
@@ -164,7 +166,9 @@ class IndicatorService:
                 return TechnicalIndicatorDTO(
                     symbol=symbol,
                     timestamp=datetime.now(UTC),
-                    current_price=Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None,
+                    current_price=(
+                        Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None
+                    ),
                     ma_20=latest_ma if window == 20 else None,
                     ma_50=latest_ma if window == 50 else None,
                     ma_200=latest_ma if window == 200 else None,
@@ -174,7 +178,9 @@ class IndicatorService:
 
             if indicator_type == "moving_average_return":
                 window = int(parameters.get("window", 21))
-                mar_series = self.technical_indicators.moving_average_return(prices, window=window)
+                mar_series = self.technical_indicators.moving_average_return(
+                    prices, window=window
+                )
                 import pandas as pd
 
                 latest = float(mar_series.iloc[-1]) if len(mar_series) > 0 else None
@@ -185,7 +191,9 @@ class IndicatorService:
                 return TechnicalIndicatorDTO(
                     symbol=symbol,
                     timestamp=datetime.now(UTC),
-                    current_price=Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None,
+                    current_price=(
+                        Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None
+                    ),
                     ma_return_90=latest if window == 90 else None,
                     data_source="real_market_data",
                     metadata={"value": latest},
@@ -193,7 +201,9 @@ class IndicatorService:
 
             if indicator_type == "cumulative_return":
                 window = int(parameters.get("window", 60))
-                cum_series = self.technical_indicators.cumulative_return(prices, window=window)
+                cum_series = self.technical_indicators.cumulative_return(
+                    prices, window=window
+                )
                 import pandas as pd
 
                 latest = float(cum_series.iloc[-1]) if len(cum_series) > 0 else None
@@ -204,7 +214,9 @@ class IndicatorService:
                 return TechnicalIndicatorDTO(
                     symbol=symbol,
                     timestamp=datetime.now(UTC),
-                    current_price=Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None,
+                    current_price=(
+                        Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None
+                    ),
                     cum_return_60=latest if window == 60 else None,
                     data_source="real_market_data",
                     metadata={"value": latest},
@@ -409,7 +421,9 @@ class DslEvaluator:
                 it = iter(node.children)
                 for key_node, val_node in zip(it, it, strict=True):
                     key = (
-                        key_node.get_symbol_name() if key_node.is_symbol() else str(key_node.value)
+                        key_node.get_symbol_name()
+                        if key_node.is_symbol()
+                        else str(key_node.value)
                     )
                     key = key.lstrip(":") if isinstance(key, str) else str(key)
                     m[key] = self._evaluate_node(val_node, correlation_id, trace)
@@ -884,7 +898,12 @@ class DslEvaluator:
 
         # For RSI indicator, create: (rsi "SYMBOL" {:window N})
         func_name = indicator_expr.children[0].get_symbol_name()
-        if func_name in {"rsi", "moving-average-price", "moving-average-return", "cumulative-return"}:
+        if func_name in {
+            "rsi",
+            "moving-average-price",
+            "moving-average-return",
+            "cumulative-return",
+        }:
             children = [ASTNodeDTO.symbol(func_name), ASTNodeDTO.atom(symbol)]
             # Add parameters if present
             if len(indicator_expr.children) > 1:
@@ -1149,7 +1168,9 @@ class DslEvaluator:
     ) -> float:
         """Evaluate moving-average-return via IndicatorService."""
         if not args:
-            raise DslEvaluationError("moving-average-return requires params and optional symbol")
+            raise DslEvaluationError(
+                "moving-average-return requires params and optional symbol"
+            )
 
         # Signature may be (moving-average-return {:window N}) or (moving-average-return "SYM" {:window N})
         idx = 0
@@ -1169,7 +1190,9 @@ class DslEvaluator:
                     window = 21
 
         if symbol_val is None:
-            raise DslEvaluationError("moving-average-return requires an explicit symbol when evaluated standalone")
+            raise DslEvaluationError(
+                "moving-average-return requires an explicit symbol when evaluated standalone"
+            )
 
         request = IndicatorRequestDTO(
             request_id=str(uuid.uuid4()),
@@ -1215,7 +1238,9 @@ class DslEvaluator:
                     window = 60
 
         if symbol_val is None:
-            raise DslEvaluationError("cumulative-return requires an explicit symbol when evaluated standalone")
+            raise DslEvaluationError(
+                "cumulative-return requires an explicit symbol when evaluated standalone"
+            )
 
         request = IndicatorRequestDTO(
             request_id=str(uuid.uuid4()),
