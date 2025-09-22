@@ -33,7 +33,7 @@ Parameters:
 
   AlpacaEndpoint:
     Type: String
-    Default: https://paper-api.alpaca.markets
+    Default: https://paper-api.alpaca.markets/v2
     Description: Alpaca API endpoint; defaults to paper for dev, live is used for prod
 
 Conditions:
