@@ -439,6 +439,19 @@ class DslEvaluator:
 
     # DSL function implementations
 
+    def _as_decimal(self, val: DSLValue) -> Decimal:
+        """Coerce a DSLValue to Decimal for numeric comparisons."""
+        if isinstance(val, Decimal):
+            return val
+        if isinstance(val, (int, float)):
+            return Decimal(str(val))
+        if isinstance(val, str):
+            try:
+                return Decimal(val)
+            except Exception:
+                return Decimal("0")
+        return Decimal("0")
+
     def _eval_defsymphony(
         self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
     ) -> DSLValue:
@@ -765,57 +778,54 @@ class DslEvaluator:
                     modified_indicator = self._create_indicator_with_symbol(
                         indicator_expr, asset
                     )
-                    score = self._evaluate_node(
+                    score_val = self._evaluate_node(
                         modified_indicator, correlation_id, trace
                     )
                 else:
-                    score = self._evaluate_node(indicator_expr, correlation_id, trace)
+                    score_val = self._evaluate_node(indicator_expr, correlation_id, trace)
 
-                asset_scores.append((asset, float(score)))
+                coerced: float
+                if isinstance(score_val, (int, float, Decimal)):
+                    coerced = float(score_val)
+                elif isinstance(score_val, str):
+                    try:
+                        coerced = float(Decimal(score_val))
+                    except Exception:
+                        coerced = 50.0
+                else:
+                    coerced = 50.0
+
+                asset_scores.append((asset, coerced))
             except Exception:
                 # If evaluation fails, use neutral score
                 asset_scores.append((asset, 50.0))
 
         # Apply selector
-        selector_result = self._evaluate_node(selector_expr, correlation_id, trace)
-
-        # Determine how many to select
+        # Determine how many to select (top/bottom)
         n_select = 1
         select_type = "top"
-        if callable(selector_result):
-            # Selector is a function, apply it
-            try:
-                selected_assets = selector_result(asset_scores)
-            except Exception:
-                selected_assets = [asset_scores[0][0]] if asset_scores else []
+        if selector_expr.is_list() and selector_expr.children:
+            func_name = selector_expr.children[0].get_symbol_name()
+            if func_name == "select-top":
+                select_type = "top"
+                if len(selector_expr.children) > 1:
+                    n_val = self._evaluate_node(selector_expr.children[1], correlation_id, trace)
+                    if isinstance(n_val, (int, Decimal)):
+                        n_select = int(n_val)
+            elif func_name == "select-bottom":
+                select_type = "bottom"
+                if len(selector_expr.children) > 1:
+                    n_val = self._evaluate_node(selector_expr.children[1], correlation_id, trace)
+                    if isinstance(n_val, (int, Decimal)):
+                        n_select = int(n_val)
+
+        # Sort and select
+        if select_type == "top":
+            sorted_assets = sorted(asset_scores, key=lambda x: x[1], reverse=True)
         else:
-            # Try to parse selector manually
-            if selector_expr.is_list() and selector_expr.children:
-                func_name = selector_expr.children[0].get_symbol_name()
-                if func_name == "select-top":
-                    select_type = "top"
-                    if len(selector_expr.children) > 1:
-                        n_select = int(
-                            self._evaluate_node(
-                                selector_expr.children[1], correlation_id, trace
-                            )
-                        )
-                elif func_name == "select-bottom":
-                    select_type = "bottom"
-                    if len(selector_expr.children) > 1:
-                        n_select = int(
-                            self._evaluate_node(
-                                selector_expr.children[1], correlation_id, trace
-                            )
-                        )
+            sorted_assets = sorted(asset_scores, key=lambda x: x[1])
 
-            # Sort and select
-            if select_type == "top":
-                sorted_assets = sorted(asset_scores, key=lambda x: x[1], reverse=True)
-            else:
-                sorted_assets = sorted(asset_scores, key=lambda x: x[1])
-
-            selected_assets = [asset for asset, score in sorted_assets[:n_select]]
+        selected_assets = [asset for asset, _score in sorted_assets[:n_select]]
 
         # Create equal weight allocation for selected assets
         if selected_assets:
@@ -892,18 +902,9 @@ class DslEvaluator:
         if len(args) != 2:
             raise DslEvaluationError("> requires exactly 2 arguments")
 
-        left = self._evaluate_node(args[0], correlation_id, trace)
-        right = self._evaluate_node(args[1], correlation_id, trace)
-
-        # Use Decimal for precise comparison
-        def to_decimal(val: int | float | Decimal | str) -> Decimal:
-            if isinstance(val, Decimal):
-                return val
-            if isinstance(val, (int, float)):
-                return Decimal(str(val))
-            return Decimal(str(val))
-
-        return to_decimal(left) > to_decimal(right)
+        left_v = self._evaluate_node(args[0], correlation_id, trace)
+        right_v = self._evaluate_node(args[1], correlation_id, trace)
+        return self._as_decimal(left_v) > self._as_decimal(right_v)
 
     def _eval_less_than(
         self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
@@ -912,18 +913,9 @@ class DslEvaluator:
         if len(args) != 2:
             raise DslEvaluationError("< requires exactly 2 arguments")
 
-        left = self._evaluate_node(args[0], correlation_id, trace)
-        right = self._evaluate_node(args[1], correlation_id, trace)
-
-        # Use Decimal for precise comparison
-        def to_decimal(val: int | float | Decimal | str) -> Decimal:
-            if isinstance(val, Decimal):
-                return val
-            if isinstance(val, (int, float)):
-                return Decimal(str(val))
-            return Decimal(str(val))
-
-        return to_decimal(left) < to_decimal(right)
+        left_v = self._evaluate_node(args[0], correlation_id, trace)
+        right_v = self._evaluate_node(args[1], correlation_id, trace)
+        return self._as_decimal(left_v) < self._as_decimal(right_v)
 
     def _eval_greater_equal(
         self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
@@ -932,18 +924,9 @@ class DslEvaluator:
         if len(args) != 2:
             raise DslEvaluationError(">= requires exactly 2 arguments")
 
-        left = self._evaluate_node(args[0], correlation_id, trace)
-        right = self._evaluate_node(args[1], correlation_id, trace)
-
-        # Use Decimal for precise comparison
-        def to_decimal(val: int | float | Decimal | str) -> Decimal:
-            if isinstance(val, Decimal):
-                return val
-            if isinstance(val, (int, float)):
-                return Decimal(str(val))
-            return Decimal(str(val))
-
-        return to_decimal(left) >= to_decimal(right)
+        left_v = self._evaluate_node(args[0], correlation_id, trace)
+        right_v = self._evaluate_node(args[1], correlation_id, trace)
+        return self._as_decimal(left_v) >= self._as_decimal(right_v)
 
     def _eval_less_equal(
         self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
@@ -952,18 +935,9 @@ class DslEvaluator:
         if len(args) != 2:
             raise DslEvaluationError("<= requires exactly 2 arguments")
 
-        left = self._evaluate_node(args[0], correlation_id, trace)
-        right = self._evaluate_node(args[1], correlation_id, trace)
-
-        # Use Decimal for precise comparison
-        def to_decimal(val: int | float | Decimal | str) -> Decimal:
-            if isinstance(val, Decimal):
-                return val
-            if isinstance(val, (int, float)):
-                return Decimal(str(val))
-            return Decimal(str(val))
-
-        return to_decimal(left) <= to_decimal(right)
+        left_v = self._evaluate_node(args[0], correlation_id, trace)
+        right_v = self._evaluate_node(args[1], correlation_id, trace)
+        return self._as_decimal(left_v) <= self._as_decimal(right_v)
 
     def _eval_equal(
         self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO

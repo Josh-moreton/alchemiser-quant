@@ -33,7 +33,7 @@ from the_alchemiser.shared.types.exceptions import DataProviderError
 from the_alchemiser.shared.types.strategy_types import StrategyType
 from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
 from the_alchemiser.shared.value_objects.symbol import Symbol
-from the_alchemiser.strategy_v2.engines.nuclear import NUCLEAR_SYMBOLS
+from the_alchemiser.strategy_v2.engines.nuclear import NUCLEAR_SYMBOLS  # type: ignore[import-untyped]
 
 # Nuclear strategy symbol constants
 # Moved to strategy_v2.engines.nuclear.constants for shared access
