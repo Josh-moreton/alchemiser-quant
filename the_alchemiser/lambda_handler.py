@@ -58,11 +58,11 @@ def _determine_trading_mode(mode: str) -> str:
     return "paper" if endpoint and "paper" in endpoint.lower() else "live"
 
 
-def _build_response_message(mode: str, trading_mode: str, *, result: bool) -> str:
+def _build_response_message(_mode: str, trading_mode: str, *, result: bool) -> str:
     """Build response message based on mode and result.
 
     Args:
-        mode: Execution mode
+        _mode: Execution mode (currently unused but reserved for future formatting)
         trading_mode: Trading mode (paper/live/n/a)
         result: Execution result
 

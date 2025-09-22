@@ -261,7 +261,7 @@ class SettlementMonitor:
         """
         logger.info(
             f"💰 Waiting for ${target_buying_power} buying power release from "
-            f"{len(sell_order_ids)} sell orders"
+            f"{len(sell_order_ids)} sell orders (correlation: {correlation_id})"
         )
 
         start_time = datetime.now(UTC)

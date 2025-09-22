@@ -43,7 +43,7 @@ class QuoteProvider:
         self.config = config or ExecutionConfig()
 
     def get_quote_with_validation(
-        self, symbol: str, order_size: float
+        self, symbol: str, _order_size: float
     ) -> tuple[QuoteModel, bool] | None:
         """Get validated quote data from streaming source with REST API fallback.
 
@@ -53,7 +53,7 @@ class QuoteProvider:
 
         Args:
             symbol: Stock symbol
-            order_size: Size of order to place (in shares)
+            _order_size: Size of order to place (in shares) - currently unused but reserved for future validation logic
 
         Returns:
             (QuoteModel, used_fallback) if valid quote available, otherwise None
