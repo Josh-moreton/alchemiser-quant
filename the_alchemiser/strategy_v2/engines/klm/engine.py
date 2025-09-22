@@ -1,10 +1,10 @@
 """Business Unit: strategy | Status: current.
 
-KLM Strategy Ensemble Engine.
+KLM Strategy Engine.
 
-Multi-strategy ensemble system that implements the StrategyEngine protocol
-and generates typed StrategySignal objects. Evaluates all KLM variants and
-selects the best performer based on volatility-adjusted returns.
+Single-variant KLM strategy system that implements the StrategyEngine protocol
+and generates typed StrategySignal objects. Uses the Original CLJ variant
+for exact parity with the original Clojure specification.
 
 This is the typed migration of KLMStrategyEnsemble, designed to work with
 MarketDataPort and output StrategySignal value objects.
@@ -53,26 +53,25 @@ else:
 
 
 class KLMEngine(StrategyEngine):
-    """Typed KLM Strategy Ensemble implementing StrategyEngine protocol.
+    """KLM Strategy Engine implementing StrategyEngine protocol.
 
-    Implements the complete Clojure ensemble architecture:
-    1. Evaluates all strategy variants
-    2. Applies volatility filter (stdev-return {:window 5})
-    3. Selects top performer (select-top 1)
-    4. Returns typed StrategySignal objects
+    Implements the Original CLJ strategy specification:
+    1. Evaluates the Original KLM variant
+    2. Returns typed StrategySignal objects
+    3. Maintains exact parity with CLJ implementation
     """
 
     def __init__(self, market_data_port: MarketDataPort) -> None:
         """Wire dependencies and initialize variants, symbols, and config."""
         self.market_data_port = market_data_port
-        self.strategy_name = "KLM_Ensemble"
+        self.strategy_name = "KLM_Original"
         self.logger = logging.getLogger(f"Strategy.{self.strategy_name}")
         self.indicators = TechnicalIndicators()
         self.confidence_config = ConfidenceConfig.default()
 
-        # Initialize all strategy variants
+        # Initialize strategy variant
         self.strategy_variants: list[BaseKLMVariant] = [
-            # ONLY USE THE ORIGINAL VARIANT
+            # Use only the Original variant for exact CLJ parity
             KlmVariantOriginal(),  # Exact match to original CLJ strategy
         ]
 
@@ -119,7 +118,7 @@ class KLMEngine(StrategyEngine):
         )
 
         self.logger.info(
-            f"KLM Ensemble initialized with {len(self.strategy_variants)} variants"
+            f"KLM Engine initialized with {len(self.strategy_variants)} variant (Original CLJ)"
         )
 
     def get_required_symbols(self) -> list[str]:
@@ -175,7 +174,7 @@ class KLMEngine(StrategyEngine):
         except Exception as e:
             self.logger.error(f"Error generating KLM signals: {e}")
             raise StrategyExecutionError(
-                f"KLM ensemble signal generation failed: {e}",
+                f"KLM Original strategy signal generation failed: {e}",
                 strategy_name=self.strategy_name,
             ) from e
 
@@ -275,20 +274,20 @@ class KLMEngine(StrategyEngine):
         indicators: dict[str, TechnicalIndicatorDTO],
         market_data: dict[str, pd.DataFrame],
     ) -> tuple[str | dict[str, float], str, str, str]:
-        """Evaluate all variants and select the best performer - maintains original logic."""
-        # This mirrors the original KLMStrategyEnsemble.evaluate_ensemble method
+        """Evaluate the Original KLM variant."""
+        # Since we only have one variant, evaluation is simplified
         variant_results = self._evaluate_all_variants(indicators, market_data)
 
         if not variant_results:
             return (
                 "BIL",
                 ActionType.HOLD.value,
-                "No variants produced valid results",
+                "No variant produced valid results",
                 "Default",
             )
 
-        # Select best variant based on performance
-        best_result, best_variant = self._select_best_variant(variant_results)
+        # Get the single variant result
+        best_result, best_variant = variant_results[0][1], variant_results[0][0]
 
         if best_result is None or best_variant is None:
             return "BIL", ActionType.HOLD.value, "No valid variant result", "Default"
@@ -301,16 +300,16 @@ class KLMEngine(StrategyEngine):
         # Validate the result components before proceeding
         if symbol_or_allocation is None:
             self.logger.warning(
-                "Best variant returned None for symbol/allocation, using BIL"
+                "Variant returned None for symbol/allocation, using BIL"
             )
             symbol_or_allocation = "BIL"
         if action is None or action not in ["BUY", "SELL", "HOLD"]:
             self.logger.warning(
-                f"Best variant returned invalid action '{action}', using HOLD"
+                f"Variant returned invalid action '{action}', using HOLD"
             )
             action = ActionType.HOLD.value
         if reason is None:
-            reason = "KLM Ensemble Selection"
+            reason = "KLM Original Strategy"
 
         # Build detailed analysis
         detailed_reason = self._build_detailed_klm_analysis(
@@ -456,7 +455,7 @@ class KLMEngine(StrategyEngine):
         self,
         variant_results: list[tuple[BaseKLMVariant, KLMResult, float]],
     ) -> tuple[KLMResult, BaseKLMVariant | None]:
-        """Select the best performing variant from results."""
+        """Select the single variant result (simplified since we only have one variant)."""
         if not variant_results:
             # Return a default "no decision" result
             no_decision: KLMDecision = {
@@ -466,34 +465,22 @@ class KLMEngine(StrategyEngine):
             }
             return no_decision, None
 
-        # Sort by performance score (descending)
-        sorted_results = sorted(variant_results, key=lambda x: x[2], reverse=True)
-        best_variant, best_result, best_performance = sorted_results[0]
+        # Since we only have one variant, return it
+        best_variant, best_result, best_performance = variant_results[0]
 
         self.logger.info(
-            f"Selected variant: {best_variant.name} (performance: {best_performance:.4f})"
-        )
-        self.logger.debug(
-            f"All variant performances: {[(v.name, p) for v, _, p in sorted_results]}"
+            f"Using variant: {best_variant.name} (performance: {best_performance:.4f})"
         )
 
         return best_result, best_variant
 
     def _calculate_variant_performance(self, variant: BaseKLMVariant) -> float:
-        """Calculate performance metric for variant selection."""
-        # This would ideally use historical performance data
-        # For now, return a simple metric based on variant type
-        performance_map = {
-            "KlmVariant50638": 0.85,
-            "KlmVariant128026": 0.82,
-            "KlmVariant120028": 0.78,
-            "KlmVariant52022": 0.75,
-            "KlmVariant53018": 0.88,  # Scale-In strategy
-            "KlmVariant41038": 0.70,
-            "KLMVariantNova": 0.90,  # Short-term optimization
-            "KlmVariant83021": 0.72,
-        }
-        return performance_map.get(variant.__class__.__name__, 0.5)
+        """Calculate performance metric for variant selection.
+        
+        Since we only have the Original variant, return a consistent score.
+        """
+        # With only the Original variant, return a standard performance score
+        return 1.0
 
     def _build_detailed_klm_analysis(
         self,
@@ -509,7 +496,7 @@ class KLMEngine(StrategyEngine):
         analysis_lines = []
 
         # Header with current market conditions
-        analysis_lines.append("=== KLM ENSEMBLE STRATEGY ANALYSIS ===")
+        analysis_lines.append("=== KLM ORIGINAL STRATEGY ANALYSIS ===")
         analysis_lines.append("")
 
         # Market Overview
@@ -536,14 +523,12 @@ class KLMEngine(StrategyEngine):
 
         analysis_lines.append("")
 
-        # Ensemble Selection Process
-        analysis_lines.append("Ensemble Selection Process:")
+        # Strategy Selection Process
+        analysis_lines.append("Strategy Implementation:")
         analysis_lines.append("")
-        analysis_lines.append(
-            f"• Evaluated {len(all_variant_results)} strategy variants"
-        )
+        analysis_lines.append("• Using Original CLJ variant for exact parity")
         analysis_lines.append(f"• Selected Variant: {selected_variant.name}")
-        analysis_lines.append("• Selection Method: Volatility-adjusted performance")
+        analysis_lines.append("• Implementation: Direct CLJ translation")
         analysis_lines.append("")
 
         # Target Selection and Rationale
@@ -591,8 +576,8 @@ class KLMEngine(StrategyEngine):
         # Risk Management Note
         analysis_lines.append("Risk Management:")
         analysis_lines.append("")
-        analysis_lines.append("• Dynamic variant selection based on recent performance")
-        analysis_lines.append("• Ensemble approach reduces single-strategy risk")
+        analysis_lines.append("• Original CLJ strategy implementation")
+        analysis_lines.append("• Exact parity with proven backtested results")
         analysis_lines.append("• Real-time adaptation to market conditions")
 
         return "\n".join(analysis_lines)
@@ -744,7 +729,7 @@ class KLMEngine(StrategyEngine):
             action="HOLD",
             confidence=Confidence(config.hold_confidence),
             target_allocation=Percentage(Decimal("1.0")),
-            reasoning=f"KLM Ensemble: {reason}",
+            reasoning=f"KLM Original: {reason}",
             timestamp=now,
         )
         return [signal]
