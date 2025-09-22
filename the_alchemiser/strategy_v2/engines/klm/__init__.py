@@ -2,7 +2,7 @@
 
 KLM Strategy Module.
 
-Ensemble strategy with multiple variants for different market conditions.
+Simplified KLM strategy implementing the original CLJ specification directly.
 """
 
 from __future__ import annotations
