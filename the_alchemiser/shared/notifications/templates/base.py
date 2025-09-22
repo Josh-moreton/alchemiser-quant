@@ -31,7 +31,7 @@ class BaseEmailTemplate:
         """
 
     @staticmethod
-    def get_header(title: str, subtitle: str = "Quantitative Trading System") -> str:
+    def get_header(_title: str, subtitle: str = "Quantitative Trading System") -> str:
         """Get HTML header section."""
         return f"""
         <tr>
@@ -52,7 +52,7 @@ class BaseEmailTemplate:
         title: str,
         status: str,
         status_color: str,
-        status_emoji: str,
+        _status_emoji: str,
         timestamp: datetime | None = None,
     ) -> str:
         """Get combined header and status in one section."""

@@ -346,11 +346,11 @@ class EventDrivenOrchestrator:
             # Don't let notification failure break the workflow
             self.logger.warning(f"Failed to send trading notification: {e}")
 
-    def _perform_reconciliation(self, event: TradeExecuted) -> None:
+    def _perform_reconciliation(self, _event: TradeExecuted) -> None:
         """Perform post-trade reconciliation workflow.
 
         Args:
-            event: The trade executed event
+            _event: The trade executed event (currently unused but reserved for future reconciliation logic)
 
         """
         self.logger.info("🔄 Starting post-trade reconciliation")

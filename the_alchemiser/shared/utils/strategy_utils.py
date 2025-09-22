@@ -13,7 +13,7 @@ from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.types.strategy_types import StrategyType
 
 
-def get_strategy_allocations(settings: Settings) -> dict[StrategyType, float]:
+def get_strategy_allocations(_settings: Settings) -> dict[StrategyType, float]:
     """Extract strategy allocations from configuration with safe defaults.
 
     This function consolidates the strategy allocation extraction logic that was
@@ -23,7 +23,7 @@ def get_strategy_allocations(settings: Settings) -> dict[StrategyType, float]:
     ensuring consistent behavior across all callers.
 
     Args:
-        settings: Application settings containing strategy configuration
+        _settings: Application settings containing strategy configuration (currently unused, returns hardcoded DSL allocation)
 
     Returns:
         Dictionary mapping StrategyType to allocation percentages
