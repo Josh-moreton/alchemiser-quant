@@ -287,8 +287,10 @@ class KLMEngine(StrategyEngine):
           - 100% weight to selected one
         """
         # Get RSI values for comparison
-        xlk_rsi = indicators["XLK"].rsi_10 if "XLK" in indicators else 50
-        kmlm_rsi = indicators["KMLM"].rsi_10 if "KMLM" in indicators else 50
+        xlk_rsi_val = indicators["XLK"].rsi_10 if "XLK" in indicators else None
+        kmlm_rsi_val = indicators["KMLM"].rsi_10 if "KMLM" in indicators else None
+        xlk_rsi = float(xlk_rsi_val) if xlk_rsi_val is not None else 50.0
+        kmlm_rsi = float(kmlm_rsi_val) if kmlm_rsi_val is not None else 50.0
 
         if xlk_rsi > kmlm_rsi:
             # Tech branch: select-bottom 2 from [TECL, SOXL, SVIX]

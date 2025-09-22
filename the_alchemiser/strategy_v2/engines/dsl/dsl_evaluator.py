@@ -10,7 +10,7 @@ and indicator service integration.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -37,13 +37,14 @@ if TYPE_CHECKING:
 
 
 # Values that may result from evaluating a DSL node
-DSLValue = (
-    "PortfolioFragmentDTO"
+type DSLValue = (
+    PortfolioFragmentDTO
     | dict[str, float | int | Decimal | str]
     | list["DSLValue"]
     | str
     | int
     | float
+    | bool
     | Decimal
     | None
 )
@@ -146,37 +147,34 @@ class IndicatorService:
         mock_rsi_values = {
             # High RSI values (>79) to trigger UVXY allocation in strategies
             "QQQE": 80.0,  # Trigger UVXY path in KLM
-            "VTV": 75.0,   # Safe value
-            "VOX": 82.0,   # Trigger UVXY path
+            "VTV": 75.0,  # Safe value
+            "VOX": 82.0,  # Trigger UVXY path
             "TECL": 85.0,  # High RSI
             "VOOG": 70.0,  # Safe value
             "VOOV": 65.0,  # Safe value
-            "XLP": 76.0,   # Trigger UVXY path (>75)
+            "XLP": 76.0,  # Trigger UVXY path (>75)
             "TQQQ": 25.0,  # Low RSI (<30) to trigger pop condition
-            "XLY": 75.0,   # Safe value
-            "FAS": 70.0,   # Safe value
-            "SPY": 75.0,   # Safe value
+            "XLY": 75.0,  # Safe value
+            "FAS": 70.0,  # Safe value
+            "SPY": 75.0,  # Safe value
             "SOXL": 28.0,  # Low RSI for pop condition
             "SPXL": 28.0,  # Low RSI for pop condition
             "LABU": 20.0,  # Very low RSI (<25) for pop condition
-            
             # Key comparison pairs for strategy decisions
-            "XLK": 65.0,   # For XLK vs KMLM comparison
+            "XLK": 65.0,  # For XLK vs KMLM comparison
             "KMLM": 70.0,  # Higher than XLK to trigger certain paths
-            
             # Nuclear strategy symbols
             "IOO": 75.0,
             "XLF": 70.0,
-            "PSQ": 32.0,   # Low RSI for short strategy
+            "PSQ": 32.0,  # Low RSI for short strategy
             "TLT": 45.0,
             "IEF": 50.0,
             "QQQ": 60.0,
-            
             # TECL strategy symbols
             "UVXY": 75.0,  # Medium-high for volatility strategy
-            "BIL": 50.0,   # Neutral for bonds
+            "BIL": 50.0,  # Neutral for bonds
         }
-        
+
         # Strategic current prices for price-based comparisons
         mock_current_prices = {
             "SPY": 420.0,
@@ -188,10 +186,10 @@ class IndicatorService:
             "TLT": 95.0,
             "BIL": 91.5,
         }
-        
+
         rsi_value = mock_rsi_values.get(symbol, 50.0)  # Neutral default
         current_price = mock_current_prices.get(symbol, 100.0)  # Default price
-        
+
         return TechnicalIndicatorDTO(
             symbol=symbol,
             timestamp=datetime.now(UTC),
@@ -223,8 +221,10 @@ class DslEvaluator:
         self.indicator_service = indicator_service
         self.event_bus = event_bus
 
-        # Whitelisted symbols for DSL evaluation
-        self.symbol_table = {
+        # Whitelisted functions for DSL evaluation
+        self.symbol_table: dict[
+            str, Callable[[list[ASTNodeDTO], str, TraceDTO], DSLValue]
+        ] = {
             # Core functions
             "defsymphony": self._eval_defsymphony,
             "weight-equal": self._eval_weight_equal,
@@ -378,11 +378,8 @@ class DslEvaluator:
         if node.is_atom():
             return node.get_atom_value()
         if node.is_symbol():
-            symbol_name = node.get_symbol_name()
-            if symbol_name in self.symbol_table:
-                return self.symbol_table[symbol_name]
-            # For unknown symbols, return the symbol name as string
-            return symbol_name
+            # Always return the symbol name; functions are invoked by list application
+            return node.get_symbol_name()
         if node.is_list():
             if not node.children:
                 return []
@@ -442,7 +439,9 @@ class DslEvaluator:
 
     # DSL function implementations
 
-    def _eval_defsymphony(self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO) -> DSLValue:
+    def _eval_defsymphony(
+        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+    ) -> DSLValue:
         """Evaluate defsymphony - main strategy definition."""
         if len(args) < 3:
             raise DslEvaluationError("defsymphony requires at least 3 arguments")
@@ -486,7 +485,7 @@ class DslEvaluator:
                             # Recursively process nested lists
                             assets.extend(process_list_items(item))
                     return assets
-                
+
                 nested_assets = process_list_items(result)
                 all_assets.extend(nested_assets)
             elif isinstance(result, str):
@@ -520,29 +519,33 @@ class DslEvaluator:
         self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
     ) -> PortfolioFragmentDTO:
         """Evaluate weight-specified - specified weight allocation.
-        
+
         Format: (weight-specified weight1 asset1 weight2 asset2 ...)
         """
         if len(args) < 2 or len(args) % 2 != 0:
-            raise DslEvaluationError("weight-specified requires pairs of weight and asset arguments")
-        
+            raise DslEvaluationError(
+                "weight-specified requires pairs of weight and asset arguments"
+            )
+
         weights = {}
-        
+
         # Process weight-asset pairs
         for i in range(0, len(args), 2):
             weight_node = args[i]
             asset_node = args[i + 1]
-            
+
             # Evaluate weight (should be a number)
             weight_value = self._evaluate_node(weight_node, correlation_id, trace)
             if not isinstance(weight_value, (int, float, Decimal)):
-                raise DslEvaluationError(f"Weight must be a number, got {type(weight_value)}")
-            
+                raise DslEvaluationError(
+                    f"Weight must be a number, got {type(weight_value)}"
+                )
+
             weight = float(weight_value)
-            
+
             # Evaluate asset (should be a symbol or asset result)
             asset_result = self._evaluate_node(asset_node, correlation_id, trace)
-            
+
             if isinstance(asset_result, str):
                 # Direct symbol
                 weights[asset_result] = weight
@@ -554,36 +557,40 @@ class DslEvaluator:
                     else:
                         weights[symbol] = frag_weight * weight
             else:
-                raise DslEvaluationError(f"Expected asset symbol or fragment, got {type(asset_result)}")
-        
+                raise DslEvaluationError(
+                    f"Expected asset symbol or fragment, got {type(asset_result)}"
+                )
+
         return PortfolioFragmentDTO(
             fragment_id=str(uuid.uuid4()),
             source_step="weight_specified",
-            weights=weights
+            weights=weights,
         )
 
     def _eval_weight_inverse_volatility(
         self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
     ) -> PortfolioFragmentDTO:
         """Evaluate weight-inverse-volatility - inverse volatility weighting.
-        
+
         Format: (weight-inverse-volatility window [assets...])
         """
         if not args:
-            raise DslEvaluationError("weight-inverse-volatility requires window and assets")
-        
+            raise DslEvaluationError(
+                "weight-inverse-volatility requires window and assets"
+            )
+
         # First argument is the window
         window_node = args[0]
         window = self._evaluate_node(window_node, correlation_id, trace)
-        
+
         if not isinstance(window, (int, float, Decimal)):
             raise DslEvaluationError(f"Window must be a number, got {type(window)}")
-        
+
         # Collect assets from remaining arguments
         all_assets: list[str] = []
         for arg in args[1:]:
             result = self._evaluate_node(arg, correlation_id, trace)
-            
+
             if isinstance(result, PortfolioFragmentDTO):
                 all_assets.extend(result.weights.keys())
             elif isinstance(result, list):
@@ -594,14 +601,14 @@ class DslEvaluator:
                         all_assets.append(item)
             elif isinstance(result, str):
                 all_assets.append(result)
-        
+
         if not all_assets:
             return PortfolioFragmentDTO(
                 fragment_id=str(uuid.uuid4()),
                 source_step="weight_inverse_volatility",
-                weights={}
+                weights={},
             )
-        
+
         # Calculate inverse volatility weights
         # For now, use mock volatilities - in real implementation would calculate from price history
         mock_volatilities = {
@@ -613,29 +620,31 @@ class DslEvaluator:
             "TQQQ": 0.6,
             "SQQQ": 0.6,
         }
-        
+
         # Calculate inverse weights
         inverse_weights = {}
         total_inverse = 0.0
-        
+
         for asset in all_assets:
             volatility = mock_volatilities.get(asset, 0.25)  # Default volatility
             inverse_vol = 1.0 / volatility
             inverse_weights[asset] = inverse_vol
             total_inverse += inverse_vol
-        
+
         # Normalize to sum to 1
         normalized_weights = {}
         for asset, inv_weight in inverse_weights.items():
             normalized_weights[asset] = inv_weight / total_inverse
-        
+
         return PortfolioFragmentDTO(
             fragment_id=str(uuid.uuid4()),
             source_step="weight_inverse_volatility",
-            weights=normalized_weights
+            weights=normalized_weights,
         )
 
-    def _eval_group(self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO) -> DSLValue:
+    def _eval_group(
+        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+    ) -> DSLValue:
         """Evaluate group - grouping construct."""
         if len(args) < 2:
             raise DslEvaluationError("group requires at least 2 arguments")
@@ -668,7 +677,9 @@ class DslEvaluator:
         # Return just the symbol string - weight-equal will handle creating the fragment
         return symbol
 
-    def _eval_if(self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO) -> DSLValue:
+    def _eval_if(
+        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+    ) -> DSLValue:
         """Evaluate if - conditional expression."""
         if len(args) < 2:
             raise DslEvaluationError("if requires at least 2 arguments")
@@ -714,20 +725,22 @@ class DslEvaluator:
         self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
     ) -> PortfolioFragmentDTO:
         """Evaluate filter - filter assets by criteria and select top/bottom.
-        
+
         Format: (filter indicator selector assets)
         Example: (filter (rsi {:window 10}) (select-top 1) [(asset "A") (asset "B")])
         """
         if len(args) < 3:
-            raise DslEvaluationError("filter requires indicator, selector, and assets arguments")
-        
+            raise DslEvaluationError(
+                "filter requires indicator, selector, and assets arguments"
+            )
+
         indicator_expr = args[0]
-        selector_expr = args[1] 
+        selector_expr = args[1]
         assets_expr = args[2]
-        
+
         # Evaluate the assets list
         assets_result = self._evaluate_node(assets_expr, correlation_id, trace)
-        
+
         # Extract assets from the result
         assets = []
         if isinstance(assets_result, list):
@@ -736,14 +749,12 @@ class DslEvaluator:
                     assets.append(item)
                 elif isinstance(item, PortfolioFragmentDTO):
                     assets.extend(item.weights.keys())
-        
+
         if not assets:
             return PortfolioFragmentDTO(
-                fragment_id=str(uuid.uuid4()),
-                source_step="filter",
-                weights={}
+                fragment_id=str(uuid.uuid4()), source_step="filter", weights={}
             )
-        
+
         # Evaluate indicator for each asset and collect scores
         asset_scores: list[tuple[str, float]] = []
         for asset in assets:
@@ -751,19 +762,23 @@ class DslEvaluator:
                 # Evaluate indicator with this asset
                 if indicator_expr.is_list() and indicator_expr.children:
                     # Replace or add symbol parameter to indicator
-                    modified_indicator = self._create_indicator_with_symbol(indicator_expr, asset)
-                    score = self._evaluate_node(modified_indicator, correlation_id, trace)
+                    modified_indicator = self._create_indicator_with_symbol(
+                        indicator_expr, asset
+                    )
+                    score = self._evaluate_node(
+                        modified_indicator, correlation_id, trace
+                    )
                 else:
                     score = self._evaluate_node(indicator_expr, correlation_id, trace)
-                
+
                 asset_scores.append((asset, float(score)))
             except Exception:
                 # If evaluation fails, use neutral score
                 asset_scores.append((asset, 50.0))
-        
+
         # Apply selector
         selector_result = self._evaluate_node(selector_expr, correlation_id, trace)
-        
+
         # Determine how many to select
         n_select = 1
         select_type = "top"
@@ -780,60 +795,69 @@ class DslEvaluator:
                 if func_name == "select-top":
                     select_type = "top"
                     if len(selector_expr.children) > 1:
-                        n_select = int(self._evaluate_node(selector_expr.children[1], correlation_id, trace))
+                        n_select = int(
+                            self._evaluate_node(
+                                selector_expr.children[1], correlation_id, trace
+                            )
+                        )
                 elif func_name == "select-bottom":
                     select_type = "bottom"
                     if len(selector_expr.children) > 1:
-                        n_select = int(self._evaluate_node(selector_expr.children[1], correlation_id, trace))
-            
+                        n_select = int(
+                            self._evaluate_node(
+                                selector_expr.children[1], correlation_id, trace
+                            )
+                        )
+
             # Sort and select
             if select_type == "top":
                 sorted_assets = sorted(asset_scores, key=lambda x: x[1], reverse=True)
             else:
                 sorted_assets = sorted(asset_scores, key=lambda x: x[1])
-            
+
             selected_assets = [asset for asset, score in sorted_assets[:n_select]]
-        
+
         # Create equal weight allocation for selected assets
         if selected_assets:
             weight_per_asset = 1.0 / len(selected_assets)
             weights = dict.fromkeys(selected_assets, weight_per_asset)
         else:
             weights = {}
-        
+
         return PortfolioFragmentDTO(
-            fragment_id=str(uuid.uuid4()),
-            source_step="filter",
-            weights=weights
+            fragment_id=str(uuid.uuid4()), source_step="filter", weights=weights
         )
 
-    def _create_indicator_with_symbol(self, indicator_expr: ASTNodeDTO, symbol: str) -> ASTNodeDTO:
+    def _create_indicator_with_symbol(
+        self, indicator_expr: ASTNodeDTO, symbol: str
+    ) -> ASTNodeDTO:
         """Create indicator expression with specific symbol."""
         if not indicator_expr.is_list() or not indicator_expr.children:
             return indicator_expr
-        
+
         # For RSI indicator, create: (rsi "SYMBOL" {:window N})
         func_name = indicator_expr.children[0].get_symbol_name()
         if func_name == "rsi":
-            children = [
-                ASTNodeDTO.symbol("rsi"),
-                ASTNodeDTO.atom(symbol)
-            ]
+            children = [ASTNodeDTO.symbol("rsi"), ASTNodeDTO.atom(symbol)]
             # Add parameters if present
             if len(indicator_expr.children) > 1:
                 children.append(indicator_expr.children[1])
             else:
                 # Add default window parameter
-                children.append(ASTNodeDTO.list_node([
-                    ASTNodeDTO.symbol(":window"),
-                    ASTNodeDTO.atom(Decimal("10"))
-                ], metadata={"node_subtype": "map"}))
-            
+                children.append(
+                    ASTNodeDTO.list_node(
+                        [ASTNodeDTO.symbol(":window"), ASTNodeDTO.atom(Decimal("10"))],
+                        metadata={"node_subtype": "map"},
+                    )
+                )
+
             return ASTNodeDTO.list_node(children)
-        
+
         return indicator_expr
 
-    def _eval_select_top(self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO) -> int:
+    def _eval_select_top(
+        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+    ) -> int:
         """Evaluate select-top - select top N assets."""
         if not args:
             raise DslEvaluationError("select-top requires at least 1 argument")
@@ -846,7 +870,9 @@ class DslEvaluator:
 
         return int(n)
 
-    def _eval_select_bottom(self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO) -> int:
+    def _eval_select_bottom(
+        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+    ) -> int:
         """Evaluate select-bottom - select bottom N assets."""
         if not args:
             raise DslEvaluationError("select-bottom requires at least 1 argument")
@@ -946,10 +972,23 @@ class DslEvaluator:
         if len(args) != 2:
             raise DslEvaluationError("= requires exactly 2 arguments")
 
-        left = self._evaluate_node(args[0], correlation_id, trace)
-        right = self._evaluate_node(args[1], correlation_id, trace)
+        left_v = self._evaluate_node(args[0], correlation_id, trace)
+        right_v = self._evaluate_node(args[1], correlation_id, trace)
 
-        return left == right
+        def to_decimal_if_number(val: DSLValue) -> Decimal | None:
+            if isinstance(val, Decimal):
+                return val
+            if isinstance(val, (int, float)):
+                return Decimal(str(val))
+            return None
+
+        l_num = to_decimal_if_number(left_v)
+        r_num = to_decimal_if_number(right_v)
+        if l_num is not None and r_num is not None:
+            return l_num == r_num
+        if isinstance(left_v, str) and isinstance(right_v, str):
+            return left_v == right_v
+        return False
 
     def _eval_rsi(
         self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
@@ -969,8 +1008,11 @@ class DslEvaluator:
         if len(args) > 1:
             params_node = args[1]
             params = self._evaluate_node(params_node, correlation_id, trace)
-            if isinstance(params, dict) and "window" in params:
-                _ = int(params["window"])  # parsed but not used in mock
+            if isinstance(params, dict):
+                try:
+                    window = int(params.get("window", window))
+                except (ValueError, TypeError):
+                    window = 14
 
         # Request indicator from service
         request = IndicatorRequestDTO.rsi_request(
@@ -1023,22 +1065,22 @@ class DslEvaluator:
         """Evaluate current-price - get current price of symbol."""
         if not args:
             raise DslEvaluationError("current-price requires symbol argument")
-        
+
         symbol_node = args[0]
         symbol = self._evaluate_node(symbol_node, correlation_id, trace)
-        
+
         if not isinstance(symbol, str):
             raise DslEvaluationError(f"Symbol must be string, got {type(symbol)}")
-        
+
         # Get indicator to access current price
         request = IndicatorRequestDTO(
             request_id=str(uuid.uuid4()),
             correlation_id=correlation_id,
             symbol=symbol,
             indicator_type="current_price",
-            parameters={}
+            parameters={},
         )
-        
+
         indicator = self.indicator_service.get_indicator(request)
         return float(indicator.current_price or 100.0)
 
@@ -1048,15 +1090,15 @@ class DslEvaluator:
         """Evaluate moving-average-price - get moving average price of symbol."""
         if not args:
             raise DslEvaluationError("moving-average-price requires symbol argument")
-        
+
         symbol_node = args[0]
         symbol = self._evaluate_node(symbol_node, correlation_id, trace)
-        
+
         if not isinstance(symbol, str):
             raise DslEvaluationError(f"Symbol must be string, got {type(symbol)}")
-        
+
         # Parameters may include a window value; ignored in mock implementation
-        
+
         # For now, return mock moving average price
         # In real implementation, this would calculate from price history
         current_price = self._eval_current_price([symbol_node], correlation_id, trace)
@@ -1068,11 +1110,11 @@ class DslEvaluator:
         """Evaluate moving-average-return - get moving average return of symbol."""
         if not args:
             raise DslEvaluationError("moving-average-return requires parameters")
-        
+
         # Parameters may include a window value; ignored in mock implementation
         params_node = args[0]
         _params = self._evaluate_node(params_node, correlation_id, trace)
-        
+
         # Mock return value - in real implementation would calculate from price history
         return 0.1  # 10% annualized return
 

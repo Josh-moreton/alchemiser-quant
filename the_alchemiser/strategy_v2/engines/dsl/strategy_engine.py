@@ -125,12 +125,7 @@ class DslStrategyEngine:
                         timestamp=timestamp,
                         strategy="DSL",
                         data_source="dsl_engine:multi",
-                        metadata={
-                            "correlation_id": correlation_id,
-                            "dsl_files": dsl_files,
-                            "file_weights": normalized_file_weights,
-                            "trace_ids": traces,
-                        },
+                        correlation_id=correlation_id,
                     )
                     signals.append(signal)
 
@@ -169,7 +164,8 @@ class DslStrategyEngine:
             timestamp=timestamp,
             strategy="DSL",
             data_source="dsl_fallback",
-            metadata={"fallback": True, "dsl_file": self.strategy_file},
+            fallback=True,
+            dsl_file=self.strategy_file,
         )
         return [fallback_signal]
 
