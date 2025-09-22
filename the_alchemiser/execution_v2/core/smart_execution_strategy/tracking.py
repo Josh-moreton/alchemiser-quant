@@ -27,6 +27,8 @@ class OrderTracker:
         self._repeg_counts: dict[str, int] = {}
         self._order_placement_times: dict[str, datetime] = {}
         self._order_anchor_prices: dict[str, Decimal] = {}
+        # Track price history to prevent re-pegging at same prices
+        self._price_history: dict[str, list[Decimal]] = {}
 
     def add_order(
         self,
@@ -48,6 +50,8 @@ class OrderTracker:
         self._repeg_counts[order_id] = 0
         self._order_placement_times[order_id] = placement_time
         self._order_anchor_prices[order_id] = anchor_price
+        # Initialize price history with the initial anchor price
+        self._price_history[order_id] = [anchor_price]
 
         logger.debug(f"📊 Added order {order_id} to tracking (anchor: ${anchor_price})")
 
@@ -70,16 +74,20 @@ class OrderTracker:
         # Preserve the request and increment repeg count
         request = self._active_orders.get(old_order_id)
         old_repeg_count = self._repeg_counts.get(old_order_id, 0)
+        # Preserve price history to prevent re-pegging at same prices
+        price_history = self._price_history.get(old_order_id, [])
 
         if request:
             # Remove old tracking
             self.remove_order(old_order_id)
 
-            # Add new tracking with incremented count
+            # Add new tracking with incremented count and extended price history
             self._active_orders[new_order_id] = request
             self._repeg_counts[new_order_id] = old_repeg_count + 1
             self._order_placement_times[new_order_id] = placement_time
             self._order_anchor_prices[new_order_id] = new_anchor_price
+            # Transfer and extend price history
+            self._price_history[new_order_id] = [*price_history, new_anchor_price]
 
             logger.debug(
                 f"📊 Updated order tracking: {old_order_id} -> {new_order_id} "
@@ -97,6 +105,7 @@ class OrderTracker:
         self._repeg_counts.pop(order_id, None)
         self._order_placement_times.pop(order_id, None)
         self._order_anchor_prices.pop(order_id, None)
+        self._price_history.pop(order_id, None)
 
         logger.debug(f"📊 Removed order {order_id} from tracking")
 
@@ -147,6 +156,18 @@ class OrderTracker:
 
         """
         return self._order_anchor_prices.get(order_id)
+
+    def get_price_history(self, order_id: str) -> list[Decimal]:
+        """Get the price history for an order.
+
+        Args:
+            order_id: Order ID to check
+
+        Returns:
+            List of prices used for this order chain (empty if not found)
+
+        """
+        return self._price_history.get(order_id, [])
 
     def get_active_orders(self) -> dict[str, SmartOrderRequest]:
         """Get all active orders being tracked.
