@@ -39,7 +39,7 @@ from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
 
 from .base_variant import BaseKLMVariant
 from .variants import (
-    KLMVariant520_22 as KlmVariant52022,
+    KlmVariant52022,
 )
 from .variants import (
     KLMVariant530_18 as KlmVariant53018,

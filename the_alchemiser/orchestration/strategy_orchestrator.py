@@ -88,7 +88,9 @@ class MultiStrategyOrchestrator:
         # Validate allocations sum to 1.0
         total_allocation = sum(self.strategy_allocations.values())
         if abs(total_allocation - 1.0) > 0.01:
-            raise ValueError(f"Strategy allocations must sum to 1.0, got {total_allocation}")
+            raise ValueError(
+                f"Strategy allocations must sum to 1.0, got {total_allocation}"
+            )
 
         # Initialize typed strategy engines
         self.strategy_engines: dict[StrategyType, StrategyEngine] = {}
@@ -111,7 +113,9 @@ class MultiStrategyOrchestrator:
                     f"{self.strategy_allocations[strategy_type]:.1%} allocation"
                 )
             except Exception as e:
-                self.logger.error(f"Failed to initialize {strategy_type.value} typed engine: {e}")
+                self.logger.error(
+                    f"Failed to initialize {strategy_type.value} typed engine: {e}"
+                )
                 # Collect failed strategies for removal after iteration
                 failed_strategies.append(strategy_type)
 
@@ -121,24 +125,22 @@ class MultiStrategyOrchestrator:
 
     def _create_typed_engine(self, strategy_type: StrategyType) -> StrategyEngine:
         """Create typed strategy engine instance."""
-        if strategy_type == StrategyType.NUCLEAR:
+        if strategy_type == StrategyType.DSL:
             # Direct import to avoid circular dependency during migration
-            from the_alchemiser.strategy_v2.engines.nuclear.engine import NuclearEngine
+            from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import (
+                DslStrategyEngine,
+            )
 
-            return NuclearEngine(self.market_data_port)
-        if strategy_type == StrategyType.KLM:
-            # Direct import to avoid circular dependency during migration
-            from the_alchemiser.strategy_v2.engines.klm.engine import KLMEngine
+            return DslStrategyEngine(self.market_data_port)
 
-            return KLMEngine(self.market_data_port)
-        if strategy_type == StrategyType.TECL:
-            # Direct import to avoid circular dependency during migration
-            from the_alchemiser.strategy_v2.engines.tecl.engine import TECLEngine
+        # For this PR, we only support DSL engine to test the integration
+        raise ValueError(
+            f"Strategy type {strategy_type} not supported in this DSL-focused PR"
+        )
 
-            return TECLEngine(self.market_data_port)
-        raise ValueError(f"Unknown strategy type: {strategy_type}")
-
-    def generate_all_signals(self, timestamp: datetime | None = None) -> AggregatedSignals:
+    def generate_all_signals(
+        self, timestamp: datetime | None = None
+    ) -> AggregatedSignals:
         """Generate signals from all enabled strategies.
 
         Args:
@@ -159,7 +161,9 @@ class MultiStrategyOrchestrator:
         # Generate signals from each strategy
         for strategy_type, engine in self.strategy_engines.items():
             try:
-                self.logger.info(f"Generating signals from {strategy_type.value} strategy")
+                self.logger.info(
+                    f"Generating signals from {strategy_type.value} strategy"
+                )
 
                 if hasattr(engine, "generate_signals"):
                     # All engines now use new constructor injection interface
@@ -175,11 +179,15 @@ class MultiStrategyOrchestrator:
                     engine.validate_signals(signals)
 
                 aggregated.add_strategy_signals(strategy_type, signals)
-                self.logger.info(f"{strategy_type.value} generated {len(signals)} signals")
+                self.logger.info(
+                    f"{strategy_type.value} generated {len(signals)} signals"
+                )
 
             except Exception as e:
                 # Log error and determine if this is a critical failure
-                self.logger.error(f"Error generating signals for {strategy_type.value}: {e}")
+                self.logger.error(
+                    f"Error generating signals for {strategy_type.value}: {e}"
+                )
 
                 # Critical errors that should fail the entire operation
                 error_message = str(e)
@@ -232,7 +240,9 @@ class MultiStrategyOrchestrator:
 
         """
         # Group signals by symbol
-        signals_by_symbol = self._group_signals_by_symbol(aggregated.signals_by_strategy)
+        signals_by_symbol = self._group_signals_by_symbol(
+            aggregated.signals_by_strategy
+        )
 
         # Process each symbol
         for symbol_str, strategy_signals in signals_by_symbol.items():
@@ -242,7 +252,9 @@ class MultiStrategyOrchestrator:
                 aggregated.consolidated_signals.append(signal)
             else:
                 # Multiple strategies have opinions on this symbol - resolve conflict
-                resolved_signal = self._resolve_signal_conflict(symbol_str, strategy_signals)
+                resolved_signal = self._resolve_signal_conflict(
+                    symbol_str, strategy_signals
+                )
                 if resolved_signal:
                     aggregated.consolidated_signals.append(resolved_signal)
 
@@ -296,7 +308,9 @@ class MultiStrategyOrchestrator:
             "symbol": symbol_str,
             "strategies": [strategy.value for strategy, _ in strategy_signals],
             "actions": [signal.action for _, signal in strategy_signals],
-            "confidences": [float(signal.confidence.value) for _, signal in strategy_signals],
+            "confidences": [
+                float(signal.confidence.value) for _, signal in strategy_signals
+            ],
             "resolution": resolved_signal.action if resolved_signal else "NO_ACTION",
         }
 
@@ -313,7 +327,9 @@ class MultiStrategyOrchestrator:
             Resolved StrategySignal or None if no resolution possible
 
         """
-        self.logger.info(f"Resolving conflict for {symbol} with {len(strategy_signals)} signals")
+        self.logger.info(
+            f"Resolving conflict for {symbol} with {len(strategy_signals)} signals"
+        )
 
         # Use ALL signals - no confidence threshold filtering
         # Strategy signals are concrete and should not be filtered by confidence
@@ -369,10 +385,14 @@ class MultiStrategyOrchestrator:
 
         # Average confidence weighted by strategy allocation
         final_confidence = (
-            total_weighted_confidence / total_weight if total_weight > 0 else Decimal("0.5")
+            total_weighted_confidence / total_weight
+            if total_weight > 0
+            else Decimal("0.5")
         )
 
-        combined_reasoning += f"• Final confidence: {final_confidence:.2f} (weighted average)"
+        combined_reasoning += (
+            f"• Final confidence: {final_confidence:.2f} (weighted average)"
+        )
 
         return StrategySignal(
             symbol=Symbol(symbol),
@@ -422,15 +442,17 @@ class MultiStrategyOrchestrator:
 
         # Handle ties with explicit tie-breaking rules
         if len(best_signals) > 1:
-            reasoning += (
-                f"• Tie detected with {len(best_signals)} signals at score {best_score:.3f}\n"
-            )
+            reasoning += f"• Tie detected with {len(best_signals)} signals at score {best_score:.3f}\n"
             best_strategy, best_signal = self._break_tie(best_signals)
-            reasoning += f"• Tie-breaker: {best_strategy.value} (priority order + allocation)\n"
+            reasoning += (
+                f"• Tie-breaker: {best_strategy.value} (priority order + allocation)\n"
+            )
         else:
             best_strategy, best_signal = best_signals[0]
 
-        reasoning += f"• Winner: {best_strategy.value} with weighted score {best_score:.3f}"
+        reasoning += (
+            f"• Winner: {best_strategy.value} with weighted score {best_score:.3f}"
+        )
 
         # Create new signal with combined reasoning
         return StrategySignal(
@@ -470,7 +492,9 @@ class MultiStrategyOrchestrator:
         relative_confidence = (confidence - min_confidence) / confidence_range
 
         # Apply up to 10% weight adjustment
-        max_adjustment = self.confidence_config.aggregation.max_confidence_weight_adjustment
+        max_adjustment = (
+            self.confidence_config.aggregation.max_confidence_weight_adjustment
+        )
         weight_adjustment = (relative_confidence - Decimal("0.5")) * max_adjustment * 2
 
         # Apply adjustment to base weight
@@ -502,7 +526,9 @@ class MultiStrategyOrchestrator:
             try:
                 priority_index = priority_order.index(strategy_type.value)
             except ValueError:
-                priority_index = len(priority_order)  # Unknown strategies get lowest priority
+                priority_index = len(
+                    priority_order
+                )  # Unknown strategies get lowest priority
 
             return (
                 -allocation,

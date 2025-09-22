@@ -10,12 +10,14 @@ with event-driven architecture and DTO integration.
 from .dsl_evaluator import DslEvaluationError, DslEvaluator, IndicatorService
 from .engine import DslEngine, DslEngineError
 from .sexpr_parser import SexprParseError, SexprParser
+from .strategy_engine import DslStrategyEngine
 
 __all__ = [
     "DslEngine",
     "DslEngineError",
     "DslEvaluationError",
     "DslEvaluator",
+    "DslStrategyEngine",
     "IndicatorService",
     "SexprParseError",
     "SexprParser",

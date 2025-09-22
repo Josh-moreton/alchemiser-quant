@@ -9,7 +9,7 @@ logging and observability support.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -31,10 +31,14 @@ class TraceEntryDTO(BaseModel):
     step_id: str = Field(..., min_length=1, description="Unique step identifier")
     step_type: str = Field(..., min_length=1, description="Type of evaluation step")
     timestamp: datetime = Field(..., description="When this step occurred")
-    description: str = Field(..., min_length=1, description="Human-readable step description")
+    description: str = Field(
+        ..., min_length=1, description="Human-readable step description"
+    )
     inputs: dict[str, Any] = Field(default_factory=dict, description="Step inputs")
     outputs: dict[str, Any] = Field(default_factory=dict, description="Step outputs")
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional step metadata")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional step metadata"
+    )
 
     @field_validator("timestamp")
     @classmethod
@@ -58,25 +62,37 @@ class TraceDTO(BaseModel):
 
     # Trace identification
     trace_id: str = Field(..., min_length=1, description="Unique trace identifier")
-    correlation_id: str = Field(..., min_length=1, description="Correlation ID for tracking")
-    strategy_id: str = Field(..., min_length=1, description="Strategy that was evaluated")
-    
+    correlation_id: str = Field(
+        ..., min_length=1, description="Correlation ID for tracking"
+    )
+    strategy_id: str = Field(
+        ..., min_length=1, description="Strategy that was evaluated"
+    )
+
     # Timing
     started_at: datetime = Field(..., description="When evaluation started")
-    completed_at: datetime | None = Field(default=None, description="When evaluation completed")
-    
+    completed_at: datetime | None = Field(
+        default=None, description="When evaluation completed"
+    )
+
     # Trace entries
-    entries: list[TraceEntryDTO] = Field(default_factory=list, description="Ordered trace entries")
-    
+    entries: list[TraceEntryDTO] = Field(
+        default_factory=list, description="Ordered trace entries"
+    )
+
     # Results
     final_allocation: dict[str, Decimal] = Field(
         default_factory=dict, description="Final portfolio allocation"
     )
     success: bool = Field(default=True, description="Whether evaluation succeeded")
-    error_message: str | None = Field(default=None, description="Error message if failed")
-    
+    error_message: str | None = Field(
+        default=None, description="Error message if failed"
+    )
+
     # Metadata
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional trace metadata")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional trace metadata"
+    )
 
     @field_validator("started_at")
     @classmethod
@@ -102,7 +118,7 @@ class TraceDTO(BaseModel):
         metadata: dict[str, Any] | None = None,
     ) -> TraceDTO:
         """Add a trace entry and return new immutable trace.
-        
+
         Args:
             step_id: Unique step identifier
             step_type: Type of evaluation step
@@ -110,38 +126,42 @@ class TraceDTO(BaseModel):
             inputs: Step inputs
             outputs: Step outputs
             metadata: Additional metadata
-            
+
         Returns:
             New TraceDTO with added entry
         """
         entry = TraceEntryDTO(
             step_id=step_id,
             step_type=step_type,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(UTC),
             description=description,
             inputs=inputs or {},
             outputs=outputs or {},
             metadata=metadata or {},
         )
-        
+
         new_entries = list(self.entries) + [entry]
         return self.model_copy(update={"entries": new_entries})
 
-    def mark_completed(self, success: bool = True, error_message: str | None = None) -> TraceDTO:
+    def mark_completed(
+        self, success: bool = True, error_message: str | None = None
+    ) -> TraceDTO:
         """Mark trace as completed and return new immutable trace.
-        
+
         Args:
             success: Whether evaluation succeeded
             error_message: Error message if failed
-            
+
         Returns:
             New TraceDTO marked as completed
         """
-        return self.model_copy(update={
-            "completed_at": datetime.now(),
-            "success": success,
-            "error_message": error_message,
-        })
+        return self.model_copy(
+            update={
+                "completed_at": datetime.now(UTC),
+                "success": success,
+                "error_message": error_message,
+            }
+        )
 
     def get_duration_seconds(self) -> float | None:
         """Get evaluation duration in seconds."""
