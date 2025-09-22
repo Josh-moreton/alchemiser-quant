@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 # Constants for repeated literals
 BOTO3_NOT_AVAILABLE_MSG = "boto3 not available for AWS Secrets Manager access"
 DEFAULT_AWS_REGION = "eu-west-2"
+SM_DISABLED_MSG = "Secrets Manager disabled via config - using environment variables"
+SM_TOGGLE_FAIL_MSG = "Failed to load settings for secrets toggle: %s"
 
 # Try to import boto3 for AWS Secrets Manager support
 try:
@@ -47,12 +49,19 @@ def get_alpaca_keys() -> tuple[str, str, str] | tuple[None, None, None]:
         Tuple of (api_key, secret_key, endpoint) or (None, None, None) if not found
 
     """
-    # Simple environment detection
+    # Prefer env when Secrets Manager disabled; otherwise detect Lambda
+    try:
+        settings = load_settings()
+        if settings.secrets_manager.enabled is False:
+            logger.info(SM_DISABLED_MSG)
+            return _get_alpaca_keys_from_env()
+    except Exception as exc:
+        logger.debug(SM_TOGGLE_FAIL_MSG, exc)
+
     if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
-        # In Lambda - get from AWS Secrets Manager
         logger.info("Detected AWS Lambda environment - loading from Secrets Manager")
         return _get_alpaca_keys_from_aws()
-    # Local dev - get from .env
+
     logger.info("Detected local environment - loading from environment variables")
     return _get_alpaca_keys_from_env()
 
@@ -129,13 +138,24 @@ def _get_alpaca_keys_from_env() -> tuple[str, str, str] | tuple[None, None, None
 
 def get_twelvedata_api_key() -> str | None:
     """Get TwelveData API key from the appropriate source."""
-    # Simple environment detection
+    # Prefer env when Secrets Manager disabled; otherwise detect Lambda
+    try:
+        settings = load_settings()
+        if settings.secrets_manager.enabled is False:
+            logger.info(SM_DISABLED_MSG)
+            return _get_twelvedata_key_from_env()
+    except Exception as exc:
+        logger.debug(SM_TOGGLE_FAIL_MSG, exc)
+
     if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
-        # In Lambda - get from AWS Secrets Manager
-        logger.info("Detected AWS Lambda environment - loading TwelveData key from Secrets Manager")
+        logger.info(
+            "Detected AWS Lambda environment - loading TwelveData key from Secrets Manager"
+        )
         return _get_twelvedata_key_from_aws()
-    # Local dev - get from .env
-    logger.info("Detected local environment - loading TwelveData key from environment variables")
+
+    logger.info(
+        "Detected local environment - loading TwelveData key from environment variables"
+    )
     return _get_twelvedata_key_from_env()
 
 
@@ -193,13 +213,24 @@ def get_email_password() -> str | None:
         Email password string or None if not found
 
     """
-    # Simple environment detection
+    # Prefer env when Secrets Manager disabled; otherwise detect Lambda
+    try:
+        settings = load_settings()
+        if settings.secrets_manager.enabled is False:
+            logger.info(SM_DISABLED_MSG)
+            return _get_email_password_from_env()
+    except Exception as exc:
+        logger.debug(SM_TOGGLE_FAIL_MSG, exc)
+
     if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
-        # In Lambda - get from AWS Secrets Manager
-        logger.info("Detected AWS Lambda environment - loading email password from Secrets Manager")
+        logger.info(
+            "Detected AWS Lambda environment - loading email password from Secrets Manager"
+        )
         return _get_email_password_from_aws()
-    # Local dev - get from .env
-    logger.info("Detected local environment - loading email password from environment variables")
+
+    logger.info(
+        "Detected local environment - loading email password from environment variables"
+    )
     return _get_email_password_from_env()
 
 
@@ -246,7 +277,9 @@ def _get_email_password_from_env() -> str | None:
     try:
         config = load_settings()
         if config.email.password:
-            logger.info("Successfully loaded email password from Pydantic config (EMAIL__PASSWORD)")
+            logger.info(
+                "Successfully loaded email password from Pydantic config (EMAIL__PASSWORD)"
+            )
             return config.email.password
     except Exception as e:
         logger.debug(f"Could not load email password from Pydantic config: {e}")
@@ -265,5 +298,7 @@ def _get_email_password_from_env() -> str | None:
         )
         return None
 
-    logger.info("Successfully loaded email password from environment variables (fallback method)")
+    logger.info(
+        "Successfully loaded email password from environment variables (fallback method)"
+    )
     return password

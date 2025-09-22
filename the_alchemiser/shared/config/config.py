@@ -54,6 +54,7 @@ class AlertsSettings(BaseModel):
 class SecretsManagerSettings(BaseModel):
     """Configuration for AWS Secrets Manager access."""
 
+    enabled: bool = True
     region_name: str = "eu-west-2"
     secret_name: str = "the-alchemiser-secrets"  # noqa: S105
 

@@ -14,3 +14,23 @@ confirm_changeset = false
 fail_on_empty_changeset = false
 resolve_s3 = true
 image_repositories = []
+
+[dev.deploy.parameters]
+stack_name = "the-alchemiser-v2-dev"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+disable_rollback = false
+confirm_changeset = false
+fail_on_empty_changeset = false
+resolve_s3 = true
+# Provide stage and unique names for all named resources. Keys/secrets passed at deploy.
+parameter_overrides = [
+	"Stage=dev",
+	"FunctionName=the-alchemiser-v2-lambda-dev",
+	"LayerName=the-alchemiser-dependencies-dev",
+	"DlqName=the-alchemiser-dlq-dev",
+	"ScheduleName=the-alchemiser-daily-trading-dev",
+	"LogGroupName=/aws/lambda/the-alchemiser-v2-lambda-dev",
+	"TradeLedgerBucketName=the-alchemiser-v2-s3-dev",
+	"SecretName=the-alchemiser-v2-secrets-dev",
+]
