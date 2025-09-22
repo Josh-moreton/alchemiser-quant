@@ -67,8 +67,8 @@ class SignalOrchestrator:
         strategy_signals = self._convert_signals_to_display_format(aggregated_signals)
 
         # Create consolidated portfolio from signals with proper scaling
-        consolidated_portfolio_dict, contributing_strategies = (
-            self._build_consolidated_portfolio(aggregated_signals, typed_allocations)
+        consolidated_portfolio_dict, contributing_strategies = self._build_consolidated_portfolio(
+            aggregated_signals, typed_allocations
         )
 
         # Create ConsolidatedPortfolioDTO
@@ -94,11 +94,7 @@ class SignalOrchestrator:
                 # combine them into a single display entry with all symbols
                 if len(signals) > 1:
                     # Multiple signals - present a concise primary symbol; keep full list separately
-                    symbols = [
-                        signal.symbol.value
-                        for signal in signals
-                        if signal.action == "BUY"
-                    ]
+                    symbols = [signal.symbol.value for signal in signals if signal.action == "BUY"]
                     primary_signal = signals[0]  # Use first signal for other attributes
                     primary_symbol = primary_signal.symbol.value
                     strategy_signals[str(strategy_type)] = {
@@ -143,13 +139,9 @@ class SignalOrchestrator:
 
                     # Handle potential conflicts - if symbol already exists, sum allocations
                     if signal.symbol.value in consolidated_portfolio_dict:
-                        consolidated_portfolio_dict[
-                            signal.symbol.value
-                        ] += portfolio_allocation
+                        consolidated_portfolio_dict[signal.symbol.value] += portfolio_allocation
                     else:
-                        consolidated_portfolio_dict[signal.symbol.value] = (
-                            portfolio_allocation
-                        )
+                        consolidated_portfolio_dict[signal.symbol.value] = portfolio_allocation
 
         # Get strategy names that contributed
         for strategy_type in aggregated_signals.get_signals_by_strategy():
@@ -232,11 +224,7 @@ class SignalOrchestrator:
         """Extract strategy name from strategy type."""
         if isinstance(strategy_type, str):
             return strategy_type
-        return (
-            strategy_type.value
-            if hasattr(strategy_type, "value")
-            else str(strategy_type)
-        )
+        return strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
 
     def _log_all_strategies_affected(
         self, failed_strategies: list[str], fallback_strategies: list[str]
@@ -348,9 +336,7 @@ class SignalOrchestrator:
 
             for strategy_type, signal_data in strategy_signals.items():
                 strategy_name = (
-                    strategy_type.value
-                    if hasattr(strategy_type, "value")
-                    else str(strategy_type)
+                    strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
                 )
                 # Use short symbol for DTO (max length 10). If multi, pick first from list.
                 raw_symbol = signal_data.get("symbol", "UNKNOWN")
@@ -431,9 +417,7 @@ class SignalOrchestrator:
             # Single position strategies
             return 1 if signal.get("action") == "BUY" else 0
         # Count from consolidated portfolio if possible
-        strategy_symbols = self._get_symbols_for_strategy(
-            strategy_name, strategy_signals
-        )
+        strategy_symbols = self._get_symbols_for_strategy(strategy_name, strategy_signals)
         return len([s for s in strategy_symbols if s in consolidated_portfolio])
 
     def _find_signal_for_strategy(
@@ -468,9 +452,7 @@ class SignalOrchestrator:
             symbols_list = signal.get("symbols")
             if isinstance(symbols_list, list):
                 return len([s for s in symbols_list if s in consolidated_portfolio])
-            return self._count_nuclear_portfolio_symbols(
-                symbol_text, consolidated_portfolio
-            )
+            return self._count_nuclear_portfolio_symbols(symbol_text, consolidated_portfolio)
         return 0
 
     def _count_nuclear_portfolio_symbols(

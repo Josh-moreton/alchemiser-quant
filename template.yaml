@@ -48,7 +48,7 @@ Globals:
         # Logging
         LOGGING__LEVEL: INFO
         # Trade Ledger
-        EXECUTION__ENABLE_TRADE_LEDGER: true
+        EXECUTION__ENABLE_TRADE_LEDGER: !If [ IsDev, "false", "true" ]
         S3_BUCKET_NAME: !Ref TradeLedgerBucket
         # Alpaca Configuration
         ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, "" ]
@@ -63,6 +63,9 @@ Globals:
         EMAIL__FROM_EMAIL: josh@rwxt.org
         EMAIL__TO_EMAIL: josh@rwxt.org
         EMAIL__NEUTRAL_MODE: true
+        # Strategy DSL configuration
+        STRATEGY__DSL_FILES: '["KLM.clj","Nuclear.clj","TQQQ-FLT.clj","TECL.clj"]'
+        STRATEGY__DSL_ALLOCATIONS: '{"KLM.clj":0.25,"Nuclear.clj":0.25,"TQQQ-FLT.clj":0.25,"TECL.clj":0.25}'
 
 Resources:
   # Lambda Layer for dependencies
