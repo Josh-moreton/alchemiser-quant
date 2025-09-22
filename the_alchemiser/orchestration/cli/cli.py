@@ -30,6 +30,7 @@ from the_alchemiser.orchestration.cli.cli_utilities import render_account_info
 # from the_alchemiser.strategy_v2.data.market_data_service import MarketDataService
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.config.secrets_manager import secrets_manager
+from the_alchemiser.shared.constants import APPLICATION_NAME, CLI_DEPLOY_COMPONENT
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.logging.logging_utils import (
     get_logger,
@@ -59,7 +60,7 @@ PROGRESS_DESCRIPTION_FORMAT = "[progress.description]{task.description}"
 # Initialize Typer app and Rich console
 app = typer.Typer(
     name="alchemiser",
-    help="The Alchemiser - Advanced Multi-Strategy Quantitative Trading System",
+    help=f"{APPLICATION_NAME} - Advanced Multi-Strategy Quantitative Trading System",
     add_completion=False,
     rich_markup_mode="rich",
 )
@@ -78,7 +79,7 @@ def show_welcome() -> None:
 
     """
     welcome_text = Text()
-    welcome_text.append(" The Alchemiser Quantitative Trading System\n", style=STYLE_BOLD_CYAN)
+    welcome_text.append(f" {APPLICATION_NAME} Quantitative Trading System\n", style=STYLE_BOLD_CYAN)
     welcome_text.append("Advanced Multi-Strategy Trading System", style=STYLE_ITALIC)
 
     panel = Panel(
@@ -463,7 +464,7 @@ def deploy() -> None:
         error_handler.handle_error(
             error=ValueError("Invalid deployment script path"),
             context="CLI deploy command - script path validation",
-            component="cli.deploy",
+            component=CLI_DEPLOY_COMPONENT,
             additional_data={
                 "attempted_path": str(deploy_script_path),
                 "repo_root": str(repo_root),
@@ -476,7 +477,7 @@ def deploy() -> None:
         error_handler.handle_error(
             error=FileNotFoundError(f"Deployment script not found at: {deploy_script_path}"),
             context="CLI deploy command - script file validation",
-            component="cli.deploy",
+            component=CLI_DEPLOY_COMPONENT,
             additional_data={
                 "script_path": str(deploy_script_path),
                 "exists": deploy_script_path.exists(),
@@ -514,7 +515,7 @@ def deploy() -> None:
             error_handler.handle_error(
                 error=e,
                 context="CLI deploy command - deployment script execution failed",
-                component="cli.deploy",
+                component=CLI_DEPLOY_COMPONENT,
                 additional_data={
                     "return_code": e.returncode,
                     "stderr": e.stderr,
@@ -529,7 +530,7 @@ def deploy() -> None:
             error_handler.handle_error(
                 error=e,
                 context="CLI deploy command - deployment script file not found",
-                component="cli.deploy",
+                component=CLI_DEPLOY_COMPONENT,
                 additional_data={
                     "script_path": str(deploy_script_path),
                     "error_details": str(e),
@@ -541,7 +542,7 @@ def deploy() -> None:
             error_handler.handle_error(
                 error=e,
                 context="CLI deploy command - permission denied during deployment",
-                component="cli.deploy",
+                component=CLI_DEPLOY_COMPONENT,
                 additional_data={
                     "script_path": str(deploy_script_path),
                     "repo_root": str(repo_root),
@@ -553,7 +554,7 @@ def deploy() -> None:
             error_handler.handle_error(
                 error=e,
                 context="CLI deploy command - unexpected deployment error",
-                component="cli.deploy",
+                component=CLI_DEPLOY_COMPONENT,
                 additional_data={
                     "error_type": type(e).__name__,
                     "script_path": str(deploy_script_path),
@@ -580,7 +581,7 @@ def deploy() -> None:
 def version() -> None:
     """I  [bold]Show version information[/bold]."""
     version_info = Text()
-    version_info.append(" The Alchemiser Quantitative Trading System\n", style=STYLE_BOLD_CYAN)
+    version_info.append(f" {APPLICATION_NAME} Quantitative Trading System\n", style=STYLE_BOLD_CYAN)
     version_info.append("Version: 2.0.0\n", style="bold")
     version_info.append(f"Built: {datetime.now(UTC).strftime('%Y-%m-%d')}\n", style="dim")
     version_info.append("Strategies: Nuclear, TECL, KLM, Multi-Strategy\n", style="green")
@@ -607,7 +608,7 @@ def main(
         DEFAULT_JSON_OUTPUT, "--json", help="Output results as JSON (for automation)"
     ),
 ) -> None:
-    """[bold]The Alchemiser - Advanced Multi-Strategy Quantitative Trading System[/bold].
+    """[bold]{APPLICATION_NAME} - Advanced Multi-Strategy Quantitative Trading System[/bold].
 
     Nuclear • TECL • KLM • Multi-Strategy Trading System
 

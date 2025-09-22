@@ -18,6 +18,7 @@ from typing import Any
 
 from pydantic import Field
 
+from ..constants import EVENT_SCHEMA_VERSION_DESCRIPTION
 from ..dto.ast_node_dto import ASTNodeDTO
 from ..dto.indicator_request_dto import PortfolioFragmentDTO
 from ..dto.strategy_allocation_dto import StrategyAllocationDTO
@@ -41,7 +42,7 @@ class StrategyEvaluationRequested(BaseEvent):
     )
 
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description="Event schema version")
+    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
 
     # Request fields
     strategy_id: str = Field(..., min_length=1, description="Strategy identifier to evaluate")
@@ -65,7 +66,7 @@ class StrategyEvaluated(BaseEvent):
     event_type: str = Field(default="StrategyEvaluated", description=EVENT_TYPE_DESCRIPTION)
 
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description="Event schema version")
+    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
 
     # Result fields
     strategy_id: str = Field(..., min_length=1, description="Strategy that was evaluated")
@@ -95,7 +96,7 @@ class IndicatorComputed(BaseEvent):
     event_type: str = Field(default="IndicatorComputed", description=EVENT_TYPE_DESCRIPTION)
 
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description="Event schema version")
+    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
 
     # Indicator fields
     request_id: str = Field(..., min_length=1, description="Original request identifier")
@@ -120,7 +121,7 @@ class PortfolioAllocationProduced(BaseEvent):
     )
 
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description="Event schema version")
+    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
 
     # Allocation fields
     strategy_id: str = Field(..., min_length=1, description="Strategy that produced allocation")
@@ -145,7 +146,7 @@ class FilterEvaluated(BaseEvent):
     event_type: str = Field(default="FilterEvaluated", description=EVENT_TYPE_DESCRIPTION)
 
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description="Event schema version")
+    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
 
     # Filter fields
     filter_expression: ASTNodeDTO = Field(..., description="Filter expression that was evaluated")
@@ -173,7 +174,7 @@ class TopNSelected(BaseEvent):
     event_type: str = Field(default="TopNSelected", description=EVENT_TYPE_DESCRIPTION)
 
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description="Event schema version")
+    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
 
     # Selection fields
     selection_expression: ASTNodeDTO = Field(
@@ -204,7 +205,7 @@ class DecisionEvaluated(BaseEvent):
     event_type: str = Field(default="DecisionEvaluated", description=EVENT_TYPE_DESCRIPTION)
 
     # Schema version for backward compatibility
-    schema_version: int = Field(default=1, ge=1, description="Event schema version")
+    schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
 
     # Decision fields
     decision_expression: ASTNodeDTO = Field(

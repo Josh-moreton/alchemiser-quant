@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from the_alchemiser.shared.constants import DSL_ENGINE_MODULE
 from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
 from the_alchemiser.shared.dto.indicator_request_dto import (
     IndicatorRequestDTO,
@@ -794,7 +795,7 @@ class DslEvaluator:
                 causation_id=correlation_id,
                 event_id=str(uuid.uuid4()),
                 timestamp=datetime.now(UTC),
-                source_module="strategy_v2.engines.dsl",
+                source_module=DSL_ENGINE_MODULE,
                 decision_expression=condition,
                 condition_result=bool(condition_result),
                 branch_taken=branch_taken,
@@ -1086,7 +1087,7 @@ class DslEvaluator:
                 causation_id=correlation_id,
                 event_id=str(uuid.uuid4()),
                 timestamp=datetime.now(UTC),
-                source_module="strategy_v2.engines.dsl",
+                source_module=DSL_ENGINE_MODULE,
                 request_id=request.request_id,
                 indicator=indicator,
                 computation_time_ms=0.0,  # Mock timing

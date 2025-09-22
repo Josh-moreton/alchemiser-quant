@@ -31,6 +31,11 @@ from the_alchemiser.orchestration.cli.cli_utilities import (
 # Import moved to where it's used to avoid early dependency loading
 from the_alchemiser.shared.config.config import Settings, load_settings
 from the_alchemiser.shared.config.container import ApplicationContainer
+from the_alchemiser.shared.constants import (
+    APPLICATION_NAME,
+    NO_TRADES_REQUIRED,
+    REBALANCE_PLAN_GENERATED,
+)
 from the_alchemiser.shared.dto.trade_run_result_dto import (
     ExecutionSummaryDTO,
     OrderResultSummaryDTO,
@@ -326,7 +331,7 @@ class TradingSystem:
             rebalance_plan = trading_result.get("rebalance_plan")
 
             if rebalance_plan is None:
-                print("📋 No trades required (portfolio balanced)")
+                print(NO_TRADES_REQUIRED)
                 return
 
             # If rebalance_plan is a DTO, get the items
@@ -336,13 +341,13 @@ class TradingSystem:
                 plan_items = rebalance_plan["items"]
             else:
                 # Fallback: no detailed plan available
-                print("📋 Rebalance plan generated:")
+                print(REBALANCE_PLAN_GENERATED)
                 print("   → BUY: (details unavailable)")
                 print("   → SELL: (details unavailable)")
                 return
 
             if not plan_items:
-                print("📋 No trades required (portfolio balanced)")
+                print(NO_TRADES_REQUIRED)
                 return
 
             # Group items by action
@@ -369,18 +374,18 @@ class TradingSystem:
 
             # Display the plan in a concise summary similar to signals
             if buy_orders or sell_orders:
-                print("📋 Rebalance plan generated:")
+                print(REBALANCE_PLAN_GENERATED)
                 if sell_orders:
                     print(f"   → SELL: {', '.join(sell_orders)}")
                 if buy_orders:
                     print(f"   → BUY: {', '.join(buy_orders)}")
             else:
-                print("📋 No trades required (portfolio balanced)")
+                print(NO_TRADES_REQUIRED)
 
         except Exception as e:
             # Non-fatal: summary display is best-effort
             self.logger.debug(f"Failed to display rebalance plan: {e}")
-            print("📋 Rebalance plan generated:")
+            print(REBALANCE_PLAN_GENERATED)
             print("   → BUY: (details unavailable)")
             print("   → SELL: (details unavailable)")
 
@@ -685,7 +690,7 @@ def configure_application_logging() -> None:
 def create_argument_parser() -> argparse.ArgumentParser:
     """Create and configure the command line argument parser."""
     parser = argparse.ArgumentParser(
-        description="The Alchemiser - Multi-Strategy Quantitative Trading System",
+        description=f"{APPLICATION_NAME} - Multi-Strategy Quantitative Trading System",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

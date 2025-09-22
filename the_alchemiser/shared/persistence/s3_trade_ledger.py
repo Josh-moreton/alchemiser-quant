@@ -20,6 +20,7 @@ from typing import Any
 
 from botocore.exceptions import ClientError
 
+from ..constants import DEFAULT_DATE_FORMAT
 from ..dto.trade_ledger_dto import (
     Lot,
     PerformanceSummary,
@@ -85,7 +86,7 @@ class S3TradeLedger(BaseTradeLedger):
             S3 key for the ledger file
 
         """
-        date_str = timestamp.strftime("%Y/%m/%d")
+        date_str = timestamp.strftime(DEFAULT_DATE_FORMAT)
         return f"{self.ledger_prefix}/{date_str}/{self.account_id}.jsonl"
 
     def _get_index_key(self, date_str: str) -> str:
@@ -224,7 +225,7 @@ class S3TradeLedger(BaseTradeLedger):
 
         """
         try:
-            date_str = entry.timestamp.strftime("%Y/%m/%d")
+            date_str = entry.timestamp.strftime(DEFAULT_DATE_FORMAT)
             index = self._load_index_for_date(date_str)
             unique_key = entry.get_unique_key()
 
@@ -293,7 +294,7 @@ class S3TradeLedger(BaseTradeLedger):
         # Group entries by date for efficient processing
         entries_by_date: dict[str, list[TradeLedgerEntry]] = defaultdict(list)
         for entry in entries_list:
-            date_str = entry.timestamp.strftime("%Y/%m/%d")
+            date_str = entry.timestamp.strftime(DEFAULT_DATE_FORMAT)
             entries_by_date[date_str].append(entry)
 
         # Process each date separately
@@ -380,7 +381,7 @@ class S3TradeLedger(BaseTradeLedger):
             # Scan each date in the range
             current_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
             while current_date <= end_date:
-                date_str = current_date.strftime("%Y/%m/%d")
+                date_str = current_date.strftime(DEFAULT_DATE_FORMAT)
                 date_entries = self._query_date(date_str, filters)
                 entries.extend(date_entries)
 
@@ -518,7 +519,7 @@ class S3TradeLedger(BaseTradeLedger):
 
             current_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
             while current_date <= end_date:
-                date_str = current_date.strftime("%Y/%m/%d")
+                date_str = current_date.strftime(DEFAULT_DATE_FORMAT)
                 date_entries = self._get_entries_by_order_for_date(date_str, order_id)
                 entries.extend(date_entries)
 
