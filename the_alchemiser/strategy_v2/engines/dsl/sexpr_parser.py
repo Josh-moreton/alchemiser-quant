@@ -140,15 +140,15 @@ class SexprParser:
         if index >= len(tokens):
             raise SexprParseError("Unexpected end of input")
         
-        token_value, token_type = tokens[index]
+        token_value, tok_type = tokens[index]
         
-        if token_type == "LPAREN":
+        if tok_type == "LPAREN":
             return self._parse_list(tokens, index + 1, "RPAREN")
-        if token_type == "LBRACKET":
+        if tok_type == "LBRACKET":
             return self._parse_list(tokens, index + 1, "RBRACKET")
-        if token_type == "LBRACE":
+        if tok_type == "LBRACE":
             return self._parse_map(tokens, index + 1)
-        return self._parse_atom(token_value, token_type), index + 1
+        return self._parse_atom(token_value, tok_type), index + 1
 
     def _parse_list(
         self, 
@@ -174,9 +174,9 @@ class SexprParser:
         current_index = index
         
         while current_index < len(tokens):
-            _token_value, token_type = tokens[current_index]
+            _token_value, tok_type = tokens[current_index]
             
-            if token_type == end_token:
+            if tok_type == end_token:
                 return ASTNodeDTO.list_node(children), current_index + 1
             
             child, current_index = self._parse_expression(tokens, current_index)
@@ -202,9 +202,9 @@ class SexprParser:
         current_index = index
         
         while current_index < len(tokens):
-            _token_value, token_type = tokens[current_index]
+            _token_value, tok_type = tokens[current_index]
             
-            if token_type == "RBRACE":
+            if tok_type == "RBRACE":
                 # Convert map to list node with metadata indicating it's a map
                 return ASTNodeDTO.list_node(
                     children, 
@@ -223,29 +223,29 @@ class SexprParser:
         
         raise SexprParseError("Missing closing }")
 
-    def _parse_atom(self, token_value: str, token_type: str) -> ASTNodeDTO:
+    def _parse_atom(self, token_value: str, tok_type: str) -> ASTNodeDTO:
         """Parse an atomic value.
         
         Args:
             token_value: Token value
-            token_type: Token type
+            tok_type: Token type
             
         Returns:
             ASTNodeDTO representing the atom
 
         """
-        if token_type == "SYMBOL":
+        if tok_type == "SYMBOL":
             return ASTNodeDTO.symbol(token_value)
-        if token_type == "STRING":
+        if tok_type == "STRING":
             # Remove quotes
             string_value = token_value[1:-1]
             return ASTNodeDTO.atom(string_value)
-        if token_type == "FLOAT" or token_type == "INTEGER":
+        if tok_type == "FLOAT" or tok_type == "INTEGER":
             return ASTNodeDTO.atom(Decimal(token_value))
-        if token_type == "KEYWORD":
+        if tok_type == "KEYWORD":
             # Keywords are symbols with : prefix
             return ASTNodeDTO.symbol(token_value)
-        raise SexprParseError(f"Unknown token type: {token_type}")
+        raise SexprParseError(f"Unknown token type: {tok_type}")
 
     def parse_file(self, file_path: str) -> ASTNodeDTO:
         """Parse S-expression from file.

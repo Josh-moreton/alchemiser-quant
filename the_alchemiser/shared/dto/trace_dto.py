@@ -141,11 +141,11 @@ class TraceDTO(BaseModel):
             metadata=metadata or {},
         )
 
-        new_entries = list(self.entries) + [entry]
+        new_entries = [*list(self.entries), entry]
         return self.model_copy(update={"entries": new_entries})
 
     def mark_completed(
-        self, success: bool = True, error_message: str | None = None
+        self, *, success: bool = True, error_message: str | None = None
     ) -> TraceDTO:
         """Mark trace as completed and return new immutable trace.
 

@@ -14,8 +14,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
 from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
 from the_alchemiser.shared.dto.trace_dto import TraceDTO
+from the_alchemiser.shared.events.base import BaseEvent
 from the_alchemiser.shared.events.bus import EventBus
 from the_alchemiser.shared.events.dsl_events import (
     PortfolioAllocationProduced,
@@ -30,7 +32,7 @@ from .dsl_evaluator import DslEvaluator, IndicatorService
 from .sexpr_parser import SexprParseError, SexprParser
 
 if TYPE_CHECKING:
-    from typing import Any
+    pass
 
 
 class DslEngine(EventHandler):
@@ -88,7 +90,7 @@ class DslEngine(EventHandler):
         """
         return event_type == "StrategyEvaluationRequested"
 
-    def handle_event(self, event: Any) -> None:
+    def handle_event(self, event: BaseEvent) -> None:
         """Handle incoming events.
 
         Args:
@@ -194,7 +196,7 @@ class DslEngine(EventHandler):
             # Publish error events
             self._publish_error_events(event, str(e))
 
-    def _parse_strategy_file(self, strategy_config_path: str) -> Any:
+    def _parse_strategy_file(self, strategy_config_path: str) -> ASTNodeDTO:
         """Parse strategy configuration file.
 
         Args:
