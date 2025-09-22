@@ -19,11 +19,6 @@ Parameters:
     Default: the-alchemiser-v2-s3
     Description: S3 bucket name for trade ledger storage (override for dev to avoid collisions)
 
-  SecretName:
-    Type: String
-    Default: the-alchemiser-v2-secrets
-    Description: Secrets Manager secret name (used only in prod)
-
   AlpacaKey:
     Type: String
     Default: ""
@@ -43,7 +38,6 @@ Parameters:
 
 Conditions:
   IsDev: !Equals [ !Ref Stage, dev ]
-  IsProd: !Equals [ !Ref Stage, prod ]
 
 Globals:
   Function:
@@ -62,9 +56,7 @@ Globals:
         ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, "https://api.alpaca.markets" ]
         ALPACA__CASH_RESERVE_PCT: "0.02"
         # Secrets Manager toggle
-        SECRETS_MANAGER__ENABLED: !If [ IsDev, "false", "true" ]
-        SECRETS_MANAGER__REGION_NAME: !Ref AWS::Region
-        SECRETS_MANAGER__SECRET_NAME: !Ref SecretName
+        SECRETS_MANAGER__ENABLED: "false"
         # Email Configuration
         EMAIL__SMTP_SERVER: smtp.mail.me.com
         EMAIL__SMTP_PORT: 587
@@ -193,32 +185,6 @@ Resources:
                   - logs:DescribeLogGroups
                 Resource: "*"
 
-  # Secrets Manager Secret (prod-only; value set manually post-deploy)
-  TradingSecrets:
-    Condition: IsProd
-    Type: AWS::SecretsManager::Secret
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      Name: !Ref SecretName
-      Description: "Secrets for The Alchemiser v2 (ALPACA_KEY/SECRET, optional TWELVEDATA_KEY, SMTP_PASSWORD)"
-
-  # Attach Secrets Manager permissions to Lambda role (prod-only)
-  TradingSecretsPolicy:
-    Condition: IsProd
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: TradingSecretsAccess
-      Roles:
-        - !Ref TradingSystemExecutionRole
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Action:
-              - secretsmanager:GetSecretValue
-              - secretsmanager:DescribeSecret
-            Resource: !Ref TradingSecrets
 
   # S3 bucket for trade ledger storage (managed by this stack)
   TradeLedgerBucket:
