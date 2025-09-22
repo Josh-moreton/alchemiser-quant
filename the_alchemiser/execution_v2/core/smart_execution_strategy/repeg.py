@@ -260,8 +260,9 @@ class RepegManager:
 
             # Calculate more aggressive price for re-peg
             original_anchor = self.order_tracker.get_anchor_price(order_id)
+            price_history = self.order_tracker.get_price_history(order_id)
             new_price = self.pricing_calculator.calculate_repeg_price(
-                quote, request.side, original_anchor
+                quote, request.side, original_anchor, price_history
             )
 
             if not new_price:

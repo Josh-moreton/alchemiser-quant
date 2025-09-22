@@ -169,7 +169,11 @@ class PricingCalculator:
         return anchor_quantized, metadata
 
     def calculate_repeg_price(
-        self, quote: QuoteModel, side: str, original_price: Decimal | None
+        self, 
+        quote: QuoteModel, 
+        side: str, 
+        original_price: Decimal | None,
+        price_history: list[Decimal] | None = None
     ) -> Decimal | None:
         """Calculate a more aggressive price for re-pegging.
 
@@ -177,6 +181,7 @@ class PricingCalculator:
             quote: Current market quote
             side: Order side ("BUY" or "SELL")
             original_price: Original order price
+            price_history: List of previously used prices to avoid
 
         Returns:
             New more aggressive price, or None if cannot calculate
@@ -213,6 +218,37 @@ class PricingCalculator:
 
             # Quantize to cent precision to avoid sub-penny errors
             new_price = new_price.quantize(Decimal("0.01"))
+
+            # Check against price history to avoid repegging at same prices
+            if price_history:
+                min_improvement = Decimal("0.01")  # Minimum 1 cent improvement
+                
+                # If we've calculated the same price as before, force a minimum improvement
+                if new_price in price_history:
+                    logger.info(
+                        f"🔄 Calculated repeg price ${new_price} already used for {quote.symbol} {side}, "
+                        f"forcing minimum improvement"
+                    )
+                    if side.upper() == "BUY":
+                        # For buys, increase price by minimum improvement
+                        new_price = new_price + min_improvement
+                        # Don't exceed ask price
+                        new_price = min(new_price, Decimal(str(quote.ask_price)))
+                    else:  # SELL
+                        # For sells, decrease price by minimum improvement
+                        new_price = new_price - min_improvement
+                        # Don't go below bid price
+                        new_price = max(new_price, Decimal(str(quote.bid_price)))
+                    
+                    # Re-quantize after adjustment
+                    new_price = new_price.quantize(Decimal("0.01"))
+                    
+                    # If we still have the same price after forced improvement, log warning
+                    if new_price in price_history:
+                        logger.warning(
+                            f"⚠️ Unable to find unique repeg price for {quote.symbol} {side} "
+                            f"after forced improvement. Price ${new_price} still in history: {price_history}"
+                        )
 
             # Validate that the calculated price is positive and reasonable
             min_price = Decimal("0.01")  # Minimum 1 cent
