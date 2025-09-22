@@ -55,8 +55,10 @@ Globals:
         ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, "" ]
         ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, "https://api.alpaca.markets" ]
         ALPACA__CASH_RESERVE_PCT: "0.02"
-        # Secrets Manager toggle
-        SECRETS_MANAGER__ENABLED: "false"
+        # Secrets Manager configuration
+        SECRETS_MANAGER__ENABLED: !If [ IsDev, "false", "true" ]
+        SECRETS_MANAGER__REGION_NAME: !Ref "AWS::Region"
+        SECRETS_MANAGER__SECRET_NAME: !If [ IsDev, "the-alchemiser-v2-secrets-dev", "the-alchemiser-v2-secrets" ]
         # Email Configuration
         EMAIL__SMTP_SERVER: smtp.mail.me.com
         EMAIL__SMTP_PORT: 587
@@ -187,6 +189,13 @@ Resources:
                   - logs:DescribeLogStreams
                   - logs:DescribeLogGroups
                 Resource: "*"
+
+              # AWS Secrets Manager read access (for prod when enabled)
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:the-alchemiser-v2-secrets*"
 
 
   # S3 bucket for trade ledger storage (managed by this stack)
