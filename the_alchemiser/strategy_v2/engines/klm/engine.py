@@ -476,7 +476,7 @@ class KLMEngine(StrategyEngine):
 
     def _calculate_variant_performance(self, variant: BaseKLMVariant) -> float:
         """Calculate performance metric for variant selection.
-        
+
         Since we only have the Original variant, return a consistent score.
         """
         # With only the Original variant, return a standard performance score
