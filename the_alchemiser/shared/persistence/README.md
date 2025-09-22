@@ -51,17 +51,24 @@ TradeLedgerEntry(
 
 Uses JSONL files with an index for efficient querying:
 
-```
+```text
 ./data/trade_ledger/
 ├── ledger.jsonl    # Append-only trade entries
 └── index.json      # Index mapping (order_id, fill_id) -> ledger_id
 ```
 
+On AWS Lambda, the local filesystem is read-only except for `/tmp`. The Local backend will automatically write to a safe, writable path when running in Lambda:
+
+- Default path on Lambda: `/tmp/alchemiser/trade_ledger`
+- Override with env var: set `TRADE_LEDGER_BASE_PATH` to a writable directory
+
+Locally, the default remains `./data/trade_ledger`.
+
 ### S3 Backend (Live Trading)
 
 Date-partitioned storage for scalability:
 
-```
+```text
 s3://bucket/trade_ledger/
 ├── 2024/01/15/account.jsonl    # Trade entries for 2024-01-15
 ├── 2024/01/16/account.jsonl    # Trade entries for 2024-01-16
@@ -176,6 +183,7 @@ The system automatically selects storage backend based on environment:
 - **Live Trading**: Uses S3 storage (requires `S3_BUCKET_NAME` environment variable)
 
 Detection is based on:
+
 - `ALPACA_PAPER_TRADING=true`
 - `ALPACA_ENDPOINT` containing "paper"
 

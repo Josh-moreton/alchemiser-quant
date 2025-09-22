@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Business Unit: strategy | Status: current.
 
-Strategy engines (Nuclear, KLM, TECL).
+DSL Strategy Engine module.
 
-Contains strategy engines with their core trading logic accessible through
-thin adapter wrappers.
+Contains strategy engine with its core trading logic accessible via submodules.
 """
 
 from __future__ import annotations

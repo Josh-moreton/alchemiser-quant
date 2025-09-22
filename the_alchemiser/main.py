@@ -182,28 +182,14 @@ class TradingSystem:
 
             # Header suppressed to reduce duplicate banners in CLI output
 
-            # PHASE 1: Signals-only analysis (no trading yet)
-            print("📊 Generating strategy signals...")
-            signals_result = orchestrator.execute_strategy_signals()
-            if signals_result is None:
-                return self._create_failure_result(
-                    "Signal analysis failed - check logs for details",
-                    started_at,
-                    correlation_id,
-                    warnings,
-                )
-
-            # Show brief signals summary
-            self._display_signals_summary(signals_result)
-
-            # PHASE 2: Execute trading (may place orders)
-            print("⚖️  Generating portfolio rebalance plan...")
+            # Execute full workflow once: generate signals, analyze portfolio, and trade
+            print("📊 Generating strategy signals and portfolio rebalance plan...")
 
             # Temporarily suppress verbose logs for cleaner CLI output
             self._configure_quiet_logging()
 
             try:
-                # Execute trading with minimal output - no Rich progress spinner
+                # Execute complete workflow once (signals + analysis + trading)
                 trading_result = orchestrator.execute_strategy_signals_with_trading()
             except Exception:
                 # Fallback if anything fails
@@ -219,13 +205,14 @@ class TradingSystem:
                     warnings,
                 )
 
-            # Show rebalance plan details
+            # Show brief signals summary and the rebalance plan details
+            self._display_signals_summary(trading_result)
             self._display_rebalance_plan(trading_result)
 
             # Show stale order cancellation info
             self._display_stale_order_info(trading_result)
 
-            print("🚀 Executing rebalance plan...")
+            # Trades have been executed within the workflow above
 
             # 5) Display tracking if requested
             if show_tracking:
@@ -788,7 +775,9 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
         )
         # Send error notifications for initialization and execution errors
         try:
-            from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+            from the_alchemiser.shared.errors.error_handler import (
+                send_error_notification_if_needed,
+            )
 
             send_error_notification_if_needed()
         except Exception as notification_error:
@@ -813,7 +802,9 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
         )
         # Send error notifications for unhandled exceptions
         try:
-            from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+            from the_alchemiser.shared.errors.error_handler import (
+                send_error_notification_if_needed,
+            )
 
             send_error_notification_if_needed()
         except Exception as notification_error:

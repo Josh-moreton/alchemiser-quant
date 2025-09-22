@@ -36,8 +36,7 @@ def get_strategy_allocations(settings: Settings) -> dict[StrategyType, float]:
         0.3
 
     """
+    # For this DSL-focused PR, only return DSL allocation
     return {
-        StrategyType.NUCLEAR: settings.strategy.default_strategy_allocations.get("nuclear", 0.3),
-        StrategyType.TECL: settings.strategy.default_strategy_allocations.get("tecl", 0.5),
-        StrategyType.KLM: settings.strategy.default_strategy_allocations.get("klm", 0.2),
+        StrategyType.DSL: 1.0,
     }
