@@ -175,8 +175,8 @@ class TradingOrchestrator:
 
                 # Reconstruct consolidated portfolio from event signals for rebalancing
                 from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-                    ConsolidatedPortfolioDTO,
-                )
+                                ConsolidatedPortfolioDTO,
+                            )
 
                 # Extract strategy names from signals
                 source_strategies = list(
@@ -368,10 +368,23 @@ class TradingOrchestrator:
                 }
             )
 
-            # PHASE 1: Generate signals via SignalOrchestrator
+            # PHASE 1: Generate signals via SignalOrchestrator (event-emitting path)
             self.logger.info("🔄 Generating strategy signals")
-            strategy_signals, consolidated_portfolio_dto = (
-                self.signal_orchestrator.generate_signals()
+            analyzed = self.signal_orchestrator.analyze_signals()
+            if analyzed is None:
+                self.logger.error("Failed to analyze strategy signals")
+                return None
+
+            strategy_signals, consolidated_portfolio_dict = analyzed
+
+            # Build DTO from the consolidated dict to avoid re-running engines
+            from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
+                ConsolidatedPortfolioDTO,
+            )
+            consolidated_portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
+                allocation_dict=consolidated_portfolio_dict,
+                correlation_id=str(uuid.uuid4()),
+                source_strategies=[str(k) for k in strategy_signals],
             )
 
             if not strategy_signals:
@@ -542,10 +555,23 @@ class TradingOrchestrator:
                 }
             )
 
-            # Generate signals via SignalOrchestrator
+            # Generate signals via SignalOrchestrator (event-emitting path)
             self.logger.info("🔄 Generating strategy signals")
-            strategy_signals, consolidated_portfolio_dto = (
-                self.signal_orchestrator.generate_signals()
+            analyzed = self.signal_orchestrator.analyze_signals()
+            if analyzed is None:
+                self.logger.error("Failed to analyze strategy signals")
+                return None
+
+            strategy_signals, consolidated_portfolio_dict = analyzed
+
+            # Build DTO from the consolidated dict to avoid re-running engines
+            from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
+                ConsolidatedPortfolioDTO,
+            )
+            consolidated_portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
+                allocation_dict=consolidated_portfolio_dict,
+                correlation_id=str(uuid.uuid4()),
+                source_strategies=[str(k) for k in strategy_signals],
             )
 
             if not strategy_signals:
