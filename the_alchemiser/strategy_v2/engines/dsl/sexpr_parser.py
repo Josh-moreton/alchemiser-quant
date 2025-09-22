@@ -50,7 +50,8 @@ class SexprParser:
             (r"\]", "RBRACKET"),  # Right bracket
             (r"\{", "LBRACE"),  # Left brace
             (r"\}", "RBRACE"),  # Right brace
-            (r'"[^"]*"', "STRING"),  # Strings
+            # Strings with escaped quotes/backslashes
+            (r'"(?:\\.|[^"\\])*"', "STRING"),
             (r"-?\d+\.\d+", "FLOAT"),  # Floating point numbers
             (r"-?\d+", "INTEGER"),  # Integers
             (r":[a-zA-Z_][a-zA-Z0-9_-]*", "KEYWORD"),  # Keywords
@@ -80,6 +81,25 @@ class SexprParser:
 
         while position < len(text):
             matched = False
+
+            # Fast-path for strings to correctly handle escapes
+            if text[position] == '"':
+                i = position + 1
+                while i < len(text):
+                    ch = text[i]
+                    if ch == "\\":
+                        i += 2  # Skip escaped character
+                        continue
+                    if ch == '"':
+                        token_value = text[position : i + 1]
+                        tokens.append((token_value, "STRING"))
+                        position = i + 1
+                        matched = True
+                        break
+                    i += 1
+                if not matched:
+                    raise SexprParseError("Unterminated string literal", position)
+                continue
 
             for pattern, token_type in self.compiled_patterns:
                 match = pattern.match(text, position)
@@ -237,8 +257,16 @@ class SexprParser:
         if tok_type == "SYMBOL":
             return ASTNodeDTO.symbol(token_value)
         if tok_type == "STRING":
-            # Remove quotes
-            string_value = token_value[1:-1]
+            # Remove quotes and unescape common sequences
+            raw = token_value[1:-1]
+            # Unescape \" and \\
+            string_value = (
+                raw.replace(r"\\\"", '"')
+                .replace(r"\\n", "\n")
+                .replace(r"\\t", "\t")
+                .replace(r"\\r", "\r")
+                .replace(r"\\\\", "\\")
+            )
             return ASTNodeDTO.atom(string_value)
         if tok_type == "FLOAT" or tok_type == "INTEGER":
             return ASTNodeDTO.atom(Decimal(token_value))

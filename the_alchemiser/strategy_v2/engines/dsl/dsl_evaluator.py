@@ -69,7 +69,9 @@ class IndicatorService:
 
         """
         self.market_data_service = market_data_service
-        self.technical_indicators = TechnicalIndicators() if market_data_service else None
+        self.technical_indicators = (
+            TechnicalIndicators() if market_data_service else None
+        )
 
     def get_indicator(self, request: IndicatorRequestDTO) -> TechnicalIndicatorDTO:
         """Get technical indicator for symbol using real market data.
@@ -101,7 +103,9 @@ class IndicatorService:
             )
 
             if not bars:
-                raise DslEvaluationError(f"No market data available for symbol {symbol}")
+                raise DslEvaluationError(
+                    f"No market data available for symbol {symbol}"
+                )
 
             # Convert bars to pandas Series for technical indicators
             import pandas as pd
@@ -125,9 +129,12 @@ class IndicatorService:
                     rsi_10=rsi_value if window == 10 else None,
                     rsi_21=rsi_value if window == 21 else None,
                     current_price=(
-                        Decimal(str(prices.iloc[-1])) if len(prices) > 0 else Decimal("100.0")
+                        Decimal(str(prices.iloc[-1]))
+                        if len(prices) > 0
+                        else Decimal("100.0")
                     ),
                     data_source="real_market_data",
+                    metadata={"value": rsi_value},
                 )
             if indicator_type == "current_price":
                 last_price = float(prices.iloc[-1]) if len(prices) > 0 else None
@@ -141,6 +148,66 @@ class IndicatorService:
                     rsi_21=None,
                     current_price=Decimal(str(last_price)),
                     data_source="real_market_data",
+                    metadata={"value": last_price},
+                )
+
+            if indicator_type == "moving_average":
+                window = int(parameters.get("window", 200))
+                ma_series = self.technical_indicators.moving_average(prices, window=window)
+                import pandas as pd
+
+                latest_ma = float(ma_series.iloc[-1]) if len(ma_series) > 0 else None
+                if latest_ma is None or pd.isna(latest_ma):
+                    raise DslEvaluationError(
+                        f"No moving average available for {symbol} window={window}"
+                    )
+                return TechnicalIndicatorDTO(
+                    symbol=symbol,
+                    timestamp=datetime.now(UTC),
+                    current_price=Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None,
+                    ma_20=latest_ma if window == 20 else None,
+                    ma_50=latest_ma if window == 50 else None,
+                    ma_200=latest_ma if window == 200 else None,
+                    data_source="real_market_data",
+                    metadata={"value": latest_ma},
+                )
+
+            if indicator_type == "moving_average_return":
+                window = int(parameters.get("window", 21))
+                mar_series = self.technical_indicators.moving_average_return(prices, window=window)
+                import pandas as pd
+
+                latest = float(mar_series.iloc[-1]) if len(mar_series) > 0 else None
+                if latest is None or pd.isna(latest):
+                    raise DslEvaluationError(
+                        f"No moving average return for {symbol} window={window}"
+                    )
+                return TechnicalIndicatorDTO(
+                    symbol=symbol,
+                    timestamp=datetime.now(UTC),
+                    current_price=Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None,
+                    ma_return_90=latest if window == 90 else None,
+                    data_source="real_market_data",
+                    metadata={"value": latest},
+                )
+
+            if indicator_type == "cumulative_return":
+                window = int(parameters.get("window", 60))
+                cum_series = self.technical_indicators.cumulative_return(prices, window=window)
+                import pandas as pd
+
+                latest = float(cum_series.iloc[-1]) if len(cum_series) > 0 else None
+                if latest is None or pd.isna(latest):
+                    raise DslEvaluationError(
+                        f"No cumulative return for {symbol} window={window}"
+                    )
+                return TechnicalIndicatorDTO(
+                    symbol=symbol,
+                    timestamp=datetime.now(UTC),
+                    current_price=Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None,
+                    cum_return_60=latest if window == 60 else None,
+                    data_source="real_market_data",
+                    metadata={"value": latest},
                 )
 
             # Unsupported indicator types
@@ -173,7 +240,9 @@ class DslEvaluator:
         self.event_bus = event_bus
 
         # Whitelisted functions for DSL evaluation
-        self.symbol_table: dict[str, Callable[[list[ASTNodeDTO], str, TraceDTO], DSLValue]] = {
+        self.symbol_table: dict[
+            str, Callable[[list[ASTNodeDTO], str, TraceDTO], DSLValue]
+        ] = {
             # Core functions
             "defsymphony": self._eval_defsymphony,
             "weight-equal": self._eval_weight_equal,
@@ -262,7 +331,11 @@ class DslEvaluator:
                 )
             elif isinstance(result, list) and result:
                 # List of assets - equal weight
-                weights = {str(asset): Decimal(str(1.0 / len(result))) for asset in result if asset}
+                weights = {
+                    str(asset): Decimal(str(1.0 / len(result)))
+                    for asset in result
+                    if asset
+                }
                 if weights:
                     allocation = StrategyAllocationDTO(
                         target_weights=weights,
@@ -306,7 +379,9 @@ class DslEvaluator:
             )
             raise DslEvaluationError(f"DSL evaluation failed: {e}") from e
 
-    def _evaluate_node(self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO) -> DSLValue:
+    def _evaluate_node(
+        self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO
+    ) -> DSLValue:
         """Evaluate a single AST node.
 
         Args:
@@ -327,19 +402,34 @@ class DslEvaluator:
             if not node.children:
                 return []
 
+            # Map literal: convert to dict
+            if node.metadata and node.metadata.get("node_subtype") == "map":
+                m: dict[str, DSLValue] = {}
+                # Expect pairs: keyword/value
+                it = iter(node.children)
+                for key_node, val_node in zip(it, it, strict=True):
+                    key = (
+                        key_node.get_symbol_name() if key_node.is_symbol() else str(key_node.value)
+                    )
+                    key = key.lstrip(":") if isinstance(key, str) else str(key)
+                    m[key] = self._evaluate_node(val_node, correlation_id, trace)
+                return m
+
             # First child should be the function
             func_node = node.children[0]
             if not func_node.is_symbol():
                 # If first child is not a symbol, treat as data list
                 return [
-                    self._evaluate_node(child, correlation_id, trace) for child in node.children
+                    self._evaluate_node(child, correlation_id, trace)
+                    for child in node.children
                 ]
 
             func_name = func_node.get_symbol_name()
             if func_name not in self.symbol_table:
                 # Unknown function - treat as data list
                 return [
-                    self._evaluate_node(child, correlation_id, trace) for child in node.children
+                    self._evaluate_node(child, correlation_id, trace)
+                    for child in node.children
                 ]
 
             func = self.symbol_table[func_name]
@@ -491,7 +581,9 @@ class DslEvaluator:
             # Evaluate weight (should be a number)
             weight_value = self._evaluate_node(weight_node, correlation_id, trace)
             if not isinstance(weight_value, (int, float, Decimal)):
-                raise DslEvaluationError(f"Weight must be a number, got {type(weight_value)}")
+                raise DslEvaluationError(
+                    f"Weight must be a number, got {type(weight_value)}"
+                )
 
             weight = float(weight_value)
 
@@ -527,7 +619,9 @@ class DslEvaluator:
         Format: (weight-inverse-volatility window [assets...])
         """
         if not args:
-            raise DslEvaluationError("weight-inverse-volatility requires window and assets")
+            raise DslEvaluationError(
+                "weight-inverse-volatility requires window and assets"
+            )
 
         # First argument is the window
         window_node = args[0]
@@ -592,7 +686,9 @@ class DslEvaluator:
             weights=normalized_weights,
         )
 
-    def _eval_group(self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO) -> DSLValue:
+    def _eval_group(
+        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+    ) -> DSLValue:
         """Evaluate group - grouping construct."""
         if len(args) < 2:
             raise DslEvaluationError("group requires at least 2 arguments")
@@ -609,7 +705,9 @@ class DslEvaluator:
             result = self._evaluate_node(expr, correlation_id, trace)
         return result
 
-    def _eval_asset(self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO) -> str:
+    def _eval_asset(
+        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+    ) -> str:
         """Evaluate asset - single asset allocation."""
         if not args:
             raise DslEvaluationError("asset requires at least 1 argument")
@@ -623,7 +721,9 @@ class DslEvaluator:
         # Return just the symbol string - weight-equal will handle creating the fragment
         return symbol
 
-    def _eval_if(self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO) -> DSLValue:
+    def _eval_if(
+        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+    ) -> DSLValue:
         """Evaluate if - conditional expression."""
         if len(args) < 2:
             raise DslEvaluationError("if requires at least 2 arguments")
@@ -657,7 +757,9 @@ class DslEvaluator:
                 decision_expression=condition,
                 condition_result=bool(condition_result),
                 branch_taken=branch_taken,
-                branch_result=(result if isinstance(result, PortfolioFragmentDTO) else None),
+                branch_result=(
+                    result if isinstance(result, PortfolioFragmentDTO) else None
+                ),
             )
             self.event_bus.publish(decision_event)
 
@@ -672,7 +774,9 @@ class DslEvaluator:
         Example: (filter (rsi {:window 10}) (select-top 1) [(asset "A") (asset "B")])
         """
         if len(args) < 3:
-            raise DslEvaluationError("filter requires indicator, selector, and assets arguments")
+            raise DslEvaluationError(
+                "filter requires indicator, selector, and assets arguments"
+            )
 
         indicator_expr = args[0]
         selector_expr = args[1]
@@ -702,10 +806,16 @@ class DslEvaluator:
                 # Evaluate indicator with this asset
                 if indicator_expr.is_list() and indicator_expr.children:
                     # Replace or add symbol parameter to indicator
-                    modified_indicator = self._create_indicator_with_symbol(indicator_expr, asset)
-                    score_val = self._evaluate_node(modified_indicator, correlation_id, trace)
+                    modified_indicator = self._create_indicator_with_symbol(
+                        indicator_expr, asset
+                    )
+                    score_val = self._evaluate_node(
+                        modified_indicator, correlation_id, trace
+                    )
                 else:
-                    score_val = self._evaluate_node(indicator_expr, correlation_id, trace)
+                    score_val = self._evaluate_node(
+                        indicator_expr, correlation_id, trace
+                    )
 
                 coerced: float
                 if isinstance(score_val, (int, float, Decimal)):
@@ -732,13 +842,17 @@ class DslEvaluator:
             if func_name == "select-top":
                 select_type = "top"
                 if len(selector_expr.children) > 1:
-                    n_val = self._evaluate_node(selector_expr.children[1], correlation_id, trace)
+                    n_val = self._evaluate_node(
+                        selector_expr.children[1], correlation_id, trace
+                    )
                     if isinstance(n_val, (int, Decimal)):
                         n_select = int(n_val)
             elif func_name == "select-bottom":
                 select_type = "bottom"
                 if len(selector_expr.children) > 1:
-                    n_val = self._evaluate_node(selector_expr.children[1], correlation_id, trace)
+                    n_val = self._evaluate_node(
+                        selector_expr.children[1], correlation_id, trace
+                    )
                     if isinstance(n_val, (int, Decimal)):
                         n_select = int(n_val)
 
@@ -761,15 +875,17 @@ class DslEvaluator:
             fragment_id=str(uuid.uuid4()), source_step="filter", weights=weights
         )
 
-    def _create_indicator_with_symbol(self, indicator_expr: ASTNodeDTO, symbol: str) -> ASTNodeDTO:
+    def _create_indicator_with_symbol(
+        self, indicator_expr: ASTNodeDTO, symbol: str
+    ) -> ASTNodeDTO:
         """Create indicator expression with specific symbol."""
         if not indicator_expr.is_list() or not indicator_expr.children:
             return indicator_expr
 
         # For RSI indicator, create: (rsi "SYMBOL" {:window N})
         func_name = indicator_expr.children[0].get_symbol_name()
-        if func_name == "rsi":
-            children = [ASTNodeDTO.symbol("rsi"), ASTNodeDTO.atom(symbol)]
+        if func_name in {"rsi", "moving-average-price", "moving-average-return", "cumulative-return"}:
+            children = [ASTNodeDTO.symbol(func_name), ASTNodeDTO.atom(symbol)]
             # Add parameters if present
             if len(indicator_expr.children) > 1:
                 children.append(indicator_expr.children[1])
@@ -786,7 +902,9 @@ class DslEvaluator:
 
         return indicator_expr
 
-    def _eval_select_top(self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO) -> int:
+    def _eval_select_top(
+        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+    ) -> int:
         """Evaluate select-top - select top N assets."""
         if not args:
             raise DslEvaluationError("select-top requires at least 1 argument")
@@ -825,7 +943,9 @@ class DslEvaluator:
         right_v = self._evaluate_node(args[1], correlation_id, trace)
         return self._as_decimal(left_v) > self._as_decimal(right_v)
 
-    def _eval_less_than(self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO) -> bool:
+    def _eval_less_than(
+        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+    ) -> bool:
         """Evaluate < - less than comparison."""
         if len(args) != 2:
             raise DslEvaluationError("< requires exactly 2 arguments")
@@ -856,7 +976,9 @@ class DslEvaluator:
         right_v = self._evaluate_node(args[1], correlation_id, trace)
         return self._as_decimal(left_v) <= self._as_decimal(right_v)
 
-    def _eval_equal(self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO) -> bool:
+    def _eval_equal(
+        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+    ) -> bool:
         """Evaluate = - equality comparison."""
         if len(args) != 2:
             raise DslEvaluationError("= requires exactly 2 arguments")
@@ -879,7 +1001,9 @@ class DslEvaluator:
             return left_v == right_v
         return False
 
-    def _eval_rsi(self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO) -> float:
+    def _eval_rsi(
+        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+    ) -> float:
         """Evaluate rsi - RSI indicator."""
         if not args:
             raise DslEvaluationError("rsi requires at least 1 argument")
@@ -980,23 +1104,134 @@ class DslEvaluator:
     def _eval_moving_average_price(
         self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
     ) -> float:
-        """Evaluate moving-average-price - disabled mock; not implemented."""
+        """Evaluate moving-average-price using TechnicalIndicators via IndicatorService."""
+        if not args:
+            raise DslEvaluationError("moving-average-price requires symbol and params")
+
+        symbol_val = self._evaluate_node(args[0], correlation_id, trace)
+        if not isinstance(symbol_val, str):
+            raise DslEvaluationError(f"Symbol must be string, got {type(symbol_val)}")
+
+        window = 200
+        if len(args) > 1:
+            params = self._evaluate_node(args[1], correlation_id, trace)
+            if isinstance(params, dict):
+                try:
+                    window = int(params.get("window", window))
+                except (ValueError, TypeError):
+                    window = 200
+
+        request = IndicatorRequestDTO.moving_average_request(
+            request_id=str(uuid.uuid4()),
+            correlation_id=correlation_id,
+            symbol=symbol_val,
+            window=window,
+        )
+        indicator = self.indicator_service.get_indicator(request)
+        # Choose appropriate field or fallback to provided MA
+        if window == 20 and indicator.ma_20 is not None:
+            return float(indicator.ma_20)
+        if window == 50 and indicator.ma_50 is not None:
+            return float(indicator.ma_50)
+        if window == 200 and indicator.ma_200 is not None:
+            return float(indicator.ma_200)
+        if indicator.metadata and "value" in indicator.metadata:
+            try:
+                return float(indicator.metadata["value"])  # type: ignore[misc]
+            except Exception as exc:
+                print(f"DEBUG: Failed to coerce MA metadata value: {exc}")
         raise DslEvaluationError(
-            "moving-average-price is not implemented in DSL evaluator; should be computed via indicators"
+            f"Moving average for {symbol_val} window={window} not available"
         )
 
     def _eval_moving_average_return(
         self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
     ) -> float:
-        """Evaluate moving-average-return - disabled mock; not implemented."""
+        """Evaluate moving-average-return via IndicatorService."""
+        if not args:
+            raise DslEvaluationError("moving-average-return requires params and optional symbol")
+
+        # Signature may be (moving-average-return {:window N}) or (moving-average-return "SYM" {:window N})
+        idx = 0
+        symbol_val: str | None = None
+        first = self._evaluate_node(args[0], correlation_id, trace)
+        if isinstance(first, str):
+            symbol_val = first
+            idx = 1
+
+        window = 21
+        if len(args) > idx:
+            params = self._evaluate_node(args[idx], correlation_id, trace)
+            if isinstance(params, dict):
+                try:
+                    window = int(params.get("window", window))
+                except (ValueError, TypeError):
+                    window = 21
+
+        if symbol_val is None:
+            raise DslEvaluationError("moving-average-return requires an explicit symbol when evaluated standalone")
+
+        request = IndicatorRequestDTO(
+            request_id=str(uuid.uuid4()),
+            correlation_id=correlation_id,
+            symbol=symbol_val,
+            indicator_type="moving_average_return",
+            parameters={"window": window},
+        )
+        indicator = self.indicator_service.get_indicator(request)
+        # We only have a fixed ma_return_90 field; return any numeric present or fallback to metadata
+        if window == 90 and indicator.ma_return_90 is not None:
+            return float(indicator.ma_return_90)
+        if indicator.metadata and "value" in indicator.metadata:
+            try:
+                return float(indicator.metadata["value"])  # type: ignore[misc]
+            except Exception as exc:
+                print(f"DEBUG: Failed to coerce MAR metadata value: {exc}")
         raise DslEvaluationError(
-            "moving-average-return is not implemented in DSL evaluator; should be computed via indicators"
+            f"moving-average-return for {symbol_val} window={window} not available"
         )
 
     def _eval_cumulative_return(
         self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
     ) -> float:
-        """Evaluate cumulative-return - disabled mock; not implemented."""
+        """Evaluate cumulative-return via IndicatorService."""
+        if not args:
+            raise DslEvaluationError("cumulative-return requires symbol and params")
+
+        idx = 0
+        symbol_val: str | None = None
+        first = self._evaluate_node(args[0], correlation_id, trace)
+        if isinstance(first, str):
+            symbol_val = first
+            idx = 1
+
+        window = 60
+        if len(args) > idx:
+            params = self._evaluate_node(args[idx], correlation_id, trace)
+            if isinstance(params, dict):
+                try:
+                    window = int(params.get("window", window))
+                except (ValueError, TypeError):
+                    window = 60
+
+        if symbol_val is None:
+            raise DslEvaluationError("cumulative-return requires an explicit symbol when evaluated standalone")
+
+        request = IndicatorRequestDTO(
+            request_id=str(uuid.uuid4()),
+            correlation_id=correlation_id,
+            symbol=symbol_val,
+            indicator_type="cumulative_return",
+            parameters={"window": window},
+        )
+        indicator = self.indicator_service.get_indicator(request)
+        if window == 60 and indicator.cum_return_60 is not None:
+            return float(indicator.cum_return_60)
+        if indicator.metadata and "value" in indicator.metadata:
+            try:
+                return float(indicator.metadata["value"])  # type: ignore[misc]
+            except Exception as exc:
+                print(f"DEBUG: Failed to coerce CUMRET metadata value: {exc}")
         raise DslEvaluationError(
-            "cumulative-return is not implemented in DSL evaluator; should be computed via indicators"
+            f"cumulative-return for {symbol_val} window={window} not available"
         )
