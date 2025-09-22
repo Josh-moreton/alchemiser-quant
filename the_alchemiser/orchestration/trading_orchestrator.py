@@ -23,6 +23,8 @@ from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.constants import (
     APPLICATION_NAME,
+    DECIMAL_ZERO,
+    MIN_TRADE_AMOUNT_USD,
     NO_TRADES_REQUIRED,
     REBALANCE_PLAN_GENERATED,
 )
@@ -53,8 +55,6 @@ from the_alchemiser.shared.types.exceptions import (
 )
 
 # Constants for repeated literals
-DECIMAL_ZERO = Decimal("0")
-MIN_TRADE_AMOUNT_USD = Decimal("5")
 
 
 class TradingOrchestrator:

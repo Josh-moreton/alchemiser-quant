@@ -30,7 +30,14 @@ from the_alchemiser.orchestration.cli.cli_utilities import render_account_info
 # from the_alchemiser.strategy_v2.data.market_data_service import MarketDataService
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.config.secrets_manager import secrets_manager
-from the_alchemiser.shared.constants import APPLICATION_NAME, CLI_DEPLOY_COMPONENT
+from the_alchemiser.shared.constants import (
+    APPLICATION_NAME,
+    CLI_DEPLOY_COMPONENT,
+    PROGRESS_DESCRIPTION_FORMAT,
+    STYLE_BOLD_BLUE,
+    STYLE_BOLD_CYAN,
+    STYLE_ITALIC,
+)
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.logging.logging_utils import (
     get_logger,
@@ -46,16 +53,6 @@ from the_alchemiser.shared.types.exceptions import (
 # from the_alchemiser.strategy_v2.dsl.strategy_loader import StrategyLoader
 # Import domain models for type annotations
 
-
-# Constants to avoid duplication
-STYLE_BOLD_CYAN = "bold cyan"
-STYLE_ITALIC = "italic"
-STYLE_BOLD_BLUE = "bold blue"
-STYLE_BOLD_GREEN = "bold green"
-STYLE_BOLD_RED = "bold red"
-STYLE_BOLD_YELLOW = "bold yellow"
-STYLE_BOLD_MAGENTA = "bold magenta"
-PROGRESS_DESCRIPTION_FORMAT = "[progress.description]{task.description}"
 
 # Initialize Typer app and Rich console
 app = typer.Typer(

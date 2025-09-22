@@ -18,7 +18,7 @@ from typing import Any
 
 from pydantic import Field
 
-from ..constants import EVENT_SCHEMA_VERSION_DESCRIPTION
+from ..constants import EVENT_SCHEMA_VERSION_DESCRIPTION, EVENT_TYPE_DESCRIPTION
 from ..dto.ast_node_dto import ASTNodeDTO
 from ..dto.indicator_request_dto import PortfolioFragmentDTO
 from ..dto.strategy_allocation_dto import StrategyAllocationDTO
@@ -27,7 +27,6 @@ from ..dto.trace_dto import TraceDTO
 from .base import BaseEvent
 
 # Constants
-EVENT_TYPE_DESCRIPTION = "Type of event"
 
 
 class StrategyEvaluationRequested(BaseEvent):

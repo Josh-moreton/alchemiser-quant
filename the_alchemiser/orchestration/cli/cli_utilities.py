@@ -19,11 +19,10 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
+from the_alchemiser.shared.constants import STYLE_BOLD_GREEN
+
 # Module logger
 logger = logging.getLogger(__name__)
-
-# Style constants
-STYLE_BOLD_GREEN = "bold green"
 
 
 class MoneyLike(Protocol):
