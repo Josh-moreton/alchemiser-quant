@@ -34,7 +34,7 @@ pydantic = ">=2.0.0"
 pydantic-settings = ">=2.0.0"
 rich = ">=13.0.0"
 cachetools = "^6.1.0"
-dependency-injector = "^4.48.1"
+dependency-injector = "^4.48.2"
 python-dotenv = "^1.1.1"
 
 [tool.poetry.group.dev.dependencies]
@@ -46,7 +46,7 @@ types-requests = ">=2.31.0"
 types-pytz = ">=2023.3.0"
 bandit = ">=1.7.0"  # Legacy direct usage; Ruff "S" rules supplement
 vulture = "^2.14"   # Dead code detection
-psutil = "^7.0.0"
+psutil = "^7.1.0"
 pydocstyle = ">=6.0.0"  # Docstring style (Ruff D rules)
 pytest = "^8.4.2"
 pip-audit = "^2.7.3"  # Dependency vulnerability scanning
