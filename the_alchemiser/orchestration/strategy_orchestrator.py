@@ -121,22 +121,16 @@ class MultiStrategyOrchestrator:
 
     def _create_typed_engine(self, strategy_type: StrategyType) -> StrategyEngine:
         """Create typed strategy engine instance."""
-        if strategy_type == StrategyType.NUCLEAR:
+        if strategy_type == StrategyType.DSL:
             # Direct import to avoid circular dependency during migration
-            from the_alchemiser.strategy_v2.engines.nuclear.engine import NuclearEngine
+            from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import (
+                DslStrategyEngine,
+            )
 
-            return NuclearEngine(self.market_data_port)
-        if strategy_type == StrategyType.KLM:
-            # Direct import to avoid circular dependency during migration
-            from the_alchemiser.strategy_v2.engines.klm.engine import KLMEngine
+            return DslStrategyEngine(self.market_data_port)
 
-            return KLMEngine(self.market_data_port)
-        if strategy_type == StrategyType.TECL:
-            # Direct import to avoid circular dependency during migration
-            from the_alchemiser.strategy_v2.engines.tecl.engine import TECLEngine
-
-            return TECLEngine(self.market_data_port)
-        raise ValueError(f"Unknown strategy type: {strategy_type}")
+        # For this PR, we only support DSL engine to test the integration
+        raise ValueError(f"Strategy type {strategy_type} not supported in this DSL-focused PR")
 
     def generate_all_signals(self, timestamp: datetime | None = None) -> AggregatedSignals:
         """Generate signals from all enabled strategies.

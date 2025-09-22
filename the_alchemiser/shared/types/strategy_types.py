@@ -14,3 +14,4 @@ class StrategyType(Enum):
     NUCLEAR = "nuclear"
     TECL = "tecl"
     KLM = "klm"
+    DSL = "dsl"

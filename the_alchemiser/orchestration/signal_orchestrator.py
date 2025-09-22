@@ -33,10 +33,6 @@ from the_alchemiser.shared.types.exceptions import DataProviderError
 from the_alchemiser.shared.types.strategy_types import StrategyType
 from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
 from the_alchemiser.shared.value_objects.symbol import Symbol
-from the_alchemiser.strategy_v2.engines.nuclear import NUCLEAR_SYMBOLS
-
-# Nuclear strategy symbol constants
-# Moved to strategy_v2.engines.nuclear.constants for shared access
 
 
 class SignalOrchestrator:
@@ -97,12 +93,13 @@ class SignalOrchestrator:
                 # For strategies with multiple signals (like Nuclear portfolio expansion),
                 # combine them into a single display entry with all symbols
                 if len(signals) > 1:
-                    # Multiple signals - show all symbols
+                    # Multiple signals - present a concise primary symbol; keep full list separately
                     symbols = [signal.symbol.value for signal in signals if signal.action == "BUY"]
                     primary_signal = signals[0]  # Use first signal for other attributes
+                    primary_symbol = primary_signal.symbol.value
                     strategy_signals[str(strategy_type)] = {
-                        "symbol": (", ".join(symbols) if symbols else primary_signal.symbol.value),
-                        "symbols": symbols,  # Keep individual symbols for other processing
+                        "symbol": primary_symbol,
+                        "symbols": symbols,  # Keep individual symbols for other processing and display
                         "action": primary_signal.action,
                         "confidence": float(primary_signal.confidence.value),
                         "reasoning": primary_signal.reasoning,
@@ -341,11 +338,21 @@ class SignalOrchestrator:
                 strategy_name = (
                     strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
                 )
+                # Use short symbol for DTO (max length 10). If multi, pick first from list.
+                raw_symbol = signal_data.get("symbol", "UNKNOWN")
+                if signal_data.get("is_multi_symbol") and isinstance(
+                    signal_data.get("symbols"), list
+                ):
+                    symbols_list = signal_data.get("symbols") or []
+                    if symbols_list:
+                        raw_symbol = symbols_list[0]
+                # Enforce 10-char max for StrategySignalDTO.symbol
+                sanitized_symbol = str(raw_symbol)[:10]
                 signal_dto = StrategySignalDTO(
                     correlation_id=correlation_id,
                     causation_id=causation_id,
                     timestamp=datetime.now(UTC),
-                    symbol=signal_data.get("symbol", "UNKNOWN"),
+                    symbol=sanitized_symbol,
                     action=signal_data.get("action", "HOLD"),
                     confidence=Decimal(str(signal_data.get("confidence", 0.0))),
                     reasoning=signal_data.get("reasoning", "Signal generated"),
@@ -439,8 +446,13 @@ class SignalOrchestrator:
         if symbol.value == "UVXY":
             return 1  # Just UVXY
         # For NUCLEAR_PORTFOLIO, count actual symbols in consolidated portfolio
-        if isinstance(symbol, str) and "NUCLEAR_PORTFOLIO" in symbol:
-            return self._count_nuclear_portfolio_symbols(symbol, consolidated_portfolio)
+        symbol_text = symbol.value
+        if "NUCLEAR_PORTFOLIO" in symbol_text:
+            # Prefer explicit symbols from signal payload when available
+            symbols_list = signal.get("symbols")
+            if isinstance(symbols_list, list):
+                return len([s for s in symbols_list if s in consolidated_portfolio])
+            return self._count_nuclear_portfolio_symbols(symbol_text, consolidated_portfolio)
         return 0
 
     def _count_nuclear_portfolio_symbols(
@@ -454,8 +466,8 @@ class SignalOrchestrator:
             symbols_part = match.group(1)
             nuclear_symbols = [s.strip() for s in symbols_part.split(",")]
             return len([s for s in nuclear_symbols if s in consolidated_portfolio])
-        # Fallback: count nuclear symbols in consolidated portfolio
-        return len([s for s in NUCLEAR_SYMBOLS if s in consolidated_portfolio])
+        # Fallback: count all consolidated portfolio symbols (best-effort)
+        return len(consolidated_portfolio)
 
     def _get_symbols_for_strategy(
         self,

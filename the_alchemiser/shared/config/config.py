@@ -54,6 +54,7 @@ class AlertsSettings(BaseModel):
 class SecretsManagerSettings(BaseModel):
     """Configuration for AWS Secrets Manager access."""
 
+    enabled: bool = True
     region_name: str = "eu-west-2"
     secret_name: str = "the-alchemiser-secrets"  # noqa: S105
 
@@ -63,6 +64,15 @@ class StrategySettings(BaseModel):
 
     default_strategy_allocations: dict[str, float] = Field(
         default_factory=lambda: {"nuclear": 0.3, "tecl": 0.5, "klm": 0.2}
+    )
+    # DSL multi-file support
+    dsl_files: list[str] = Field(
+        default_factory=lambda: ["KLM.clj"],
+        description="List of DSL .clj strategy files",
+    )
+    dsl_allocations: dict[str, float] = Field(
+        default_factory=lambda: {"KLM.clj": 1.0},
+        description="Per-DSL-file allocation weights that should sum to ~1.0",
     )
     poll_timeout: int = 30
     poll_interval: float = 2.0
