@@ -33,7 +33,6 @@ from the_alchemiser.shared.types.exceptions import DataProviderError
 from the_alchemiser.shared.types.strategy_types import StrategyType
 from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
 from the_alchemiser.shared.value_objects.symbol import Symbol
-from the_alchemiser.strategy_v2.engines.nuclear import NUCLEAR_SYMBOLS  # type: ignore[import-untyped]
 
 # Nuclear strategy symbol constants
 # Moved to strategy_v2.engines.nuclear.constants for shared access
@@ -466,8 +465,13 @@ class SignalOrchestrator:
         if symbol.value == "UVXY":
             return 1  # Just UVXY
         # For NUCLEAR_PORTFOLIO, count actual symbols in consolidated portfolio
-        if isinstance(symbol, str) and "NUCLEAR_PORTFOLIO" in symbol:
-            return self._count_nuclear_portfolio_symbols(symbol, consolidated_portfolio)
+        symbol_text = symbol.value
+        if "NUCLEAR_PORTFOLIO" in symbol_text:
+            # Prefer explicit symbols from signal payload when available
+            symbols_list = signal.get("symbols")
+            if isinstance(symbols_list, list):
+                return len([s for s in symbols_list if s in consolidated_portfolio])
+            return self._count_nuclear_portfolio_symbols(symbol_text, consolidated_portfolio)
         return 0
 
     def _count_nuclear_portfolio_symbols(
@@ -481,8 +485,8 @@ class SignalOrchestrator:
             symbols_part = match.group(1)
             nuclear_symbols = [s.strip() for s in symbols_part.split(",")]
             return len([s for s in nuclear_symbols if s in consolidated_portfolio])
-        # Fallback: count nuclear symbols in consolidated portfolio
-        return len([s for s in NUCLEAR_SYMBOLS if s in consolidated_portfolio])
+        # Fallback: count all consolidated portfolio symbols (best-effort)
+        return len(consolidated_portfolio)
 
     def _get_symbols_for_strategy(
         self,

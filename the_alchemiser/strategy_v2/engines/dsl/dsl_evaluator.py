@@ -782,7 +782,9 @@ class DslEvaluator:
                         modified_indicator, correlation_id, trace
                     )
                 else:
-                    score_val = self._evaluate_node(indicator_expr, correlation_id, trace)
+                    score_val = self._evaluate_node(
+                        indicator_expr, correlation_id, trace
+                    )
 
                 coerced: float
                 if isinstance(score_val, (int, float, Decimal)):
@@ -809,13 +811,17 @@ class DslEvaluator:
             if func_name == "select-top":
                 select_type = "top"
                 if len(selector_expr.children) > 1:
-                    n_val = self._evaluate_node(selector_expr.children[1], correlation_id, trace)
+                    n_val = self._evaluate_node(
+                        selector_expr.children[1], correlation_id, trace
+                    )
                     if isinstance(n_val, (int, Decimal)):
                         n_select = int(n_val)
             elif func_name == "select-bottom":
                 select_type = "bottom"
                 if len(selector_expr.children) > 1:
-                    n_val = self._evaluate_node(selector_expr.children[1], correlation_id, trace)
+                    n_val = self._evaluate_node(
+                        selector_expr.children[1], correlation_id, trace
+                    )
                     if isinstance(n_val, (int, Decimal)):
                         n_select = int(n_val)
 
