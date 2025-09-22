@@ -222,6 +222,75 @@ class IndicatorService:
                     metadata={"value": latest},
                 )
 
+            if indicator_type == "exponential_moving_average_price":
+                window = int(parameters.get("window", 12))
+                ema_series = self.technical_indicators.exponential_moving_average(
+                    prices, window=window
+                )
+                import pandas as pd
+
+                latest = float(ema_series.iloc[-1]) if len(ema_series) > 0 else None
+                if latest is None or pd.isna(latest):
+                    raise DslEvaluationError(
+                        f"No EMA available for {symbol} window={window}"
+                    )
+                return TechnicalIndicatorDTO(
+                    symbol=symbol,
+                    timestamp=datetime.now(UTC),
+                    current_price=(
+                        Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None
+                    ),
+                    ema_12=latest if window == 12 else None,
+                    ema_26=latest if window == 26 else None,
+                    data_source="real_market_data",
+                    metadata={"value": latest},
+                )
+
+            if indicator_type == "stdev_return":
+                window = int(parameters.get("window", 6))
+                std_series = self.technical_indicators.stdev_return(
+                    prices, window=window
+                )
+                import pandas as pd
+
+                latest = float(std_series.iloc[-1]) if len(std_series) > 0 else None
+                if latest is None or pd.isna(latest):
+                    raise DslEvaluationError(
+                        f"No stdev-return for {symbol} window={window}"
+                    )
+                return TechnicalIndicatorDTO(
+                    symbol=symbol,
+                    timestamp=datetime.now(UTC),
+                    current_price=(
+                        Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None
+                    ),
+                    stdev_return_6=latest if window == 6 else None,
+                    data_source="real_market_data",
+                    metadata={"value": latest},
+                )
+
+            if indicator_type == "max_drawdown":
+                window = int(parameters.get("window", 60))
+                mdd_series = self.technical_indicators.max_drawdown(
+                    prices, window=window
+                )
+                import pandas as pd
+
+                latest = float(mdd_series.iloc[-1]) if len(mdd_series) > 0 else None
+                if latest is None or pd.isna(latest):
+                    raise DslEvaluationError(
+                        f"No max-drawdown for {symbol} window={window}"
+                    )
+                return TechnicalIndicatorDTO(
+                    symbol=symbol,
+                    timestamp=datetime.now(UTC),
+                    current_price=(
+                        Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None
+                    ),
+                    data_source="real_market_data",
+                    metadata={"value": latest},
+                )
+
             # Unsupported indicator types
             raise DslEvaluationError(f"Unsupported indicator type: {indicator_type}")
 
@@ -278,6 +347,9 @@ class DslEvaluator:
             "moving-average-price": self._eval_moving_average_price,
             "moving-average-return": self._eval_moving_average_return,
             "cumulative-return": self._eval_cumulative_return,
+            "exponential-moving-average-price": self._eval_exponential_moving_average_price,
+            "stdev-return": self._eval_stdev_return,
+            "max-drawdown": self._eval_max_drawdown,
             "ma": self._eval_moving_average,
             "volatility": self._eval_volatility,
         }
@@ -585,7 +657,26 @@ class DslEvaluator:
                 "weight-specified requires pairs of weight and asset arguments"
             )
 
-        weights = {}
+        weights: dict[str, float] = {}
+
+        def collect_normalized_weights(value: DSLValue) -> dict[str, float]:
+            collected: dict[str, float] = {}
+            if isinstance(value, str):
+                collected[value] = 1.0
+                return collected
+            if isinstance(value, PortfolioFragmentDTO):
+                frag = value.normalize_weights()
+                return dict(frag.weights)
+            if isinstance(value, list):
+                for item in value:
+                    nested = collect_normalized_weights(item)
+                    for sym, w in nested.items():
+                        collected[sym] = collected.get(sym, 0.0) + w
+                total = sum(collected.values())
+                if total > 0:
+                    collected = {sym: w / total for sym, w in collected.items()}
+                return collected
+            return collected
 
         # Process weight-asset pairs
         for i in range(0, len(args), 2):
@@ -604,20 +695,14 @@ class DslEvaluator:
             # Evaluate asset (should be a symbol or asset result)
             asset_result = self._evaluate_node(asset_node, correlation_id, trace)
 
-            if isinstance(asset_result, str):
-                # Direct symbol
-                weights[asset_result] = weight
-            elif isinstance(asset_result, PortfolioFragmentDTO):
-                # Scale the fragment weights by the specified weight
-                for symbol, frag_weight in asset_result.weights.items():
-                    if symbol in weights:
-                        weights[symbol] += frag_weight * weight
-                    else:
-                        weights[symbol] = frag_weight * weight
-            else:
+            normalized = collect_normalized_weights(asset_result)
+            if not normalized:
                 raise DslEvaluationError(
                     f"Expected asset symbol or fragment, got {type(asset_result)}"
                 )
+            for symbol, base_w in normalized.items():
+                scaled = base_w * weight
+                weights[symbol] = weights.get(symbol, 0.0) + scaled
 
         return PortfolioFragmentDTO(
             fragment_id=str(uuid.uuid4()),
@@ -903,16 +988,38 @@ class DslEvaluator:
             "moving-average-price",
             "moving-average-return",
             "cumulative-return",
+            "exponential-moving-average-price",
+            "stdev-return",
+            "max-drawdown",
         }:
             children = [ASTNodeDTO.symbol(func_name), ASTNodeDTO.atom(symbol)]
             # Add parameters if present
             if len(indicator_expr.children) > 1:
                 children.append(indicator_expr.children[1])
             else:
-                # Add default window parameter
+                # Add default window parameter per indicator
+                default_window = 10
+                if func_name == "moving-average-price":
+                    default_window = 200
+                elif func_name == "moving-average-return":
+                    default_window = 21
+                elif func_name == "cumulative-return":
+                    default_window = 60
+                elif func_name == "exponential-moving-average-price":
+                    default_window = 12
+                elif func_name == "stdev-return":
+                    default_window = 6
+                elif func_name == "rsi":
+                    default_window = 14
+                elif func_name == "max-drawdown":
+                    default_window = 60
+
                 children.append(
                     ASTNodeDTO.list_node(
-                        [ASTNodeDTO.symbol(":window"), ASTNodeDTO.atom(Decimal("10"))],
+                        [
+                            ASTNodeDTO.symbol(":window"),
+                            ASTNodeDTO.atom(Decimal(str(default_window))),
+                        ],
                         metadata={"node_subtype": "map"},
                     )
                 )
@@ -1259,4 +1366,137 @@ class DslEvaluator:
                 print(f"DEBUG: Failed to coerce CUMRET metadata value: {exc}")
         raise DslEvaluationError(
             f"cumulative-return for {symbol_val} window={window} not available"
+        )
+
+    def _eval_exponential_moving_average_price(
+        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+    ) -> float:
+        """Evaluate exponential-moving-average-price via IndicatorService."""
+        if not args:
+            raise DslEvaluationError(
+                "exponential-moving-average-price requires symbol and params"
+            )
+
+        symbol_val = self._evaluate_node(args[0], correlation_id, trace)
+        if not isinstance(symbol_val, str):
+            raise DslEvaluationError(f"Symbol must be string, got {type(symbol_val)}")
+
+        window = 12
+        if len(args) > 1:
+            params = self._evaluate_node(args[1], correlation_id, trace)
+            if isinstance(params, dict):
+                try:
+                    window = int(params.get("window", window))
+                except (ValueError, TypeError):
+                    window = 12
+
+        request = IndicatorRequestDTO(
+            request_id=str(uuid.uuid4()),
+            correlation_id=correlation_id,
+            symbol=symbol_val,
+            indicator_type="exponential_moving_average_price",
+            parameters={"window": window},
+        )
+        indicator = self.indicator_service.get_indicator(request)
+        if window == 12 and indicator.ema_12 is not None:
+            return float(indicator.ema_12)
+        if window == 26 and indicator.ema_26 is not None:
+            return float(indicator.ema_26)
+        if indicator.metadata and "value" in indicator.metadata:
+            try:
+                return float(indicator.metadata["value"])  # type: ignore[misc]
+            except Exception as exc:
+                print(f"DEBUG: Failed to coerce EMA metadata value: {exc}")
+        raise DslEvaluationError(f"EMA for {symbol_val} window={window} not available")
+
+    def _eval_stdev_return(
+        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+    ) -> float:
+        """Evaluate stdev-return via IndicatorService (percent units)."""
+        if not args:
+            raise DslEvaluationError("stdev-return requires symbol and params")
+
+        idx = 0
+        symbol_val: str | None = None
+        first = self._evaluate_node(args[0], correlation_id, trace)
+        if isinstance(first, str):
+            symbol_val = first
+            idx = 1
+
+        window = 6
+        if len(args) > idx:
+            params = self._evaluate_node(args[idx], correlation_id, trace)
+            if isinstance(params, dict):
+                try:
+                    window = int(params.get("window", window))
+                except (ValueError, TypeError):
+                    window = 6
+
+        if symbol_val is None:
+            raise DslEvaluationError(
+                "stdev-return requires an explicit symbol when evaluated standalone"
+            )
+
+        request = IndicatorRequestDTO(
+            request_id=str(uuid.uuid4()),
+            correlation_id=correlation_id,
+            symbol=symbol_val,
+            indicator_type="stdev_return",
+            parameters={"window": window},
+        )
+        indicator = self.indicator_service.get_indicator(request)
+        if window == 6 and indicator.stdev_return_6 is not None:
+            return float(indicator.stdev_return_6)
+        if indicator.metadata and "value" in indicator.metadata:
+            try:
+                return float(indicator.metadata["value"])  # type: ignore[misc]
+            except Exception as exc:
+                print(f"DEBUG: Failed to coerce STDEV metadata value: {exc}")
+        raise DslEvaluationError(
+            f"stdev-return for {symbol_val} window={window} not available"
+        )
+
+    def _eval_max_drawdown(
+        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+    ) -> float:
+        """Evaluate max-drawdown via IndicatorService (percent magnitude)."""
+        if not args:
+            raise DslEvaluationError("max-drawdown requires symbol and params")
+
+        idx = 0
+        symbol_val: str | None = None
+        first = self._evaluate_node(args[0], correlation_id, trace)
+        if isinstance(first, str):
+            symbol_val = first
+            idx = 1
+
+        window = 60
+        if len(args) > idx:
+            params = self._evaluate_node(args[idx], correlation_id, trace)
+            if isinstance(params, dict):
+                try:
+                    window = int(params.get("window", window))
+                except (ValueError, TypeError):
+                    window = 60
+
+        if symbol_val is None:
+            raise DslEvaluationError(
+                "max-drawdown requires an explicit symbol when evaluated standalone"
+            )
+
+        request = IndicatorRequestDTO(
+            request_id=str(uuid.uuid4()),
+            correlation_id=correlation_id,
+            symbol=symbol_val,
+            indicator_type="max_drawdown",
+            parameters={"window": window},
+        )
+        indicator = self.indicator_service.get_indicator(request)
+        if indicator.metadata and "value" in indicator.metadata:
+            try:
+                return float(indicator.metadata["value"])  # type: ignore[misc]
+            except Exception as exc:
+                print(f"DEBUG: Failed to coerce MDD metadata value: {exc}")
+        raise DslEvaluationError(
+            f"max-drawdown for {symbol_val} window={window} not available"
         )

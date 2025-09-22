@@ -45,7 +45,9 @@ class TechnicalIndicators:
     @staticmethod
     def rsi(
         data: pd.Series, window: int = 14
-    ) -> pd.Series:  # Enhanced: Ready for IndicatorData structured output in future phases
+    ) -> (
+        pd.Series
+    ):  # Enhanced: Ready for IndicatorData structured output in future phases
         """Calculate RSI using Wilder's smoothing method.
 
         Computes the Relative Strength Index (RSI) using Wilder's smoothing
@@ -122,6 +124,25 @@ class TechnicalIndicators:
         return data.rolling(window=window, min_periods=window).mean()
 
     @staticmethod
+    def exponential_moving_average(data: pd.Series, window: int) -> pd.Series:
+        """Calculate exponential moving average (EMA).
+
+        Uses pandas ewm to compute the exponentially weighted moving average.
+
+        Args:
+            data: Price series
+            window: EMA span (commonly 12, 26, 50)
+
+        Returns:
+            EMA series
+
+        """
+        # align behavior with SMA min_periods by masking early values
+        ema = data.ewm(span=window, adjust=False).mean()
+        ema.iloc[: window - 1] = pd.NA
+        return ema
+
+    @staticmethod
     def moving_average_return(data: pd.Series, window: int) -> pd.Series:
         """Calculate rolling average of percentage returns.
 
@@ -186,5 +207,39 @@ class TechnicalIndicators:
         """
         try:
             return ((data / data.shift(window)) - 1) * 100
+        except Exception:
+            return pd.Series([0] * len(data), index=data.index)
+
+    @staticmethod
+    def stdev_return(data: pd.Series, window: int) -> pd.Series:
+        """Return rolling standard deviation of percentage returns.
+
+        Returns standard deviation of pct_change() over a rolling window,
+        scaled to percentage units.
+        """
+        try:
+            returns = data.pct_change() * 100
+            return returns.rolling(window=window, min_periods=window).std()
+        except Exception:
+            return pd.Series([0] * len(data), index=data.index)
+
+    @staticmethod
+    def max_drawdown(data: pd.Series, window: int) -> pd.Series:
+        """Return rolling maximum drawdown over window (percentage magnitude).
+
+        For each point, computes max peak-to-trough decline within the last
+        `window` observations: max( (peak - trough) / peak ) * 100.
+        """
+        try:
+            # Rolling window apply; use price series
+            def mdd_window(x: pd.Series) -> float:
+                # compute max drawdown within this window
+                roll_max = x.cummax()
+                drawdowns = (x / roll_max) - 1.0
+                return float(-drawdowns.min() * 100.0)
+
+            return data.rolling(window=window, min_periods=window).apply(
+                mdd_window, raw=False
+            )
         except Exception:
             return pd.Series([0] * len(data), index=data.index)
