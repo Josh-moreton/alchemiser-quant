@@ -239,3 +239,52 @@ class TechnicalIndicators:
             return data.rolling(window=window, min_periods=window).apply(mdd_window, raw=False)
         except Exception:
             return pd.Series([0] * len(data), index=data.index)
+
+    @staticmethod
+    def generate_mock_indicator_value(
+        symbol: str, indicator_type: str, window: int = 14
+    ) -> float:
+        """Generate deterministic mock indicator values for testing.
+        
+        Args:
+            symbol: Trading symbol
+            indicator_type: Type of indicator (rsi, current_price, etc.)
+            window: Window parameter for the indicator
+            
+        Returns:
+            Mock indicator value
+            
+        Note:
+            This method provides deterministic fallback values for testing
+            and development when real market data is not available.
+        """
+        # Generate deterministic but varied values based on symbol hash
+        symbol_hash = hash(symbol) % 100
+        base_price = 100.0 + symbol_hash
+        
+        if indicator_type == "rsi":
+            # RSI values between 30-70 based on symbol
+            return 30.0 + (symbol_hash % 40)
+        elif indicator_type == "current_price":
+            return base_price
+        elif indicator_type in {"moving_average", "moving_average_price"}:
+            # MA slightly below current price
+            return base_price * 0.98
+        elif indicator_type == "moving_average_return":
+            # Small positive return (0-9%)
+            return (symbol_hash % 10) / 100.0
+        elif indicator_type == "cumulative_return":
+            # Cumulative return based on symbol (0-19%)
+            return (symbol_hash % 20) / 100.0
+        elif indicator_type == "exponential_moving_average_price":
+            # EMA slightly different from price
+            return base_price * 0.995
+        elif indicator_type == "stdev_return":
+            # Standard deviation of returns (1-2%)
+            return 0.01 + (symbol_hash % 10) / 1000.0
+        elif indicator_type == "max_drawdown":
+            # Max drawdown percentage (0-14%)
+            return float(symbol_hash % 15)
+        else:
+            # Default neutral value
+            return 50.0

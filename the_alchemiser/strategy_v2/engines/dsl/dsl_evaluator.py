@@ -284,106 +284,96 @@ class IndicatorService:
         parameters = request.parameters
         window = parameters.get("window", 14)
         
-        # Generate deterministic but varied values based on symbol hash
-        symbol_hash = hash(symbol) % 100
-        base_price = 100.0 + symbol_hash
+        # Use the indicators module to generate mock values
+        indicator_value = TechnicalIndicators.generate_mock_indicator_value(
+            symbol, indicator_type, window
+        )
+        base_price = TechnicalIndicators.generate_mock_indicator_value(
+            symbol, "current_price", window
+        )
         
         if indicator_type == "rsi":
-            # RSI values between 30-70 based on symbol
-            rsi_value = 30.0 + (symbol_hash % 40)
             return TechnicalIndicatorDTO(
                 symbol=symbol,
                 timestamp=datetime.now(UTC),
-                rsi_14=rsi_value if window == 14 else None,
-                rsi_10=rsi_value if window == 10 else None,
-                rsi_20=rsi_value if window == 20 else None,
-                rsi_21=rsi_value if window == 21 else None,
+                rsi_14=indicator_value if window == 14 else None,
+                rsi_10=indicator_value if window == 10 else None,
+                rsi_20=indicator_value if window == 20 else None,
+                rsi_21=indicator_value if window == 21 else None,
                 current_price=Decimal(str(base_price)),
                 data_source="fallback_mock",
-                metadata={"value": rsi_value, "window": window},
+                metadata={"value": indicator_value, "window": window},
             )
             
         if indicator_type == "current_price":
             return TechnicalIndicatorDTO(
                 symbol=symbol,
                 timestamp=datetime.now(UTC),
-                current_price=Decimal(str(base_price)),
+                current_price=Decimal(str(indicator_value)),
                 data_source="fallback_mock",
-                metadata={"value": base_price},
+                metadata={"value": indicator_value},
             )
             
         if indicator_type in {"moving_average", "moving_average_price"}:
-            # MA slightly below current price
-            ma_value = base_price * 0.98
             return TechnicalIndicatorDTO(
                 symbol=symbol,
                 timestamp=datetime.now(UTC),
                 current_price=Decimal(str(base_price)),
-                ma_20=ma_value if window == 20 else None,
-                ma_50=ma_value if window == 50 else None,
-                ma_200=ma_value if window == 200 else None,
+                ma_20=indicator_value if window == 20 else None,
+                ma_50=indicator_value if window == 50 else None,
+                ma_200=indicator_value if window == 200 else None,
                 data_source="fallback_mock",
-                metadata={"value": ma_value, "window": window},
+                metadata={"value": indicator_value, "window": window},
             )
             
         if indicator_type == "moving_average_return":
-            # Small positive return
-            return_value = (symbol_hash % 10) / 100.0  # 0-9%
             return TechnicalIndicatorDTO(
                 symbol=symbol,
                 timestamp=datetime.now(UTC),
                 current_price=Decimal(str(base_price)),
-                ma_return_90=return_value if window == 90 else None,
+                ma_return_90=indicator_value if window == 90 else None,
                 data_source="fallback_mock",
-                metadata={"value": return_value, "window": window},
+                metadata={"value": indicator_value, "window": window},
             )
             
         if indicator_type == "cumulative_return":
-            # Cumulative return based on symbol
-            cum_return = (symbol_hash % 20) / 100.0  # 0-19%
             return TechnicalIndicatorDTO(
                 symbol=symbol,
                 timestamp=datetime.now(UTC),
                 current_price=Decimal(str(base_price)),
-                cum_return_60=cum_return if window == 60 else None,
+                cum_return_60=indicator_value if window == 60 else None,
                 data_source="fallback_mock",
-                metadata={"value": cum_return, "window": window},
+                metadata={"value": indicator_value, "window": window},
             )
             
         if indicator_type == "exponential_moving_average_price":
-            # EMA slightly different from price
-            ema_value = base_price * 0.995
             return TechnicalIndicatorDTO(
                 symbol=symbol,
                 timestamp=datetime.now(UTC),
                 current_price=Decimal(str(base_price)),
-                ema_12=ema_value if window == 12 else None,
-                ema_26=ema_value if window == 26 else None,
+                ema_12=indicator_value if window == 12 else None,
+                ema_26=indicator_value if window == 26 else None,
                 data_source="fallback_mock",
-                metadata={"value": ema_value, "window": window},
+                metadata={"value": indicator_value, "window": window},
             )
             
         if indicator_type == "stdev_return":
-            # Standard deviation of returns
-            stdev_value = 0.01 + (symbol_hash % 10) / 1000.0  # 1-2%
             return TechnicalIndicatorDTO(
                 symbol=symbol,
                 timestamp=datetime.now(UTC),
                 current_price=Decimal(str(base_price)),
-                stdev_return_6=stdev_value if window == 6 else None,
+                stdev_return_6=indicator_value if window == 6 else None,
                 data_source="fallback_mock",
-                metadata={"value": stdev_value, "window": window},
+                metadata={"value": indicator_value, "window": window},
             )
             
         if indicator_type == "max_drawdown":
-            # Max drawdown percentage
-            dd_value = (symbol_hash % 15)  # 0-14%
             return TechnicalIndicatorDTO(
                 symbol=symbol,
                 timestamp=datetime.now(UTC),
                 current_price=Decimal(str(base_price)),
                 data_source="fallback_mock",
-                metadata={"value": dd_value, "window": window},
+                metadata={"value": indicator_value, "window": window},
             )
             
         # Default fallback for unknown indicators
@@ -392,7 +382,7 @@ class IndicatorService:
             timestamp=datetime.now(UTC),
             current_price=Decimal(str(base_price)),
             data_source="fallback_mock",
-            metadata={"value": 50.0, "window": window},
+            metadata={"value": indicator_value, "window": window},
         )
 
 
