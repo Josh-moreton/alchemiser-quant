@@ -66,7 +66,8 @@ class StrategySettings(BaseModel):
     )
     # DSL multi-file support
     dsl_files: list[str] = Field(
-        default_factory=lambda: ["KLM.clj"], description="List of DSL .clj strategy files"
+        default_factory=lambda: ["KLM.clj"],
+        description="List of DSL .clj strategy files",
     )
     dsl_allocations: dict[str, float] = Field(
         default_factory=lambda: {"KLM.clj": 1.0},

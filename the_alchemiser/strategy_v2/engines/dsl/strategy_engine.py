@@ -16,7 +16,10 @@ from pathlib import Path
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
-from the_alchemiser.shared.types.strategy_value_objects import Confidence, StrategySignal
+from the_alchemiser.shared.types.strategy_value_objects import (
+    Confidence,
+    StrategySignal,
+)
 from the_alchemiser.strategy_v2.engines.dsl.engine import DslEngine, DslEngineError
 
 
@@ -186,7 +189,10 @@ class DslStrategyEngine:
         return dsl_files, normalized_file_weights
 
     def _evaluate_file(
-        self, filename: str, correlation_id: str, normalized_file_weights: dict[str, float]
+        self,
+        filename: str,
+        correlation_id: str,
+        normalized_file_weights: dict[str, float],
     ) -> tuple[dict[str, float], str, float, float]:
         """Evaluate a single DSL file and return scaled per-symbol weights.
 
