@@ -17,7 +17,7 @@ class TickSizeService:
         """Get tick size for a symbol at a given price.
 
         Args:
-            _symbol: Trading symbol (currently unused but reserved for future symbol-specific rules)
+            _symbol: Trading symbol (currently unused, using simple price-based rules)
             price: Current price
 
         Returns:

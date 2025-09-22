@@ -657,7 +657,6 @@ def main(
 
 @app.command()
 def ledger_list(
-    _ctx: typer.Context,
     strategy: str = typer.Option(None, "--strategy", "-s", help="Filter by strategy name"),
     symbol: str = typer.Option(None, "--symbol", help="Filter by symbol"),
     days: int = typer.Option(30, "--days", "-d", help="Number of days to look back"),
@@ -744,7 +743,6 @@ def ledger_list(
 
 @app.command()
 def ledger_performance(
-    _ctx: typer.Context,
     strategy: str = typer.Option(None, "--strategy", "-s", help="Filter by strategy name"),
     symbol: str = typer.Option(None, "--symbol", help="Filter by symbol"),
 ) -> None:
@@ -823,7 +821,6 @@ def ledger_performance(
 
 @app.command()
 def ledger_attribution(
-    _ctx: typer.Context,
     symbol: str = typer.Argument(..., help="Symbol to analyze"),
 ) -> None:
     """Show detailed attribution for a symbol across strategies."""

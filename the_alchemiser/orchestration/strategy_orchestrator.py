@@ -79,11 +79,8 @@ class MultiStrategyOrchestrator:
             # Filter to only enabled strategies
             from the_alchemiser.shared.types.strategy_registry import StrategyRegistry
 
-            self.strategy_allocations = {
-                strategy_type: allocation
-                for strategy_type, allocation in strategy_allocations.items()
-                if StrategyRegistry.is_strategy_enabled(strategy_type)
-            }
+            # All strategies are enabled, so use allocations as-is
+            self.strategy_allocations = dict(strategy_allocations)
 
         # Validate allocations sum to 1.0
         total_allocation = sum(self.strategy_allocations.values())

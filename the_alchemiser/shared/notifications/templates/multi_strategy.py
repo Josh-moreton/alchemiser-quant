@@ -26,7 +26,7 @@ class MultiStrategyReportBuilder:
         status_text = "Success" if success else "Failed"
 
         # Build content sections
-        header = BaseEmailTemplate.get_header("The Alchemiser")
+        header = BaseEmailTemplate.get_header()
         status_banner = BaseEmailTemplate.get_status_banner(
             f"{mode.upper()} Multi-Strategy Report",
             status_text,

@@ -1179,8 +1179,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Get market calendar information.
 
         Args:
-            _start_date: Start date (ISO format) - currently unused, fetches all calendar data
-            _end_date: End date (ISO format) - currently unused, fetches all calendar data
+            _start_date: Start date (ISO format) - currently unused
+            _end_date: End date (ISO format) - currently unused
 
         Returns:
             List of market calendar entries.

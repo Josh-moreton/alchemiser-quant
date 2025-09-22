@@ -58,11 +58,10 @@ def _determine_trading_mode(mode: str) -> str:
     return "paper" if endpoint and "paper" in endpoint.lower() else "live"
 
 
-def _build_response_message(_mode: str, trading_mode: str, *, result: bool) -> str:
-    """Build response message based on mode and result.
+def _build_response_message(trading_mode: str, *, result: bool) -> str:
+    """Build response message based on trading mode and result.
 
     Args:
-        _mode: Execution mode (currently unused but reserved for future formatting)
         trading_mode: Trading mode (paper/live/n/a)
         result: Execution result
 
@@ -286,7 +285,7 @@ def lambda_handler(
         result_ok = bool(result.success) if hasattr(result, "success") else bool(result)
 
         # Build response message
-        message = _build_response_message(mode, trading_mode, result=result_ok)
+        message = _build_response_message(trading_mode, result=result_ok)
 
         response = {
             "status": "success" if result_ok else "failed",
