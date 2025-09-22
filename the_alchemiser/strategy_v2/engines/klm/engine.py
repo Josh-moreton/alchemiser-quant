@@ -42,7 +42,7 @@ class KLMEngine(StrategyEngine):
 
     Directly implements the Original CLJ strategy specification:
     "Simons KMLM switcher (single pops) | BT 4/13/22 = A.R. 466% / D.D. 22% V2"
-    
+
     Implements exact nested if-else structure:
     1. UVXY guard-rail path (11-step overbought detection)
     2. Combined Pop Bot (oversold rotations)
@@ -60,13 +60,29 @@ class KLMEngine(StrategyEngine):
         # Required symbols from CLJ specification
         self.required_symbols = [
             # Overbought detection
-            "QQQE", "VTV", "VOX", "TECL", "VOOG", "VOOV", "XLP", "TQQQ", "XLY", "FAS", "SPY",
+            "QQQE",
+            "VTV",
+            "VOX",
+            "TECL",
+            "VOOG",
+            "VOOV",
+            "XLP",
+            "TQQQ",
+            "XLY",
+            "FAS",
+            "SPY",
             # Hedge symbol
             "UVXY",
             # Combined Pop Bot
-            "SOXL", "SPXL", "LABU",
+            "SOXL",
+            "SPXL",
+            "LABU",
             # KMLM Switcher
-            "XLK", "KMLM", "SVIX", "SQQQ", "TLT",
+            "XLK",
+            "KMLM",
+            "SVIX",
+            "SQQQ",
+            "TLT",
         ]
 
         self.logger.info("KLM Engine initialized for Original CLJ strategy")
@@ -254,9 +270,7 @@ class KLMEngine(StrategyEngine):
         # No oversold conditions met
         return None
 
-    def _evaluate_kmlm_switcher(
-        self, indicators: dict[str, TechnicalIndicatorDTO]
-    ) -> KLMDecision:
+    def _evaluate_kmlm_switcher(self, indicators: dict[str, TechnicalIndicatorDTO]) -> KLMDecision:
         """KMLM Switcher - exact CLJ implementation.
 
         Logic from CLJ:
@@ -268,16 +282,20 @@ class KLMEngine(StrategyEngine):
           - filter by RSI, select-top 1 from [SQQQ, TLT]
           - 100% weight to selected one
         """
-        # Get RSI values for comparison
-        xlk_rsi = indicators["XLK"].rsi_10 if "XLK" in indicators else 50
-        kmlm_rsi = indicators["KMLM"].rsi_10 if "KMLM" in indicators else 50
+        # Get RSI values for comparison (coalesce None to float defaults)
+        xlk_ti = indicators.get("XLK")
+        kmlm_ti = indicators.get("KMLM")
+        xlk_rsi: float = (
+            float(xlk_ti.rsi_10) if (xlk_ti is not None and xlk_ti.rsi_10 is not None) else 50.0
+        )
+        kmlm_rsi: float = (
+            float(kmlm_ti.rsi_10) if (kmlm_ti is not None and kmlm_ti.rsi_10 is not None) else 50.0
+        )
 
         if xlk_rsi > kmlm_rsi:
             # Tech branch: select-bottom 2 from [TECL, SOXL, SVIX]
             tech_symbols = ["TECL", "SOXL", "SVIX"]
-            selected_symbols = self._filter_and_select_by_rsi(
-                tech_symbols, indicators, "bottom", 2
-            )
+            selected_symbols = self._filter_and_select_by_rsi(tech_symbols, indicators, "bottom", 2)
 
             if selected_symbols:
                 # weight-equal across selected symbols
@@ -296,9 +314,7 @@ class KLMEngine(StrategyEngine):
             )
         # L/S Rotator: select-top 1 from [SQQQ, TLT]
         ls_symbols = ["SQQQ", "TLT"]
-        selected_symbols = self._filter_and_select_by_rsi(
-            ls_symbols, indicators, "top", 1
-        )
+        selected_symbols = self._filter_and_select_by_rsi(ls_symbols, indicators, "top", 1)
 
         if selected_symbols:
             # 100% weight to selected symbol
@@ -366,8 +382,10 @@ class KLMEngine(StrategyEngine):
         self, market_data_port: MarketDataPort | None = None
     ) -> dict[str, pd.DataFrame]:
         """Fetch market data for all required symbols using typed port."""
+
         def symbol_str_to_symbol(symbol_str: str) -> Symbol:
             from the_alchemiser.shared.value_objects.symbol import Symbol
+
             return Symbol(symbol_str)
 
         market_data = {}
@@ -405,9 +423,7 @@ class KLMEngine(StrategyEngine):
                 rsi_21 = safe_get_indicator(close, self.indicators.rsi, window=21)
 
                 # Calculate moving averages
-                ma_200 = safe_get_indicator(
-                    close, self.indicators.moving_average, window=200
-                )
+                ma_200 = safe_get_indicator(close, self.indicators.moving_average, window=200)
 
                 # Calculate returns
                 ma_return_90 = calculate_moving_average_return(close, 90)
@@ -447,14 +463,8 @@ class KLMEngine(StrategyEngine):
             for symbol_str, weight in symbol_or_allocation.items():
                 try:
                     # Validate weight is a valid number
-                    if (
-                        weight is None
-                        or not isinstance(weight, int | float)
-                        or math.isnan(weight)
-                    ):
-                        self.logger.warning(
-                            f"Invalid weight for {symbol_str}: {weight}, skipping"
-                        )
+                    if weight is None or not isinstance(weight, int | float) or math.isnan(weight):
+                        self.logger.warning(f"Invalid weight for {symbol_str}: {weight}, skipping")
                         continue
 
                     symbol = Symbol(symbol_str)
@@ -501,15 +511,9 @@ class KLMEngine(StrategyEngine):
                     f"Error creating signal for {symbol_or_allocation} with action {action}: {e}"
                 )
                 # Return hold signal as fallback
-                return self._create_hold_signal(
-                    f"Invalid symbol: {symbol_or_allocation}", now
-                )
+                return self._create_hold_signal(f"Invalid symbol: {symbol_or_allocation}", now)
 
-        return (
-            signals
-            if signals
-            else self._create_hold_signal("No valid signals generated", now)
-        )
+        return signals if signals else self._create_hold_signal("No valid signals generated", now)
 
     def _calculate_confidence(self, action: str, weight: float) -> Confidence:
         """Calculate confidence based on action and allocation weight."""
@@ -553,9 +557,7 @@ class KLMEngine(StrategyEngine):
             or not isinstance(confidence_value, int | float)
             or math.isnan(confidence_value)
         ):
-            self.logger.warning(
-                f"Invalid confidence value: {confidence_value}, using default 0.5"
-            )
+            self.logger.warning(f"Invalid confidence value: {confidence_value}, using default 0.5")
             confidence_value = 0.5
 
         try:
