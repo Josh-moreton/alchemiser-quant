@@ -5,6 +5,40 @@ Description: >
 
   Multi-strategy algorithmic trading engine deployed as an AWS Lambda Function
 
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    Description: Deployment stage (dev or prod)
+
+  TradeLedgerBucketName:
+    Type: String
+    Default: the-alchemiser-v2-s3
+    Description: S3 bucket name for trade ledger storage (override for dev to avoid collisions)
+
+  AlpacaKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Key (used only in dev; leave blank for prod)
+
+  AlpacaSecret:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Secret (used only in dev; leave blank for prod)
+
+  AlpacaEndpoint:
+    Type: String
+    Default: https://paper-api.alpaca.markets/v2
+    Description: Alpaca API endpoint; defaults to paper for dev, live is used for prod
+
+Conditions:
+  IsDev: !Equals [ !Ref Stage, dev ]
+
 Globals:
   Function:
     Timeout: 900 # 15 minutes - max for Lambda
@@ -14,27 +48,31 @@ Globals:
         # Logging
         LOGGING__LEVEL: INFO
         # Trade Ledger
-        EXECUTION__ENABLE_TRADE_LEDGER: true
+        EXECUTION__ENABLE_TRADE_LEDGER: !If [ IsDev, "false", "true" ]
         S3_BUCKET_NAME: !Ref TradeLedgerBucket
-        # Alpaca Configuration (LIVE trading in Lambda)
-        ALPACA__ENDPOINT: https://api.alpaca.markets
-        ALPACA__CASH_RESERVE_PCT: 0.02
-        # Secrets Manager (credentials loaded at runtime)
-        SECRETS_MANAGER__REGION_NAME: us-east-1
-        SECRETS_MANAGER__SECRET_NAME: the-alchemiser-v2-secrets
+        # Alpaca Configuration
+        ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, "" ]
+        ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, "" ]
+        ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, "https://api.alpaca.markets" ]
+        ALPACA__CASH_RESERVE_PCT: "0.02"
+        # Secrets Manager toggle
+        SECRETS_MANAGER__ENABLED: "false"
         # Email Configuration
         EMAIL__SMTP_SERVER: smtp.mail.me.com
         EMAIL__SMTP_PORT: 587
         EMAIL__FROM_EMAIL: josh@rwxt.org
         EMAIL__TO_EMAIL: josh@rwxt.org
         EMAIL__NEUTRAL_MODE: true
+        # Strategy DSL configuration
+        STRATEGY__DSL_FILES: '["KLM.clj","Nuclear.clj","TQQQ-FLT.clj","TECL.clj"]'
+        STRATEGY__DSL_ALLOCATIONS: '{"KLM.clj":0.25,"Nuclear.clj":0.25,"TQQQ-FLT.clj":0.25,"TECL.clj":0.25}'
 
 Resources:
   # Lambda Layer for dependencies
   DependenciesLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      LayerName: the-alchemiser-dependencies
+      LayerName: !Sub "the-alchemiser-dependencies-${Stage}"
       Description: Dependencies for The Alchemiser Quantitative Trading System
       ContentUri: dependencies/
       CompatibleRuntimes:
@@ -46,7 +84,7 @@ Resources:
   TradingSystemFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: the-alchemiser-v2-lambda
+      FunctionName: !Sub "the-alchemiser-v2-lambda-${Stage}"
       PackageType: Zip
       Runtime: python3.12
       CodeUri: .
@@ -59,7 +97,7 @@ Resources:
   TradingSystemDLQ:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: the-alchemiser-dlq
+      QueueName: !Sub "the-alchemiser-dlq-${Stage}"
       MessageRetentionPeriod: 1209600 # 14 days
       VisibilityTimeout: 60
 
@@ -67,7 +105,7 @@ Resources:
   TradingSystemSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
-      Name: the-alchemiser-daily-trading
+      Name: !Sub "the-alchemiser-daily-trading-${Stage}"
       Description: "Execute quantitative trading system daily at 9:35 AM New York time"
       ScheduleExpression: "cron(35 9 ? * MON-FRI *)"
       ScheduleExpressionTimezone: "America/New_York"
@@ -129,13 +167,6 @@ Resources:
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
-              # Secrets Manager access for API keys
-              - Effect: Allow
-                Action:
-                  - secretsmanager:GetSecretValue
-                  - secretsmanager:DescribeSecret
-                Resource: !Ref TradingSecrets
-
               # S3 access for trade ledger storage
               - Effect: Allow
                 Action:
@@ -158,27 +189,11 @@ Resources:
                 Resource: "*"
 
 
-  # CloudWatch Log Group with retention
-  TradingSystemLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: /aws/lambda/the-alchemiser-v2-lambda
-      RetentionInDays: 30
-
-  # Secrets Manager Secret (managed by this stack, value set manually post-deploy)
-  TradingSecrets:
-    Type: AWS::SecretsManager::Secret
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      Name: the-alchemiser-v2-secrets
-      Description: "Secrets for The Alchemiser v2 (ALPACA_KEY/SECRET, optional TWELVEDATA_KEY, SMTP_PASSWORD)"
-
   # S3 bucket for trade ledger storage (managed by this stack)
   TradeLedgerBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: the-alchemiser-v2-s3
+      BucketName: !Ref TradeLedgerBucketName
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -192,11 +207,22 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
 
-Outputs:
-  TradingSystemFunction:
-    Description: "Quantitative Trading System Lambda Function ARN"
-    Value: !Ref TradingSystemFunction
-
+  # CloudWatch Log Group with retention
   TradingSystemLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/the-alchemiser-v2-lambda-${Stage}"
+      RetentionInDays: 30
+
+Outputs:
+  TradingSystemFunctionArn:
+    Description: "Quantitative Trading System Lambda Function ARN"
+    Value: !GetAtt TradingSystemFunction.Arn
+
+  TradingSystemLogGroupName:
     Description: "CloudWatch Log Group for monitoring"
-    Value: /aws/lambda/the-alchemiser-v2-lambda
+    Value: !Sub "/aws/lambda/the-alchemiser-v2-lambda-${Stage}"
+
+  DeploymentStage:
+    Description: "Deployed stage"
+    Value: !Ref Stage

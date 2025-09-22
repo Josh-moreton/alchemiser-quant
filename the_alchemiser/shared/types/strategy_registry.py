@@ -15,9 +15,8 @@ class StrategyRegistry:
     def get_default_allocations() -> dict[StrategyType, float]:
         """Get default strategy allocations."""
         return {
-            StrategyType.NUCLEAR: 0.5,
-            StrategyType.TECL: 0.3,
-            StrategyType.KLM: 0.2,
+            # For this DSL-focused PR, we only use DSL engine to test integration
+            StrategyType.DSL: 1.0,
         }
 
     @staticmethod
