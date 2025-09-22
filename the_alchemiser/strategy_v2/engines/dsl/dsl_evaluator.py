@@ -220,7 +220,7 @@ class DslEvaluator:
 
             # Evaluate the AST
             result = self._evaluate_node(ast, correlation_id, trace)
-            
+
             # DEBUG: Log what we got from evaluation
             print(f"DEBUG: DSL evaluation result type: {type(result)}")
             print(f"DEBUG: DSL evaluation result: {result}")
@@ -363,7 +363,7 @@ class DslEvaluator:
         if not weights:
             print("DEBUG: No weights, creating CASH fallback")
             weights = {"CASH": Decimal("1.0")}
-        
+
         print(f"DEBUG: Final weights for allocation: {weights}")
 
         return StrategyAllocationDTO(
@@ -688,7 +688,7 @@ class DslEvaluator:
         )
 
         indicator = self.indicator_service.get_indicator(request)
-        
+
         # DEBUG: Log RSI values
         print(f"DEBUG: RSI for {symbol} (window={window}): {indicator.value}")
 
