@@ -14,7 +14,6 @@ Provides specific event classes for DSL strategy evaluation workflow:
 
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import Any
 
 from pydantic import Field

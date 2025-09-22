@@ -51,6 +51,7 @@ class ASTNodeDTO(BaseModel):
             
         Returns:
             ASTNodeDTO representing a symbol
+
         """
         return cls(
             node_type="symbol",
@@ -68,6 +69,7 @@ class ASTNodeDTO(BaseModel):
             
         Returns:
             ASTNodeDTO representing an atom
+
         """
         return cls(
             node_type="atom",
@@ -89,6 +91,7 @@ class ASTNodeDTO(BaseModel):
             
         Returns:
             ASTNodeDTO representing a list
+
         """
         return cls(
             node_type="list",

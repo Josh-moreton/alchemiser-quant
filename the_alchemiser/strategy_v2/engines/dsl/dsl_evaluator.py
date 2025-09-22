@@ -128,7 +128,6 @@ class IndicatorService:
 
     def _create_fallback_indicator(self, symbol: str) -> TechnicalIndicatorDTO:
         """Create fallback indicator with strategic values for DSL testing."""
-        
         # Strategic mock RSI values to trigger different strategy paths
         mock_rsi_values = {
             # High RSI values (>79) to trigger UVXY allocation in strategies
@@ -751,7 +750,7 @@ class DslEvaluator:
                     score = self._evaluate_node(indicator_expr, correlation_id, trace)
                 
                 asset_scores.append((asset, float(score)))
-            except Exception as e:
+            except Exception:
                 # If evaluation fails, use neutral score
                 asset_scores.append((asset, 50.0))
         
@@ -761,7 +760,7 @@ class DslEvaluator:
         # Determine how many to select
         n_select = 1
         select_type = "top"
-        if hasattr(selector_result, '__call__'):
+        if callable(selector_result):
             # Selector is a function, apply it
             try:
                 selected_assets = selector_result(asset_scores)
@@ -791,7 +790,7 @@ class DslEvaluator:
         # Create equal weight allocation for selected assets
         if selected_assets:
             weight_per_asset = 1.0 / len(selected_assets)
-            weights = {asset: weight_per_asset for asset in selected_assets}
+            weights = dict.fromkeys(selected_assets, weight_per_asset)
         else:
             weights = {}
         

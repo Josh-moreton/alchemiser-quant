@@ -58,6 +58,7 @@ class IndicatorRequestDTO(BaseModel):
             
         Returns:
             IndicatorRequestDTO for RSI
+
         """
         return cls(
             request_id=request_id,
@@ -85,6 +86,7 @@ class IndicatorRequestDTO(BaseModel):
             
         Returns:
             IndicatorRequestDTO for moving average
+
         """
         return cls(
             request_id=request_id,
@@ -125,6 +127,7 @@ class PortfolioFragmentDTO(BaseModel):
         
         Returns:
             New PortfolioFragmentDTO with normalized weights
+
         """
         if not self.weights:
             return self

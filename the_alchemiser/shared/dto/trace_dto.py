@@ -129,6 +129,7 @@ class TraceDTO(BaseModel):
 
         Returns:
             New TraceDTO with added entry
+
         """
         entry = TraceEntryDTO(
             step_id=step_id,
@@ -154,6 +155,7 @@ class TraceDTO(BaseModel):
 
         Returns:
             New TraceDTO marked as completed
+
         """
         return self.model_copy(
             update={
