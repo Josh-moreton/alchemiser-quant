@@ -329,7 +329,8 @@ class TestRegressionDetection:
         
         # Allocation results should be consistent
         if allocation1 is not None and allocation2 is not None:
-            assert allocation1.strategy_id == allocation2.strategy_id
+            # Compare correlation IDs instead of strategy_id
+            assert allocation1.correlation_id == allocation2.correlation_id
             # Note: actual allocation values might differ due to randomness in mock data
             # But the structure should be consistent
         

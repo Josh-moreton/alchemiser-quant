@@ -343,7 +343,6 @@ class DslTestResult:
             if isinstance(event, StrategyEvaluated):
                 if event.allocation:
                     event_data["allocation"] = {
-                        "strategy_id": event.allocation.strategy_id,
                         "allocations": {k: float(v) for k, v in event.allocation.target_weights.items()},
                         "total_allocation": float(sum(event.allocation.target_weights.values())),
                         "correlation_id": event.allocation.correlation_id
@@ -351,7 +350,6 @@ class DslTestResult:
             elif isinstance(event, PortfolioAllocationProduced):
                 if event.allocation:
                     event_data["allocation"] = {
-                        "strategy_id": event.allocation.strategy_id,
                         "allocations": {k: float(v) for k, v in event.allocation.target_weights.items()},
                         "total_allocation": float(sum(event.allocation.target_weights.values())),
                         "correlation_id": event.allocation.correlation_id
@@ -362,7 +360,6 @@ class DslTestResult:
         # Add allocation data to main level if available
         if self.allocation_result:
             data["allocation"] = {
-                "strategy_id": self.allocation_result.strategy_id,
                 "allocations": {k: float(v) for k, v in self.allocation_result.target_weights.items()},
                 "total_allocation": float(sum(self.allocation_result.target_weights.values())),
                 "correlation_id": self.allocation_result.correlation_id
