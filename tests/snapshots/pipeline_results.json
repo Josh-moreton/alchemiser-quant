@@ -1,0 +1,29 @@
+{
+  "Grail": {
+    "event_types": [
+      "StrategyEvaluationRequested"
+    ],
+    "events": 1,
+    "has_allocation": false,
+    "has_trace": false,
+    "success": false
+  },
+  "KLM": {
+    "event_types": [
+      "StrategyEvaluationRequested"
+    ],
+    "events": 1,
+    "has_allocation": false,
+    "has_trace": false,
+    "success": false
+  },
+  "Nuclear": {
+    "event_types": [
+      "StrategyEvaluationRequested"
+    ],
+    "events": 1,
+    "has_allocation": false,
+    "has_trace": false,
+    "success": false
+  }
+}

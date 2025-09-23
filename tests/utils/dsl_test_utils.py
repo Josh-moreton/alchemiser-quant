@@ -232,7 +232,9 @@ class EventSequenceBuilder:
             event_type="StrategyEvaluationRequested",
             timestamp=timestamp or datetime.now(UTC),
             correlation_id=self.correlation_id,
-            source="test_harness",
+            causation_id=str(uuid.uuid4()),
+            source_module="test_harness",
+            source_component="EventSequenceBuilder",
             strategy_id=strategy_id,
             strategy_config_path=strategy_config_path,
             universe=universe or []

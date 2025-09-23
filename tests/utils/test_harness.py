@@ -69,8 +69,23 @@ class DslTestHarness:
         mock_port = Mock(spec=MarketDataPort)
         
         # Configure mock methods to use our mock market data service
-        mock_port.get_current_price.side_effect = self.mock_market_data.get_current_price
-        mock_port.get_indicator.side_effect = self.mock_market_data.get_indicator
+        def mock_get_mid_price(symbol):
+            symbol_str = str(symbol) if hasattr(symbol, '__str__') else symbol
+            return self.mock_market_data.get_current_price(symbol_str)
+        
+        def mock_get_latest_quote(symbol):
+            # Return a simple mock quote
+            symbol_str = str(symbol) if hasattr(symbol, '__str__') else symbol
+            price = self.mock_market_data.get_current_price(symbol_str)
+            return Mock(bid=price * 0.999, ask=price * 1.001, mid=price)
+        
+        def mock_get_bars(symbol, period, timeframe):
+            # Return empty list for now - not used in current DSL evaluations
+            return []
+        
+        mock_port.get_mid_price.side_effect = mock_get_mid_price
+        mock_port.get_latest_quote.side_effect = mock_get_latest_quote
+        mock_port.get_bars.side_effect = mock_get_bars
         
         return mock_port
     
@@ -95,7 +110,9 @@ class DslTestHarness:
             event_type="StrategyEvaluationRequested",
             timestamp=self.virtual_time,
             correlation_id=correlation_id,
-            source="test_harness",
+            causation_id=str(uuid.uuid4()),  # Required field
+            source_module="test_harness",  # Required field  
+            source_component="DslTestHarness",
             strategy_id=strategy_id,
             strategy_config_path=strategy_file_path,
             universe=universe or []
@@ -260,7 +277,7 @@ class DslTestResult:
             event_data = {
                 "event_type": event.event_type,
                 "correlation_id": event.correlation_id,
-                "source": event.source,
+                "source_module": event.source_module,
             }
             
             # Add type-specific data
