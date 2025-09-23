@@ -376,6 +376,140 @@ class IndicatorService:
             ) from e
 
 
+class _AssetExtractor:
+    """Extracts assets from evaluation results."""
+    
+    @staticmethod
+    def extract_assets(assets_result: DSLValue) -> list[str]:
+        """Extract asset symbols from evaluation result."""
+        assets = []
+        if isinstance(assets_result, list):
+            for item in assets_result:
+                if isinstance(item, str):
+                    assets.append(item)
+                elif isinstance(item, PortfolioFragmentDTO):
+                    assets.extend(item.weights.keys())
+        return assets
+
+
+class _AssetScorer:
+    """Scores assets using indicator expressions."""
+    
+    def __init__(self, evaluator: "DslEvaluator"):
+        self.evaluator = evaluator
+    
+    def score_assets(
+        self, 
+        assets: list[str], 
+        indicator_expr: ASTNodeDTO, 
+        correlation_id: str, 
+        trace: TraceDTO
+    ) -> list[tuple[str, float]]:
+        """Score all assets using the given indicator expression."""
+        asset_scores: list[tuple[str, float]] = []
+        for asset in assets:
+            try:
+                score_val = self._evaluate_indicator_for_asset(
+                    indicator_expr, asset, correlation_id, trace
+                )
+                coerced = self._coerce_score_value(score_val)
+                asset_scores.append((asset, coerced))
+            except Exception:
+                # If evaluation fails, use neutral score
+                asset_scores.append((asset, 50.0))
+        return asset_scores
+    
+    def _evaluate_indicator_for_asset(
+        self, indicator_expr: ASTNodeDTO, asset: str, correlation_id: str, trace: TraceDTO
+    ) -> DSLValue:
+        """Evaluate indicator expression for a specific asset."""
+        if indicator_expr.is_list() and indicator_expr.children:
+            # Replace or add symbol parameter to indicator
+            modified_indicator = self.evaluator._create_indicator_with_symbol(
+                indicator_expr, asset
+            )
+            return self.evaluator._evaluate_node(modified_indicator, correlation_id, trace)
+        else:
+            return self.evaluator._evaluate_node(indicator_expr, correlation_id, trace)
+    
+    def _coerce_score_value(self, score_val: DSLValue) -> float:
+        """Coerce a score value to float."""
+        if isinstance(score_val, (int, float, Decimal)):
+            return float(score_val)
+        elif isinstance(score_val, str):
+            try:
+                return float(Decimal(score_val))
+            except Exception:
+                return 50.0
+        else:
+            return 50.0
+
+
+class _AssetSelector:
+    """Selects assets based on selector expressions."""
+    
+    def __init__(self, evaluator: "DslEvaluator"):
+        self.evaluator = evaluator
+    
+    def parse_selector(
+        self, selector_expr: ASTNodeDTO, correlation_id: str, trace: TraceDTO
+    ) -> tuple[str, int]:
+        """Parse selector expression to get selection type and count."""
+        n_select = 1
+        select_type = "top"
+        
+        if selector_expr.is_list() and selector_expr.children:
+            func_name = selector_expr.children[0].get_symbol_name()
+            if func_name == "select-top":
+                select_type = "top"
+                n_select = self._extract_selection_count(selector_expr, correlation_id, trace)
+            elif func_name == "select-bottom":
+                select_type = "bottom"
+                n_select = self._extract_selection_count(selector_expr, correlation_id, trace)
+        
+        return select_type, n_select
+    
+    def _extract_selection_count(
+        self, selector_expr: ASTNodeDTO, correlation_id: str, trace: TraceDTO
+    ) -> int:
+        """Extract the number of assets to select from selector expression."""
+        if len(selector_expr.children) > 1:
+            n_val = self.evaluator._evaluate_node(
+                selector_expr.children[1], correlation_id, trace
+            )
+            if isinstance(n_val, (int, Decimal)):
+                return int(n_val)
+        return 1
+    
+    def select_assets(
+        self, asset_scores: list[tuple[str, float]], select_type: str, n_select: int
+    ) -> list[str]:
+        """Select top/bottom N assets based on scores."""
+        if select_type == "top":
+            sorted_assets = sorted(asset_scores, key=lambda x: x[1], reverse=True)
+        else:
+            sorted_assets = sorted(asset_scores, key=lambda x: x[1])
+        
+        return [asset for asset, _score in sorted_assets[:n_select]]
+
+
+class _PortfolioFragmentBuilder:
+    """Builds portfolio fragments from selected assets."""
+    
+    @staticmethod
+    def create_equal_weight_fragment(selected_assets: list[str]) -> PortfolioFragmentDTO:
+        """Create equal weight portfolio fragment for selected assets."""
+        if selected_assets:
+            weight_per_asset = 1.0 / len(selected_assets)
+            weights = dict.fromkeys(selected_assets, weight_per_asset)
+        else:
+            weights = {}
+
+        return PortfolioFragmentDTO(
+            fragment_id=str(uuid.uuid4()), source_step="filter", weights=weights
+        )
+
+
 class DslEvaluator:
     """Evaluator for DSL strategy expressions.
 
@@ -1005,98 +1139,24 @@ class DslEvaluator:
         selector_expr = args[1]
         assets_expr = args[2]
 
-        # Evaluate the assets list
+        # Step 1: Extract assets from assets expression
         assets_result = self._evaluate_node(assets_expr, correlation_id, trace)
-
-        # Extract assets from the result
-        assets = []
-        if isinstance(assets_result, list):
-            for item in assets_result:
-                if isinstance(item, str):
-                    assets.append(item)
-                elif isinstance(item, PortfolioFragmentDTO):
-                    assets.extend(item.weights.keys())
+        assets = _AssetExtractor.extract_assets(assets_result)
 
         if not assets:
-            return PortfolioFragmentDTO(
-                fragment_id=str(uuid.uuid4()), source_step="filter", weights={}
-            )
+            return _PortfolioFragmentBuilder.create_equal_weight_fragment([])
 
-        # Evaluate indicator for each asset and collect scores
-        asset_scores: list[tuple[str, float]] = []
-        for asset in assets:
-            try:
-                # Evaluate indicator with this asset
-                if indicator_expr.is_list() and indicator_expr.children:
-                    # Replace or add symbol parameter to indicator
-                    modified_indicator = self._create_indicator_with_symbol(
-                        indicator_expr, asset
-                    )
-                    score_val = self._evaluate_node(
-                        modified_indicator, correlation_id, trace
-                    )
-                else:
-                    score_val = self._evaluate_node(
-                        indicator_expr, correlation_id, trace
-                    )
+        # Step 2: Score assets using indicator
+        scorer = _AssetScorer(self)
+        asset_scores = scorer.score_assets(assets, indicator_expr, correlation_id, trace)
 
-                coerced: float
-                if isinstance(score_val, (int, float, Decimal)):
-                    coerced = float(score_val)
-                elif isinstance(score_val, str):
-                    try:
-                        coerced = float(Decimal(score_val))
-                    except Exception:
-                        coerced = 50.0
-                else:
-                    coerced = 50.0
+        # Step 3: Parse selector and select assets
+        selector = _AssetSelector(self)
+        select_type, n_select = selector.parse_selector(selector_expr, correlation_id, trace)
+        selected_assets = selector.select_assets(asset_scores, select_type, n_select)
 
-                asset_scores.append((asset, coerced))
-            except Exception:
-                # If evaluation fails, use neutral score
-                asset_scores.append((asset, 50.0))
-
-        # Apply selector
-        # Determine how many to select (top/bottom)
-        n_select = 1
-        select_type = "top"
-        if selector_expr.is_list() and selector_expr.children:
-            func_name = selector_expr.children[0].get_symbol_name()
-            if func_name == "select-top":
-                select_type = "top"
-                if len(selector_expr.children) > 1:
-                    n_val = self._evaluate_node(
-                        selector_expr.children[1], correlation_id, trace
-                    )
-                    if isinstance(n_val, (int, Decimal)):
-                        n_select = int(n_val)
-            elif func_name == "select-bottom":
-                select_type = "bottom"
-                if len(selector_expr.children) > 1:
-                    n_val = self._evaluate_node(
-                        selector_expr.children[1], correlation_id, trace
-                    )
-                    if isinstance(n_val, (int, Decimal)):
-                        n_select = int(n_val)
-
-        # Sort and select
-        if select_type == "top":
-            sorted_assets = sorted(asset_scores, key=lambda x: x[1], reverse=True)
-        else:
-            sorted_assets = sorted(asset_scores, key=lambda x: x[1])
-
-        selected_assets = [asset for asset, _score in sorted_assets[:n_select]]
-
-        # Create equal weight allocation for selected assets
-        if selected_assets:
-            weight_per_asset = 1.0 / len(selected_assets)
-            weights = dict.fromkeys(selected_assets, weight_per_asset)
-        else:
-            weights = {}
-
-        return PortfolioFragmentDTO(
-            fragment_id=str(uuid.uuid4()), source_step="filter", weights=weights
-        )
+        # Step 4: Create portfolio fragment
+        return _PortfolioFragmentBuilder.create_equal_weight_fragment(selected_assets)
 
     def _create_indicator_with_symbol(
         self, indicator_expr: ASTNodeDTO, symbol: str
