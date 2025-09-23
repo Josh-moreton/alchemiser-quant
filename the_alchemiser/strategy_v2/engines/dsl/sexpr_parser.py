@@ -52,7 +52,7 @@ class _StringTokenizer:
                 continue
             if ch == '"':
                 token_value = text[position : i + 1]
-                return ("STRING", token_value), i + 1
+                return (token_value, "STRING"), i + 1
             i += 1
             
         raise SexprParseError("Unterminated string literal", position)
@@ -77,7 +77,7 @@ class _PatternTokenizer:
                 
                 # Skip whitespace, comments, and commas
                 if token_type not in ("WHITESPACE", "COMMENT", "COMMA"):
-                    return (token_type, token_value), match.end()
+                    return (token_value, token_type), match.end()
                 else:
                     return None, match.end()  # Skip but advance position
         
@@ -127,7 +127,7 @@ class SexprParser:
             text: S-expression text to tokenize
 
         Returns:
-            List of (token_type, token_value) tuples
+            List of (token_value, token_type) tuples
 
         Raises:
             SexprParseError: If tokenization fails
