@@ -179,6 +179,9 @@ class RealTimePricingService:
         self._last_quote_time: dict[str, datetime] = {}
         self._last_update: dict[str, datetime] = {}
 
+        # Task tracking for async operations
+        self._background_tasks: set[asyncio.Task[None]] = set()
+
         # Initialize logger for this instance
         self.logger = logging.getLogger(__name__)
 
@@ -279,6 +282,12 @@ class RealTimePricingService:
 
             if self._stream_thread and self._stream_thread.is_alive():
                 self._stream_thread.join(timeout=5)
+
+            # Cancel any remaining background tasks
+            for task in self._background_tasks:
+                if not task.done():
+                    task.cancel()
+            self._background_tasks.clear()
 
             self._connected = False
             logging.info("🛑 Real-time pricing service stopped")
@@ -406,7 +415,7 @@ class RealTimePricingService:
         logging.info("📡 Real-time pricing stream thread exiting")
 
     async def _on_quote(self, data: AlpacaQuoteData) -> None:
-        """Handle incoming quote data.
+        """Handle incoming quote data with async processing optimizations.
 
         Args:
             data: Quote data from Alpaca WebSocket
@@ -440,49 +449,88 @@ class RealTimePricingService:
             # Ensure timestamp is a datetime
             timestamp = timestamp_raw if isinstance(timestamp_raw, datetime) else datetime.now(UTC)
 
-            # Log for debugging
-            self.logger.debug(f"📊 Quote received for {symbol}: bid={bid_price}, ask={ask_price}")
+            # Use asyncio.to_thread for debug logging to avoid blocking the event loop
+            if self.logger.isEnabledFor(logging.DEBUG):
+                # Create task but don't await it to avoid blocking
+                debug_task = asyncio.create_task(
+                    asyncio.to_thread(
+                        self.logger.debug,
+                        f"📊 Quote received for {symbol}: bid={bid_price}, ask={ask_price}"
+                    )
+                )
+                # Add task to background set and clean up when done
+                self._background_tasks.add(debug_task)
+                debug_task.add_done_callback(self._background_tasks.discard)
 
-            # Store complete quote data
+            # Store complete quote data (non-blocking)
             self._latest_quotes[symbol] = data
 
-            # Update bid/ask tracking
+            # Update bid/ask tracking and data structures concurrently where possible
             if bid_price is not None and ask_price is not None:
+                # Update tracking data immediately (non-blocking)
                 self._latest_bid[symbol] = float(bid_price)
                 self._latest_ask[symbol] = float(ask_price)
 
-                # Create structured QuoteModel object
-                with self._quotes_lock:
-                    current_quote = self._quotes.get(symbol)
-                    last_price = current_quote.last_price if current_quote else 0.0
+                # Use asyncio.to_thread for potentially blocking lock operations
+                await asyncio.to_thread(self._update_quote_data_sync, symbol, bid_price, ask_price, bid_size, ask_size, timestamp)
 
-                    # Update legacy RealTimeQuote
-                    self._quotes[symbol] = RealTimeQuote(
-                        bid=float(bid_price),
-                        ask=float(ask_price),
-                        last_price=last_price,
-                        timestamp=timestamp,
-                    )
-
-                    # Create new structured QuoteModel
-                    self._quote_data[symbol] = QuoteModel(
-                        symbol=symbol,
-                        bid_price=float(bid_price),
-                        ask_price=float(ask_price),
-                        bid_size=float(bid_size) if bid_size is not None else 0.0,
-                        ask_size=float(ask_size) if ask_size is not None else 0.0,
-                        timestamp=timestamp,
-                    )
-
-            # Update statistics
+            # Update statistics (atomic operations, non-blocking)
             self._stats["quotes_received"] += 1
             self._last_quote_time[symbol] = datetime.now(UTC)
 
         except Exception as e:
-            self.logger.error(f"Error processing quote: {e}", exc_info=True)
+            # Use async logging for error cases to prevent blocking
+            error_task = asyncio.create_task(
+                asyncio.to_thread(
+                    self.logger.error, 
+                    f"Error processing quote: {e}", 
+                    exc_info=True
+                )
+            )
+            # Add task to background set and clean up when done
+            self._background_tasks.add(error_task)
+            error_task.add_done_callback(self._background_tasks.discard)
+
+    def _update_quote_data_sync(self, symbol: str, bid_price: float, ask_price: float, 
+                               bid_size: float | None, ask_size: float | None, timestamp: datetime) -> None:
+        """Update quote data with locking synchronously.
+        
+        This method is designed to be called via asyncio.to_thread to prevent
+        blocking the async event loop during lock acquisition.
+        
+        Args:
+            symbol: Stock symbol
+            bid_price: Bid price
+            ask_price: Ask price
+            bid_size: Bid size (optional)
+            ask_size: Ask size (optional)
+            timestamp: Quote timestamp
+
+        """
+        with self._quotes_lock:
+            current_quote = self._quotes.get(symbol)
+            last_price = current_quote.last_price if current_quote else 0.0
+
+            # Update legacy RealTimeQuote
+            self._quotes[symbol] = RealTimeQuote(
+                bid=float(bid_price),
+                ask=float(ask_price),
+                last_price=last_price,
+                timestamp=timestamp,
+            )
+
+            # Create new structured QuoteModel
+            self._quote_data[symbol] = QuoteModel(
+                symbol=symbol,
+                bid_price=float(bid_price),
+                ask_price=float(ask_price),
+                bid_size=float(bid_size) if bid_size is not None else 0.0,
+                ask_size=float(ask_size) if ask_size is not None else 0.0,
+                timestamp=timestamp,
+            )
 
     async def _on_trade(self, trade: AlpacaTradeData) -> None:
-        """Handle incoming trade updates from Alpaca stream."""
+        """Handle incoming trade updates from Alpaca stream with async processing optimizations."""
         try:
             # Handle both Trade objects and dictionary format
             if isinstance(trade, dict):
@@ -506,57 +554,94 @@ class RealTimePricingService:
             # Ensure timestamp is a datetime
             timestamp = timestamp_raw if isinstance(timestamp_raw, datetime) else datetime.now(UTC)
 
-            # Update last trade price with both legacy and structured storage
-            with self._quotes_lock:
-                current_quote = self._quotes.get(symbol)
-                current_quote_data = self._quote_data.get(symbol)
+            # Use asyncio.to_thread for potentially blocking lock operations
+            await asyncio.to_thread(
+                self._update_trade_data_sync, 
+                symbol, price, timestamp, volume
+            )
 
-                # Legacy RealTimeQuote storage (for backward compatibility)
-                if current_quote:
-                    # Update existing quote with new trade price
-                    self._quotes[symbol] = RealTimeQuote(
-                        bid=current_quote.bid,
-                        ask=current_quote.ask,
-                        last_price=float(price or 0),
-                        timestamp=timestamp,
-                    )
-                else:
-                    # Create new quote with trade price only
-                    self._quotes[symbol] = RealTimeQuote(
-                        bid=0.0,
-                        ask=0.0,
-                        last_price=float(price or 0),
-                        timestamp=timestamp,
-                    )
-
-                # New structured PriceDataModel storage
-                bid_price = current_quote_data.bid_price if current_quote_data else None
-                ask_price = current_quote_data.ask_price if current_quote_data else None
-
-                self._price_data[symbol] = PriceDataModel(
-                    symbol=symbol,
-                    price=float(price or 0),
-                    timestamp=timestamp,
-                    bid=bid_price,
-                    ask=ask_price,
-                    volume=int(volume or 0) if volume else None,
-                )
-
-                self._last_update[symbol] = datetime.now(UTC)
-                self._stats["trades_received"] += 1
-
-            # Update heartbeat
+            # Update statistics and heartbeat (atomic operations, non-blocking)
+            self._stats["trades_received"] += 1
             self._datetime_stats["last_heartbeat"] = datetime.now(UTC)
 
-            logging.debug(f"💰 Trade: {symbol} ${float(price or 0):.2f} x {size}")
+            # Use async logging for debug to avoid blocking the event loop
+            if logging.root.level <= logging.DEBUG:
+                debug_task = asyncio.create_task(
+                    asyncio.to_thread(
+                        logging.debug,
+                        f"💰 Trade: {symbol} ${float(price or 0):.2f} x {size}"
+                    )
+                )
+                # Add task to background set and clean up when done
+                self._background_tasks.add(debug_task)
+                debug_task.add_done_callback(self._background_tasks.discard)
 
         except Exception as e:
+            # Use async logging for error handling to prevent blocking
             symbol_str = str(
                 trade.get("symbol", "unknown")
                 if isinstance(trade, dict)
                 else getattr(trade, "symbol", "unknown")
             )
-            logging.error(f"Error processing trade for {symbol_str}: {e}")
+            error_task = asyncio.create_task(
+                asyncio.to_thread(
+                    logging.error,
+                    f"Error processing trade for {symbol_str}: {e}"
+                )
+            )
+            # Add task to background set and clean up when done
+            self._background_tasks.add(error_task)
+            error_task.add_done_callback(self._background_tasks.discard)
+
+    def _update_trade_data_sync(self, symbol: str, price: float, timestamp: datetime, volume: int | float | None) -> None:
+        """Update trade data with locking synchronously.
+        
+        This method is designed to be called via asyncio.to_thread to prevent
+        blocking the async event loop during lock acquisition.
+        
+        Args:
+            symbol: Stock symbol
+            price: Trade price
+            timestamp: Trade timestamp
+            volume: Trade volume (optional)
+
+        """
+        with self._quotes_lock:
+            current_quote = self._quotes.get(symbol)
+            current_quote_data = self._quote_data.get(symbol)
+
+            # Legacy RealTimeQuote storage (for backward compatibility)
+            if current_quote:
+                # Update existing quote with new trade price
+                self._quotes[symbol] = RealTimeQuote(
+                    bid=current_quote.bid,
+                    ask=current_quote.ask,
+                    last_price=float(price or 0),
+                    timestamp=timestamp,
+                )
+            else:
+                # Create new quote with trade price only
+                self._quotes[symbol] = RealTimeQuote(
+                    bid=0.0,
+                    ask=0.0,
+                    last_price=float(price or 0),
+                    timestamp=timestamp,
+                )
+
+            # New structured PriceDataModel storage
+            bid_price = current_quote_data.bid_price if current_quote_data else None
+            ask_price = current_quote_data.ask_price if current_quote_data else None
+
+            self._price_data[symbol] = PriceDataModel(
+                symbol=symbol,
+                price=float(price or 0),
+                timestamp=timestamp,
+                bid=bid_price,
+                ask=ask_price,
+                volume=int(volume or 0) if volume else None,
+            )
+
+            self._last_update[symbol] = datetime.now(UTC)
 
     def _cleanup_old_quotes(self) -> None:
         """Cleanup old quotes to prevent memory bloat."""
