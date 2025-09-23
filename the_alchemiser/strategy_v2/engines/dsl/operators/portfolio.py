@@ -19,7 +19,10 @@ import uuid
 from collections.abc import Iterable
 
 from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
-from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
+from the_alchemiser.shared.dto.indicator_request_dto import (
+    IndicatorRequestDTO,
+    PortfolioFragmentDTO,
+)
 
 from ..context import DslContext
 from ..dispatcher import DslDispatcher
@@ -200,29 +203,82 @@ def weight_inverse_volatility(
             weights={},
         )
 
-    # Calculate inverse volatility weights
-    # For now, use mock volatilities - in real implementation would calculate from price history
-    mock_volatilities = {
-        "UVXY": 0.8,  # High volatility
-        "BTAL": 0.2,  # Low volatility
-        "TLT": 0.15,
-        "QQQ": 0.25,
-        "SPY": 0.20,
-        "TQQQ": 0.6,
-        "SQQQ": 0.6,
-    }
-
-    # Calculate inverse weights
+    # Calculate inverse volatility weights using real stdev_return indicators
     inverse_weights = {}
     total_inverse = 0.0
 
     for asset in all_assets:
-        volatility = mock_volatilities.get(asset, 0.25)  # Default volatility
-        inverse_vol = 1.0 / volatility
-        inverse_weights[asset] = inverse_vol
-        total_inverse += inverse_vol
+        try:
+            # Request volatility (stdev_return) for this asset using the window parameter
+            request = IndicatorRequestDTO(
+                request_id=str(uuid.uuid4()),
+                correlation_id=context.correlation_id,
+                symbol=asset,
+                indicator_type="stdev_return",
+                parameters={"window": int(window)},
+            )
+            
+            # Get volatility indicator from IndicatorService
+            indicator = context.indicator_service.get_indicator(request)
+            
+            # Extract volatility value from indicator
+            volatility = None
+            
+            # Check specific field for the window if available
+            if int(window) == 6 and indicator.stdev_return_6 is not None:
+                volatility = indicator.stdev_return_6
+            # Fallback to metadata value
+            elif indicator.metadata and "value" in indicator.metadata:
+                try:
+                    volatility = float(indicator.metadata["value"])
+                except (ValueError, TypeError):
+                    logger.warning(
+                        "DSL weight-inverse-volatility: Failed to parse volatility from metadata for %s",
+                        asset,
+                    )
+                    continue
+            
+            if volatility is None or volatility <= 0:
+                logger.warning(
+                    "DSL weight-inverse-volatility: No valid volatility for %s, skipping",
+                    asset,
+                )
+                continue
+            
+            # Calculate inverse volatility weight
+            inverse_vol = 1.0 / volatility
+            inverse_weights[asset] = inverse_vol
+            total_inverse += inverse_vol
+            
+            # Emit IndicatorComputed event for observability
+            context.event_publisher.publish_indicator_computed(
+                request_id=request.request_id,
+                indicator=indicator,
+                computation_time_ms=0.0,  # Not measuring computation time in this operator
+                correlation_id=context.correlation_id,
+            )
+            
+        except Exception as exc:
+            # Log error and skip this asset
+            logger.warning(
+                "DSL weight-inverse-volatility: Failed to get volatility for %s: %s",
+                asset,
+                exc,
+            )
+            continue
 
-    # Normalize to sum to 1
+    # Handle case where no valid volatilities were obtained
+    if not inverse_weights or total_inverse <= 0:
+        logger.warning(
+            "DSL weight-inverse-volatility: No valid volatilities obtained for any assets"
+        )
+        return PortfolioFragmentDTO(
+            fragment_id=str(uuid.uuid4()),
+            source_step="weight_inverse_volatility",
+            weights={},
+        )
+
+    # Normalize weights to sum to 1
     normalized_weights = {}
     for asset, inv_weight in inverse_weights.items():
         normalized_weights[asset] = inv_weight / total_inverse
