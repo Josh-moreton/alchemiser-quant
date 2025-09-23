@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_DOWN
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from the_alchemiser.execution_v2.core.smart_execution_strategy import (
@@ -790,7 +790,7 @@ class Executor:
             if item.action == "SELL" and item.target_weight == Decimal("0.0"):
                 # For liquidation (0% target), use actual position quantity
                 raw_shares = self._get_position_quantity(item.symbol)
-                shares = raw_shares.quantize(Decimal("0.000001"))
+                shares = self._adjust_quantity_for_fractionability(item.symbol, raw_shares)
                 logger.info(
                     f"📊 Liquidating {item.symbol}: selling {shares} shares (full position)"
                 )
@@ -802,7 +802,8 @@ class Executor:
                     shares = Decimal("1")
                     logger.warning(f"⚠️ Price unavailable for {item.symbol}; defaulting to 1 share")
                 else:
-                    shares = (abs(item.trade_amount) / price).quantize(Decimal("0.000001"))
+                    raw_shares = abs(item.trade_amount) / price
+                    shares = self._adjust_quantity_for_fractionability(item.symbol, raw_shares)
 
                 amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
                 logger.info(
@@ -888,6 +889,40 @@ class Executor:
         except Exception:
             return None
         return None
+
+    def _adjust_quantity_for_fractionability(self, symbol: str, raw_quantity: Decimal) -> Decimal:
+        """Adjust quantity for asset fractionability constraints.
+        
+        Args:
+            symbol: Asset symbol
+            raw_quantity: Raw calculated quantity
+            
+        Returns:
+            Adjusted quantity (whole shares for non-fractionable assets)
+        """
+        # Check if asset is fractionable
+        asset_info = self.alpaca_manager.get_asset_info(symbol)
+        if asset_info is None:
+            # If we can't determine fractionability, use standard fractional quantization
+            logger.debug(f"Could not determine fractionability for {symbol}, using fractional")
+            return raw_quantity.quantize(Decimal("0.000001"))
+        
+        if asset_info.fractionable:
+            # Asset is fractionable, use standard fractional quantization
+            return raw_quantity.quantize(Decimal("0.000001"))
+        else:
+            # Asset is non-fractionable, round down to whole shares
+            whole_shares = raw_quantity.quantize(Decimal("1"), rounding=ROUND_DOWN)
+            
+            if whole_shares != raw_quantity:
+                original_value = raw_quantity
+                logger.info(
+                    f"🔄 Portfolio sizing: {symbol} non-fractionable, "
+                    f"adjusted {original_value:.6f} → {whole_shares} shares"
+                )
+            
+            # Ensure minimum of 0 shares (no negative)
+            return max(whole_shares, Decimal("0"))
 
     def _get_position_quantity(self, symbol: str) -> Decimal:
         """Get the actual quantity held for a symbol.
