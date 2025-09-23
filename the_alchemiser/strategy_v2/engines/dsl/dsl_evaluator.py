@@ -510,6 +510,70 @@ class _PortfolioFragmentBuilder:
         )
 
 
+class _NodeEvaluator:
+    """Evaluates different types of AST nodes."""
+    
+    def __init__(self, evaluator: "DslEvaluator"):
+        self.evaluator = evaluator
+    
+    def evaluate_atom(self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO) -> DSLValue:
+        """Evaluate an atom node."""
+        return node.get_atom_value()
+    
+    def evaluate_symbol(self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO) -> DSLValue:
+        """Evaluate a symbol node."""
+        # Always return the symbol name; functions are invoked by list application
+        return node.get_symbol_name()
+    
+    def evaluate_list(self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO) -> DSLValue:
+        """Evaluate a list node."""
+        if not node.children:
+            return []
+        
+        # Check for map literal
+        if node.metadata and node.metadata.get("node_subtype") == "map":
+            return self._evaluate_map_literal(node, correlation_id, trace)
+        
+        # Check for function call
+        func_node = node.children[0]
+        if func_node.is_symbol():
+            func_name = func_node.get_symbol_name()
+            if func_name in self.evaluator.symbol_table:
+                return self._evaluate_function_call(node, func_name, correlation_id, trace)
+        
+        # Treat as data list
+        return self._evaluate_data_list(node, correlation_id, trace)
+    
+    def _evaluate_map_literal(self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO) -> dict[str, float | int | Decimal | str]:
+        """Evaluate a map literal node."""
+        m: dict[str, float | int | Decimal | str] = {}
+        # Expect pairs: keyword/value
+        it = iter(node.children)
+        for key_node, val_node in zip(it, it, strict=True):
+            key = (
+                key_node.get_symbol_name()
+                if key_node.is_symbol()
+                else str(key_node.value)
+            )
+            key = key.lstrip(":") if isinstance(key, str) else str(key)
+            evaluated = self.evaluator._evaluate_node(val_node, correlation_id, trace)
+            m[key] = self.evaluator._coerce_param_value(evaluated)
+        return m
+    
+    def _evaluate_function_call(self, node: ASTNodeDTO, func_name: str, correlation_id: str, trace: TraceDTO) -> DSLValue:
+        """Evaluate a function call node."""
+        func = self.evaluator.symbol_table[func_name]
+        args = node.children[1:]
+        return func(args, correlation_id, trace)
+    
+    def _evaluate_data_list(self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO) -> list[DSLValue]:
+        """Evaluate a data list node."""
+        return [
+            self.evaluator._evaluate_node(child, correlation_id, trace)
+            for child in node.children
+        ]
+
+
 class DslEvaluator:
     """Evaluator for DSL strategy expressions.
 
@@ -529,6 +593,7 @@ class DslEvaluator:
         """
         self.indicator_service = indicator_service
         self.event_bus = event_bus
+        self._node_evaluator = _NodeEvaluator(self)
 
         # Whitelisted functions for DSL evaluation
         self.symbol_table: dict[
@@ -688,52 +753,13 @@ class DslEvaluator:
 
         """
         if node.is_atom():
-            return node.get_atom_value()
-        if node.is_symbol():
-            # Always return the symbol name; functions are invoked by list application
-            return node.get_symbol_name()
-        if node.is_list():
-            if not node.children:
-                return []
-
-            # Map literal: convert to dict
-            if node.metadata and node.metadata.get("node_subtype") == "map":
-                m: dict[str, float | int | Decimal | str] = {}
-                # Expect pairs: keyword/value
-                it = iter(node.children)
-                for key_node, val_node in zip(it, it, strict=True):
-                    key = (
-                        key_node.get_symbol_name()
-                        if key_node.is_symbol()
-                        else str(key_node.value)
-                    )
-                    key = key.lstrip(":") if isinstance(key, str) else str(key)
-                    evaluated = self._evaluate_node(val_node, correlation_id, trace)
-                    m[key] = self._coerce_param_value(evaluated)
-                return m
-
-            # First child should be the function
-            func_node = node.children[0]
-            if not func_node.is_symbol():
-                # If first child is not a symbol, treat as data list
-                return [
-                    self._evaluate_node(child, correlation_id, trace)
-                    for child in node.children
-                ]
-
-            func_name = func_node.get_symbol_name()
-            if func_name not in self.symbol_table:
-                # Unknown function - treat as data list
-                return [
-                    self._evaluate_node(child, correlation_id, trace)
-                    for child in node.children
-                ]
-
-            func = self.symbol_table[func_name]
-            args = node.children[1:]
-
-            return func(args, correlation_id, trace)
-        raise DslEvaluationError(f"Unknown node type: {node.node_type}")
+            return self._node_evaluator.evaluate_atom(node, correlation_id, trace)
+        elif node.is_symbol():
+            return self._node_evaluator.evaluate_symbol(node, correlation_id, trace)
+        elif node.is_list():
+            return self._node_evaluator.evaluate_list(node, correlation_id, trace)
+        else:
+            raise DslEvaluationError(f"Unknown node type: {node.node_type}")
 
     def _fragment_to_allocation(
         self, fragment: PortfolioFragmentDTO, correlation_id: str

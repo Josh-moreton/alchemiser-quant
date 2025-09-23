@@ -31,6 +31,59 @@ class SexprParseError(Exception):
         super().__init__(message)
 
 
+class _StringTokenizer:
+    """Handles string tokenization with escape sequences."""
+    
+    @staticmethod
+    def try_tokenize_string(text: str, position: int) -> tuple[tuple[str, str] | None, int]:
+        """Try to tokenize a string literal starting at position.
+        
+        Returns:
+            Tuple of (token, new_position) or (None, position) if not a string
+        """
+        if position >= len(text) or text[position] != '"':
+            return None, position
+            
+        i = position + 1
+        while i < len(text):
+            ch = text[i]
+            if ch == "\\":
+                i += 2  # Skip escaped character
+                continue
+            if ch == '"':
+                token_value = text[position : i + 1]
+                return ("STRING", token_value), i + 1
+            i += 1
+            
+        raise SexprParseError("Unterminated string literal", position)
+
+
+class _PatternTokenizer:
+    """Handles pattern-based tokenization."""
+    
+    def __init__(self, compiled_patterns: list[tuple["re.Pattern[str]", str]]):
+        self.compiled_patterns = compiled_patterns
+    
+    def try_tokenize_pattern(self, text: str, position: int) -> tuple[tuple[str, str] | None, int]:
+        """Try to tokenize using compiled patterns.
+        
+        Returns:
+            Tuple of (token, new_position) or (None, position) if no match
+        """
+        for pattern, token_type in self.compiled_patterns:
+            match = pattern.match(text, position)
+            if match:
+                token_value = match.group()
+                
+                # Skip whitespace, comments, and commas
+                if token_type not in ("WHITESPACE", "COMMENT", "COMMA"):
+                    return (token_type, token_value), match.end()
+                else:
+                    return None, match.end()  # Skip but advance position
+        
+        return None, position
+
+
 class SexprParser:
     """Parser for Clojure-style S-expressions.
 
@@ -62,6 +115,10 @@ class SexprParser:
         self.compiled_patterns = [
             (re.compile(pattern), token_type) for pattern, token_type in self.token_patterns
         ]
+        
+        # Initialize helper tokenizers
+        self._string_tokenizer = _StringTokenizer()
+        self._pattern_tokenizer = _PatternTokenizer(self.compiled_patterns)
 
     def tokenize(self, text: str) -> list[tuple[str, str]]:
         """Tokenize S-expression text.
@@ -70,7 +127,7 @@ class SexprParser:
             text: S-expression text to tokenize
 
         Returns:
-            List of (token_value, token_type) tuples
+            List of (token_type, token_value) tuples
 
         Raises:
             SexprParseError: If tokenization fails
@@ -80,42 +137,26 @@ class SexprParser:
         position = 0
 
         while position < len(text):
-            matched = False
-
-            # Fast-path for strings to correctly handle escapes
-            if text[position] == '"':
-                i = position + 1
-                while i < len(text):
-                    ch = text[i]
-                    if ch == "\\":
-                        i += 2  # Skip escaped character
-                        continue
-                    if ch == '"':
-                        token_value = text[position : i + 1]
-                        tokens.append((token_value, "STRING"))
-                        position = i + 1
-                        matched = True
-                        break
-                    i += 1
-                if not matched:
-                    raise SexprParseError("Unterminated string literal", position)
+            # Try string tokenization first for proper escape handling
+            token, new_position = self._string_tokenizer.try_tokenize_string(text, position)
+            if token:
+                tokens.append(token)
+                position = new_position
                 continue
-
-            for pattern, token_type in self.compiled_patterns:
-                match = pattern.match(text, position)
-                if match:
-                    token_value = match.group()
-
-                    # Skip whitespace, comments, and commas
-                    if token_type not in ("WHITESPACE", "COMMENT", "COMMA"):
-                        tokens.append((token_value, token_type))
-
-                    position = match.end()
-                    matched = True
-                    break
-
-            if not matched:
-                raise SexprParseError(f"Unexpected character: {text[position]}", position)
+            
+            # Try pattern-based tokenization
+            token, new_position = self._pattern_tokenizer.try_tokenize_pattern(text, position)
+            if token:
+                tokens.append(token)
+                position = new_position
+                continue
+            elif new_position > position:
+                # Pattern matched but was skipped (whitespace, etc.)
+                position = new_position
+                continue
+            
+            # No match found
+            raise SexprParseError(f"Unexpected character: {text[position]}", position)
 
         return tokens
 
