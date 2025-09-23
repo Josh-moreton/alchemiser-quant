@@ -299,18 +299,23 @@ def asset(args: list[ASTNodeDTO], context: DslContext) -> str:
 def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     """Evaluate filter - filter assets based on condition.
 
-    Format: (filter condition_expr portfolio_expr)
+    Supported forms:
+    - (filter condition_expr portfolio_expr)
+    - (filter condition_expr selection_expr portfolio_expr)
+
+    Where selection_expr can be a selector like (select-top N) or (select-bottom N).
     """
-    if len(args) != 2:
+    if len(args) not in (2, 3):
         raise DslEvaluationError(
-            "filter requires exactly 2 arguments: condition and portfolio"
+            "filter requires 2 or 3 arguments: condition, [selection], portfolio"
         )
 
     _condition_expr = args[0]
-    portfolio_expr = args[1]
+    _selection_expr = args[1] if len(args) == 3 else None
+    portfolio_expr = args[2] if len(args) == 3 else args[1]
 
-    # For now, we'll implement a basic filter that just returns the portfolio
-    # A full implementation would evaluate the condition for each asset
+    # Placeholder implementation: return the portfolio as-is until per-asset
+    # condition evaluation and selection ranking is implemented.
     return context.evaluate_node(portfolio_expr, context.correlation_id, context.trace)
 
 
