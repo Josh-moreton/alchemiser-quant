@@ -16,10 +16,12 @@ Phase 3 Update: Moved to shared module to resolve architectural boundary violati
 from __future__ import annotations
 
 import logging
+import re
 import threading
 import time
 from datetime import UTC, datetime
 from decimal import Decimal
+from secrets import randbelow
 from typing import TYPE_CHECKING, Any, Literal
 
 # Type checking imports to avoid circular dependencies
@@ -128,7 +130,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 api_key=api_key, secret_key=secret_key, paper=paper
             )
 
-            self._data_client = StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
+            self._data_client = StockHistoricalDataClient(
+                api_key=api_key, secret_key=secret_key
+            )
 
             logger.info(f"AlpacaManager initialized - Paper: {paper}")
 
@@ -204,7 +208,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 # Map status to our expected values - using explicit typing to ensure Literal compliance
             status_mapping: dict[
                 str,
-                Literal["accepted", "filled", "partially_filled", "rejected", "canceled"],
+                Literal[
+                    "accepted", "filled", "partially_filled", "rejected", "canceled"
+                ],
             ] = {
                 "new": "accepted",
                 "accepted": "accepted",
@@ -240,9 +246,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self, error: Exception, context: str = "Operation", order_id: str = "unknown"
     ) -> OrderExecutionResult:
         """Create an error OrderExecutionResult."""
-        status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"] = (
-            "rejected"
-        )
+        status: Literal[
+            "accepted", "filled", "partially_filled", "rejected", "canceled"
+        ] = "rejected"
         return OrderExecutionResult(
             success=False,
             order_id=order_id,
@@ -352,7 +358,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 else:
                     # Fallback to total qty if qty_available is not available
                     qty_raw = (
-                        getattr(pos, "qty", None) if not isinstance(pos, dict) else pos.get("qty")
+                        getattr(pos, "qty", None)
+                        if not isinstance(pos, dict)
+                        else pos.get("qty")
                     )
 
                 if symbol and qty_raw is not None:
@@ -710,7 +718,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 side=OrderSide.BUY if side_normalized == "buy" else OrderSide.SELL,
                 limit_price=limit_price,
                 time_in_force=(
-                    TimeInForce.DAY if time_in_force.lower() == "day" else TimeInForce.GTC
+                    TimeInForce.DAY
+                    if time_in_force.lower() == "day"
+                    else TimeInForce.GTC
                 ),
             )
 
@@ -721,7 +731,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             # Map ExecutedOrderDTO status to OrderExecutionResult Literal status
             dto_status_to_result_status: dict[
                 str,
-                Literal["accepted", "filled", "partially_filled", "rejected", "canceled"],
+                Literal[
+                    "accepted", "filled", "partially_filled", "rejected", "canceled"
+                ],
             ] = {
                 "FILLED": "filled",
                 "PARTIAL": "partially_filled",
@@ -736,7 +748,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             result_status: Literal[
                 "accepted", "filled", "partially_filled", "rejected", "canceled"
-            ] = dto_status_to_result_status.get(executed_order_dto.status.upper(), "accepted")
+            ] = dto_status_to_result_status.get(
+                executed_order_dto.status.upper(), "accepted"
+            )
 
             success = result_status not in ["rejected", "canceled"]
 
@@ -746,10 +760,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 status=result_status,
                 filled_qty=executed_order_dto.filled_quantity,
                 avg_fill_price=(
-                    executed_order_dto.price if executed_order_dto.filled_quantity > 0 else None
+                    executed_order_dto.price
+                    if executed_order_dto.filled_quantity > 0
+                    else None
                 ),
                 submitted_at=executed_order_dto.execution_timestamp,
-                completed_at=(executed_order_dto.execution_timestamp if success else None),
+                completed_at=(
+                    executed_order_dto.execution_timestamp if success else None
+                ),
                 error=executed_order_dto.error_message if not success else None,
             )
 
@@ -793,7 +811,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 status_lower = status.lower()
                 # For other statuses, try exact match on the enum name
                 orders_list = [
-                    o for o in orders_list if str(getattr(o, "status", "")).lower() == status_lower
+                    o
+                    for o in orders_list
+                    if str(getattr(o, "status", "")).lower() == status_lower
                 ]
 
             logger.debug(f"Successfully retrieved {len(orders_list)} orders")
@@ -916,7 +936,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             # These are specific API failures that should not be silent
             error_msg = f"Alpaca API failure getting quote for {symbol}: {e}"
             if "429" in str(e) or "rate limit" in str(e).lower():
-                error_msg = f"Alpaca API rate limit exceeded getting quote for {symbol}: {e}"
+                error_msg = (
+                    f"Alpaca API rate limit exceeded getting quote for {symbol}: {e}"
+                )
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
         except RequestException as e:
@@ -943,98 +965,144 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             List of dictionaries with bar data using Pydantic model field names
 
         """
-        try:
-            # Map timeframe strings to Alpaca TimeFrame objects (case-insensitive)
-            timeframe_map = {
-                "1min": TimeFrame(1, TimeFrameUnit.Minute),
-                "5min": TimeFrame(5, TimeFrameUnit.Minute),
-                "15min": TimeFrame(15, TimeFrameUnit.Minute),
-                "1hour": TimeFrame(1, TimeFrameUnit.Hour),
-                "1day": TimeFrame(1, TimeFrameUnit.Day),
-            }
 
-            timeframe_lower = timeframe.lower()
-            if timeframe_lower not in timeframe_map:
-                raise ValueError(f"Unsupported timeframe: {timeframe}")
+        # Internal helpers kept inside method scope to avoid public API changes
+        def _is_transient_error(err: Exception) -> tuple[bool, str]:
+            msg = str(err)
+            # Normalize common transient markers
+            if "502" in msg or "Bad Gateway" in msg:
+                return True, "502 Bad Gateway"
+            if "503" in msg or "Service Unavailable" in msg:
+                return True, "503 Service Unavailable"
+            if "504" in msg or "Gateway Timeout" in msg or "timeout" in msg.lower():
+                return True, "Gateway Timeout/Timeout"
+            # HTML error pages from proxies
+            if "<html" in msg.lower():
+                # Try to extract status code
+                m = re.search(r"\b(5\d{2})\b", msg)
+                code = m.group(1) if m else "5xx"
+                return True, f"HTTP {code} HTML error"
+            return False, ""
 
-            from datetime import datetime
+        def _sanitize_error_message(err: Exception) -> str:
+            transient, reason = _is_transient_error(err)
+            if transient:
+                return reason
+            # Trim long HTML/text blobs
+            msg = str(err)
+            if "<html" in msg.lower():
+                return "Upstream returned HTML error page"
+            return msg
 
-            start_dt = datetime.fromisoformat(start_date)
-            end_dt = datetime.fromisoformat(end_date)
+        # Retry with exponential backoff and jitter for transient upstream failures
+        max_retries = 3
+        base_sleep = 0.6  # seconds
 
-            request = StockBarsRequest(
-                symbol_or_symbols=symbol,
-                timeframe=timeframe_map[timeframe_lower],
-                start=start_dt,
-                end=end_dt,
-            )
-
-            response = self._data_client.get_stock_bars(request)
-
-            # Extract bars for symbol from various possible response shapes
-            bars_obj: Any | None = None
+        for attempt in range(1, max_retries + 1):
             try:
-                # Preferred: BarsBySymbol has a `.data` dict
-                data_attr = getattr(response, "data", None)
-                if isinstance(data_attr, dict) and symbol in data_attr:
-                    bars_obj = data_attr[symbol]
-                # Some SDKs expose attributes per symbol
-                elif hasattr(response, symbol):
-                    bars_obj = getattr(response, symbol)
-                # Fallback: mapping-like access
-                elif isinstance(response, dict) and symbol in response:
-                    bars_obj = response[symbol]
-            except Exception:
-                bars_obj = None
+                # Map timeframe strings to Alpaca TimeFrame objects (case-insensitive)
+                timeframe_map = {
+                    "1min": TimeFrame(1, TimeFrameUnit.Minute),
+                    "5min": TimeFrame(5, TimeFrameUnit.Minute),
+                    "15min": TimeFrame(15, TimeFrameUnit.Minute),
+                    "1hour": TimeFrame(1, TimeFrameUnit.Hour),
+                    "1day": TimeFrame(1, TimeFrameUnit.Day),
+                }
 
-            if not bars_obj:
-                # For daily data over a reasonable period, we should expect some bars
-                # This could indicate an API failure rather than legitimate no-data
+                timeframe_lower = timeframe.lower()
+                if timeframe_lower not in timeframe_map:
+                    raise ValueError(f"Unsupported timeframe: {timeframe}")
+
                 from datetime import datetime
 
                 start_dt = datetime.fromisoformat(start_date)
                 end_dt = datetime.fromisoformat(end_date)
-                days_requested = (end_dt - start_dt).days
 
-                if days_requested > 5 and timeframe_lower == "1day":
-                    # For weekly+ periods of daily data, no bars likely indicates API failure
-                    error_msg = f"No historical data returned for {symbol} over {days_requested} days - possible API failure"
-                    logger.error(error_msg)
-                    raise RuntimeError(error_msg)
+                request = StockBarsRequest(
+                    symbol_or_symbols=symbol,
+                    timeframe=timeframe_map[timeframe_lower],
+                    start=start_dt,
+                    end=end_dt,
+                )
 
-                logger.warning(f"No historical data found for {symbol}")
-                return []
+                response = self._data_client.get_stock_bars(request)
 
-            bars = list(bars_obj)
-            logger.debug(f"Successfully retrieved {len(bars)} bars for {symbol}")
-
-            # Use Pydantic model_dump() to get proper dictionaries with full field names
-            result: list[dict[str, Any]] = []
-            for bar in bars:
+                # Extract bars for symbol from various possible response shapes
+                bars_obj: Any | None = None
                 try:
-                    # Alpaca SDK uses Pydantic models, use model_dump()
-                    bar_dict = bar.model_dump()
-                    result.append(bar_dict)
-                except Exception as e:
-                    logger.warning(f"Failed to convert bar for {symbol}: {e}")
-                    continue
-            return result
+                    # Preferred: BarsBySymbol has a `.data` dict
+                    data_attr = getattr(response, "data", None)
+                    if isinstance(data_attr, dict) and symbol in data_attr:
+                        bars_obj = data_attr[symbol]
+                    # Some SDKs expose attributes per symbol
+                    elif hasattr(response, symbol):
+                        bars_obj = getattr(response, symbol)
+                    # Fallback: mapping-like access
+                    elif isinstance(response, dict) and symbol in response:
+                        bars_obj = response[symbol]
+                except Exception:
+                    bars_obj = None
 
-        except (RetryException, HTTPError) as e:
-            # These are specific API failures that should not be silent
-            error_msg = f"Alpaca API failure for {symbol}: {e}"
-            if "429" in str(e) or "rate limit" in str(e).lower():
-                error_msg = f"Alpaca API rate limit exceeded for {symbol}: {e}"
-            logger.error(error_msg)
-            raise RuntimeError(error_msg) from e
-        except RequestException as e:
-            # Other network/HTTP errors
-            error_msg = f"Network error retrieving data for {symbol}: {e}"
-            logger.error(error_msg)
-            raise RuntimeError(error_msg) from e
-        except Exception as e:
-            logger.error(f"Failed to get historical data for {symbol}: {e}")
-            raise
+                if not bars_obj:
+                    # For daily data over a reasonable period, we should expect some bars
+                    from datetime import datetime
+
+                    start_dt_local = datetime.fromisoformat(start_date)
+                    end_dt_local = datetime.fromisoformat(end_date)
+                    days_requested = (end_dt_local - start_dt_local).days
+
+                    if days_requested > 5 and timeframe_lower == "1day":
+                        error_msg = f"No historical data returned for {symbol} over {days_requested} days"
+                        # Treat as transient in retry path, many times this is upstream glitch
+                        raise RuntimeError(error_msg)
+
+                    logger.warning(f"No historical data found for {symbol}")
+                    return []
+
+                bars = list(bars_obj)
+                logger.debug(f"Successfully retrieved {len(bars)} bars for {symbol}")
+
+                # Use Pydantic model_dump() to get proper dictionaries with full field names
+                result: list[dict[str, Any]] = []
+                for bar in bars:
+                    try:
+                        bar_dict = bar.model_dump()
+                        result.append(bar_dict)
+                    except Exception as e:  # pragma: no cover - conversion resilience
+                        logger.warning(f"Failed to convert bar for {symbol}: {e}")
+                        continue
+                return result
+
+            except (RetryException, HTTPError, RequestException, Exception) as e:
+                transient, reason = _is_transient_error(e)
+                last_attempt = attempt == max_retries
+                summary = _sanitize_error_message(e)
+                if transient and not last_attempt:
+                    jitter = 1.0 + 0.2 * (randbelow(1000) / 1000.0)
+                    sleep_s = base_sleep * (2 ** (attempt - 1)) * jitter
+                    logger.warning(
+                        f"Transient market data error for {symbol} ({reason}); retry {attempt}/{max_retries} in {sleep_s:.2f}s"
+                    )
+                    time.sleep(sleep_s)
+                    continue
+
+                # Non-transient or out of retries: raise sanitized error
+                msg = (
+                    f"Alpaca API failure for {symbol}: {summary}"
+                    if isinstance(e, (RetryException, HTTPError))
+                    else (
+                        f"Network error retrieving data for {symbol}: {summary}"
+                        if isinstance(e, RequestException)
+                        else f"Failed to get historical data for {symbol}: {summary}"
+                    )
+                )
+                logger.error(msg)
+                raise RuntimeError(msg)
+
+        # Defensive fallback for static analysis (should not be reached)
+        return []
+
+    # Should never reach here because loop either returns or raises
 
     # Utility Methods
     def validate_connection(self) -> bool:
@@ -1053,7 +1121,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Get current buying power."""
         try:
             account = self._get_account_object()
-            if account and hasattr(account, "buying_power") and account.buying_power is not None:
+            if (
+                account
+                and hasattr(account, "buying_power")
+                and account.buying_power is not None
+            ):
                 return float(account.buying_power)
             return None
         except Exception as e:
@@ -1092,7 +1164,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 # Get orders for specific symbol and cancel them
                 orders = self.get_orders(status="open")
                 symbol_orders = [
-                    order for order in orders if getattr(order, "symbol", None) == symbol
+                    order
+                    for order in orders
+                    if getattr(order, "symbol", None) == symbol
                 ]
                 for order in symbol_orders:
                     order_id = getattr(order, "id", None)
@@ -1102,7 +1176,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 # Cancel all open orders
                 self._trading_client.cancel_orders()
 
-            logger.info("Successfully cancelled orders" + (f" for {symbol}" if symbol else ""))
+            logger.info(
+                "Successfully cancelled orders" + (f" for {symbol}" if symbol else "")
+            )
             return True
         except Exception as e:
             logger.error(f"Failed to cancel orders: {e}")
@@ -1254,7 +1330,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get market status: {e}")
             return False
 
-    def get_market_calendar(self, _start_date: str, _end_date: str) -> list[dict[str, Any]]:
+    def get_market_calendar(
+        self, _start_date: str, _end_date: str
+    ) -> list[dict[str, Any]]:
         """Get market calendar information.
 
         Args:
@@ -1376,7 +1454,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             # Check if the order was successful and return order_id
             if result.status not in ["REJECTED", "CANCELED"] and result.order_id:
                 return result.order_id
-            logger.error(f"Smart sell order failed for {symbol}: {result.error_message}")
+            logger.error(
+                f"Smart sell order failed for {symbol}: {result.error_message}"
+            )
             return None
 
         except Exception as e:
@@ -1416,7 +1496,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.warning(f"Failed to check order {order_id} status: {e}")
             return None
 
-    def _process_pending_orders(self, order_ids: list[str], completed_orders: list[str]) -> None:
+    def _process_pending_orders(
+        self, order_ids: list[str], completed_orders: list[str]
+    ) -> None:
         """Process pending orders and update completed_orders list.
 
         Args:
@@ -1429,7 +1511,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 final_status = self._check_order_completion_status(order_id)
                 if final_status:
                     completed_orders.append(order_id)
-                    logger.info(f"Order {order_id} completed with status: {final_status}")
+                    logger.info(
+                        f"Order {order_id} completed with status: {final_status}"
+                    )
 
     def _should_continue_waiting(
         self,
@@ -1451,7 +1535,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         """
         return (
-            len(completed_orders) < len(order_ids) and (time.time() - start_time) < max_wait_seconds
+            len(completed_orders) < len(order_ids)
+            and (time.time() - start_time) < max_wait_seconds
         )
 
     def wait_for_order_completion(
@@ -1481,14 +1566,18 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 local_start = time.time()
                 while remaining and (time.time() - local_start) < time_left:
                     self._process_pending_orders(remaining, completed_orders)
-                    remaining = [oid for oid in remaining if oid not in completed_orders]
+                    remaining = [
+                        oid for oid in remaining if oid not in completed_orders
+                    ]
                     if remaining:
                         time.sleep(0.3)
 
             success = len(completed_orders) == len(order_ids)
 
             return WebSocketResult(
-                status=(WebSocketStatus.COMPLETED if success else WebSocketStatus.TIMEOUT),
+                status=(
+                    WebSocketStatus.COMPLETED if success else WebSocketStatus.TIMEOUT
+                ),
                 message=f"Completed {len(completed_orders)}/{len(order_ids)} orders",
                 completed_order_ids=completed_orders,
                 metadata={"total_wait_time": time.time() - start_time},
@@ -1545,7 +1634,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 event_type = str(getattr(data, "event", "")).lower()
                 order = getattr(data, "order", None)
             else:
-                event_type = str(data.get("event", "")).lower() if isinstance(data, dict) else ""
+                event_type = (
+                    str(data.get("event", "")).lower() if isinstance(data, dict) else ""
+                )
                 order = data.get("order") if isinstance(data, dict) else None
 
             order_id = None
@@ -1554,7 +1645,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             if order is not None:
                 order_id = str(
-                    getattr(order, "id", "") or (order.get("id") if isinstance(order, dict) else "")
+                    getattr(order, "id", "")
+                    or (order.get("id") if isinstance(order, dict) else "")
                 )
                 status = str(
                     getattr(order, "status", "")
@@ -1599,7 +1691,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         except Exception as exc:
             logger.error(f"Error in TradingStream order update: {exc}")
 
-    def _wait_for_orders_via_ws(self, order_ids: list[str], timeout: float) -> list[str]:
+    def _wait_for_orders_via_ws(
+        self, order_ids: list[str], timeout: float
+    ) -> list[str]:
         """Use TradingStream updates to wait for orders to complete within timeout."""
         self._ensure_trading_stream()
 
@@ -1652,4 +1746,6 @@ def create_alpaca_manager(
     This function provides a clean way to create AlpacaManager instances
     and can be easily extended with additional configuration options.
     """
-    return AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url)
+    return AlpacaManager(
+        api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url
+    )
