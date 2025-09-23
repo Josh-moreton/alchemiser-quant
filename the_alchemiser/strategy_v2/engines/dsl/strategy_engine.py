@@ -51,10 +51,11 @@ class DslStrategyEngine:
             # Minimal fallback settings if config load fails
             self.settings = Settings(strategy=Settings().strategy)
 
-        # Initialize DSL engine with project root as config path and real market data
+        # Initialize DSL engine with strategies directory as config path and real market data
         project_root = Path(__file__).parent.parent.parent.parent.parent
+        strategies_path = project_root / "the_alchemiser" / "strategy_v2" / "strategies"
         self.dsl_engine = DslEngine(
-            strategy_config_path=str(project_root),
+            strategy_config_path=str(strategies_path),
             market_data_service=self.market_data_port,
         )
 
