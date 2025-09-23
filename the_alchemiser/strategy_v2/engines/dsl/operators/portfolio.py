@@ -86,13 +86,17 @@ def weight_equal(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragme
     )
 
 
-def weight_specified(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragmentDTO:
+def weight_specified(
+    args: list[ASTNodeDTO], context: DslContext
+) -> PortfolioFragmentDTO:
     """Evaluate weight-specified - specified weight allocation.
 
     Format: (weight-specified weight1 asset1 weight2 asset2 ...)
     """
     if len(args) < 2 or len(args) % 2 != 0:
-        raise DslEvaluationError("weight-specified requires pairs of weight and asset arguments")
+        raise DslEvaluationError(
+            "weight-specified requires pairs of weight and asset arguments"
+        )
 
     weights: dict[str, float] = {}
 
@@ -121,7 +125,9 @@ def weight_specified(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFr
         asset_node = args[i + 1]
 
         # Evaluate weight (should be a number)
-        weight_value = context.evaluate_node(weight_node, context.correlation_id, context.trace)
+        weight_value = context.evaluate_node(
+            weight_node, context.correlation_id, context.trace
+        )
         if not isinstance(weight_value, (int, float)):
             weight_value = context.as_decimal(weight_value)
             weight_value = float(weight_value)
@@ -129,11 +135,15 @@ def weight_specified(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFr
         weight = float(weight_value)
 
         # Evaluate asset (should be a symbol or asset result)
-        asset_result = context.evaluate_node(asset_node, context.correlation_id, context.trace)
+        asset_result = context.evaluate_node(
+            asset_node, context.correlation_id, context.trace
+        )
 
         normalized = collect_normalized_weights(asset_result)
         if not normalized:
-            raise DslEvaluationError(f"Expected asset symbol or fragment, got {type(asset_result)}")
+            raise DslEvaluationError(
+                f"Expected asset symbol or fragment, got {type(asset_result)}"
+            )
         for symbol, base_w in normalized.items():
             scaled = base_w * weight
             weights[symbol] = weights.get(symbol, 0.0) + scaled
@@ -145,7 +155,9 @@ def weight_specified(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFr
     )
 
 
-def weight_inverse_volatility(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragmentDTO:
+def weight_inverse_volatility(
+    args: list[ASTNodeDTO], context: DslContext
+) -> PortfolioFragmentDTO:
     """Evaluate weight-inverse-volatility - inverse volatility weighting.
 
     Format: (weight-inverse-volatility window [assets...])
@@ -263,7 +275,9 @@ def group(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     return (
         last_result
         if last_result is not None
-        else PortfolioFragmentDTO(fragment_id=str(uuid.uuid4()), source_step="group", weights={})
+        else PortfolioFragmentDTO(
+            fragment_id=str(uuid.uuid4()), source_step="group", weights={}
+        )
     )
 
 
@@ -288,7 +302,9 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     Format: (filter condition_expr portfolio_expr)
     """
     if len(args) != 2:
-        raise DslEvaluationError("filter requires exactly 2 arguments: condition and portfolio")
+        raise DslEvaluationError(
+            "filter requires exactly 2 arguments: condition and portfolio"
+        )
 
     _condition_expr = args[0]
     portfolio_expr = args[1]
