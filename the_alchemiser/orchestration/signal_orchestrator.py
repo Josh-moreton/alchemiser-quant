@@ -3,7 +3,7 @@
 Signal analysis orchestration workflow.
 
 Coordinates strategy signal generation and analysis without actual trading execution.
-Handles the complete workflow from strategy orchestration to signal validation and display.
+Handles the complete workflow from DSL strategy evaluation to signal validation and display.
 """
 
 from __future__ import annotations
@@ -17,10 +17,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.orchestration.strategy_orchestrator import (
-    AggregatedSignals,
-    MultiStrategyOrchestrator,
-)
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
     ConsolidatedPortfolioDTO,
@@ -31,8 +27,8 @@ from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types import StrategySignal
 from the_alchemiser.shared.types.exceptions import DataProviderError
 from the_alchemiser.shared.types.strategy_types import StrategyType
-from the_alchemiser.shared.utils.strategy_utils import get_strategy_allocations
 from the_alchemiser.shared.value_objects.symbol import Symbol
+from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import DslStrategyEngine
 
 
 class SignalOrchestrator:
@@ -54,21 +50,19 @@ class SignalOrchestrator:
             Tuple of (strategy_signals dict, ConsolidatedPortfolioDTO)
 
         """
-        # Use strategy orchestrator for signal generation
+        # Use DSL strategy engine directly for signal generation
         market_data_port = self.container.infrastructure.market_data_service()
-        strategy_allocations = get_strategy_allocations()
+        
+        # Create DSL strategy engine
+        dsl_engine = DslStrategyEngine(market_data_port)
+        signals = dsl_engine.generate_signals(datetime.now(UTC))
 
-        # Strategy allocations are already in the correct format (StrategyType -> float)
-        typed_allocations = strategy_allocations
-        strategy_orch = MultiStrategyOrchestrator(market_data_port, typed_allocations)
-        aggregated_signals = strategy_orch.generate_all_signals(datetime.now(UTC))
+        # Convert signals to display format
+        strategy_signals = self._convert_signals_to_display_format(signals)
 
-        # Convert aggregated signals to display format
-        strategy_signals = self._convert_signals_to_display_format(aggregated_signals)
-
-        # Create consolidated portfolio from signals with proper scaling
+        # Create consolidated portfolio from signals
         consolidated_portfolio_dict, contributing_strategies = self._build_consolidated_portfolio(
-            aggregated_signals, typed_allocations
+            signals
         )
 
         # Create ConsolidatedPortfolioDTO
@@ -81,71 +75,52 @@ class SignalOrchestrator:
         return strategy_signals, consolidated_portfolio
 
     def _convert_signals_to_display_format(
-        self, aggregated_signals: AggregatedSignals
+        self, signals: list[StrategySignal]
     ) -> dict[str, Any]:
-        """Convert aggregated signals to display format."""
+        """Convert DSL signals to display format."""
         strategy_signals = {}
-        for (
-            strategy_type,
-            signals,
-        ) in aggregated_signals.get_signals_by_strategy().items():
-            if signals:
-                # For strategies with multiple signals (like Nuclear portfolio expansion),
-                # combine them into a single display entry with all symbols
-                if len(signals) > 1:
-                    # Multiple signals - present a concise primary symbol; keep full list separately
-                    symbols = [signal.symbol.value for signal in signals if signal.action == "BUY"]
-                    primary_signal = signals[0]  # Use first signal for other attributes
-                    primary_symbol = primary_signal.symbol.value
-                    strategy_signals[str(strategy_type)] = {
-                        "symbol": primary_symbol,
-                        "symbols": symbols,  # Keep individual symbols for other processing and display
-                        "action": primary_signal.action,
-                        "confidence": float(primary_signal.confidence.value),
-                        "reasoning": primary_signal.reasoning,
-                        "is_multi_symbol": True,
-                    }
-                else:
-                    # Single signal - existing behavior
-                    signal = signals[0]
-                    strategy_signals[str(strategy_type)] = {
-                        "symbol": signal.symbol.value,
-                        "action": signal.action,
-                        "confidence": float(signal.confidence.value),
-                        "reasoning": signal.reasoning,
-                        "is_multi_symbol": False,
-                    }
+        
+        if signals:
+            # For DSL engine, we group all signals under "DSL" strategy type
+            if len(signals) > 1:
+                # Multiple signals - present a concise primary symbol; keep full list separately
+                symbols = [signal.symbol.value for signal in signals if signal.action == "BUY"]
+                primary_signal = signals[0]  # Use first signal for other attributes
+                primary_symbol = primary_signal.symbol.value
+                strategy_signals["DSL"] = {
+                    "symbol": primary_symbol,
+                    "symbols": symbols,  # Keep individual symbols for other processing and display
+                    "action": primary_signal.action,
+                    "confidence": float(primary_signal.confidence.value),
+                    "reasoning": primary_signal.reasoning,
+                    "is_multi_symbol": True,
+                }
+            else:
+                # Single signal - existing behavior
+                signal = signals[0]
+                strategy_signals["DSL"] = {
+                    "symbol": signal.symbol.value,
+                    "action": signal.action,
+                    "confidence": float(signal.confidence.value),
+                    "reasoning": signal.reasoning,
+                    "is_multi_symbol": False,
+                }
         return strategy_signals
 
     def _build_consolidated_portfolio(
         self,
-        aggregated_signals: AggregatedSignals,
-        typed_allocations: dict[StrategyType, float],
+        signals: list[StrategySignal],
     ) -> tuple[dict[str, float], list[str]]:
-        """Build consolidated portfolio from signals with proper scaling."""
+        """Build consolidated portfolio from DSL signals."""
         consolidated_portfolio_dict: dict[str, float] = {}
-        contributing_strategies = []
+        contributing_strategies = ["DSL"]
 
-        # Process signals by strategy to preserve allocation context
-        for (
-            strategy_type,
-            signals,
-        ) in aggregated_signals.get_signals_by_strategy().items():
-            strategy_allocation = typed_allocations.get(strategy_type, 0.0)
-            for signal in signals:
-                if signal.action == "BUY":
-                    signal_allocation = self._extract_signal_allocation(signal)
-                    portfolio_allocation = signal_allocation * strategy_allocation
-
-                    # Handle potential conflicts - if symbol already exists, sum allocations
-                    if signal.symbol.value in consolidated_portfolio_dict:
-                        consolidated_portfolio_dict[signal.symbol.value] += portfolio_allocation
-                    else:
-                        consolidated_portfolio_dict[signal.symbol.value] = portfolio_allocation
-
-        # Get strategy names that contributed
-        for strategy_type in aggregated_signals.get_signals_by_strategy():
-            contributing_strategies.append(str(strategy_type))
+        # Process DSL signals directly
+        for signal in signals:
+            if signal.action == "BUY":
+                signal_allocation = self._extract_signal_allocation(signal)
+                # For DSL, the allocation is already the portfolio allocation
+                consolidated_portfolio_dict[signal.symbol.value] = signal_allocation
 
         return consolidated_portfolio_dict, contributing_strategies
 
@@ -361,13 +336,10 @@ class SignalOrchestrator:
                 )
                 signal_dtos.append(signal_dto)
 
-            # Convert strategy allocations to Decimal for event
-            strategy_allocations: dict[str, Decimal] = {}
-            allocations = get_strategy_allocations()
-            for strategy_type_enum, allocation in allocations.items():
-                # Convert StrategyType enum to string for event schema compatibility
-                strategy_name = str(strategy_type_enum)
-                strategy_allocations[strategy_name] = Decimal(str(allocation))
+            # Convert strategy allocations to Decimal for event (DSL only)
+            strategy_allocations: dict[str, Decimal] = {
+                "DSL": Decimal("1.0")  # DSL is the sole strategy with full allocation
+            }
 
             # Convert consolidated portfolio to Decimal for event
             consolidated_decimal = {}

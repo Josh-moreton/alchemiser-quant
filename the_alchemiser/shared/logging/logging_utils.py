@@ -753,7 +753,6 @@ def configure_quiet_logging() -> dict[str, int]:
         "the_alchemiser.orchestration",
         "the_alchemiser.orchestration.trading_orchestrator",
         "the_alchemiser.orchestration.signal_orchestrator",
-        "the_alchemiser.orchestration.strategy_orchestrator",
         "the_alchemiser.orchestration.portfolio_orchestrator",
         "the_alchemiser.orchestration.event_driven_orchestrator",
         "alpaca",
