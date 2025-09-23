@@ -12,7 +12,7 @@ import importlib
 import logging
 from typing import TYPE_CHECKING, cast
 
-from the_alchemiser.shared.constants import STYLE_BOLD_MAGENTA
+from the_alchemiser.shared.constants import STYLE_BOLD_CYAN, STYLE_BOLD_MAGENTA
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.protocols.strategy_tracking import (
     StrategyOrderTrackerProtocol,
@@ -239,7 +239,7 @@ def display_detailed_strategy_positions(*, paper_trading: bool) -> None:
                 title="Strategy Positions (Tracked)", show_lines=True, expand=True
             )
             strategy_table.add_column("Strategy", style=STYLE_BOLD_MAGENTA)
-            strategy_table.add_column("Symbol", style="bold cyan")
+            strategy_table.add_column("Symbol", style=STYLE_BOLD_CYAN)
             strategy_table.add_column("Qty", justify="right")
             strategy_table.add_column("Avg Cost", justify="right")
             strategy_table.add_column("Total Cost", justify="right")

@@ -19,7 +19,7 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-from the_alchemiser.shared.constants import STYLE_BOLD_GREEN
+from the_alchemiser.shared.constants import STYLE_BOLD_CYAN, STYLE_BOLD_GREEN
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -205,4 +205,4 @@ def render_account_info(account_info: dict[str, Any], console: Console | None = 
 
         c.print(positions_table)
 
-    c.print(Panel(content, title="ACCOUNT SUMMARY", style="bold cyan"))
+    c.print(Panel(content, title="ACCOUNT SUMMARY", style=STYLE_BOLD_CYAN))

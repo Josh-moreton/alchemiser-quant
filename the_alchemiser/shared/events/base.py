@@ -14,6 +14,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..constants import EVENT_TYPE_DESCRIPTION, UTC_TIMEZONE_SUFFIX
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
@@ -39,7 +40,7 @@ class BaseEvent(BaseModel):
 
     # Event identification and timing
     event_id: str = Field(..., min_length=1, description="Unique event identifier")
-    event_type: str = Field(..., min_length=1, description="Type of event")
+    event_type: str = Field(..., min_length=1, description=EVENT_TYPE_DESCRIPTION)
     timestamp: datetime = Field(..., description="Event timestamp")
 
     # Event source and context
@@ -93,7 +94,7 @@ class BaseEvent(BaseModel):
             try:
                 timestamp_str = data["timestamp"]
                 if timestamp_str.endswith("Z"):
-                    timestamp_str = timestamp_str[:-1] + "+00:00"
+                    timestamp_str = timestamp_str[:-1] + UTC_TIMEZONE_SUFFIX
                 data["timestamp"] = datetime.fromisoformat(timestamp_str)
             except ValueError as e:
                 raise ValueError(f"Invalid timestamp format: {data['timestamp']}") from e
