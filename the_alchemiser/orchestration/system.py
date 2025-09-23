@@ -35,9 +35,7 @@ from the_alchemiser.shared.dto.trade_run_result_dto import TradeRunResultDTO
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.events import EventBus, StartupEvent
 from the_alchemiser.shared.logging.logging_utils import (
-    configure_quiet_logging,
     get_logger,
-    restore_logging,
 )
 from the_alchemiser.shared.types.exceptions import (
     StrategyExecutionError,
@@ -169,17 +167,12 @@ class TradingSystem:
             # Execute full workflow once: generate signals, analyze portfolio, and trade
             print("📊 Generating strategy signals and portfolio rebalance plan...")
 
-            # Temporarily suppress verbose logs for cleaner CLI output
-            original_levels = configure_quiet_logging()
-
             try:
                 # Execute complete workflow once (signals + analysis + trading)
                 trading_result = orchestrator.execute_strategy_signals_with_trading()
             except Exception:
                 # Fallback if anything fails
                 trading_result = orchestrator.execute_strategy_signals_with_trading()
-            finally:
-                restore_logging(original_levels)
 
             if trading_result is None:
                 return create_failure_result(
