@@ -20,6 +20,10 @@ class StrategyRegistry:
         }
 
     @staticmethod
-    def is_strategy_enabled(strategy_type: StrategyType) -> bool:
-        """Check if strategy is enabled."""
-        return True  # All strategies enabled by default
+    def is_strategy_enabled(_strategy_type: StrategyType) -> bool:
+        """Check if a strategy is enabled.
+
+        Always returns True (all strategies enabled during DSL-only phase).
+        Parameter retained for API compatibility.
+        """
+        return True

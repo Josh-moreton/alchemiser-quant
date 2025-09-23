@@ -248,7 +248,7 @@ class RepegManager:
 
             # Get current market data
             validated = self.quote_provider.get_quote_with_validation(
-                request.symbol, float(request.quantity)
+                request.symbol
             )
             if not validated:
                 logger.warning(

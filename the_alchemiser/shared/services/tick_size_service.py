@@ -13,11 +13,11 @@ from decimal import Decimal
 class TickSizeService:
     """Simple tick size service for trading calculations."""
 
-    def get_tick_size(self, symbol: str, price: Decimal) -> Decimal:
+    def get_tick_size(self, _symbol: str, price: Decimal) -> Decimal:
         """Get tick size for a symbol at a given price.
 
         Args:
-            symbol: Trading symbol
+            _symbol: Trading symbol (currently unused, using simple price-based rules)
             price: Current price
 
         Returns:

@@ -655,7 +655,6 @@ def main(
 
 @app.command()
 def ledger_list(
-    ctx: typer.Context,
     strategy: str = typer.Option(None, "--strategy", "-s", help="Filter by strategy name"),
     symbol: str = typer.Option(None, "--symbol", help="Filter by symbol"),
     days: int = typer.Option(30, "--days", "-d", help="Number of days to look back"),
@@ -742,7 +741,6 @@ def ledger_list(
 
 @app.command()
 def ledger_performance(
-    ctx: typer.Context,
     strategy: str = typer.Option(None, "--strategy", "-s", help="Filter by strategy name"),
     symbol: str = typer.Option(None, "--symbol", help="Filter by symbol"),
 ) -> None:
@@ -757,7 +755,7 @@ def ledger_performance(
         summaries = ledger.calculate_performance(
             strategy=strategy,
             symbol=symbol,
-            current_prices=None,  # TODO: Add price fetching for unrealized P&L
+            current_prices=None,  # Issue: Add price fetching for unrealized P&L calculation
         )
 
         if not summaries:
@@ -821,7 +819,6 @@ def ledger_performance(
 
 @app.command()
 def ledger_attribution(
-    ctx: typer.Context,
     symbol: str = typer.Argument(..., help="Symbol to analyze"),
 ) -> None:
     """Show detailed attribution for a symbol across strategies."""

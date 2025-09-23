@@ -1176,12 +1176,12 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get market status: {e}")
             return False
 
-    def get_market_calendar(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+    def get_market_calendar(self, _start_date: str, _end_date: str) -> list[dict[str, Any]]:
         """Get market calendar information.
 
         Args:
-            start_date: Start date (ISO format)
-            end_date: End date (ISO format)
+            _start_date: Start date (ISO format) - currently unused
+            _end_date: End date (ISO format) - currently unused
 
         Returns:
             List of market calendar entries.
@@ -1205,15 +1205,15 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def get_portfolio_history(
         self,
-        start_date: str | None = None,
-        end_date: str | None = None,
+        _start_date: str | None = None,
+        _end_date: str | None = None,
         timeframe: str = "1Day",
     ) -> dict[str, Any] | None:
         """Get portfolio performance history.
 
         Args:
-            start_date: Start date (ISO format), defaults to 1 month ago
-            end_date: End date (ISO format), defaults to today
+            _start_date: Start date (ISO format), defaults to 1 month ago - currently unused
+            _end_date: End date (ISO format), defaults to today - currently unused
             timeframe: Timeframe for data points
 
         Returns:
