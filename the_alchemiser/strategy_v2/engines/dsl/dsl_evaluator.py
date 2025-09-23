@@ -9,11 +9,11 @@ and indicator service integration.
 
 from __future__ import annotations
 
+import math
 import uuid
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.constants import DSL_ENGINE_MODULE
 from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
@@ -32,10 +32,6 @@ from the_alchemiser.shared.events.dsl_events import (
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
-
-if TYPE_CHECKING:
-    pass
-
 
 # Values that may result from evaluating a DSL node
 type DSLValue = (
@@ -95,11 +91,46 @@ class IndicatorService:
             )
 
         try:
-            # Get real market data - 1 year of daily bars for reliable indicators
+            # Compute dynamic lookback based on indicator/window to ensure enough bars
+            def _required_bars(
+                ind_type: str, params: dict[str, int | float | str]
+            ) -> int:
+                window = int(params.get("window", 0)) if params else 0
+                if ind_type in {
+                    "moving_average",
+                    "exponential_moving_average_price",
+                    "max_drawdown",
+                }:
+                    return max(window, 200)
+                if ind_type in {
+                    "moving_average_return",
+                    "stdev_return",
+                    "cumulative_return",
+                }:
+                    # Need at least window plus some extra for pct_change/shift stability
+                    return max(window + 5, 60)
+                if ind_type == "rsi":
+                    # RSI stabilizes with more data; fetch ~3x window (min 200)
+                    return max(window * 3 if window > 0 else 200, 200)
+                if ind_type == "current_price":
+                    return 1
+                return 252  # sensible default (~1Y)
+
+            def _period_for_bars(required_bars: int) -> str:
+                # Convert required trading bars to calendar period string understood by MarketDataService
+                # Use years granularity to avoid weekend/holiday gaps; add 10% safety margin
+                bars_with_buffer = math.ceil(required_bars * 1.1)
+                years = max(1, math.ceil(bars_with_buffer / 252))
+                return f"{years}Y"
+
+            required = _required_bars(indicator_type, parameters)
+            period = _period_for_bars(required)
+
+            # Fetch bars with computed lookback
             symbol_obj = Symbol(symbol)
             bars = self.market_data_service.get_bars(
                 symbol=symbol_obj,
-                period="1Y",  # 1 year for sufficient data
+                period=period,
                 timeframe="1Day",
             )
 
@@ -805,21 +836,50 @@ class DslEvaluator:
     def _eval_group(
         self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
     ) -> DSLValue:
-        """Evaluate group - grouping construct."""
+        """Evaluate group - aggregate results from body expressions.
+
+        Groups act as composition blocks in the DSL. We evaluate each body
+        expression and combine any resulting portfolio fragments by summing
+        weights. If no weights are produced by the body, we fall back to the
+        result of the last expression to preserve compatibility.
+        """
         if len(args) < 2:
             raise DslEvaluationError("group requires at least 2 arguments")
 
         _name = args[0]  # Group name (unused in evaluation)
         body = args[1:]
 
-        # Evaluate the group body
-        if len(body) == 1:
-            return self._evaluate_node(body[0], correlation_id, trace)
-        # Multiple expressions - evaluate last one
-        result: DSLValue = None
+        combined: dict[str, float] = {}
+        last_result: DSLValue = None
+
+        def _merge_weights_from(value: DSLValue) -> None:
+            if isinstance(value, PortfolioFragmentDTO):
+                for sym, w in value.weights.items():
+                    combined[sym] = combined.get(sym, 0.0) + float(w)
+            elif isinstance(value, list):
+                for item in value:
+                    _merge_weights_from(item)
+            elif isinstance(value, str):
+                combined[value] = combined.get(value, 0.0) + 1.0
+
+        # Evaluate each expression and merge any weights found
         for expr in body:
-            result = self._evaluate_node(expr, correlation_id, trace)
-        return result
+            res = self._evaluate_node(expr, correlation_id, trace)
+            last_result = res
+            _merge_weights_from(res)
+
+        # If we gathered any weights, return as a fragment; else, return last result
+        if combined:
+            return PortfolioFragmentDTO(
+                fragment_id=str(uuid.uuid4()),
+                source_step="group",
+                weights=combined,
+            )
+
+        # No combined weights produced: if single body item, return its result; otherwise last
+        return last_result if last_result is not None else PortfolioFragmentDTO(
+            fragment_id=str(uuid.uuid4()), source_step="group", weights={}
+        )
 
     def _eval_asset(
         self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
@@ -1201,14 +1261,14 @@ class DslEvaluator:
             return indicator.rsi_20 or 50.0
         if window == 21:
             return indicator.rsi_21 or 50.0
-        
+
         # For arbitrary windows, use metadata value
         if indicator.metadata and "value" in indicator.metadata:
             try:
                 return float(indicator.metadata["value"])  # type: ignore[misc]
-            except Exception:
-                pass
-        
+            except Exception as exc:
+                print(f"DEBUG: Failed to coerce RSI metadata value: {exc}")
+
         # Final fallback
         return indicator.rsi_14 or 50.0
 
