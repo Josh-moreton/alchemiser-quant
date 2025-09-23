@@ -50,8 +50,11 @@ def display_signals_summary(signals_result: dict[str, Any]) -> None:
                                 symbol_str = ", ".join(symbols)
                                 signal_details.append(f"{name}: {action} {symbol_str}")
                         else:
-                            symbol = data.get("symbol", "Unknown")
-                            signal_details.append(f"{name}: {action} {symbol}")
+                            symbol = data.get("symbol")
+                            if isinstance(symbol, str) and symbol.strip():
+                                signal_details.append(f"{name}: {action} {symbol}")
+                            else:
+                                signal_details.append(f"{name}: {action} (no symbol info)")
                     elif action == "HOLD":
                         signal_details.append(f"{name}: {action}")
 
