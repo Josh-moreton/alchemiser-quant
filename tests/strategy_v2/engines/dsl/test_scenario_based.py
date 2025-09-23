@@ -212,7 +212,7 @@ class TestDslEngineInvariants:
         # Results should be independent
         assert result1.correlation_id != result2.correlation_id
 
-        print(f"State reset isolation test: ✓")
+        print("State reset isolation test: ✓")
 
     def test_time_monotonicity(
         self, repository_root: Path, clj_strategy_files: list[Path]
@@ -238,7 +238,7 @@ class TestDslEngineInvariants:
         # Should work at any virtual time
         assert len(result.all_events) > 0
 
-        print(f"Time monotonicity test: ✓")
+        print("Time monotonicity test: ✓")
 
 
 @pytest.mark.event_driven

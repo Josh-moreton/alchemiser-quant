@@ -9,16 +9,14 @@ including event-driven test harness and mock utilities.
 
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 from unittest.mock import Mock
 
 import pytest
 
-from the_alchemiser.shared.events.bus import EventBus
 from the_alchemiser.shared.events.base import BaseEvent
+from the_alchemiser.shared.events.bus import EventBus
 from the_alchemiser.shared.events.handlers import EventHandler
 
 
@@ -56,26 +54,28 @@ def test_events_list() -> list[BaseEvent]:
 
 class EventRecorder(EventHandler):
     """Event handler that records all events for testing purposes."""
-    
+
     def __init__(self) -> None:
         """Initialize the event recorder."""
         self.events: list[BaseEvent] = []
         self.event_counts: dict[str, int] = {}
-    
+
     def handle_event(self, event: BaseEvent) -> None:
         """Record an event."""
         self.events.append(event)
-        self.event_counts[event.event_type] = self.event_counts.get(event.event_type, 0) + 1
-    
+        self.event_counts[event.event_type] = (
+            self.event_counts.get(event.event_type, 0) + 1
+        )
+
     def can_handle(self, event_type: str) -> bool:
         """Handle all event types."""
         return True
-    
+
     def clear(self) -> None:
         """Clear all recorded events."""
         self.events.clear()
         self.event_counts.clear()
-    
+
     def get_events_by_type(self, event_type: str) -> list[BaseEvent]:
         """Get all events of a specific type."""
         return [event for event in self.events if event.event_type == event_type]
@@ -98,7 +98,8 @@ def repository_root() -> Path:
 @pytest.fixture
 def clj_strategy_files(repository_root: Path) -> list[Path]:
     """Discover all CLJ strategy files in the repository."""
-    clj_files = list(repository_root.glob("*.clj"))
+    strategy_dir = repository_root / "the_alchemiser" / "strategy_v2" / "strategies"
+    clj_files = list(strategy_dir.glob("*.clj")) if strategy_dir.exists() else []
     # Sort for deterministic test ordering
     return sorted(clj_files)
 
@@ -114,24 +115,27 @@ def test_snapshots_dir(repository_root: Path) -> Path:
 @pytest.fixture
 def virtual_clock():
     """Provide a virtual clock for deterministic time-based testing."""
-    
+
     class VirtualClock:
         def __init__(self, start_time: datetime | None = None) -> None:
-            self.current_time = start_time or datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
-        
+            self.current_time = start_time or datetime(
+                2024, 1, 15, 12, 0, 0, tzinfo=UTC
+            )
+
         def now(self) -> datetime:
             """Get current virtual time."""
             return self.current_time
-        
+
         def advance(self, seconds: int) -> None:
             """Advance virtual time by specified seconds."""
             from datetime import timedelta
+
             self.current_time += timedelta(seconds=seconds)
-        
+
         def set_time(self, new_time: datetime) -> None:
             """Set virtual time to specific datetime."""
             self.current_time = new_time
-    
+
     return VirtualClock()
 
 

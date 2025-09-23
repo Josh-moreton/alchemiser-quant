@@ -16,9 +16,6 @@ load_from_file() {
   [[ -z "${ALPACA_KEY:-}" ]] && ALPACA_KEY="$(grep -E '^ALPACA_KEY=' "$f" | tail -n1 | sed -E 's/^ALPACA_KEY=(.*)$/\1/')" || true
   [[ -z "${ALPACA_SECRET:-}" ]] && ALPACA_SECRET="$(grep -E '^ALPACA_SECRET=' "$f" | tail -n1 | sed -E 's/^ALPACA_SECRET=(.*)$/\1/')" || true
   [[ -z "${ALPACA_ENDPOINT:-}" ]] && ALPACA_ENDPOINT="$(grep -E '^ALPACA_ENDPOINT=' "$f" | tail -n1 | sed -E 's/^ALPACA_ENDPOINT=(.*)$/\1/')" || true
-  # Optional DSL configuration (JSON strings)
-  [[ -z "${STRATEGY__DSL_FILES:-}" ]] && STRATEGY__DSL_FILES="$(grep -E '^STRATEGY__DSL_FILES=' "$f" | tail -n1 | sed -E 's/^STRATEGY__DSL_FILES=(.*)$/\1/')" || true
-  [[ -z "${STRATEGY__DSL_ALLOCATIONS:-}" ]] && STRATEGY__DSL_ALLOCATIONS="$(grep -E '^STRATEGY__DSL_ALLOCATIONS=' "$f" | tail -n1 | sed -E 's/^STRATEGY__DSL_ALLOCATIONS=(.*)$/\1/')" || true
 }
 
 for SECRETS_FILE in scripts/dev.secrets .env.dev .env.local .env; do
@@ -49,14 +46,6 @@ DEPLOY_ARGS=(
   AlpacaSecret="$ALPACA_SECRET"
   AlpacaEndpoint="$ALPACA_ENDPOINT_PARAM"
 )
-
-# If DSL config is provided via env/.env, append as parameters (expect JSON strings)
-if [[ -n "${STRATEGY__DSL_FILES:-}" ]]; then
-  DEPLOY_ARGS+=( DSLFilesParam="$STRATEGY__DSL_FILES" )
-fi
-if [[ -n "${STRATEGY__DSL_ALLOCATIONS:-}" ]]; then
-  DEPLOY_ARGS+=( DSLAllocationsParam="$STRATEGY__DSL_ALLOCATIONS" )
-fi
 
 if [[ "$DRY_RUN_FLAG" == "1" ]]; then
   echo "Running in DRY RUN mode (no changes executed)."
