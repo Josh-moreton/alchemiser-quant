@@ -317,7 +317,9 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     portfolio_expr = args[2] if len(args) == 3 else args[1]
 
     # Evaluate the portfolio expression and collect candidate symbols
-    portfolio_val = context.evaluate_node(portfolio_expr, context.correlation_id, context.trace)
+    portfolio_val = context.evaluate_node(
+        portfolio_expr, context.correlation_id, context.trace
+    )
 
     def collect_assets(value: DSLValue) -> list[str]:
         symbols: list[str] = []
@@ -341,11 +343,17 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     if selection_expr is not None:
         # Determine direction from the selection node symbol if available
         sel_node = selection_expr
-        sel_name = sel_node.children[0].get_symbol_name() if sel_node.is_list() and sel_node.children else None
+        sel_name = (
+            sel_node.children[0].get_symbol_name()
+            if sel_node.is_list() and sel_node.children
+            else None
+        )
         if sel_name == "select-bottom":
             take_top = False
         # Evaluate to get N
-        n_val = context.evaluate_node(selection_expr, context.correlation_id, context.trace)
+        n_val = context.evaluate_node(
+            selection_expr, context.correlation_id, context.trace
+        )
         if isinstance(n_val, (int, float)):
             take_n = int(n_val)
         else:
@@ -360,7 +368,9 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     for sym in candidates:
         try:
             metric_expr = create_indicator_with_symbol(condition_expr, sym)
-            metric_val = context.evaluate_node(metric_expr, context.correlation_id, context.trace)
+            metric_val = context.evaluate_node(
+                metric_expr, context.correlation_id, context.trace
+            )
             if not isinstance(metric_val, (int, float)):
                 metric_val = float(context.as_decimal(metric_val))
             scored.append((sym, float(metric_val)))
