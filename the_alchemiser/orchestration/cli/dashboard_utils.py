@@ -14,6 +14,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
+from the_alchemiser.shared.constants import DEFAULT_DATE_FORMAT
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, PositionInfo
 
 
@@ -203,7 +204,7 @@ def build_s3_paths(*, paper_trading: bool) -> tuple[str, str]:
 
     historical_path = (
         f"s3://the-alchemiser-s3/dashboard/executions/{mode_str}/"
-        f"{datetime.now(UTC).strftime('%Y/%m/%d')}/execution_{datetime.now(UTC).strftime('%H%M%S')}.json"
+        f"{datetime.now(UTC).strftime(DEFAULT_DATE_FORMAT)}/execution_{datetime.now(UTC).strftime('%H%M%S')}.json"
     )
 
     return latest_path, historical_path

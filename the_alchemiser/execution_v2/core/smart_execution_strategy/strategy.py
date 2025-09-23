@@ -94,9 +94,7 @@ class SmartExecutionStrategy:
 
             # Retry up to 3 times with increasing waits
             for attempt in range(3):
-                validated = self.quote_provider.get_quote_with_validation(
-                    request.symbol, order_size
-                )
+                validated = self.quote_provider.get_quote_with_validation(request.symbol)
                 if validated:
                     quote, used_fallback = validated
                     break

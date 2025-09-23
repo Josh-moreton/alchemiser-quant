@@ -23,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 # Constants for repeated literals
 BOTO3_NOT_AVAILABLE_MSG = "boto3 not available for AWS Secrets Manager access"
-DEFAULT_AWS_REGION = "eu-west-2"
 SM_DISABLED_MSG = "Secrets Manager disabled via config - using environment variables"
 SM_TOGGLE_FAIL_MSG = "Failed to load settings for secrets toggle: %s"
 

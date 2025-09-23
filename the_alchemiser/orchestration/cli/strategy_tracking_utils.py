@@ -12,6 +12,7 @@ import importlib
 import logging
 from typing import TYPE_CHECKING, cast
 
+from the_alchemiser.shared.constants import STYLE_BOLD_CYAN, STYLE_BOLD_MAGENTA
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.protocols.strategy_tracking import (
     StrategyOrderTrackerProtocol,
@@ -20,9 +21,6 @@ from the_alchemiser.shared.protocols.strategy_tracking import (
 if TYPE_CHECKING:
     from rich.console import Console
     from rich.table import Table
-
-# Style constants for consistent Rich formatting
-BOLD_MAGENTA_STYLE = "bold magenta"
 
 
 def _get_strategy_order_tracker(*, paper_trading: bool) -> StrategyOrderTrackerProtocol:
@@ -181,7 +179,7 @@ def display_strategy_tracking(*, paper_trading: bool) -> None:
 
         # Create tracking table
         tracking_table = Table(title="Strategy Performance Tracking", show_lines=True, expand=True)
-        tracking_table.add_column("Strategy", style=BOLD_MAGENTA_STYLE)
+        tracking_table.add_column("Strategy", style=STYLE_BOLD_MAGENTA)
         tracking_table.add_column("Positions", justify="center")
         tracking_table.add_column("Total P&L", justify="right")
         tracking_table.add_column("Return %", justify="right")
@@ -240,8 +238,8 @@ def display_detailed_strategy_positions(*, paper_trading: bool) -> None:
             strategy_table = Table(
                 title="Strategy Positions (Tracked)", show_lines=True, expand=True
             )
-            strategy_table.add_column("Strategy", style=BOLD_MAGENTA_STYLE)
-            strategy_table.add_column("Symbol", style="bold cyan")
+            strategy_table.add_column("Strategy", style=STYLE_BOLD_MAGENTA)
+            strategy_table.add_column("Symbol", style=STYLE_BOLD_CYAN)
             strategy_table.add_column("Qty", justify="right")
             strategy_table.add_column("Avg Cost", justify="right")
             strategy_table.add_column("Total Cost", justify="right")
@@ -265,7 +263,7 @@ def display_detailed_strategy_positions(*, paper_trading: bool) -> None:
 
             # Show P&L summary for each strategy with positions
             strategy_pnl_table = Table(title="Strategy P&L Summary", show_lines=True, expand=True)
-            strategy_pnl_table.add_column("Strategy", style=BOLD_MAGENTA_STYLE)
+            strategy_pnl_table.add_column("Strategy", style=STYLE_BOLD_MAGENTA)
             strategy_pnl_table.add_column("Realized P&L", justify="right")
             strategy_pnl_table.add_column("Unrealized P&L", justify="right")
             strategy_pnl_table.add_column("Total P&L", justify="right")

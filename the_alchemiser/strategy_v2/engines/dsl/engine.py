@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from the_alchemiser.shared.constants import DSL_ENGINE_MODULE
 from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
 from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
 from the_alchemiser.shared.dto.trace_dto import TraceDTO
@@ -282,7 +283,7 @@ class DslEngine(EventHandler):
             causation_id=request_event.event_id,
             event_id=str(uuid.uuid4()),
             timestamp=datetime.now(UTC),
-            source_module="strategy_v2.engines.dsl",
+            source_module=DSL_ENGINE_MODULE,
             strategy_id=request_event.strategy_id,
             allocation=allocation,
             trace=trace,
@@ -297,7 +298,7 @@ class DslEngine(EventHandler):
             causation_id=request_event.event_id,
             event_id=str(uuid.uuid4()),
             timestamp=datetime.now(UTC),
-            source_module="strategy_v2.engines.dsl",
+            source_module=DSL_ENGINE_MODULE,
             strategy_id=request_event.strategy_id,
             allocation=allocation,
             allocation_type="final",
@@ -338,7 +339,7 @@ class DslEngine(EventHandler):
             causation_id=request_event.event_id,
             event_id=str(uuid.uuid4()),
             timestamp=datetime.now(UTC),
-            source_module="strategy_v2.engines.dsl",
+            source_module=DSL_ENGINE_MODULE,
             strategy_id=request_event.strategy_id,
             allocation=failed_allocation,
             trace=failed_trace,

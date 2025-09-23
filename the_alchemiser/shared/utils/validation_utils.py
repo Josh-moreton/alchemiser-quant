@@ -96,10 +96,4 @@ def validate_order_limit_price(
         raise ValueError("Limit price should not be provided for market orders")
 
 
-# Common validation constants
-CONFIDENCE_RANGE = (Decimal("0"), Decimal("1"))
-PERCENTAGE_RANGE = (Decimal("0"), Decimal("1"))
-SIGNAL_ACTIONS = {"BUY", "SELL", "HOLD"}
-ALERT_SEVERITIES = {"INFO", "WARNING", "ERROR"}
-ORDER_TYPES = {"market", "limit"}
-ORDER_SIDES = {"buy", "sell"}
+# Validation functions using shared constants

@@ -6,6 +6,14 @@ set -e
 echo "🚀 Deploying The Alchemiser Quantitative Trading System with SAM"
 echo "================================================"
 
+# Usage: ./scripts/deploy.sh [dev|prod]
+ENVIRONMENT="${1:-prod}"
+if [ "$ENVIRONMENT" != "dev" ] && [ "$ENVIRONMENT" != "prod" ]; then
+    echo "❌ Invalid environment: $ENVIRONMENT (use 'dev' or 'prod')"
+    exit 1
+fi
+echo "Environment: $ENVIRONMENT"
+
 # Check if we're in the right directory
 if [ ! -f "template.yaml" ]; then
     echo "❌ Error: template.yaml not found. Make sure you're in the project root directory."
@@ -50,6 +58,8 @@ mkdir -p dependencies
 if poetry help export > /dev/null 2>&1; then
     echo "📦 Updating dependencies layer requirements (production only)..."
     poetry export --only=main -f requirements.txt --without-hashes -o dependencies/requirements.txt
+    # Remove pydantic-core pin if present (allow resolver to pick compatible core)
+    sed -i.bak '/^pydantic-core==/d' dependencies/requirements.txt && rm -f dependencies/requirements.txt.bak
 else
     if [ -f "dependencies/requirements.txt" ] && [ -s "dependencies/requirements.txt" ]; then
         echo "⚠️  Poetry export unavailable; using existing dependencies/requirements.txt as-is."
@@ -70,7 +80,7 @@ echo "✅ Dependencies exported: $(wc -l < dependencies/requirements.txt) packag
 
 # Build the SAM application
 echo "🔨 Building SAM application..."
-sam build --parallel
+sam build --parallel --config-env "$ENVIRONMENT"
 
 # Show actual built package sizes
 echo ""
@@ -85,7 +95,39 @@ echo ""
 
 # Deploy the application
 echo "🚀 Deploying to AWS..."
-sam deploy --no-fail-on-empty-changeset --resolve-s3
+
+if [ "$ENVIRONMENT" = "dev" ]; then
+    # Load Alpaca creds from common dotenv files (best-effort)
+    load_from_file() {
+        local f="$1"
+        [[ -f "$f" ]] || return 0
+        [[ -z "${ALPACA_KEY:-}" ]] && ALPACA_KEY="$(grep -E '^ALPACA_KEY=' "$f" | tail -n1 | sed -E 's/^ALPACA_KEY=(.*)$/\1/')" || true
+        [[ -z "${ALPACA_SECRET:-}" ]] && ALPACA_SECRET="$(grep -E '^ALPACA_SECRET=' "$f" | tail -n1 | sed -E 's/^ALPACA_SECRET=(.*)$/\1/')" || true
+        [[ -z "${ALPACA_ENDPOINT:-}" ]] && ALPACA_ENDPOINT="$(grep -E '^ALPACA_ENDPOINT=' "$f" | tail -n1 | sed -E 's/^ALPACA_ENDPOINT=(.*)$/\1/')" || true
+    }
+    for SECRETS_FILE in scripts/dev.secrets .env.dev .env.local .env; do
+        load_from_file "$SECRETS_FILE"
+    done
+
+    if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then
+        echo "❌ ALPACA_KEY and ALPACA_SECRET must be set for dev deploy (env or .env)." >&2
+        exit 1
+    fi
+    ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://paper-api.alpaca.markets/v2"}
+
+    sam deploy \
+        --no-fail-on-empty-changeset \
+        --resolve-s3 \
+        --config-env "$ENVIRONMENT" \
+        --parameter-overrides \
+            Stage=dev \
+            TradeLedgerBucketName=the-alchemiser-v2-s3-dev \
+            AlpacaKey="$ALPACA_KEY" \
+            AlpacaSecret="$ALPACA_SECRET" \
+            AlpacaEndpoint="$ALPACA_ENDPOINT_PARAM"
+else
+    sam deploy --no-fail-on-empty-changeset --resolve-s3 --config-env "$ENVIRONMENT"
+fi
 
 echo ""
 echo "✅ Deployment complete!"

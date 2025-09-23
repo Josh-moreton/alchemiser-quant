@@ -82,9 +82,7 @@ class RebalancePlanCalculator:
             )
 
             # Step 3: Calculate trade amounts and actions
-            trade_items = self._calculate_trade_items(
-                target_values, current_values, snapshot.prices
-            )
+            trade_items = self._calculate_trade_items(target_values, current_values)
 
             # Ensure we have at least one item (required by DTO)
             if not trade_items:
@@ -220,14 +218,12 @@ class RebalancePlanCalculator:
         self,
         target_values: dict[str, Decimal],
         current_values: dict[str, Decimal],
-        prices: dict[str, Decimal],
     ) -> list[RebalancePlanItemDTO]:
         """Calculate trade items with amounts and actions.
 
         Args:
             target_values: Target dollar values by symbol
             current_values: Current dollar values by symbol
-            prices: Current prices by symbol
 
         Returns:
             List of RebalancePlanItemDTO items
