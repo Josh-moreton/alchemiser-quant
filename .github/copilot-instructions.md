@@ -5,16 +5,15 @@ This file defines enforced rules and architectural guidance for AI-driven contri
 CORE ENFORCED RULES:
 1. Never use == or != with floats (use Decimal for money; math.isclose for non-financial floats).
 2. Use assert_close()/numpy.testing.assert_allclose for numerical test comparisons (when tests exist).
-3. Do NOT create new tests or introduce testing frameworks (project currently excludes them for AI agents).
-4. Each new module MUST start with a module docstring declaring Business Unit and Status (current|legacy).
+3. Each new module MUST start with a module docstring declaring Business Unit and Status (current|legacy).
      Business Units (module-aligned):
          - strategy – signal generation, indicators, ML models
          - portfolio – portfolio state, sizing, rebalancing logic
          - execution – broker API integrations, order placement, error handling
          - orchestration – cross-module workflow coordination and business process orchestration
          - shared – DTOs, utilities, logging, cross-cutting concerns
-5. No legacy fallbacks: never reintroduce removed legacy providers or silent downgrade paths.
-6. Event-driven reliability: all event producers and consumers MUST be idempotent and include
+4. No legacy fallbacks: never reintroduce removed legacy providers or silent downgrade paths.
+5. Event-driven reliability: all event producers and consumers MUST be idempotent and include
      correlation IDs; handlers must be safe under at-least-once delivery and tolerate reordering.
 
 -------------------------------------------------------------------------------
