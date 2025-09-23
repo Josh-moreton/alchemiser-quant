@@ -58,13 +58,14 @@ class BaseEmailTemplate:
         timestamp: datetime | None = None,
     ) -> str:
         """Get combined header and status in one section.
-        
+
         Args:
             title: Title for the status section
             status: Status text
             status_color: Background color for status
             _status_emoji: Status emoji (currently unused in this template variant)
             timestamp: Optional timestamp
+
         """
         timestamp = timestamp or datetime.now(UTC)
 

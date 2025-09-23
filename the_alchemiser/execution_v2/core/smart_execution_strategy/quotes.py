@@ -42,9 +42,7 @@ class QuoteProvider:
         self.pricing_service = pricing_service
         self.config = config or ExecutionConfig()
 
-    def get_quote_with_validation(
-        self, symbol: str
-    ) -> tuple[QuoteModel, bool] | None:
+    def get_quote_with_validation(self, symbol: str) -> tuple[QuoteModel, bool] | None:
         """Get validated quote data from streaming source with REST API fallback.
 
         First attempts to get streaming quote data, then falls back to REST API

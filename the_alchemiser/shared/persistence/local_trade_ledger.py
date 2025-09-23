@@ -51,9 +51,7 @@ class LocalTradeLedger(BaseTradeLedger):
         elif env_base:
             resolved_base = env_base
         elif os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
-            resolved_base = str(
-                Path(tempfile.gettempdir()) / "alchemiser" / "trade_ledger"
-            )
+            resolved_base = str(Path(tempfile.gettempdir()) / "alchemiser" / "trade_ledger")
         else:
             resolved_base = "./data/trade_ledger"
 
@@ -84,8 +82,7 @@ class LocalTradeLedger(BaseTradeLedger):
                     index_data = json.load(f)
                     # Convert string keys back to tuples
                     self._index = {
-                        tuple(key.split("||")): value
-                        for key, value in index_data.items()
+                        tuple(key.split("||")): value for key, value in index_data.items()
                     }
             else:
                 self._index = {}
@@ -136,9 +133,7 @@ class LocalTradeLedger(BaseTradeLedger):
                     except json.JSONDecodeError as e:
                         logger.warning(f"Invalid JSON on line {line_num}: {e}")
                     except KeyError as e:
-                        logger.warning(
-                            f"Missing required field on line {line_num}: {e}"
-                        )
+                        logger.warning(f"Missing required field on line {line_num}: {e}")
 
             logger.info(f"Rebuilt index with {len(index)} entries")
             self._save_index()
@@ -288,9 +283,7 @@ class LocalTradeLedger(BaseTradeLedger):
             logger.error(f"Failed to query trade ledger: {e}")
             raise
 
-    def get_open_lots(
-        self, strategy: str | None = None, symbol: str | None = None
-    ) -> list[Lot]:
+    def get_open_lots(self, strategy: str | None = None, symbol: str | None = None) -> list[Lot]:
         """Get open lots for attribution tracking.
 
         This is a simplified implementation that calculates lots on-the-fly.
@@ -347,9 +340,7 @@ class LocalTradeLedger(BaseTradeLedger):
             )
 
             entries = list(self.query(query_filters))
-            return self._calculate_performance_from_entries(
-                entries, current_prices or {}
-            )
+            return self._calculate_performance_from_entries(entries, current_prices or {})
 
         except Exception as e:
             logger.error(f"Failed to calculate performance: {e}")
@@ -413,9 +404,7 @@ class LocalTradeLedger(BaseTradeLedger):
             # Verify index consistency
             index = self._load_index()
             if len(index) != line_count:
-                logger.warning(
-                    f"Index size mismatch: index={len(index)}, file_lines={line_count}"
-                )
+                logger.warning(f"Index size mismatch: index={len(index)}, file_lines={line_count}")
                 # Rebuild index
                 self._index = self._rebuild_index()
 
