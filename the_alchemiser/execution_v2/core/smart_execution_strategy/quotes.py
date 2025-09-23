@@ -57,40 +57,111 @@ class QuoteProvider:
             used_fallback is True if REST API was used instead of streaming
 
         """
-        # Try streaming quote if pricing service available
-        if self.pricing_service:
-            # Wait for quote data to arrive from stream
-            logger.info(f"⏳ Waiting for streaming quote data for {symbol}...")
-            max_wait_time = 30.0  # Maximum 30 seconds to wait
-            check_interval = 0.1  # Check every 100ms
-            elapsed = 0.0
+        # Try streaming quote first if available
+        streaming_quote = self._try_streaming_quote(symbol)
+        if streaming_quote:
+            return streaming_quote, False
 
-            quote = None
-            while elapsed < max_wait_time:
-                quote = self.pricing_service.get_quote_data(symbol)
-                if quote:
-                    logger.info(f"✅ Received streaming quote for {symbol} after {elapsed:.1f}s")
-                    break
+        # Fallback to REST API
+        return self._try_rest_fallback_quote(symbol)
 
-                time.sleep(check_interval)
-                elapsed += check_interval
+    def _try_streaming_quote(self, symbol: str) -> QuoteModel | None:
+        """Try to get a valid streaming quote.
 
+        Args:
+            symbol: Stock symbol
+
+        Returns:
+            QuoteModel if successful, None otherwise
+
+        """
+        if not self.pricing_service:
+            return None
+
+        logger.info(f"⏳ Waiting for streaming quote data for {symbol}...")
+        quote = self._wait_for_streaming_quote(symbol)
+
+        if not quote:
+            return None
+
+        # Validate quote freshness and prices
+        if self._is_streaming_quote_valid(quote, symbol):
+            logger.info(f"✅ Received valid streaming quote for {symbol}")
+            return quote
+
+        return None
+
+    def _wait_for_streaming_quote(self, symbol: str) -> QuoteModel | None:
+        """Wait for streaming quote data to arrive.
+
+        Args:
+            symbol: Stock symbol
+
+        Returns:
+            QuoteModel if received, None if timeout
+
+        """
+        if not self.pricing_service:
+            return None
+
+        max_wait_time = 30.0  # Maximum 30 seconds to wait
+        check_interval = 0.1  # Check every 100ms
+        elapsed = 0.0
+
+        while elapsed < max_wait_time:
+            quote = self.pricing_service.get_quote_data(symbol)
             if quote:
-                # Check quote freshness
-                quote_age = (datetime.now(UTC) - quote.timestamp).total_seconds()
-                if quote_age <= self.config.quote_freshness_seconds:
-                    # Simple price validation - ensure we have at least one valid price
-                    if quote.bid_price > 0 or quote.ask_price > 0:
-                        return quote, False  # Streaming quote success
-                    logger.warning(
-                        f"Invalid streaming prices for {symbol}: bid={quote.bid_price}, ask={quote.ask_price}"
-                    )
-                else:
-                    logger.warning(
-                        f"Streaming quote stale for {symbol} ({quote_age:.1f}s > {self.config.quote_freshness_seconds}s)"
-                    )
+                logger.info(f"✅ Received streaming quote for {symbol} after {elapsed:.1f}s")
+                return quote
 
-        # Fallback to REST API using the same data feed as strategy engines
+            time.sleep(check_interval)
+            elapsed += check_interval
+
+        return None
+
+    def _is_streaming_quote_valid(self, quote: QuoteModel, symbol: str) -> bool:
+        """Check if streaming quote is fresh and has valid prices.
+
+        Args:
+            quote: Quote to validate
+            symbol: Stock symbol for logging
+
+        Returns:
+            True if quote is valid
+
+        """
+        from the_alchemiser.shared.utils.validation_utils import (
+            validate_quote_freshness,
+            validate_quote_prices,
+        )
+
+        # Check quote freshness
+        if not validate_quote_freshness(quote.timestamp, self.config.quote_freshness_seconds):
+            quote_age = (datetime.now(UTC) - quote.timestamp).total_seconds()
+            logger.warning(
+                f"Streaming quote stale for {symbol} ({quote_age:.1f}s > {self.config.quote_freshness_seconds}s)"
+            )
+            return False
+
+        # Simple price validation - ensure we have at least one valid price
+        if not validate_quote_prices(quote.bid_price, quote.ask_price):
+            logger.warning(
+                f"Invalid streaming prices for {symbol}: bid={quote.bid_price}, ask={quote.ask_price}"
+            )
+            return False
+
+        return True
+
+    def _try_rest_fallback_quote(self, symbol: str) -> tuple[QuoteModel, bool] | None:
+        """Try to get quote using REST API fallback.
+
+        Args:
+            symbol: Stock symbol
+
+        Returns:
+            (QuoteModel, True) if successful, None if failed
+
+        """
         logger.info(f"📊 Falling back to REST API quote data for {symbol}")
         rest_quote = self.alpaca_manager.get_latest_quote(symbol)
 
@@ -111,7 +182,6 @@ class QuoteProvider:
         )
 
         logger.info(f"✅ Got REST quote for {symbol}: bid=${bid_price:.2f}, ask=${ask_price:.2f}")
-
         return quote, True  # Used REST fallback
 
     def wait_for_quote_data(

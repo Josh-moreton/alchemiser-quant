@@ -188,83 +188,90 @@ class PricingCalculator:
 
         """
         try:
-            if side.upper() == "BUY":
-                # For buys, move price up towards ask (more aggressive)
-                if original_price:
-                    # Move 50% closer to the ask price
-                    ask_price = Decimal(str(quote.ask_price))
-                    adjustment = (ask_price - original_price) * Decimal("0.5")
-                    new_price = original_price + adjustment
-                else:
-                    # If no original price, use ask price minus small offset
-                    new_price = Decimal(str(quote.ask_price)) - self.config.ask_anchor_offset_cents
-
-                # Ensure we don't exceed ask price
-                new_price = min(new_price, Decimal(str(quote.ask_price)))
-
-            else:  # SELL
-                # For sells, move price down towards bid (more aggressive)
-                if original_price:
-                    # Move 50% closer to the bid price
-                    bid_price = Decimal(str(quote.bid_price))
-                    adjustment = (original_price - bid_price) * Decimal("0.5")
-                    new_price = original_price - adjustment
-                else:
-                    # If no original price, use bid price plus small offset
-                    new_price = Decimal(str(quote.bid_price)) + self.config.bid_anchor_offset_cents
-
-                # Ensure we don't go below bid price
-                new_price = max(new_price, Decimal(str(quote.bid_price)))
-
-            # Quantize to cent precision to avoid sub-penny errors
-            new_price = new_price.quantize(Decimal("0.01"))
+            new_price = self._calculate_aggressive_price(quote, side, original_price)
 
             # Check against price history to avoid repegging at same prices
             if price_history:
-                min_improvement = Decimal("0.01")  # Minimum 1 cent improvement
+                from .utils import validate_repeg_price_with_history
 
-                # If we've calculated the same price as before, force a minimum improvement
-                if new_price in price_history:
-                    logger.info(
-                        f"🔄 Calculated repeg price ${new_price} already used for {quote.symbol} {side}, "
-                        f"forcing minimum improvement"
-                    )
-                    if side.upper() == "BUY":
-                        # For buys, increase price by minimum improvement
-                        new_price = new_price + min_improvement
-                        # Don't exceed ask price
-                        new_price = min(new_price, Decimal(str(quote.ask_price)))
-                    else:  # SELL
-                        # For sells, decrease price by minimum improvement
-                        new_price = new_price - min_improvement
-                        # Don't go below bid price
-                        new_price = max(new_price, Decimal(str(quote.bid_price)))
+                new_price = validate_repeg_price_with_history(new_price, price_history, side, quote)
 
-                    # Re-quantize after adjustment
-                    new_price = new_price.quantize(Decimal("0.01"))
-
-                    # If we still have the same price after forced improvement, log warning
-                    if new_price in price_history:
-                        logger.warning(
-                            f"⚠️ Unable to find unique repeg price for {quote.symbol} {side} "
-                            f"after forced improvement. Price ${new_price} still in history: {price_history}"
-                        )
-
-            # Validate that the calculated price is positive and reasonable
-            min_price = Decimal("0.01")  # Minimum 1 cent
-            if new_price <= 0:
-                logger.warning(
-                    f"Invalid re-peg price {new_price} calculated for {quote.symbol} {side}, "
-                    f"falling back to original price or minimum price"
-                )
-                # Use original price if available and valid, otherwise use minimum
-                if original_price and original_price > min_price:
-                    new_price = original_price
-                else:
-                    new_price = min_price
-
-            return new_price
+            # Final validation and quantization
+            return self._finalize_repeg_price(new_price, original_price)
 
         except Exception as e:
             logger.error(f"Error calculating re-peg price: {e}")
             return None
+
+    def _calculate_aggressive_price(
+        self, quote: QuoteModel, side: str, original_price: Decimal | None
+    ) -> Decimal:
+        """Calculate more aggressive price based on side and original price.
+
+        Args:
+            quote: Current market quote
+            side: Order side ("BUY" or "SELL")
+            original_price: Original order price
+
+        Returns:
+            More aggressive price
+
+        """
+        from .utils import calculate_price_adjustment
+
+        if side.upper() == "BUY":
+            if original_price:
+                # Move 50% closer to the ask price
+                ask_price = Decimal(str(quote.ask_price))
+                new_price = calculate_price_adjustment(original_price, ask_price)
+            else:
+                # If no original price, use ask price minus small offset
+                new_price = Decimal(str(quote.ask_price)) - self.config.ask_anchor_offset_cents
+
+            # Ensure we don't exceed ask price
+            new_price = min(new_price, Decimal(str(quote.ask_price)))
+
+        else:  # SELL
+            if original_price:
+                # Move 50% closer to the bid price
+                bid_price = Decimal(str(quote.bid_price))
+                new_price = calculate_price_adjustment(original_price, bid_price)
+            else:
+                # If no original price, use bid price plus small offset
+                new_price = Decimal(str(quote.bid_price)) + self.config.bid_anchor_offset_cents
+
+            # Ensure we don't go below bid price
+            new_price = max(new_price, Decimal(str(quote.bid_price)))
+
+        return new_price
+
+    def _finalize_repeg_price(self, new_price: Decimal, original_price: Decimal | None) -> Decimal:
+        """Finalize repeg price with validation and quantization.
+
+        Args:
+            new_price: Calculated new price
+            original_price: Original price for fallback
+
+        Returns:
+            Final validated price
+
+        """
+        from .utils import ensure_minimum_price, quantize_price_safely
+
+        # Quantize to cent precision to avoid sub-penny errors
+        new_price = quantize_price_safely(new_price)
+
+        # Validate that the calculated price is positive and reasonable
+        min_price = Decimal("0.01")  # Minimum 1 cent
+        if new_price <= 0:
+            logger.warning(
+                f"Invalid re-peg price {new_price} calculated, "
+                f"falling back to original price or minimum price"
+            )
+            # Use original price if available and valid, otherwise use minimum
+            if original_price and original_price > min_price:
+                new_price = original_price
+            else:
+                new_price = min_price
+
+        return ensure_minimum_price(new_price, min_price)

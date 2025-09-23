@@ -12,6 +12,6 @@ from .indicator_utils import safe_get_indicator
 from .indicators import TechnicalIndicators
 
 __all__ = [
-    "TechnicalIndicators", 
+    "TechnicalIndicators",
     "safe_get_indicator",
 ]
