@@ -21,6 +21,7 @@ from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
 from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
 
 from ..context import DslContext
+from ..dispatcher import DslDispatcher
 from ..types import DSLValue, DslEvaluationError
 
 
@@ -35,10 +36,7 @@ def weight_equal(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragme
     all_assets: list[str] = []
 
     for arg in args:
-        from ..dsl_evaluator import DslEvaluator
-        # TODO: This needs to be refactored to avoid circular import
-        # For now, we'll use the evaluator from context
-        result = context.evaluator._evaluate_node(arg, context.correlation_id, context.trace)
+        result = context.evaluate_node(arg, context.correlation_id, context.trace)
 
         if isinstance(result, PortfolioFragmentDTO):
             # Add all assets from this fragment
@@ -125,9 +123,7 @@ def weight_specified(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFr
         asset_node = args[i + 1]
 
         # Evaluate weight (should be a number)
-        from ..dsl_evaluator import DslEvaluator
-        # TODO: This needs to be refactored to avoid circular import
-        weight_value = context.evaluator._evaluate_node(weight_node, context.correlation_id, context.trace)
+        weight_value = context.evaluate_node(weight_node, context.correlation_id, context.trace)
         if not isinstance(weight_value, (int, float)):
             weight_value = context.as_decimal(weight_value)
             weight_value = float(weight_value)
@@ -135,7 +131,7 @@ def weight_specified(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFr
         weight = float(weight_value)
 
         # Evaluate asset (should be a symbol or asset result)
-        asset_result = context.evaluator._evaluate_node(asset_node, context.correlation_id, context.trace)
+        asset_result = context.evaluate_node(asset_node, context.correlation_id, context.trace)
 
         normalized = collect_normalized_weights(asset_result)
         if not normalized:
@@ -163,9 +159,7 @@ def weight_inverse_volatility(args: list[ASTNodeDTO], context: DslContext) -> Po
 
     # First argument is the window
     window_node = args[0]
-    from ..dsl_evaluator import DslEvaluator
-    # TODO: This needs to be refactored to avoid circular import
-    window = context.evaluator._evaluate_node(window_node, context.correlation_id, context.trace)
+    window = context.evaluate_node(window_node, context.correlation_id, context.trace)
 
     if not isinstance(window, (int, float)):
         window = context.as_decimal(window)
@@ -174,7 +168,7 @@ def weight_inverse_volatility(args: list[ASTNodeDTO], context: DslContext) -> Po
     # Collect assets from remaining arguments
     all_assets: list[str] = []
     for arg in args[1:]:
-        result = context.evaluator._evaluate_node(arg, context.correlation_id, context.trace)
+        result = context.evaluate_node(arg, context.correlation_id, context.trace)
 
         if isinstance(result, PortfolioFragmentDTO):
             all_assets.extend(result.weights.keys())
@@ -257,9 +251,7 @@ def group(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
 
     # Evaluate each expression and merge any weights found
     for expr in body:
-        from ..dsl_evaluator import DslEvaluator
-        # TODO: This needs to be refactored to avoid circular import
-        res = context.evaluator._evaluate_node(expr, context.correlation_id, context.trace)
+        res = context.evaluate_node(expr, context.correlation_id, context.trace)
         last_result = res
         _merge_weights_from(res)
 
@@ -287,9 +279,7 @@ def asset(args: list[ASTNodeDTO], context: DslContext) -> str:
         raise DslEvaluationError("asset requires at least 1 argument")
 
     symbol_node = args[0]
-    from ..dsl_evaluator import DslEvaluator
-    # TODO: This needs to be refactored to avoid circular import
-    symbol = context.evaluator._evaluate_node(symbol_node, context.correlation_id, context.trace)
+    symbol = context.evaluate_node(symbol_node, context.correlation_id, context.trace)
 
     if not isinstance(symbol, str):
         raise DslEvaluationError(f"Asset symbol must be string, got {type(symbol)}")
@@ -311,14 +301,12 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
 
     # For now, we'll implement a basic filter that just returns the portfolio
     # A full implementation would evaluate the condition for each asset
-    from ..dsl_evaluator import DslEvaluator
-    # TODO: This needs to be refactored to avoid circular import
-    result = context.evaluator._evaluate_node(portfolio_expr, context.correlation_id, context.trace)
+    result = context.evaluate_node(portfolio_expr, context.correlation_id, context.trace)
     
     return result
 
 
-def register_portfolio_operators(dispatcher) -> None:
+def register_portfolio_operators(dispatcher: DslDispatcher) -> None:
     """Register all portfolio operators with the dispatcher."""
     dispatcher.register("weight-equal", weight_equal)
     dispatcher.register("weight-specified", weight_specified)

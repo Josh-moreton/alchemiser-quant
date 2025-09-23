@@ -9,10 +9,12 @@ for DSL operator implementations, keeping operators stateless and testable.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
 from the_alchemiser.shared.dto.trace_dto import TraceDTO
 
 from .types import DSLValue
@@ -36,6 +38,7 @@ class DslContext:
         event_publisher: DslEventPublisher,
         correlation_id: str,
         trace: TraceDTO,
+        evaluate_node: Callable[[ASTNodeDTO, str, TraceDTO], DSLValue],
     ) -> None:
         """Initialize DSL context.
         
@@ -44,11 +47,13 @@ class DslContext:
             event_publisher: Publisher for DSL events
             correlation_id: Correlation ID for request tracking
             trace: Trace object for logging evaluation steps
+            evaluate_node: Function to evaluate AST nodes
         """
         self.indicator_service = indicator_service
         self.event_publisher = event_publisher
         self.correlation_id = correlation_id
         self.trace = trace
+        self.evaluate_node = evaluate_node
         self.timestamp = datetime.now(UTC)
 
     def as_decimal(self, val: DSLValue) -> Decimal:
