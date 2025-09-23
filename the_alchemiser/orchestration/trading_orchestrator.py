@@ -1012,6 +1012,208 @@ class TradingOrchestrator:
             f"${execution_result.total_trade_value} total trade value"
         )
 
+    def _build_portfolio_state_after(
+        self, 
+        *,
+        success: bool, 
+        execution_result: ExecutionResultDTO | None, 
+        correlation_id: str, 
+        causation_id: str
+    ) -> PortfolioStateDTO | None:
+        """Build portfolio state after execution.
+        
+        Args:
+            success: Whether the execution was successful
+            execution_result: The execution result
+            correlation_id: Event correlation ID
+            causation_id: Event causation ID
+            
+        Returns:
+            PortfolioStateDTO if successful execution, None otherwise
+
+        """
+        if not success or not execution_result:
+            return None
+            
+        minimal_metrics = PortfolioMetricsDTO(
+            total_value=execution_result.total_trade_value,
+            cash_value=DECIMAL_ZERO,
+            equity_value=execution_result.total_trade_value,
+            buying_power=DECIMAL_ZERO,
+            day_pnl=DECIMAL_ZERO,
+            day_pnl_percent=DECIMAL_ZERO,
+            total_pnl=DECIMAL_ZERO,
+            total_pnl_percent=DECIMAL_ZERO,
+        )
+
+        return PortfolioStateDTO(
+            correlation_id=correlation_id,
+            causation_id=causation_id,
+            timestamp=datetime.now(UTC),
+            portfolio_id="main_portfolio",
+            account_id=None,
+            positions=[],  # Would be populated from portfolio service
+            metrics=minimal_metrics,
+        )
+
+    def _build_execution_data(self, execution_result: ExecutionResultDTO | None) -> dict[str, Any]:
+        """Build execution results dictionary from execution result.
+        
+        Args:
+            execution_result: The execution result to convert
+            
+        Returns:
+            Dictionary containing execution data for event emission
+
+        """
+        return {
+            "orders_placed": (execution_result.orders_placed if execution_result else 0),
+            "orders_succeeded": (execution_result.orders_succeeded if execution_result else 0),
+            # Money serialized as string to avoid float exposure per policy
+            "total_trade_value": (
+                str(execution_result.total_trade_value) if execution_result else "0"
+            ),
+            "orders": (
+                [
+                    {
+                        "symbol": order.symbol,
+                        "action": order.action,
+                        # Quantities are non-financial; keep as float for consumers
+                        "shares": float(order.shares) if order.shares else 0.0,
+                        # Money fields serialized as strings
+                        "price": (str(order.price) if order.price is not None else "0"),
+                        "trade_amount": (
+                            str(order.trade_amount) if order.trade_amount else "0"
+                        ),
+                        "success": order.success,
+                        "error_message": order.error_message,
+                        "order_id": order.order_id,
+                    }
+                    for order in execution_result.orders
+                ]
+                if execution_result
+                else []
+            ),
+        }
+
+    def _derive_error_message(self, execution_result: ExecutionResultDTO, error_message: str | None) -> str | None:
+        """Derive a more descriptive error message if not provided.
+        
+        Args:
+            execution_result: The execution result containing orders
+            error_message: The original error message (if any)
+            
+        Returns:
+            Derived error message or original if none could be derived
+
+        """
+        derived_error: str | None = error_message
+        try:
+            if (
+                error_message is None
+                or error_message.strip() == ""
+                or error_message == "Some orders failed"
+            ):
+                msgs: list[str] = []
+                for order in execution_result.orders:
+                    if not order.success and order.error_message:
+                        msg = str(order.error_message)
+                        if msg not in msgs:
+                            msgs.append(msg)
+
+                reason_hint = None
+                if msgs:
+                    joined = " ".join(msgs).lower()
+                    if any(
+                        s in joined
+                        for s in [
+                            "market hours",
+                            "market closed",
+                            "outside trading hours",
+                            "after hours",
+                            "pre-market",
+                            "premarket",
+                        ]
+                    ):
+                        reason_hint = "Market closed or outside regular trading hours"
+                    else:
+                        # Use up to first 2 unique broker messages
+                        reason_hint = "; ".join(msgs[:2])
+
+                summary = f"{execution_result.orders_succeeded}/{execution_result.orders_placed} succeeded"
+                if reason_hint:
+                    derived_error = f"{summary}. Reason: {reason_hint}"
+                else:
+                    derived_error = (
+                        f"{summary}. No detailed broker error messages available."
+                    )
+
+            # Apply derived message if we computed one
+            if derived_error and derived_error.strip():
+                return derived_error
+        except Exception as derivation_exc:
+            self.logger.debug(
+                "Failed to derive detailed error message: %s",
+                derivation_exc,
+            )
+        
+        return error_message
+
+    def _derive_error_code_from_orders(self, execution_result: ExecutionResultDTO) -> str | None:
+        """Derive error code from order failure patterns.
+        
+        Args:
+            execution_result: The execution result containing orders
+            
+        Returns:
+            Error code string if derivable, None otherwise
+
+        """
+        # Import catalog to map error codes
+        from the_alchemiser.shared.errors.catalog import map_exception_to_error_code
+        from the_alchemiser.shared.types.exceptions import (
+            InsufficientFundsError,
+            MarketClosedError,
+            OrderTimeoutError,
+        )
+        
+        # Look at order error messages to infer the type of error
+        for order in execution_result.orders:
+            if not order.success and order.error_message:
+                msg = str(order.error_message).lower()
+                # Try to map common error patterns to exception types for code derivation
+                mapped_exc: Exception | None = None
+                if any(
+                    s in msg
+                    for s in [
+                        "market hours",
+                        "market closed",
+                        "outside trading hours",
+                        "after hours",
+                        "pre-market",
+                        "premarket",
+                    ]
+                ):
+                    mapped_exc = MarketClosedError("Market closed")
+                elif any(
+                    s in msg
+                    for s in [
+                        "insufficient funds",
+                        "insufficient cash",
+                        "buying power",
+                    ]
+                ):
+                    mapped_exc = InsufficientFundsError("Insufficient funds")
+                elif any(s in msg for s in ["timeout", "timed out", "execution timeout"]):
+                    mapped_exc = OrderTimeoutError("Order timeout")
+
+                if mapped_exc:
+                    error_code_enum = map_exception_to_error_code(mapped_exc)
+                    if error_code_enum:
+                        return error_code_enum.value  # Use first mappable error
+        
+        return None
+
     def _emit_trade_executed_event(
         self,
         execution_result: ExecutionResultDTO,
@@ -1030,161 +1232,27 @@ class TradingOrchestrator:
 
         """
         try:
-            # Import catalog to map error codes
-            from the_alchemiser.shared.errors.catalog import map_exception_to_error_code
-            from the_alchemiser.shared.types.exceptions import (
-                InsufficientFundsError,
-                MarketClosedError,
-                OrderTimeoutError,
-            )
-
             # Derive error code from failure patterns if not successful
             error_code = None
             if not success and execution_result:
-                # Look at order error messages to infer the type of error
-                for order in execution_result.orders:
-                    if not order.success and order.error_message:
-                        msg = str(order.error_message).lower()
-                        # Try to map common error patterns to exception types for code derivation
-                        mapped_exc: Exception | None = None
-                        if any(
-                            s in msg
-                            for s in [
-                                "market hours",
-                                "market closed",
-                                "outside trading hours",
-                                "after hours",
-                                "pre-market",
-                                "premarket",
-                            ]
-                        ):
-                            mapped_exc = MarketClosedError("Market closed")
-                        elif any(
-                            s in msg
-                            for s in [
-                                "insufficient funds",
-                                "insufficient cash",
-                                "buying power",
-                            ]
-                        ):
-                            mapped_exc = InsufficientFundsError("Insufficient funds")
-                        elif any(s in msg for s in ["timeout", "timed out", "execution timeout"]):
-                            mapped_exc = OrderTimeoutError("Order timeout")
-
-                        if mapped_exc:
-                            error_code_enum = map_exception_to_error_code(mapped_exc)
-                            if error_code_enum:
-                                error_code = error_code_enum.value
-                                break  # Use first mappable error
+                error_code = self._derive_error_code_from_orders(execution_result)
 
             # Derive a more descriptive error message if not provided
-            if not success:
-                derived_error: str | None = error_message
-                try:
-                    if (
-                        error_message is None
-                        or error_message.strip() == ""
-                        or error_message == "Some orders failed"
-                    ):
-                        msgs: list[str] = []
-                        for order in execution_result.orders:
-                            if not order.success and order.error_message:
-                                msg = str(order.error_message)
-                                if msg not in msgs:
-                                    msgs.append(msg)
-
-                        reason_hint = None
-                        if msgs:
-                            joined = " ".join(msgs).lower()
-                            if any(
-                                s in joined
-                                for s in [
-                                    "market hours",
-                                    "market closed",
-                                    "outside trading hours",
-                                    "after hours",
-                                    "pre-market",
-                                    "premarket",
-                                ]
-                            ):
-                                reason_hint = "Market closed or outside regular trading hours"
-                            else:
-                                # Use up to first 2 unique broker messages
-                                reason_hint = "; ".join(msgs[:2])
-
-                        summary = f"{execution_result.orders_succeeded}/{execution_result.orders_placed} succeeded"
-                        if reason_hint:
-                            derived_error = f"{summary}. Reason: {reason_hint}"
-                        else:
-                            derived_error = (
-                                f"{summary}. No detailed broker error messages available."
-                            )
-
-                    # Apply derived message if we computed one
-                    if derived_error and derived_error.strip():
-                        error_message = derived_error
-                except Exception as derivation_exc:
-                    self.logger.debug(
-                        "Failed to derive detailed error message: %s",
-                        derivation_exc,
-                    )
+            if not success and execution_result:
+                error_message = self._derive_error_message(execution_result, error_message)
+            
+            # Generate correlation and causation IDs
             correlation_id = str(uuid.uuid4())
             causation_id = f"trade-execution-{datetime.now(UTC).isoformat()}"
 
-            # Create execution results dictionary
-            execution_data = {
-                "orders_placed": (execution_result.orders_placed if execution_result else 0),
-                "orders_succeeded": (execution_result.orders_succeeded if execution_result else 0),
-                # Money serialized as string to avoid float exposure per policy
-                "total_trade_value": (
-                    str(execution_result.total_trade_value) if execution_result else "0"
-                ),
-                "orders": (
-                    [
-                        {
-                            "symbol": order.symbol,
-                            "action": order.action,
-                            # Quantities are non-financial; keep as float for consumers
-                            "shares": float(order.shares) if order.shares else 0.0,
-                            # Money fields serialized as strings
-                            "price": (str(order.price) if order.price is not None else "0"),
-                            "trade_amount": (
-                                str(order.trade_amount) if order.trade_amount else "0"
-                            ),
-                            "success": order.success,
-                            "error_message": order.error_message,
-                            "order_id": order.order_id,
-                        }
-                        for order in execution_result.orders
-                    ]
-                    if execution_result
-                    else []
-                ),
-            }
-
-            # Create portfolio state after execution (minimal for now)
-            portfolio_state_after = None
-            if success and execution_result:
-                minimal_metrics = PortfolioMetricsDTO(
-                    total_value=execution_result.total_trade_value,
-                    cash_value=DECIMAL_ZERO,
-                    equity_value=execution_result.total_trade_value,
-                    buying_power=DECIMAL_ZERO,
-                    day_pnl=DECIMAL_ZERO,
-                    day_pnl_percent=DECIMAL_ZERO,
-                    total_pnl=DECIMAL_ZERO,
-                    total_pnl_percent=DECIMAL_ZERO,
-                )
-
-                portfolio_state_after = PortfolioStateDTO(
-                    correlation_id=correlation_id,
-                    causation_id=causation_id,
-                    timestamp=datetime.now(UTC),
-                    portfolio_id="main_portfolio",
-                    account_id=None,
-                    positions=[],  # Would be populated from portfolio service
-                    metrics=minimal_metrics,
-                )
+            # Build execution data and portfolio state
+            execution_data = self._build_execution_data(execution_result)
+            portfolio_state_after = self._build_portfolio_state_after(
+                success=success, 
+                execution_result=execution_result, 
+                correlation_id=correlation_id, 
+                causation_id=causation_id
+            )
 
             # Create and emit the event
             event = TradeExecuted(
