@@ -11,7 +11,6 @@ Implements DSL control flow and conditional operators:
 
 from __future__ import annotations
 
-import uuid
 from decimal import Decimal
 
 from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
@@ -19,7 +18,7 @@ from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
 
 from ..context import DslContext
 from ..dispatcher import DslDispatcher
-from ..types import DSLValue, DslEvaluationError
+from ..types import DslEvaluationError, DSLValue
 
 
 def defsymphony(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:

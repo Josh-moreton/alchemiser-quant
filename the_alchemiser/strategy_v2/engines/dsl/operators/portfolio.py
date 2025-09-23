@@ -22,7 +22,7 @@ from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
 
 from ..context import DslContext
 from ..dispatcher import DslDispatcher
-from ..types import DSLValue, DslEvaluationError
+from ..types import DslEvaluationError, DSLValue
 
 
 def weight_equal(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragmentDTO:
@@ -92,9 +92,7 @@ def weight_specified(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFr
     Format: (weight-specified weight1 asset1 weight2 asset2 ...)
     """
     if len(args) < 2 or len(args) % 2 != 0:
-        raise DslEvaluationError(
-            "weight-specified requires pairs of weight and asset arguments"
-        )
+        raise DslEvaluationError("weight-specified requires pairs of weight and asset arguments")
 
     weights: dict[str, float] = {}
 
@@ -135,9 +133,7 @@ def weight_specified(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFr
 
         normalized = collect_normalized_weights(asset_result)
         if not normalized:
-            raise DslEvaluationError(
-                f"Expected asset symbol or fragment, got {type(asset_result)}"
-            )
+            raise DslEvaluationError(f"Expected asset symbol or fragment, got {type(asset_result)}")
         for symbol, base_w in normalized.items():
             scaled = base_w * weight
             weights[symbol] = weights.get(symbol, 0.0) + scaled
@@ -267,9 +263,7 @@ def group(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     return (
         last_result
         if last_result is not None
-        else PortfolioFragmentDTO(
-            fragment_id=str(uuid.uuid4()), source_step="group", weights={}
-        )
+        else PortfolioFragmentDTO(fragment_id=str(uuid.uuid4()), source_step="group", weights={})
     )
 
 
@@ -290,20 +284,18 @@ def asset(args: list[ASTNodeDTO], context: DslContext) -> str:
 
 def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     """Evaluate filter - filter assets based on condition.
-    
+
     Format: (filter condition_expr portfolio_expr)
     """
     if len(args) != 2:
         raise DslEvaluationError("filter requires exactly 2 arguments: condition and portfolio")
 
-    condition_expr = args[0]
+    _condition_expr = args[0]
     portfolio_expr = args[1]
 
     # For now, we'll implement a basic filter that just returns the portfolio
     # A full implementation would evaluate the condition for each asset
-    result = context.evaluate_node(portfolio_expr, context.correlation_id, context.trace)
-    
-    return result
+    return context.evaluate_node(portfolio_expr, context.correlation_id, context.trace)
 
 
 def register_portfolio_operators(dispatcher: DslDispatcher) -> None:

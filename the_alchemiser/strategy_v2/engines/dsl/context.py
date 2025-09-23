@@ -21,12 +21,13 @@ from .types import DSLValue
 
 if TYPE_CHECKING:
     from the_alchemiser.strategy_v2.indicators.indicator_service import IndicatorService
+
     from .events import DslEventPublisher
 
 
 class DslContext:
     """Context object for DSL operator evaluation.
-    
+
     Carries shared state and utilities for DSL operators, including
     indicator service, event publisher, correlation tracking, and
     type coercion utilities.
@@ -41,13 +42,14 @@ class DslContext:
         evaluate_node: Callable[[ASTNodeDTO, str, TraceDTO], DSLValue],
     ) -> None:
         """Initialize DSL context.
-        
+
         Args:
             indicator_service: Service for computing indicators
             event_publisher: Publisher for DSL events
             correlation_id: Correlation ID for request tracking
             trace: Trace object for logging evaluation steps
             evaluate_node: Function to evaluate AST nodes
+
         """
         self.indicator_service = indicator_service
         self.event_publisher = event_publisher
@@ -58,12 +60,13 @@ class DslContext:
 
     def as_decimal(self, val: DSLValue) -> Decimal:
         """Coerce a DSLValue to Decimal for numeric comparisons.
-        
+
         Args:
             val: Value to convert to Decimal
-            
+
         Returns:
             Decimal representation of the value
+
         """
         if isinstance(val, Decimal):
             return val
@@ -78,12 +81,13 @@ class DslContext:
 
     def coerce_param_value(self, val: DSLValue) -> float | int | Decimal | str:
         """Coerce a parameter value to an appropriate primitive type.
-        
+
         Args:
             val: DSL value to coerce
-            
+
         Returns:
             Coerced primitive value
+
         """
         if isinstance(val, (float, int, Decimal, str)):
             return val

@@ -28,7 +28,13 @@ from .operators.control_flow import register_control_flow_operators
 from .operators.indicators import register_indicator_operators
 from .operators.portfolio import register_portfolio_operators
 from .operators.selection import register_selection_operators
-from .types import DSLValue, DslEvaluationError
+from .types import DslEvaluationError, DSLValue
+
+__all__ = [
+    "DslEvaluationError",
+    "DslEvaluator",
+    "IndicatorService",
+]
 
 
 class DslEvaluator:
@@ -51,7 +57,7 @@ class DslEvaluator:
         self.indicator_service = indicator_service
         self.event_bus = event_bus
         self.event_publisher = DslEventPublisher(event_bus)
-        
+
         # Initialize dispatcher and register all operators
         self.dispatcher = DslDispatcher()
         self._register_all_operators()
@@ -190,12 +196,10 @@ class DslEvaluator:
                     )
                     if key is None:
                         key = "unknown"
-                    
+
                     val = self._evaluate_node(val_node, correlation_id, trace)
                     # Convert the value to an appropriate type
-                    if isinstance(val, (str, int, float)):
-                        m[key] = val
-                    elif isinstance(val, decimal.Decimal):
+                    if isinstance(val, (str, int, float, decimal.Decimal)):
                         m[key] = val
                     else:
                         m[key] = str(val)
@@ -207,7 +211,7 @@ class DslEvaluator:
                 func_name = first_child.get_symbol_name()
                 if func_name is None:
                     raise DslEvaluationError("Function name cannot be None")
-                
+
                 args = node.children[1:]
 
                 # Dispatch to operator function
@@ -217,7 +221,9 @@ class DslEvaluator:
                     raise DslEvaluationError(f"Unknown function: {func_name}")
             else:
                 # Evaluate each element and return as list
-                return [self._evaluate_node(child, correlation_id, trace) for child in node.children]
+                return [
+                    self._evaluate_node(child, correlation_id, trace) for child in node.children
+                ]
 
         raise DslEvaluationError(f"Unknown node type: {node}")
 
@@ -236,7 +242,7 @@ class DslEvaluator:
         """
         # Normalize fragment weights first
         normalized_fragment = fragment.normalize_weights()
-        
+
         # Convert to Decimal for strategy allocation
         target_weights = {
             symbol: decimal.Decimal(str(weight))

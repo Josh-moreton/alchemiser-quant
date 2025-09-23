@@ -6,7 +6,7 @@ Technical indicator operators for DSL evaluation.
 Implements DSL operators for computing technical indicators:
 - rsi: Relative Strength Index calculation
 - current-price: Current asset price lookup
-- moving-average-price: Moving average of price  
+- moving-average-price: Moving average of price
 - moving-average-return: Moving average of returns
 - cumulative-return: Cumulative return calculation
 - exponential-moving-average-price: Exponential moving average
@@ -201,7 +201,9 @@ def moving_average_return(args: list[ASTNodeDTO], context: DslContext) -> float:
         except Exception as exc:
             print(f"DEBUG: Failed to coerce MAR metadata value: {exc}")
 
-    raise DslEvaluationError(f"Moving average return for {symbol_val} window={window} not available")
+    raise DslEvaluationError(
+        f"Moving average return for {symbol_val} window={window} not available"
+    )
 
 
 def moving_average(args: list[ASTNodeDTO], context: DslContext) -> float:

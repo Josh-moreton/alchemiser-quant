@@ -25,16 +25,17 @@ from the_alchemiser.shared.events.dsl_events import (
 
 class DslEventPublisher:
     """Publisher for DSL evaluation events.
-    
+
     Wraps EventBus to provide DSL-specific event publishing with automatic
     correlation/causation ID handling and consistent metadata.
     """
 
     def __init__(self, event_bus: EventBus | None = None) -> None:
         """Initialize DSL event publisher.
-        
+
         Args:
             event_bus: Optional event bus for publishing events
+
         """
         self.event_bus = event_bus
 
@@ -47,13 +48,14 @@ class DslEventPublisher:
         causation_id: str | None = None,
     ) -> None:
         """Publish an indicator computed event.
-        
+
         Args:
             request_id: Original request identifier
             indicator: Computed indicator data
             computation_time_ms: Computation time in milliseconds
             correlation_id: Correlation ID for tracking
             causation_id: Optional causation ID (triggering event ID)
+
         """
         if not self.event_bus:
             return
@@ -73,6 +75,7 @@ class DslEventPublisher:
     def publish_decision_evaluated(
         self,
         decision_expression: ASTNodeDTO,
+        *,
         condition_result: bool,
         branch_taken: str,
         branch_result: PortfolioFragmentDTO | None,
@@ -80,7 +83,7 @@ class DslEventPublisher:
         causation_id: str | None = None,
     ) -> None:
         """Publish a decision evaluated event.
-        
+
         Args:
             decision_expression: The decision expression that was evaluated
             condition_result: Result of the condition evaluation
@@ -88,6 +91,7 @@ class DslEventPublisher:
             branch_result: Result from the taken branch, if any
             correlation_id: Correlation ID for tracking
             causation_id: Optional causation ID (triggering event ID)
+
         """
         if not self.event_bus:
             return

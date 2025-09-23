@@ -5,7 +5,7 @@ Comparison operators for DSL evaluation.
 
 Implements DSL comparison and logical operators:
 - >: Greater than comparison
-- <: Less than comparison  
+- <: Less than comparison
 - >=: Greater than or equal comparison
 - <=: Less than or equal comparison
 - =: Equality comparison
@@ -19,7 +19,7 @@ from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
 
 from ..context import DslContext
 from ..dispatcher import DslDispatcher
-from ..types import DSLValue, DslEvaluationError
+from ..types import DslEvaluationError, DSLValue
 
 
 def greater_than(args: list[ASTNodeDTO], context: DslContext) -> bool:
