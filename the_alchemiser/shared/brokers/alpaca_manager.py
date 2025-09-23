@@ -952,120 +952,44 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             List of dictionaries with bar data using Pydantic model field names
 
         """
-
-        # Internal helpers kept inside method scope to avoid public API changes
-        def _is_transient_error(err: Exception) -> tuple[bool, str]:
-            msg = str(err)
-            # Normalize common transient markers
-            if "502" in msg or "Bad Gateway" in msg:
-                return True, "502 Bad Gateway"
-            if "503" in msg or "Service Unavailable" in msg:
-                return True, "503 Service Unavailable"
-            if "504" in msg or "Gateway Timeout" in msg or "timeout" in msg.lower():
-                return True, "Gateway Timeout/Timeout"
-            # HTML error pages from proxies
-            if "<html" in msg.lower():
-                # Try to extract status code
-                m = re.search(r"\b(5\d{2})\b", msg)
-                code = m.group(1) if m else "5xx"
-                return True, f"HTTP {code} HTML error"
-            return False, ""
-
-        def _sanitize_error_message(err: Exception) -> str:
-            transient, reason = _is_transient_error(err)
-            if transient:
-                return reason
-            # Trim long HTML/text blobs
-            msg = str(err)
-            if "<html" in msg.lower():
-                return "Upstream returned HTML error page"
-            return msg
-
         # Retry with exponential backoff and jitter for transient upstream failures
         max_retries = 3
         base_sleep = 0.6  # seconds
 
         for attempt in range(1, max_retries + 1):
             try:
-                # Map timeframe strings to Alpaca TimeFrame objects (case-insensitive)
-                timeframe_map = {
-                    "1min": TimeFrame(1, TimeFrameUnit.Minute),
-                    "5min": TimeFrame(5, TimeFrameUnit.Minute),
-                    "15min": TimeFrame(15, TimeFrameUnit.Minute),
-                    "1hour": TimeFrame(1, TimeFrameUnit.Hour),
-                    "1day": TimeFrame(1, TimeFrameUnit.Day),
-                }
-
-                timeframe_lower = timeframe.lower()
-                if timeframe_lower not in timeframe_map:
-                    raise ValueError(f"Unsupported timeframe: {timeframe}")
-
+                # Resolve timeframe and create request
+                resolved_timeframe = self._resolve_timeframe(timeframe)
+                
                 from datetime import datetime
-
                 start_dt = datetime.fromisoformat(start_date)
                 end_dt = datetime.fromisoformat(end_date)
 
                 request = StockBarsRequest(
                     symbol_or_symbols=symbol,
-                    timeframe=timeframe_map[timeframe_lower],
+                    timeframe=resolved_timeframe,
                     start=start_dt,
                     end=end_dt,
                 )
 
+                # Make API call and extract bars
                 response = self._data_client.get_stock_bars(request)
-
-                # Extract bars for symbol from various possible response shapes
-                bars_obj: Any | None = None
-                try:
-                    # Preferred: BarsBySymbol has a `.data` dict
-                    data_attr = getattr(response, "data", None)
-                    if isinstance(data_attr, dict) and symbol in data_attr:
-                        bars_obj = data_attr[symbol]
-                    # Some SDKs expose attributes per symbol
-                    elif hasattr(response, symbol):
-                        bars_obj = getattr(response, symbol)
-                    # Fallback: mapping-like access
-                    elif isinstance(response, dict) and symbol in response:
-                        bars_obj = response[symbol]
-                except Exception:
-                    bars_obj = None
+                bars_obj = self._extract_bars_from_response(response, symbol)
 
                 if not bars_obj:
-                    # For daily data over a reasonable period, we should expect some bars
-                    from datetime import datetime
-
-                    start_dt_local = datetime.fromisoformat(start_date)
-                    end_dt_local = datetime.fromisoformat(end_date)
-                    days_requested = (end_dt_local - start_dt_local).days
-
-                    if days_requested > 5 and timeframe_lower == "1day":
-                        error_msg = (
-                            f"No historical data returned for {symbol} over {days_requested} days"
-                        )
+                    if self._should_raise_missing_data_error(start_date, end_date, timeframe, symbol):
+                        error_msg = f"No historical data returned for {symbol}"
                         # Treat as transient in retry path, many times this is upstream glitch
                         raise RuntimeError(error_msg)
-
-                    logger.warning(f"No historical data found for {symbol}")
                     return []
 
-                bars = list(bars_obj)
-                logger.debug(f"Successfully retrieved {len(bars)} bars for {symbol}")
-
-                # Use Pydantic model_dump() to get proper dictionaries with full field names
-                result: list[dict[str, Any]] = []
-                for bar in bars:
-                    try:
-                        bar_dict = bar.model_dump()
-                        result.append(bar_dict)
-                    except Exception as e:  # pragma: no cover - conversion resilience
-                        logger.warning(f"Failed to convert bar for {symbol}: {e}")
-                        continue
-                return result
+                # Convert bars to dictionaries and return
+                return self._convert_bars_to_dicts(bars_obj, symbol)
 
             except (RetryException, HTTPError, RequestException, Exception) as e:
-                transient, reason = _is_transient_error(e)
+                transient, reason = self._is_transient_error(e)
                 last_attempt = attempt == max_retries
-                summary = _sanitize_error_message(e)
+                
                 if transient and not last_attempt:
                     jitter = 1.0 + 0.2 * (randbelow(1000) / 1000.0)
                     sleep_s = base_sleep * (2 ** (attempt - 1)) * jitter
@@ -1076,22 +1000,184 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                     continue
 
                 # Non-transient or out of retries: raise sanitized error
-                msg = (
-                    f"Alpaca API failure for {symbol}: {summary}"
-                    if isinstance(e, (RetryException, HTTPError))
-                    else (
-                        f"Network error retrieving data for {symbol}: {summary}"
-                        if isinstance(e, RequestException)
-                        else f"Failed to get historical data for {symbol}: {summary}"
-                    )
-                )
+                summary = self._sanitize_error_message(e)
+                msg = self._format_final_error_message(e, symbol, summary)
                 logger.error(msg)
                 raise RuntimeError(msg)
 
         # Defensive fallback for static analysis (should not be reached)
         return []
 
-    # Should never reach here because loop either returns or raises
+    # Private helper methods for get_historical_bars
+    def _is_transient_error(self, err: Exception) -> tuple[bool, str]:
+        """Check if an error is transient and should be retried.
+        
+        Args:
+            err: Exception to check
+            
+        Returns:
+            Tuple of (is_transient, reason_description)
+
+        """
+        msg = str(err)
+        # Normalize common transient markers
+        if "502" in msg or "Bad Gateway" in msg:
+            return True, "502 Bad Gateway"
+        if "503" in msg or "Service Unavailable" in msg:
+            return True, "503 Service Unavailable"
+        if "504" in msg or "Gateway Timeout" in msg or "timeout" in msg.lower():
+            return True, "Gateway Timeout/Timeout"
+        # HTML error pages from proxies
+        if "<html" in msg.lower():
+            # Try to extract status code
+            m = re.search(r"\b(5\d{2})\b", msg)
+            code = m.group(1) if m else "5xx"
+            return True, f"HTTP {code} HTML error"
+        return False, ""
+
+    def _sanitize_error_message(self, err: Exception) -> str:
+        """Sanitize error message for logging and user display.
+        
+        Args:
+            err: Exception to sanitize
+            
+        Returns:
+            Clean error message string
+
+        """
+        transient, reason = self._is_transient_error(err)
+        if transient:
+            return reason
+        # Trim long HTML/text blobs
+        msg = str(err)
+        if "<html" in msg.lower():
+            return "Upstream returned HTML error page"
+        return msg
+
+    def _resolve_timeframe(self, timeframe: str) -> TimeFrame:
+        """Resolve timeframe string to Alpaca TimeFrame object.
+        
+        Args:
+            timeframe: Timeframe string (case-insensitive)
+            
+        Returns:
+            Alpaca TimeFrame object
+            
+        Raises:
+            ValueError: If timeframe is not supported
+
+        """
+        timeframe_map = {
+            "1min": TimeFrame(1, TimeFrameUnit.Minute),
+            "5min": TimeFrame(5, TimeFrameUnit.Minute),
+            "15min": TimeFrame(15, TimeFrameUnit.Minute),
+            "1hour": TimeFrame(1, TimeFrameUnit.Hour),
+            "1day": TimeFrame(1, TimeFrameUnit.Day),
+        }
+
+        timeframe_lower = timeframe.lower()
+        if timeframe_lower not in timeframe_map:
+            raise ValueError(f"Unsupported timeframe: {timeframe}")
+        
+        return timeframe_map[timeframe_lower]
+
+    def _extract_bars_from_response(self, response: Any, symbol: str) -> Any | None:  # noqa: ANN401 # SDK response object at adapter boundary
+        """Extract bars object from various possible response shapes.
+        
+        Args:
+            response: API response object
+            symbol: Stock symbol to extract bars for
+            
+        Returns:
+            Bars object or None if not found
+
+        """
+        bars_obj: Any | None = None
+        try:
+            # Preferred: BarsBySymbol has a `.data` dict
+            data_attr = getattr(response, "data", None)
+            if isinstance(data_attr, dict) and symbol in data_attr:
+                bars_obj = data_attr[symbol]
+            # Some SDKs expose attributes per symbol
+            elif hasattr(response, symbol):
+                bars_obj = getattr(response, symbol)
+            # Fallback: mapping-like access
+            elif isinstance(response, dict) and symbol in response:
+                bars_obj = response[symbol]
+        except Exception:
+            bars_obj = None
+        
+        return bars_obj
+
+    def _convert_bars_to_dicts(self, bars_obj: Any, symbol: str) -> list[dict[str, Any]]:  # noqa: ANN401 # SDK bars object at adapter boundary
+        """Convert bars object to list of dictionaries using Pydantic model_dump.
+        
+        Args:
+            bars_obj: Bars object from API response
+            symbol: Stock symbol for logging
+            
+        Returns:
+            List of dictionaries with bar data
+
+        """
+        bars = list(bars_obj)
+        logger.debug(f"Successfully retrieved {len(bars)} bars for {symbol}")
+
+        result: list[dict[str, Any]] = []
+        for bar in bars:
+            try:
+                bar_dict = bar.model_dump()
+                result.append(bar_dict)
+            except Exception as e:  # pragma: no cover - conversion resilience
+                logger.warning(f"Failed to convert bar for {symbol}: {e}")
+                continue
+        return result
+
+    def _format_final_error_message(self, err: Exception, symbol: str, summary: str) -> str:
+        """Format final error message based on exception type.
+        
+        Args:
+            err: Original exception
+            symbol: Stock symbol for context
+            summary: Sanitized error summary
+            
+        Returns:
+            Formatted error message
+
+        """
+        if isinstance(err, (RetryException, HTTPError)):
+            return f"Alpaca API failure for {symbol}: {summary}"
+        if isinstance(err, RequestException):
+            return f"Network error retrieving data for {symbol}: {summary}"
+        return f"Failed to get historical data for {symbol}: {summary}"
+
+    def _should_raise_missing_data_error(
+        self, start_date: str, end_date: str, timeframe: str, symbol: str
+    ) -> bool:
+        """Check if missing data should raise an error for retry.
+        
+        Args:
+            start_date: Start date string
+            end_date: End date string  
+            timeframe: Timeframe string
+            symbol: Stock symbol for logging
+            
+        Returns:
+            True if should raise error (will be retried), False if should return empty list
+
+        """
+        from datetime import datetime
+
+        start_dt_local = datetime.fromisoformat(start_date)
+        end_dt_local = datetime.fromisoformat(end_date)
+        days_requested = (end_dt_local - start_dt_local).days
+
+        # For daily data over a reasonable period, we should expect some bars
+        if days_requested > 5 and timeframe.lower() == "1day":
+            return True
+        
+        logger.warning(f"No historical data found for {symbol}")
+        return False
 
     # Utility Methods
     def validate_connection(self) -> bool:
