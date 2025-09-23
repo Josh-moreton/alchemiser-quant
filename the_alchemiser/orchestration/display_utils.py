@@ -150,7 +150,9 @@ def display_rebalance_plan(trading_result: dict[str, Any]) -> None:
                             quantity = trade.get("qty", 0)
                             print(f"  • {action} {quantity} shares of {symbol}")
                 elif status == NO_TRADES_REQUIRED:
-                    print("\n⚖️  No rebalancing required - portfolio is already optimally allocated")
+                    print(
+                        "\n⚖️  No rebalancing required - portfolio is already optimally allocated"
+                    )
 
     except Exception as e:
         logger.warning(f"Failed to display rebalance plan: {e}")
@@ -192,9 +194,7 @@ def display_post_execution_tracking(*, paper_trading: bool) -> None:
         mode_str = "paper trading" if paper_trading else "live trading"
         print(f"\n📊 Strategy Performance Tracking ({mode_str}):")
 
-        module = importlib.import_module(
-            "the_alchemiser.shared.utils.strategy_utils"
-        )
+        module = importlib.import_module("the_alchemiser.shared.utils.strategy_utils")
         func = getattr(module, "display_strategy_performance_tracking", None)
 
         if callable(func):
