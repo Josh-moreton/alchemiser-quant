@@ -71,7 +71,7 @@ class RepegManager:
 
         for order_id, request in list(active_orders.items()):
             result = await self._process_single_order(order_id, request, current_time)
-            
+
             if result is None:  # Order should be removed or no action needed
                 orders_to_remove.append(order_id)
             elif result:  # Result available (repeg or escalation)
@@ -141,13 +141,13 @@ class RepegManager:
 
         """
         from .utils import is_order_completed
-        
+
         order_status = self.alpaca_manager._check_order_completion_status(order_id)
-        
+
         if order_status and is_order_completed(order_status):
             logger.info(f"📊 Order {order_id} completed with status: {order_status}")
             return True
-        
+
         return False
 
     def _should_consider_repeg(self, order_id: str, current_time: datetime) -> bool:
@@ -162,7 +162,7 @@ class RepegManager:
 
         """
         from .utils import should_consider_repeg
-        
+
         placement_time = self.order_tracker.get_placement_time(order_id)
         if not placement_time:
             return False
@@ -190,7 +190,7 @@ class RepegManager:
 
         """
         from .utils import should_escalate_order
-        
+
         return should_escalate_order(current_repeg_count, self.config.max_repegs_per_order)
 
     async def _escalate_to_market(

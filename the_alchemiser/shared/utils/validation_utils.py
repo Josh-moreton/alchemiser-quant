@@ -150,12 +150,14 @@ def validate_quote_prices(bid_price: float, ask_price: float) -> bool:
     # At least one price must be positive
     if bid_price <= 0 and ask_price <= 0:
         return False
-    
+
     # If both prices are positive, bid must be <= ask
     return not (bid_price > 0 and ask_price > 0 and bid_price > ask_price)
 
 
-def validate_spread_reasonable(bid_price: float, ask_price: float, max_spread_percent: float = 0.5) -> bool:
+def validate_spread_reasonable(
+    bid_price: float, ask_price: float, max_spread_percent: float = 0.5
+) -> bool:
     """Validate that the bid-ask spread is reasonable for trading.
 
     Args:
@@ -169,6 +171,6 @@ def validate_spread_reasonable(bid_price: float, ask_price: float, max_spread_pe
     """
     if bid_price <= 0 or ask_price <= 0:
         return False
-    
+
     spread = (ask_price - bid_price) / ask_price
     return spread <= (max_spread_percent / 100.0)

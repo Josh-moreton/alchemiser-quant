@@ -80,7 +80,7 @@ class QuoteProvider:
 
         logger.info(f"⏳ Waiting for streaming quote data for {symbol}...")
         quote = self._wait_for_streaming_quote(symbol)
-        
+
         if not quote:
             return None
 
@@ -103,7 +103,7 @@ class QuoteProvider:
         """
         if not self.pricing_service:
             return None
-            
+
         max_wait_time = 30.0  # Maximum 30 seconds to wait
         check_interval = 0.1  # Check every 100ms
         elapsed = 0.0

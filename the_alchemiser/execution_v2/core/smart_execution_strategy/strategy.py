@@ -207,9 +207,7 @@ class SmartExecutionStrategy:
             return self.pricing_calculator.calculate_liquidity_aware_price(
                 quote, request.side, order_size
             )
-        return self.pricing_calculator.calculate_simple_inside_spread_price(
-            quote, request.side
-        )
+        return self.pricing_calculator.calculate_simple_inside_spread_price(quote, request.side)
 
     async def _place_validated_order(
         self,
@@ -248,7 +246,12 @@ class SmartExecutionStrategy:
 
         # Place the actual limit order
         return await self._execute_limit_order(
-            request, quantized_price, optimal_price, analysis_metadata, quote, used_fallback=used_fallback
+            request,
+            quantized_price,
+            optimal_price,
+            analysis_metadata,
+            quote,
+            used_fallback=used_fallback,
         )
 
     async def _handle_invalid_price_fallback(self, request: SmartOrderRequest) -> SmartOrderResult:
@@ -329,7 +332,13 @@ class SmartExecutionStrategy:
 
         if result.success and result.order_id:
             return self._handle_successful_placement(
-                result, request, placement_time, optimal_price, analysis_metadata, quote, used_fallback=used_fallback
+                result,
+                request,
+                placement_time,
+                optimal_price,
+                analysis_metadata,
+                quote,
+                used_fallback=used_fallback,
             )
         return SmartOrderResult(
             success=False,

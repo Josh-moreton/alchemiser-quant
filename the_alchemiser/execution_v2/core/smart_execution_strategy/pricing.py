@@ -189,10 +189,11 @@ class PricingCalculator:
         """
         try:
             new_price = self._calculate_aggressive_price(quote, side, original_price)
-            
+
             # Check against price history to avoid repegging at same prices
             if price_history:
                 from .utils import validate_repeg_price_with_history
+
                 new_price = validate_repeg_price_with_history(new_price, price_history, side, quote)
 
             # Final validation and quantization

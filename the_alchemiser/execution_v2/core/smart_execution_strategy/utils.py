@@ -36,11 +36,11 @@ def calculate_price_adjustment(
 
 
 def validate_repeg_price_with_history(
-    new_price: Decimal, 
+    new_price: Decimal,
     price_history: list[Decimal] | None,
     side: str,
     quote: QuoteModel,
-    min_improvement: Decimal = Decimal("0.01")
+    min_improvement: Decimal = Decimal("0.01"),
 ) -> Decimal:
     """Validate and adjust repeg price to avoid duplicates in history.
 
@@ -101,7 +101,9 @@ def should_escalate_order(repeg_count: int, max_repegs: int) -> bool:
     return repeg_count >= max_repegs
 
 
-def should_consider_repeg(placement_time: datetime, current_time: datetime, wait_seconds: float) -> bool:
+def should_consider_repeg(
+    placement_time: datetime, current_time: datetime, wait_seconds: float
+) -> bool:
     """Check if enough time has elapsed to consider re-pegging.
 
     Args:
