@@ -45,38 +45,39 @@ from the_alchemiser.shared.protocols.repository import (
     TradingRepository,
 )
 
-# Import Alpaca exceptions for proper error handling
+# Import Alpaca exceptions for proper error handling with type safety
+_RetryExcImported: type[Exception]
 try:
-    from alpaca.common.exceptions import (
-        RetryException as _RetryException,  # type: ignore[import-not-found]
-    )
+    from alpaca.common.exceptions import RetryException as _RetryExcImported
 except ImportError:  # pragma: no cover - environment-dependent import
     # Fallback if the import path changes or package missing
-    class _RetryException(Exception):
+    class _RetryExcImported(Exception):  # type: ignore[no-redef]
         """Fallback RetryException compatible with Alpaca SDK signature."""
 
 
-RetryException = _RetryException
+RetryException = _RetryExcImported
 
-# Import requests exceptions for HTTP error handling
+# Import requests exceptions for HTTP error handling with type safety
+_HTTPErrorImported: type[Exception]
+_RequestExcImported: type[Exception]
 try:
     from requests.exceptions import (
-        HTTPError as _HTTPError,
+        HTTPError as _HTTPErrorImported,
     )
     from requests.exceptions import (
-        RequestException as _RequestException,
+        RequestException as _RequestExcImported,
     )
 except ImportError:  # pragma: no cover - environment-dependent import
 
-    class _HTTPError(Exception):
+    class _HTTPErrorImported(Exception):  # type: ignore[no-redef]
         """Fallback HTTPError when requests is unavailable."""
 
-    class _RequestException(Exception):
+    class _RequestExcImported(Exception):  # type: ignore[no-redef]
         """Fallback RequestException when requests is unavailable."""
 
 
-HTTPError = _HTTPError
-RequestException = _RequestException
+HTTPError = _HTTPErrorImported
+RequestException = _RequestExcImported
 
 if TYPE_CHECKING:
     # Future imports for type checking can be added here as needed
