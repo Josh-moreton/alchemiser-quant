@@ -89,7 +89,6 @@ class SignalOrchestrator:
                     "symbol": primary_symbol,
                     "symbols": symbols,  # Keep individual symbols for other processing and display
                     "action": primary_signal.action,
-                    "confidence": float(primary_signal.confidence.value),
                     "reasoning": primary_signal.reasoning,
                     "is_multi_symbol": True,
                 }
@@ -99,7 +98,6 @@ class SignalOrchestrator:
                 strategy_signals["DSL"] = {
                     "symbol": signal.symbol.value,
                     "action": signal.action,
-                    "confidence": float(signal.confidence.value),
                     "reasoning": signal.reasoning,
                     "is_multi_symbol": False,
                 }
@@ -327,7 +325,6 @@ class SignalOrchestrator:
                     timestamp=datetime.now(UTC),
                     symbol=sanitized_symbol,
                     action=signal_data.get("action", "HOLD"),
-                    confidence=Decimal(str(signal_data.get("confidence", 0.0))),
                     reasoning=signal_data.get("reasoning", "Signal generated"),
                     strategy_name=strategy_name,
                     allocation_weight=None,  # Will be determined by portfolio module

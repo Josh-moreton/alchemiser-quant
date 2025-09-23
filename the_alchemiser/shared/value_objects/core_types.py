@@ -110,7 +110,6 @@ class StrategySignalBase(TypedDict):
 
     symbol: str | dict[str, float]  # Allow both symbol string and portfolio dict
     action: Literal["BUY", "SELL", "HOLD"] | str  # Allow both strict and loose action values
-    confidence: float
 
 
 class StrategySignal(StrategySignalBase, total=False):
@@ -150,7 +149,6 @@ class KLMVariantResult(TypedDict):
 
     variant: Any  # BaseKLMVariant - using Any to avoid circular import
     signal: StrategySignal
-    confidence: float
 
 
 # Trading Execution Types (moved to interfaces/schemas/execution.py)
