@@ -19,6 +19,7 @@ from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionResultDTO,
     OrderResultDTO,
 )
+from the_alchemiser.execution_v2.utils.execution_validator import ExecutionValidator
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.dto.execution_dto import ExecutionResult
 from the_alchemiser.shared.dto.rebalance_plan_dto import (
@@ -64,6 +65,9 @@ class Executor:
         self.alpaca_manager = alpaca_manager
         self.enable_smart_execution = enable_smart_execution
         self.execution_config = execution_config
+        
+        # Initialize execution validator for preflight checks
+        self.validator = ExecutionValidator(alpaca_manager)
 
         # Initialize pricing service for smart execution
         self.pricing_service: RealTimePricingService | None = None
@@ -158,7 +162,7 @@ class Executor:
         return self._execute_market_order(symbol, side, Decimal(str(quantity)))
 
     def _execute_market_order(self, symbol: str, side: str, quantity: Decimal) -> ExecutionResult:
-        """Execute a standard market order.
+        """Execute a standard market order with preflight validation.
 
         Args:
             symbol: Stock symbol
@@ -169,18 +173,46 @@ class Executor:
             ExecutionResult with order details
 
         """
+        # Preflight validation for non-fractionable assets
+        validation_result = self.validator.validate_order(
+            symbol=symbol,
+            quantity=quantity,
+            side=side,
+            auto_adjust=True,
+        )
+        
+        if not validation_result.is_valid:
+            error_msg = validation_result.error_message or f"Validation failed for {symbol}"
+            logger.error(f"❌ Preflight validation failed for {symbol}: {error_msg}")
+            return ExecutionResult(
+                symbol=symbol,
+                side=side,
+                quantity=quantity,
+                status="rejected",
+                success=False,
+                error=error_msg,
+                execution_strategy="validation_failed",
+            )
+        
+        # Use adjusted quantity if validation made changes
+        final_quantity = validation_result.adjusted_quantity or quantity
+        
+        # Log any warnings from validation
+        for warning in validation_result.warnings:
+            logger.warning(f"⚠️ Order validation: {warning}")
+        
         try:
             result = self.alpaca_manager.place_market_order(
                 symbol=symbol,
                 side=side.lower(),
-                qty=float(quantity),
+                qty=float(final_quantity),
             )
 
             return ExecutionResult(
                 order_id=result.order_id,
                 symbol=symbol,
                 side=side,
-                quantity=quantity,
+                quantity=final_quantity,
                 price=(result.price if result.price is not None else None),
                 status=result.status.lower() if result.status else "submitted",
                 success=result.status not in ["REJECTED", "CANCELED"],
@@ -192,7 +224,7 @@ class Executor:
             return ExecutionResult(
                 symbol=symbol,
                 side=side,
-                quantity=quantity,
+                quantity=final_quantity,
                 status="failed",
                 success=False,
                 error=str(e),

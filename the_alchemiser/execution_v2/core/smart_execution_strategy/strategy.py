@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.execution_v2.utils.execution_validator import ExecutionValidator
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 from the_alchemiser.shared.types.market_data import QuoteModel
@@ -52,6 +53,9 @@ class SmartExecutionStrategy:
         self.alpaca_manager = alpaca_manager
         self.pricing_service = pricing_service
         self.config = config or ExecutionConfig()
+        
+        # Initialize execution validator for preflight checks
+        self.validator = ExecutionValidator(alpaca_manager)
 
         # Initialize components
         self.quote_provider = QuoteProvider(
@@ -83,6 +87,35 @@ class SmartExecutionStrategy:
             f"🎯 Placing smart {request.side} order: {request.quantity} {request.symbol} "
             f"(urgency: {request.urgency})"
         )
+        
+        # Preflight validation for non-fractionable assets
+        validation_result = self.validator.validate_order(
+            symbol=request.symbol,
+            quantity=Decimal(str(request.quantity)),
+            side=request.side,
+            correlation_id=getattr(request, 'correlation_id', None),
+            auto_adjust=True,
+        )
+        
+        if not validation_result.is_valid:
+            error_msg = validation_result.error_message or f"Validation failed for {request.symbol}"
+            logger.error(f"❌ Preflight validation failed for {request.symbol}: {error_msg}")
+            return SmartOrderResult(
+                success=False,
+                error_message=error_msg,
+                execution_strategy="validation_failed",
+            )
+        
+        # Use adjusted quantity if validation made changes
+        if validation_result.adjusted_quantity is not None:
+            # Update request with adjusted quantity
+            original_quantity = request.quantity
+            request = request.model_copy(update={'quantity': float(validation_result.adjusted_quantity)})
+            logger.info(f"🔄 Adjusted quantity for {request.symbol}: {original_quantity} → {request.quantity}")
+        
+        # Log any warnings from validation
+        for warning in validation_result.warnings:
+            logger.warning(f"⚠️ Smart order validation: {warning}")
 
         # Symbol should already be pre-subscribed by executor
         # Brief wait to allow any pending subscription to receive initial data
