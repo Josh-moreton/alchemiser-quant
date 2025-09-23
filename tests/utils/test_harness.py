@@ -80,8 +80,63 @@ class DslTestHarness:
             return Mock(bid=price * 0.999, ask=price * 1.001, mid=price)
         
         def mock_get_bars(symbol, period, timeframe):
-            # Return empty list for now - not used in current DSL evaluations
-            return []
+            # Generate realistic historical bar data for technical indicators
+            from the_alchemiser.shared.types.market_data import BarModel
+            from datetime import timedelta
+            import random
+            
+            symbol_str = str(symbol) if hasattr(symbol, '__str__') else symbol
+            base_price = self.mock_market_data.get_current_price(symbol_str)
+            
+            # Check if we have a custom RSI value for this symbol
+            custom_rsi_key = (symbol_str, 'rsi')
+            target_rsi = None
+            if custom_rsi_key in self.mock_market_data._custom_indicators:
+                target_rsi = self.mock_market_data._custom_indicators[custom_rsi_key]
+            
+            # Generate 252 days of data (1 year) for sufficient RSI calculation
+            bars = []
+            current_date = self.virtual_time
+            random_gen = random.Random(self.seed + hash(symbol_str))
+            
+            # Start with slightly lower price to show progression
+            current_price = base_price * 0.95
+            
+            for i in range(252):
+                if target_rsi is not None and i >= 240:  # Last 12 days - create trend for target RSI
+                    if target_rsi > 70:  # Want high RSI - create upward trend
+                        daily_change = random_gen.uniform(0.005, 0.02)  # Positive movement
+                    elif target_rsi < 30:  # Want low RSI - create downward trend  
+                        daily_change = random_gen.uniform(-0.02, -0.005)  # Negative movement
+                    else:  # Want neutral RSI - balanced movement
+                        daily_change = random_gen.uniform(-0.01, 0.01)
+                else:
+                    # Generate normal price movement for early data
+                    daily_change = random_gen.uniform(-0.03, 0.03)  # ±3% daily movement
+                
+                current_price *= (1 + daily_change)
+                
+                # Ensure price stays positive
+                current_price = max(current_price, 1.0)
+                
+                # Generate OHLC from close price
+                volatility = random_gen.uniform(0.005, 0.02)  # 0.5% to 2% intraday range
+                high = current_price * (1 + volatility)
+                low = current_price * (1 - volatility)
+                open_price = current_price * random_gen.uniform(0.99, 1.01)
+                
+                bar = BarModel(
+                    symbol=symbol_str,
+                    timestamp=current_date - timedelta(days=252-i),
+                    open=open_price,
+                    high=high,
+                    low=low,
+                    close=current_price,
+                    volume=random_gen.randint(100000, 10000000)
+                )
+                bars.append(bar)
+            
+            return bars
         
         mock_port.get_mid_price.side_effect = mock_get_mid_price
         mock_port.get_latest_quote.side_effect = mock_get_latest_quote
@@ -162,6 +217,10 @@ class DslTestHarness:
                     parameters=params,
                     metadata={}
                 )
+        
+        if "rsi_values" in conditions:
+            for symbol, rsi_value in conditions["rsi_values"].items():
+                self.mock_market_data.set_rsi(symbol, rsi_value)
 
 
 class EventRecorder(EventHandler):
@@ -285,20 +344,29 @@ class DslTestResult:
                 if event.allocation:
                     event_data["allocation"] = {
                         "strategy_id": event.allocation.strategy_id,
-                        "allocations": dict(event.allocation.allocations),
-                        "total_allocation": float(event.allocation.total_allocation),
-                        "evaluation_mode": event.allocation.evaluation_mode
+                        "allocations": {k: float(v) for k, v in event.allocation.target_weights.items()},
+                        "total_allocation": float(sum(event.allocation.target_weights.values())),
+                        "correlation_id": event.allocation.correlation_id
                     }
             elif isinstance(event, PortfolioAllocationProduced):
                 if event.allocation:
                     event_data["allocation"] = {
                         "strategy_id": event.allocation.strategy_id,
-                        "allocations": dict(event.allocation.allocations),
-                        "total_allocation": float(event.allocation.total_allocation),
-                        "evaluation_mode": event.allocation.evaluation_mode
+                        "allocations": {k: float(v) for k, v in event.allocation.target_weights.items()},
+                        "total_allocation": float(sum(event.allocation.target_weights.values())),
+                        "correlation_id": event.allocation.correlation_id
                     }
             
             data["events"].append(event_data)
+        
+        # Add allocation data to main level if available
+        if self.allocation_result:
+            data["allocation"] = {
+                "strategy_id": self.allocation_result.strategy_id,
+                "allocations": {k: float(v) for k, v in self.allocation_result.target_weights.items()},
+                "total_allocation": float(sum(self.allocation_result.target_weights.values())),
+                "correlation_id": self.allocation_result.correlation_id
+            }
         
         return data
 

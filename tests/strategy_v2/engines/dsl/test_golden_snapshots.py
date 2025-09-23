@@ -95,7 +95,33 @@ class TestGoldenSnapshots:
                 print(f"Event type count mismatch for {strategy_name}.{event_type}:")
                 print(f"  Expected: {expected_count}")
                 print(f"  Actual: {actual_count}")
+        
+        # Validate allocation correctness if present
+        if actual_summary.get("has_allocation") and "allocation" in actual:
+            self._validate_allocation_correctness(actual["allocation"], strategy_name)
     
+    def _validate_allocation_correctness(
+        self, 
+        allocation_data: dict, 
+        strategy_name: str
+    ) -> None:
+        """Validate allocation data correctness."""
+        if "allocations" in allocation_data:
+            allocations = allocation_data["allocations"]
+            
+            # Verify allocations sum to 1.0
+            total = sum(allocations.values())
+            assert abs(total - 1.0) < 0.001, \
+                f"{strategy_name} allocations must sum to 1.0, got {total}"
+            
+            # Verify no negative allocations
+            for symbol, weight in allocations.items():
+                assert weight >= 0, \
+                    f"{strategy_name} has negative allocation: {symbol}={weight}"
+            
+            # Verify no empty allocations
+            assert len(allocations) > 0, \
+                f"{strategy_name} has empty allocation"
     def test_regenerate_snapshots_if_requested(
         self, 
         repository_root: Path, 

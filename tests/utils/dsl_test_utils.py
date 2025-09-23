@@ -33,6 +33,15 @@ class MockMarketDataService:
         self._random = random.Random(seed)
         self._price_cache: dict[str, float] = {}
         self._indicator_cache: dict[tuple[str, str, tuple], TechnicalIndicatorDTO] = {}
+        self._custom_indicators: dict[tuple[str, str], float] = {}  # For controlled testing
+    
+    def set_indicator(self, symbol: str, indicator_type: str, value: float) -> None:
+        """Set a specific indicator value for controlled testing."""
+        self._custom_indicators[(symbol, indicator_type)] = value
+    
+    def set_rsi(self, symbol: str, value: float) -> None:
+        """Set RSI value for a symbol (convenience method)."""
+        self.set_indicator(symbol, "rsi", value)
     
     def get_current_price(self, symbol: str) -> float:
         """Get mock current price for symbol."""
@@ -48,6 +57,19 @@ class MockMarketDataService:
         params: dict[str, Any] | None = None
     ) -> TechnicalIndicatorDTO:
         """Get mock technical indicator value."""
+        # Check for custom indicator values first
+        custom_key = (symbol, indicator_type)
+        if custom_key in self._custom_indicators:
+            value = self._custom_indicators[custom_key]
+            return TechnicalIndicatorDTO(
+                symbol=symbol,
+                indicator_type=indicator_type,
+                value=value,
+                timestamp=datetime.now(UTC),
+                parameters=params or {},
+                metadata={"custom_value": True}
+            )
+        
         params_tuple = tuple(sorted((params or {}).items()))
         cache_key = (symbol, indicator_type, params_tuple)
         
@@ -93,6 +115,7 @@ class MockMarketDataService:
         """Reset all cached data."""
         self._price_cache.clear()
         self._indicator_cache.clear()
+        self._custom_indicators.clear()
 
 
 class StrategyDiscovery:
