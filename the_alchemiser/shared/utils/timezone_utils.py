@@ -12,6 +12,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import overload
 
+from ..constants import UTC_TIMEZONE_SUFFIX
+
 
 @overload
 def ensure_timezone_aware(timestamp: None) -> None: ...
@@ -89,7 +91,7 @@ def normalize_timestamp_to_utc(timestamp: datetime | str | int | float) -> datet
         try:
             # Handle 'Z' suffix (Zulu time = UTC)
             if timestamp.endswith("Z"):
-                timestamp = timestamp[:-1] + "+00:00"
+                timestamp = timestamp[:-1] + UTC_TIMEZONE_SUFFIX
 
             parsed = datetime.fromisoformat(timestamp)
             # ensure_timezone_aware returns datetime for datetime input

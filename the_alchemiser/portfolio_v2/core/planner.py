@@ -82,9 +82,7 @@ class RebalancePlanCalculator:
             )
 
             # Step 3: Calculate trade amounts and actions
-            trade_items = self._calculate_trade_items(
-                target_values, current_values
-            )
+            trade_items = self._calculate_trade_items(target_values, current_values)
 
             # Ensure we have at least one item (required by DTO)
             if not trade_items:

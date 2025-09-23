@@ -21,6 +21,13 @@ from the_alchemiser.execution_v2.models.execution_result import ExecutionResultD
 from the_alchemiser.orchestration.portfolio_orchestrator import PortfolioOrchestrator
 from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.config.config import Settings
+from the_alchemiser.shared.constants import (
+    APPLICATION_NAME,
+    DECIMAL_ZERO,
+    MIN_TRADE_AMOUNT_USD,
+    NO_TRADES_REQUIRED,
+    REBALANCE_PLAN_GENERATED,
+)
 from the_alchemiser.shared.dto.portfolio_state_dto import (
     PortfolioMetricsDTO,
     PortfolioStateDTO,
@@ -48,8 +55,6 @@ from the_alchemiser.shared.types.exceptions import (
 )
 
 # Constants for repeated literals
-DECIMAL_ZERO = Decimal("0")
-MIN_TRADE_AMOUNT_USD = Decimal("5")
 
 
 class TradingOrchestrator:
@@ -689,7 +694,7 @@ class TradingOrchestrator:
 
             status_tag = "SUCCESS" if success else "FAILURE"
             send_email_notification(
-                subject=f"[{status_tag}] The Alchemiser - {mode_str.upper()} Trading Report",
+                subject=f"[{status_tag}] {APPLICATION_NAME} - {mode_str.upper()} Trading Report",
                 html_content=html_content,
                 text_content=f"Trading execution completed. Success: {success}",
             )
@@ -1255,12 +1260,12 @@ class TradingOrchestrator:
                     sell_lines.append(f"{symbol} ${abs(amt):,.0f}")
 
             if buy_lines or sell_lines:
-                print("📋 Rebalance plan generated:")
+                print(REBALANCE_PLAN_GENERATED)
                 if sell_lines:
                     print(f"   → SELL: {', '.join(sell_lines)}")
                 if buy_lines:
                     print(f"   → BUY: {', '.join(buy_lines)}")
             else:
-                print("📋 No trades required (portfolio balanced)")
+                print(NO_TRADES_REQUIRED)
         except Exception as e:
             self.logger.debug(f"Failed printing plan summary: {e}")

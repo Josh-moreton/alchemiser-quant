@@ -7,6 +7,7 @@ This module handles the multi-strategy email template generation.
 
 from __future__ import annotations
 
+from ...constants import APPLICATION_NAME
 from .base import BaseEmailTemplate
 from .performance import PerformanceBuilder
 from .portfolio import ExecutionLike, PortfolioBuilder
@@ -26,7 +27,7 @@ class MultiStrategyReportBuilder:
         status_text = "Success" if success else "Failed"
 
         # Build content sections
-        header = BaseEmailTemplate.get_header()
+        header = BaseEmailTemplate.get_header(APPLICATION_NAME)
         status_banner = BaseEmailTemplate.get_status_banner(
             f"{mode.upper()} Multi-Strategy Report",
             status_text,
@@ -123,7 +124,9 @@ class MultiStrategyReportBuilder:
         {footer}
         """
 
-        return BaseEmailTemplate.wrap_content(content, "The Alchemiser - Multi-Strategy Report")
+        return BaseEmailTemplate.wrap_content(
+            content, f"{APPLICATION_NAME} - Multi-Strategy Report"
+        )
 
     @staticmethod
     def build_multi_strategy_report_neutral(result: ExecutionLike, mode: str) -> str:
@@ -202,5 +205,5 @@ class MultiStrategyReportBuilder:
         """
 
         return BaseEmailTemplate.wrap_content(
-            content, "The Alchemiser - Multi-Strategy Report (Neutral)"
+            content, f"{APPLICATION_NAME} - Multi-Strategy Report (Neutral)"
         )

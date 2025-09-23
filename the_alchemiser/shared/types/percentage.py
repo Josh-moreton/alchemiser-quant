@@ -5,10 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
-from the_alchemiser.shared.utils.validation_utils import (
-    PERCENTAGE_RANGE,
-    validate_decimal_range,
-)
+from the_alchemiser.shared.constants import PERCENTAGE_RANGE
+from the_alchemiser.shared.utils.validation_utils import validate_decimal_range
 
 
 @dataclass(frozen=True)

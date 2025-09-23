@@ -9,6 +9,8 @@ from pydantic_settings import (
     SettingsConfigDict,
 )
 
+from ..constants import DEFAULT_AWS_REGION
+
 """Typed configuration loader for The Alchemiser."""
 
 
@@ -37,7 +39,7 @@ class AlpacaSettings(BaseModel):
 class AwsSettings(BaseModel):
     """AWS deployment configuration."""
 
-    region: str = "eu-west-2"
+    region: str = DEFAULT_AWS_REGION
     account_id: str = ""
     repo_name: str = ""
     lambda_arn: str = ""
@@ -55,7 +57,7 @@ class SecretsManagerSettings(BaseModel):
     """Configuration for AWS Secrets Manager access."""
 
     enabled: bool = True
-    region_name: str = "eu-west-2"
+    region_name: str = DEFAULT_AWS_REGION
     secret_name: str = "the-alchemiser-secrets"  # noqa: S105
 
 

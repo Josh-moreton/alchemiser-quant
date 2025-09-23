@@ -169,11 +169,11 @@ class PricingCalculator:
         return anchor_quantized, metadata
 
     def calculate_repeg_price(
-        self, 
-        quote: QuoteModel, 
-        side: str, 
+        self,
+        quote: QuoteModel,
+        side: str,
         original_price: Decimal | None,
-        price_history: list[Decimal] | None = None
+        price_history: list[Decimal] | None = None,
     ) -> Decimal | None:
         """Calculate a more aggressive price for re-pegging.
 
@@ -222,7 +222,7 @@ class PricingCalculator:
             # Check against price history to avoid repegging at same prices
             if price_history:
                 min_improvement = Decimal("0.01")  # Minimum 1 cent improvement
-                
+
                 # If we've calculated the same price as before, force a minimum improvement
                 if new_price in price_history:
                     logger.info(
@@ -239,10 +239,10 @@ class PricingCalculator:
                         new_price = new_price - min_improvement
                         # Don't go below bid price
                         new_price = max(new_price, Decimal(str(quote.bid_price)))
-                    
+
                     # Re-quantize after adjustment
                     new_price = new_price.quantize(Decimal("0.01"))
-                    
+
                     # If we still have the same price after forced improvement, log warning
                     if new_price in price_history:
                         logger.warning(

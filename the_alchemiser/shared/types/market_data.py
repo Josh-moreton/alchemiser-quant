@@ -10,10 +10,11 @@ from datetime import datetime
 
 import pandas as pd
 
+from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
 from the_alchemiser.shared.value_objects.core_types import MarketDataPoint, PriceData, QuoteData
 
-# Constants
-_UTC_TIMEZONE_SUFFIX = "+00:00"
+# Legacy alias for backward compatibility
+_UTC_TIMEZONE_SUFFIX = UTC_TIMEZONE_SUFFIX
 
 
 @dataclass(frozen=True)

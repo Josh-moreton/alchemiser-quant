@@ -32,6 +32,7 @@ from alpaca.trading.models import Order, Position, TradeAccount
 from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 from alpaca.trading.stream import TradingStream
 
+from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
 from the_alchemiser.shared.dto.broker_dto import (
     OrderExecutionResult,
     WebSocketResult,
@@ -156,11 +157,15 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             submitted_at = getattr(order, "submitted_at", None) or datetime.now(UTC)
             if isinstance(submitted_at, str):
                 # Handle ISO format strings
-                submitted_at = datetime.fromisoformat(submitted_at.replace("Z", "+00:00"))
+                submitted_at = datetime.fromisoformat(
+                    submitted_at.replace("Z", UTC_TIMEZONE_SUFFIX)
+                )
 
             completed_at = getattr(order, "updated_at", None)
             if completed_at and isinstance(completed_at, str):
-                completed_at = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
+                completed_at = datetime.fromisoformat(
+                    completed_at.replace("Z", UTC_TIMEZONE_SUFFIX)
+                )
 
                 # Map status to our expected values - using explicit typing to ensure Literal compliance
             status_mapping: dict[
@@ -1069,7 +1074,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
                     # Handle string timestamps
                     if isinstance(submitted_at, str):
-                        submitted_at = datetime.fromisoformat(submitted_at.replace("Z", "+00:00"))
+                        submitted_at = datetime.fromisoformat(
+                            submitted_at.replace("Z", UTC_TIMEZONE_SUFFIX)
+                        )
 
                     # Check if order is stale
                     if submitted_at < cutoff_time:
