@@ -159,10 +159,6 @@ class LiquidityAnalyzer:
         bid_price = Decimal(str(quote.bid_price))
         ask_price = Decimal(str(quote.ask_price))
 
-        # Base pricing at best levels
-        recommended_bid = bid_price
-        recommended_ask = ask_price
-
         # Adjust based on order size vs available volume
         if bid_volume_ratio > 0.8:  # Order size > 80% of available volume
             # Large order relative to liquidity - be more aggressive

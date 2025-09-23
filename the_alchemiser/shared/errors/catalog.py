@@ -11,12 +11,8 @@ filtering, and routing throughout the system.
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field
-
-if TYPE_CHECKING:
-    pass
 
 
 class ErrorCode(Enum):
