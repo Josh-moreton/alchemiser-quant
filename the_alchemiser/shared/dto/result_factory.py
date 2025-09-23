@@ -30,15 +30,16 @@ def create_failure_result(
     warnings: list[str],
 ) -> TradeRunResultDTO:
     """Create a failure result DTO.
-    
+
     Args:
         error_message: Description of the failure
         started_at: When the execution started
         correlation_id: Correlation ID for tracking
         warnings: List of warning messages
-        
+
     Returns:
         TradeRunResultDTO representing a failed execution
+
     """
     from datetime import UTC, datetime
 
@@ -75,7 +76,7 @@ def create_success_result(
     success: bool,
 ) -> TradeRunResultDTO:
     """Create a success result DTO from trading results.
-    
+
     Args:
         trading_result: Dictionary containing execution results
         orchestrator: Trading orchestrator instance
@@ -84,9 +85,10 @@ def create_success_result(
         correlation_id: Correlation ID for tracking
         warnings: List of warning messages
         success: Whether the execution was successful
-        
+
     Returns:
         TradeRunResultDTO representing a successful execution
+
     """
     orders_executed = trading_result.get("orders_executed", [])
 

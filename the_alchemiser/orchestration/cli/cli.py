@@ -249,7 +249,9 @@ def trade(
     finally:
         # Ensure error notifications are sent if any errors were captured
         try:
-            from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+            from the_alchemiser.shared.errors.error_handler import (
+                send_error_notification_if_needed,
+            )
 
             send_error_notification_if_needed()
         except Exception as e:
@@ -367,7 +369,7 @@ def status() -> None:
 
     try:
         # Initialize DI container through TradingSystem
-        from the_alchemiser.main import TradingSystem
+        from the_alchemiser.orchestration.system import TradingSystem
 
         # Create TradingSystem instance to get properly initialized container
         trading_system = TradingSystem()
@@ -425,7 +427,9 @@ def status() -> None:
     finally:
         # Ensure error notifications are sent if any errors were captured
         try:
-            from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+            from the_alchemiser.shared.errors.error_handler import (
+                send_error_notification_if_needed,
+            )
 
             send_error_notification_if_needed()
         except Exception as e:
@@ -665,7 +669,9 @@ def ledger_list(
         from datetime import timedelta
 
         from the_alchemiser.shared.dto.trade_ledger_dto import TradeLedgerQuery
-        from the_alchemiser.shared.persistence.trade_ledger_factory import get_default_trade_ledger
+        from the_alchemiser.shared.persistence.trade_ledger_factory import (
+            get_default_trade_ledger,
+        )
 
         console = Console()
 
@@ -730,7 +736,9 @@ def ledger_list(
         console.print(f"[red]Error listing trade ledger entries: {e}[/red]")
         # Send error notifications
         try:
-            from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+            from the_alchemiser.shared.errors.error_handler import (
+                send_error_notification_if_needed,
+            )
 
             send_error_notification_if_needed()
         except Exception as notification_error:
@@ -746,7 +754,9 @@ def ledger_performance(
 ) -> None:
     """Show performance summary from trade ledger."""
     try:
-        from the_alchemiser.shared.persistence.trade_ledger_factory import get_default_trade_ledger
+        from the_alchemiser.shared.persistence.trade_ledger_factory import (
+            get_default_trade_ledger,
+        )
 
         console = Console()
 
@@ -808,7 +818,9 @@ def ledger_performance(
         console.print(f"[red]Error calculating performance: {e}[/red]")
         # Send error notifications
         try:
-            from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+            from the_alchemiser.shared.errors.error_handler import (
+                send_error_notification_if_needed,
+            )
 
             send_error_notification_if_needed()
         except Exception as notification_error:
@@ -823,8 +835,12 @@ def ledger_attribution(
 ) -> None:
     """Show detailed attribution for a symbol across strategies."""
     try:
-        from the_alchemiser.shared.persistence.trade_ledger_factory import get_default_trade_ledger
-        from the_alchemiser.shared.services.trade_performance_service import TradePerformanceService
+        from the_alchemiser.shared.persistence.trade_ledger_factory import (
+            get_default_trade_ledger,
+        )
+        from the_alchemiser.shared.services.trade_performance_service import (
+            TradePerformanceService,
+        )
 
         console = Console()
 
@@ -907,7 +923,9 @@ def ledger_attribution(
         console.print(f"[red]Error generating attribution report: {e}[/red]")
         # Send error notifications
         try:
-            from the_alchemiser.shared.errors.error_handler import send_error_notification_if_needed
+            from the_alchemiser.shared.errors.error_handler import (
+                send_error_notification_if_needed,
+            )
 
             send_error_notification_if_needed()
         except Exception as notification_error:

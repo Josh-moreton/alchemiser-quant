@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from the_alchemiser.orchestration.event_driven_orchestrator import (
@@ -51,9 +51,10 @@ class TradingSystem:
 
     def __init__(self, settings: Settings | None = None) -> None:
         """Initialize trading system with optional settings.
-        
+
         Args:
             settings: Optional settings override (uses loaded settings if None)
+
         """
         self.settings = settings or load_settings()
         self.logger = get_logger(__name__)
@@ -94,6 +95,7 @@ class TradingSystem:
 
         Args:
             startup_mode: The mode the system is starting in (signal, trade, etc.)
+
         """
         try:
             if self.container is None:
@@ -141,6 +143,7 @@ class TradingSystem:
 
         Returns:
             TradeRunResultDTO with complete execution results and metadata
+
         """
         # Start timing and correlation tracking
         started_at = datetime.now(UTC)
@@ -238,6 +241,4 @@ class TradingSystem:
             except Exception as notification_error:
                 self.logger.warning(f"Failed to send error notification: {notification_error}")
 
-            return create_failure_result(
-                f"System error: {e}", started_at, correlation_id, warnings
-            )
+            return create_failure_result(f"System error: {e}", started_at, correlation_id, warnings)

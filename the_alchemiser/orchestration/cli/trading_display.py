@@ -9,7 +9,6 @@ signals summary, rebalance plans, and execution tracking.
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -27,9 +26,10 @@ logger = get_logger(__name__)
 
 def display_signals_summary(signals_result: dict[str, Any]) -> None:
     """Display a brief summary of generated signals and target allocations.
-    
+
     Args:
         signals_result: Dictionary containing strategy signals and consolidated portfolio
+
     """
     try:
         # Extract and display individual strategy signals with their recommended symbols
@@ -44,9 +44,7 @@ def display_signals_summary(signals_result: dict[str, Any]) -> None:
                 if isinstance(data, dict):
                     action = str(data.get("action", "")).upper()
                     if action in {"BUY", "SELL"}:
-                        if data.get("is_multi_symbol") and isinstance(
-                            data.get("symbols"), list
-                        ):
+                        if data.get("is_multi_symbol") and isinstance(data.get("symbols"), list):
                             symbols = data.get("symbols", [])
                             if symbols:
                                 symbol_str = ", ".join(symbols)
@@ -66,9 +64,7 @@ def display_signals_summary(signals_result: dict[str, Any]) -> None:
             portfolio = signals_result["consolidated_portfolio"]
             if isinstance(portfolio, dict):
                 non_zero = [
-                    (s, float(w))
-                    for s, w in portfolio.items()
-                    if not floats_equal(float(w), 0.0)
+                    (s, float(w)) for s, w in portfolio.items() if not floats_equal(float(w), 0.0)
                 ]
                 if non_zero:
                     # Sort by allocation percentage descending
@@ -86,9 +82,10 @@ def display_signals_summary(signals_result: dict[str, Any]) -> None:
 
 def display_rebalance_plan(trading_result: dict[str, Any]) -> None:
     """Display a concise BUY/SELL summary of the rebalance plan.
-    
+
     Args:
         trading_result: Dictionary containing rebalance plan and execution results
+
     """
     try:
         rebalance_plan = trading_result.get("rebalance_plan")
@@ -155,17 +152,14 @@ def display_rebalance_plan(trading_result: dict[str, Any]) -> None:
 
 def display_stale_order_info(trading_result: dict[str, Any]) -> None:
     """Display stale order cancellation information.
-    
+
     Args:
         trading_result: Dictionary containing execution results
+
     """
     try:
         execution_result = trading_result.get("execution_result")
-        if (
-            execution_result
-            and hasattr(execution_result, "metadata")
-            and execution_result.metadata
-        ):
+        if execution_result and hasattr(execution_result, "metadata") and execution_result.metadata:
             stale_count = execution_result.metadata.get("stale_orders_cancelled", 0)
             if stale_count > 0:
                 print(f"🗑️ Cancelled {stale_count} stale order(s)")
@@ -176,9 +170,10 @@ def display_stale_order_info(trading_result: dict[str, Any]) -> None:
 
 def display_post_execution_tracking(*, paper_trading: bool) -> None:
     """Display strategy performance tracking after execution.
-    
+
     Args:
         paper_trading: Whether this is paper trading mode
+
     """
     try:
         from rich.console import Console
@@ -210,10 +205,11 @@ def display_post_execution_tracking(*, paper_trading: bool) -> None:
 
 def export_tracking_summary(*, export_path: str, paper_trading: bool) -> None:
     """Export tracking summary to JSON file.
-    
+
     Args:
         export_path: Path where to export the tracking summary
         paper_trading: Whether this is paper trading mode
+
     """
     try:
         import json

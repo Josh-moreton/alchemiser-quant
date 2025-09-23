@@ -656,12 +656,13 @@ def log_trade_expectation_vs_reality(
 
 def resolve_log_level(*, is_production: bool) -> int:
     """Resolve the desired log level from environment or settings.
-    
+
     Args:
         is_production: Whether running in production environment
-        
+
     Returns:
         Log level as integer
+
     """
     # Environment override first
     level_str = os.getenv("LOGGING__LEVEL")
@@ -682,7 +683,7 @@ def resolve_log_level(*, is_production: bool) -> int:
     # Then settings
     try:
         from the_alchemiser.shared.config.config import load_settings
-        
+
         settings = load_settings()
         configured = getattr(logging, settings.logging.level.upper(), None)
         if isinstance(configured, int):
@@ -715,7 +716,7 @@ def configure_application_logging() -> None:
         log_file = None
         try:
             from the_alchemiser.shared.config.config import load_settings
-            
+
             settings = load_settings()
             if settings.logging.enable_s3_logging and settings.logging.s3_log_uri:
                 log_file = settings.logging.s3_log_uri
@@ -736,9 +737,10 @@ def configure_application_logging() -> None:
 
 def configure_quiet_logging() -> dict[str, int]:
     """Configure quiet logging to reduce CLI noise.
-    
+
     Returns:
         Dict mapping module names to original log levels for restoration
+
     """
     # Store original levels for restoration
     original_levels = {}
@@ -769,9 +771,10 @@ def configure_quiet_logging() -> dict[str, int]:
 
 def restore_logging(original_levels: dict[str, int]) -> None:
     """Restore original logging levels.
-    
+
     Args:
         original_levels: Dict mapping module names to original log levels
+
     """
     for module_name, level in original_levels.items():
         logger = logging.getLogger(module_name)

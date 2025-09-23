@@ -15,9 +15,10 @@ from the_alchemiser.shared.constants import APPLICATION_NAME
 
 def create_argument_parser() -> argparse.ArgumentParser:
     """Create and configure the command line argument parser.
-    
+
     Returns:
         Configured ArgumentParser instance
+
     """
     parser = argparse.ArgumentParser(
         description=f"{APPLICATION_NAME} - Multi-Strategy Quantitative Trading System",
