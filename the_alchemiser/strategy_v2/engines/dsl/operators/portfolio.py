@@ -90,17 +90,13 @@ def weight_equal(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragme
     )
 
 
-def weight_specified(
-    args: list[ASTNodeDTO], context: DslContext
-) -> PortfolioFragmentDTO:
+def weight_specified(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragmentDTO:
     """Evaluate weight-specified - specified weight allocation.
 
     Format: (weight-specified weight1 asset1 weight2 asset2 ...)
     """
     if len(args) < 2 or len(args) % 2 != 0:
-        raise DslEvaluationError(
-            "weight-specified requires pairs of weight and asset arguments"
-        )
+        raise DslEvaluationError("weight-specified requires pairs of weight and asset arguments")
 
     weights: dict[str, float] = {}
 
@@ -129,9 +125,7 @@ def weight_specified(
         asset_node = args[i + 1]
 
         # Evaluate weight (should be a number)
-        weight_value = context.evaluate_node(
-            weight_node, context.correlation_id, context.trace
-        )
+        weight_value = context.evaluate_node(weight_node, context.correlation_id, context.trace)
         if not isinstance(weight_value, (int, float)):
             weight_value = context.as_decimal(weight_value)
             weight_value = float(weight_value)
@@ -139,15 +133,11 @@ def weight_specified(
         weight = float(weight_value)
 
         # Evaluate asset (should be a symbol or asset result)
-        asset_result = context.evaluate_node(
-            asset_node, context.correlation_id, context.trace
-        )
+        asset_result = context.evaluate_node(asset_node, context.correlation_id, context.trace)
 
         normalized = collect_normalized_weights(asset_result)
         if not normalized:
-            raise DslEvaluationError(
-                f"Expected asset symbol or fragment, got {type(asset_result)}"
-            )
+            raise DslEvaluationError(f"Expected asset symbol or fragment, got {type(asset_result)}")
         for symbol, base_w in normalized.items():
             scaled = base_w * weight
             weights[symbol] = weights.get(symbol, 0.0) + scaled
@@ -159,9 +149,7 @@ def weight_specified(
     )
 
 
-def weight_inverse_volatility(
-    args: list[ASTNodeDTO], context: DslContext
-) -> PortfolioFragmentDTO:
+def weight_inverse_volatility(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragmentDTO:
     """Evaluate weight-inverse-volatility - inverse volatility weighting.
 
     Format: (weight-inverse-volatility window [assets...])
@@ -279,9 +267,7 @@ def group(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     return (
         last_result
         if last_result is not None
-        else PortfolioFragmentDTO(
-            fragment_id=str(uuid.uuid4()), source_step="group", weights={}
-        )
+        else PortfolioFragmentDTO(fragment_id=str(uuid.uuid4()), source_step="group", weights={})
     )
 
 
@@ -320,9 +306,7 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     portfolio_expr = args[2] if len(args) == 3 else args[1]
 
     # Evaluate the portfolio expression and collect candidate symbols
-    portfolio_val = context.evaluate_node(
-        portfolio_expr, context.correlation_id, context.trace
-    )
+    portfolio_val = context.evaluate_node(portfolio_expr, context.correlation_id, context.trace)
 
     def collect_assets(value: DSLValue) -> list[str]:
         symbols: list[str] = []
@@ -354,9 +338,7 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
         if sel_name == "select-bottom":
             take_top = False
         # Evaluate to get N
-        n_val = context.evaluate_node(
-            selection_expr, context.correlation_id, context.trace
-        )
+        n_val = context.evaluate_node(selection_expr, context.correlation_id, context.trace)
         if isinstance(n_val, (int, float)):
             take_n = int(n_val)
         else:
@@ -371,17 +353,13 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     for sym in candidates:
         try:
             metric_expr = create_indicator_with_symbol(condition_expr, sym)
-            metric_val = context.evaluate_node(
-                metric_expr, context.correlation_id, context.trace
-            )
+            metric_val = context.evaluate_node(metric_expr, context.correlation_id, context.trace)
             if not isinstance(metric_val, (int, float)):
                 metric_val = float(context.as_decimal(metric_val))
             scored.append((sym, float(metric_val)))
         except Exception:
             # Log and skip symbols that fail metric evaluation
-            logger.exception(
-                "DSL filter: condition evaluation failed for symbol %s", sym
-            )
+            logger.exception("DSL filter: condition evaluation failed for symbol %s", sym)
             continue
 
     if not scored:

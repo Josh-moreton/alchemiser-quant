@@ -9,7 +9,7 @@ The system consists of several key components:
 - **Trade Ledger DTOs**: Strongly typed data models for trade entries, queries, and performance summaries
 - **Persistence Layer**: Pluggable backends for local (paper trading) and S3 (live trading) storage
 - **Attribution Service**: FIFO-based lot tracking and cross-strategy attribution
-- **CLI Tools**: Command-line interface for querying and analyzing trades
+- **Programmatic API**: Query and analyze trades via Python API
 
 ## Data Model
 
@@ -140,39 +140,54 @@ summaries = service.get_strategy_performance("nuclear")
 report = service.get_attribution_report("AAPL")
 ```
 
-## CLI Commands
+## Programmatic API
 
 ### List Trade Entries
 
-```bash
+```python
+from the_alchemiser.shared.persistence.trade_ledger_factory import get_default_trade_ledger
+from the_alchemiser.shared.dto.trade_ledger_dto import TradeLedgerQuery
+
+ledger = get_default_trade_ledger()
+
 # List recent trades
-poetry run alchemiser ledger-list
+query = TradeLedgerQuery(limit=100, order_by="timestamp", ascending=False)
+entries = list(ledger.query(query))
 
 # Filter by strategy
-poetry run alchemiser ledger-list --strategy nuclear
+query = TradeLedgerQuery(strategy_name="nuclear", limit=100)
+entries = list(ledger.query(query))
 
 # Filter by symbol and time range
-poetry run alchemiser ledger-list --symbol AAPL --days 7
+from datetime import datetime, timedelta, UTC
+start_date = datetime.now(UTC) - timedelta(days=7)
+query = TradeLedgerQuery(symbol="AAPL", start_date=start_date)
+entries = list(ledger.query(query))
 ```
 
 ### Performance Analysis
 
-```bash
+```python
+from the_alchemiser.shared.services.trade_performance_service import TradePerformanceService
+
+service = TradePerformanceService(ledger)
+
 # Show performance summary
-poetry run alchemiser ledger-performance
+all_summaries = service.get_all_performance()
 
 # Strategy-specific performance
-poetry run alchemiser ledger-performance --strategy nuclear
+nuclear_summaries = service.get_strategy_performance("nuclear")
 
 # Symbol-specific performance across strategies
-poetry run alchemiser ledger-performance --symbol AAPL
+aapl_summaries = service.get_symbol_performance("AAPL")
 ```
 
 ### Attribution Analysis
 
-```bash
+```python
 # Detailed attribution for a symbol
-poetry run alchemiser ledger-attribution AAPL
+attribution_report = service.get_attribution_report("AAPL")
+print(f"Attribution for AAPL: {attribution_report}")
 ```
 
 ## Configuration
