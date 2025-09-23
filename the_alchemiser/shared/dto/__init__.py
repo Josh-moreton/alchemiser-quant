@@ -12,6 +12,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 # Import implemented DTOs
+from the_alchemiser.shared.dto.asset_info_dto import AssetInfoDTO
 from the_alchemiser.shared.dto.execution_report_dto import (
     ExecutedOrderDTO,
     ExecutionReportDTO,
@@ -87,6 +88,8 @@ class ErrorDTO(BaseModel):
 
 
 __all__ = [
+    # Asset DTOs
+    "AssetInfoDTO",
     # Trade Ledger DTOs
     "AssetType",
     # Placeholder DTOs
