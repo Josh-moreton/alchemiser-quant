@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, TypedDict
 from the_alchemiser.execution_v2.core.smart_execution_strategy import (
     SmartExecutionStrategy,
     SmartOrderRequest,
+    SmartOrderResult,
 )
 from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionResultDTO,
@@ -528,13 +529,11 @@ class Executor:
         config = self._get_repeg_monitoring_config()
         self._log_monitoring_config(phase_type, config)
 
-        return await self._execute_repeg_monitoring_loop(
-            phase_type, orders, config, time.time()
-        )
+        return await self._execute_repeg_monitoring_loop(phase_type, orders, config, time.time())
 
     def _get_repeg_monitoring_config(self) -> dict[str, int]:
         """Get configuration parameters for repeg monitoring.
-        
+
         Returns:
             Dictionary containing monitoring configuration parameters.
 
@@ -543,13 +542,15 @@ class Executor:
             "max_repegs": 5,
             "fill_wait_seconds": 15,
             "wait_between_checks": 1,
-            "max_total_wait": 60
+            "max_total_wait": 60,
         }
-        
+
         try:
             if self.execution_config is not None:
                 config["max_repegs"] = getattr(self.execution_config, "max_repegs_per_order", 5)
-                config["fill_wait_seconds"] = int(getattr(self.execution_config, "fill_wait_seconds", 15))
+                config["fill_wait_seconds"] = int(
+                    getattr(self.execution_config, "fill_wait_seconds", 15)
+                )
                 config["wait_between_checks"] = max(
                     1, min(config["fill_wait_seconds"] // 5, 5)
                 )  # Check 5x per fill_wait period
@@ -562,10 +563,12 @@ class Executor:
                     + config["fill_wait_seconds"] * (config["max_repegs"] + 1)
                     + 30  # +30s safety margin
                 )
-                config["max_total_wait"] = max(60, min(config["max_total_wait"], 600))  # Increased max to 10 minutes
+                config["max_total_wait"] = max(
+                    60, min(config["max_total_wait"], 600)
+                )  # Increased max to 10 minutes
         except Exception as exc:
             logger.debug(f"Error deriving re-peg loop bounds: {exc}")
-            
+
         return config
 
     def _log_monitoring_config(self, phase_type: str, config: dict[str, int]) -> None:
@@ -576,27 +579,27 @@ class Executor:
         )
 
     async def _execute_repeg_monitoring_loop(
-        self, 
-        phase_type: str, 
-        orders: list[OrderResultDTO], 
+        self,
+        phase_type: str,
+        orders: list[OrderResultDTO],
         config: dict[str, int],
-        start_time: float
+        start_time: float,
     ) -> list[OrderResultDTO]:
         """Execute the main repeg monitoring loop.
-        
+
         Args:
             phase_type: Type of phase ("SELL" or "BUY")
             orders: List of orders to monitor
             config: Configuration parameters
             start_time: Start time of monitoring
-            
+
         Returns:
             Updated list of orders with any re-pegged order IDs swapped in.
 
         """
         import asyncio
         import time
-        
+
         attempts = 0
         last_repeg_action_time = start_time
 
@@ -606,11 +609,15 @@ class Executor:
             # Give existing orders time to fill before checking
             await asyncio.sleep(config["wait_between_checks"])
 
-            repeg_results = await self.smart_strategy.check_and_repeg_orders()
+            repeg_results = []
+            if self.smart_strategy:
+                repeg_results = await self.smart_strategy.check_and_repeg_orders()
 
             if repeg_results:
                 last_repeg_action_time = time.time()
-                orders = self._process_repeg_results(phase_type, orders, repeg_results, elapsed_total)
+                orders = self._process_repeg_results(
+                    phase_type, orders, repeg_results, elapsed_total
+                )
             else:
                 self._log_no_repeg_activity(phase_type, attempts, elapsed_total)
 
@@ -628,20 +635,20 @@ class Executor:
         return orders
 
     def _process_repeg_results(
-        self, 
-        phase_type: str, 
-        orders: list[OrderResultDTO], 
-        repeg_results: list[object], 
-        elapsed_total: float
+        self,
+        phase_type: str,
+        orders: list[OrderResultDTO],
+        repeg_results: list[SmartOrderResult],
+        elapsed_total: float,
     ) -> list[OrderResultDTO]:
         """Process repeg results and update orders.
-        
+
         Args:
             phase_type: Type of phase ("SELL" or "BUY")
             orders: Current list of orders
             repeg_results: Results from repeg operation
             elapsed_total: Total elapsed time
-            
+
         Returns:
             Updated list of orders.
 
@@ -649,9 +656,7 @@ class Executor:
         escalations = sum(
             1 for r in repeg_results if "escalation" in getattr(r, "execution_strategy", "")
         )
-        repegs = sum(
-            1 for r in repeg_results if "repeg" in getattr(r, "execution_strategy", "")
-        )
+        repegs = sum(1 for r in repeg_results if "repeg" in getattr(r, "execution_strategy", ""))
 
         logger.info(
             f"📊 {phase_type} phase: {len(repeg_results)} orders processed "
@@ -662,48 +667,46 @@ class Executor:
         if escalations > 0:
             logger.info(f"🚨 {phase_type} phase: {escalations} orders ESCALATED TO MARKET")
 
-        replacement_map = self._build_replacement_map_from_repeg_results(
-            phase_type, repeg_results
-        )
+        replacement_map = self._build_replacement_map_from_repeg_results(phase_type, repeg_results)
         if replacement_map:
             orders = self._replace_order_ids(orders, replacement_map)
             logger.info(f"📊 {phase_type} phase: {len(replacement_map)} order IDs replaced")
-            
+
         return orders
 
     def _log_no_repeg_activity(self, phase_type: str, attempts: int, elapsed_total: float) -> None:
         """Log when no repeg activity occurred."""
-        active_orders = (
-            self.smart_strategy.get_active_order_count() if self.smart_strategy else 0
-        )
+        active_orders = self.smart_strategy.get_active_order_count() if self.smart_strategy else 0
         logger.debug(
             f"📊 {phase_type} phase: No re-pegging needed "
             f"(attempt {attempts + 1}, {elapsed_total:.1f}s elapsed, {active_orders} active orders)"
         )
 
-    def _should_terminate_early(self, last_repeg_action_time: float, fill_wait_seconds: int) -> bool:
+    def _should_terminate_early(
+        self, last_repeg_action_time: float, fill_wait_seconds: int
+    ) -> bool:
         """Check if monitoring should terminate early.
-        
+
         Args:
             last_repeg_action_time: Time of last repeg action
             fill_wait_seconds: Fill wait time configuration
-            
+
         Returns:
             True if monitoring should terminate early.
 
         """
         import time
-        
+
         time_since_last_action = time.time() - last_repeg_action_time
         return (
             time_since_last_action > fill_wait_seconds * 2
-            and self.smart_strategy
+            and self.smart_strategy is not None
             and self.smart_strategy.get_active_order_count() == 0
         )
 
     def _log_monitoring_completion(self, phase_type: str, start_time: float, attempts: int) -> None:
         """Log completion of monitoring phase.
-        
+
         Args:
             phase_type: Type of phase ("SELL" or "BUY")
             start_time: Start time of monitoring
@@ -711,7 +714,7 @@ class Executor:
 
         """
         import time
-        
+
         final_elapsed = time.time() - start_time
         logger.info(
             f"📊 {phase_type} phase monitoring completed after {final_elapsed:.1f}s "
@@ -984,26 +987,30 @@ class Executor:
     ) -> dict[str, tuple[str, Decimal | None]]:
         """Poll broker and return final status map for each order ID."""
         valid_order_ids, invalid_order_ids = self._validate_order_ids(order_ids, phase_type)
-        
+
         if valid_order_ids:
             self._poll_order_completion(valid_order_ids, max_wait, phase_type)
 
         return self._build_final_status_map(valid_order_ids, invalid_order_ids)
 
-    def _validate_order_ids(self, order_ids: list[str], phase_type: str) -> tuple[list[str], list[str]]:
+    def _validate_order_ids(
+        self, order_ids: list[str], phase_type: str
+    ) -> tuple[list[str], list[str]]:
         """Validate order IDs and separate valid from invalid ones.
-        
+
         Args:
             order_ids: List of order IDs to validate
             phase_type: Phase type for logging
-            
+
         Returns:
             Tuple of (valid_order_ids, invalid_order_ids)
 
         """
+
         def _is_valid_uuid(val: str) -> bool:
             try:
                 import uuid
+
                 uuid.UUID(str(val))
                 return True
             except Exception:
@@ -1019,9 +1026,11 @@ class Executor:
 
         return valid_order_ids, invalid_order_ids
 
-    def _poll_order_completion(self, valid_order_ids: list[str], max_wait: int, phase_type: str) -> None:
+    def _poll_order_completion(
+        self, valid_order_ids: list[str], max_wait: int, phase_type: str
+    ) -> None:
         """Poll broker for order completion status.
-        
+
         Args:
             valid_order_ids: List of valid order IDs to poll
             max_wait: Maximum wait time in seconds
@@ -1040,22 +1049,20 @@ class Executor:
             logger.warning(f"{phase_type} phase: error while polling for completion: {exc}")
 
     def _build_final_status_map(
-        self, 
-        valid_order_ids: list[str], 
-        invalid_order_ids: list[str]
+        self, valid_order_ids: list[str], invalid_order_ids: list[str]
     ) -> dict[str, tuple[str, Decimal | None]]:
         """Build final status map for all order IDs.
-        
+
         Args:
             valid_order_ids: List of valid order IDs
             invalid_order_ids: List of invalid order IDs
-            
+
         Returns:
             Dictionary mapping order IDs to (status, price) tuples
 
         """
         final_status_map: dict[str, tuple[str, Decimal | None]] = {}
-        
+
         # Pre-populate invalid IDs as rejected without broker calls
         for oid in invalid_order_ids:
             final_status_map[oid] = ("rejected", None)
@@ -1064,15 +1071,15 @@ class Executor:
         for oid in valid_order_ids:
             status, price = self._get_order_status_and_price(oid)
             final_status_map[oid] = (status, price)
-            
+
         return final_status_map
 
     def _get_order_status_and_price(self, order_id: str) -> tuple[str, Decimal | None]:
         """Get status and price for a single order ID.
-        
+
         Args:
             order_id: Order ID to check
-            
+
         Returns:
             Tuple of (status_string, average_price)
 
