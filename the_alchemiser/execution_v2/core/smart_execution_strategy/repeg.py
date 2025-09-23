@@ -69,7 +69,7 @@ class RepegManager:
         orders_to_remove = []
         current_time = datetime.now(UTC)
 
-        for order_id, request in list(active_orders.items()):
+        for order_id, request in active_orders.items():
             result = await self._process_single_order(order_id, request, current_time)
 
             if result is None:  # Order should be removed or no action needed
@@ -114,7 +114,7 @@ class RepegManager:
                     f"⚠️ Order {order_id} reached max re-pegs "
                     f"({current_repeg_count}/{self.config.max_repegs_per_order}), escalating to market order"
                 )
-                return await self._escalate_to_market(order_id, request)
+                return self._escalate_to_market(order_id, request)
 
             # Attempt re-pegging
             placement_time = self.order_tracker.get_placement_time(order_id)
@@ -124,7 +124,7 @@ class RepegManager:
                     f"🔄 Order {order_id} hasn't filled after {time_elapsed:.1f}s, "
                     f"attempting re-peg (attempt {current_repeg_count + 1}/{self.config.max_repegs_per_order})"
                 )
-            return await self._attempt_repeg(order_id, request)
+            return self._attempt_repeg(order_id, request)
 
         except Exception as e:
             logger.error(f"Error checking order {order_id} for re-pegging: {e}")
@@ -193,7 +193,7 @@ class RepegManager:
 
         return should_escalate_order(current_repeg_count, self.config.max_repegs_per_order)
 
-    async def _escalate_to_market(
+    def _escalate_to_market(
         self, order_id: str, request: SmartOrderRequest
     ) -> SmartOrderResult | None:
         """Cancel current limit order and place a market order (final escalation).
@@ -282,7 +282,7 @@ class RepegManager:
                 execution_strategy="market_escalation_error",
             )
 
-    async def _attempt_repeg(
+    def _attempt_repeg(
         self, order_id: str, request: SmartOrderRequest
     ) -> SmartOrderResult | None:
         """Attempt to re-peg an order with a more aggressive price.
