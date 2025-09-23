@@ -17,7 +17,6 @@ from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.strategy_value_objects import (
-    Confidence,
     StrategySignal,
 )
 from the_alchemiser.strategy_v2.engines.dsl.engine import DslEngine, DslEngineError
@@ -116,7 +115,6 @@ class DslStrategyEngine:
                     signal = StrategySignal(
                         symbol=symbol,
                         action="BUY",
-                        confidence=Confidence(weight),
                         target_allocation=weight,
                         reasoning=f"DSL consolidated allocation: {weight:.1%}",
                         timestamp=timestamp,
@@ -156,7 +154,6 @@ class DslStrategyEngine:
         fallback_signal = StrategySignal(
             symbol="CASH",
             action="BUY",
-            confidence=Confidence(1.0),
             reasoning="DSL evaluation failed, fallback to cash position",
             timestamp=timestamp,
             strategy="DSL",
@@ -242,10 +239,6 @@ class DslStrategyEngine:
         for signal in signals:
             if not signal.symbol:
                 raise ValueError("Signal symbol cannot be empty")
-            if signal.confidence.value <= 0:
-                raise ValueError(
-                    f"Signal confidence must be positive, got {signal.confidence.value}"
-                )
             if signal.action not in ["BUY", "SELL", "HOLD"]:
                 raise ValueError(f"Invalid signal action: {signal.action}")
 
