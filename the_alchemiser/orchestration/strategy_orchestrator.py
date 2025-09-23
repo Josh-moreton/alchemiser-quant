@@ -76,9 +76,6 @@ class MultiStrategyOrchestrator:
 
             self.strategy_allocations = StrategyRegistry.get_default_allocations()
         else:
-            # Filter to only enabled strategies
-            from the_alchemiser.shared.types.strategy_registry import StrategyRegistry
-
             # All strategies are enabled, so use allocations as-is
             self.strategy_allocations = dict(strategy_allocations)
 
