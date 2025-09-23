@@ -174,7 +174,7 @@ class EventDrivenOrchestrator:
         for signal in event.signals:
             self.logger.debug(
                 f"Monitoring signal: {signal.symbol} {signal.action} "
-                f"(strategy: {signal.strategy_name}, confidence: {signal.confidence})"
+                f"(strategy: {signal.strategy_name})"
             )
 
         # Track successful signal processing

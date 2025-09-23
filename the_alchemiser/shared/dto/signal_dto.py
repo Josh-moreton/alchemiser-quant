@@ -42,7 +42,6 @@ class StrategySignalDTO(BaseModel):
     # Signal fields
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
     action: str = Field(..., description="Trading action (BUY, SELL, HOLD)")
-    confidence: Decimal = Field(..., ge=0, le=1, description="Signal confidence (0-1)")
     reasoning: str = Field(..., min_length=1, description="Human-readable signal reasoning")
 
     # Optional strategy context
@@ -95,7 +94,7 @@ class StrategySignalDTO(BaseModel):
             data["timestamp"] = self.timestamp.isoformat()
 
         # Convert Decimal fields to string for JSON serialization
-        for field_name in ["confidence", "allocation_weight", "signal_strength"]:
+        for field_name in ["allocation_weight", "signal_strength"]:
             if data.get(field_name) is not None:
                 data[field_name] = str(data[field_name])
 
@@ -127,7 +126,7 @@ class StrategySignalDTO(BaseModel):
                 raise ValueError(f"Invalid timestamp format: {data['timestamp']}") from e
 
         # Convert string decimal fields back to Decimal
-        for field_name in ["confidence", "allocation_weight", "signal_strength"]:
+        for field_name in ["allocation_weight", "signal_strength"]:
             if (
                 field_name in data
                 and data[field_name] is not None
