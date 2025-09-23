@@ -783,7 +783,7 @@ class RealTimePricingService:
             self._execute_subscription_plan(subscription_plan, priority)
 
         self._restart_stream_if_needed(subscription_plan.successfully_added)
-        
+
         logging.info(
             f"✅ Bulk subscription complete: {subscription_plan.successfully_added}/"
             f"{len(subscription_plan.symbols_to_add)} new symbols subscribed"
@@ -798,7 +798,7 @@ class RealTimePricingService:
         """Plan bulk subscription operations."""
         results: dict[str, bool] = {}
         symbols_to_add = []
-        
+
         # Handle existing symbols
         for symbol in symbols:
             if symbol in self._subscribed_symbols:
@@ -815,14 +815,16 @@ class RealTimePricingService:
 
         # Calculate capacity and replacements
         available_slots = self._max_symbols - len(self._subscribed_symbols)
-        symbols_to_replace = self._find_symbols_to_replace(symbols_to_add, available_slots, priority)
-        
+        symbols_to_replace = self._find_symbols_to_replace(
+            symbols_to_add, available_slots, priority
+        )
+
         return _SubscriptionPlan(
             results=results,
             symbols_to_add=symbols_to_add,
             symbols_to_replace=symbols_to_replace,
             available_slots=available_slots + len(symbols_to_replace),
-            successfully_added=0
+            successfully_added=0,
         )
 
     def _find_symbols_to_replace(
@@ -837,9 +839,9 @@ class RealTimePricingService:
             key=lambda x: self._subscription_priority.get(x, 0),
         )
 
-        symbols_to_replace = []
+        symbols_to_replace: list[str] = []
         symbols_needed = len(symbols_to_add) - available_slots
-        
+
         for symbol in existing_symbols:
             if len(symbols_to_replace) >= symbols_needed:
                 break
@@ -858,7 +860,7 @@ class RealTimePricingService:
             logging.info(f"📊 Replaced {symbol_to_remove} for higher priority symbols")
 
         # Add new symbols
-        for symbol in plan.symbols_to_add[:plan.available_slots]:
+        for symbol in plan.symbols_to_add[: plan.available_slots]:
             self._subscribed_symbols.add(symbol)
             self._subscription_priority[symbol] = priority
             plan.results[symbol] = True
@@ -866,7 +868,7 @@ class RealTimePricingService:
             self._stats["total_subscriptions"] += 1
 
         # Mark symbols we couldn't subscribe to due to limits
-        for symbol in plan.symbols_to_add[plan.available_slots:]:
+        for symbol in plan.symbols_to_add[plan.available_slots :]:
             plan.results[symbol] = False
             logging.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
 

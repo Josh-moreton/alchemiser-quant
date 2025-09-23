@@ -244,13 +244,17 @@ class TechnicalIndicatorDTO(BaseModel):
         }
 
     @classmethod
-    def _map_price_indicators(cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]) -> None:
+    def _map_price_indicators(
+        cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]
+    ) -> None:
         """Map price indicators from legacy format."""
         if "current_price" in legacy_indicators:
             dto_data["current_price"] = Decimal(str(legacy_indicators["current_price"]))
 
     @classmethod
-    def _map_rsi_indicators(cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]) -> None:
+    def _map_rsi_indicators(
+        cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]
+    ) -> None:
         """Map RSI indicators from legacy format."""
         for period in [10, 14, 20, 21]:
             key = f"rsi_{period}"
@@ -258,7 +262,9 @@ class TechnicalIndicatorDTO(BaseModel):
                 dto_data[key] = float(legacy_indicators[key])
 
     @classmethod
-    def _map_moving_averages(cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]) -> None:
+    def _map_moving_averages(
+        cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]
+    ) -> None:
         """Map moving average indicators from legacy format."""
         for period in [20, 50, 200]:
             key = f"ma_{period}"
@@ -266,7 +272,9 @@ class TechnicalIndicatorDTO(BaseModel):
                 dto_data[key] = float(legacy_indicators[key])
 
     @classmethod
-    def _map_return_indicators(cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]) -> None:
+    def _map_return_indicators(
+        cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]
+    ) -> None:
         """Map return indicators from legacy format."""
         return_keys = ["ma_return_90", "cum_return_60", "stdev_return_6"]
         for key in return_keys:
@@ -274,7 +282,9 @@ class TechnicalIndicatorDTO(BaseModel):
                 dto_data[key] = float(legacy_indicators[key])
 
     @classmethod
-    def _map_volatility_indicators(cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]) -> None:
+    def _map_volatility_indicators(
+        cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]
+    ) -> None:
         """Map volatility indicators from legacy format."""
         volatility_keys = ["volatility_14", "volatility_20", "atr_14"]
         for key in volatility_keys:
@@ -282,7 +292,9 @@ class TechnicalIndicatorDTO(BaseModel):
                 dto_data[key] = float(legacy_indicators[key])
 
     @classmethod
-    def _map_remaining_to_metadata(cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]) -> None:
+    def _map_remaining_to_metadata(
+        cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]
+    ) -> None:
         """Map any remaining indicators to metadata."""
         mapped_keys = set(dto_data.keys()) | {"timestamp", "data_source"}
         remaining = {k: v for k, v in legacy_indicators.items() if k not in mapped_keys}
@@ -297,7 +309,7 @@ class TechnicalIndicatorDTO(BaseModel):
 
         """
         result: dict[str, Any] = {}
-        
+
         self._add_price_indicators_to_dict(result)
         self._add_rsi_indicators_to_dict(result)
         self._add_moving_averages_to_dict(result)

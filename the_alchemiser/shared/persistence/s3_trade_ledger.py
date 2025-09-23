@@ -292,11 +292,13 @@ class S3TradeLedger(BaseTradeLedger):
             return
 
         entries_by_date = self._group_entries_by_date(entries_list)
-        
+
         for date_str, date_entries in entries_by_date.items():
             self._upsert_entries_for_date(date_str, date_entries)
 
-    def _group_entries_by_date(self, entries: list[TradeLedgerEntry]) -> dict[str, list[TradeLedgerEntry]]:
+    def _group_entries_by_date(
+        self, entries: list[TradeLedgerEntry]
+    ) -> dict[str, list[TradeLedgerEntry]]:
         """Group entries by date for efficient processing."""
         entries_by_date: dict[str, list[TradeLedgerEntry]] = defaultdict(list)
         for entry in entries:
@@ -305,7 +307,7 @@ class S3TradeLedger(BaseTradeLedger):
         return entries_by_date
 
     def _filter_new_entries(
-        self, entries: list[TradeLedgerEntry], index: dict[str, str]
+        self, entries: list[TradeLedgerEntry], index: dict[tuple[str, str], str]
     ) -> list[TradeLedgerEntry]:
         """Filter out entries that already exist in the index."""
         new_entries = []
@@ -327,7 +329,7 @@ class S3TradeLedger(BaseTradeLedger):
         """Retrieve existing ledger content from S3."""
         try:
             response = self.s3.get_object(Bucket=self.bucket, Key=ledger_key)
-            return response["Body"].read().decode("utf-8")
+            return response["Body"].read().decode("utf-8")  # type: ignore[no-any-return]
         except Exception as e:
             # Check if this is a NoSuchKey error (file doesn't exist yet)
             if not self._is_no_such_key_error(e):
@@ -335,7 +337,7 @@ class S3TradeLedger(BaseTradeLedger):
             return ""
 
     def _serialize_new_entries(
-        self, entries: list[TradeLedgerEntry], index: dict[str, str]
+        self, entries: list[TradeLedgerEntry], index: dict[tuple[str, str], str]
     ) -> list[str]:
         """Serialize new entries and update the index."""
         new_lines = []
@@ -356,7 +358,7 @@ class S3TradeLedger(BaseTradeLedger):
 
             ledger_key = f"{self.ledger_prefix}/{date_str}/{self.account_id}.jsonl"
             existing_content = self._get_existing_ledger_content(ledger_key)
-            
+
             new_lines = self._serialize_new_entries(new_entries, index)
             new_content = existing_content + "\n".join(new_lines) + "\n"
 

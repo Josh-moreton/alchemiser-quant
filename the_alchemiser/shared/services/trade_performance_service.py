@@ -198,9 +198,7 @@ class TradePerformanceService:
                 current_prices=current_prices,
             )
 
-            return self._calculate_unrealized_pnl_from_summaries(
-                summaries, strategy_name, symbol
-            )
+            return self._calculate_unrealized_pnl_from_summaries(summaries, strategy_name, symbol)
 
         except Exception as e:
             logger.error(f"Failed to get unrealized P&L: {e}")
@@ -208,7 +206,7 @@ class TradePerformanceService:
 
     def _calculate_unrealized_pnl_from_summaries(
         self,
-        summaries: list[Any],
+        summaries: list[PerformanceSummary],
         strategy_name: str | None,
         symbol: str | None,
     ) -> Decimal | None:
@@ -221,27 +219,31 @@ class TradePerformanceService:
             return self._get_specific_strategy_symbol_pnl(summaries, strategy_name, symbol)
         return self._get_overall_total_pnl(summaries)
 
-    def _get_strategy_total_pnl(self, summaries: list[Any], strategy_name: str) -> Decimal | None:
+    def _get_strategy_total_pnl(
+        self, summaries: list[PerformanceSummary], strategy_name: str
+    ) -> Decimal | None:
         """Get total unrealized P&L for a specific strategy."""
         for summary in summaries:
             if summary.strategy_name == strategy_name and summary.symbol is None:
                 return summary.unrealized_pnl
         return None
 
-    def _get_symbol_total_pnl(self, summaries: list[Any], symbol: str) -> Decimal | None:
+    def _get_symbol_total_pnl(
+        self, summaries: list[PerformanceSummary], symbol: str
+    ) -> Decimal | None:
         """Get total unrealized P&L for a specific symbol across all strategies."""
         total_unrealized = Decimal("0")
         has_unrealized = False
-        
+
         for summary in summaries:
             if summary.symbol == symbol and summary.unrealized_pnl is not None:
                 total_unrealized += summary.unrealized_pnl
                 has_unrealized = True
-        
+
         return total_unrealized if has_unrealized else None
 
     def _get_specific_strategy_symbol_pnl(
-        self, summaries: list[Any], strategy_name: str, symbol: str
+        self, summaries: list[PerformanceSummary], strategy_name: str, symbol: str
     ) -> Decimal | None:
         """Get unrealized P&L for a specific strategy-symbol combination."""
         for summary in summaries:
@@ -253,16 +255,16 @@ class TradePerformanceService:
                 return summary.unrealized_pnl
         return None
 
-    def _get_overall_total_pnl(self, summaries: list[Any]) -> Decimal | None:
+    def _get_overall_total_pnl(self, summaries: list[PerformanceSummary]) -> Decimal | None:
         """Get total unrealized P&L across all strategies and symbols."""
         total_unrealized = Decimal("0")
         has_unrealized = False
-        
+
         for summary in summaries:
             if summary.symbol is None and summary.unrealized_pnl is not None:
                 total_unrealized += summary.unrealized_pnl
                 has_unrealized = True
-        
+
         return total_unrealized if has_unrealized else None
 
     def get_attribution_report(
