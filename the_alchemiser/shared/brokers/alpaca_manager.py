@@ -147,7 +147,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self._order_events: dict[str, threading.Event] = {}
         self._order_status: dict[str, str] = {}
         self._order_avg_price: dict[str, Decimal | None] = {}
-        
+
         # Asset metadata cache with TTL
         self._asset_cache: dict[str, AssetInfoDTO] = {}
         self._asset_cache_timestamps: dict[str, float] = {}
@@ -1284,7 +1284,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         symbol_upper = symbol.upper()
         current_time = time.time()
-        
+
         # Check cache first
         with self._asset_cache_lock:
             if symbol_upper in self._asset_cache:
@@ -1292,15 +1292,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 if current_time - cache_time < self._asset_cache_ttl:
                     logger.debug(f"📋 Asset cache hit for {symbol_upper}")
                     return self._asset_cache[symbol_upper]
-                else:
-                    # Cache expired, remove
-                    self._asset_cache.pop(symbol_upper, None)
-                    self._asset_cache_timestamps.pop(symbol_upper, None)
-                    logger.debug(f"🗑️ Asset cache expired for {symbol_upper}")
-        
+                # Cache expired, remove
+                self._asset_cache.pop(symbol_upper, None)
+                self._asset_cache_timestamps.pop(symbol_upper, None)
+                logger.debug(f"🗑️ Asset cache expired for {symbol_upper}")
+
         try:
             asset = self._trading_client.get_asset(symbol_upper)
-            
+
             # Convert SDK object to DTO at adapter boundary
             asset_dto = AssetInfoDTO(
                 symbol=getattr(asset, "symbol", symbol_upper),
@@ -1312,28 +1311,31 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 marginable=getattr(asset, "marginable", None),
                 shortable=getattr(asset, "shortable", None),
             )
-            
+
             # Cache the result
             with self._asset_cache_lock:
                 self._asset_cache[symbol_upper] = asset_dto
                 self._asset_cache_timestamps[symbol_upper] = current_time
-            
-            logger.debug(f"📡 Fetched asset info for {symbol_upper}: fractionable={asset_dto.fractionable}")
+
+            logger.debug(
+                f"📡 Fetched asset info for {symbol_upper}: fractionable={asset_dto.fractionable}"
+            )
             return asset_dto
-            
+
         except Exception as e:
             logger.error(f"Failed to get asset info for {symbol_upper}: {e}")
             return None
 
     def is_fractionable(self, symbol: str) -> bool:
         """Check if an asset supports fractional shares.
-        
+
         Args:
             symbol: Stock symbol to check
-            
+
         Returns:
             True if asset supports fractional shares, False otherwise.
             Defaults to True if asset info cannot be retrieved.
+
         """
         asset_info = self.get_asset_info(symbol)
         if asset_info is None:

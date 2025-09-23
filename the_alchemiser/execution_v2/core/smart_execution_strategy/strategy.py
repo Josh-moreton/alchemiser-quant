@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -53,7 +54,7 @@ class SmartExecutionStrategy:
         self.alpaca_manager = alpaca_manager
         self.pricing_service = pricing_service
         self.config = config or ExecutionConfig()
-        
+
         # Initialize execution validator for preflight checks
         self.validator = ExecutionValidator(alpaca_manager)
 
@@ -87,16 +88,16 @@ class SmartExecutionStrategy:
             f"🎯 Placing smart {request.side} order: {request.quantity} {request.symbol} "
             f"(urgency: {request.urgency})"
         )
-        
+
         # Preflight validation for non-fractionable assets
         validation_result = self.validator.validate_order(
             symbol=request.symbol,
             quantity=Decimal(str(request.quantity)),
             side=request.side,
-            correlation_id=getattr(request, 'correlation_id', None),
+            correlation_id=getattr(request, "correlation_id", None),
             auto_adjust=True,
         )
-        
+
         if not validation_result.is_valid:
             error_msg = validation_result.error_message or f"Validation failed for {request.symbol}"
             logger.error(f"❌ Preflight validation failed for {request.symbol}: {error_msg}")
@@ -105,14 +106,16 @@ class SmartExecutionStrategy:
                 error_message=error_msg,
                 execution_strategy="validation_failed",
             )
-        
+
         # Use adjusted quantity if validation made changes
         if validation_result.adjusted_quantity is not None:
-            # Update request with adjusted quantity
+            # Update request with adjusted quantity without float conversion
             original_quantity = request.quantity
-            request = request.model_copy(update={'quantity': float(validation_result.adjusted_quantity)})
-            logger.info(f"🔄 Adjusted quantity for {request.symbol}: {original_quantity} → {request.quantity}")
-        
+            request = replace(request, quantity=validation_result.adjusted_quantity)
+            logger.info(
+                f"🔄 Adjusted quantity for {request.symbol}: {original_quantity} → {request.quantity}"
+            )
+
         # Log any warnings from validation
         for warning in validation_result.warnings:
             logger.warning(f"⚠️ Smart order validation: {warning}")
@@ -138,7 +141,11 @@ class SmartExecutionStrategy:
 
             # Validate and place the order
             return await self._place_validated_order(
-                request, optimal_price, analysis_metadata, quote, used_fallback=used_fallback
+                request,
+                optimal_price,
+                analysis_metadata,
+                quote,
+                used_fallback=used_fallback,
             )
 
         except Exception as e:
