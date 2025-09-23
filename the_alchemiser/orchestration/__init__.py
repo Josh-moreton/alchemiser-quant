@@ -15,7 +15,6 @@ cross-module workflows through command-line interfaces.
 Exports:
     - SignalOrchestrator: Signal analysis workflow orchestration
     - TradingOrchestrator: Trading execution workflow orchestration
-    - MultiStrategyOrchestrator: Multi-strategy coordination
     - PortfolioOrchestrator: Portfolio rebalancing workflow orchestration
     - EventDrivenOrchestrator: Event-driven workflow orchestration (NEW)
 """
@@ -23,7 +22,6 @@ Exports:
 # Lazy imports to avoid circular dependencies and missing dependencies during CLI operations
 __all__ = [
     "EventDrivenOrchestrator",
-    "MultiStrategyOrchestrator",
     "PortfolioOrchestrator",
     "SignalOrchestrator",
     "TradingOrchestrator",
@@ -44,10 +42,6 @@ def __getattr__(name: str) -> object:
         from .signal_orchestrator import SignalOrchestrator
 
         return SignalOrchestrator
-    if name == "MultiStrategyOrchestrator":
-        from .strategy_orchestrator import MultiStrategyOrchestrator
-
-        return MultiStrategyOrchestrator
     if name == "TradingOrchestrator":
         from .trading_orchestrator import TradingOrchestrator
 

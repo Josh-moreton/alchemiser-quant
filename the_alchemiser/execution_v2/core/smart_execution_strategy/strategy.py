@@ -320,7 +320,9 @@ class SmartExecutionStrategy:
             SmartOrderResult with placement details
 
         """
-        result = self.alpaca_manager.place_limit_order(
+        # Use asyncio.to_thread to make blocking I/O async
+        result = await asyncio.to_thread(
+            self.alpaca_manager.place_limit_order,
             symbol=request.symbol,
             side=request.side.lower(),
             quantity=float(request.quantity),
@@ -422,7 +424,9 @@ class SmartExecutionStrategy:
         """
         logger.info(f"📈 Using market order fallback for {request.symbol}")
 
-        executed_order = self.alpaca_manager.place_market_order(
+        # Use asyncio.to_thread to make blocking I/O async
+        executed_order = await asyncio.to_thread(
+            self.alpaca_manager.place_market_order,
             symbol=request.symbol,
             side=request.side.lower(),
             qty=float(request.quantity),
