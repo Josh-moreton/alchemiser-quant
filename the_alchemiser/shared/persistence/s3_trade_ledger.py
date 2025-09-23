@@ -291,71 +291,91 @@ class S3TradeLedger(BaseTradeLedger):
         if not entries_list:
             return
 
-        # Group entries by date for efficient processing
+        entries_by_date = self._group_entries_by_date(entries_list)
+        
+        for date_str, date_entries in entries_by_date.items():
+            self._upsert_entries_for_date(date_str, date_entries)
+
+    def _group_entries_by_date(self, entries: list[TradeLedgerEntry]) -> dict[str, list[TradeLedgerEntry]]:
+        """Group entries by date for efficient processing."""
         entries_by_date: dict[str, list[TradeLedgerEntry]] = defaultdict(list)
-        for entry in entries_list:
+        for entry in entries:
             date_str = entry.timestamp.strftime(DEFAULT_DATE_FORMAT)
             entries_by_date[date_str].append(entry)
+        return entries_by_date
 
-        # Process each date separately
-        for date_str, date_entries in entries_by_date.items():
-            try:
-                index = self._load_index_for_date(date_str)
-                new_entries = []
-
-                # Filter out existing entries
-                for entry in date_entries:
-                    unique_key = entry.get_unique_key()
-                    if unique_key in index:
-                        existing_id = index[unique_key]
-                        if existing_id == entry.ledger_id:
-                            continue
-                        logger.warning(
-                            f"Duplicate key {unique_key} with different ledger_id: "
-                            f"existing={existing_id}, new={entry.ledger_id}"
-                        )
-                        continue
-                    new_entries.append(entry)
-
-                if not new_entries:
+    def _filter_new_entries(
+        self, entries: list[TradeLedgerEntry], index: dict[str, str]
+    ) -> list[TradeLedgerEntry]:
+        """Filter out entries that already exist in the index."""
+        new_entries = []
+        for entry in entries:
+            unique_key = entry.get_unique_key()
+            if unique_key in index:
+                existing_id = index[unique_key]
+                if existing_id == entry.ledger_id:
                     continue
-
-                # Get existing content for this date
-                ledger_key = f"{self.ledger_prefix}/{date_str}/{self.account_id}.jsonl"
-                existing_content = ""
-                try:
-                    response = self.s3.get_object(Bucket=self.bucket, Key=ledger_key)
-                    existing_content = response["Body"].read().decode("utf-8")
-                except Exception as e:
-                    # Check if this is a NoSuchKey error (file doesn't exist yet)
-                    if not self._is_no_such_key_error(e):
-                        raise
-
-                # Append new entries
-                new_lines = []
-                for entry in new_entries:
-                    serialized = self._serialize_entry(entry)
-                    new_lines.append(json.dumps(serialized))
-                    index[entry.get_unique_key()] = entry.ledger_id
-
-                new_content = existing_content + "\n".join(new_lines) + "\n"
-
-                # Write back to S3
-                self.s3.put_object(
-                    Bucket=self.bucket,
-                    Key=ledger_key,
-                    Body=new_content.encode("utf-8"),
-                    ContentType="application/x-jsonlines",
+                logger.warning(
+                    f"Duplicate key {unique_key} with different ledger_id: "
+                    f"existing={existing_id}, new={entry.ledger_id}"
                 )
+                continue
+            new_entries.append(entry)
+        return new_entries
 
-                # Save updated index
-                self._save_index_for_date(date_str, index)
-
-                logger.info(f"Added {len(new_entries)} new ledger entries for {date_str}")
-
-            except Exception as e:
-                logger.error(f"Failed to upsert entries for {date_str}: {e}")
+    def _get_existing_ledger_content(self, ledger_key: str) -> str:
+        """Retrieve existing ledger content from S3."""
+        try:
+            response = self.s3.get_object(Bucket=self.bucket, Key=ledger_key)
+            return response["Body"].read().decode("utf-8")
+        except Exception as e:
+            # Check if this is a NoSuchKey error (file doesn't exist yet)
+            if not self._is_no_such_key_error(e):
                 raise
+            return ""
+
+    def _serialize_new_entries(
+        self, entries: list[TradeLedgerEntry], index: dict[str, str]
+    ) -> list[str]:
+        """Serialize new entries and update the index."""
+        new_lines = []
+        for entry in entries:
+            serialized = self._serialize_entry(entry)
+            new_lines.append(json.dumps(serialized))
+            index[entry.get_unique_key()] = entry.ledger_id
+        return new_lines
+
+    def _upsert_entries_for_date(self, date_str: str, date_entries: list[TradeLedgerEntry]) -> None:
+        """Process entries for a specific date."""
+        try:
+            index = self._load_index_for_date(date_str)
+            new_entries = self._filter_new_entries(date_entries, index)
+
+            if not new_entries:
+                return
+
+            ledger_key = f"{self.ledger_prefix}/{date_str}/{self.account_id}.jsonl"
+            existing_content = self._get_existing_ledger_content(ledger_key)
+            
+            new_lines = self._serialize_new_entries(new_entries, index)
+            new_content = existing_content + "\n".join(new_lines) + "\n"
+
+            # Write back to S3
+            self.s3.put_object(
+                Bucket=self.bucket,
+                Key=ledger_key,
+                Body=new_content.encode("utf-8"),
+                ContentType="application/x-jsonlines",
+            )
+
+            # Save updated index
+            self._save_index_for_date(date_str, index)
+
+            logger.info(f"Added {len(new_entries)} new ledger entries for {date_str}")
+
+        except Exception as e:
+            logger.error(f"Failed to upsert entries for {date_str}: {e}")
+            raise
 
     def query(self, filters: TradeLedgerQuery) -> Iterable[TradeLedgerEntry]:
         """Query trade ledger entries with filtering and pagination.

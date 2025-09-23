@@ -217,56 +217,77 @@ class TechnicalIndicatorDTO(BaseModel):
 
         """
         try:
-            # Extract timestamp or use current time
-            timestamp = legacy_indicators.get("timestamp", datetime.now(UTC))
-            if isinstance(timestamp, str):
-                timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-
-            # Map legacy fields to DTO fields
-            dto_data = {
-                "symbol": symbol,
-                "timestamp": ensure_timezone_aware(timestamp),
-                "data_source": legacy_indicators.get("data_source", "legacy"),
-            }
-
-            # Map price indicators
-            if "current_price" in legacy_indicators:
-                dto_data["current_price"] = Decimal(str(legacy_indicators["current_price"]))
-
-            # Map RSI indicators
-            for period in [10, 14, 20, 21]:
-                key = f"rsi_{period}"
-                if key in legacy_indicators:
-                    dto_data[key] = float(legacy_indicators[key])
-
-            # Map moving averages
-            for period in [20, 50, 200]:
-                key = f"ma_{period}"
-                if key in legacy_indicators:
-                    dto_data[key] = float(legacy_indicators[key])
-
-            # Map return indicators
-            return_keys = ["ma_return_90", "cum_return_60", "stdev_return_6"]
-            for key in return_keys:
-                if key in legacy_indicators:
-                    dto_data[key] = float(legacy_indicators[key])
-
-            # Map volatility indicators
-            volatility_keys = ["volatility_14", "volatility_20", "atr_14"]
-            for key in volatility_keys:
-                if key in legacy_indicators:
-                    dto_data[key] = float(legacy_indicators[key])
-
-            # Map any remaining indicators to metadata
-            mapped_keys = set(dto_data.keys()) | {"timestamp", "data_source"}
-            remaining = {k: v for k, v in legacy_indicators.items() if k not in mapped_keys}
-            if remaining:
-                dto_data["metadata"] = remaining
+            dto_data = cls._build_base_dto_data(symbol, legacy_indicators)
+            cls._map_price_indicators(legacy_indicators, dto_data)
+            cls._map_rsi_indicators(legacy_indicators, dto_data)
+            cls._map_moving_averages(legacy_indicators, dto_data)
+            cls._map_return_indicators(legacy_indicators, dto_data)
+            cls._map_volatility_indicators(legacy_indicators, dto_data)
+            cls._map_remaining_to_metadata(legacy_indicators, dto_data)
 
             return cls(**dto_data)
 
         except (KeyError, ValueError, TypeError) as e:
             raise ValueError(f"Invalid legacy indicator data for {symbol}: {e}") from e
+
+    @classmethod
+    def _build_base_dto_data(cls, symbol: str, legacy_indicators: dict[str, Any]) -> dict[str, Any]:
+        """Build base DTO data with symbol, timestamp, and data source."""
+        timestamp = legacy_indicators.get("timestamp", datetime.now(UTC))
+        if isinstance(timestamp, str):
+            timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+
+        return {
+            "symbol": symbol,
+            "timestamp": ensure_timezone_aware(timestamp),
+            "data_source": legacy_indicators.get("data_source", "legacy"),
+        }
+
+    @classmethod
+    def _map_price_indicators(cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]) -> None:
+        """Map price indicators from legacy format."""
+        if "current_price" in legacy_indicators:
+            dto_data["current_price"] = Decimal(str(legacy_indicators["current_price"]))
+
+    @classmethod
+    def _map_rsi_indicators(cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]) -> None:
+        """Map RSI indicators from legacy format."""
+        for period in [10, 14, 20, 21]:
+            key = f"rsi_{period}"
+            if key in legacy_indicators:
+                dto_data[key] = float(legacy_indicators[key])
+
+    @classmethod
+    def _map_moving_averages(cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]) -> None:
+        """Map moving average indicators from legacy format."""
+        for period in [20, 50, 200]:
+            key = f"ma_{period}"
+            if key in legacy_indicators:
+                dto_data[key] = float(legacy_indicators[key])
+
+    @classmethod
+    def _map_return_indicators(cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]) -> None:
+        """Map return indicators from legacy format."""
+        return_keys = ["ma_return_90", "cum_return_60", "stdev_return_6"]
+        for key in return_keys:
+            if key in legacy_indicators:
+                dto_data[key] = float(legacy_indicators[key])
+
+    @classmethod
+    def _map_volatility_indicators(cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]) -> None:
+        """Map volatility indicators from legacy format."""
+        volatility_keys = ["volatility_14", "volatility_20", "atr_14"]
+        for key in volatility_keys:
+            if key in legacy_indicators:
+                dto_data[key] = float(legacy_indicators[key])
+
+    @classmethod
+    def _map_remaining_to_metadata(cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]) -> None:
+        """Map any remaining indicators to metadata."""
+        mapped_keys = set(dto_data.keys()) | {"timestamp", "data_source"}
+        remaining = {k: v for k, v in legacy_indicators.items() if k not in mapped_keys}
+        if remaining:
+            dto_data["metadata"] = remaining
 
     def to_legacy_dict(self) -> dict[str, Any]:
         """Convert to legacy dictionary format for backward compatibility.
@@ -276,40 +297,53 @@ class TechnicalIndicatorDTO(BaseModel):
 
         """
         result: dict[str, Any] = {}
+        
+        self._add_price_indicators_to_dict(result)
+        self._add_rsi_indicators_to_dict(result)
+        self._add_moving_averages_to_dict(result)
+        self._add_return_indicators_to_dict(result)
+        self._add_volatility_indicators_to_dict(result)
+        self._add_metadata_to_dict(result)
 
-        # Add current price
+        return result
+
+    def _add_price_indicators_to_dict(self, result: dict[str, Any]) -> None:
+        """Add price indicators to legacy dictionary."""
         if self.current_price is not None:
             result["current_price"] = float(self.current_price)
 
-        # Add RSI indicators
+    def _add_rsi_indicators_to_dict(self, result: dict[str, Any]) -> None:
+        """Add RSI indicators to legacy dictionary."""
         for period in [10, 14, 20, 21]:
             value = getattr(self, f"rsi_{period}")
             if value is not None:
                 result[f"rsi_{period}"] = value
 
-        # Add moving averages
+    def _add_moving_averages_to_dict(self, result: dict[str, Any]) -> None:
+        """Add moving average indicators to legacy dictionary."""
         for period in [20, 50, 200]:
             value = getattr(self, f"ma_{period}")
             if value is not None:
                 result[f"ma_{period}"] = value
 
-        # Add return indicators
+    def _add_return_indicators_to_dict(self, result: dict[str, Any]) -> None:
+        """Add return indicators to legacy dictionary."""
         for key in ["ma_return_90", "cum_return_60", "stdev_return_6"]:
             value = getattr(self, key)
             if value is not None:
                 result[key] = value
 
-        # Add volatility indicators
+    def _add_volatility_indicators_to_dict(self, result: dict[str, Any]) -> None:
+        """Add volatility indicators to legacy dictionary."""
         for key in ["volatility_14", "volatility_20", "atr_14"]:
             value = getattr(self, key)
             if value is not None:
                 result[key] = value
 
-        # Add metadata if present
+    def _add_metadata_to_dict(self, result: dict[str, Any]) -> None:
+        """Add metadata to legacy dictionary."""
         if self.metadata:
             result.update(self.metadata)
-
-        return result
 
     def get_rsi_by_period(self, period: int) -> float | None:
         """Get RSI value for a specific period.

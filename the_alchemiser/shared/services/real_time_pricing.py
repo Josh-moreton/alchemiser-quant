@@ -90,6 +90,17 @@ class RealTimeQuote:
         return self.last_price
 
 
+@dataclass
+class _SubscriptionPlan:
+    """Internal helper class for bulk subscription planning."""
+
+    results: dict[str, bool]
+    symbols_to_add: list[str]
+    symbols_to_replace: list[str]
+    available_slots: int
+    successfully_added: int = 0
+
+
 class RealTimePricingService:
     """Real-time pricing service using Alpaca's WebSocket data streams.
 
@@ -759,82 +770,111 @@ class RealTimePricingService:
         if priority is None:
             priority = time.time()  # Use current timestamp as default priority
 
-        results: dict[str, bool] = {}
-        normalized_symbols = [symbol.upper().strip() for symbol in symbols if symbol.strip()]
-
+        normalized_symbols = self._normalize_symbols(symbols)
         if not normalized_symbols:
-            return results
+            return {}
 
         logging.info(
             f"📡 Bulk subscribing to {len(normalized_symbols)} symbols with priority {priority:.1f}"
         )
 
         with self._subscription_lock:
-            # Process each symbol
-            symbols_to_add = []
-            symbols_to_replace: list[str] = []
+            subscription_plan = self._plan_bulk_subscription(normalized_symbols, priority)
+            self._execute_subscription_plan(subscription_plan, priority)
 
-            for symbol in normalized_symbols:
-                if symbol in self._subscribed_symbols:
-                    # Update priority for existing subscription
-                    self._subscription_priority[symbol] = max(
-                        self._subscription_priority.get(symbol, 0), priority
-                    )
-                    results[symbol] = True
-                    logging.debug(
-                        f"Already subscribed to {symbol}, updated priority to {self._subscription_priority[symbol]:.1f}"
-                    )
-                else:
-                    symbols_to_add.append(symbol)
+        self._restart_stream_if_needed(subscription_plan.successfully_added)
+        
+        logging.info(
+            f"✅ Bulk subscription complete: {subscription_plan.successfully_added}/"
+            f"{len(subscription_plan.symbols_to_add)} new symbols subscribed"
+        )
+        return subscription_plan.results
 
-            # Calculate how many we can actually subscribe to
-            available_slots = self._max_symbols - len(self._subscribed_symbols)
+    def _normalize_symbols(self, symbols: list[str]) -> list[str]:
+        """Normalize symbol list by cleaning and filtering."""
+        return [symbol.upper().strip() for symbol in symbols if symbol.strip()]
 
-            if len(symbols_to_add) > available_slots:
-                # Need to replace some existing subscriptions if we have higher priority
-                existing_symbols = sorted(
-                    self._subscription_priority.keys(),
-                    key=lambda x: self._subscription_priority.get(x, 0),
+    def _plan_bulk_subscription(self, symbols: list[str], priority: float) -> _SubscriptionPlan:
+        """Plan bulk subscription operations."""
+        results: dict[str, bool] = {}
+        symbols_to_add = []
+        
+        # Handle existing symbols
+        for symbol in symbols:
+            if symbol in self._subscribed_symbols:
+                self._subscription_priority[symbol] = max(
+                    self._subscription_priority.get(symbol, 0), priority
                 )
-
-                symbols_needed = len(symbols_to_add) - available_slots
-                for symbol in existing_symbols:
-                    if len(symbols_to_replace) >= symbols_needed:
-                        break
-                    if self._subscription_priority.get(symbol, 0) < priority:
-                        symbols_to_replace.append(symbol)
-
-                # Remove symbols to be replaced
-                for symbol_to_remove in symbols_to_replace:
-                    self._subscribed_symbols.discard(symbol_to_remove)
-                    self._subscription_priority.pop(symbol_to_remove, None)
-                    available_slots += 1
-                    self._stats["subscription_limit_hits"] += 1
-                    logging.info(f"📊 Replaced {symbol_to_remove} for higher priority symbols")
-
-            # Add new symbols
-            successfully_added = 0
-            for symbol in symbols_to_add[:available_slots]:
-                self._subscribed_symbols.add(symbol)
-                self._subscription_priority[symbol] = priority
                 results[symbol] = True
-                successfully_added += 1
-                self._stats["total_subscriptions"] += 1
+                logging.debug(
+                    f"Already subscribed to {symbol}, updated priority to "
+                    f"{self._subscription_priority[symbol]:.1f}"
+                )
+            else:
+                symbols_to_add.append(symbol)
 
-            # Mark symbols we couldn't subscribe to due to limits
-            for symbol in symbols_to_add[available_slots:]:
-                results[symbol] = False
-                logging.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
+        # Calculate capacity and replacements
+        available_slots = self._max_symbols - len(self._subscribed_symbols)
+        symbols_to_replace = self._find_symbols_to_replace(symbols_to_add, available_slots, priority)
+        
+        return _SubscriptionPlan(
+            results=results,
+            symbols_to_add=symbols_to_add,
+            symbols_to_replace=symbols_to_replace,
+            available_slots=available_slots + len(symbols_to_replace),
+            successfully_added=0
+        )
 
-        # Restart stream if we added new symbols and are connected
+    def _find_symbols_to_replace(
+        self, symbols_to_add: list[str], available_slots: int, priority: float
+    ) -> list[str]:
+        """Find existing symbols that can be replaced with higher priority ones."""
+        if len(symbols_to_add) <= available_slots:
+            return []
+
+        existing_symbols = sorted(
+            self._subscription_priority.keys(),
+            key=lambda x: self._subscription_priority.get(x, 0),
+        )
+
+        symbols_to_replace = []
+        symbols_needed = len(symbols_to_add) - available_slots
+        
+        for symbol in existing_symbols:
+            if len(symbols_to_replace) >= symbols_needed:
+                break
+            if self._subscription_priority.get(symbol, 0) < priority:
+                symbols_to_replace.append(symbol)
+
+        return symbols_to_replace
+
+    def _execute_subscription_plan(self, plan: _SubscriptionPlan, priority: float) -> None:
+        """Execute the planned subscription operations."""
+        # Remove symbols to be replaced
+        for symbol_to_remove in plan.symbols_to_replace:
+            self._subscribed_symbols.discard(symbol_to_remove)
+            self._subscription_priority.pop(symbol_to_remove, None)
+            self._stats["subscription_limit_hits"] += 1
+            logging.info(f"📊 Replaced {symbol_to_remove} for higher priority symbols")
+
+        # Add new symbols
+        for symbol in plan.symbols_to_add[:plan.available_slots]:
+            self._subscribed_symbols.add(symbol)
+            self._subscription_priority[symbol] = priority
+            plan.results[symbol] = True
+            plan.successfully_added += 1
+            self._stats["total_subscriptions"] += 1
+
+        # Mark symbols we couldn't subscribe to due to limits
+        for symbol in plan.symbols_to_add[plan.available_slots:]:
+            plan.results[symbol] = False
+            logging.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
+
+    def _restart_stream_if_needed(self, successfully_added: int) -> None:
+        """Restart stream if new symbols were added and we're connected."""
         if successfully_added > 0 and self._connected:
             logging.info(f"🔄 Restarting stream to add {successfully_added} new subscriptions")
             self._restart_stream_for_new_subscription()
-
-        logging.info(
-            f"✅ Bulk subscription complete: {successfully_added}/{len(symbols_to_add)} new symbols subscribed"
-        )
-        return results
 
     def subscribe_symbol(self, symbol: str, priority: float | None = None) -> None:
         """Subscribe to real-time updates for a specific symbol with smart limit management.
