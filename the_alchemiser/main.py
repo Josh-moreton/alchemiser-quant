@@ -3,8 +3,10 @@
 
 Main entry point for The Alchemiser Trading System.
 
-This module only handles bootstrap concerns (logging, argument parsing,
-request correlation) and delegates business logic to orchestration.
+This module handles bootstrap concerns (logging, request correlation)
+and delegates business logic to orchestration. Supports programmatic
+usage via main() function and minimal backward compatibility for
+legacy argument-based calls.
 """
 
 from __future__ import annotations
@@ -12,8 +14,7 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING
 
-from the_alchemiser.orchestration.cli.argument_parser import create_argument_parser
-from the_alchemiser.orchestration.cli.cli_utilities import render_footer
+# CLI imports removed - using programmatic interface only
 from the_alchemiser.orchestration.system import TradingSystem
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.logging.logging_utils import (
@@ -31,7 +32,8 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
     """Serve as main entry point for The Alchemiser Trading System.
 
     Args:
-        argv: Command line arguments (uses sys.argv if None)
+        argv: Command line arguments - supports ["trade"] for backward compatibility
+              with legacy calls, but primarily for programmatic usage
 
     Returns:
         TradeRunResultDTO for trade execution, or bool for other operations
@@ -42,18 +44,31 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
     request_id = generate_request_id()
     set_request_id(request_id)
 
-    # Parse command line arguments
-    parser = create_argument_parser()
-    args = parser.parse_args(argv)
+    # Simple argument handling for backward compatibility
+    # Primary usage should be programmatic via TradingSystem class
+    mode = "trade"  # Default mode
+    show_tracking = False
+    export_tracking_json = None
+
+    if argv:
+        if len(argv) > 0:
+            mode = argv[0]
+        # For backward compatibility, check for additional arguments
+        # but don't require full argument parsing
+        for i, arg in enumerate(argv):
+            if arg == "--show-tracking":
+                show_tracking = True
+            elif arg == "--export-tracking-json" and i + 1 < len(argv):
+                export_tracking_json = argv[i + 1]
 
     # Execute operation with proper error boundary
     try:
         system = TradingSystem()
 
-        if args.mode == "trade":
+        if mode == "trade":
             return system.execute_trading(
-                show_tracking=getattr(args, "show_tracking", False),
-                export_tracking_json=getattr(args, "export_tracking_json", None),
+                show_tracking=show_tracking,
+                export_tracking_json=export_tracking_json,
             )
 
         return False
@@ -64,7 +79,11 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
             error=e,
             context="application initialization and execution",
             component="main",
-            additional_data={"mode": getattr(args, "mode", "unknown")},
+            additional_data={
+                "mode": mode,
+                "request_id": request_id,
+                "argv": argv,
+            },
         )
 
         try:
@@ -80,7 +99,6 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
                 f"Failed to send error notification: {notification_error}"
             )
 
-        render_footer("System error occurred!")
         return False
 
     except Exception as e:  # pragma: no cover (broad fallback)
@@ -90,7 +108,7 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
             context="application execution - unhandled exception",
             component="main",
             additional_data={
-                "mode": getattr(args, "mode", "unknown"),
+                "mode": mode,
                 "error_type": type(e).__name__,
                 "request_id": request_id,
             },
@@ -109,7 +127,6 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
                 f"Failed to send error notification: {notification_error}"
             )
 
-        render_footer("Unexpected system error occurred!")
         return False
 
 
