@@ -52,7 +52,7 @@ class SignalOrchestrator:
         """
         # Use DSL strategy engine directly for signal generation
         market_data_port = self.container.infrastructure.market_data_service()
-        
+
         # Create DSL strategy engine
         dsl_engine = DslStrategyEngine(market_data_port)
         signals = dsl_engine.generate_signals(datetime.now(UTC))
@@ -74,12 +74,10 @@ class SignalOrchestrator:
 
         return strategy_signals, consolidated_portfolio
 
-    def _convert_signals_to_display_format(
-        self, signals: list[StrategySignal]
-    ) -> dict[str, Any]:
+    def _convert_signals_to_display_format(self, signals: list[StrategySignal]) -> dict[str, Any]:
         """Convert DSL signals to display format."""
         strategy_signals = {}
-        
+
         if signals:
             # For DSL engine, we group all signals under "DSL" strategy type
             if len(signals) > 1:

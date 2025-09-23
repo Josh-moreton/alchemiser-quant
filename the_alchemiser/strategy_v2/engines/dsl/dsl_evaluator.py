@@ -114,9 +114,7 @@ class DslEvaluator:
             elif isinstance(result, dict):
                 # Direct weights dictionary
                 allocation = StrategyAllocationDTO(
-                    target_weights={
-                        k: decimal.Decimal(str(v)) for k, v in result.items()
-                    },
+                    target_weights={k: decimal.Decimal(str(v)) for k, v in result.items()},
                     correlation_id=correlation_id,
                     as_of=datetime.now(UTC),
                 )
@@ -155,9 +153,7 @@ class DslEvaluator:
             )
             raise DslEvaluationError(f"DSL evaluation failed: {e}") from e
 
-    def _evaluate_node(
-        self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO
-    ) -> DSLValue:
+    def _evaluate_node(self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO) -> DSLValue:
         """Evaluate a single AST node.
 
         Args:
@@ -226,8 +222,7 @@ class DslEvaluator:
             else:
                 # Evaluate each element and return as list
                 return [
-                    self._evaluate_node(child, correlation_id, trace)
-                    for child in node.children
+                    self._evaluate_node(child, correlation_id, trace) for child in node.children
                 ]
 
         raise DslEvaluationError(f"Unknown node type: {node}")
