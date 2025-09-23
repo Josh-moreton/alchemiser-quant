@@ -457,7 +457,7 @@ class S3TradeLedger(BaseTradeLedger):
 
                     if self._matches_filters(entry, filters):
                         entries.append(entry)
-                except (json.JSONDecodeError, ValueError) as e:
+                except ValueError as e:
                     logger.warning(f"Skipping invalid ledger entry: {e}")
 
             return entries
@@ -591,7 +591,7 @@ class S3TradeLedger(BaseTradeLedger):
                     if data.get("order_id") == order_id:
                         entry = self._deserialize_entry(data)
                         entries.append(entry)
-                except (json.JSONDecodeError, ValueError) as e:
+                except ValueError as e:
                     logger.warning(f"Skipping invalid ledger entry: {e}")
 
             return entries
