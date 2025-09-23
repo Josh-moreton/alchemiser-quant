@@ -150,9 +150,7 @@ def display_rebalance_plan(trading_result: dict[str, Any]) -> None:
                             quantity = trade.get("qty", 0)
                             print(f"  • {action} {quantity} shares of {symbol}")
                 elif status == NO_TRADES_REQUIRED:
-                    print(
-                        "\n⚖️  No rebalancing required - portfolio is already optimally allocated"
-                    )
+                    print("\n⚖️  No rebalancing required - portfolio is already optimally allocated")
 
     except Exception as e:
         logger.warning(f"Failed to display rebalance plan: {e}")

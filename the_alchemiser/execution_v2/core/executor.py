@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import ROUND_DOWN, Decimal
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from the_alchemiser.execution_v2.core.smart_execution_strategy import (
@@ -19,6 +19,7 @@ from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionResultDTO,
     OrderResultDTO,
 )
+from the_alchemiser.execution_v2.utils.execution_validator import ExecutionValidator
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.dto.execution_dto import ExecutionResult
 from the_alchemiser.shared.dto.rebalance_plan_dto import (
@@ -64,6 +65,9 @@ class Executor:
         self.alpaca_manager = alpaca_manager
         self.enable_smart_execution = enable_smart_execution
         self.execution_config = execution_config
+
+        # Initialize execution validator for preflight checks
+        self.validator = ExecutionValidator(alpaca_manager)
 
         # Initialize pricing service for smart execution
         self.pricing_service: RealTimePricingService | None = None
@@ -158,7 +162,7 @@ class Executor:
         return self._execute_market_order(symbol, side, Decimal(str(quantity)))
 
     def _execute_market_order(self, symbol: str, side: str, quantity: Decimal) -> ExecutionResult:
-        """Execute a standard market order.
+        """Execute a standard market order with preflight validation.
 
         Args:
             symbol: Stock symbol
@@ -169,18 +173,46 @@ class Executor:
             ExecutionResult with order details
 
         """
+        # Preflight validation for non-fractionable assets
+        validation_result = self.validator.validate_order(
+            symbol=symbol,
+            quantity=quantity,
+            side=side,
+            auto_adjust=True,
+        )
+
+        if not validation_result.is_valid:
+            error_msg = validation_result.error_message or f"Validation failed for {symbol}"
+            logger.error(f"❌ Preflight validation failed for {symbol}: {error_msg}")
+            return ExecutionResult(
+                symbol=symbol,
+                side=side,
+                quantity=quantity,
+                status="rejected",
+                success=False,
+                error=error_msg,
+                execution_strategy="validation_failed",
+            )
+
+        # Use adjusted quantity if validation made changes
+        final_quantity = validation_result.adjusted_quantity or quantity
+
+        # Log any warnings from validation
+        for warning in validation_result.warnings:
+            logger.warning(f"⚠️ Order validation: {warning}")
+
         try:
             result = self.alpaca_manager.place_market_order(
                 symbol=symbol,
                 side=side.lower(),
-                qty=float(quantity),
+                qty=float(final_quantity),
             )
 
             return ExecutionResult(
                 order_id=result.order_id,
                 symbol=symbol,
                 side=side,
-                quantity=quantity,
+                quantity=final_quantity,
                 price=(result.price if result.price is not None else None),
                 status=result.status.lower() if result.status else "submitted",
                 success=result.status not in ["REJECTED", "CANCELED"],
@@ -192,7 +224,7 @@ class Executor:
             return ExecutionResult(
                 symbol=symbol,
                 side=side,
-                quantity=quantity,
+                quantity=final_quantity,
                 status="failed",
                 success=False,
                 error=str(e),
@@ -758,7 +790,7 @@ class Executor:
             if item.action == "SELL" and item.target_weight == Decimal("0.0"):
                 # For liquidation (0% target), use actual position quantity
                 raw_shares = self._get_position_quantity(item.symbol)
-                shares = raw_shares.quantize(Decimal("0.000001"))
+                shares = self._adjust_quantity_for_fractionability(item.symbol, raw_shares)
                 logger.info(
                     f"📊 Liquidating {item.symbol}: selling {shares} shares (full position)"
                 )
@@ -770,7 +802,8 @@ class Executor:
                     shares = Decimal("1")
                     logger.warning(f"⚠️ Price unavailable for {item.symbol}; defaulting to 1 share")
                 else:
-                    shares = (abs(item.trade_amount) / price).quantize(Decimal("0.000001"))
+                    raw_shares = abs(item.trade_amount) / price
+                    shares = self._adjust_quantity_for_fractionability(item.symbol, raw_shares)
 
                 amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
                 logger.info(
@@ -856,6 +889,57 @@ class Executor:
         except Exception:
             return None
         return None
+
+    def _adjust_quantity_for_fractionability(self, symbol: str, raw_quantity: Decimal) -> Decimal:
+        """Adjust quantity for asset fractionability constraints.
+
+        Args:
+            symbol: Asset symbol
+            raw_quantity: Raw calculated quantity
+
+        Returns:
+            Adjusted quantity (whole shares for non-fractionable assets)
+
+        """
+        # Defensive guard
+        if raw_quantity <= 0:
+            return Decimal("0")
+
+        # Fetch asset info to decide quantization strategy
+        asset_info = self.alpaca_manager.get_asset_info(symbol)
+
+        # Unknown asset: default to fractional quantization
+        if asset_info is None:
+            logger.debug(f"Could not determine fractionability for {symbol}, using fractional")
+            return raw_quantity.quantize(Decimal("0.000001"))
+
+        # Fractionable: preserve fractional shares with 6dp quantization
+        if asset_info.fractionable:
+            return raw_quantity.quantize(Decimal("0.000001"))
+
+        # Non-fractionable: delegate rounding to validator for consistency
+        validation = self.validator.validate_order(
+            symbol=symbol,
+            quantity=raw_quantity,
+            side="buy",
+            auto_adjust=True,
+        )
+
+        if not validation.is_valid and validation.error_code == "ZERO_QUANTITY_AFTER_ROUNDING":
+            return Decimal("0")
+
+        adjusted = (
+            validation.adjusted_quantity
+            if validation.adjusted_quantity is not None
+            else raw_quantity.quantize(Decimal("1"), rounding=ROUND_DOWN)
+        )
+
+        if adjusted != raw_quantity:
+            logger.info(
+                f"🔄 Portfolio sizing: {symbol} non-fractionable, adjusted {raw_quantity:.6f} → {adjusted} shares"
+            )
+
+        return max(adjusted, Decimal("0"))
 
     def _get_position_quantity(self, symbol: str) -> Decimal:
         """Get the actual quantity held for a symbol.

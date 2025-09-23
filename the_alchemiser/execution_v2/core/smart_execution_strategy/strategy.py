@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.execution_v2.utils.execution_validator import ExecutionValidator
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 from the_alchemiser.shared.types.market_data import QuoteModel
@@ -53,6 +55,9 @@ class SmartExecutionStrategy:
         self.pricing_service = pricing_service
         self.config = config or ExecutionConfig()
 
+        # Initialize execution validator for preflight checks
+        self.validator = ExecutionValidator(alpaca_manager)
+
         # Initialize components
         self.quote_provider = QuoteProvider(
             alpaca_manager=alpaca_manager,
@@ -84,6 +89,42 @@ class SmartExecutionStrategy:
             f"(urgency: {request.urgency})"
         )
 
+        # Preflight validation for non-fractionable assets
+        validation_result = self.validator.validate_order(
+            symbol=request.symbol,
+            quantity=Decimal(str(request.quantity)),
+            side=request.side,
+            correlation_id=getattr(request, "correlation_id", None),
+            auto_adjust=True,
+        )
+
+        if not validation_result.is_valid:
+            error_msg = (
+                validation_result.error_message
+                or f"Validation failed for {request.symbol}"
+            )
+            logger.error(
+                f"❌ Preflight validation failed for {request.symbol}: {error_msg}"
+            )
+            return SmartOrderResult(
+                success=False,
+                error_message=error_msg,
+                execution_strategy="validation_failed",
+            )
+
+        # Use adjusted quantity if validation made changes
+        if validation_result.adjusted_quantity is not None:
+            # Update request with adjusted quantity without float conversion
+            original_quantity = request.quantity
+            request = replace(request, quantity=validation_result.adjusted_quantity)
+            logger.info(
+                f"🔄 Adjusted quantity for {request.symbol}: {original_quantity} → {request.quantity}"
+            )
+
+        # Log any warnings from validation
+        for warning in validation_result.warnings:
+            logger.warning(f"⚠️ Smart order validation: {warning}")
+
         # Symbol should already be pre-subscribed by executor
         # Brief wait to allow any pending subscription to receive initial data
         await asyncio.sleep(0.1)  # 100ms wait for quote data to flow
@@ -105,7 +146,11 @@ class SmartExecutionStrategy:
 
             # Validate and place the order
             return await self._place_validated_order(
-                request, optimal_price, analysis_metadata, quote, used_fallback=used_fallback
+                request,
+                optimal_price,
+                analysis_metadata,
+                quote,
+                used_fallback=used_fallback,
             )
 
         except Exception as e:
@@ -146,7 +191,9 @@ class SmartExecutionStrategy:
 
         return quote, used_fallback
 
-    def _handle_quote_validation_failure(self, request: SmartOrderRequest) -> SmartOrderResult:
+    def _handle_quote_validation_failure(
+        self, request: SmartOrderRequest
+    ) -> SmartOrderResult:
         """Handle case where quote validation fails.
 
         Args:
@@ -170,7 +217,9 @@ class SmartExecutionStrategy:
             execution_strategy="smart_limit_failed",
         )
 
-    def _create_market_fallback_result(self, request: SmartOrderRequest) -> SmartOrderResult:
+    def _create_market_fallback_result(
+        self, request: SmartOrderRequest
+    ) -> SmartOrderResult:
         """Create a market fallback result that indicates need for async processing.
 
         Args:
@@ -207,7 +256,9 @@ class SmartExecutionStrategy:
             return self.pricing_calculator.calculate_liquidity_aware_price(
                 quote, request.side, order_size
             )
-        return self.pricing_calculator.calculate_simple_inside_spread_price(quote, request.side)
+        return self.pricing_calculator.calculate_simple_inside_spread_price(
+            quote, request.side
+        )
 
     async def _place_validated_order(
         self,
@@ -254,7 +305,9 @@ class SmartExecutionStrategy:
             used_fallback=used_fallback,
         )
 
-    async def _handle_invalid_price_fallback(self, request: SmartOrderRequest) -> SmartOrderResult:
+    async def _handle_invalid_price_fallback(
+        self, request: SmartOrderRequest
+    ) -> SmartOrderResult:
         """Handle invalid price by falling back to market order if urgency is high.
 
         Args:
@@ -273,7 +326,9 @@ class SmartExecutionStrategy:
             execution_strategy="smart_limit_failed",
         )
 
-    def _prepare_final_price(self, optimal_price: Decimal, request: SmartOrderRequest) -> Decimal:
+    def _prepare_final_price(
+        self, optimal_price: Decimal, request: SmartOrderRequest
+    ) -> Decimal:
         """Prepare final price with quantization and validation.
 
         Args:
@@ -376,7 +431,9 @@ class SmartExecutionStrategy:
 
         """
         # Track for potential re-pegging
-        self.order_tracker.add_order(result.order_id, request, placement_time, optimal_price)
+        self.order_tracker.add_order(
+            result.order_id, request, placement_time, optimal_price
+        )
 
         logger.info(
             f"✅ Smart liquidity-aware order placed: {result.order_id} at ${optimal_price} "
@@ -395,7 +452,9 @@ class SmartExecutionStrategy:
             **analysis_metadata,
             "bid_price": quote.bid_price,
             "ask_price": quote.ask_price,
-            "spread_percent": (quote.ask_price - quote.bid_price) / quote.bid_price * 100,
+            "spread_percent": (quote.ask_price - quote.bid_price)
+            / quote.bid_price
+            * 100,
             "bid_size": quote.bid_size,
             "ask_size": quote.ask_size,
             "used_fallback": used_fallback,
@@ -412,7 +471,9 @@ class SmartExecutionStrategy:
             metadata=metadata_dict,
         )
 
-    async def _place_market_order_fallback(self, request: SmartOrderRequest) -> SmartOrderResult:
+    async def _place_market_order_fallback(
+        self, request: SmartOrderRequest
+    ) -> SmartOrderResult:
         """Fallback to market order for high urgency situations.
 
         Args:
@@ -486,7 +547,9 @@ class SmartExecutionStrategy:
         """
         return self.quote_provider.wait_for_quote_data(symbol, timeout)
 
-    def validate_quote_liquidity(self, symbol: str, quote: dict[str, float | int]) -> bool:
+    def validate_quote_liquidity(
+        self, symbol: str, quote: dict[str, float | int]
+    ) -> bool:
         """Validate that the quote has sufficient liquidity.
 
         Args:

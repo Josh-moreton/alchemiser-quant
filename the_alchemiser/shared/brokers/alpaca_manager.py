@@ -35,6 +35,7 @@ from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 from alpaca.trading.stream import TradingStream
 
 from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
+from the_alchemiser.shared.dto.asset_info_dto import AssetInfoDTO
 from the_alchemiser.shared.dto.broker_dto import (
     OrderExecutionResult,
     WebSocketResult,
@@ -146,6 +147,12 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self._order_events: dict[str, threading.Event] = {}
         self._order_status: dict[str, str] = {}
         self._order_avg_price: dict[str, Decimal | None] = {}
+
+        # Asset metadata cache with TTL
+        self._asset_cache: dict[str, AssetInfoDTO] = {}
+        self._asset_cache_timestamps: dict[str, float] = {}
+        self._asset_cache_ttl = 300.0  # 5 minutes TTL
+        self._asset_cache_lock = threading.Lock()
 
     @property
     def is_paper_trading(self) -> bool:
@@ -1265,30 +1272,76 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to liquidate position for {symbol}: {e}")
             return None
 
-    def get_asset_info(self, symbol: str) -> dict[str, Any] | None:
-        """Get asset information.
+    def get_asset_info(self, symbol: str) -> AssetInfoDTO | None:
+        """Get asset information with caching.
 
         Args:
             symbol: Stock symbol
 
         Returns:
-            Asset information dictionary, or None if not found.
+            AssetInfoDTO with asset metadata, or None if not found.
 
         """
+        symbol_upper = symbol.upper()
+        current_time = time.time()
+
+        # Check cache first
+        with self._asset_cache_lock:
+            if symbol_upper in self._asset_cache:
+                cache_time = self._asset_cache_timestamps.get(symbol_upper, 0)
+                if current_time - cache_time < self._asset_cache_ttl:
+                    logger.debug(f"📋 Asset cache hit for {symbol_upper}")
+                    return self._asset_cache[symbol_upper]
+                # Cache expired, remove
+                self._asset_cache.pop(symbol_upper, None)
+                self._asset_cache_timestamps.pop(symbol_upper, None)
+                logger.debug(f"🗑️ Asset cache expired for {symbol_upper}")
+
         try:
-            asset = self._trading_client.get_asset(symbol)
-            # Convert to dictionary
-            return {
-                "symbol": getattr(asset, "symbol", symbol),
-                "name": getattr(asset, "name", None),
-                "exchange": getattr(asset, "exchange", None),
-                "asset_class": getattr(asset, "asset_class", None),
-                "tradable": getattr(asset, "tradable", None),
-                "fractionable": getattr(asset, "fractionable", None),
-            }
+            asset = self._trading_client.get_asset(symbol_upper)
+
+            # Convert SDK object to DTO at adapter boundary
+            asset_dto = AssetInfoDTO(
+                symbol=getattr(asset, "symbol", symbol_upper),
+                name=getattr(asset, "name", None),
+                exchange=getattr(asset, "exchange", None),
+                asset_class=getattr(asset, "asset_class", None),
+                tradable=getattr(asset, "tradable", True),
+                fractionable=getattr(asset, "fractionable", True),
+                marginable=getattr(asset, "marginable", None),
+                shortable=getattr(asset, "shortable", None),
+            )
+
+            # Cache the result
+            with self._asset_cache_lock:
+                self._asset_cache[symbol_upper] = asset_dto
+                self._asset_cache_timestamps[symbol_upper] = current_time
+
+            logger.debug(
+                f"📡 Fetched asset info for {symbol_upper}: fractionable={asset_dto.fractionable}"
+            )
+            return asset_dto
+
         except Exception as e:
-            logger.error(f"Failed to get asset info for {symbol}: {e}")
+            logger.error(f"Failed to get asset info for {symbol_upper}: {e}")
             return None
+
+    def is_fractionable(self, symbol: str) -> bool:
+        """Check if an asset supports fractional shares.
+
+        Args:
+            symbol: Stock symbol to check
+
+        Returns:
+            True if asset supports fractional shares, False otherwise.
+            Defaults to True if asset info cannot be retrieved.
+
+        """
+        asset_info = self.get_asset_info(symbol)
+        if asset_info is None:
+            logger.warning(f"Could not determine fractionability for {symbol}, defaulting to True")
+            return True
+        return asset_info.fractionable
 
     def is_market_open(self) -> bool:
         """Check if the market is currently open.

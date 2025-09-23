@@ -205,13 +205,13 @@ def weight_inverse_volatility(args: list[ASTNodeDTO], context: DslContext) -> Po
                 indicator_type="stdev_return",
                 parameters={"window": int(window)},
             )
-            
+
             # Get volatility indicator from IndicatorService
             indicator = context.indicator_service.get_indicator(request)
-            
+
             # Extract volatility value from indicator
             volatility = None
-            
+
             # Check specific field for the window if available
             if int(window) == 6 and indicator.stdev_return_6 is not None:
                 volatility = indicator.stdev_return_6
@@ -225,19 +225,19 @@ def weight_inverse_volatility(args: list[ASTNodeDTO], context: DslContext) -> Po
                         asset,
                     )
                     continue
-            
+
             if volatility is None or volatility <= 0:
                 logger.warning(
                     "DSL weight-inverse-volatility: No valid volatility for %s, skipping",
                     asset,
                 )
                 continue
-            
+
             # Calculate inverse volatility weight
             inverse_vol = 1.0 / volatility
             inverse_weights[asset] = inverse_vol
             total_inverse += inverse_vol
-            
+
             # Emit IndicatorComputed event for observability
             context.event_publisher.publish_indicator_computed(
                 request_id=request.request_id,
@@ -245,7 +245,7 @@ def weight_inverse_volatility(args: list[ASTNodeDTO], context: DslContext) -> Po
                 computation_time_ms=0.0,  # Not measuring computation time in this operator
                 correlation_id=context.correlation_id,
             )
-            
+
         except Exception as exc:
             # Log error and skip this asset
             logger.warning(
