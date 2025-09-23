@@ -67,15 +67,18 @@ class RepegManager:
             return []
 
         repeg_results: list[SmartOrderResult] = []
-        orders_to_remove = []
+        orders_to_remove: list[str] = []
         current_time = datetime.now(UTC)
 
-        for order_id, request in list(active_orders.items()):
+        for order_id, request in active_orders.copy().items():
             result = await self._process_single_order(order_id, request, current_time)
 
-            if result is None:  # Order should be removed or no action needed
+            # None => remove (completed or irrecoverable)
+            # False => keep (no action needed yet)
+            # SmartOrderResult => action taken (repeg/escalation)
+            if result is None:
                 orders_to_remove.append(order_id)
-            elif result:  # Result available (repeg or escalation)
+            elif isinstance(result, SmartOrderResult):
                 repeg_results.append(result)
 
         # Clean up completed orders
@@ -86,7 +89,7 @@ class RepegManager:
 
     async def _process_single_order(
         self, order_id: str, request: SmartOrderRequest, current_time: datetime
-    ) -> SmartOrderResult | None:
+    ) -> SmartOrderResult | bool | None:
         """Process a single order for potential repeg or escalation.
 
         Args:
@@ -95,17 +98,19 @@ class RepegManager:
             current_time: Current timestamp
 
         Returns:
-            SmartOrderResult if action taken, None if order should be removed
+            SmartOrderResult if action taken,
+            False if no action needed yet (keep tracking),
+            None if order completed and should be removed
 
         """
         try:
             # Check if order is still active
             if self._is_order_completed(order_id):
-                return None  # Signal for removal
+                return None  # Completed: signal for removal
 
             # Check timing for repeg consideration
             if not self._should_consider_repeg(order_id, current_time):
-                return None  # No action needed yet
+                return False  # Keep tracking; no action yet
 
             current_repeg_count = self.order_tracker.get_repeg_count(order_id)
 
@@ -129,7 +134,7 @@ class RepegManager:
 
         except Exception as e:
             logger.error(f"Error checking order {order_id} for re-pegging: {e}")
-            return None
+            return False  # Keep tracking on transient errors
 
     def _is_order_completed(self, order_id: str) -> bool:
         """Check if order has completed and should be removed from tracking.
@@ -287,7 +292,7 @@ class RepegManager:
 
     async def _attempt_repeg(
         self, order_id: str, request: SmartOrderRequest
-    ) -> SmartOrderResult | None:
+    ) -> SmartOrderResult | bool | None:
         """Attempt to re-peg an order with a more aggressive price.
 
         Args:
@@ -295,7 +300,9 @@ class RepegManager:
             request: Original order request
 
         Returns:
-            SmartOrderResult if re-peg was attempted, None if skipped
+            SmartOrderResult if re-peg was attempted,
+            False if skipped but should keep tracking,
+            None if invalid and should be removed
 
         """
         try:
@@ -306,13 +313,13 @@ class RepegManager:
 
             if not cancel_success:
                 logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
-                return None
+                return False
 
             # Get current market data
             validated = self.quote_provider.get_quote_with_validation(request.symbol)
             if not validated:
                 logger.warning(f"⚠️ No valid quote for {request.symbol}, skipping re-peg")
-                return None
+                return False
 
             quote, _ = validated
 
@@ -325,7 +332,7 @@ class RepegManager:
 
             if not new_price:
                 logger.warning(f"⚠️ Cannot calculate re-peg price for {request.symbol}")
-                return None
+                return False
 
             # Additional validation to ensure price is positive and reasonable
             if new_price <= Decimal("0.01"):
@@ -353,7 +360,7 @@ class RepegManager:
                     f"⚠️ Quantized re-peg price ${quantized_price} is invalid for {request.symbol}. "
                     f"This should not happen after validation - skipping re-peg."
                 )
-                return None
+                return False
 
             # Use asyncio.to_thread to make blocking I/O async
             executed_order = await asyncio.to_thread(
