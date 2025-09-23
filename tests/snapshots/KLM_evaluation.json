@@ -1,0 +1,27 @@
+{
+  "events": [
+    {
+      "correlation_id": "test-corr-b7f6219c",
+      "event_type": "StrategyEvaluationRequested",
+      "source_module": "test_harness"
+    }
+  ],
+  "request": {
+    "correlation_id": "test-corr-b7f6219c",
+    "strategy_config_path": "/home/runner/work/alchemiser-quant/alchemiser-quant/KLM.clj",
+    "strategy_id": "test-strategy-9375403c",
+    "timestamp": "2024-01-15T12:00:00+00:00",
+    "universe": []
+  },
+  "summary": {
+    "correlation_id": "test-corr-b7f6219c",
+    "event_counts": {
+      "StrategyEvaluationRequested": 1
+    },
+    "has_allocation": false,
+    "has_trace": false,
+    "strategy_id": "test-strategy-9375403c",
+    "success": false,
+    "total_events": 1
+  }
+}

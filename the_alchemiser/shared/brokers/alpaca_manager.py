@@ -45,6 +45,40 @@ from the_alchemiser.shared.protocols.repository import (
     TradingRepository,
 )
 
+# Import Alpaca exceptions for proper error handling with type safety
+_RetryExcImported: type[Exception]
+try:
+    from alpaca.common.exceptions import RetryException as _RetryExcImported
+except ImportError:  # pragma: no cover - environment-dependent import
+    # Fallback if the import path changes or package missing
+    class _RetryExcImported(Exception):  # type: ignore[no-redef]
+        """Fallback RetryException compatible with Alpaca SDK signature."""
+
+
+RetryException = _RetryExcImported
+
+# Import requests exceptions for HTTP error handling with type safety
+_HTTPErrorImported: type[Exception]
+_RequestExcImported: type[Exception]
+try:
+    from requests.exceptions import (
+        HTTPError as _HTTPErrorImported,
+    )
+    from requests.exceptions import (
+        RequestException as _RequestExcImported,
+    )
+except ImportError:  # pragma: no cover - environment-dependent import
+
+    class _HTTPErrorImported(Exception):  # type: ignore[no-redef]
+        """Fallback HTTPError when requests is unavailable."""
+
+    class _RequestExcImported(Exception):  # type: ignore[no-redef]
+        """Fallback RequestException when requests is unavailable."""
+
+
+HTTPError = _HTTPErrorImported
+RequestException = _RequestExcImported
+
 if TYPE_CHECKING:
     # Future imports for type checking can be added here as needed
     pass
@@ -878,6 +912,18 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 quote_dict["symbol"] = symbol
                 return quote_dict
             return None
+        except (RetryException, HTTPError) as e:
+            # These are specific API failures that should not be silent
+            error_msg = f"Alpaca API failure getting quote for {symbol}: {e}"
+            if "429" in str(e) or "rate limit" in str(e).lower():
+                error_msg = f"Alpaca API rate limit exceeded getting quote for {symbol}: {e}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e
+        except RequestException as e:
+            # Other network/HTTP errors
+            error_msg = f"Network error getting quote for {symbol}: {e}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e
         except Exception as e:
             logger.error(f"Failed to get quote for {symbol}: {e}")
             return None
@@ -942,6 +988,20 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 bars_obj = None
 
             if not bars_obj:
+                # For daily data over a reasonable period, we should expect some bars
+                # This could indicate an API failure rather than legitimate no-data
+                from datetime import datetime
+
+                start_dt = datetime.fromisoformat(start_date)
+                end_dt = datetime.fromisoformat(end_date)
+                days_requested = (end_dt - start_dt).days
+
+                if days_requested > 5 and timeframe_lower == "1day":
+                    # For weekly+ periods of daily data, no bars likely indicates API failure
+                    error_msg = f"No historical data returned for {symbol} over {days_requested} days - possible API failure"
+                    logger.error(error_msg)
+                    raise RuntimeError(error_msg)
+
                 logger.warning(f"No historical data found for {symbol}")
                 return []
 
@@ -960,6 +1020,18 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                     continue
             return result
 
+        except (RetryException, HTTPError) as e:
+            # These are specific API failures that should not be silent
+            error_msg = f"Alpaca API failure for {symbol}: {e}"
+            if "429" in str(e) or "rate limit" in str(e).lower():
+                error_msg = f"Alpaca API rate limit exceeded for {symbol}: {e}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e
+        except RequestException as e:
+            # Other network/HTTP errors
+            error_msg = f"Network error retrieving data for {symbol}: {e}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e
         except Exception as e:
             logger.error(f"Failed to get historical data for {symbol}: {e}")
             raise

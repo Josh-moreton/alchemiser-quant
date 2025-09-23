@@ -652,3 +652,130 @@ def log_trade_expectation_vs_reality(
     _log_trade_mismatches(logger, expected_trades, expected_count, actual_count, stage)
 
     logger.info(f"=== END_EXPECTATION_VS_REALITY[{stage}] ===")
+
+
+def resolve_log_level(*, is_production: bool) -> int:
+    """Resolve the desired log level from environment or settings.
+
+    Args:
+        is_production: Whether running in production environment
+
+    Returns:
+        Log level as integer
+
+    """
+    # Environment override first
+    level_str = os.getenv("LOGGING__LEVEL")
+    if level_str:
+        # Support both names (e.g. DEBUG) and numeric strings (e.g. 10)
+        lvl_upper = level_str.strip().upper()
+        # Numeric string
+        if lvl_upper.isdigit():
+            try:
+                return int(lvl_upper)
+            except ValueError:
+                pass
+        # Named level
+        named = getattr(logging, lvl_upper, None)
+        if isinstance(named, int):
+            return named
+
+    # Then settings
+    try:
+        from the_alchemiser.shared.config.config import load_settings
+
+        settings = load_settings()
+        configured = getattr(logging, settings.logging.level.upper(), None)
+        if isinstance(configured, int):
+            return configured
+    except (AttributeError, TypeError, ImportError):
+        # Settings loading failed or invalid log level, fall back to default
+        pass
+
+    # Fallback
+    return logging.INFO if is_production else logging.WARNING
+
+
+def configure_application_logging() -> None:
+    """Configure application logging with reduced complexity."""
+    # Check for Lambda environment via runtime-specific environment variables
+    is_production = any(
+        [
+            os.getenv("AWS_EXECUTION_ENV"),
+            os.getenv("AWS_LAMBDA_RUNTIME_API"),
+            os.getenv("LAMBDA_RUNTIME_DIR"),
+        ]
+    )
+    root_logger = logging.getLogger()
+    if root_logger.hasHandlers() and not is_production:
+        return
+
+    resolved_level = resolve_log_level(is_production=is_production)
+
+    if is_production:
+        log_file = None
+        try:
+            from the_alchemiser.shared.config.config import load_settings
+
+            settings = load_settings()
+            if settings.logging.enable_s3_logging and settings.logging.s3_log_uri:
+                log_file = settings.logging.s3_log_uri
+        except (AttributeError, ImportError):
+            # Settings loading failed, use default log file setting
+            pass
+        configure_production_logging(log_level=resolved_level, log_file=log_file)
+        return
+
+    setup_logging(
+        log_level=resolved_level,
+        console_level=resolved_level,
+        suppress_third_party=True,
+        structured_format=False,
+        respect_existing_handlers=True,
+    )
+
+
+def configure_quiet_logging() -> dict[str, int]:
+    """Configure quiet logging to reduce CLI noise.
+
+    Returns:
+        Dict mapping module names to original log levels for restoration
+
+    """
+    # Store original levels for restoration
+    original_levels = {}
+
+    # Modules to quiet down (these tend to be noisy during execution)
+    noisy_modules = [
+        "the_alchemiser.execution_v2",
+        "the_alchemiser.portfolio_v2",
+        "the_alchemiser.strategy_v2",
+        "the_alchemiser.orchestration",
+        "the_alchemiser.orchestration.trading_orchestrator",
+        "the_alchemiser.orchestration.signal_orchestrator",
+        "the_alchemiser.orchestration.strategy_orchestrator",
+        "the_alchemiser.orchestration.portfolio_orchestrator",
+        "the_alchemiser.orchestration.event_driven_orchestrator",
+        "alpaca",
+        "urllib3",
+        "requests",
+    ]
+
+    for module_name in noisy_modules:
+        logger = logging.getLogger(module_name)
+        original_levels[module_name] = logger.level
+        logger.setLevel(logging.WARNING)
+
+    return original_levels
+
+
+def restore_logging(original_levels: dict[str, int]) -> None:
+    """Restore original logging levels.
+
+    Args:
+        original_levels: Dict mapping module names to original log levels
+
+    """
+    for module_name, level in original_levels.items():
+        logger = logging.getLogger(module_name)
+        logger.setLevel(level)

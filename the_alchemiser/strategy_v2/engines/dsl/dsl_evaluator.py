@@ -384,10 +384,6 @@ class DslEvaluator:
             # Evaluate the AST
             result = self._evaluate_node(ast, correlation_id, trace)
 
-            # DEBUG: Log what we got from evaluation
-            print(f"DEBUG: DSL evaluation result type: {type(result)}")
-            print(f"DEBUG: DSL evaluation result: {result}")
-
             # Convert result to StrategyAllocationDTO
             if isinstance(result, PortfolioFragmentDTO):
                 # Convert fragment to allocation
@@ -521,16 +517,11 @@ class DslEvaluator:
             StrategyAllocationDTO
 
         """
-        print(f"DEBUG: Fragment weights: {fragment.weights}")
         weights = {k: Decimal(str(v)) for k, v in fragment.weights.items()}
-        print(f"DEBUG: Converted weights: {weights}")
 
         # If no weights, create a fallback cash allocation
         if not weights:
-            print("DEBUG: No weights, creating CASH fallback")
             weights = {"CASH": Decimal("1.0")}
-
-        print(f"DEBUG: Final weights for allocation: {weights}")
 
         return StrategyAllocationDTO(
             target_weights=weights,

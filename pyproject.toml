@@ -73,6 +73,7 @@ extend-exclude = [
     "__pycache__",
     "build",
     "dist",
+    "tests",
 ]
 
 [tool.ruff.lint]
@@ -124,6 +125,8 @@ exclude = [
     # Exclude problematic legacy files
     "the_alchemiser/.*_backup/",
     "the_alchemiser/.*/.*original.*",
+    # Exclude tests from type checking
+    "tests/",
 ]
 
 # Retain targeted ignores for third-party libs lacking type hints

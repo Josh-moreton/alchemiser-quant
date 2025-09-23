@@ -139,9 +139,7 @@ class S3TradeLedger(BaseTradeLedger):
             logger.warning(f"Failed to load index for {date_str}, rebuilding: {e}")
             return self._rebuild_index_for_date(date_str)
 
-    def _save_index_for_date(
-        self, date_str: str, index: dict[tuple[str, str], str]
-    ) -> None:
+    def _save_index_for_date(self, date_str: str, index: dict[tuple[str, str], str]) -> None:
         """Save index for a specific date.
 
         Args:
@@ -349,9 +347,7 @@ class S3TradeLedger(BaseTradeLedger):
             index[entry.get_unique_key()] = entry.ledger_id
         return new_lines
 
-    def _upsert_entries_for_date(
-        self, date_str: str, date_entries: list[TradeLedgerEntry]
-    ) -> None:
+    def _upsert_entries_for_date(self, date_str: str, date_entries: list[TradeLedgerEntry]) -> None:
         """Process entries for a specific date."""
         try:
             index = self._load_index_for_date(date_str)
@@ -429,9 +425,7 @@ class S3TradeLedger(BaseTradeLedger):
             logger.error(f"Failed to query trade ledger: {e}")
             raise
 
-    def _query_date(
-        self, date_str: str, filters: TradeLedgerQuery
-    ) -> list[TradeLedgerEntry]:
+    def _query_date(self, date_str: str, filters: TradeLedgerQuery) -> list[TradeLedgerEntry]:
         """Query entries for a specific date.
 
         Args:
@@ -457,7 +451,7 @@ class S3TradeLedger(BaseTradeLedger):
 
                     if self._matches_filters(entry, filters):
                         entries.append(entry)
-                except (json.JSONDecodeError, ValueError) as e:
+                except ValueError as e:
                     logger.warning(f"Skipping invalid ledger entry: {e}")
 
             return entries
@@ -469,9 +463,7 @@ class S3TradeLedger(BaseTradeLedger):
             logger.error(f"Failed to query date {date_str}: {e}")
             raise
 
-    def get_open_lots(
-        self, strategy: str | None = None, symbol: str | None = None
-    ) -> list[Lot]:
+    def get_open_lots(self, strategy: str | None = None, symbol: str | None = None) -> list[Lot]:
         """Get open lots for attribution tracking.
 
         Args:
@@ -525,9 +517,7 @@ class S3TradeLedger(BaseTradeLedger):
             )
 
             entries = list(self.query(query_filters))
-            return self._calculate_performance_from_entries(
-                entries, current_prices or {}
-            )
+            return self._calculate_performance_from_entries(entries, current_prices or {})
 
         except Exception as e:
             logger.error(f"Failed to calculate performance: {e}")
@@ -591,7 +581,7 @@ class S3TradeLedger(BaseTradeLedger):
                     if data.get("order_id") == order_id:
                         entry = self._deserialize_entry(data)
                         entries.append(entry)
-                except (json.JSONDecodeError, ValueError) as e:
+                except ValueError as e:
                     logger.warning(f"Skipping invalid ledger entry: {e}")
 
             return entries
@@ -627,9 +617,7 @@ class S3TradeLedger(BaseTradeLedger):
                 if obj["Key"].endswith(".jsonl"):
                     try:
                         # Verify each file can be parsed
-                        obj_response = self.s3.get_object(
-                            Bucket=self.bucket, Key=obj["Key"]
-                        )
+                        obj_response = self.s3.get_object(Bucket=self.bucket, Key=obj["Key"])
                         content = obj_response["Body"].read().decode("utf-8")
 
                         file_entries = 0
