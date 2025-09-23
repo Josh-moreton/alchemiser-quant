@@ -877,8 +877,12 @@ class DslEvaluator:
             )
 
         # No combined weights produced: if single body item, return its result; otherwise last
-        return last_result if last_result is not None else PortfolioFragmentDTO(
-            fragment_id=str(uuid.uuid4()), source_step="group", weights={}
+        return (
+            last_result
+            if last_result is not None
+            else PortfolioFragmentDTO(
+                fragment_id=str(uuid.uuid4()), source_step="group", weights={}
+            )
         )
 
     def _eval_asset(
