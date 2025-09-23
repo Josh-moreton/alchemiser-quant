@@ -23,6 +23,7 @@ from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
 from ..context import DslContext
 from ..dispatcher import DslDispatcher
 from ..types import DslEvaluationError, DSLValue
+from .control_flow import create_indicator_with_symbol
 
 
 def weight_equal(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragmentDTO:
@@ -304,19 +305,81 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     - (filter condition_expr selection_expr portfolio_expr)
 
     Where selection_expr can be a selector like (select-top N) or (select-bottom N).
+    Returns a list of selected asset symbols.
     """
     if len(args) not in (2, 3):
         raise DslEvaluationError(
             "filter requires 2 or 3 arguments: condition, [selection], portfolio"
         )
 
-    _condition_expr = args[0]
-    _selection_expr = args[1] if len(args) == 3 else None
+    condition_expr = args[0]
+    selection_expr = args[1] if len(args) == 3 else None
     portfolio_expr = args[2] if len(args) == 3 else args[1]
 
-    # Placeholder implementation: return the portfolio as-is until per-asset
-    # condition evaluation and selection ranking is implemented.
-    return context.evaluate_node(portfolio_expr, context.correlation_id, context.trace)
+    # Evaluate the portfolio expression and collect candidate symbols
+    portfolio_val = context.evaluate_node(portfolio_expr, context.correlation_id, context.trace)
+
+    def collect_assets(value: DSLValue) -> list[str]:
+        symbols: list[str] = []
+        if isinstance(value, PortfolioFragmentDTO):
+            symbols.extend(list(value.weights.keys()))
+        elif isinstance(value, str):
+            symbols.append(value)
+        elif isinstance(value, list):
+            for item in value:
+                symbols.extend(collect_assets(item))
+        return symbols
+
+    candidates = collect_assets(portfolio_val)
+    if not candidates:
+        return []
+
+    # Determine selection parameters
+    take_top = True
+    take_n: int | None = None
+
+    if selection_expr is not None:
+        # Determine direction from the selection node symbol if available
+        sel_node = selection_expr
+        sel_name = sel_node.children[0].get_symbol_name() if sel_node.is_list() and sel_node.children else None
+        if sel_name == "select-bottom":
+            take_top = False
+        # Evaluate to get N
+        n_val = context.evaluate_node(selection_expr, context.correlation_id, context.trace)
+        if isinstance(n_val, (int, float)):
+            take_n = int(n_val)
+        else:
+            # Coerce via Decimal helper if needed
+            try:
+                take_n = int(context.as_decimal(n_val))
+            except Exception:
+                take_n = None
+
+    # Score each candidate using the condition expression applied to the symbol
+    scored: list[tuple[str, float]] = []
+    for sym in candidates:
+        try:
+            metric_expr = create_indicator_with_symbol(condition_expr, sym)
+            metric_val = context.evaluate_node(metric_expr, context.correlation_id, context.trace)
+            if not isinstance(metric_val, (int, float)):
+                metric_val = float(context.as_decimal(metric_val))
+            scored.append((sym, float(metric_val)))
+        except Exception:
+            # Skip symbols that fail metric evaluation
+            continue
+
+    if not scored:
+        return []
+
+    # Sort based on selection direction
+    scored.sort(key=lambda x: x[1], reverse=take_top)
+
+    # Apply N if provided
+    if take_n is not None and take_n >= 0:
+        scored = scored[:take_n]
+
+    # Return only symbols
+    return [sym for sym, _ in scored]
 
 
 def register_portfolio_operators(dispatcher: DslDispatcher) -> None:
