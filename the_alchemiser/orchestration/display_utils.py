@@ -32,49 +32,97 @@ def display_signals_summary(signals_result: dict[str, Any]) -> None:
 
     """
     try:
-        # Extract and display individual strategy signals with their recommended symbols
-        strategy_signals = signals_result.get("strategy_signals", {})
-        if isinstance(strategy_signals, dict):
-            signal_details = []
-            for raw_name, data in strategy_signals.items():
-                name = str(raw_name)
-                if name.startswith("StrategyType."):
-                    name = name.split(".", 1)[1]
-
-                if isinstance(data, dict):
-                    action = str(data.get("action", "")).upper()
-                    if action in {"BUY", "SELL"}:
-                        if data.get("is_multi_symbol") and isinstance(data.get("symbols"), list):
-                            symbols = data.get("symbols", [])
-                            if symbols:
-                                symbol_str = ", ".join(symbols)
-                                signal_details.append(f"{name}: {action} {symbol_str}")
-                        else:
-                            symbol = data.get("symbol")
-                            if isinstance(symbol, str) and symbol.strip():
-                                signal_details.append(f"{name}: {action} {symbol}")
-                            else:
-                                signal_details.append(f"{name}: {action} (no symbol info)")
-                    elif action == "HOLD":
-                        signal_details.append(f"{name}: {action}")
-
-            if signal_details:
-                print("\n📡 Strategy Signals:")
-                for detail in signal_details:
-                    print(f"  • {detail}")
-
-        # Display consolidated portfolio target allocations
-        consolidated_portfolio = signals_result.get("consolidated_portfolio", {})
-        if isinstance(consolidated_portfolio, dict):
-            target_allocations = consolidated_portfolio.get("target_allocations", {})
-            if isinstance(target_allocations, dict) and target_allocations:
-                print("\n🎯 Target Portfolio Allocations:")
-                for symbol, allocation in target_allocations.items():
-                    if isinstance(allocation, (int, float)) and allocation > 0:
-                        print(f"  • {symbol}: {allocation:.1%}")
-
+        _display_strategy_signals(signals_result)
+        _display_target_allocations(signals_result)
     except Exception as e:
         logger.warning(f"Failed to display signals summary: {e}")
+
+
+def _display_strategy_signals(signals_result: dict[str, Any]) -> None:
+    """Display individual strategy signals with their recommended symbols."""
+    strategy_signals = signals_result.get("strategy_signals", {})
+    if not isinstance(strategy_signals, dict):
+        return
+    
+    signal_details = []
+    for raw_name, data in strategy_signals.items():
+        signal_detail = _process_strategy_signal(raw_name, data)
+        if signal_detail:
+            signal_details.append(signal_detail)
+    
+    if signal_details:
+        print("\n📡 Strategy Signals:")
+        for detail in signal_details:
+            print(f"  • {detail}")
+
+
+def _process_strategy_signal(raw_name: object, data: object) -> str | None:
+    """Process a single strategy signal and return formatted string."""
+    if not isinstance(data, dict):
+        return None
+    
+    name = _clean_strategy_name(str(raw_name))
+    action = str(data.get("action", "")).upper()
+    
+    if action == "HOLD":
+        return f"{name}: {action}"
+    
+    if action in {"BUY", "SELL"}:
+        return _format_buy_sell_signal(name, action, data)
+    
+    return None
+
+
+def _clean_strategy_name(name: str) -> str:
+    """Clean strategy name by removing StrategyType prefix if present."""
+    if name.startswith("StrategyType."):
+        return name.split(".", 1)[1]
+    return name
+
+
+def _format_buy_sell_signal(name: str, action: str, data: dict[str, Any]) -> str:
+    """Format BUY/SELL signal with symbol information."""
+    if _is_multi_symbol_signal(data):
+        return _format_multi_symbol_signal(name, action, data)
+    return _format_single_symbol_signal(name, action, data)
+
+
+def _is_multi_symbol_signal(data: dict[str, Any]) -> bool:
+    """Check if signal involves multiple symbols."""
+    return data.get("is_multi_symbol") and isinstance(data.get("symbols"), list)
+
+
+def _format_multi_symbol_signal(name: str, action: str, data: dict[str, Any]) -> str:
+    """Format signal for multiple symbols."""
+    symbols = data.get("symbols", [])
+    if symbols:
+        symbol_str = ", ".join(symbols)
+        return f"{name}: {action} {symbol_str}"
+    return f"{name}: {action} (no symbols)"
+
+
+def _format_single_symbol_signal(name: str, action: str, data: dict[str, Any]) -> str:
+    """Format signal for single symbol."""
+    symbol = data.get("symbol")
+    if isinstance(symbol, str) and symbol.strip():
+        return f"{name}: {action} {symbol}"
+    return f"{name}: {action} (no symbol info)"
+
+
+def _display_target_allocations(signals_result: dict[str, Any]) -> None:
+    """Display consolidated portfolio target allocations."""
+    consolidated_portfolio = signals_result.get("consolidated_portfolio", {})
+    if not isinstance(consolidated_portfolio, dict):
+        return
+    
+    target_allocations = consolidated_portfolio.get("target_allocations", {})
+    if not (isinstance(target_allocations, dict) and target_allocations):
+        return
+    
+    print("\n🎯 Target Portfolio Allocations:")
+    for symbol, allocation in target_allocations.items():
+        if isinstance(allocation, (int, float)) and allocation > 0:
+            print(f"  • {symbol}: {allocation:.1%}")
 
 
 def display_rebalance_plan(trading_result: dict[str, Any]) -> None:
