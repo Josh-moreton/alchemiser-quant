@@ -218,6 +218,169 @@ def volatility(args: list[ASTNodeDTO], context: DslContext) -> float:
     )
 
 
+def cumulative_return(args: list[ASTNodeDTO], context: DslContext) -> float:
+    """Evaluate cumulative-return via IndicatorService."""
+    if len(args) < 2:
+        raise DslEvaluationError("cumulative-return requires symbol and parameters")
+
+    symbol_node = args[0]
+    symbol_val = context.evaluate_node(symbol_node, context.correlation_id, context.trace)
+
+    if not isinstance(symbol_val, str):
+        raise DslEvaluationError(f"Symbol must be string, got {type(symbol_val)}")
+
+    params_node = args[1]
+    params = context.evaluate_node(params_node, context.correlation_id, context.trace)
+    if not isinstance(params, dict):
+        raise DslEvaluationError(f"Parameters must be dict, got {type(params)}")
+
+    window = params.get("window", 60)
+    if not isinstance(window, (int, float)):
+        window = int(context.as_decimal(window))
+
+    request = IndicatorRequestDTO(
+        request_id=str(uuid.uuid4()),
+        correlation_id=context.correlation_id,
+        symbol=symbol_val,
+        indicator_type="cumulative_return",
+        parameters={"window": window},
+    )
+    indicator = context.indicator_service.get_indicator(request)
+
+    if window == 60 and indicator.cum_return_60 is not None:
+        return indicator.cum_return_60
+
+    if indicator.metadata and "value" in indicator.metadata:
+        try:
+            return float(indicator.metadata["value"])
+        except Exception as exc:
+            print(f"DEBUG: Failed to coerce cumulative return metadata value: {exc}")
+
+    raise DslEvaluationError(f"Cumulative return for {symbol_val} window={window} not available")
+
+
+def exponential_moving_average_price(args: list[ASTNodeDTO], context: DslContext) -> float:
+    """Evaluate exponential-moving-average-price via IndicatorService."""
+    if len(args) < 2:
+        raise DslEvaluationError("exponential-moving-average-price requires symbol and parameters")
+
+    symbol_node = args[0]
+    symbol_val = context.evaluate_node(symbol_node, context.correlation_id, context.trace)
+
+    if not isinstance(symbol_val, str):
+        raise DslEvaluationError(f"Symbol must be string, got {type(symbol_val)}")
+
+    params_node = args[1]
+    params = context.evaluate_node(params_node, context.correlation_id, context.trace)
+    if not isinstance(params, dict):
+        raise DslEvaluationError(f"Parameters must be dict, got {type(params)}")
+
+    window = params.get("window", 12)
+    if not isinstance(window, (int, float)):
+        window = int(context.as_decimal(window))
+
+    request = IndicatorRequestDTO(
+        request_id=str(uuid.uuid4()),
+        correlation_id=context.correlation_id,
+        symbol=symbol_val,
+        indicator_type="exponential_moving_average_price",
+        parameters={"window": window},
+    )
+    indicator = context.indicator_service.get_indicator(request)
+
+    if window == 12 and indicator.ema_12 is not None:
+        return indicator.ema_12
+    if window == 26 and indicator.ema_26 is not None:
+        return indicator.ema_26
+
+    if indicator.metadata and "value" in indicator.metadata:
+        try:
+            return float(indicator.metadata["value"])
+        except Exception as exc:
+            print(f"DEBUG: Failed to coerce EMA metadata value: {exc}")
+
+    raise DslEvaluationError(f"EMA for {symbol_val} window={window} not available")
+
+
+def stdev_return(args: list[ASTNodeDTO], context: DslContext) -> float:
+    """Evaluate stdev-return via IndicatorService."""
+    if len(args) < 2:
+        raise DslEvaluationError("stdev-return requires symbol and parameters")
+
+    symbol_node = args[0]
+    symbol_val = context.evaluate_node(symbol_node, context.correlation_id, context.trace)
+
+    if not isinstance(symbol_val, str):
+        raise DslEvaluationError(f"Symbol must be string, got {type(symbol_val)}")
+
+    params_node = args[1]
+    params = context.evaluate_node(params_node, context.correlation_id, context.trace)
+    if not isinstance(params, dict):
+        raise DslEvaluationError(f"Parameters must be dict, got {type(params)}")
+
+    window = params.get("window", 6)
+    if not isinstance(window, (int, float)):
+        window = int(context.as_decimal(window))
+
+    request = IndicatorRequestDTO(
+        request_id=str(uuid.uuid4()),
+        correlation_id=context.correlation_id,
+        symbol=symbol_val,
+        indicator_type="stdev_return",
+        parameters={"window": window},
+    )
+    indicator = context.indicator_service.get_indicator(request)
+
+    if window == 6 and indicator.stdev_return_6 is not None:
+        return indicator.stdev_return_6
+
+    if indicator.metadata and "value" in indicator.metadata:
+        try:
+            return float(indicator.metadata["value"])
+        except Exception as exc:
+            print(f"DEBUG: Failed to coerce stdev_return metadata value: {exc}")
+
+    raise DslEvaluationError(f"Stdev return for {symbol_val} window={window} not available")
+
+
+def max_drawdown(args: list[ASTNodeDTO], context: DslContext) -> float:
+    """Evaluate max-drawdown via IndicatorService."""
+    if len(args) < 2:
+        raise DslEvaluationError("max-drawdown requires symbol and parameters")
+
+    symbol_node = args[0]
+    symbol_val = context.evaluate_node(symbol_node, context.correlation_id, context.trace)
+
+    if not isinstance(symbol_val, str):
+        raise DslEvaluationError(f"Symbol must be string, got {type(symbol_val)}")
+
+    params_node = args[1]
+    params = context.evaluate_node(params_node, context.correlation_id, context.trace)
+    if not isinstance(params, dict):
+        raise DslEvaluationError(f"Parameters must be dict, got {type(params)}")
+
+    window = params.get("window", 60)
+    if not isinstance(window, (int, float)):
+        window = int(context.as_decimal(window))
+
+    request = IndicatorRequestDTO(
+        request_id=str(uuid.uuid4()),
+        correlation_id=context.correlation_id,
+        symbol=symbol_val,
+        indicator_type="max_drawdown",
+        parameters={"window": window},
+    )
+    indicator = context.indicator_service.get_indicator(request)
+
+    if indicator.metadata and "value" in indicator.metadata:
+        try:
+            return float(indicator.metadata["value"])
+        except Exception as exc:
+            print(f"DEBUG: Failed to coerce MDD metadata value: {exc}")
+
+    raise DslEvaluationError(f"Max drawdown for {symbol_val} window={window} not available")
+
+
 # Note: For brevity, I'm including the most common indicators
 # The full implementation would include all indicators from the original file
 
@@ -228,7 +391,9 @@ def register_indicator_operators(dispatcher: DslDispatcher) -> None:
     dispatcher.register("current-price", current_price)
     dispatcher.register("moving-average-price", moving_average_price)
     dispatcher.register("moving-average-return", moving_average_return)
+    dispatcher.register("cumulative-return", cumulative_return)
+    dispatcher.register("exponential-moving-average-price", exponential_moving_average_price)
+    dispatcher.register("stdev-return", stdev_return)
+    dispatcher.register("max-drawdown", max_drawdown)
     dispatcher.register("ma", moving_average)
     dispatcher.register("volatility", volatility)
-    # TODO: Add remaining indicators (cumulative-return, exponential-moving-average-price, 
-    #       stdev-return, max-drawdown) following the same pattern
