@@ -1185,7 +1185,7 @@ class DslEvaluator:
         # For arbitrary windows, use metadata value
         if indicator.metadata and "value" in indicator.metadata:
             try:
-                return float(indicator.metadata["value"])  # type: ignore[misc]
+                return float(indicator.metadata["value"])
             except Exception as exc:
                 print(f"DEBUG: Failed to coerce RSI metadata value: {exc}")
 

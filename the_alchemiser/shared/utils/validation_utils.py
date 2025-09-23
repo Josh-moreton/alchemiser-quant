@@ -8,7 +8,11 @@ to eliminate the duplicate __post_init__() methods identified in Priority 2.1.
 
 from __future__ import annotations
 
+import logging
+from datetime import UTC, datetime
 from decimal import Decimal
+
+logger = logging.getLogger(__name__)
 
 
 def validate_decimal_range(
@@ -97,3 +101,76 @@ def validate_order_limit_price(
 
 
 # Validation functions using shared constants
+
+
+def validate_price_positive(price: Decimal, field_name: str = "Price") -> None:
+    """Validate that a price is positive and reasonable.
+
+    Args:
+        price: The price to validate
+        field_name: Name of the field for error messages
+
+    Raises:
+        ValueError: If price is not positive or reasonable
+
+    """
+    min_price = Decimal("0.01")  # Minimum 1 cent
+    if price <= 0:
+        raise ValueError(f"{field_name} must be positive, got {price}")
+    if price < min_price:
+        raise ValueError(f"{field_name} must be at least {min_price}, got {price}")
+
+
+def validate_quote_freshness(quote_timestamp: datetime, max_age_seconds: float) -> bool:
+    """Validate that a quote is fresh enough for trading.
+
+    Args:
+        quote_timestamp: When the quote was created
+        max_age_seconds: Maximum allowed age in seconds
+
+    Returns:
+        True if quote is fresh enough
+
+    """
+    quote_age = (datetime.now(UTC) - quote_timestamp).total_seconds()
+    return quote_age <= max_age_seconds
+
+
+def validate_quote_prices(bid_price: float, ask_price: float) -> bool:
+    """Validate basic quote price constraints.
+
+    Args:
+        bid_price: Bid price to validate
+        ask_price: Ask price to validate
+
+    Returns:
+        True if prices are valid
+
+    """
+    # At least one price must be positive
+    if bid_price <= 0 and ask_price <= 0:
+        return False
+
+    # If both prices are positive, bid must be <= ask
+    return not (bid_price > 0 and ask_price > 0 and bid_price > ask_price)
+
+
+def validate_spread_reasonable(
+    bid_price: float, ask_price: float, max_spread_percent: float = 0.5
+) -> bool:
+    """Validate that the bid-ask spread is reasonable for trading.
+
+    Args:
+        bid_price: Bid price
+        ask_price: Ask price
+        max_spread_percent: Maximum allowed spread as percentage (default 0.5%)
+
+    Returns:
+        True if spread is reasonable
+
+    """
+    if bid_price <= 0 or ask_price <= 0:
+        return False
+
+    spread = (ask_price - bid_price) / ask_price
+    return spread <= (max_spread_percent / 100.0)

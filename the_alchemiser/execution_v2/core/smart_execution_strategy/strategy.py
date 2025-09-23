@@ -12,9 +12,11 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
+from the_alchemiser.shared.types.market_data import QuoteModel
 
 from .models import (
     ExecutionConfig,
@@ -87,133 +89,23 @@ class SmartExecutionStrategy:
         await asyncio.sleep(0.1)  # 100ms wait for quote data to flow
 
         try:
-            # Get validated quote with order size, with retry logic
-            order_size = float(request.quantity)
-            quote = None
-            used_fallback = False
-
-            # Retry up to 3 times with increasing waits
-            for attempt in range(3):
-                validated = self.quote_provider.get_quote_with_validation(request.symbol)
-                if validated:
-                    quote, used_fallback = validated
-                    break
-
-                if attempt < 2:  # Don't wait on last attempt
-                    await asyncio.sleep(0.3 * (attempt + 1))  # 300ms, 600ms waits
-
+            # Get validated quote with retry logic
+            quote, used_fallback = await self._get_validated_quote_with_retry(request)
             if not quote:
-                # Fallback to market order for high urgency
-                if request.urgency == "HIGH":
-                    logger.warning(
-                        f"Quote validation failed for {request.symbol}, using market order fallback"
-                    )
+                # Handle quote validation failure (may trigger market fallback)
+                failure_result = self._handle_quote_validation_failure(request)
+                if failure_result.execution_strategy == "market_fallback_required":
                     return await self._place_market_order_fallback(request)
-                return SmartOrderResult(
-                    success=False,
-                    error_message=f"Quote validation failed for {request.symbol}",
-                    execution_strategy="smart_limit_failed",
-                )
+                return failure_result
 
-            # Calculate optimal price: full liquidity analysis when streaming, simple when fallback
-            if not used_fallback:
-                optimal_price, analysis_metadata = (
-                    self.pricing_calculator.calculate_liquidity_aware_price(
-                        quote, request.side, order_size
-                    )
-                )
-            else:
-                optimal_price, analysis_metadata = (
-                    self.pricing_calculator.calculate_simple_inside_spread_price(
-                        quote, request.side
-                    )
-                )
-
-            # Validate optimal price before proceeding
-            if optimal_price <= 0:
-                logger.error(
-                    f"⚠️ Invalid optimal price ${optimal_price} calculated for {request.symbol} {request.side}. "
-                    f"This should not happen after validation - falling back to market order."
-                )
-                if request.urgency == "HIGH":
-                    return await self._place_market_order_fallback(request)
-                return SmartOrderResult(
-                    success=False,
-                    error_message=f"Invalid optimal price calculated for {request.symbol}",
-                    execution_strategy="smart_limit_failed",
-                )
-
-            # Place limit order with optimal pricing
-            # Ensure price is properly quantized to avoid sub-penny precision errors
-            quantized_price = Decimal(str(float(optimal_price))).quantize(Decimal("0.01"))
-
-            # Final validation before placing order
-            if quantized_price <= 0:
-                logger.error(
-                    f"⚠️ Quantized optimal price ${quantized_price} is invalid for {request.symbol}. "
-                    f"This should not happen after validation - falling back to market order."
-                )
-                if request.urgency == "HIGH":
-                    return await self._place_market_order_fallback(request)
-                return SmartOrderResult(
-                    success=False,
-                    error_message=f"Invalid quantized price calculated for {request.symbol}",
-                    execution_strategy="smart_limit_failed",
-                )
-
-            result = self.alpaca_manager.place_limit_order(
-                symbol=request.symbol,
-                side=request.side.lower(),
-                quantity=float(request.quantity),
-                limit_price=float(quantized_price),
-                time_in_force="day",
+            # Calculate optimal price based on quote source
+            optimal_price, analysis_metadata = self._calculate_optimal_price(
+                quote, request, used_fallback=used_fallback
             )
 
-            placement_time = datetime.now(UTC)
-
-            if result.success and result.order_id:
-                # Track for potential re-pegging
-                self.order_tracker.add_order(
-                    result.order_id, request, placement_time, optimal_price
-                )
-
-                logger.info(
-                    f"✅ Smart liquidity-aware order placed: {result.order_id} at ${optimal_price} "
-                    f"(strategy: {analysis_metadata['strategy_recommendation']}, "
-                    f"confidence: {analysis_metadata['confidence']:.2f})"
-                )
-
-                # Schedule re-pegging monitoring for this order
-                if self.config.fill_wait_seconds > 0:
-                    logger.info(
-                        f"⏰ Will monitor order {result.order_id} for re-pegging "
-                        f"after {self.config.fill_wait_seconds}s"
-                    )
-
-                metadata_dict: LiquidityMetadata = {
-                    **analysis_metadata,
-                    "bid_price": quote.bid_price,
-                    "ask_price": quote.ask_price,
-                    "spread_percent": (quote.ask_price - quote.bid_price) / quote.bid_price * 100,
-                    "bid_size": quote.bid_size,
-                    "ask_size": quote.ask_size,
-                    "used_fallback": used_fallback,
-                }
-                return SmartOrderResult(
-                    success=True,
-                    order_id=result.order_id,
-                    final_price=optimal_price,
-                    anchor_price=optimal_price,
-                    repegs_used=0,
-                    execution_strategy=f"smart_liquidity_{analysis_metadata['strategy_recommendation']}",
-                    placement_timestamp=placement_time,
-                    metadata=metadata_dict,
-                )
-            return SmartOrderResult(
-                success=False,
-                error_message=result.error or "Limit order placement failed",
-                execution_strategy="smart_limit_failed",
-                placement_timestamp=placement_time,
+            # Validate and place the order
+            return await self._place_validated_order(
+                request, optimal_price, analysis_metadata, quote, used_fallback=used_fallback
             )
 
         except Exception as e:
@@ -226,6 +118,297 @@ class SmartExecutionStrategy:
         finally:
             # Clean up subscription after order placement
             self.quote_provider.cleanup_subscription(request.symbol)
+
+    async def _get_validated_quote_with_retry(
+        self, request: SmartOrderRequest
+    ) -> tuple[QuoteModel | None, bool]:
+        """Get validated quote with retry logic.
+
+        Args:
+            request: Smart order request
+
+        Returns:
+            Tuple of (quote, used_fallback) or (None, False) if failed
+
+        """
+        quote = None
+        used_fallback = False
+
+        # Retry up to 3 times with increasing waits
+        for attempt in range(3):
+            validated = self.quote_provider.get_quote_with_validation(request.symbol)
+            if validated:
+                quote, used_fallback = validated
+                break
+
+            if attempt < 2:  # Don't wait on last attempt
+                await asyncio.sleep(0.3 * (attempt + 1))  # 300ms, 600ms waits
+
+        return quote, used_fallback
+
+    def _handle_quote_validation_failure(self, request: SmartOrderRequest) -> SmartOrderResult:
+        """Handle case where quote validation fails.
+
+        Args:
+            request: Original smart order request
+
+        Returns:
+            SmartOrderResult (either market fallback or failure)
+
+        """
+        # Fallback to market order for high urgency
+        if request.urgency == "HIGH":
+            logger.warning(
+                f"Quote validation failed for {request.symbol}, using market order fallback"
+            )
+            # Return a task that can be awaited by the caller
+            return self._create_market_fallback_result(request)
+
+        return SmartOrderResult(
+            success=False,
+            error_message=f"Quote validation failed for {request.symbol}",
+            execution_strategy="smart_limit_failed",
+        )
+
+    def _create_market_fallback_result(self, request: SmartOrderRequest) -> SmartOrderResult:
+        """Create a market fallback result that indicates need for async processing.
+
+        Args:
+            request: Original smart order request
+
+        Returns:
+            SmartOrderResult indicating market fallback needed
+
+        """
+        return SmartOrderResult(
+            success=False,
+            error_message=f"Quote validation failed for {request.symbol}, market fallback required",
+            execution_strategy="market_fallback_required",
+        )
+
+    def _calculate_optimal_price(
+        self, quote: QuoteModel, request: SmartOrderRequest, *, used_fallback: bool
+    ) -> tuple[Decimal, LiquidityMetadata]:
+        """Calculate optimal price based on quote source and order details.
+
+        Args:
+            quote: Validated quote
+            request: Smart order request
+            used_fallback: Whether REST fallback was used
+
+        Returns:
+            Tuple of (optimal_price, analysis_metadata)
+
+        """
+        order_size = float(request.quantity)
+
+        # Calculate optimal price: full liquidity analysis when streaming, simple when fallback
+        if not used_fallback:
+            return self.pricing_calculator.calculate_liquidity_aware_price(
+                quote, request.side, order_size
+            )
+        return self.pricing_calculator.calculate_simple_inside_spread_price(quote, request.side)
+
+    async def _place_validated_order(
+        self,
+        request: SmartOrderRequest,
+        optimal_price: Decimal,
+        analysis_metadata: LiquidityMetadata,
+        quote: QuoteModel,
+        *,
+        used_fallback: bool,
+    ) -> SmartOrderResult:
+        """Validate optimal price and place the order.
+
+        Args:
+            request: Smart order request
+            optimal_price: Calculated optimal price
+            analysis_metadata: Pricing analysis metadata
+            quote: Market quote
+            used_fallback: Whether REST fallback was used
+
+        Returns:
+            SmartOrderResult with placement details
+
+        """
+        # Validate optimal price before proceeding
+        if optimal_price <= 0:
+            logger.error(
+                f"⚠️ Invalid optimal price ${optimal_price} calculated for {request.symbol} {request.side}. "
+                f"This should not happen after validation - falling back to market order."
+            )
+            return await self._handle_invalid_price_fallback(request)
+
+        # Ensure price is properly quantized and validated
+        quantized_price = self._prepare_final_price(optimal_price, request)
+        if quantized_price <= 0:
+            return await self._handle_invalid_price_fallback(request)
+
+        # Place the actual limit order
+        return await self._execute_limit_order(
+            request,
+            quantized_price,
+            optimal_price,
+            analysis_metadata,
+            quote,
+            used_fallback=used_fallback,
+        )
+
+    async def _handle_invalid_price_fallback(self, request: SmartOrderRequest) -> SmartOrderResult:
+        """Handle invalid price by falling back to market order if urgency is high.
+
+        Args:
+            request: Original smart order request
+
+        Returns:
+            SmartOrderResult
+
+        """
+        if request.urgency == "HIGH":
+            return await self._place_market_order_fallback(request)
+
+        return SmartOrderResult(
+            success=False,
+            error_message=f"Invalid optimal price calculated for {request.symbol}",
+            execution_strategy="smart_limit_failed",
+        )
+
+    def _prepare_final_price(self, optimal_price: Decimal, request: SmartOrderRequest) -> Decimal:
+        """Prepare final price with quantization and validation.
+
+        Args:
+            optimal_price: Optimal price from calculation
+            request: Smart order request for logging
+
+        Returns:
+            Quantized and validated price
+
+        """
+        # Ensure price is properly quantized to avoid sub-penny precision errors
+        quantized_price = Decimal(str(float(optimal_price))).quantize(Decimal("0.01"))
+
+        # Final validation before placing order
+        if quantized_price <= 0:
+            logger.error(
+                f"⚠️ Quantized optimal price ${quantized_price} is invalid for {request.symbol}. "
+                f"This should not happen after validation - falling back to market order."
+            )
+
+        return quantized_price
+
+    async def _execute_limit_order(
+        self,
+        request: SmartOrderRequest,
+        quantized_price: Decimal,
+        optimal_price: Decimal,
+        analysis_metadata: LiquidityMetadata,
+        quote: QuoteModel,
+        *,
+        used_fallback: bool,
+    ) -> SmartOrderResult:
+        """Execute the limit order and handle the result.
+
+        Args:
+            request: Smart order request
+            quantized_price: Final quantized price
+            optimal_price: Original optimal price
+            analysis_metadata: Pricing analysis metadata
+            quote: Market quote
+            used_fallback: Whether REST fallback was used
+
+        Returns:
+            SmartOrderResult with placement details
+
+        """
+        result = self.alpaca_manager.place_limit_order(
+            symbol=request.symbol,
+            side=request.side.lower(),
+            quantity=float(request.quantity),
+            limit_price=float(quantized_price),
+            time_in_force="day",
+        )
+
+        placement_time = datetime.now(UTC)
+
+        if result.success and result.order_id:
+            return self._handle_successful_placement(
+                result,
+                request,
+                placement_time,
+                optimal_price,
+                analysis_metadata,
+                quote,
+                used_fallback=used_fallback,
+            )
+        return SmartOrderResult(
+            success=False,
+            error_message=result.error or "Limit order placement failed",
+            execution_strategy="smart_limit_failed",
+            placement_timestamp=placement_time,
+        )
+
+    def _handle_successful_placement(
+        self,
+        result: Any,  # noqa: ANN401 # Broker-specific result type
+        request: SmartOrderRequest,
+        placement_time: datetime,
+        optimal_price: Decimal,
+        analysis_metadata: LiquidityMetadata,
+        quote: QuoteModel,
+        *,
+        used_fallback: bool,
+    ) -> SmartOrderResult:
+        """Handle successful order placement.
+
+        Args:
+            result: Broker result
+            request: Smart order request
+            placement_time: When order was placed
+            optimal_price: Optimal price used
+            analysis_metadata: Pricing analysis metadata
+            quote: Market quote
+            used_fallback: Whether REST fallback was used
+
+        Returns:
+            SmartOrderResult with success details
+
+        """
+        # Track for potential re-pegging
+        self.order_tracker.add_order(result.order_id, request, placement_time, optimal_price)
+
+        logger.info(
+            f"✅ Smart liquidity-aware order placed: {result.order_id} at ${optimal_price} "
+            f"(strategy: {analysis_metadata['strategy_recommendation']}, "
+            f"confidence: {analysis_metadata['confidence']:.2f})"
+        )
+
+        # Schedule re-pegging monitoring for this order
+        if self.config.fill_wait_seconds > 0:
+            logger.info(
+                f"⏰ Will monitor order {result.order_id} for re-pegging "
+                f"after {self.config.fill_wait_seconds}s"
+            )
+
+        metadata_dict: LiquidityMetadata = {
+            **analysis_metadata,
+            "bid_price": quote.bid_price,
+            "ask_price": quote.ask_price,
+            "spread_percent": (quote.ask_price - quote.bid_price) / quote.bid_price * 100,
+            "bid_size": quote.bid_size,
+            "ask_size": quote.ask_size,
+            "used_fallback": used_fallback,
+        }
+
+        return SmartOrderResult(
+            success=True,
+            order_id=result.order_id,
+            final_price=optimal_price,
+            anchor_price=optimal_price,
+            repegs_used=0,
+            execution_strategy=f"smart_liquidity_{analysis_metadata['strategy_recommendation']}",
+            placement_timestamp=placement_time,
+            metadata=metadata_dict,
+        )
 
     async def _place_market_order_fallback(self, request: SmartOrderRequest) -> SmartOrderResult:
         """Fallback to market order for high urgency situations.
