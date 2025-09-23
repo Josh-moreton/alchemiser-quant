@@ -43,13 +43,13 @@ def _display_strategy_signals(signals_result: dict[str, Any]) -> None:
     strategy_signals = signals_result.get("strategy_signals", {})
     if not isinstance(strategy_signals, dict):
         return
-    
+
     signal_details = []
     for raw_name, data in strategy_signals.items():
         signal_detail = _process_strategy_signal(raw_name, data)
         if signal_detail:
             signal_details.append(signal_detail)
-    
+
     if signal_details:
         print("\n📡 Strategy Signals:")
         for detail in signal_details:
@@ -60,16 +60,16 @@ def _process_strategy_signal(raw_name: object, data: object) -> str | None:
     """Process a single strategy signal and return formatted string."""
     if not isinstance(data, dict):
         return None
-    
+
     name = _clean_strategy_name(str(raw_name))
     action = str(data.get("action", "")).upper()
-    
+
     if action == "HOLD":
         return f"{name}: {action}"
-    
+
     if action in {"BUY", "SELL"}:
         return _format_buy_sell_signal(name, action, data)
-    
+
     return None
 
 
@@ -89,7 +89,7 @@ def _format_buy_sell_signal(name: str, action: str, data: dict[str, Any]) -> str
 
 def _is_multi_symbol_signal(data: dict[str, Any]) -> bool:
     """Check if signal involves multiple symbols."""
-    return data.get("is_multi_symbol") and isinstance(data.get("symbols"), list)
+    return bool(data.get("is_multi_symbol")) and isinstance(data.get("symbols"), list)
 
 
 def _format_multi_symbol_signal(name: str, action: str, data: dict[str, Any]) -> str:
@@ -114,11 +114,11 @@ def _display_target_allocations(signals_result: dict[str, Any]) -> None:
     consolidated_portfolio = signals_result.get("consolidated_portfolio", {})
     if not isinstance(consolidated_portfolio, dict):
         return
-    
+
     target_allocations = consolidated_portfolio.get("target_allocations", {})
     if not (isinstance(target_allocations, dict) and target_allocations):
         return
-    
+
     print("\n🎯 Target Portfolio Allocations:")
     for symbol, allocation in target_allocations.items():
         if isinstance(allocation, (int, float)) and allocation > 0:
@@ -134,13 +134,13 @@ def display_rebalance_plan(trading_result: dict[str, Any]) -> None:
     """
     try:
         status = trading_result.get("status", "")
-        
+
         if status in {REBALANCE_PLAN_GENERATED, NO_TRADES_REQUIRED}:
             rebalance_plan = trading_result.get("rebalance_plan", {})
-            
+
             if isinstance(rebalance_plan, dict):
                 trades = rebalance_plan.get("trades", [])
-                
+
                 if trades:
                     print(f"\n⚖️  Rebalance Plan ({len(trades)} trades):")
                     for trade in trades:
@@ -165,7 +165,7 @@ def display_stale_order_info(trading_result: dict[str, Any]) -> None:
     """
     try:
         stale_orders_canceled = trading_result.get("stale_orders_canceled", [])
-        
+
         if stale_orders_canceled and isinstance(stale_orders_canceled, list):
             print(f"\n🗑️  Canceled {len(stale_orders_canceled)} stale orders:")
             for order in stale_orders_canceled:
@@ -187,15 +187,21 @@ def display_post_execution_tracking(*, paper_trading: bool) -> None:
 
     """
     try:
-        from the_alchemiser.shared.utils.strategy_utils import (
-            display_strategy_performance_tracking,
-        )
-        
+        import importlib
+
         mode_str = "paper trading" if paper_trading else "live trading"
         print(f"\n📊 Strategy Performance Tracking ({mode_str}):")
-        
-        display_strategy_performance_tracking()
-        
+
+        module = importlib.import_module(
+            "the_alchemiser.shared.utils.strategy_utils"
+        )
+        func = getattr(module, "display_strategy_performance_tracking", None)
+
+        if callable(func):
+            func()
+        else:
+            logger.warning("Strategy tracking utilities not available")
+
     except ImportError:
         logger.warning("Strategy tracking utilities not available")
     except Exception as e:
@@ -203,10 +209,7 @@ def display_post_execution_tracking(*, paper_trading: bool) -> None:
 
 
 def export_tracking_summary(
-    trading_result: dict[str, Any], 
-    export_path: str, 
-    *,
-    paper_trading: bool
+    trading_result: dict[str, Any], export_path: str, *, paper_trading: bool
 ) -> None:
     """Export trading summary and tracking data to JSON file.
 
@@ -220,7 +223,7 @@ def export_tracking_summary(
         import json
         from datetime import UTC, datetime
         from pathlib import Path
-        
+
         # Prepare summary data
         summary = {
             "timestamp": datetime.now(UTC).isoformat(),
@@ -230,15 +233,15 @@ def export_tracking_summary(
             "rebalance_plan": trading_result.get("rebalance_plan", {}),
             "stale_orders_canceled": trading_result.get("stale_orders_canceled", []),
         }
-        
+
         # Write to file
         export_file = Path(export_path)
         export_file.parent.mkdir(parents=True, exist_ok=True)
-        
+
         with export_file.open("w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2, default=str)
-        
+
         print(f"\n💾 Trading summary exported to: {export_path}")
-        
+
     except Exception as e:
         logger.error(f"Failed to export tracking summary: {e}")

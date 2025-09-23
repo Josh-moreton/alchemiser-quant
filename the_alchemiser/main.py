@@ -3,9 +3,9 @@
 
 Main entry point for The Alchemiser Trading System.
 
-This module handles bootstrap concerns (logging, request correlation) 
-and delegates business logic to orchestration. Supports programmatic 
-usage via main() function and minimal backward compatibility for 
+This module handles bootstrap concerns (logging, request correlation)
+and delegates business logic to orchestration. Supports programmatic
+usage via main() function and minimal backward compatibility for
 legacy argument-based calls.
 """
 
@@ -49,7 +49,7 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
     mode = "trade"  # Default mode
     show_tracking = False
     export_tracking_json = None
-    
+
     if argv:
         if len(argv) > 0:
             mode = argv[0]
