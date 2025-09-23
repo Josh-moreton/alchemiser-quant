@@ -12,8 +12,7 @@ help:
 	@echo "  dev             Install with development dependencies"
 	@echo ""
 	@echo "Trading Commands:"
-	@echo "  run-trade       Execute trading (includes signal analysis)"
-	@echo "  status          Show account status"
+	@echo "  run-trade       Execute trading via python -m the_alchemiser"
 	@echo ""
 	@echo "Development:"
 	@echo "  format          Format code with Ruff (formatter + fixes)"
@@ -40,13 +39,11 @@ dev:
 
 run-trade:
 	@echo "💰 Running trading (mode determined by stage)..."
-	poetry run alchemiser trade
+	python -m the_alchemiser
 
 # Removed run-trade-live - trading mode now determined by deployment stage
 
-status:
-	@echo "📊 Checking account status..."
-	poetry run alchemiser status
+# Status command removed - use programmatic access via TradingSystem class
 
 # Development
 format:
@@ -81,4 +78,4 @@ clean:
 # Deployment
 deploy:
 	@echo "🚀 Deploying to AWS Lambda..."
-	poetry run alchemiser deploy
+	bash scripts/deploy.sh
