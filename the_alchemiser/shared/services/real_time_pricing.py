@@ -585,7 +585,7 @@ class RealTimePricingService:
             )
             error_task = asyncio.create_task(
                 asyncio.to_thread(
-                    logging.error,
+                    self.logger.error,
                     f"Error processing trade for {symbol_str}: {e}"
                 )
             )
