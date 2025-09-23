@@ -14,6 +14,7 @@ Implements DSL operators for building portfolio allocations:
 
 from __future__ import annotations
 
+import logging
 import uuid
 from collections.abc import Iterable
 
@@ -24,6 +25,8 @@ from ..context import DslContext
 from ..dispatcher import DslDispatcher
 from ..types import DslEvaluationError, DSLValue
 from .control_flow import create_indicator_with_symbol
+
+logger = logging.getLogger(__name__)
 
 
 def weight_equal(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragmentDTO:
@@ -375,7 +378,10 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
                 metric_val = float(context.as_decimal(metric_val))
             scored.append((sym, float(metric_val)))
         except Exception:
-            # Skip symbols that fail metric evaluation
+            # Log and skip symbols that fail metric evaluation
+            logger.exception(
+                "DSL filter: condition evaluation failed for symbol %s", sym
+            )
             continue
 
     if not scored:
