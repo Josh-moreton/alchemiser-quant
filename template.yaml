@@ -36,16 +36,6 @@ Parameters:
     Default: https://paper-api.alpaca.markets/v2
     Description: Alpaca API endpoint; defaults to paper for dev, live is used for prod
 
-  DSLFilesParam:
-    Type: String
-    Default: '["KLM.clj"]'
-    Description: JSON string for STRATEGY__DSL_FILES list (e.g., "[\"Phoenix.clj\",\"...\"]")
-
-  DSLAllocationsParam:
-    Type: String
-    Default: '{"KLM.clj": 1.0}'
-    Description: JSON string for STRATEGY__DSL_ALLOCATIONS map
-
 Conditions:
   IsDev: !Equals [ !Ref Stage, dev ]
 
@@ -75,9 +65,9 @@ Globals:
         EMAIL__FROM_EMAIL: josh@rwxt.org
         EMAIL__TO_EMAIL: josh@rwxt.org
         EMAIL__NEUTRAL_MODE: true
-        # Strategy DSL configuration
-        STRATEGY__DSL_FILES: !Ref DSLFilesParam
-        STRATEGY__DSL_ALLOCATIONS: !Ref DSLAllocationsParam
+        # Strategy DSL configuration - matches .env file exactly
+        STRATEGY__DSL_FILES: '["Phoenix.clj","Nuclear.clj","TQQQ-FLT.clj","TECL.clj","Starburst.clj","Grail.clj"]'
+        STRATEGY__DSL_ALLOCATIONS: '{"Phoenix.clj":0.15,"Nuclear.clj":0.15,"TQQQ-FLT.clj":0.15,"TECL.clj":0.15,"Starburst.clj":0.2,"Grail.clj":0.2}'
 
 Resources:
   # Lambda Layer for dependencies
