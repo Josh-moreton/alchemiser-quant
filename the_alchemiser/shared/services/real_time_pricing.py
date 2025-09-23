@@ -90,6 +90,17 @@ class RealTimeQuote:
         return self.last_price
 
 
+@dataclass
+class _SubscriptionPlan:
+    """Internal helper class for bulk subscription planning."""
+
+    results: dict[str, bool]
+    symbols_to_add: list[str]
+    symbols_to_replace: list[str]
+    available_slots: int
+    successfully_added: int = 0
+
+
 class RealTimePricingService:
     """Real-time pricing service using Alpaca's WebSocket data streams.
 
@@ -300,7 +311,9 @@ class RealTimePricingService:
                     task.cancel()
 
                 if pending:
-                    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                    loop.run_until_complete(
+                        asyncio.gather(*pending, return_exceptions=True)
+                    )
 
                 loop.close()
             except Exception as e:
@@ -357,7 +370,9 @@ class RealTimePricingService:
                     # If we get here, the stream closed normally
                     logging.info("📡 Real-time data stream closed normally")
                     break  # No symbols to subscribe to - wait for symbols to be added
-                logging.info("📡 No symbols to subscribe to, waiting for subscription requests...")
+                logging.info(
+                    "📡 No symbols to subscribe to, waiting for subscription requests..."
+                )
                 self._connected = True  # Mark as ready to receive subscriptions
 
                 # Wait for subscriptions to be added
@@ -368,7 +383,9 @@ class RealTimePricingService:
 
                 # If symbols were added, restart the loop to set up subscriptions
                 if symbols_to_subscribe:
-                    logging.info(f"📡 New subscriptions detected: {sorted(symbols_to_subscribe)}")
+                    logging.info(
+                        f"📡 New subscriptions detected: {sorted(symbols_to_subscribe)}"
+                    )
                     # Reset connection state to force re-setup
                     self._connected = False
                     continue
@@ -379,15 +396,21 @@ class RealTimePricingService:
 
             except Exception as e:
                 retry_count += 1
-                delay = min(base_delay * (2 ** (retry_count - 1)), 30.0)  # Cap at 30 seconds
+                delay = min(
+                    base_delay * (2 ** (retry_count - 1)), 30.0
+                )  # Cap at 30 seconds
 
-                logging.error(f"❌ Real-time data stream error (attempt {retry_count}): {e}")
+                logging.error(
+                    f"❌ Real-time data stream error (attempt {retry_count}): {e}"
+                )
 
                 if retry_count < max_retries and self._should_reconnect:
                     logging.info(f"⏱️ Retrying in {delay:.1f} seconds...")
                     await asyncio.sleep(delay)
                 else:
-                    logging.error("🚨 Max retries exceeded, stopping real-time pricing service")
+                    logging.error(
+                        "🚨 Max retries exceeded, stopping real-time pricing service"
+                    )
                     break
             finally:
                 self._connected = False
@@ -427,10 +450,16 @@ class RealTimePricingService:
                 timestamp_raw = getattr(data, "timestamp", None)
 
             # Ensure timestamp is a datetime
-            timestamp = timestamp_raw if isinstance(timestamp_raw, datetime) else datetime.now(UTC)
+            timestamp = (
+                timestamp_raw
+                if isinstance(timestamp_raw, datetime)
+                else datetime.now(UTC)
+            )
 
             # Log for debugging
-            self.logger.debug(f"📊 Quote received for {symbol}: bid={bid_price}, ask={ask_price}")
+            self.logger.debug(
+                f"📊 Quote received for {symbol}: bid={bid_price}, ask={ask_price}"
+            )
 
             # Store complete quote data
             self._latest_quotes[symbol] = data
@@ -484,7 +513,9 @@ class RealTimePricingService:
                 symbol_raw = trade.symbol
                 price = trade.price
                 size = trade.size
-                volume = getattr(trade, "volume", size)  # New field for structured types
+                volume = getattr(
+                    trade, "volume", size
+                )  # New field for structured types
                 timestamp_raw = trade.timestamp
 
             # Ensure symbol is a string
@@ -493,7 +524,11 @@ class RealTimePricingService:
             symbol = str(symbol_raw)
 
             # Ensure timestamp is a datetime
-            timestamp = timestamp_raw if isinstance(timestamp_raw, datetime) else datetime.now(UTC)
+            timestamp = (
+                timestamp_raw
+                if isinstance(timestamp_raw, datetime)
+                else datetime.now(UTC)
+            )
 
             # Update last trade price with both legacy and structured storage
             with self._quotes_lock:
@@ -572,7 +607,9 @@ class RealTimePricingService:
                         self._last_update.pop(symbol, None)
 
                     if symbols_to_remove:
-                        logging.info(f"🧹 Cleaned up {len(symbols_to_remove)} old quotes")
+                        logging.info(
+                            f"🧹 Cleaned up {len(symbols_to_remove)} old quotes"
+                        )
 
             except Exception as e:
                 logging.error(f"Error during quote cleanup: {e}")
@@ -714,9 +751,13 @@ class RealTimePricingService:
 
     def get_stats(self) -> dict[str, str | int | float | datetime | bool]:
         """Get service statistics."""
-        last_hb = self._datetime_stats.get("last_heartbeat")  # May be absent until first trade
+        last_hb = self._datetime_stats.get(
+            "last_heartbeat"
+        )  # May be absent until first trade
         uptime = (
-            (datetime.now(UTC) - last_hb).total_seconds() if isinstance(last_hb, datetime) else 0
+            (datetime.now(UTC) - last_hb).total_seconds()
+            if isinstance(last_hb, datetime)
+            else 0
         )
         return {
             **self._stats,
@@ -737,7 +778,9 @@ class RealTimePricingService:
         """
         import os
 
-        feed = (os.getenv("ALPACA_FEED") or os.getenv("ALPACA_DATA_FEED") or "iex").lower()
+        feed = (
+            os.getenv("ALPACA_FEED") or os.getenv("ALPACA_DATA_FEED") or "iex"
+        ).lower()
         if feed not in {"iex", "sip"}:
             self.logger.warning(f"Unknown ALPACA_FEED '{feed}', defaulting to 'iex'")
             return "iex"
@@ -759,82 +802,123 @@ class RealTimePricingService:
         if priority is None:
             priority = time.time()  # Use current timestamp as default priority
 
-        results: dict[str, bool] = {}
-        normalized_symbols = [symbol.upper().strip() for symbol in symbols if symbol.strip()]
-
+        normalized_symbols = self._normalize_symbols(symbols)
         if not normalized_symbols:
-            return results
+            return {}
 
         logging.info(
             f"📡 Bulk subscribing to {len(normalized_symbols)} symbols with priority {priority:.1f}"
         )
 
         with self._subscription_lock:
-            # Process each symbol
-            symbols_to_add = []
-            symbols_to_replace: list[str] = []
+            subscription_plan = self._plan_bulk_subscription(
+                normalized_symbols, priority
+            )
+            self._execute_subscription_plan(subscription_plan, priority)
 
-            for symbol in normalized_symbols:
-                if symbol in self._subscribed_symbols:
-                    # Update priority for existing subscription
-                    self._subscription_priority[symbol] = max(
-                        self._subscription_priority.get(symbol, 0), priority
-                    )
-                    results[symbol] = True
-                    logging.debug(
-                        f"Already subscribed to {symbol}, updated priority to {self._subscription_priority[symbol]:.1f}"
-                    )
-                else:
-                    symbols_to_add.append(symbol)
-
-            # Calculate how many we can actually subscribe to
-            available_slots = self._max_symbols - len(self._subscribed_symbols)
-
-            if len(symbols_to_add) > available_slots:
-                # Need to replace some existing subscriptions if we have higher priority
-                existing_symbols = sorted(
-                    self._subscription_priority.keys(),
-                    key=lambda x: self._subscription_priority.get(x, 0),
-                )
-
-                symbols_needed = len(symbols_to_add) - available_slots
-                for symbol in existing_symbols:
-                    if len(symbols_to_replace) >= symbols_needed:
-                        break
-                    if self._subscription_priority.get(symbol, 0) < priority:
-                        symbols_to_replace.append(symbol)
-
-                # Remove symbols to be replaced
-                for symbol_to_remove in symbols_to_replace:
-                    self._subscribed_symbols.discard(symbol_to_remove)
-                    self._subscription_priority.pop(symbol_to_remove, None)
-                    available_slots += 1
-                    self._stats["subscription_limit_hits"] += 1
-                    logging.info(f"📊 Replaced {symbol_to_remove} for higher priority symbols")
-
-            # Add new symbols
-            successfully_added = 0
-            for symbol in symbols_to_add[:available_slots]:
-                self._subscribed_symbols.add(symbol)
-                self._subscription_priority[symbol] = priority
-                results[symbol] = True
-                successfully_added += 1
-                self._stats["total_subscriptions"] += 1
-
-            # Mark symbols we couldn't subscribe to due to limits
-            for symbol in symbols_to_add[available_slots:]:
-                results[symbol] = False
-                logging.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
-
-        # Restart stream if we added new symbols and are connected
-        if successfully_added > 0 and self._connected:
-            logging.info(f"🔄 Restarting stream to add {successfully_added} new subscriptions")
-            self._restart_stream_for_new_subscription()
+        self._restart_stream_if_needed(subscription_plan.successfully_added)
 
         logging.info(
-            f"✅ Bulk subscription complete: {successfully_added}/{len(symbols_to_add)} new symbols subscribed"
+            f"✅ Bulk subscription complete: {subscription_plan.successfully_added}/"
+            f"{len(subscription_plan.symbols_to_add)} new symbols subscribed"
         )
-        return results
+        return subscription_plan.results
+
+    def _normalize_symbols(self, symbols: list[str]) -> list[str]:
+        """Normalize symbol list by cleaning and filtering."""
+        return [symbol.upper().strip() for symbol in symbols if symbol.strip()]
+
+    def _plan_bulk_subscription(
+        self, symbols: list[str], priority: float
+    ) -> _SubscriptionPlan:
+        """Plan bulk subscription operations."""
+        results: dict[str, bool] = {}
+        symbols_to_add = []
+
+        # Handle existing symbols
+        for symbol in symbols:
+            if symbol in self._subscribed_symbols:
+                self._subscription_priority[symbol] = max(
+                    self._subscription_priority.get(symbol, 0), priority
+                )
+                results[symbol] = True
+                logging.debug(
+                    f"Already subscribed to {symbol}, updated priority to "
+                    f"{self._subscription_priority[symbol]:.1f}"
+                )
+            else:
+                symbols_to_add.append(symbol)
+
+        # Calculate capacity and replacements
+        available_slots = self._max_symbols - len(self._subscribed_symbols)
+        symbols_to_replace = self._find_symbols_to_replace(
+            symbols_to_add, available_slots, priority
+        )
+
+        return _SubscriptionPlan(
+            results=results,
+            symbols_to_add=symbols_to_add,
+            symbols_to_replace=symbols_to_replace,
+            available_slots=available_slots + len(symbols_to_replace),
+            successfully_added=0,
+        )
+
+    def _find_symbols_to_replace(
+        self, symbols_to_add: list[str], available_slots: int, priority: float
+    ) -> list[str]:
+        """Find existing symbols that can be replaced with higher priority ones."""
+        if len(symbols_to_add) <= available_slots:
+            return []
+
+        existing_symbols = sorted(
+            self._subscription_priority.keys(),
+            key=lambda x: self._subscription_priority.get(x, 0),
+        )
+
+        symbols_to_replace: list[str] = []
+        symbols_needed = len(symbols_to_add) - available_slots
+
+        for symbol in existing_symbols:
+            if len(symbols_to_replace) >= symbols_needed:
+                break
+            if self._subscription_priority.get(symbol, 0) < priority:
+                symbols_to_replace.append(symbol)
+
+        return symbols_to_replace
+
+    def _execute_subscription_plan(
+        self, plan: _SubscriptionPlan, priority: float
+    ) -> None:
+        """Execute the planned subscription operations."""
+        # Remove symbols to be replaced
+        for symbol_to_remove in plan.symbols_to_replace:
+            self._subscribed_symbols.discard(symbol_to_remove)
+            self._subscription_priority.pop(symbol_to_remove, None)
+            self._stats["subscription_limit_hits"] += 1
+            logging.info(f"📊 Replaced {symbol_to_remove} for higher priority symbols")
+
+        # Add new symbols
+        for symbol in plan.symbols_to_add[: plan.available_slots]:
+            self._subscribed_symbols.add(symbol)
+            self._subscription_priority[symbol] = priority
+            plan.results[symbol] = True
+            plan.successfully_added += 1
+            self._stats["total_subscriptions"] += 1
+
+        # Mark symbols we couldn't subscribe to due to limits
+        for symbol in plan.symbols_to_add[plan.available_slots :]:
+            plan.results[symbol] = False
+            logging.warning(
+                f"⚠️ Cannot subscribe to {symbol} - subscription limit reached"
+            )
+
+    def _restart_stream_if_needed(self, successfully_added: int) -> None:
+        """Restart stream if new symbols were added and we're connected."""
+        if successfully_added > 0 and self._connected:
+            logging.info(
+                f"🔄 Restarting stream to add {successfully_added} new subscriptions"
+            )
+            self._restart_stream_for_new_subscription()
 
     def subscribe_symbol(self, symbol: str, priority: float | None = None) -> None:
         """Subscribe to real-time updates for a specific symbol with smart limit management.
@@ -859,7 +943,9 @@ class RealTimePricingService:
                     self._subscribed_symbols,
                     key=lambda s: self._subscription_priority.get(s, 0),
                 )
-                lowest_priority = self._subscription_priority.get(lowest_priority_symbol, 0)
+                lowest_priority = self._subscription_priority.get(
+                    lowest_priority_symbol, 0
+                )
 
                 if priority > lowest_priority:
                     # Unsubscribe lowest priority symbol
@@ -881,8 +967,12 @@ class RealTimePricingService:
                 self._subscription_priority[symbol] = priority
                 needs_restart = self._connected  # Only restart if already connected
 
-                logging.info(f"📡 Added {symbol} to subscription list (priority: {priority:.1f})")
-                logging.debug(f"📊 Current subscriptions: {sorted(self._subscribed_symbols)}")
+                logging.info(
+                    f"📡 Added {symbol} to subscription list (priority: {priority:.1f})"
+                )
+                logging.debug(
+                    f"📊 Current subscriptions: {sorted(self._subscribed_symbols)}"
+                )
                 self._stats["total_subscriptions"] += 1
             else:
                 # Update priority for existing subscription
@@ -928,7 +1018,9 @@ class RealTimePricingService:
             start_time = time.time()
             while time.time() - start_time < 5.0:
                 if self._connected:
-                    logging.info("✅ Stream restarted successfully with new subscriptions")
+                    logging.info(
+                        "✅ Stream restarted successfully with new subscriptions"
+                    )
                     break
                 time.sleep(0.1)
 
@@ -1017,7 +1109,9 @@ class RealTimePricingService:
             # Check if we have recent data for this symbol
             if symbol in self._quotes and symbol in self._last_update:
                 # If data is very recent (within 1 second), use it immediately
-                time_since_update = (datetime.now(UTC) - self._last_update[symbol]).total_seconds()
+                time_since_update = (
+                    datetime.now(UTC) - self._last_update[symbol]
+                ).total_seconds()
                 if time_since_update < 1.0:
                     break
 
@@ -1045,7 +1139,9 @@ class RealTimePricingManager:
     existing trading systems while maintaining backward compatibility.
     """
 
-    def __init__(self, api_key: str, secret_key: str, *, paper_trading: bool = True) -> None:
+    def __init__(
+        self, api_key: str, secret_key: str, *, paper_trading: bool = True
+    ) -> None:
         """Initialize real-time pricing manager.
 
         Args:
@@ -1096,7 +1192,11 @@ class RealTimePricingManager:
         primary_provider = type(
             "PriceProvider",
             (),
-            {"get_current_price": lambda _, sym: self.pricing_service.get_real_time_price(sym)},
+            {
+                "get_current_price": lambda _, sym: self.pricing_service.get_real_time_price(
+                    sym
+                )
+            },
         )()
 
         # Create fallback provider wrapper if available
@@ -1114,7 +1214,9 @@ class RealTimePricingManager:
                 },
             )()
 
-        return get_current_price_with_fallback(primary_provider, fallback_provider, symbol)
+        return get_current_price_with_fallback(
+            primary_provider, fallback_provider, symbol
+        )
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
         """Get latest bid/ask quote with real-time data priority.
