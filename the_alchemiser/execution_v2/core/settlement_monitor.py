@@ -206,8 +206,10 @@ class SettlementMonitor:
 
         """
         try:
-            # Use AlpacaManager to get order details
-            order = self.alpaca_manager._trading_client.get_order_by_id(order_id)
+            # Use asyncio.to_thread to make blocking I/O async
+            order = await asyncio.to_thread(
+                self.alpaca_manager._trading_client.get_order_by_id, order_id
+            )
 
             if not order:
                 return None

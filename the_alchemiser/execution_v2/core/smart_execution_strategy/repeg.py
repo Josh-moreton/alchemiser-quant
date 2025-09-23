@@ -8,6 +8,7 @@ orders when maximum re-peg attempts are reached.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -211,7 +212,8 @@ class RepegManager:
                 f"🛑 Escalating order {order_id} to market: canceling existing limit order "
                 f"(after {self.order_tracker.get_repeg_count(order_id)} re-pegs)"
             )
-            cancel_success = self.alpaca_manager.cancel_order(order_id)
+            # Use asyncio.to_thread to make blocking I/O async
+            cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
             if not cancel_success:
                 logger.warning(
                     f"⚠️ Failed to cancel order {order_id}; attempting market order anyway"
@@ -220,7 +222,8 @@ class RepegManager:
 
             # Place market order
             logger.info(f"📈 Placing market order for {request.symbol} {request.side}")
-            executed_order = self.alpaca_manager.place_market_order(
+            executed_order = await asyncio.to_thread(
+                self.alpaca_manager.place_market_order,
                 symbol=request.symbol,
                 side=request.side.lower(),
                 qty=float(request.quantity),
@@ -298,7 +301,8 @@ class RepegManager:
         try:
             # Cancel the existing order
             logger.info(f"❌ Canceling order {order_id} for re-pegging")
-            cancel_success = self.alpaca_manager.cancel_order(order_id)
+            # Use asyncio.to_thread to make blocking I/O async
+            cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
 
             if not cancel_success:
                 logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
@@ -351,7 +355,9 @@ class RepegManager:
                 )
                 return None
 
-            executed_order = self.alpaca_manager.place_limit_order(
+            # Use asyncio.to_thread to make blocking I/O async
+            executed_order = await asyncio.to_thread(
+                self.alpaca_manager.place_limit_order,
                 symbol=request.symbol,
                 side=request.side.lower(),
                 quantity=float(request.quantity),
