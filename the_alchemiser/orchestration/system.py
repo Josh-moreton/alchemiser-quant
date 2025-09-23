@@ -18,7 +18,7 @@ if TYPE_CHECKING:
         EventDrivenOrchestrator,
     )
 
-from the_alchemiser.orchestration.cli.trading_display import (
+from the_alchemiser.orchestration.display_utils import (
     display_post_execution_tracking,
     display_rebalance_plan,
     display_signals_summary,
@@ -196,7 +196,8 @@ class TradingSystem:
             # Export tracking summary if requested
             if export_tracking_json:
                 export_tracking_summary(
-                    export_path=export_tracking_json,
+                    trading_result,
+                    export_tracking_json,
                     paper_trading=not orchestrator.live_trading,
                 )
 

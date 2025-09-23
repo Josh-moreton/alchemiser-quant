@@ -55,8 +55,7 @@ pyright = "^1.1.405"  # Supplemental static type analysis (optional CI/nightly)
 import-linter = "^2.5"  # Module dependency enforcement
 pytest-asyncio = "^1.2.0"
 
-[tool.poetry.scripts]
-alchemiser = "the_alchemiser.orchestration.cli.cli:app"
+
 
 [tool.poetry.urls]
 Homepage = "https://github.com/Josh-moreton/The-Alchemiser"
