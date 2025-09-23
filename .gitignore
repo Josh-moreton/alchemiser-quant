@@ -65,3 +65,7 @@ dist/
 
 # Trade Ledger
 data/*
+
+# Test snapshots (can be regenerated)
+tests/snapshots/*
+!tests/snapshots/.gitkeep
