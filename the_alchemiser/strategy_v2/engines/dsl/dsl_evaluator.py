@@ -51,6 +51,244 @@ class DslEvaluationError(Exception):
     """Error during DSL evaluation."""
 
 
+class _DataRequirementsCalculator:
+    """Calculates data requirements for different indicator types."""
+
+    @staticmethod
+    def required_bars(indicator_type: str, parameters: dict[str, int | float | str] | None) -> int:
+        """Calculate required bars for indicator computation."""
+        window = int(parameters.get("window", 0)) if parameters else 0
+        if indicator_type in {
+            "moving_average",
+            "exponential_moving_average_price", 
+            "max_drawdown",
+        }:
+            return max(window, 200)
+        if indicator_type in {
+            "moving_average_return",
+            "stdev_return",
+            "cumulative_return",
+        }:
+            # Need at least window plus some extra for pct_change/shift stability
+            return max(window + 5, 60)
+        if indicator_type == "rsi":
+            # RSI stabilizes with more data; fetch ~3x window (min 200)
+            return max(window * 3 if window > 0 else 200, 200)
+        if indicator_type == "current_price":
+            return 1
+        return 252  # sensible default (~1Y)
+
+    @staticmethod
+    def period_for_bars(required_bars: int) -> str:
+        """Convert required trading bars to calendar period string."""
+        # Use years granularity to avoid weekend/holiday gaps; add 10% safety margin
+        bars_with_buffer = math.ceil(required_bars * 1.1)
+        years = max(1, math.ceil(bars_with_buffer / 252))
+        return f"{years}Y"
+
+
+class _BaseIndicatorCalculator:
+    """Base class for indicator calculations."""
+    
+    def __init__(self, technical_indicators: TechnicalIndicators):
+        self.technical_indicators = technical_indicators
+
+    def _get_current_price_decimal(self, prices: "pd.Series") -> Decimal:
+        """Get current price as Decimal."""
+        import pandas as pd
+        return (
+            Decimal(str(prices.iloc[-1]))
+            if len(prices) > 0
+            else Decimal("100.0")
+        )
+
+    def _validate_result(self, result: float | None, indicator_name: str, symbol: str, window: int | None = None) -> float:
+        """Validate indicator calculation result."""
+        import pandas as pd
+        if result is None or pd.isna(result):
+            window_str = f" window={window}" if window is not None else ""
+            raise DslEvaluationError(f"No {indicator_name} available for {symbol}{window_str}")
+        return float(result)
+
+
+class _RSICalculator(_BaseIndicatorCalculator):
+    """Calculator for RSI indicators."""
+    
+    def calculate(self, prices: "pd.Series", symbol: str, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
+        """Calculate RSI indicator."""
+        import pandas as pd
+        
+        window = parameters.get("window", 14)
+        rsi_series = self.technical_indicators.rsi(prices, window=window)
+        
+        # Get the most recent RSI value
+        if len(rsi_series) > 0 and not pd.isna(rsi_series.iloc[-1]):
+            rsi_value = float(rsi_series.iloc[-1])
+        else:
+            rsi_value = 50.0  # Neutral fallback
+
+        return TechnicalIndicatorDTO(
+            symbol=symbol,
+            timestamp=datetime.now(UTC),
+            rsi_14=rsi_value if window == 14 else None,
+            rsi_10=rsi_value if window == 10 else None,
+            rsi_20=rsi_value if window == 20 else None,
+            rsi_21=rsi_value if window == 21 else None,
+            current_price=self._get_current_price_decimal(prices),
+            data_source="real_market_data",
+            metadata={"value": rsi_value, "window": window},
+        )
+
+
+class _CurrentPriceCalculator(_BaseIndicatorCalculator):
+    """Calculator for current price indicators."""
+    
+    def calculate(self, prices: "pd.Series", symbol: str, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
+        """Calculate current price indicator."""
+        last_price = float(prices.iloc[-1]) if len(prices) > 0 else None
+        if last_price is None:
+            raise DslEvaluationError(f"No last price for symbol {symbol}")
+        
+        return TechnicalIndicatorDTO(
+            symbol=symbol,
+            timestamp=datetime.now(UTC),
+            rsi_14=None,
+            rsi_10=None,
+            rsi_21=None,
+            current_price=Decimal(str(last_price)),
+            data_source="real_market_data",
+            metadata={"value": last_price},
+        )
+
+
+class _MovingAverageCalculator(_BaseIndicatorCalculator):
+    """Calculator for moving average indicators."""
+    
+    def calculate(self, prices: "pd.Series", symbol: str, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
+        """Calculate moving average indicator."""
+        window = int(parameters.get("window", 200))
+        ma_series = self.technical_indicators.moving_average(prices, window=window)
+        
+        latest_ma = float(ma_series.iloc[-1]) if len(ma_series) > 0 else None
+        validated_ma = self._validate_result(latest_ma, "moving average", symbol, window)
+        
+        return TechnicalIndicatorDTO(
+            symbol=symbol,
+            timestamp=datetime.now(UTC),
+            current_price=self._get_current_price_decimal(prices),
+            ma_20=validated_ma if window == 20 else None,
+            ma_50=validated_ma if window == 50 else None,
+            ma_200=validated_ma if window == 200 else None,
+            data_source="real_market_data",
+            metadata={"value": validated_ma, "window": window},
+        )
+
+
+class _MovingAverageReturnCalculator(_BaseIndicatorCalculator):
+    """Calculator for moving average return indicators."""
+    
+    def calculate(self, prices: "pd.Series", symbol: str, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
+        """Calculate moving average return indicator."""
+        window = int(parameters.get("window", 21))
+        mar_series = self.technical_indicators.moving_average_return(prices, window=window)
+        
+        latest = float(mar_series.iloc[-1]) if len(mar_series) > 0 else None
+        validated_return = self._validate_result(latest, "moving average return", symbol, window)
+        
+        return TechnicalIndicatorDTO(
+            symbol=symbol,
+            timestamp=datetime.now(UTC),
+            current_price=self._get_current_price_decimal(prices),
+            ma_return_90=validated_return if window == 90 else None,
+            data_source="real_market_data",
+            metadata={"value": validated_return, "window": window},
+        )
+
+
+class _CumulativeReturnCalculator(_BaseIndicatorCalculator):
+    """Calculator for cumulative return indicators."""
+    
+    def calculate(self, prices: "pd.Series", symbol: str, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
+        """Calculate cumulative return indicator."""
+        window = int(parameters.get("window", 60))
+        cum_series = self.technical_indicators.cumulative_return(prices, window=window)
+        
+        latest = float(cum_series.iloc[-1]) if len(cum_series) > 0 else None
+        validated_return = self._validate_result(latest, "cumulative return", symbol, window)
+        
+        return TechnicalIndicatorDTO(
+            symbol=symbol,
+            timestamp=datetime.now(UTC),
+            current_price=self._get_current_price_decimal(prices),
+            cum_return_60=validated_return if window == 60 else None,
+            data_source="real_market_data",
+            metadata={"value": validated_return, "window": window},
+        )
+
+
+class _EMACalculator(_BaseIndicatorCalculator):
+    """Calculator for exponential moving average indicators."""
+    
+    def calculate(self, prices: "pd.Series", symbol: str, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
+        """Calculate exponential moving average indicator."""
+        window = int(parameters.get("window", 12))
+        ema_series = self.technical_indicators.exponential_moving_average(prices, window=window)
+        
+        latest = float(ema_series.iloc[-1]) if len(ema_series) > 0 else None
+        validated_ema = self._validate_result(latest, "EMA", symbol, window)
+        
+        return TechnicalIndicatorDTO(
+            symbol=symbol,
+            timestamp=datetime.now(UTC),
+            current_price=self._get_current_price_decimal(prices),
+            ema_12=validated_ema if window == 12 else None,
+            ema_26=validated_ema if window == 26 else None,
+            data_source="real_market_data",
+            metadata={"value": validated_ema, "window": window},
+        )
+
+
+class _StdevReturnCalculator(_BaseIndicatorCalculator):
+    """Calculator for standard deviation return indicators."""
+    
+    def calculate(self, prices: "pd.Series", symbol: str, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
+        """Calculate standard deviation return indicator."""
+        window = int(parameters.get("window", 6))
+        std_series = self.technical_indicators.stdev_return(prices, window=window)
+        
+        latest = float(std_series.iloc[-1]) if len(std_series) > 0 else None
+        validated_stdev = self._validate_result(latest, "stdev-return", symbol, window)
+        
+        return TechnicalIndicatorDTO(
+            symbol=symbol,
+            timestamp=datetime.now(UTC),
+            current_price=self._get_current_price_decimal(prices),
+            stdev_return_6=validated_stdev if window == 6 else None,
+            data_source="real_market_data",
+            metadata={"value": validated_stdev, "window": window},
+        )
+
+
+class _MaxDrawdownCalculator(_BaseIndicatorCalculator):
+    """Calculator for maximum drawdown indicators."""
+    
+    def calculate(self, prices: "pd.Series", symbol: str, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
+        """Calculate maximum drawdown indicator."""
+        window = int(parameters.get("window", 60))
+        mdd_series = self.technical_indicators.max_drawdown(prices, window=window)
+        
+        latest = float(mdd_series.iloc[-1]) if len(mdd_series) > 0 else None
+        validated_mdd = self._validate_result(latest, "max-drawdown", symbol, window)
+        
+        return TechnicalIndicatorDTO(
+            symbol=symbol,
+            timestamp=datetime.now(UTC),
+            current_price=self._get_current_price_decimal(prices),
+            data_source="real_market_data",
+            metadata={"value": validated_mdd, "window": window},
+        )
+
+
 class IndicatorService:
     """Service for computing technical indicators using real market data.
 
@@ -69,6 +307,21 @@ class IndicatorService:
         self.technical_indicators = (
             TechnicalIndicators() if market_data_service else None
         )
+        
+        # Initialize calculator registry
+        if self.technical_indicators:
+            self._calculators = {
+                "rsi": _RSICalculator(self.technical_indicators),
+                "current_price": _CurrentPriceCalculator(self.technical_indicators),
+                "moving_average": _MovingAverageCalculator(self.technical_indicators),
+                "moving_average_return": _MovingAverageReturnCalculator(self.technical_indicators),
+                "cumulative_return": _CumulativeReturnCalculator(self.technical_indicators),
+                "exponential_moving_average_price": _EMACalculator(self.technical_indicators),
+                "stdev_return": _StdevReturnCalculator(self.technical_indicators),
+                "max_drawdown": _MaxDrawdownCalculator(self.technical_indicators),
+            }
+        else:
+            self._calculators = {}
 
     def get_indicator(self, request: IndicatorRequestDTO) -> TechnicalIndicatorDTO:
         """Get technical indicator for symbol using real market data.
@@ -80,10 +333,6 @@ class IndicatorService:
             TechnicalIndicatorDTO with real indicator data
 
         """
-        symbol = request.symbol
-        indicator_type = request.indicator_type
-        parameters = request.parameters
-
         # Require real market data; no mocks
         if not self.market_data_service or not self.technical_indicators:
             raise DslEvaluationError(
@@ -91,42 +340,18 @@ class IndicatorService:
             )
 
         try:
-            # Compute dynamic lookback based on indicator/window to ensure enough bars
-            def _required_bars(
-                ind_type: str, params: dict[str, int | float | str]
-            ) -> int:
-                window = int(params.get("window", 0)) if params else 0
-                if ind_type in {
-                    "moving_average",
-                    "exponential_moving_average_price",
-                    "max_drawdown",
-                }:
-                    return max(window, 200)
-                if ind_type in {
-                    "moving_average_return",
-                    "stdev_return",
-                    "cumulative_return",
-                }:
-                    # Need at least window plus some extra for pct_change/shift stability
-                    return max(window + 5, 60)
-                if ind_type == "rsi":
-                    # RSI stabilizes with more data; fetch ~3x window (min 200)
-                    return max(window * 3 if window > 0 else 200, 200)
-                if ind_type == "current_price":
-                    return 1
-                return 252  # sensible default (~1Y)
+            symbol = request.symbol
+            indicator_type = request.indicator_type
+            parameters = request.parameters or {}
 
-            def _period_for_bars(required_bars: int) -> str:
-                # Convert required trading bars to calendar period string understood by MarketDataService
-                # Use years granularity to avoid weekend/holiday gaps; add 10% safety margin
-                bars_with_buffer = math.ceil(required_bars * 1.1)
-                years = max(1, math.ceil(bars_with_buffer / 252))
-                return f"{years}Y"
+            # Validate indicator type
+            if indicator_type not in self._calculators:
+                raise DslEvaluationError(f"Unsupported indicator type: {indicator_type}")
 
-            required = _required_bars(indicator_type, parameters)
-            period = _period_for_bars(required)
-
-            # Fetch bars with computed lookback
+            # Calculate data requirements and fetch bars
+            required_bars = _DataRequirementsCalculator.required_bars(indicator_type, parameters)
+            period = _DataRequirementsCalculator.period_for_bars(required_bars)
+            
             symbol_obj = Symbol(symbol)
             bars = self.market_data_service.get_bars(
                 symbol=symbol_obj,
@@ -135,197 +360,15 @@ class IndicatorService:
             )
 
             if not bars:
-                raise DslEvaluationError(
-                    f"No market data available for symbol {symbol}"
-                )
+                raise DslEvaluationError(f"No market data available for symbol {symbol}")
 
             # Convert bars to pandas Series for technical indicators
             import pandas as pd
-
             prices = pd.Series([float(bar.close) for bar in bars])
 
-            if indicator_type == "rsi":
-                window = parameters.get("window", 14)
-                rsi_series = self.technical_indicators.rsi(prices, window=window)
-
-                # Get the most recent RSI value
-                if len(rsi_series) > 0 and not pd.isna(rsi_series.iloc[-1]):
-                    rsi_value = float(rsi_series.iloc[-1])
-                else:
-                    rsi_value = 50.0  # Neutral fallback
-
-                return TechnicalIndicatorDTO(
-                    symbol=symbol,
-                    timestamp=datetime.now(UTC),
-                    rsi_14=rsi_value if window == 14 else None,
-                    rsi_10=rsi_value if window == 10 else None,
-                    rsi_20=rsi_value if window == 20 else None,
-                    rsi_21=rsi_value if window == 21 else None,
-                    current_price=(
-                        Decimal(str(prices.iloc[-1]))
-                        if len(prices) > 0
-                        else Decimal("100.0")
-                    ),
-                    data_source="real_market_data",
-                    metadata={"value": rsi_value, "window": window},
-                )
-            if indicator_type == "current_price":
-                last_price = float(prices.iloc[-1]) if len(prices) > 0 else None
-                if last_price is None:
-                    raise DslEvaluationError(f"No last price for symbol {symbol}")
-                return TechnicalIndicatorDTO(
-                    symbol=symbol,
-                    timestamp=datetime.now(UTC),
-                    rsi_14=None,
-                    rsi_10=None,
-                    rsi_21=None,
-                    current_price=Decimal(str(last_price)),
-                    data_source="real_market_data",
-                    metadata={"value": last_price},
-                )
-
-            if indicator_type == "moving_average":
-                window = int(parameters.get("window", 200))
-                ma_series = self.technical_indicators.moving_average(
-                    prices, window=window
-                )
-                import pandas as pd
-
-                latest_ma = float(ma_series.iloc[-1]) if len(ma_series) > 0 else None
-                if latest_ma is None or pd.isna(latest_ma):
-                    raise DslEvaluationError(
-                        f"No moving average available for {symbol} window={window}"
-                    )
-                return TechnicalIndicatorDTO(
-                    symbol=symbol,
-                    timestamp=datetime.now(UTC),
-                    current_price=(
-                        Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None
-                    ),
-                    ma_20=latest_ma if window == 20 else None,
-                    ma_50=latest_ma if window == 50 else None,
-                    ma_200=latest_ma if window == 200 else None,
-                    data_source="real_market_data",
-                    metadata={"value": latest_ma, "window": window},
-                )
-
-            if indicator_type == "moving_average_return":
-                window = int(parameters.get("window", 21))
-                mar_series = self.technical_indicators.moving_average_return(
-                    prices, window=window
-                )
-                import pandas as pd
-
-                latest = float(mar_series.iloc[-1]) if len(mar_series) > 0 else None
-                if latest is None or pd.isna(latest):
-                    raise DslEvaluationError(
-                        f"No moving average return for {symbol} window={window}"
-                    )
-                return TechnicalIndicatorDTO(
-                    symbol=symbol,
-                    timestamp=datetime.now(UTC),
-                    current_price=(
-                        Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None
-                    ),
-                    ma_return_90=latest if window == 90 else None,
-                    data_source="real_market_data",
-                    metadata={"value": latest, "window": window},
-                )
-
-            if indicator_type == "cumulative_return":
-                window = int(parameters.get("window", 60))
-                cum_series = self.technical_indicators.cumulative_return(
-                    prices, window=window
-                )
-                import pandas as pd
-
-                latest = float(cum_series.iloc[-1]) if len(cum_series) > 0 else None
-                if latest is None or pd.isna(latest):
-                    raise DslEvaluationError(
-                        f"No cumulative return for {symbol} window={window}"
-                    )
-                return TechnicalIndicatorDTO(
-                    symbol=symbol,
-                    timestamp=datetime.now(UTC),
-                    current_price=(
-                        Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None
-                    ),
-                    cum_return_60=latest if window == 60 else None,
-                    data_source="real_market_data",
-                    metadata={"value": latest, "window": window},
-                )
-
-            if indicator_type == "exponential_moving_average_price":
-                window = int(parameters.get("window", 12))
-                ema_series = self.technical_indicators.exponential_moving_average(
-                    prices, window=window
-                )
-                import pandas as pd
-
-                latest = float(ema_series.iloc[-1]) if len(ema_series) > 0 else None
-                if latest is None or pd.isna(latest):
-                    raise DslEvaluationError(
-                        f"No EMA available for {symbol} window={window}"
-                    )
-                return TechnicalIndicatorDTO(
-                    symbol=symbol,
-                    timestamp=datetime.now(UTC),
-                    current_price=(
-                        Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None
-                    ),
-                    ema_12=latest if window == 12 else None,
-                    ema_26=latest if window == 26 else None,
-                    data_source="real_market_data",
-                    metadata={"value": latest, "window": window},
-                )
-
-            if indicator_type == "stdev_return":
-                window = int(parameters.get("window", 6))
-                std_series = self.technical_indicators.stdev_return(
-                    prices, window=window
-                )
-                import pandas as pd
-
-                latest = float(std_series.iloc[-1]) if len(std_series) > 0 else None
-                if latest is None or pd.isna(latest):
-                    raise DslEvaluationError(
-                        f"No stdev-return for {symbol} window={window}"
-                    )
-                return TechnicalIndicatorDTO(
-                    symbol=symbol,
-                    timestamp=datetime.now(UTC),
-                    current_price=(
-                        Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None
-                    ),
-                    stdev_return_6=latest if window == 6 else None,
-                    data_source="real_market_data",
-                    metadata={"value": latest, "window": window},
-                )
-
-            if indicator_type == "max_drawdown":
-                window = int(parameters.get("window", 60))
-                mdd_series = self.technical_indicators.max_drawdown(
-                    prices, window=window
-                )
-                import pandas as pd
-
-                latest = float(mdd_series.iloc[-1]) if len(mdd_series) > 0 else None
-                if latest is None or pd.isna(latest):
-                    raise DslEvaluationError(
-                        f"No max-drawdown for {symbol} window={window}"
-                    )
-                return TechnicalIndicatorDTO(
-                    symbol=symbol,
-                    timestamp=datetime.now(UTC),
-                    current_price=(
-                        Decimal(str(prices.iloc[-1])) if len(prices) > 0 else None
-                    ),
-                    data_source="real_market_data",
-                    metadata={"value": latest, "window": window},
-                )
-
-            # Unsupported indicator types
-            raise DslEvaluationError(f"Unsupported indicator type: {indicator_type}")
+            # Delegate to appropriate calculator
+            calculator = self._calculators[indicator_type]
+            return calculator.calculate(prices, symbol, parameters)
 
         except Exception as e:
             raise DslEvaluationError(
