@@ -173,9 +173,7 @@ class RepegManager:
         if not placement_time:
             return False
 
-        if should_consider_repeg(
-            placement_time, current_time, self.config.fill_wait_seconds
-        ):
+        if should_consider_repeg(placement_time, current_time, self.config.fill_wait_seconds):
             return True
 
         # Log debug info for orders still waiting
@@ -199,9 +197,7 @@ class RepegManager:
         """
         from .utils import should_escalate_order
 
-        return should_escalate_order(
-            current_repeg_count, self.config.max_repegs_per_order
-        )
+        return should_escalate_order(current_repeg_count, self.config.max_repegs_per_order)
 
     async def _escalate_to_market(
         self, order_id: str, request: SmartOrderRequest
@@ -222,9 +218,7 @@ class RepegManager:
                 f"(after {self.order_tracker.get_repeg_count(order_id)} re-pegs)"
             )
             # Use asyncio.to_thread to make blocking I/O async
-            cancel_success = await asyncio.to_thread(
-                self.alpaca_manager.cancel_order, order_id
-            )
+            cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
             if not cancel_success:
                 logger.warning(
                     f"⚠️ Failed to cancel order {order_id}; attempting market order anyway"
@@ -256,9 +250,7 @@ class RepegManager:
                         float(original_anchor) if original_anchor is not None else None
                     ),
                     "new_price": (
-                        float(executed_order.price)
-                        if executed_order.price is not None
-                        else 0.0
+                        float(executed_order.price) if executed_order.price is not None else 0.0
                     ),
                 }
                 logger.info(
@@ -269,9 +261,7 @@ class RepegManager:
                     success=True,
                     order_id=executed_order.order_id,
                     final_price=(
-                        executed_order.price
-                        if executed_order.price is not None
-                        else None
+                        executed_order.price if executed_order.price is not None else None
                     ),
                     anchor_price=original_anchor,
                     repegs_used=self.config.max_repegs_per_order,
@@ -319,9 +309,7 @@ class RepegManager:
             # Cancel the existing order
             logger.info(f"❌ Canceling order {order_id} for re-pegging")
             # Use asyncio.to_thread to make blocking I/O async
-            cancel_success = await asyncio.to_thread(
-                self.alpaca_manager.cancel_order, order_id
-            )
+            cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
 
             if not cancel_success:
                 logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
@@ -330,9 +318,7 @@ class RepegManager:
             # Get current market data
             validated = self.quote_provider.get_quote_with_validation(request.symbol)
             if not validated:
-                logger.warning(
-                    f"⚠️ No valid quote for {request.symbol}, skipping re-peg"
-                )
+                logger.warning(f"⚠️ No valid quote for {request.symbol}, skipping re-peg")
                 return False
 
             quote, _ = validated
@@ -410,9 +396,7 @@ class RepegManager:
 
                     metadata_dict: LiquidityMetadata = {
                         "original_order_id": order_id,
-                        "original_price": (
-                            float(original_anchor) if original_anchor else None
-                        ),
+                        "original_price": (float(original_anchor) if original_anchor else None),
                         "new_price": float(new_price),
                         "bid_price": quote.bid_price,
                         "ask_price": quote.ask_price,
@@ -443,9 +427,7 @@ class RepegManager:
                 )
 
             # If we get here, placement did not succeed or no order_id
-            logger.error(
-                f"❌ Re-peg failed for {request.symbol}: no valid order ID returned"
-            )
+            logger.error(f"❌ Re-peg failed for {request.symbol}: no valid order ID returned")
             return SmartOrderResult(
                 success=False,
                 error_message="Re-peg order placement failed",
