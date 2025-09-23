@@ -95,7 +95,7 @@ class SmartExecutionStrategy:
                 # Handle quote validation failure (may trigger market fallback)
                 failure_result = self._handle_quote_validation_failure(request)
                 if failure_result.execution_strategy == "market_fallback_required":
-                    return self._place_market_order_fallback(request)
+                    return await self._place_market_order_fallback(request)
                 return failure_result
 
             # Calculate optimal price based on quote source
@@ -237,15 +237,15 @@ class SmartExecutionStrategy:
                 f"⚠️ Invalid optimal price ${optimal_price} calculated for {request.symbol} {request.side}. "
                 f"This should not happen after validation - falling back to market order."
             )
-            return self._handle_invalid_price_fallback(request)
+            return await self._handle_invalid_price_fallback(request)
 
         # Ensure price is properly quantized and validated
         quantized_price = self._prepare_final_price(optimal_price, request)
         if quantized_price <= 0:
-            return self._handle_invalid_price_fallback(request)
+            return await self._handle_invalid_price_fallback(request)
 
         # Place the actual limit order
-        return self._execute_limit_order(
+        return await self._execute_limit_order(
             request,
             quantized_price,
             optimal_price,
@@ -254,7 +254,7 @@ class SmartExecutionStrategy:
             used_fallback=used_fallback,
         )
 
-    def _handle_invalid_price_fallback(self, request: SmartOrderRequest) -> SmartOrderResult:
+    async def _handle_invalid_price_fallback(self, request: SmartOrderRequest) -> SmartOrderResult:
         """Handle invalid price by falling back to market order if urgency is high.
 
         Args:
@@ -265,7 +265,7 @@ class SmartExecutionStrategy:
 
         """
         if request.urgency == "HIGH":
-            return self._place_market_order_fallback(request)
+            return await self._place_market_order_fallback(request)
 
         return SmartOrderResult(
             success=False,
@@ -296,7 +296,7 @@ class SmartExecutionStrategy:
 
         return quantized_price
 
-    def _execute_limit_order(
+    async def _execute_limit_order(
         self,
         request: SmartOrderRequest,
         quantized_price: Decimal,
@@ -410,7 +410,7 @@ class SmartExecutionStrategy:
             metadata=metadata_dict,
         )
 
-    def _place_market_order_fallback(self, request: SmartOrderRequest) -> SmartOrderResult:
+    async def _place_market_order_fallback(self, request: SmartOrderRequest) -> SmartOrderResult:
         """Fallback to market order for high urgency situations.
 
         Args:

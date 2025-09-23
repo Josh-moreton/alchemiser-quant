@@ -159,7 +159,7 @@ class SettlementMonitor:
 
                 if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
                     # Order reached final state, get full order details
-                    order_details = self._get_order_settlement_details(order_id)
+                    order_details = await self._get_order_settlement_details(order_id)
 
                     if order_details and order_status == "FILLED" and self.event_bus:
                         settlement_event = OrderSettlementCompleted(
@@ -195,7 +195,7 @@ class SettlementMonitor:
         logger.warning(f"⏰ Settlement monitoring timeout for order {order_id}")
         return None
 
-    def _get_order_settlement_details(self, order_id: str) -> dict[str, Any] | None:
+    async def _get_order_settlement_details(self, order_id: str) -> dict[str, Any] | None:
         """Get detailed settlement information for a completed order.
 
         Args:
@@ -269,7 +269,7 @@ class SettlementMonitor:
 
         while (datetime.now(UTC) - start_time).total_seconds() < self.max_wait_seconds:
             for order_id in sell_order_ids:
-                settlement_details = self._get_order_settlement_details(order_id)
+                settlement_details = await self._get_order_settlement_details(order_id)
 
                 if settlement_details and settlement_details.get("side") == "SELL":
                     settled_value = settlement_details.get("settled_value", Decimal("0"))
