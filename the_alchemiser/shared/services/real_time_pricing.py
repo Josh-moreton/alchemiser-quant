@@ -417,7 +417,7 @@ class RealTimePricingService:
 
         logging.info("📡 Real-time pricing stream thread exiting")
 
-    async def _on_quote(self, data: AlpacaQuoteData) -> None:
+    def _on_quote(self, data: AlpacaQuoteData) -> None:
         """Handle incoming quote data.
 
         Args:
@@ -499,7 +499,7 @@ class RealTimePricingService:
         except Exception as e:
             self.logger.error(f"Error processing quote: {e}", exc_info=True)
 
-    async def _on_trade(self, trade: AlpacaTradeData) -> None:
+    def _on_trade(self, trade: AlpacaTradeData) -> None:
         """Handle incoming trade updates from Alpaca stream."""
         try:
             # Handle both Trade objects and dictionary format
