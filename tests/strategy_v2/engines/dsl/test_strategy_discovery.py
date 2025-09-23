@@ -60,18 +60,18 @@ class TestStrategyDiscovery:
     def test_strategy_info_content_preview(self, repository_root: Path) -> None:
         """Test strategy info content preview functionality."""
         # Create a temporary strategy file for testing
-        test_content = '''(defsymphony
+        test_content = """(defsymphony
  "Test Strategy | BT 2024-01-01"
  {:asset-class "EQUITIES"}
  (weight-equal
-  [(asset "SPY" "SPDR S&P 500 ETF")]))'''
+  [(asset "SPY" "SPDR S&P 500 ETF")]))"""
         
         discovery = StrategyDiscovery(repository_root)
         
         # Mock a file by directly testing the parsing logic
         # In real test, we'd create a temp file, but this tests the core logic
         import tempfile
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.clj', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".clj", delete=False) as f:
             f.write(test_content)
             temp_path = Path(f.name)
         
@@ -94,7 +94,7 @@ class TestAllStrategiesParametrized:
         if not clj_strategy_files:
             pytest.skip("No CLJ strategy files found for testing")
         
-        from the_alchemiser.strategy_v2.engines.dsl.sexpr_parser import SexprParser, SexprParseError
+        from the_alchemiser.strategy_v2.engines.dsl.sexpr_parser import SexprParseError, SexprParser
         
         parser = SexprParser()
         results = {}

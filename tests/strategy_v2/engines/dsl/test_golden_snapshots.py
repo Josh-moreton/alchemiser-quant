@@ -9,13 +9,11 @@ to detect regressions and behavioral changes.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
 
 from tests.utils.dsl_test_utils import (
-    assert_events_match_golden,
     load_golden_data,
     save_golden_data,
 )
@@ -73,7 +71,6 @@ class TestGoldenSnapshots:
         self, actual: dict, expected: dict, strategy_name: str
     ) -> None:
         """Compare actual snapshot data with expected golden data."""
-
         # Compare basic metadata
         assert (
             actual["request"]["strategy_config_path"]

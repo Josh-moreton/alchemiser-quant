@@ -81,7 +81,9 @@ class TradingSystem:
         global _di_container
 
         self.container = ApplicationContainer()
-        _di_container = self.container  # Keep global for backward compatibility during transition
+        _di_container = (
+            self.container
+        )  # Keep global for backward compatibility during transition
         ServiceFactory.initialize(self.container)
         self.logger.info("Dependency injection initialized")
 
@@ -89,7 +91,9 @@ class TradingSystem:
         """Initialize event-driven orchestration system."""
         try:
             if self.container is None:
-                self.logger.warning("Cannot initialize event orchestration: DI container not ready")
+                self.logger.warning(
+                    "Cannot initialize event orchestration: DI container not ready"
+                )
                 return
 
             # Initialize event-driven orchestrator
@@ -114,7 +118,9 @@ class TradingSystem:
         """
         try:
             if self.container is None:
-                self.logger.warning("Cannot emit StartupEvent: DI container not initialized")
+                self.logger.warning(
+                    "Cannot emit StartupEvent: DI container not initialized"
+                )
                 return
 
             # Get event bus from container
@@ -139,7 +145,9 @@ class TradingSystem:
 
             # Emit the event
             event_bus.publish(event)
-            self.logger.debug(f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}")
+            self.logger.debug(
+                f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}"
+            )
 
         except Exception as e:
             # Don't let startup event emission failure break the system
@@ -221,7 +229,9 @@ class TradingSystem:
 
             # 5) Display tracking if requested
             if show_tracking:
-                self._display_post_execution_tracking(paper_trading=not orchestrator.live_trading)
+                self._display_post_execution_tracking(
+                    paper_trading=not orchestrator.live_trading
+                )
 
             # 6) Export tracking summary if requested
             if export_tracking_json:
@@ -265,7 +275,9 @@ class TradingSystem:
 
                 send_error_notification_if_needed()
             except Exception as notification_error:
-                self.logger.warning(f"Failed to send error notification: {notification_error}")
+                self.logger.warning(
+                    f"Failed to send error notification: {notification_error}"
+                )
 
             return self._create_failure_result(
                 f"System error: {e}", started_at, correlation_id, warnings
@@ -276,8 +288,8 @@ class TradingSystem:
         try:
             # Extract and display individual strategy signals with their recommended symbols
             strategy_signals = signals_result.get("strategy_signals", {})
-            if isinstance(strategy_signals, dict):
-                signal_details = []
+            if isinstance(strategy_signals, dict) and strategy_signals:
+                # Display each strategy's signal separately
                 for raw_name, data in strategy_signals.items():
                     name = str(raw_name)
                     if name.startswith("StrategyType."):
@@ -285,23 +297,22 @@ class TradingSystem:
 
                     if isinstance(data, dict):
                         action = str(data.get("action", "")).upper()
-                        if action in {"BUY", "SELL"}:
+                        if action in {"BUY", "SELL", "HOLD"}:
                             if data.get("is_multi_symbol") and isinstance(
                                 data.get("symbols"), list
                             ):
                                 symbols = data.get("symbols", [])
                                 if symbols:
                                     symbol_str = ", ".join(symbols)
-                                    signal_details.append(f"{name}: {action} {symbol_str}")
+                                    print(f"🎯 {name} strategy → {action} {symbol_str}")
                             elif data.get("symbol"):
-                                signal_details.append(f"{name}: {action} {data.get('symbol')}")
-
-                if signal_details:
-                    print("📋 Strategy signals generated:")
-                    for detail in signal_details:
-                        print(f"   → {detail}")
-                else:
-                    print("📋 No actionable signals generated")
+                                print(
+                                    f"🎯 {name} strategy → {action} {data.get('symbol')}"
+                                )
+                            else:
+                                print(f"🎯 {name} strategy → {action}")
+            else:
+                print("📋 No strategy signals generated")
 
             # Show consolidated target allocations
             if "consolidated_portfolio" in signals_result:
@@ -318,9 +329,9 @@ class TradingSystem:
                         allocations = ", ".join(
                             f"{sym} {weight * 100:.1f}%" for sym, weight in non_zero
                         )
-                        print(f"🎯 Final recommended allocations: {allocations}")
+                        print(f"📊 Final consolidated allocations: {allocations}")
                     else:
-                        print("🎯 Final recommended allocations: 100% cash")
+                        print("📊 Final consolidated allocations: 100% cash")
         except Exception as e:
             # Non-fatal: summary display is best-effort
             self.logger.debug(f"Failed to display signals summary: {e}")
@@ -432,9 +443,13 @@ class TradingSystem:
                     )
                 )
             except ImportError:
-                self.logger.warning("Strategy tracking display unavailable (rich not available)")
+                self.logger.warning(
+                    "Strategy tracking display unavailable (rich not available)"
+                )
 
-    def _export_tracking_summary(self, *, export_path: str, paper_trading: bool) -> None:
+    def _export_tracking_summary(
+        self, *, export_path: str, paper_trading: bool
+    ) -> None:
         """Export tracking summary to JSON file."""
         try:
             import json
@@ -454,10 +469,14 @@ class TradingSystem:
                     strategy_summary = tracker.get_strategy_summary(strategy_name)
                     if strategy_summary:
                         strategy_data[strategy_name] = {
-                            "total_profit_loss": float(strategy_summary.total_profit_loss),
+                            "total_profit_loss": float(
+                                strategy_summary.total_profit_loss
+                            ),
                             "total_orders": strategy_summary.total_orders,
                             "success_rate": strategy_summary.success_rate,
-                            "avg_profit_per_trade": float(strategy_summary.avg_profit_per_trade),
+                            "avg_profit_per_trade": float(
+                                strategy_summary.avg_profit_per_trade
+                            ),
                         }
                 except Exception as e:
                     self.logger.debug(f"Could not get summary for {strategy_name}: {e}")
@@ -578,7 +597,9 @@ class TradingSystem:
             ),
             orders=order_dtos,
             warnings=warnings,
-            trading_mode=("LIVE" if getattr(orchestrator, "live_trading", False) else "PAPER"),
+            trading_mode=(
+                "LIVE" if getattr(orchestrator, "live_trading", False) else "PAPER"
+            ),
             started_at=started_at,
             completed_at=completed_at,
             correlation_id=correlation_id,

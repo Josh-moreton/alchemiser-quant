@@ -52,8 +52,9 @@ class DslTestHarness:
         self.mock_market_data = mock_market_data or MockMarketDataService(seed=seed)
 
         # Initialize DSL engine with mocked dependencies
+        strategies_path = f"{repository_root}/the_alchemiser/strategy_v2/strategies"
         self.dsl_engine = DslEngine(
-            strategy_config_path=repository_root,
+            strategy_config_path=strategies_path,
             event_bus=self.event_bus,
             market_data_service=self._create_mock_market_data_port(),
         )
@@ -81,9 +82,10 @@ class DslTestHarness:
 
         def mock_get_bars(symbol, period, timeframe):
             # Generate realistic historical bar data for technical indicators
-            from the_alchemiser.shared.types.market_data import BarModel
-            from datetime import timedelta
             import random
+            from datetime import timedelta
+
+            from the_alchemiser.shared.types.market_data import BarModel
 
             symbol_str = str(symbol) if hasattr(symbol, "__str__") else symbol
             base_price = self.mock_market_data.get_current_price(symbol_str)
@@ -364,19 +366,7 @@ class DslTestResult:
             }
 
             # Add type-specific data
-            if isinstance(event, StrategyEvaluated):
-                if event.allocation:
-                    event_data["allocation"] = {
-                        "allocations": {
-                            k: float(v)
-                            for k, v in event.allocation.target_weights.items()
-                        },
-                        "total_allocation": float(
-                            sum(event.allocation.target_weights.values())
-                        ),
-                        "correlation_id": event.allocation.correlation_id,
-                    }
-            elif isinstance(event, PortfolioAllocationProduced):
+            if isinstance(event, StrategyEvaluated) or isinstance(event, PortfolioAllocationProduced):
                 if event.allocation:
                     event_data["allocation"] = {
                         "allocations": {
