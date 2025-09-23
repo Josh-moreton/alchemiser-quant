@@ -565,10 +565,10 @@ class RealTimePricingService:
             self._datetime_stats["last_heartbeat"] = datetime.now(UTC)
 
             # Use async logging for debug to avoid blocking the event loop
-            if logging.root.level <= logging.DEBUG:
+            if self.logger.isEnabledFor(logging.DEBUG):
                 debug_task = asyncio.create_task(
                     asyncio.to_thread(
-                        logging.debug,
+                        self.logger.debug,
                         f"💰 Trade: {symbol} ${float(price or 0):.2f} x {size}"
                     )
                 )
