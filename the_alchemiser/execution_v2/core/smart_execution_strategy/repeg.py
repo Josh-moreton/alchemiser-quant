@@ -70,60 +70,128 @@ class RepegManager:
         current_time = datetime.now(UTC)
 
         for order_id, request in list(active_orders.items()):
-            try:
-                # Check if order is still active
-                order_status = self.alpaca_manager._check_order_completion_status(order_id)
-                if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
-                    orders_to_remove.append(order_id)
-                    logger.info(f"📊 Order {order_id} completed with status: {order_status}")
-                    continue
-
-                # Check if enough time has passed to consider re-pegging
-                placement_time = self.order_tracker.get_placement_time(order_id)
-                if not placement_time:
-                    continue
-
-                time_elapsed = (current_time - placement_time).total_seconds()
-                if time_elapsed < self.config.fill_wait_seconds:
-                    logger.debug(
-                        f"⏳ Order {order_id} waiting for fill "
-                        f"({time_elapsed:.1f}s/{self.config.fill_wait_seconds}s) - "
-                        f"repeg_count: {self.order_tracker.get_repeg_count(order_id)}"
-                    )
-                    continue
-
-                current_repeg_count = self.order_tracker.get_repeg_count(order_id)
-
-                # Check if we've reached max re-pegs — escalate to market
-                if current_repeg_count >= self.config.max_repegs_per_order:
-                    logger.info(
-                        f"⚠️ Order {order_id} reached max re-pegs "
-                        f"({current_repeg_count}/{self.config.max_repegs_per_order}), escalating to market order"
-                    )
-                    escalation_result = await self._escalate_to_market(order_id, request)
-                    if escalation_result is not None:
-                        repeg_results.append(escalation_result)
-                    # After escalation, skip further processing for this order_id
-                    continue
-
-                # Attempt re-pegging
-                logger.info(
-                    f"🔄 Order {order_id} hasn't filled after {time_elapsed:.1f}s, "
-                    f"attempting re-peg (attempt {current_repeg_count + 1}/{self.config.max_repegs_per_order})"
-                )
-                repeg_result = await self._attempt_repeg(order_id, request)
-
-                if repeg_result:
-                    repeg_results.append(repeg_result)
-
-            except Exception as e:
-                logger.error(f"Error checking order {order_id} for re-pegging: {e}")
+            result = await self._process_single_order(order_id, request, current_time)
+            
+            if result is None:  # Order should be removed or no action needed
+                orders_to_remove.append(order_id)
+            elif result:  # Result available (repeg or escalation)
+                repeg_results.append(result)
 
         # Clean up completed orders
         for order_id in orders_to_remove:
             self.order_tracker.remove_order(order_id)
 
         return repeg_results
+
+    async def _process_single_order(
+        self, order_id: str, request: SmartOrderRequest, current_time: datetime
+    ) -> SmartOrderResult | None:
+        """Process a single order for potential repeg or escalation.
+
+        Args:
+            order_id: Order ID to process
+            request: Original order request
+            current_time: Current timestamp
+
+        Returns:
+            SmartOrderResult if action taken, None if order should be removed
+
+        """
+        try:
+            # Check if order is still active
+            if self._is_order_completed(order_id):
+                return None  # Signal for removal
+
+            # Check timing for repeg consideration
+            if not self._should_consider_repeg(order_id, current_time):
+                return None  # No action needed yet
+
+            current_repeg_count = self.order_tracker.get_repeg_count(order_id)
+
+            # Check if we've reached max re-pegs — escalate to market
+            if self._should_escalate_order(current_repeg_count):
+                logger.info(
+                    f"⚠️ Order {order_id} reached max re-pegs "
+                    f"({current_repeg_count}/{self.config.max_repegs_per_order}), escalating to market order"
+                )
+                return await self._escalate_to_market(order_id, request)
+
+            # Attempt re-pegging
+            placement_time = self.order_tracker.get_placement_time(order_id)
+            if placement_time:
+                time_elapsed = (current_time - placement_time).total_seconds()
+                logger.info(
+                    f"🔄 Order {order_id} hasn't filled after {time_elapsed:.1f}s, "
+                    f"attempting re-peg (attempt {current_repeg_count + 1}/{self.config.max_repegs_per_order})"
+                )
+            return await self._attempt_repeg(order_id, request)
+
+        except Exception as e:
+            logger.error(f"Error checking order {order_id} for re-pegging: {e}")
+            return None
+
+    def _is_order_completed(self, order_id: str) -> bool:
+        """Check if order has completed and should be removed from tracking.
+
+        Args:
+            order_id: Order ID to check
+
+        Returns:
+            True if order is completed
+
+        """
+        from .utils import is_order_completed
+        
+        order_status = self.alpaca_manager._check_order_completion_status(order_id)
+        
+        if order_status and is_order_completed(order_status):
+            logger.info(f"📊 Order {order_id} completed with status: {order_status}")
+            return True
+        
+        return False
+
+    def _should_consider_repeg(self, order_id: str, current_time: datetime) -> bool:
+        """Check if order should be considered for re-pegging based on timing.
+
+        Args:
+            order_id: Order ID to check
+            current_time: Current timestamp
+
+        Returns:
+            True if order should be considered for repeg
+
+        """
+        from .utils import should_consider_repeg
+        
+        placement_time = self.order_tracker.get_placement_time(order_id)
+        if not placement_time:
+            return False
+
+        if should_consider_repeg(placement_time, current_time, self.config.fill_wait_seconds):
+            return True
+
+        # Log debug info for orders still waiting
+        time_elapsed = (current_time - placement_time).total_seconds()
+        logger.debug(
+            f"⏳ Order {order_id} waiting for fill "
+            f"({time_elapsed:.1f}s/{self.config.fill_wait_seconds}s) - "
+            f"repeg_count: {self.order_tracker.get_repeg_count(order_id)}"
+        )
+        return False
+
+    def _should_escalate_order(self, current_repeg_count: int) -> bool:
+        """Check if order should be escalated to market order.
+
+        Args:
+            current_repeg_count: Current number of repegs
+
+        Returns:
+            True if order should be escalated
+
+        """
+        from .utils import should_escalate_order
+        
+        return should_escalate_order(current_repeg_count, self.config.max_repegs_per_order)
 
     async def _escalate_to_market(
         self, order_id: str, request: SmartOrderRequest
