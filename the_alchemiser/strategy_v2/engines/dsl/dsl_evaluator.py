@@ -1103,7 +1103,7 @@ class DslEvaluator:
         return indicator.rsi_14 or 50.0
 
     def _eval_moving_average(
-        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+        self, _args: list[ASTNodeDTO], _correlation_id: str, _trace: TraceDTO
     ) -> float:
         """Evaluate ma - disabled mock; not implemented."""
         raise DslEvaluationError(
@@ -1111,7 +1111,7 @@ class DslEvaluator:
         )
 
     def _eval_volatility(
-        self, args: list[ASTNodeDTO], correlation_id: str, trace: TraceDTO
+        self, _args: list[ASTNodeDTO], _correlation_id: str, _trace: TraceDTO
     ) -> float:
         """Evaluate volatility - disabled mock; not implemented."""
         raise DslEvaluationError(

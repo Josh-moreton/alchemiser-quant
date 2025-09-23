@@ -38,7 +38,7 @@ def build_error_email_html(title: str, message: str) -> str:
     )
 
     # Build header and footer using existing base template methods
-    header = BaseEmailTemplate.get_header("The Alchemiser")
+    header = BaseEmailTemplate.get_header()
     status_banner = BaseEmailTemplate.get_status_banner(title, "Error", "#EF4444", "❌")
     footer = BaseEmailTemplate.get_footer()
 
@@ -102,7 +102,7 @@ def build_trading_report_html(
     from .signals import SignalsBuilder
 
     # Build content sections using existing template methods
-    header = BaseEmailTemplate.get_header("The Alchemiser")
+    header = BaseEmailTemplate.get_header()
     status_banner = BaseEmailTemplate.get_status_banner(
         "Trading Report", "Complete", "#10B981", "✅"
     )
@@ -218,7 +218,7 @@ class EmailTemplates:
             HTML email content for failed trading run
 
         """
-        header = BaseEmailTemplate.get_header("The Alchemiser")
+        header = BaseEmailTemplate.get_header()
         status_banner = BaseEmailTemplate.get_status_banner(
             f"{mode.upper()} Trading Run Failed", "Failed", "#EF4444", "❌"
         )
@@ -317,7 +317,7 @@ class EmailTemplates:
         from .performance import PerformanceBuilder
         from .portfolio import PortfolioBuilder
 
-        header = BaseEmailTemplate.get_header("The Alchemiser")
+        header = BaseEmailTemplate.get_header()
         status_banner = BaseEmailTemplate.get_status_banner(
             f"{period_label} Performance Report", "Complete", "#10B981", "📊"
         )

@@ -56,7 +56,7 @@ class SignalOrchestrator:
         """
         # Use strategy orchestrator for signal generation
         market_data_port = self.container.infrastructure.market_data_service()
-        strategy_allocations = get_strategy_allocations(self.settings)
+        strategy_allocations = get_strategy_allocations()
 
         # Strategy allocations are already in the correct format (StrategyType -> float)
         typed_allocations = strategy_allocations
@@ -363,7 +363,7 @@ class SignalOrchestrator:
 
             # Convert strategy allocations to Decimal for event
             strategy_allocations: dict[str, Decimal] = {}
-            allocations = get_strategy_allocations(self.settings)
+            allocations = get_strategy_allocations()
             for strategy_type_enum, allocation in allocations.items():
                 # Convert StrategyType enum to string for event schema compatibility
                 strategy_name = str(strategy_type_enum)
