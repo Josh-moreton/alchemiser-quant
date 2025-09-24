@@ -224,6 +224,17 @@ class RepegManager:
                     f"⚠️ Failed to cancel order {order_id}; attempting market order anyway"
                 )
                 # Don't return None - still try market order as the limit order might fill/cancel
+            else:
+                # Wait for actual cancellation to complete and buying power to be released
+                logger.debug(f"⏳ Waiting for order {order_id} cancellation to complete before market escalation...")
+                cancellation_confirmed = await asyncio.to_thread(
+                    self._wait_for_order_cancellation, order_id, timeout_seconds=10.0
+                )
+                
+                if not cancellation_confirmed:
+                    logger.warning(f"⚠️ Order {order_id} cancellation did not complete within timeout, proceeding with market order anyway")
+                else:
+                    logger.debug(f"✅ Order {order_id} cancellation confirmed, proceeding with market escalation")
 
             # Place market order
             logger.info(f"📈 Placing market order for {request.symbol} {request.side}")
@@ -314,6 +325,20 @@ class RepegManager:
             if not cancel_success:
                 logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
                 return False
+
+            # Wait for actual cancellation to complete and buying power to be released
+            logger.debug(f"⏳ Waiting for order {order_id} cancellation to complete...")
+            cancellation_confirmed = await asyncio.to_thread(
+                self._wait_for_order_cancellation, order_id, timeout_seconds=10.0
+            )
+
+            if not cancellation_confirmed:
+                logger.warning(
+                    f"⚠️ Order {order_id} cancellation did not complete within timeout, skipping re-peg"
+                )
+                return False
+
+            logger.debug(f"✅ Order {order_id} cancellation confirmed, buying power released")
 
             # Get current market data
             validated = self.quote_provider.get_quote_with_validation(request.symbol)
@@ -442,3 +467,50 @@ class RepegManager:
                 error_message=str(e),
                 execution_strategy="smart_repeg_error",
             )
+
+    def _wait_for_order_cancellation(self, order_id: str, timeout_seconds: float = 10.0) -> bool:
+        """Wait for an order to be actually cancelled and buying power released.
+
+        This prevents the race condition where we try to place a replacement order
+        before the cancelled order has fully released its reserved buying power.
+
+        Args:
+            order_id: Order ID to wait for cancellation
+            timeout_seconds: Maximum time to wait for cancellation
+
+        Returns:
+            True if order was confirmed cancelled, False if timeout or error
+
+        """
+        import time
+
+        start_time = time.time()
+        check_interval = 0.1  # Check every 100ms
+
+        while time.time() - start_time < timeout_seconds:
+            try:
+                order_status = self.alpaca_manager._check_order_completion_status(order_id)
+
+                if order_status and order_status.upper() in [
+                    "CANCELED",
+                    "CANCELLED",
+                    "EXPIRED",
+                    "REJECTED",
+                ]:
+                    logger.debug(
+                        f"✅ Order {order_id} confirmed cancelled with status: {order_status}"
+                    )
+                    return True
+
+                # Small delay to avoid hammering the API
+                time.sleep(check_interval)
+
+            except Exception as e:
+                logger.warning(f"Error checking cancellation status for {order_id}: {e}")
+                # Continue trying until timeout
+                time.sleep(check_interval)
+
+        logger.warning(
+            f"⚠️ Timeout waiting for order {order_id} cancellation after {timeout_seconds}s"
+        )
+        return False
