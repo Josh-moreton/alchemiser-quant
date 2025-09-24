@@ -13,6 +13,7 @@ import os
 import uuid
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Literal
 
@@ -243,15 +244,9 @@ class DslStrategyEngine:
                 continue
             per_file_weights[symbol] = file_weight * w
 
-        self.logger.info(
-            f"DSL evaluation for {filename}: {dict(allocation.target_weights)}",
-            extra={
-                "correlation_id": correlation_id,
-                "success": trace.success,
-                "file_weight": file_weight,
-                "file_sum": file_sum,
-            },
-        )
+        # Format and log DSL evaluation results
+        formatted_allocation = self._format_dsl_allocation(filename, allocation.target_weights)
+        self.logger.info(formatted_allocation)
 
         return per_file_weights, trace.trace_id, file_weight, file_sum
 
@@ -349,6 +344,28 @@ class DslStrategyEngine:
         """Normalize a weights dict to sum to 1.0 (if possible)."""
         total = sum(weights.values()) or 1.0
         return {sym: w / total for sym, w in weights.items()}
+
+    def _format_dsl_allocation(self, filename: str, target_weights: dict[str, Decimal]) -> str:
+        """Format DSL allocation results for human-readable logging.
+        
+        Args:
+            filename: Name of the DSL file
+            target_weights: Target allocation weights for each symbol
+            
+        Returns:
+            Formatted string for logging
+        """
+        if not target_weights:
+            return f"📊 {filename}: No allocations"
+        
+        # Format each allocation as percentage
+        allocations = []
+        for symbol, weight in target_weights.items():
+            percentage = float(weight) * 100
+            allocations.append(f"{symbol}: {percentage:.1f}%")
+        
+        allocation_str = ", ".join(allocations)
+        return f"📊 {filename}: {allocation_str}"
 
     def validate_signals(self, signals: list[StrategySignal]) -> None:
         """Validate generated signals.

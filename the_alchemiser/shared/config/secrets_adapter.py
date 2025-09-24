@@ -64,10 +64,10 @@ def get_alpaca_keys() -> tuple[str, str, str] | tuple[None, None, None]:
         logger.debug(SM_TOGGLE_FAIL_MSG, exc)
 
     if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
-        logger.info("Detected AWS Lambda environment - loading from Secrets Manager")
+        logger.debug("Detected AWS Lambda environment - loading from Secrets Manager")
         return _get_alpaca_keys_from_aws()
 
-    logger.info("Detected local environment - loading from environment variables")
+    logger.debug("Detected local environment - loading from environment variables")
     return _get_alpaca_keys_from_env()
 
 
@@ -107,7 +107,7 @@ def _get_alpaca_keys_from_aws() -> tuple[str, str, str] | tuple[None, None, None
                 "No ALPACA_ENDPOINT in AWS Secrets Manager, defaulting to paper trading mode"
             )
 
-        logger.info("Successfully loaded Alpaca credentials from AWS Secrets Manager")
+        logger.debug("Successfully loaded Alpaca credentials from AWS Secrets Manager")
         return api_key, secret_key, endpoint
 
     except ClientError as e:
@@ -137,7 +137,7 @@ def _get_alpaca_keys_from_env() -> tuple[str, str, str] | tuple[None, None, None
         endpoint = "https://paper-api.alpaca.markets"
         logger.info("No ALPACA_ENDPOINT specified, defaulting to paper trading mode")
 
-    logger.info("Successfully loaded Alpaca credentials from environment variables")
+    logger.debug("Successfully loaded Alpaca credentials from environment variables")
     return api_key, secret_key, endpoint
 
 
@@ -159,10 +159,10 @@ def get_twelvedata_api_key() -> str | None:
         logger.debug(SM_TOGGLE_FAIL_MSG, exc)
 
     if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
-        logger.info("Detected AWS Lambda environment - loading TwelveData key from Secrets Manager")
+        logger.debug("Detected AWS Lambda environment - loading TwelveData key from Secrets Manager")
         return _get_twelvedata_key_from_aws()
 
-    logger.info("Detected local environment - loading TwelveData key from environment variables")
+    logger.debug("Detected local environment - loading TwelveData key from environment variables")
     return _get_twelvedata_key_from_env()
 
 
@@ -205,7 +205,7 @@ def _get_twelvedata_key_from_env() -> str | None:
         logger.warning("TwelveData API key not found in environment variables")
         return None
 
-    logger.info("Successfully loaded TwelveData API key from environment")
+    logger.debug("Successfully loaded TwelveData API key from environment")
     return api_key
 
 
@@ -236,10 +236,10 @@ def get_email_password() -> str | None:
         logger.debug(SM_TOGGLE_FAIL_MSG, exc)
 
     if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
-        logger.info("Detected AWS Lambda environment - loading email password from Secrets Manager")
+        logger.debug("Detected AWS Lambda environment - loading email password from Secrets Manager")
         return _get_email_password_from_aws()
 
-    logger.info("Detected local environment - loading email password from environment variables")
+    logger.debug("Detected local environment - loading email password from environment variables")
     return _get_email_password_from_env()
 
 
@@ -269,7 +269,7 @@ def _get_email_password_from_aws() -> str | None:
             logger.warning("Email password not found in AWS Secrets Manager")
             return None
 
-        logger.info("Successfully loaded email password from AWS Secrets Manager")
+        logger.debug("Successfully loaded email password from AWS Secrets Manager")
         return str(password)
 
     except ClientError as e:
@@ -286,7 +286,7 @@ def _get_email_password_from_env() -> str | None:
     try:
         config = load_settings()
         if config.email.password:
-            logger.info("Successfully loaded email password from Pydantic config (EMAIL__PASSWORD)")
+            logger.debug("Successfully loaded email password from Pydantic config (EMAIL__PASSWORD)")
             return config.email.password
     except Exception as e:
         logger.debug(f"Could not load email password from Pydantic config: {e}")
@@ -305,5 +305,5 @@ def _get_email_password_from_env() -> str | None:
         )
         return None
 
-    logger.info("Successfully loaded email password from environment variables (fallback method)")
+    logger.debug("Successfully loaded email password from environment variables (fallback method)")
     return password
