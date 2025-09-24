@@ -19,7 +19,11 @@ def _extract_series(input_data: pd.Series | pd.DataFrame) -> pd.Series:
         if "Close" in input_data.columns:
             return input_data["Close"]
         numeric_cols = input_data.select_dtypes(include=["number"]).columns
-        return input_data[numeric_cols[0]] if len(numeric_cols) > 0 else pd.Series(dtype=float)
+        return (
+            input_data[numeric_cols[0]]
+            if len(numeric_cols) > 0
+            else pd.Series(dtype=float)
+        )
     return input_data
 
 
@@ -32,10 +36,14 @@ def _last_valid_value(series: pd.Series) -> float | None:
 def _log_insufficient_data(func_name: str, series: pd.Series) -> None:
     """Log insufficient data scenarios with appropriate level."""
     if len(series) < 2:
-        logging.debug(f"Insufficient data for indicator {func_name} (only {len(series)} points)")
+        logging.debug(
+            f"Insufficient data for indicator {func_name} (only {len(series)} points)"
+        )
     else:
         tail_repr = series.tail(1) if hasattr(series, "tail") else series
-        logging.warning(f"Indicator {func_name} returned no results for data: {tail_repr}")
+        logging.warning(
+            f"Indicator {func_name} returned no results for data: {tail_repr}"
+        )
 
 
 def _safe_repr(input_data: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
@@ -58,7 +66,9 @@ def safe_get_indicator(
     try:
         series = _extract_series(data)
         if series.empty:
-            logging.debug(f"Insufficient data for indicator {indicator_func.__name__} (empty series)")
+            logging.debug(
+                f"Insufficient data for indicator {indicator_func.__name__} (empty series)"
+            )
             return FALLBACK_VALUE
 
         result = indicator_func(series, *args, **kwargs)
@@ -72,10 +82,14 @@ def safe_get_indicator(
 
         # No valid values found
         tail_repr = series.tail(1) if hasattr(series, "tail") else series
-        logging.debug(f"No valid values for indicator {indicator_func.__name__} on data: {tail_repr}")
+        logging.debug(
+            f"No valid values for indicator {indicator_func.__name__} on data: {tail_repr}"
+        )
         return FALLBACK_VALUE
 
     except Exception as e:
         data_repr = _safe_repr(data)
-        logging.error(f"Exception in safe_get_indicator for {indicator_func.__name__}: {e}\nData: {data_repr}")
+        logging.error(
+            f"Exception in safe_get_indicator for {indicator_func.__name__}: {e}\nData: {data_repr}"
+        )
         return FALLBACK_VALUE
