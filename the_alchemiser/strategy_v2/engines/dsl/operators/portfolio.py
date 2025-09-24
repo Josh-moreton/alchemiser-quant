@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import Literal, cast
 
 from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
 from the_alchemiser.shared.dto.indicator_request_dto import (
@@ -29,6 +30,92 @@ from ..types import DslEvaluationError, DSLValue
 from .control_flow import create_indicator_with_symbol
 
 logger = logging.getLogger(__name__)
+
+
+def collect_assets_from_value(value: DSLValue) -> list[str]:
+    """Recursively extract all asset symbols from a DSLValue.
+
+    Handles `PortfolioFragmentDTO`, single symbol strings, and nested lists.
+    """
+    if isinstance(value, PortfolioFragmentDTO):
+        return list(value.weights.keys())
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        symbols: list[str] = []
+        for item in value:
+            symbols.extend(collect_assets_from_value(item))
+        return symbols
+    return []
+
+
+def parse_selection(sel_expr: ASTNodeDTO | None, context: DslContext) -> tuple[bool, int | None]:
+    """Parse optional selection expression returning (take_top, take_n).
+
+    - take_top: True implies sort descending; False ascending (select-bottom)
+    - take_n: Optional limit; None if not parseable
+    """
+    take_top = True
+    take_n: int | None = None
+    if sel_expr:
+        sel_name = (
+            sel_expr.children[0].get_symbol_name()
+            if sel_expr.is_list() and sel_expr.children
+            else None
+        )
+        if sel_name == "select-bottom":
+            take_top = False
+        n_val = context.evaluate_node(sel_expr, context.correlation_id, context.trace)
+        try:
+            take_n = (
+                int(n_val) if isinstance(n_val, (int, float)) else int(context.as_decimal(n_val))
+            )
+        except Exception:
+            take_n = None
+    return take_top, take_n
+
+
+def score_candidates(
+    symbols: list[str],
+    condition_expr: ASTNodeDTO,
+    context: DslContext,
+) -> list[tuple[str, float]]:
+    """Evaluate condition for each candidate symbol and return (symbol, score)."""
+    scored: list[tuple[str, float]] = []
+    for sym in symbols:
+        try:
+            metric_expr = create_indicator_with_symbol(condition_expr, sym)
+            metric_val = context.evaluate_node(metric_expr, context.correlation_id, context.trace)
+            metric_val = (
+                float(metric_val)
+                if isinstance(metric_val, (int, float))
+                else float(context.as_decimal(metric_val))
+            )
+            scored.append((sym, metric_val))
+        except Exception:
+            logger.exception("DSL filter: condition evaluation failed for symbol %s", sym)
+    return scored
+
+
+def select_symbols(
+    condition_expr: ASTNodeDTO,
+    symbols: list[str],
+    order: Literal["top", "bottom"],
+    limit: int | None,
+    context: DslContext,
+) -> list[DSLValue]:
+    """Score, sort, and select symbols based on selection parameters.
+
+    order: "top" sorts descending (highest first); "bottom" ascending.
+    limit: optional number of items to return.
+    """
+    scored = score_candidates(symbols, condition_expr, context)
+    if not scored:
+        return []
+    scored.sort(key=lambda x: x[1], reverse=(order == "top"))
+    if limit is not None and limit >= 0:
+        scored = scored[:limit]
+    return cast(list[DSLValue], [sym for sym, _ in scored])
 
 
 def weight_equal(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragmentDTO:
@@ -395,64 +482,13 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     portfolio_expr = args[2] if len(args) == 3 else args[1]
 
     portfolio_val = context.evaluate_node(portfolio_expr, context.correlation_id, context.trace)
-
-    def collect_assets(value: DSLValue) -> list[str]:
-        if isinstance(value, PortfolioFragmentDTO):
-            return list(value.weights.keys())
-        if isinstance(value, str):
-            return [value]
-        if isinstance(value, list):
-            symbols: list[str] = []
-            for item in value:
-                symbols.extend(collect_assets(item))
-            return symbols
-        return []
-
-    candidates = collect_assets(portfolio_val)
+    candidates = collect_assets_from_value(portfolio_val)
     if not candidates:
         return []
 
-    def _parse_selection(sel_expr: ASTNodeDTO | None) -> tuple[bool, int | None]:
-        take_top = True
-        take_n: int | None = None
-        if sel_expr:
-            sel_name = (
-                sel_expr.children[0].get_symbol_name()
-                if sel_expr.is_list() and sel_expr.children
-                else None
-            )
-            if sel_name == "select-bottom":
-                take_top = False
-            n_val = context.evaluate_node(sel_expr, context.correlation_id, context.trace)
-            try:
-                take_n = int(n_val) if isinstance(n_val, (int, float)) else int(context.as_decimal(n_val))
-            except Exception:
-                take_n = None
-        return take_top, take_n
-
-    take_top, take_n = _parse_selection(selection_expr)
-
-    def _score_candidates(symbols: list[str]) -> list[tuple[str, float]]:
-        scored: list[tuple[str, float]] = []
-        for sym in symbols:
-            try:
-                metric_expr = create_indicator_with_symbol(condition_expr, sym)
-                metric_val = context.evaluate_node(metric_expr, context.correlation_id, context.trace)
-                metric_val = float(metric_val) if isinstance(metric_val, (int, float)) else float(context.as_decimal(metric_val))
-                scored.append((sym, metric_val))
-            except Exception:
-                logger.exception("DSL filter: condition evaluation failed for symbol %s", sym)
-        return scored
-
-    scored = _score_candidates(candidates)
-    if not scored:
-        return []
-
-    scored.sort(key=lambda x: x[1], reverse=take_top)
-    if take_n is not None and take_n >= 0:
-        scored = scored[:take_n]
-
-    return [sym for sym, _ in scored]
+    take_top, take_n = parse_selection(selection_expr, context)
+    order: Literal["top", "bottom"] = "top" if take_top else "bottom"
+    return select_symbols(condition_expr, candidates, order, take_n, context)
 
 
 def register_portfolio_operators(dispatcher: DslDispatcher) -> None:
