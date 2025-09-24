@@ -19,7 +19,9 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.portfolio_v2 import PortfolioServiceV2
-from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
+from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
+    ConsolidatedPortfolioDTO,
+)
 from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
 from the_alchemiser.shared.events import (
@@ -37,8 +39,10 @@ def _to_float_safe(value: object) -> float:
     """Convert a value to float safely, returning 0.0 for invalid values."""
     try:
         if hasattr(value, "value"):
-            return float(value.value)
-        return float(value)
+            return float(value.value)  # type: ignore[attr-defined]
+        if isinstance(value, (int, float, str)):
+            return float(value)
+        return 0.0
     except (ValueError, TypeError, AttributeError):
         return 0.0
 
@@ -157,7 +161,9 @@ class PortfolioAnalysisHandler:
                 raise ValueError("Failed to generate allocation comparison")
 
             # Create rebalance plan from allocation comparison
-            account_info = account_data.get("account_info")
+            account_info = account_data.get("account_info", {})
+            if not isinstance(account_info, dict):
+                account_info = _normalize_account_info(account_info)
             rebalance_plan = self._create_rebalance_plan_from_allocation(
                 allocation_comparison, account_info
             )
@@ -198,7 +204,7 @@ class PortfolioAnalysisHandler:
             orders_list = [
                 {
                     "id": str(order.id) if hasattr(order, "id") else "unknown",
-                    "symbol": str(order.symbol) if hasattr(order, "symbol") else "unknown",
+                    "symbol": (str(order.symbol) if hasattr(order, "symbol") else "unknown"),
                     "side": str(order.side) if hasattr(order, "side") else "unknown",
                     "qty": _to_float_safe(getattr(order, "qty", 0)),
                 }
@@ -271,7 +277,7 @@ class PortfolioAnalysisHandler:
                 current_allocations[symbol] = (market_value / portfolio_value) * 100
 
         # Get target allocations from consolidated portfolio
-        target_allocations = consolidated_portfolio.allocation_dict
+        target_allocations = consolidated_portfolio.target_allocations
 
         # Calculate differences
         allocation_differences = {}
@@ -292,7 +298,9 @@ class PortfolioAnalysisHandler:
         }
 
     def _create_rebalance_plan_from_allocation(
-        self, allocation_comparison: AllocationComparisonDTO, account_info: dict[str, Any]
+        self,
+        allocation_comparison: AllocationComparisonDTO,
+        account_info: dict[str, Any],
     ) -> RebalancePlanDTO | None:
         """Create rebalance plan from allocation comparison.
 
@@ -306,22 +314,42 @@ class PortfolioAnalysisHandler:
         """
         try:
             # Use PortfolioServiceV2 for rebalance plan generation
-            portfolio_service = PortfolioServiceV2(self.container)
+            alpaca_manager = self.container.alpaca_manager()
+            portfolio_service = PortfolioServiceV2(alpaca_manager)
+
+            # Create portfolio metrics DTO
+            from the_alchemiser.shared.dto.portfolio_state_dto import (
+                PortfolioMetricsDTO,
+            )
+
+            portfolio_value = Decimal(str(account_info.get("portfolio_value", 0)))
+            cash_balance = Decimal(str(account_info.get("cash", 0)))
+
+            metrics = PortfolioMetricsDTO(
+                total_value=portfolio_value,
+                cash_balance=cash_balance,
+                buying_power=Decimal(str(account_info.get("buying_power", 0))),
+                day_change=Decimal("0"),  # Default values for missing data
+                day_change_percent=Decimal("0"),
+                unrealized_pnl=Decimal("0"),
+                unrealized_pnl_percent=Decimal("0"),
+            )
 
             # Create portfolio state DTO from account data
+            correlation_id = f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
             portfolio_state = PortfolioStateDTO(
-                total_value=Decimal(str(account_info.get("portfolio_value", 0))),
-                cash_balance=Decimal(str(account_info.get("cash", 0))),
-                buying_power=Decimal(str(account_info.get("buying_power", 0))),
-                positions={},  # We'll populate this from allocation comparison if needed
-                correlation_id=f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
+                correlation_id=correlation_id,
+                causation_id=correlation_id,  # Same as correlation for analysis
                 timestamp=datetime.now(UTC),
+                portfolio_id="main",  # Default portfolio ID
+                positions=[],  # Empty positions list
+                metrics=metrics,
             )
 
             # Generate rebalance plan using portfolio service
-            return portfolio_service.generate_rebalance_plan(
+            return portfolio_service.create_rebalance_plan_dto(
                 current_state=portfolio_state,
-                target_allocations=allocation_comparison.target_allocations,
+                target_allocations=allocation_comparison.target_values,
             )
 
         except Exception as e:
@@ -345,16 +373,19 @@ class PortfolioAnalysisHandler:
         try:
             # Create a plan even if None - represent as no-trade plan
             if rebalance_plan is None:
-                plan_data = {
-                    "plan_id": f"no-trade-{uuid.uuid4()}",
-                    "items": [],
-                    "total_trades": 0,
-                    "requires_trades": False,
-                    "metadata": {"scenario": "no_trades_needed"},
-                }
-            else:
-                plan_data = rebalance_plan.model_dump()
+                from the_alchemiser.shared.dto.rebalance_plan_dto import (
+                    RebalancePlanDTO,
+                )
 
+                rebalance_plan = RebalancePlanDTO(
+                    plan_id=f"no-trade-{uuid.uuid4()}",
+                    correlation_id=correlation_id,
+                    timestamp=datetime.now(UTC),
+                    items=[],
+                    total_trades=0,
+                    requires_trades=False,
+                    metadata={"scenario": "no_trades_needed"},
+                )
             event = RebalancePlanned(
                 correlation_id=correlation_id,
                 causation_id=correlation_id,  # This event is caused by the signal generation
@@ -362,11 +393,13 @@ class PortfolioAnalysisHandler:
                 timestamp=datetime.now(UTC),
                 source_module="portfolio_v2.handlers",
                 source_component="PortfolioAnalysisHandler",
-                rebalance_plan=plan_data,
-                allocation_comparison=allocation_comparison.model_dump(),
-                trades_required=rebalance_plan is not None and len(rebalance_plan.items) > 0
-                if rebalance_plan
-                else False,
+                rebalance_plan=rebalance_plan,
+                allocation_comparison=allocation_comparison,
+                trades_required=(
+                    rebalance_plan is not None and len(rebalance_plan.items) > 0
+                    if rebalance_plan
+                    else False
+                ),
                 metadata={
                     "analysis_timestamp": datetime.now(UTC).isoformat(),
                     "source": "event_driven_handler",

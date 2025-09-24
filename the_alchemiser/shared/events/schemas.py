@@ -19,6 +19,8 @@ from pydantic import Field
 
 from ..constants import EVENT_TYPE_DESCRIPTION
 from ..dto.portfolio_state_dto import PortfolioStateDTO
+from ..dto.rebalance_plan_dto import RebalancePlanDTO
+from ..schemas.common import AllocationComparisonDTO
 from .base import BaseEvent
 
 # Constants
@@ -68,8 +70,10 @@ class RebalancePlanned(BaseEvent):
     event_type: str = Field(default="RebalancePlanned", description=EVENT_TYPE_DESCRIPTION)
 
     # Rebalance-specific fields
-    rebalance_plan: dict[str, Any] = Field(..., description="Portfolio rebalancing plan")
-    allocation_comparison: dict[str, Any] = Field(..., description="Allocation comparison data")
+    rebalance_plan: RebalancePlanDTO = Field(..., description="Portfolio rebalancing plan")
+    allocation_comparison: AllocationComparisonDTO = Field(
+        ..., description="Allocation comparison data"
+    )
     trades_required: bool = Field(..., description="Whether trades are required")
     metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional rebalance metadata"
