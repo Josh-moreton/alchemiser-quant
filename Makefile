@@ -61,7 +61,7 @@ type-check:
 
 import-check:
 	@echo "🔍 Checking module dependency rules..."
-	poetry run lint-imports
+	poetry run importlinter --config pyproject.toml
 
 migration-check: lint type-check import-check
 	@echo "🚀 Running full migration validation suite..."
