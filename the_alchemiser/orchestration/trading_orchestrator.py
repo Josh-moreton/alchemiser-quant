@@ -151,88 +151,111 @@ class TradingOrchestrator:
             }
         )
 
-        # Trigger portfolio rebalancing via the portfolio orchestrator
-        # Note: PortfolioOrchestrator will emit RebalancePlanned event
         try:
             # Get comprehensive account data for rebalancing context
             account_data = self.portfolio_orchestrator.get_comprehensive_account_data()
-
-            if account_data and account_data.get("account_info"):
-                self.logger.info("🔄 Triggering portfolio rebalancing workflow")
-
-                # Populate workflow results with account data for CLI
-                if (
-                    hasattr(self, "workflow_results")
-                    and self.workflow_state.get("last_correlation_id") == event.correlation_id
-                ):
-                    self.workflow_results.update(
-                        {
-                            "account_info": account_data.get("account_info"),
-                            "current_positions": account_data.get("current_positions", {}),
-                            "open_orders": account_data.get("open_orders", []),
-                        }
-                    )
-
-                # Reconstruct consolidated portfolio from event signals for rebalancing
-                from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-                    ConsolidatedPortfolioDTO,
-                )
-
-                # Extract strategy names from signals
-                source_strategies = list(
-                    {signal.strategy_name for signal in event.signals if signal.strategy_name}
-                )
-
-                # This should trigger the portfolio orchestrator to analyze allocation and emit RebalancePlanned
-                # For now, let's call the portfolio orchestrator method that will emit the event
-                try:
-                    # Convert Decimal values to float for DTO compatibility
-                    allocation_dict_float = {
-                        symbol: float(allocation)
-                        for symbol, allocation in event.consolidated_portfolio.items()
-                    }
-
-                    # Create a consolidated portfolio DTO from the signals
-                    portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
-                        allocation_dict=allocation_dict_float,
-                        correlation_id=event.correlation_id,
-                        source_strategies=source_strategies,
-                    )
-
-                    # Trigger allocation comparison which should emit RebalancePlanned
-                    allocation_comparison = (
-                        self.portfolio_orchestrator.analyze_allocation_comparison(portfolio_dto)
-                    )
-
-                    if allocation_comparison:
-                        # Populate workflow results for CLI
-                        if (
-                            hasattr(self, "workflow_results")
-                            and self.workflow_state.get("last_correlation_id")
-                            == event.correlation_id
-                        ):
-                            self.workflow_results["allocation_comparison"] = allocation_comparison
-
-                        self.logger.info(
-                            "✅ Portfolio rebalancing analysis completed - RebalancePlanned event should be emitted"
-                        )
-                    else:
-                        self.logger.error("Failed to generate allocation comparison")
-                        self.workflow_state["rebalancing_in_progress"] = False
-
-                except Exception as portfolio_error:
-                    self.logger.error(
-                        f"Failed to trigger portfolio orchestrator: {portfolio_error}"
-                    )
-                    self.workflow_state["rebalancing_in_progress"] = False
-
-            else:
+            
+            # Early return if account data is not available
+            if not account_data or not account_data.get("account_info"):
                 self.logger.error("Cannot trigger rebalancing: account data not available")
-                self.workflow_state["rebalancing_in_progress"] = False
+                self._reset_rebalancing_state()
+                return
+
+            self.logger.info("🔄 Triggering portfolio rebalancing workflow")
+            
+            # Populate workflow results with account data for CLI
+            self._populate_workflow_results_for_signal(event.correlation_id, account_data)
+            
+            # Process portfolio rebalancing
+            self._process_portfolio_rebalancing(event)
 
         except Exception as e:
             self.logger.error(f"Failed to coordinate portfolio rebalancing: {e}")
-            self.workflow_state["rebalancing_in_progress"] = False
+            self._reset_rebalancing_state()
+
+    def _populate_workflow_results_for_signal(
+        self, correlation_id: str, account_data: dict[str, Any]
+    ) -> None:
+        """Populate workflow results with account data for CLI display.
+
+        Args:
+            correlation_id: Event correlation ID
+            account_data: Account data from portfolio orchestrator
+
+        """
+        if (
+            hasattr(self, "workflow_results")
+            and self.workflow_state.get("last_correlation_id") == correlation_id
+        ):
+            self.workflow_results.update(
+                {
+                    "account_info": account_data.get("account_info"),
+                    "current_positions": account_data.get("current_positions", {}),
+                    "open_orders": account_data.get("open_orders", []),
+                }
+            )
+
+    def _process_portfolio_rebalancing(self, event: SignalGenerated) -> None:
+        """Process portfolio rebalancing workflow.
+
+        Args:
+            event: The SignalGenerated event
+
+        """
+        # Reconstruct consolidated portfolio from event signals for rebalancing
+        from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
+            ConsolidatedPortfolioDTO,
+        )
+
+        # Extract strategy names from signals
+        source_strategies = list(
+            {signal.strategy_name for signal in event.signals if signal.strategy_name}
+        )
+
+        try:
+            # Convert Decimal values to float for DTO compatibility
+            allocation_dict_float = {
+                symbol: float(allocation)
+                for symbol, allocation in event.consolidated_portfolio.items()
+            }
+
+            # Create a consolidated portfolio DTO from the signals
+            portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
+                allocation_dict=allocation_dict_float,
+                correlation_id=event.correlation_id,
+                source_strategies=source_strategies,
+            )
+
+            # Trigger allocation comparison which should emit RebalancePlanned
+            allocation_comparison = (
+                self.portfolio_orchestrator.analyze_allocation_comparison(portfolio_dto)
+            )
+
+            if not allocation_comparison:
+                self.logger.error("Failed to generate allocation comparison")
+                self._reset_rebalancing_state()
+                return
+                
+            # Populate workflow results for CLI
+            if (
+                hasattr(self, "workflow_results")
+                and self.workflow_state.get("last_correlation_id") == event.correlation_id
+            ):
+                self.workflow_results["allocation_comparison"] = allocation_comparison
+
+            self.logger.info(
+                "✅ Portfolio rebalancing analysis completed - RebalancePlanned event should be emitted"
+            )
+
+        except Exception as portfolio_error:
+            self.logger.error(
+                f"Failed to trigger portfolio orchestrator: {portfolio_error}"
+            )
+            self._reset_rebalancing_state()
+
+    def _reset_rebalancing_state(self) -> None:
+        """Reset rebalancing state when errors occur."""
+        self.workflow_state["rebalancing_in_progress"] = False
 
     def _handle_rebalance_planned_coordination(self, event: RebalancePlanned) -> None:
         """Handle RebalancePlanned event for workflow coordination.
