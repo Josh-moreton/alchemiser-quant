@@ -17,20 +17,18 @@ logger = logging.getLogger(__name__)
 
 class WebSocketConnectionManager:
     """Singleton manager for Alpaca WebSocket connections.
-
+    
     Ensures only one data stream connection exists per set of credentials,
     preventing connection limit exceeded errors.
     """
-
+    
     _instances: ClassVar[dict[str, "WebSocketConnectionManager"]] = {}
     _lock: ClassVar[threading.Lock] = threading.Lock()
-
-    def __new__(
-        cls, api_key: str, secret_key: str, *, paper_trading: bool = True
-    ) -> "WebSocketConnectionManager":
+    
+    def __new__(cls, api_key: str, secret_key: str, *, paper_trading: bool = True) -> "WebSocketConnectionManager":
         """Create or return existing instance for the given credentials."""
         credentials_key = f"{api_key}:{secret_key}:{paper_trading}"
-
+        
         with cls._lock:
             if credentials_key not in cls._instances:
                 instance = super().__new__(cls)
@@ -49,7 +47,7 @@ class WebSocketConnectionManager:
         self._pricing_service: RealTimePricingService | None = None
         self._service_lock = threading.Lock()
         self._ref_count = 0
-        self._initialized = True
+        self._initialized: bool = True
 
         logger.info(
             f"📡 WebSocket connection manager initialized ({'paper' if paper_trading else 'live'})"
