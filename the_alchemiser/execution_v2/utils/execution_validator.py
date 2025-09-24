@@ -138,8 +138,8 @@ class ExecutionValidator:
         self,
         symbol: str,
         quantity: Decimal,
-        side: str,
-        asset_info: AssetInfoDTO,
+        _side: str,
+        _asset_info: AssetInfoDTO,
         correlation_id: str | None,
         *,
         auto_adjust: bool,
@@ -149,8 +149,8 @@ class ExecutionValidator:
         Args:
             symbol: Asset symbol
             quantity: Order quantity
-            side: "buy" or "sell"
-            asset_info: Asset information
+            _side: "buy" or "sell" (reserved for future use)
+            _asset_info: Asset information (reserved for future use)
             correlation_id: Optional correlation ID for tracing
             auto_adjust: Whether to auto-adjust quantities
 
