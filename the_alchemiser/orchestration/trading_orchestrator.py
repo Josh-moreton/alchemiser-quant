@@ -1013,28 +1013,28 @@ class TradingOrchestrator:
         )
 
     def _build_portfolio_state_after(
-        self, 
+        self,
         *,
-        success: bool, 
-        execution_result: ExecutionResultDTO | None, 
-        correlation_id: str, 
-        causation_id: str
+        success: bool,
+        execution_result: ExecutionResultDTO | None,
+        correlation_id: str,
+        causation_id: str,
     ) -> PortfolioStateDTO | None:
         """Build portfolio state after execution.
-        
+
         Args:
             success: Whether the execution was successful
             execution_result: The execution result
             correlation_id: Event correlation ID
             causation_id: Event causation ID
-            
+
         Returns:
             PortfolioStateDTO if successful execution, None otherwise
 
         """
         if not success or not execution_result:
             return None
-            
+
         minimal_metrics = PortfolioMetricsDTO(
             total_value=execution_result.total_trade_value,
             cash_value=DECIMAL_ZERO,
@@ -1058,10 +1058,10 @@ class TradingOrchestrator:
 
     def _build_execution_data(self, execution_result: ExecutionResultDTO | None) -> dict[str, Any]:
         """Build execution results dictionary from execution result.
-        
+
         Args:
             execution_result: The execution result to convert
-            
+
         Returns:
             Dictionary containing execution data for event emission
 
@@ -1082,9 +1082,7 @@ class TradingOrchestrator:
                         "shares": float(order.shares) if order.shares else 0.0,
                         # Money fields serialized as strings
                         "price": (str(order.price) if order.price is not None else "0"),
-                        "trade_amount": (
-                            str(order.trade_amount) if order.trade_amount else "0"
-                        ),
+                        "trade_amount": (str(order.trade_amount) if order.trade_amount else "0"),
                         "success": order.success,
                         "error_message": order.error_message,
                         "order_id": order.order_id,
@@ -1096,13 +1094,15 @@ class TradingOrchestrator:
             ),
         }
 
-    def _derive_error_message(self, execution_result: ExecutionResultDTO, error_message: str | None) -> str | None:
+    def _derive_error_message(
+        self, execution_result: ExecutionResultDTO, error_message: str | None
+    ) -> str | None:
         """Derive a more descriptive error message if not provided.
-        
+
         Args:
             execution_result: The execution result containing orders
             error_message: The original error message (if any)
-            
+
         Returns:
             Derived error message or original if none could be derived
 
@@ -1144,9 +1144,7 @@ class TradingOrchestrator:
                 if reason_hint:
                     derived_error = f"{summary}. Reason: {reason_hint}"
                 else:
-                    derived_error = (
-                        f"{summary}. No detailed broker error messages available."
-                    )
+                    derived_error = f"{summary}. No detailed broker error messages available."
 
             # Apply derived message if we computed one
             if derived_error and derived_error.strip():
@@ -1156,15 +1154,15 @@ class TradingOrchestrator:
                 "Failed to derive detailed error message: %s",
                 derivation_exc,
             )
-        
+
         return error_message
 
     def _derive_error_code_from_orders(self, execution_result: ExecutionResultDTO) -> str | None:
         """Derive error code from order failure patterns.
-        
+
         Args:
             execution_result: The execution result containing orders
-            
+
         Returns:
             Error code string if derivable, None otherwise
 
@@ -1176,7 +1174,7 @@ class TradingOrchestrator:
             MarketClosedError,
             OrderTimeoutError,
         )
-        
+
         # Look at order error messages to infer the type of error
         for order in execution_result.orders:
             if not order.success and order.error_message:
@@ -1211,7 +1209,7 @@ class TradingOrchestrator:
                     error_code_enum = map_exception_to_error_code(mapped_exc)
                     if error_code_enum:
                         return error_code_enum.value  # Use first mappable error
-        
+
         return None
 
     def _emit_trade_executed_event(
@@ -1240,7 +1238,7 @@ class TradingOrchestrator:
             # Derive a more descriptive error message if not provided
             if not success and execution_result:
                 error_message = self._derive_error_message(execution_result, error_message)
-            
+
             # Generate correlation and causation IDs
             correlation_id = str(uuid.uuid4())
             causation_id = f"trade-execution-{datetime.now(UTC).isoformat()}"
@@ -1248,10 +1246,10 @@ class TradingOrchestrator:
             # Build execution data and portfolio state
             execution_data = self._build_execution_data(execution_result)
             portfolio_state_after = self._build_portfolio_state_after(
-                success=success, 
-                execution_result=execution_result, 
-                correlation_id=correlation_id, 
-                causation_id=causation_id
+                success=success,
+                execution_result=execution_result,
+                correlation_id=correlation_id,
+                causation_id=causation_id,
             )
 
             # Create and emit the event

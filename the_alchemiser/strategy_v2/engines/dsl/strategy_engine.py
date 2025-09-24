@@ -120,7 +120,11 @@ class DslStrategyEngine:
             else:
                 # Parallel evaluation
                 file_results = self._evaluate_files_parallel(
-                    dsl_files, correlation_id, normalized_file_weights, parallelism, effective_max_workers
+                    dsl_files,
+                    correlation_id,
+                    normalized_file_weights,
+                    parallelism,
+                    effective_max_workers,
                 )
 
             # Accumulate per-symbol weights from file results

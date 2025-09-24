@@ -455,7 +455,7 @@ class RealTimePricingService:
                 debug_task = asyncio.create_task(
                     asyncio.to_thread(
                         self.logger.debug,
-                        f"📊 Quote received for {symbol}: bid={bid_price}, ask={ask_price}"
+                        f"📊 Quote received for {symbol}: bid={bid_price}, ask={ask_price}",
                     )
                 )
                 # Add task to background set and clean up when done
@@ -472,7 +472,15 @@ class RealTimePricingService:
                 self._latest_ask[symbol] = float(ask_price)
 
                 # Use asyncio.to_thread for potentially blocking lock operations
-                await asyncio.to_thread(self._update_quote_data_sync, symbol, bid_price, ask_price, bid_size, ask_size, timestamp)
+                await asyncio.to_thread(
+                    self._update_quote_data_sync,
+                    symbol,
+                    float(bid_price),
+                    float(ask_price),
+                    float(bid_size) if bid_size is not None else None,
+                    float(ask_size) if ask_size is not None else None,
+                    timestamp,
+                )
 
             # Update statistics (atomic operations, non-blocking)
             self._stats["quotes_received"] += 1
@@ -481,23 +489,26 @@ class RealTimePricingService:
         except Exception as e:
             # Use async logging for error cases to prevent blocking
             error_task = asyncio.create_task(
-                asyncio.to_thread(
-                    self.logger.error, 
-                    f"Error processing quote: {e}", 
-                    exc_info=True
-                )
+                asyncio.to_thread(self.logger.error, f"Error processing quote: {e}", exc_info=True)
             )
             # Add task to background set and clean up when done
             self._background_tasks.add(error_task)
             error_task.add_done_callback(self._background_tasks.discard)
 
-    def _update_quote_data_sync(self, symbol: str, bid_price: float, ask_price: float, 
-                               bid_size: float | None, ask_size: float | None, timestamp: datetime) -> None:
+    def _update_quote_data_sync(
+        self,
+        symbol: str,
+        bid_price: float,
+        ask_price: float,
+        bid_size: float | None,
+        ask_size: float | None,
+        timestamp: datetime,
+    ) -> None:
         """Update quote data with locking synchronously.
-        
+
         This method is designed to be called via asyncio.to_thread to prevent
         blocking the async event loop during lock acquisition.
-        
+
         Args:
             symbol: Stock symbol
             bid_price: Bid price
@@ -556,8 +567,11 @@ class RealTimePricingService:
 
             # Use asyncio.to_thread for potentially blocking lock operations
             await asyncio.to_thread(
-                self._update_trade_data_sync, 
-                symbol, price, timestamp, volume
+                self._update_trade_data_sync,
+                symbol,
+                float(price),
+                timestamp,
+                (float(volume) if volume is not None else None),
             )
 
             # Update statistics and heartbeat (atomic operations, non-blocking)
@@ -568,8 +582,7 @@ class RealTimePricingService:
             if self.logger.isEnabledFor(logging.DEBUG):
                 debug_task = asyncio.create_task(
                     asyncio.to_thread(
-                        self.logger.debug,
-                        f"💰 Trade: {symbol} ${float(price or 0):.2f} x {size}"
+                        self.logger.debug, f"💰 Trade: {symbol} ${float(price or 0):.2f} x {size}"
                     )
                 )
                 # Add task to background set and clean up when done
@@ -585,20 +598,21 @@ class RealTimePricingService:
             )
             error_task = asyncio.create_task(
                 asyncio.to_thread(
-                    self.logger.error,
-                    f"Error processing trade for {symbol_str}: {e}"
+                    self.logger.error, f"Error processing trade for {symbol_str}: {e}"
                 )
             )
             # Add task to background set and clean up when done
             self._background_tasks.add(error_task)
             error_task.add_done_callback(self._background_tasks.discard)
 
-    def _update_trade_data_sync(self, symbol: str, price: float, timestamp: datetime, volume: int | float | None) -> None:
+    def _update_trade_data_sync(
+        self, symbol: str, price: float, timestamp: datetime, volume: int | float | None
+    ) -> None:
         """Update trade data with locking synchronously.
-        
+
         This method is designed to be called via asyncio.to_thread to prevent
         blocking the async event loop during lock acquisition.
-        
+
         Args:
             symbol: Stock symbol
             price: Trade price
