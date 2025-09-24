@@ -44,6 +44,23 @@ from the_alchemiser.shared.types.exceptions import (
 from the_alchemiser.shared.utils.service_factory import ServiceFactory
 
 
+class MinimalOrchestrator:
+    """Minimal orchestrator-like adapter for trading mode determination.
+    
+    Provides a minimal interface to satisfy result factory requirements
+    when using event-driven orchestration without creating tight coupling.
+    """
+
+    def __init__(self, *, paper_trading: bool) -> None:
+        """Initialize with paper trading mode.
+        
+        Args:
+            paper_trading: Whether this is paper trading mode
+
+        """
+        self.live_trading = not paper_trading
+
+
 class TradingSystem:
     """Main trading system orchestrator for initialization and execution delegation."""
 
@@ -241,15 +258,11 @@ class TradingSystem:
             }
 
             # Create a minimal orchestrator-like object for trading mode determination
-            class MinimalOrchestrator:
-                def __init__(self, *, paper_trading: bool) -> None:
-                    self.live_trading = not paper_trading
-            
             minimal_orchestrator = MinimalOrchestrator(paper_trading=self.settings.alpaca.paper_trading)
 
             return create_success_result(
                 trading_result=trading_result,
-                orchestrator=minimal_orchestrator,  # type: ignore[arg-type]
+                orchestrator=minimal_orchestrator,
                 started_at=started_at,
                 completed_at=completed_at,
                 correlation_id=correlation_id,
