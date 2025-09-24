@@ -33,7 +33,10 @@ class BuyingPowerService:
         self.broker_manager = broker_manager
 
     def verify_buying_power_available(
-        self, expected_amount: Decimal, max_retries: int = 5, initial_wait: float = 1.0
+        self,
+        expected_amount: Decimal,
+        max_retries: int = 5,
+        initial_wait: int | float = 1.0,
     ) -> tuple[bool, Decimal]:
         """Verify that buying power is actually available in account with retry logic.
 
@@ -43,7 +46,7 @@ class BuyingPowerService:
         Args:
             expected_amount: Minimum buying power expected to be available
             max_retries: Maximum number of retry attempts
-            initial_wait: Initial wait time in seconds (doubles each retry)
+            initial_wait: Initial wait time in seconds (doubles each retry). Accepts int or float
 
         Returns:
             Tuple of (is_available, actual_buying_power)
