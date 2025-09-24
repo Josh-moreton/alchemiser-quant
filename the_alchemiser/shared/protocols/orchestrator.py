@@ -14,7 +14,7 @@ from typing import Protocol
 
 class TradingModeProvider(Protocol):
     """Protocol for objects that can provide trading mode information.
-    
+
     This protocol defines the minimal interface needed for determining
     whether trading operations should run in live or paper mode.
     """

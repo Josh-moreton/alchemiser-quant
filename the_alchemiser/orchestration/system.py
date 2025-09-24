@@ -46,14 +46,14 @@ from the_alchemiser.shared.utils.service_factory import ServiceFactory
 
 class MinimalOrchestrator:
     """Minimal orchestrator-like adapter for trading mode determination.
-    
+
     Provides a minimal interface to satisfy result factory requirements
     when using event-driven orchestration without creating tight coupling.
     """
 
     def __init__(self, *, paper_trading: bool) -> None:
         """Initialize with paper trading mode.
-        
+
         Args:
             paper_trading: Whether this is paper trading mode
 
@@ -89,7 +89,9 @@ class TradingSystem:
         """Initialize event-driven orchestration system."""
         try:
             if self.container is None:
-                self.logger.warning("Cannot initialize event orchestration: DI container not ready")
+                self.logger.warning(
+                    "Cannot initialize event orchestration: DI container not ready"
+                )
                 return
 
             # Initialize event-driven orchestrator
@@ -114,7 +116,9 @@ class TradingSystem:
         """
         try:
             if self.container is None:
-                self.logger.warning("Cannot emit StartupEvent: DI container not initialized")
+                self.logger.warning(
+                    "Cannot emit StartupEvent: DI container not initialized"
+                )
                 return
 
             # Get event bus from container
@@ -136,7 +140,9 @@ class TradingSystem:
 
             # Emit the event
             event_bus.publish(event)
-            self.logger.debug(f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}")
+            self.logger.debug(
+                f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}"
+            )
 
         except Exception as e:
             # Don't let startup event emission failure break the system
@@ -175,7 +181,9 @@ class TradingSystem:
             use_event_driven = self.event_driven_orchestrator is not None
 
             if use_event_driven:
-                self.logger.info("🚀 Using event-driven orchestration for trading workflow")
+                self.logger.info(
+                    "🚀 Using event-driven orchestration for trading workflow"
+                )
                 trading_result = self._execute_trading_event_driven(
                     correlation_id,
                     started_at,
@@ -183,7 +191,9 @@ class TradingSystem:
                     export_tracking_json=export_tracking_json,
                 )
             else:
-                self.logger.info("🔄 Using traditional orchestration (event-driven not available)")
+                self.logger.info(
+                    "🔄 Using traditional orchestration (event-driven not available)"
+                )
                 trading_result = self._execute_trading_traditional(
                     correlation_id,
                     started_at,
@@ -203,7 +213,9 @@ class TradingSystem:
 
         except Exception as e:
             return self._handle_trading_execution_error(
-                e, show_tracking=show_tracking, export_tracking_json=export_tracking_json
+                e,
+                show_tracking=show_tracking,
+                export_tracking_json=export_tracking_json,
             )
 
     def _execute_trading_event_driven(
@@ -232,13 +244,17 @@ class TradingSystem:
                 return None
 
             # Start the event-driven workflow
-            workflow_correlation_id = self.event_driven_orchestrator.start_trading_workflow(
-                correlation_id=correlation_id
+            workflow_correlation_id = (
+                self.event_driven_orchestrator.start_trading_workflow(
+                    correlation_id=correlation_id
+                )
             )
 
             # Wait for workflow completion
-            workflow_result = self.event_driven_orchestrator.wait_for_workflow_completion(
-                workflow_correlation_id, timeout_seconds=300
+            workflow_result = (
+                self.event_driven_orchestrator.wait_for_workflow_completion(
+                    workflow_correlation_id, timeout_seconds=300
+                )
             )
 
             if not workflow_result.get("success"):
@@ -258,7 +274,9 @@ class TradingSystem:
             }
 
             # Create a minimal orchestrator-like object for trading mode determination
-            minimal_orchestrator = MinimalOrchestrator(paper_trading=self.settings.alpaca.paper_trading)
+            minimal_orchestrator = MinimalOrchestrator(
+                paper_trading=self.settings.alpaca.paper_trading
+            )
 
             return create_success_result(
                 trading_result=trading_result,
@@ -301,7 +319,9 @@ class TradingSystem:
 
             # Ensure container is available
             if self.container is None:
-                self.logger.error("DI container not available for traditional orchestrator")
+                self.logger.error(
+                    "DI container not available for traditional orchestrator"
+                )
                 return None
 
             # Create trading orchestrator directly
@@ -329,7 +349,9 @@ class TradingSystem:
 
             # Display tracking if requested
             if show_tracking:
-                display_post_execution_tracking(paper_trading=not orchestrator.live_trading)
+                display_post_execution_tracking(
+                    paper_trading=not orchestrator.live_trading
+                )
 
             # Export tracking summary if requested
             if export_tracking_json:
@@ -393,9 +415,15 @@ class TradingSystem:
 
                 send_error_notification_if_needed()
             except Exception as notification_error:
-                self.logger.warning(f"Failed to send error notification: {notification_error}")
+                self.logger.warning(
+                    f"Failed to send error notification: {notification_error}"
+                )
 
-            return create_failure_result(f"System error: {e}", started_at, correlation_id, warnings)
+            return create_failure_result(
+                f"System error: {e}", started_at, correlation_id, warnings
+            )
         # Generic error handling
         self.logger.error(f"Unexpected trading execution error: {e}")
-        return create_failure_result(f"Unexpected error: {e}", started_at, correlation_id, warnings)
+        return create_failure_result(
+            f"Unexpected error: {e}", started_at, correlation_id, warnings
+        )
