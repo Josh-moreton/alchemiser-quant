@@ -133,11 +133,4 @@ class EnrichedAccountSummaryView(BaseModel):
     summary: AccountSummary
 
 
-# Backward compatibility aliases - will be removed in future version
-AccountSummaryDTO = AccountSummary
-AccountMetricsDTO = AccountMetrics
-BuyingPowerDTO = BuyingPowerResult
-RiskMetricsDTO = RiskMetricsResult
-TradeEligibilityDTO = TradeEligibilityResult
-PortfolioAllocationDTO = PortfolioAllocationResult
-EnrichedAccountSummaryDTO = EnrichedAccountSummaryView
+

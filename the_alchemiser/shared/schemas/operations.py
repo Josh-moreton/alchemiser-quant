@@ -59,7 +59,4 @@ class OrderStatusResult(Result):
     status: str | None = None
 
 
-# Backward compatibility aliases - will be removed in future version
-OperationResultDTO = OperationResult
-OrderCancellationDTO = OrderCancellationResult
-OrderStatusDTO = OrderStatusResult
+

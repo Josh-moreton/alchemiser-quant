@@ -94,9 +94,4 @@ class MultiSymbolQuotesResult(Result):
     error: str | None = None
 
 
-# Backward compatibility aliases - will be removed in future version
-PriceDTO = PriceResult
-PriceHistoryDTO = PriceHistoryResult
-SpreadAnalysisDTO = SpreadAnalysisResult
-MarketStatusDTO = MarketStatusResult
-MultiSymbolQuotesDTO = MultiSymbolQuotesResult
+

@@ -14,11 +14,12 @@ from .accounts import (
     RiskMetricsResult,
     TradeEligibilityResult,
 )
+from .assets import AssetInfo
 from .base import Result
 from .common import (
-    AllocationComparisonDTO,
-    MultiStrategyExecutionResultDTO,
-    MultiStrategySummaryDTO,
+    AllocationComparison,
+    MultiStrategyExecutionResult,
+    MultiStrategySummary,
 )
 from .errors import (
     ErrorContextData,
@@ -34,11 +35,14 @@ from .market_data import (
     PriceResult,
     SpreadAnalysisResult,
 )
+from .portfolio import PortfolioMetrics, PortfolioSnapshot, Position
+from .rebalancing import RebalancePlan, RebalancePlanItem
 
 __all__ = [
     "AccountMetrics",
     "AccountSummary",
-    "AllocationComparisonDTO",
+    "AllocationComparison",
+    "AssetInfo",
     "BuyingPowerResult",
     "EnrichedAccountSummaryView",
     "ErrorContextData",
@@ -47,12 +51,17 @@ __all__ = [
     "ErrorReportSummary",
     "ErrorSummaryData",
     "MarketStatusResult",
-    "MultiStrategyExecutionResultDTO",
-    "MultiStrategySummaryDTO",
+    "MultiStrategyExecutionResult",
+    "MultiStrategySummary",
     "MultiSymbolQuotesResult",
     "PortfolioAllocationResult",
+    "PortfolioMetrics",
+    "PortfolioSnapshot",
+    "Position",
     "PriceHistoryResult",
     "PriceResult",
+    "RebalancePlan",
+    "RebalancePlanItem",
     "Result",
     "RiskMetricsResult",
     "SpreadAnalysisResult",

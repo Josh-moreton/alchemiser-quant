@@ -26,5 +26,4 @@ class Result(BaseModel):
         return self.success
 
 
-# Backward compatibility alias - will be removed in future version
-ResultDTO = Result
+

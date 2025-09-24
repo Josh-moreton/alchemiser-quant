@@ -68,8 +68,4 @@ class EnrichedPositionsView(Result):
     positions: list[EnrichedPositionView]
 
 
-# Backward compatibility aliases - will be removed in future version
-EnrichedOrderDTO = EnrichedOrderView
-OpenOrdersDTO = OpenOrdersView
-EnrichedPositionDTO = EnrichedPositionView
-EnrichedPositionsDTO = EnrichedPositionsView
+

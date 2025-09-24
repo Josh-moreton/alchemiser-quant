@@ -20,13 +20,13 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
 from the_alchemiser.shared.schemas.execution_summary import ExecutionSummary
+from the_alchemiser.shared.schemas.portfolio import PortfolioSnapshot
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, StrategySignal
 
 
-class MultiStrategyExecutionResultDTO(BaseModel):
-    """DTO for multi-strategy execution results.
+class MultiStrategyExecutionResult(BaseModel):
+    """Schema for multi-strategy execution results.
 
     Provides an immutable, validated container for multi-strategy execution
     outcomes, replacing the dataclass version with enhanced type safety
@@ -56,11 +56,11 @@ class MultiStrategyExecutionResultDTO(BaseModel):
 
     # Structured execution summary and portfolio state
     execution_summary: ExecutionSummary
-    final_portfolio_state: PortfolioStateDTO | None = None
+    final_portfolio_state: PortfolioSnapshot | None = None
 
 
-class AllocationComparisonDTO(BaseModel):
-    """DTO for allocation comparison with Decimal precision."""
+class AllocationComparison(BaseModel):
+    """Schema for allocation comparison with Decimal precision."""
 
     model_config = ConfigDict(
         strict=True,
@@ -73,8 +73,8 @@ class AllocationComparisonDTO(BaseModel):
     deltas: dict[str, Decimal]
 
 
-class MultiStrategySummaryDTO(BaseModel):
-    """DTO for multi-strategy summary including allocation comparison & account info.
+class MultiStrategySummary(BaseModel):
+    """Schema for multi-strategy summary including allocation comparison & account info.
 
     Provides a unified summary structure that includes execution results,
     allocation comparison, and enriched account information for CLI rendering.
@@ -87,10 +87,10 @@ class MultiStrategySummaryDTO(BaseModel):
     )
 
     # Core execution result
-    execution_result: MultiStrategyExecutionResultDTO
+    execution_result: MultiStrategyExecutionResult
 
     # Allocation comparison with Decimal precision
-    allocation_comparison: AllocationComparisonDTO | None = None
+    allocation_comparison: AllocationComparison | None = None
 
     # Enriched account information
     enriched_account: dict[str, Any] | None = None
