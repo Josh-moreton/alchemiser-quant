@@ -1772,66 +1772,113 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 logger.error(f"Failed to start TradingStream: {exc}")
                 self._trading_ws_connected = False
 
+    def _extract_event_and_order(self, data: dict[str, Any] | object) -> tuple[str, dict[str, Any] | object | None]:
+        """Extract event type and order from data (SDK model or dict).
+        
+        Args:
+            data: Stream data from TradingStream callback
+            
+        Returns:
+            Tuple of (event_type, order) where order may be None
+
+        """
+        if hasattr(data, "event"):
+            event_type = str(getattr(data, "event", "")).lower()
+            order = getattr(data, "order", None)
+        else:
+            event_type = (
+                str(data.get("event", "")).lower() if isinstance(data, dict) else ""
+            )
+            order = data.get("order") if isinstance(data, dict) else None
+        return event_type, order
+
+    def _extract_order_info(self, order: dict[str, Any] | object | None) -> tuple[str | None, str | None, Decimal | None]:
+        """Extract order ID, status, and average price from order object.
+        
+        Args:
+            order: Order object (SDK model or dict, may be None)
+            
+        Returns:
+            Tuple of (order_id, status, avg_price) where any may be None
+
+        """
+        if order is None:
+            return None, None, None
+            
+        order_id = str(
+            getattr(order, "id", "")
+            or (order.get("id") if isinstance(order, dict) else "")
+        )
+        status = str(
+            getattr(order, "status", "")
+            or (order.get("status") if isinstance(order, dict) else "")
+        ).lower()
+        
+        avg_price = self._convert_avg_price(order)
+        
+        return order_id if order_id else None, status if status else None, avg_price
+
+    def _convert_avg_price(self, order: dict[str, Any] | object) -> Decimal | None:
+        """Convert average price from order to Decimal.
+        
+        Args:
+            order: Order object (SDK model or dict)
+            
+        Returns:
+            Average price as Decimal or None if conversion fails
+
+        """
+        avg_raw = (
+            getattr(order, "filled_avg_price", None)
+            if not isinstance(order, dict)
+            else order.get("filled_avg_price")
+        )
+        
+        if avg_raw is not None:
+            try:
+                return Decimal(str(avg_raw))
+            except Exception:
+                return None
+        return None
+
+    def _is_terminal_event(self, event_type: str, status: str | None) -> bool:
+        """Check if the event/status indicates a terminal order state.
+        
+        Args:
+            event_type: The event type from the stream
+            status: The order status (may be None)
+            
+        Returns:
+            True if this is a terminal event requiring event signaling
+
+        """
+        final_events = {"fill", "canceled", "rejected", "expired"}
+        final_statuses = {"filled", "canceled", "rejected", "expired"}
+        
+        return (
+            event_type in final_events
+            or (status is not None and status in final_events)
+            or (status is not None and status in final_statuses)
+        )
+
     async def _on_order_update(self, data: dict[str, Any] | object) -> None:
         """Order update callback for TradingStream (async).
 
         Handles both SDK models and dict payloads. Must be async for TradingStream.
         """
         try:
-            if hasattr(data, "event"):
-                event_type = str(getattr(data, "event", "")).lower()
-                order = getattr(data, "order", None)
-            else:
-                event_type = (
-                    str(data.get("event", "")).lower() if isinstance(data, dict) else ""
-                )
-                order = data.get("order") if isinstance(data, dict) else None
-
-            order_id = None
-            status = None
-            avg_price: Decimal | None = None
-
-            if order is not None:
-                order_id = str(
-                    getattr(order, "id", "")
-                    or (order.get("id") if isinstance(order, dict) else "")
-                )
-                status = str(
-                    getattr(order, "status", "")
-                    or (order.get("status") if isinstance(order, dict) else "")
-                ).lower()
-                avg_raw = (
-                    getattr(order, "filled_avg_price", None)
-                    if not isinstance(order, dict)
-                    else order.get("filled_avg_price")
-                )
-                if avg_raw is not None:
-                    try:
-                        avg_price = Decimal(str(avg_raw))
-                    except Exception:
-                        avg_price = None
+            event_type, order = self._extract_event_and_order(data)
+            order_id, status, avg_price = self._extract_order_info(order)
 
             if not order_id:
                 return
 
-            # Mark terminal and set events
-            final_events = {"fill", "canceled", "rejected", "expired"}
-            is_terminal = (
-                event_type in final_events
-                or status in final_events
-                or status
-                in {
-                    "filled",
-                    "canceled",
-                    "rejected",
-                    "expired",
-                }
-            )
-
+            # Update order tracking
             self._order_status[order_id] = status or event_type or ""
             self._order_avg_price[order_id] = avg_price
 
-            if is_terminal:
+            # Handle terminal events
+            if self._is_terminal_event(event_type, status):
                 evt = self._order_events.get(order_id)
                 if evt:
                     # Safe to set from event loop thread; non-blocking
