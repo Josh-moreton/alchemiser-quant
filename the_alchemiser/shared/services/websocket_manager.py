@@ -8,6 +8,7 @@ by ensuring only one data stream connection exists per credentials.
 
 import logging
 import threading
+import time
 from typing import Any, ClassVar
 
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
@@ -24,6 +25,7 @@ class WebSocketConnectionManager:
 
     _instances: ClassVar[dict[str, "WebSocketConnectionManager"]] = {}
     _lock: ClassVar[threading.Lock] = threading.Lock()
+    _cleanup_in_progress: ClassVar[bool] = False
 
     def __new__(
         cls, api_key: str, secret_key: str, *, paper_trading: bool = True
@@ -32,6 +34,10 @@ class WebSocketConnectionManager:
         credentials_key = f"{api_key}:{secret_key}:{paper_trading}"
 
         with cls._lock:
+            # Wait for any cleanup to complete
+            while cls._cleanup_in_progress:
+                time.sleep(0.001)  # Brief wait for cleanup to finish
+                
             if credentials_key not in cls._instances:
                 instance = super().__new__(cls)
                 cls._instances[credentials_key] = instance
@@ -111,16 +117,50 @@ class WebSocketConnectionManager:
             stats = self._pricing_service.get_stats()
             stats["ref_count"] = self._ref_count
             return stats
+    
+    @classmethod
+    def get_connection_health(cls) -> dict[str, Any]:
+        """Get health status of all connection managers."""
+        with cls._lock:
+            health_info = {
+                "total_instances": len(cls._instances),
+                "cleanup_in_progress": cls._cleanup_in_progress,
+                "instances": {}
+            }
+            
+            for key, instance in cls._instances.items():
+                try:
+                    stats = instance.get_service_stats()
+                    health_info["instances"][key] = {
+                        "status": stats.get("status", "unknown"),
+                        "ref_count": stats.get("ref_count", 0),
+                        "connected": instance.is_service_available()
+                    }
+                except Exception as e:
+                    health_info["instances"][key] = {
+                        "status": "error",
+                        "error": str(e)
+                    }
+            
+            return health_info
 
     @classmethod
     def cleanup_all_instances(cls) -> None:
         """Clean up all connection manager instances."""
         with cls._lock:
-            for instance in cls._instances.values():
-                try:
-                    if instance._pricing_service:
-                        instance._pricing_service.stop()
-                except Exception as e:
-                    logger.error(f"Error cleaning up connection manager: {e}")
-            cls._instances.clear()
-            logger.info("📡 All WebSocket connection managers cleaned up")
+            cls._cleanup_in_progress = True
+            try:
+                # Create a copy of instances to avoid dictionary modification during iteration
+                instances_to_cleanup = list(cls._instances.values())
+                
+                for instance in instances_to_cleanup:
+                    try:
+                        if hasattr(instance, '_pricing_service') and instance._pricing_service:
+                            instance._pricing_service.stop()
+                    except Exception as e:
+                        logger.error(f"Error cleaning up connection manager: {e}")
+                
+                cls._instances.clear()
+                logger.info("📡 All WebSocket connection managers cleaned up")
+            finally:
+                cls._cleanup_in_progress = False

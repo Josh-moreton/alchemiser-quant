@@ -111,6 +111,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     _instances: ClassVar[dict[str, AlpacaManager]] = {}
     _lock: ClassVar[threading.Lock] = threading.Lock()
+    _cleanup_in_progress: ClassVar[bool] = False
     _initialized: bool
 
     def __new__(
@@ -125,6 +126,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         credentials_key = f"{api_key}:{secret_key}:{paper}:{base_url}"
 
         with cls._lock:
+            # Wait for any cleanup to complete
+            while cls._cleanup_in_progress:
+                time.sleep(0.001)  # Brief wait for cleanup to finish
+                
             if credentials_key not in cls._instances:
                 instance = super().__new__(cls)
                 cls._instances[credentials_key] = instance
@@ -2117,19 +2122,54 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def cleanup_all_instances(cls) -> None:
         """Clean up all AlpacaManager instances and their WebSocket connections."""
         with cls._lock:
-            for instance in cls._instances.values():
+            cls._cleanup_in_progress = True
+            try:
+                # Create a copy of instances to avoid dictionary modification during iteration
+                instances_to_cleanup = list(cls._instances.values())
+                
+                for instance in instances_to_cleanup:
+                    try:
+                        # Stop TradingStream if active
+                        if hasattr(instance, '_trading_ws_lock'):
+                            with instance._trading_ws_lock:
+                                if hasattr(instance, '_trading_stream') and instance._trading_stream:
+                                    logger.info("Stopping TradingStream for cleanup")
+                                    instance._trading_stream.stop()
+                                    instance._trading_stream = None
+                                if hasattr(instance, '_trading_ws_connected'):
+                                    instance._trading_ws_connected = False
+                    except Exception as e:
+                        logger.error(f"Error cleaning up AlpacaManager instance: {e}")
+                
+                cls._instances.clear()
+                logger.info("All AlpacaManager instances cleaned up")
+            finally:
+                cls._cleanup_in_progress = False
+
+    @classmethod
+    def get_connection_health(cls) -> dict[str, Any]:
+        """Get health status of all AlpacaManager instances."""
+        with cls._lock:
+            health_info = {
+                "total_instances": len(cls._instances),
+                "cleanup_in_progress": cls._cleanup_in_progress,
+                "instances": {}
+            }
+            
+            for key, instance in cls._instances.items():
                 try:
-                    # Stop TradingStream if active
-                    with instance._trading_ws_lock:
-                        if instance._trading_stream:
-                            logger.info("Stopping TradingStream for cleanup")
-                            instance._trading_stream.stop()
-                            instance._trading_stream = None
-                        instance._trading_ws_connected = False
+                    health_info["instances"][key] = {
+                        "paper_trading": instance._paper,
+                        "trading_ws_connected": getattr(instance, '_trading_ws_connected', False),
+                        "initialized": getattr(instance, '_initialized', False)
+                    }
                 except Exception as e:
-                    logger.error(f"Error cleaning up AlpacaManager instance: {e}")
-            cls._instances.clear()
-            logger.info("All AlpacaManager instances cleaned up")
+                    health_info["instances"][key] = {
+                        "status": "error",
+                        "error": str(e)
+                    }
+            
+            return health_info
 
     def __repr__(self) -> str:
         """Return string representation."""
