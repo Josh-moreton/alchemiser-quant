@@ -153,6 +153,145 @@ class DslEvaluator:
             )
             raise DslEvaluationError(f"DSL evaluation failed: {e}") from e
 
+    def _evaluate_atom_node(self, node: ASTNodeDTO) -> DSLValue:
+        """Evaluate an atom node.
+
+        Args:
+            node: Atom AST node to evaluate
+
+        Returns:
+            The atom value
+
+        """
+        return node.get_atom_value()
+
+    def _evaluate_symbol_node(self, node: ASTNodeDTO) -> DSLValue:
+        """Evaluate a symbol node.
+
+        Args:
+            node: Symbol AST node to evaluate
+
+        Returns:
+            The symbol name
+
+        """
+        # Always return the symbol name; functions are invoked by list application
+        return node.get_symbol_name()
+
+    def _evaluate_map_literal(
+        self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO
+    ) -> dict[str, float | int | decimal.Decimal | str]:
+        """Evaluate a map literal node.
+
+        Args:
+            node: List node with map metadata
+            correlation_id: Correlation ID for tracking
+            trace: Trace for logging
+
+        Returns:
+            Dictionary representation of the map
+
+        """
+        m: dict[str, float | int | decimal.Decimal | str] = {}
+        # Expect pairs: keyword/value
+        it = iter(node.children)
+        for key_node, val_node in zip(it, it, strict=True):
+            key = (
+                key_node.get_symbol_name()
+                if key_node.is_symbol()
+                else str(key_node.get_atom_value())
+            )
+            if key is None:
+                key = "unknown"
+
+            val = self._evaluate_node(val_node, correlation_id, trace)
+            # Convert the value to an appropriate type
+            if isinstance(val, (str, int, float, decimal.Decimal)):
+                m[key] = val
+            else:
+                m[key] = str(val)
+        return m
+
+    def _evaluate_function_application(self, node: ASTNodeDTO, context: DslContext) -> DSLValue:
+        """Evaluate a function application.
+
+        Args:
+            node: List node with function as first child
+            context: DSL evaluation context
+
+        Returns:
+            Result of function evaluation
+
+        Raises:
+            DslEvaluationError: If function name is None or unknown
+
+        """
+        first_child = node.children[0]
+        func_name = first_child.get_symbol_name()
+        if func_name is None:
+            raise DslEvaluationError("Function name cannot be None")
+
+        args = node.children[1:]
+
+        # Dispatch to operator function
+        try:
+            return self.dispatcher.dispatch(func_name, args, context)
+        except KeyError:
+            raise DslEvaluationError(f"Unknown function: {func_name}")
+
+    def _evaluate_list_elements(
+        self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO
+    ) -> list[DSLValue]:
+        """Evaluate list elements as a regular list.
+
+        Args:
+            node: List node to evaluate
+            correlation_id: Correlation ID for tracking
+            trace: Trace for logging
+
+        Returns:
+            List of evaluated elements
+
+        """
+        return [self._evaluate_node(child, correlation_id, trace) for child in node.children]
+
+    def _evaluate_list_node(
+        self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO
+    ) -> DSLValue:
+        """Evaluate a list node.
+
+        Args:
+            node: List AST node to evaluate
+            correlation_id: Correlation ID for tracking
+            trace: Trace for logging
+
+        Returns:
+            Evaluation result based on list type
+
+        """
+        if not node.children:
+            return []
+
+        # Map literal: convert to dict
+        if node.metadata and node.metadata.get("node_subtype") == "map":
+            return self._evaluate_map_literal(node, correlation_id, trace)
+
+        # Create context for function applications
+        context = DslContext(
+            indicator_service=self.indicator_service,
+            event_publisher=self.event_publisher,
+            correlation_id=correlation_id,
+            trace=trace,
+            evaluate_node=self._evaluate_node,
+        )
+
+        # Function application: (func arg1 arg2 ...)
+        first_child = node.children[0]
+        if first_child.is_symbol():
+            return self._evaluate_function_application(node, context)
+        # Evaluate each element and return as list
+        return self._evaluate_list_elements(node, correlation_id, trace)
+
     def _evaluate_node(self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO) -> DSLValue:
         """Evaluate a single AST node.
 
@@ -165,65 +304,14 @@ class DslEvaluator:
             Evaluation result
 
         """
-        # Create context for operators
-        context = DslContext(
-            indicator_service=self.indicator_service,
-            event_publisher=self.event_publisher,
-            correlation_id=correlation_id,
-            trace=trace,
-            evaluate_node=self._evaluate_node,
-        )
-
         if node.is_atom():
-            return node.get_atom_value()
+            return self._evaluate_atom_node(node)
+
         if node.is_symbol():
-            # Always return the symbol name; functions are invoked by list application
-            return node.get_symbol_name()
+            return self._evaluate_symbol_node(node)
+
         if node.is_list():
-            if not node.children:
-                return []
-
-            # Map literal: convert to dict
-            if node.metadata and node.metadata.get("node_subtype") == "map":
-                m: dict[str, float | int | decimal.Decimal | str] = {}
-                # Expect pairs: keyword/value
-                it = iter(node.children)
-                for key_node, val_node in zip(it, it, strict=True):
-                    key = (
-                        key_node.get_symbol_name()
-                        if key_node.is_symbol()
-                        else str(key_node.get_atom_value())
-                    )
-                    if key is None:
-                        key = "unknown"
-
-                    val = self._evaluate_node(val_node, correlation_id, trace)
-                    # Convert the value to an appropriate type
-                    if isinstance(val, (str, int, float, decimal.Decimal)):
-                        m[key] = val
-                    else:
-                        m[key] = str(val)
-                return m
-
-            # Function application: (func arg1 arg2 ...)
-            first_child = node.children[0]
-            if first_child.is_symbol():
-                func_name = first_child.get_symbol_name()
-                if func_name is None:
-                    raise DslEvaluationError("Function name cannot be None")
-
-                args = node.children[1:]
-
-                # Dispatch to operator function
-                try:
-                    return self.dispatcher.dispatch(func_name, args, context)
-                except KeyError:
-                    raise DslEvaluationError(f"Unknown function: {func_name}")
-            else:
-                # Evaluate each element and return as list
-                return [
-                    self._evaluate_node(child, correlation_id, trace) for child in node.children
-                ]
+            return self._evaluate_list_node(node, correlation_id, trace)
 
         raise DslEvaluationError(f"Unknown node type: {node}")
 
