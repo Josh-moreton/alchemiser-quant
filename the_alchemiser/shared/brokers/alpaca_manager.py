@@ -1723,26 +1723,41 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 logger.error(f"Failed to start TradingStream: {exc}")
                 self._trading_ws_connected = False
 
-    async def _on_order_update(self, data: dict[str, Any] | object) -> None:
-        """Order update callback for TradingStream (async).
+    def _extract_event_and_order(
+        self, data: dict[str, Any] | object
+    ) -> tuple[str, dict[str, Any] | object | None]:
+        """Extract event type and order from data (SDK model or dict).
 
-        Handles both SDK models and dict payloads. Must be async for TradingStream.
+        Args:
+            data: Stream data from TradingStream callback
+
+        Returns:
+            Tuple of (event_type, order) where order may be None
+
         """
-        try:
-            if hasattr(data, "event"):
-                event_type = str(getattr(data, "event", "")).lower()
-                order = getattr(data, "order", None)
-            else:
-                event_type = str(data.get("event", "")).lower() if isinstance(data, dict) else ""
-                order = data.get("order") if isinstance(data, dict) else None
+        if hasattr(data, "event"):
+            event_type = str(getattr(data, "event", "")).lower()
+            order = getattr(data, "order", None)
+        else:
+            event_type = str(data.get("event", "")).lower() if isinstance(data, dict) else ""
+            order = data.get("order") if isinstance(data, dict) else None
+        return event_type, order
 
-            order_id = None
-            status = None
-            avg_price: Decimal | None = None
+    def _extract_order_info(
+        self, order: dict[str, Any] | object | None
+    ) -> tuple[str | None, str | None, Decimal | None]:
+        """Extract order ID, status, and average price from order object.
+
+        Args:
+            order: Order object (SDK model or dict, may be None)
+
+        Returns:
+            Tuple of (order_id, status, avg_price) where any may be None
 
             if order is not None:
                 order_id = str(
-                    getattr(order, "id", "") or (order.get("id") if isinstance(order, dict) else "")
+                    getattr(order, "id", "")
+                    or (order.get("id") if isinstance(order, dict) else "")
                 )
                 status = str(
                     getattr(order, "status", "")
@@ -1779,7 +1794,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             self._order_status[order_id] = status or event_type or ""
             self._order_avg_price[order_id] = avg_price
 
-            if is_terminal:
+            # Handle terminal events
+            if self._is_terminal_event(event_type, status):
                 evt = self._order_events.get(order_id)
                 if evt:
                     # Safe to set from event loop thread; non-blocking
