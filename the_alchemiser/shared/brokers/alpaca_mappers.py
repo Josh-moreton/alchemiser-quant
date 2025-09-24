@@ -4,12 +4,14 @@ Alpaca SDK to DTO mapping utilities.
 
 This module provides conversion functions between Alpaca SDK objects and
 domain DTOs, centralizing the mapping logic and ensuring consistent
-transformations across the application.
+transformations across the application. Also includes shared position
+extraction utilities to eliminate code duplication.
 """
 
 from __future__ import annotations
 
 import logging
+import math
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
@@ -17,7 +19,7 @@ from the_alchemiser.shared.dto.broker_dto import OrderExecutionResult
 from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
 
 if TYPE_CHECKING:
-    from alpaca.trading.models import Order
+    from alpaca.trading.models import Order, Position
     from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
 logger = logging.getLogger(__name__)
@@ -347,3 +349,55 @@ def create_error_dto(
         message=error_message,
         error_message=error_message,
     )
+
+
+# Position extraction utilities (shared to eliminate code duplication)
+def extract_position_symbol(pos: Position | dict[str, Any]) -> str | None:
+    """Extract symbol from position object."""
+    try:
+        if hasattr(pos, "symbol"):
+            return str(pos.symbol)
+        elif isinstance(pos, dict) and "symbol" in pos:
+            return str(pos["symbol"])
+        return None
+    except Exception:
+        return None
+
+
+def extract_position_quantity(pos: Position | dict[str, Any]) -> float | None:
+    """Extract quantity from position object."""
+    try:
+        if hasattr(pos, "qty"):
+            qty_raw = getattr(pos, "qty", None)
+            return float(qty_raw) if qty_raw is not None else None
+        elif isinstance(pos, dict) and "qty" in pos:
+            qty_raw = pos["qty"]
+            return float(qty_raw) if qty_raw is not None else None
+        return None
+    except (ValueError, TypeError):
+        return None
+
+
+def filter_non_zero_positions(positions: list[Any]) -> dict[str, float]:
+    """Filter positions to only include non-zero quantities.
+    
+    Uses math.isclose for float comparison to comply with architectural rules.
+    
+    Args:
+        positions: List of position objects
+        
+    Returns:
+        Dictionary mapping symbol to quantity for non-zero positions
+    """
+    result = {}
+    
+    for pos in positions:
+        symbol = extract_position_symbol(pos)
+        quantity = extract_position_quantity(pos)
+        
+        # Use math.isclose for float comparison (architectural rule #1)
+        if symbol is not None and quantity is not None and not math.isclose(quantity, 0.0, rel_tol=1e-9):
+            result[symbol] = quantity
+            
+    logger.debug(f"Retrieved {len(result)} non-zero positions")
+    return result

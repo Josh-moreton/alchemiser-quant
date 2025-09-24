@@ -211,7 +211,7 @@ class AlpacaStreamingManager:
             
         return True
 
-    async def _on_order_update(self, data: dict[str, Any] | object) -> None:
+    def _on_order_update(self, data: dict[str, Any] | object) -> None:
         """Handle order updates from TradingStream.
         
         This handler is idempotent and safe for at-least-once delivery.

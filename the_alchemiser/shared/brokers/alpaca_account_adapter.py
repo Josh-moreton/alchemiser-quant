@@ -112,19 +112,11 @@ class AlpacaAccountAdapter(AccountRepository):
 
     def get_positions_dict(self) -> dict[str, float]:
         """Get all current positions as dict mapping symbol to quantity."""
+        from the_alchemiser.shared.brokers.alpaca_mappers import filter_non_zero_positions
+        
         try:
             positions = self._trading_client.get_all_positions()
-            result = {}
-            
-            for pos in positions:
-                symbol = self._extract_position_symbol(pos)
-                quantity = self._extract_position_quantity(pos)
-                
-                if symbol is not None and quantity is not None and quantity != 0.0:
-                    result[symbol] = quantity
-                    
-            logger.debug(f"Retrieved {len(result)} non-zero positions")
-            return result
+            return filter_non_zero_positions(list(positions))
             
         except Exception as e:
             logger.error(f"Failed to get positions dict: {e}")
@@ -160,30 +152,4 @@ class AlpacaAccountAdapter(AccountRepository):
         except Exception as e:
             # Not having a position is normal, so log as debug rather than error
             logger.debug(f"No position found for {symbol}: {e}")
-            return None
-
-    def _extract_position_symbol(self, pos: Position | dict[str, Any]) -> str | None:
-        """Extract symbol from position object."""
-        try:
-            if hasattr(pos, "symbol"):
-                return str(pos.symbol)
-            elif isinstance(pos, dict) and "symbol" in pos:
-                return str(pos["symbol"])
-            return None
-        except Exception:
-            return None
-
-    def _extract_position_quantity(
-        self, pos: Position | dict[str, Any]
-    ) -> float | None:
-        """Extract quantity from position object."""
-        try:
-            if hasattr(pos, "qty"):
-                qty_raw = getattr(pos, "qty", None)
-                return float(qty_raw) if qty_raw is not None else None
-            elif isinstance(pos, dict) and "qty" in pos:
-                qty_raw = pos["qty"]
-                return float(qty_raw) if qty_raw is not None else None
-            return None
-        except (ValueError, TypeError):
             return None

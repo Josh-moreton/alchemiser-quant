@@ -72,47 +72,15 @@ class AlpacaTradingAdapter(TradingRepository):
 
     def get_positions_dict(self) -> dict[str, float]:
         """Get all current positions as dict mapping symbol to quantity."""
+        from the_alchemiser.shared.brokers.alpaca_mappers import filter_non_zero_positions
+        
         try:
             positions = self._trading_client.get_all_positions()
-            result = {}
-            
-            for pos in positions:
-                symbol = self._extract_position_symbol(pos)
-                quantity = self._extract_position_quantity(pos)
-                
-                if symbol is not None and quantity is not None and quantity != 0.0:
-                    result[symbol] = quantity
-                    
-            logger.debug(f"Retrieved {len(result)} non-zero positions")
-            return result
+            return filter_non_zero_positions(list(positions))
             
         except Exception as e:
             logger.error(f"Failed to get positions dict: {e}")
             return {}
-
-    def _extract_position_symbol(self, pos: Any) -> str | None:
-        """Extract symbol from position object."""
-        try:
-            if hasattr(pos, "symbol"):
-                return str(pos.symbol)
-            elif isinstance(pos, dict) and "symbol" in pos:
-                return str(pos["symbol"])
-            return None
-        except Exception:
-            return None
-
-    def _extract_position_quantity(self, pos: Any) -> float | None:
-        """Extract quantity from position object."""
-        try:
-            if hasattr(pos, "qty"):
-                qty_raw = getattr(pos, "qty", None)
-                return float(qty_raw) if qty_raw is not None else None
-            elif isinstance(pos, dict) and "qty" in pos:
-                qty_raw = pos["qty"]
-                return float(qty_raw) if qty_raw is not None else None
-            return None
-        except (ValueError, TypeError):
-            return None
 
     def get_account(self) -> dict[str, Any] | None:
         """Get account information as dictionary."""
@@ -308,6 +276,83 @@ class AlpacaTradingAdapter(TradingRepository):
         except Exception as e:
             logger.error(f"Connection validation failed: {e}")
             return False
+
+    def get_orders(self, status: str | None = None) -> list[Any]:
+        """Get orders, optionally filtered by status."""
+        from alpaca.trading.enums import QueryOrderStatus
+        from alpaca.trading.requests import GetOrdersRequest
+        
+        try:
+            # Use proper request to get more orders (default limit is very low)
+            if status and status.lower() == "open":
+                # Use the API's built-in open status filter for efficiency
+                request = GetOrdersRequest(status=QueryOrderStatus.OPEN)
+                orders = self._trading_client.get_orders(request)
+            else:
+                # Get recent orders with higher limit to catch all relevant orders
+                request = GetOrdersRequest(limit=100)  # Increased from default
+                orders = self._trading_client.get_orders(request)
+
+            orders_list = list(orders)
+
+            # Apply manual filtering for non-open status requests
+            if status and status.lower() != "open":
+                status_lower = status.lower()
+                # For other statuses, try exact match on the enum name
+                orders_list = [
+                    o
+                    for o in orders_list
+                    if str(getattr(o, "status", "")).lower() == status_lower
+                ]
+
+            logger.debug(f"Retrieved {len(orders_list)} orders with status filter: {status}")
+            return orders_list
+
+        except Exception as e:
+            logger.error(f"Failed to get orders: {e}")
+            return []
+
+    def cancel_stale_orders(self, timeout_minutes: int = 30) -> dict[str, Any]:
+        """Cancel orders that are older than the specified timeout."""
+        from datetime import UTC, datetime, timedelta
+        
+        try:
+            # Get all open orders
+            open_orders = self.get_orders(status="open")
+            if not open_orders:
+                return {"cancelled_orders": [], "failed_orders": [], "message": "No open orders found"}
+
+            # Calculate cutoff time
+            cutoff_time = datetime.now(UTC) - timedelta(minutes=timeout_minutes)
+            
+            cancelled_orders = []
+            failed_orders = []
+            
+            for order in open_orders:
+                try:
+                    created_at = getattr(order, "created_at", None)
+                    if created_at and created_at < cutoff_time:
+                        order_id = str(getattr(order, "id", ""))
+                        if self.cancel_order(order_id):
+                            cancelled_orders.append(order_id)
+                        else:
+                            failed_orders.append(order_id)
+                except Exception as e:
+                    logger.warning(f"Error processing stale order: {e}")
+                    failed_orders.append(str(getattr(order, "id", "unknown")))
+            
+            message = f"Cancelled {len(cancelled_orders)} stale orders, {len(failed_orders)} failed"
+            logger.info(message)
+            
+            return {
+                "cancelled_orders": cancelled_orders,
+                "failed_orders": failed_orders,
+                "message": message
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to cancel stale orders: {e}")
+            return {"cancelled_orders": [], "failed_orders": [], "message": f"Error: {e}"}
 
     def _validate_market_order_params(
         self, symbol: str, side: str, qty: float | None, notional: float | None

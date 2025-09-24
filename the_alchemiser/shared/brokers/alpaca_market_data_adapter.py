@@ -197,3 +197,77 @@ class AlpacaMarketDataAdapter(MarketDataRepository):
         except Exception as e:
             logger.error(f"Failed to get current prices: {e}")
             return {}
+
+    def get_historical_bars(
+        self, symbol: str, start_date: str, end_date: str, timeframe: str = "1Day"
+    ) -> list[dict[str, Any]]:
+        """Get historical bar data for a symbol.
+        
+        Args:
+            symbol: Stock symbol
+            start_date: Start date (YYYY-MM-DD format)
+            end_date: End date (YYYY-MM-DD format)
+            timeframe: Timeframe (1Min, 5Min, 15Min, 1Hour, 1Day)
+            
+        Returns:
+            List of dictionaries with bar data
+        """
+        from alpaca.data.requests import StockBarsRequest
+        from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
+        from datetime import datetime
+        
+        try:
+            # Resolve timeframe
+            timeframe_mapping = {
+                "1min": TimeFrame(1, TimeFrameUnit.Minute),
+                "5min": TimeFrame(5, TimeFrameUnit.Minute),  
+                "15min": TimeFrame(15, TimeFrameUnit.Minute),
+                "1hour": TimeFrame(1, TimeFrameUnit.Hour),
+                "1day": TimeFrame(1, TimeFrameUnit.Day),
+            }
+            
+            tf_key = timeframe.lower()
+            if tf_key not in timeframe_mapping:
+                raise ValueError(f"Unsupported timeframe: {timeframe}")
+                
+            resolved_timeframe = timeframe_mapping[tf_key]
+            
+            # Create request
+            request = StockBarsRequest(
+                symbol_or_symbols=[symbol],
+                timeframe=resolved_timeframe,
+                start=datetime.fromisoformat(start_date),
+                end=datetime.fromisoformat(end_date),
+            )
+            
+            # Get bars
+            response = self._data_client.get_stock_bars(request)
+            
+            if not response or symbol not in response:
+                logger.warning(f"No bar data returned for {symbol}")
+                return []
+                
+            bars = response[symbol]
+            if not bars:
+                return []
+                
+            # Convert to dictionaries
+            result = []
+            for bar in bars:
+                bar_dict = {
+                    "timestamp": getattr(bar, "timestamp", None),
+                    "open": float(getattr(bar, "open", 0)),
+                    "high": float(getattr(bar, "high", 0)), 
+                    "low": float(getattr(bar, "low", 0)),
+                    "close": float(getattr(bar, "close", 0)),
+                    "volume": int(getattr(bar, "volume", 0)),
+                    "vwap": float(getattr(bar, "vwap", 0)) if hasattr(bar, "vwap") else None,
+                }
+                result.append(bar_dict)
+                
+            logger.debug(f"Retrieved {len(result)} bars for {symbol}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to get historical bars for {symbol}: {e}")
+            return []

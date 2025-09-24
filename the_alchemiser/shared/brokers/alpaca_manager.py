@@ -306,6 +306,57 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         except Exception as e:
             logger.warning(f"Error during disconnect: {e}")
 
+    # Additional missing methods for compatibility
+    def get_orders(self, status: str | None = None) -> list[Any]:
+        """Get orders, optionally filtered by status."""
+        return self._trading_adapter.get_orders(status)
+
+    def get_historical_bars(
+        self, symbol: str, start_date: str, end_date: str, timeframe: str = "1Day"
+    ) -> list[dict[str, Any]]:
+        """Get historical bar data for a symbol."""
+        return self._market_data_adapter.get_historical_bars(symbol, start_date, end_date, timeframe)
+
+    def cancel_stale_orders(self, timeout_minutes: int = 30) -> dict[str, Any]:
+        """Cancel orders that are older than the specified timeout."""
+        return self._trading_adapter.cancel_stale_orders(timeout_minutes)
+
+    def place_limit_order(
+        self,
+        symbol: str,
+        side: str,
+        quantity: float,
+        limit_price: float,
+        time_in_force: str = "day",
+    ) -> Any:  # OrderExecutionResult - keeping as Any for backwards compatibility
+        """Place a limit order (backwards compatibility - implementation needed)."""
+        warnings.warn(
+            "place_limit_order method not fully implemented in facade. Use trading adapter directly.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        # This would need to be implemented in the trading adapter
+        raise NotImplementedError("place_limit_order not yet implemented in adapters")
+
+    def get_order_execution_result(self, order_id: str) -> Any:  # ExecutedOrderDTO
+        """Get order execution result (backwards compatibility - implementation needed)."""
+        warnings.warn(
+            "get_order_execution_result method not fully implemented in facade. Use trading adapter directly.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        # This would need to be implemented in the trading adapter
+        raise NotImplementedError("get_order_execution_result not yet implemented in adapters")
+
+    def _check_order_completion_status(self, order_id: str) -> str | None:
+        """Check order completion status (backwards compatibility - implementation needed)."""
+        warnings.warn(
+            "_check_order_completion_status is deprecated and not implemented in facade.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return None
+
 
 # Factory function for easy creation
 def create_alpaca_manager(
