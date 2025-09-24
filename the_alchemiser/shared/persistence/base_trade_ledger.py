@@ -158,6 +158,106 @@ class BaseTradeLedger:
 
         return summaries
 
+    def _calculate_basic_trade_metrics(
+        self, entries: list[TradeLedgerEntry]
+    ) -> tuple[Decimal, Decimal, Decimal, Decimal, Decimal, int]:
+        """Calculate basic trading metrics from entries.
+
+        Args:
+            entries: Trade ledger entries
+
+        Returns:
+            Tuple of (total_buy_quantity, total_sell_quantity, total_fees,
+                     total_buy_value, total_sell_value, realized_trades)
+
+        """
+        buys = [e for e in entries if e.side == TradeSide.BUY]
+        sells = [e for e in entries if e.side == TradeSide.SELL]
+
+        total_buy_quantity = sum(buy.quantity for buy in buys) or Decimal("0")
+        total_sell_quantity = sum(sell.quantity for sell in sells) or Decimal("0")
+        total_fees = sum(entry.fees for entry in entries) or Decimal("0")
+
+        total_buy_value = sum(buy.quantity * buy.price for buy in buys) or Decimal("0")
+        total_sell_value = sum(sell.quantity * sell.price for sell in sells) or Decimal("0")
+        realized_trades = len(sells)
+
+        return (
+            total_buy_quantity,
+            total_sell_quantity,
+            total_fees,
+            total_buy_value,
+            total_sell_value,
+            realized_trades,
+        )
+
+    def _calculate_symbol_performance_metrics(
+        self,
+        symbol: str,
+        entries: list[TradeLedgerEntry],
+        current_prices: dict[str, float],
+    ) -> tuple[Decimal, Decimal | None, Decimal | None, int]:
+        """Calculate performance metrics for a single symbol.
+
+        Args:
+            symbol: Symbol to analyze
+            entries: Trade ledger entries
+            current_prices: Current market prices
+
+        Returns:
+            Tuple of (open_quantity, avg_cost, unrealized_pnl, open_lots_count)
+
+        """
+        lots = self._calculate_lots_from_entries(entries)
+        symbol_lots = [lot for lot in lots if lot.symbol == symbol]
+
+        open_quantity = sum(lot.remaining_quantity for lot in symbol_lots) or Decimal("0")
+        avg_cost: Decimal | None = None
+
+        if open_quantity > 0:
+            total_cost = sum(lot.remaining_quantity * lot.cost_basis for lot in symbol_lots)
+            avg_cost = total_cost / open_quantity
+
+        # Calculate unrealized P&L
+        current_price = current_prices.get(symbol)
+        unrealized_pnl = None
+        if current_price and open_quantity > 0 and avg_cost:
+            unrealized_pnl = open_quantity * (Decimal(str(current_price)) - avg_cost)
+
+        return open_quantity, avg_cost, unrealized_pnl, len(symbol_lots)
+
+    def _calculate_strategy_performance_metrics(
+        self, entries: list[TradeLedgerEntry], current_prices: dict[str, float]
+    ) -> tuple[Decimal, Decimal | None, Decimal | None, int]:
+        """Calculate performance metrics for strategy totals across all symbols.
+
+        Args:
+            entries: Trade ledger entries
+            current_prices: Current market prices
+
+        Returns:
+            Tuple of (open_quantity, avg_cost, unrealized_pnl, open_lots_count)
+
+        """
+        all_lots = self._calculate_lots_from_entries(entries)
+        open_quantity = sum(lot.remaining_quantity for lot in all_lots) or Decimal("0")
+        avg_cost = None  # Can't meaningfully average across different symbols
+
+        # Calculate total unrealized P&L across all symbols
+        total_unrealized = Decimal("0")
+        for lot in all_lots:
+            current_price = current_prices.get(lot.symbol)
+            if current_price and lot.remaining_quantity > 0:
+                lot_unrealized = lot.remaining_quantity * (
+                    Decimal(str(current_price)) - lot.cost_basis
+                )
+                total_unrealized += lot_unrealized
+
+        # Return None if no unrealized P&L
+        unrealized_pnl: Decimal | None = total_unrealized if total_unrealized != 0 else None
+
+        return open_quantity, avg_cost, unrealized_pnl, len(all_lots)
+
     def _calculate_single_performance(
         self,
         strategy_name: str,
@@ -177,62 +277,28 @@ class BaseTradeLedger:
             Performance summary
 
         """
-        # Initialize variables that will be used at the end
-        all_lots: list[Lot] = []
-        symbol_lots: list[Lot] = []
-
-        if symbol:
-            # Single symbol analysis
-            lots = self._calculate_lots_from_entries(entries)
-            symbol_lots = [lot for lot in lots if lot.symbol == symbol]
-
-            # Calculate open position metrics
-            open_quantity = sum(lot.remaining_quantity for lot in symbol_lots) or Decimal("0")
-            avg_cost: Decimal | None = None
-            if open_quantity > 0:
-                total_cost = sum(lot.remaining_quantity * lot.cost_basis for lot in symbol_lots)
-                avg_cost = total_cost / open_quantity
-
-            # Calculate unrealized P&L
-            current_price = current_prices.get(symbol)
-            unrealized_pnl = None
-            if current_price and open_quantity > 0 and avg_cost:
-                unrealized_pnl = open_quantity * (Decimal(str(current_price)) - avg_cost)
-
-        else:
-            # Strategy total across all symbols
-            all_lots = self._calculate_lots_from_entries(entries)
-            open_quantity = sum(lot.remaining_quantity for lot in all_lots) or Decimal("0")
-            avg_cost = None  # Can't meaningfully average across different symbols
-
-            # Calculate total unrealized P&L across all symbols
-            unrealized_pnl = Decimal("0")
-            for lot in all_lots:
-                current_price = current_prices.get(lot.symbol)
-                if current_price and lot.remaining_quantity > 0:
-                    lot_unrealized = lot.remaining_quantity * (
-                        Decimal(str(current_price)) - lot.cost_basis
-                    )
-                    unrealized_pnl += lot_unrealized
-
-            if unrealized_pnl == 0:
-                unrealized_pnl = None
-
-        # Calculate basic metrics
-        buys = [e for e in entries if e.side == TradeSide.BUY]
-        sells = [e for e in entries if e.side == TradeSide.SELL]
-
-        total_buy_quantity = sum(buy.quantity for buy in buys) or Decimal("0")
-        total_sell_quantity = sum(sell.quantity for sell in sells) or Decimal("0")
-        total_fees = sum(entry.fees for entry in entries) or Decimal("0")
+        # Calculate basic trading metrics
+        (
+            total_buy_quantity,
+            total_sell_quantity,
+            total_fees,
+            total_buy_value,
+            total_sell_value,
+            realized_trades,
+        ) = self._calculate_basic_trade_metrics(entries)
 
         # Calculate realized P&L (simplified - should use proper FIFO matching)
-        total_buy_value = sum(buy.quantity * buy.price for buy in buys) or Decimal("0")
-        total_sell_value = sum(sell.quantity * sell.price for sell in sells) or Decimal("0")
         realized_pnl = total_sell_value - total_buy_value
 
-        # Count realized trades (simplified - number of sells)
-        realized_trades = len(sells)
+        # Calculate position metrics based on scope (symbol vs strategy)
+        if symbol:
+            open_quantity, avg_cost, unrealized_pnl, open_lots_count = (
+                self._calculate_symbol_performance_metrics(symbol, entries, current_prices)
+            )
+        else:
+            open_quantity, avg_cost, unrealized_pnl, open_lots_count = (
+                self._calculate_strategy_performance_metrics(entries, current_prices)
+            )
 
         return PerformanceSummary(
             strategy_name=strategy_name,
@@ -241,7 +307,7 @@ class BaseTradeLedger:
             realized_pnl=realized_pnl,
             realized_trades=realized_trades,
             open_quantity=open_quantity,
-            open_lots_count=len(all_lots) if symbol is None else len(symbol_lots),
+            open_lots_count=open_lots_count,
             average_cost_basis=avg_cost,
             current_price=(
                 Decimal(str(current_prices[symbol]))
