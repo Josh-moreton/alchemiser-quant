@@ -270,7 +270,6 @@ class PortfolioAnalysisHandler:
     ) -> dict[str, Any]:
         """Build allocation comparison data structure."""
         portfolio_value = account_dict.get("portfolio_value", 0.0)
-        cash = account_dict.get("cash", 0.0)
 
         # Calculate current allocations as percentages
         current_allocations = {}
@@ -281,22 +280,26 @@ class PortfolioAnalysisHandler:
         # Get target allocations from consolidated portfolio
         target_allocations = consolidated_portfolio.target_allocations
 
-        # Calculate differences
-        allocation_differences = {}
+        # Get all symbols from both target and current allocations
         all_symbols = set(target_allocations.keys()) | set(current_allocations.keys())
 
+        # Convert to Decimal values for AllocationComparisonDTO
+        target_values = {}
+        current_values = {}
+        deltas = {}
+        
         for symbol in all_symbols:
-            target = Decimal(str(target_allocations.get(symbol, 0.0)))
-            current = Decimal(str(current_allocations.get(symbol, 0.0)))
-            allocation_differences[symbol] = target - current
+            target_decimal = Decimal(str(target_allocations.get(symbol, 0.0)))
+            current_decimal = Decimal(str(current_allocations.get(symbol, 0.0)))
+            
+            target_values[symbol] = target_decimal
+            current_values[symbol] = current_decimal
+            deltas[symbol] = target_decimal - current_decimal
 
         return {
-            "target_allocations": target_allocations,
-            "current_allocations": current_allocations,
-            "allocation_differences": allocation_differences,
-            "portfolio_value": portfolio_value,
-            "cash_available": cash,
-            "positions_summary": positions_dict,
+            "target_values": target_values,
+            "current_values": current_values,
+            "deltas": deltas,
         }
 
     def _create_rebalance_plan_from_allocation(
@@ -316,7 +319,7 @@ class PortfolioAnalysisHandler:
         """
         try:
             # Use PortfolioServiceV2 for rebalance plan generation
-            alpaca_manager = self.container.alpaca_manager()
+            alpaca_manager = self.container.infrastructure.alpaca_manager()
             portfolio_service = PortfolioServiceV2(alpaca_manager)
 
             # Generate correlation_id for this analysis
@@ -329,11 +332,10 @@ class PortfolioAnalysisHandler:
 
             portfolio_value = Decimal(str(account_info.get("portfolio_value", 0)))
 
-            # Convert target_values (dollar amounts) to target_weights (percentages)
+            # target_values are already percentages (0.0-1.0), so use them directly as weights
             target_weights = {}
-            if portfolio_value > 0:
-                for symbol, value in allocation_comparison.target_values.items():
-                    target_weights[symbol] = value / portfolio_value
+            for symbol, value in allocation_comparison.target_values.items():
+                target_weights[symbol] = value
 
             strategy_allocation = StrategyAllocationDTO(
                 target_weights=target_weights,

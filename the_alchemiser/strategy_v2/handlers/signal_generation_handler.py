@@ -207,7 +207,9 @@ class SignalGenerationHandler:
 
     def _extract_signal_allocation(self, signal: StrategySignal) -> float:
         """Extract allocation percentage from signal."""
-        return getattr(signal, "allocation", 0.0)
+        if signal.target_allocation is not None:
+            return float(signal.target_allocation)
+        return 0.0
 
     def _validate_signal_quality(self, strategy_signals: dict[str, Any]) -> bool:
         """Validate that signals contain meaningful data.
