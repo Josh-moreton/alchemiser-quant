@@ -299,11 +299,11 @@ class EmailTemplates:
     @staticmethod
     def _format_metric_value(metric_name: str, metric_value: int | float | str) -> str:
         """Format a metric value based on its name and type.
-        
+
         Args:
             metric_name: Name of the metric for determining format
             metric_value: Value to format
-            
+
         Returns:
             Formatted string representation of the value
 
@@ -319,10 +319,10 @@ class EmailTemplates:
     @staticmethod
     def _build_metrics_table(metrics: dict[str, int | float | str]) -> str:
         """Build the performance metrics table HTML.
-        
+
         Args:
             metrics: Dictionary of metric names and values
-            
+
         Returns:
             HTML string for the metrics table, or empty string if no metrics
 
@@ -362,16 +362,16 @@ class EmailTemplates:
     @staticmethod
     def _build_account_section(account_info: AccountInfo | EnrichedAccountInfo) -> str:
         """Build the account summary section.
-        
+
         Args:
             account_info: Account information to display
-            
+
         Returns:
             HTML string for the account section
 
         """
         from .portfolio import PortfolioBuilder
-        
+
         return BaseEmailTemplate.create_section(
             "💰 Account Summary", PortfolioBuilder.build_account_summary(account_info)
         )
@@ -379,19 +379,19 @@ class EmailTemplates:
     @staticmethod
     def _build_strategy_performance_section(strategy_summary: dict[str, Any]) -> str:
         """Build the strategy performance section.
-        
+
         Args:
             strategy_summary: Strategy performance data
-            
+
         Returns:
             HTML string for strategy performance section, or empty string if no data
 
         """
         if not strategy_summary:
             return ""
-            
+
         from .performance import PerformanceBuilder
-        
+
         return BaseEmailTemplate.create_section(
             "📈 Strategy Performance",
             PerformanceBuilder.build_strategy_performance(strategy_summary),
@@ -400,19 +400,19 @@ class EmailTemplates:
     @staticmethod
     def _build_trading_activity_section(trading_summary: dict[str, Any]) -> str:
         """Build the trading activity section.
-        
+
         Args:
             trading_summary: Trading activity data
-            
+
         Returns:
             HTML string for trading activity section, or empty string if no data
 
         """
         if not trading_summary:
             return ""
-            
+
         from .performance import PerformanceBuilder
-        
+
         return BaseEmailTemplate.create_section(
             "💼 Trading Activity",
             PerformanceBuilder.build_trading_summary(trading_summary),
@@ -421,10 +421,10 @@ class EmailTemplates:
     @staticmethod
     def _build_summary_footer(period_label: str) -> str:
         """Build the summary footer section.
-        
+
         Args:
             period_label: Label for the reporting period
-            
+
         Returns:
             HTML string for the summary footer
 
@@ -487,9 +487,7 @@ class EmailTemplates:
                 content_sections.append(trading_html)
 
             # Performance metrics table
-            metrics_html = EmailTemplates._build_metrics_table(
-                performance_data.get("metrics", {})
-            )
+            metrics_html = EmailTemplates._build_metrics_table(performance_data.get("metrics", {}))
             if metrics_html:
                 content_sections.append(metrics_html)
 
