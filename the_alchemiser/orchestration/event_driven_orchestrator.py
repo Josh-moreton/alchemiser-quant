@@ -70,6 +70,9 @@ class EventDrivenOrchestrator:
             "workflow_start_times": {},  # Track workflow start times for duration calculation
         }
 
+        # Collect workflow results for each correlation ID
+        self.workflow_results: dict[str, dict[str, Any]] = {}
+
     def _initialize_domain_handlers(self) -> dict[str, Any]:
         """Initialize domain event handlers.
 
@@ -77,7 +80,7 @@ class EventDrivenOrchestrator:
             Dictionary of initialized domain handlers
 
         """
-        handlers = {}
+        handlers: dict[str, Any] = {}
 
         try:
             # Import and initialize domain handlers
@@ -160,11 +163,23 @@ class EventDrivenOrchestrator:
             # Check if workflow completed
             if correlation_id not in self.workflow_state["active_correlations"]:
                 self.logger.info(f"✅ Workflow completed: {correlation_id}")
+
+                # Get collected workflow results
+                workflow_results = self.workflow_results.get(correlation_id, {})
+
+                # Clean up stored results to prevent memory leaks
+                self.workflow_results.pop(correlation_id, None)
+
                 return {
                     "success": True,
                     "correlation_id": correlation_id,
                     "completion_status": "completed",
                     "duration_seconds": time.time() - start_time,
+                    "strategy_signals": workflow_results.get("strategy_signals", {}),
+                    "rebalance_plan": workflow_results.get("rebalance_plan", {}),
+                    "orders_executed": workflow_results.get("orders_executed", []),
+                    "execution_summary": workflow_results.get("execution_summary", {}),
+                    "warnings": [],  # Can be populated from event data if needed
                 }
 
             # Brief sleep to avoid busy waiting
@@ -172,6 +187,10 @@ class EventDrivenOrchestrator:
 
         # Timeout occurred
         self.logger.warning(f"⏰ Workflow timeout after {timeout_seconds}s: {correlation_id}")
+
+        # Clean up on timeout
+        self.workflow_results.pop(correlation_id, None)
+
         return {
             "success": False,
             "correlation_id": correlation_id,
@@ -304,7 +323,7 @@ class EventDrivenOrchestrator:
 
         """
         self.logger.info(
-            f"📊 EventDrivenOrchestrator: Monitoring signal generation - {len(event.signals)} signals"
+            f"📊 EventDrivenOrchestrator: Monitoring signal generation - {event.signal_count} signals"
         )
 
         # Update monitoring state
@@ -316,11 +335,14 @@ class EventDrivenOrchestrator:
         )
 
         # Log signal summary for monitoring
-        for signal in event.signals:
-            self.logger.debug(
-                f"Monitoring signal: {signal.symbol} {signal.action} "
-                f"(strategy: {signal.strategy_name})"
-            )
+        self.logger.debug(f"Monitoring signals data: {event.signals_data}")
+
+        # Collect strategy signals for workflow results
+        if event.correlation_id not in self.workflow_results:
+            self.workflow_results[event.correlation_id] = {}
+
+        # Use the signals_data directly from the event
+        self.workflow_results[event.correlation_id]["strategy_signals"] = event.signals_data
 
         # Track successful signal processing
         self.workflow_state["last_successful_workflow"] = "signal_generation"
@@ -333,7 +355,7 @@ class EventDrivenOrchestrator:
 
         """
         self.logger.info(
-            f"⚖️ EventDrivenOrchestrator: Monitoring rebalance planning - {len(event.rebalance_plan.items)} trades"
+            f"⚖️ EventDrivenOrchestrator: Monitoring rebalance planning - trades required: {event.trades_required}"
         )
 
         # Update monitoring state
@@ -345,8 +367,14 @@ class EventDrivenOrchestrator:
         )
 
         # Log rebalancing plan summary for monitoring
-        total_value = event.rebalance_plan.total_trade_value
-        self.logger.debug(f"Monitoring total trade value: ${total_value}")
+        self.logger.debug(f"Monitoring rebalance plan: {event.rebalance_plan}")
+
+        # Collect rebalance plan for workflow results
+        if event.correlation_id not in self.workflow_results:
+            self.workflow_results[event.correlation_id] = {}
+
+        # Use the rebalance_plan directly from the event
+        self.workflow_results[event.correlation_id]["rebalance_plan"] = event.rebalance_plan
 
         # Track successful rebalancing
         self.workflow_state["last_successful_workflow"] = "rebalancing"
@@ -373,6 +401,22 @@ class EventDrivenOrchestrator:
         # Remove from active correlations as workflow is complete
         self.workflow_state["active_correlations"].discard(event.correlation_id)
 
+        # Collect execution results for workflow results
+        if event.correlation_id not in self.workflow_results:
+            self.workflow_results[event.correlation_id] = {}
+
+        # Use execution data directly from the event
+        self.workflow_results[event.correlation_id].update(
+            {
+                "orders_executed": event.execution_data.get("orders", []),
+                "execution_summary": {
+                    "orders_placed": event.orders_placed,
+                    "orders_succeeded": event.orders_succeeded,
+                },
+                "success": success,
+            }
+        )
+
         if success:
             self.logger.info(
                 "EventDrivenOrchestrator: Full trading workflow monitoring completed successfully"
@@ -386,7 +430,7 @@ class EventDrivenOrchestrator:
             self._send_trading_notification(event, success=True)
         else:
             self.logger.error(
-                f"EventDrivenOrchestrator: Trading workflow monitoring detected failure - {event.error_message}"
+                "EventDrivenOrchestrator: Trading workflow monitoring detected failure"
             )
 
             # Send failure notification
@@ -414,9 +458,9 @@ class EventDrivenOrchestrator:
             mode_str = "LIVE" if is_live else "PAPER"
 
             # Extract execution data
-            execution_data = event.execution_results
-            orders_placed = execution_data.get("orders_placed", 0)
-            orders_succeeded = execution_data.get("orders_succeeded", 0)
+            execution_data = event.execution_data
+            orders_placed = event.orders_placed
+            orders_succeeded = event.orders_succeeded
             # total_trade_value may be Decimal, float, or string; normalize for formatting
             raw_total_value = execution_data.get("total_trade_value", 0)
             try:
@@ -465,7 +509,7 @@ class EventDrivenOrchestrator:
                     <p><strong>Timestamp:</strong> {event.timestamp}</p>
                     """
             else:
-                error_message = event.error_message or "Unknown error"
+                error_message = event.metadata.get("error_message") or "Unknown error"
                 html_content = build_error_email_html(
                     "Trading Execution Failed",
                     f"Trading workflow failed: {error_message}",
@@ -527,7 +571,9 @@ class EventDrivenOrchestrator:
             # 3. Emit recovery events
             # 4. Alert system administrators
 
-            self.logger.warning(f"Recovery: Assessing failure - {event.error_message}")
+            self.logger.warning(
+                f"Recovery: Assessing failure - {event.metadata.get('error_message', 'Unknown error')}"
+            )
             self.logger.info("Recovery: Determining corrective actions")
             self.logger.info("Recovery: Preparing system alerts")
 

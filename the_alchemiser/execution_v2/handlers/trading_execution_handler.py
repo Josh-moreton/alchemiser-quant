@@ -105,13 +105,13 @@ class TradingExecutionHandler:
             rebalance_plan_data = event.rebalance_plan
 
             # Handle no-trade scenario
-            if not event.trades_required or not rebalance_plan_data.get("items"):
+            if not event.trades_required or not rebalance_plan_data.items:
                 self.logger.info("📊 No significant trades needed - portfolio already balanced")
 
                 # Create empty execution result
                 execution_result = ExecutionResultDTO(
                     success=True,
-                    plan_id=rebalance_plan_data.get("plan_id", f"no-trade-{uuid.uuid4()}"),
+                    plan_id=rebalance_plan_data.plan_id,
                     correlation_id=event.correlation_id,
                     orders=[],
                     orders_placed=0,
@@ -226,7 +226,10 @@ class TradingExecutionHandler:
         """
         try:
             # Calculate workflow duration using workflow start timestamp from execution_result
-            if hasattr(execution_result, "workflow_start_timestamp") and execution_result.workflow_start_timestamp:
+            if (
+                hasattr(execution_result, "workflow_start_timestamp")
+                and execution_result.workflow_start_timestamp
+            ):
                 workflow_start = execution_result.workflow_start_timestamp
             else:
                 # Fallback: use execution_timestamp if workflow_start_timestamp is not available

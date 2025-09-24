@@ -138,7 +138,7 @@ class TradingOrchestrator:
 
         """
         self.logger.info(
-            f"🔄 TradingOrchestrator: SignalGenerated coordination - {len(event.signals)} signals"
+            f"🔄 TradingOrchestrator: SignalGenerated coordination - {event.signal_count} signals"
         )
 
         # Update workflow state
@@ -208,8 +208,9 @@ class TradingOrchestrator:
         )
 
         # Extract strategy names from signals
+        signals_data = event.signals_data.get("signals", [])
         source_strategies = list(
-            {signal.strategy_name for signal in event.signals if signal.strategy_name}
+            {signal.get("strategy_name") for signal in signals_data if signal.get("strategy_name")}
         )
 
         try:
@@ -1325,14 +1326,8 @@ class TradingOrchestrator:
             correlation_id = str(uuid.uuid4())
             causation_id = f"trade-execution-{datetime.now(UTC).isoformat()}"
 
-            # Build execution data and portfolio state
+            # Build execution data
             execution_data = self._build_execution_data(execution_result)
-            portfolio_state_after = self._build_portfolio_state_after(
-                success=success,
-                execution_result=execution_result,
-                correlation_id=correlation_id,
-                causation_id=causation_id,
-            )
 
             # Create and emit the event
             event = TradeExecuted(
@@ -1342,11 +1337,18 @@ class TradingOrchestrator:
                 timestamp=datetime.now(UTC),
                 source_module="orchestration",
                 source_component="TradingOrchestrator",
-                execution_results=execution_data,
-                portfolio_state_after=portfolio_state_after,
+                execution_data=execution_data,
                 success=success,
-                error_message=error_message,
-                error_code=error_code,
+                orders_placed=execution_data.get("orders_placed", 0),
+                orders_succeeded=execution_data.get("orders_succeeded", 0),
+                metadata=(
+                    {
+                        "error_message": error_message,
+                        "error_code": error_code,
+                    }
+                    if error_message or error_code
+                    else {}
+                ),
             )
 
             self.event_bus.publish(event)
