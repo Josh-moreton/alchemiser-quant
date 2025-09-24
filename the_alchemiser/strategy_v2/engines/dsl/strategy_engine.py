@@ -15,7 +15,7 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -33,7 +33,9 @@ class DslStrategyEngine:
     orchestration system by implementing the StrategyEngine protocol.
     """
 
-    def __init__(self, market_data_port: MarketDataPort, strategy_file: str | None = None) -> None:
+    def __init__(
+        self, market_data_port: MarketDataPort, strategy_file: str | None = None
+    ) -> None:
         """Initialize DSL strategy engine.
 
         Args:
@@ -62,7 +64,9 @@ class DslStrategyEngine:
             market_data_service=self.market_data_port,
         )
 
-        self.logger.info(f"DSL Strategy Engine initialized with file: {self.strategy_file}")
+        self.logger.info(
+            f"DSL Strategy Engine initialized with file: {self.strategy_file}"
+        )
 
     def generate_signals(
         self,
@@ -71,35 +75,12 @@ class DslStrategyEngine:
         parallelism: Literal["none", "threads", "processes"] = "none",
         max_workers: int | None = None,
     ) -> list[StrategySignal]:
-        """Generate strategy signals using DSL engine.
-
-        Args:
-            timestamp: Timestamp for signal generation
-            parallelism: Parallelism mode - "none" (default), "threads", or "processes"
-            max_workers: Maximum number of workers. Defaults to min(len(files), os.cpu_count())
-
-        Returns:
-            List of StrategySignal objects
-
-        """
+        """Generate strategy signals using DSL engine with optional parallelism."""
         try:
             correlation_id = str(uuid.uuid4())
-
-            # Check environment overrides
-            env_parallelism = os.getenv("ALCHEMISER_DSL_PARALLELISM")
-            if env_parallelism and env_parallelism in ("none", "threads", "processes"):
-                parallelism = env_parallelism  # type: ignore[assignment]
-
-            env_max_workers = os.getenv("ALCHEMISER_DSL_MAX_WORKERS")
-            if env_max_workers and env_max_workers.isdigit():
-                max_workers = int(env_max_workers)
-
-            # Resolve configured files and normalized weights
             dsl_files, normalized_file_weights = self._resolve_dsl_files_and_weights()
-
-            # Determine effective max_workers
-            effective_max_workers = (
-                max_workers if max_workers is not None else min(len(dsl_files), os.cpu_count() or 4)
+            parallelism, effective_max_workers = self._get_parallelism_and_workers(
+                parallelism, max_workers, len(dsl_files)
             )
 
             self.logger.info(
@@ -112,14 +93,11 @@ class DslStrategyEngine:
                 },
             )
 
-            # Evaluate files with chosen parallelism mode
             if parallelism == "none" or len(dsl_files) <= 1:
-                # Sequential evaluation (original behavior)
                 file_results = self._evaluate_files_sequential(
                     dsl_files, correlation_id, normalized_file_weights
                 )
             else:
-                # Parallel evaluation
                 file_results = self._evaluate_files_parallel(
                     dsl_files,
                     correlation_id,
@@ -128,39 +106,12 @@ class DslStrategyEngine:
                     effective_max_workers,
                 )
 
-            # Accumulate per-symbol weights from file results
-            consolidated: dict[str, float] = {}
-            traces: dict[str, str] = {}
-
-            for f, (per_file_weights, trace_id, _, _) in zip(dsl_files, file_results, strict=True):
-                if per_file_weights is None:  # Evaluation failed
-                    continue
-                traces[f] = trace_id
-                for symbol, weight in per_file_weights.items():
-                    consolidated[symbol] = consolidated.get(symbol, 0.0) + weight
-
-            # If nothing produced, fallback to CASH
+            consolidated = self._accumulate_results(dsl_files, file_results)
             if not consolidated:
                 return self._create_fallback_signals(timestamp)
 
-            # Normalize final consolidated weights to sum to 1.0 to avoid drift
             consolidated = self._normalize_allocations(consolidated)
-
-            # Convert to StrategySignals
-            signals: list[StrategySignal] = []
-            for symbol, weight in consolidated.items():
-                if weight > 0:
-                    signal = StrategySignal(
-                        symbol=symbol,
-                        action="BUY",
-                        target_allocation=weight,
-                        reasoning=f"DSL consolidated allocation: {weight:.1%}",
-                        timestamp=timestamp,
-                        strategy="DSL",
-                        data_source="dsl_engine:multi",
-                        correlation_id=correlation_id,
-                    )
-                    signals.append(signal)
+            signals = self._convert_to_signals(consolidated, timestamp, correlation_id)
 
             self.logger.info(
                 f"Generated {len(signals)} DSL consolidated signals",
@@ -172,12 +123,103 @@ class DslStrategyEngine:
 
             return signals
 
-        except DslEngineError as e:
-            self.logger.error(f"DSL engine error: {e}")
+        except (DslEngineError, Exception) as e:
+            self.logger.error(f"DSL strategy error: {e}")
             return self._create_fallback_signals(timestamp)
-        except Exception as e:
-            self.logger.error(f"Unexpected error in DSL strategy: {e}")
-            return self._create_fallback_signals(timestamp)
+
+    def _get_parallelism_and_workers(
+        self,
+        parallelism: Literal["none", "threads", "processes"],
+        max_workers: int | None,
+        num_files: int,
+    ) -> tuple[Literal["none", "threads", "processes"], int]:
+        """Get parallelism mode and worker count, applying environment overrides.
+
+        Args:
+            parallelism: Requested parallelism mode
+            max_workers: Requested max workers
+            num_files: Number of DSL files to process
+
+        Returns:
+            Tuple of (effective_parallelism, effective_max_workers)
+
+        """
+        # Check environment overrides
+        env_parallelism = os.getenv("ALCHEMISER_DSL_PARALLELISM")
+        allowed_parallelism: tuple[Literal["none", "threads", "processes"], ...] = (
+            "none",
+            "threads",
+            "processes",
+        )
+        if env_parallelism in allowed_parallelism:
+            parallelism = cast(Literal["none", "threads", "processes"], env_parallelism)
+
+        env_max_workers = os.getenv("ALCHEMISER_DSL_MAX_WORKERS")
+        if env_max_workers and env_max_workers.isdigit():
+            max_workers = int(env_max_workers)
+
+        effective_max_workers = (
+            max_workers
+            if max_workers is not None
+            else min(num_files, os.cpu_count() or 4)
+        )
+        return parallelism, effective_max_workers
+
+    def _accumulate_results(
+        self,
+        dsl_files: list[str],
+        file_results: list[tuple[dict[str, float] | None, str, float, float]],
+    ) -> dict[str, float]:
+        """Accumulate per-symbol weights from DSL file evaluation results.
+
+        Args:
+            dsl_files: List of DSL files that were evaluated
+            file_results: Results from file evaluations
+
+        Returns:
+            Dictionary mapping symbols to consolidated weights
+
+        """
+        consolidated: dict[str, float] = {}
+        for _f, (per_file_weights, _trace_id, _, _) in zip(
+            dsl_files, file_results, strict=True
+        ):
+            if per_file_weights is None:  # Evaluation failed
+                continue
+            for symbol, weight in per_file_weights.items():
+                consolidated[symbol] = consolidated.get(symbol, 0.0) + weight
+        return consolidated
+
+    def _convert_to_signals(
+        self, consolidated: dict[str, float], timestamp: datetime, correlation_id: str
+    ) -> list[StrategySignal]:
+        """Convert consolidated weights to StrategySignal objects.
+
+        Args:
+            consolidated: Dictionary mapping symbols to weights
+            timestamp: Timestamp for signal generation
+            correlation_id: Correlation ID for tracing
+
+        Returns:
+            List of StrategySignal objects for positive weights
+
+        """
+        signals: list[StrategySignal] = []
+        for symbol, weight in consolidated.items():
+            if weight > 0:
+                signals.append(
+                    StrategySignal(
+                        symbol=symbol,
+                        action="BUY",
+                        target_allocation=weight,
+                        reasoning=f"DSL consolidated allocation: {weight:.1%}",
+                        timestamp=timestamp,
+                        strategy="DSL",
+                        data_source="dsl_engine:multi",
+                        correlation_id=correlation_id,
+                    )
+                )
+        return signals
 
     def _create_fallback_signals(self, timestamp: datetime) -> list[StrategySignal]:
         """Create fallback signals when DSL evaluation fails.
@@ -245,7 +287,9 @@ class DslStrategyEngine:
             per_file_weights[symbol] = file_weight * w
 
         # Format and log DSL evaluation results
-        formatted_allocation = self._format_dsl_allocation(filename, allocation.target_weights)
+        formatted_allocation = self._format_dsl_allocation(
+            filename, allocation.target_weights
+        )
         self.logger.info(formatted_allocation)
 
         return per_file_weights, trace.trace_id, file_weight, file_sum
@@ -298,7 +342,9 @@ class DslStrategyEngine:
             List of evaluation results for each file (preserves input order)
 
         """
-        executor_class = ThreadPoolExecutor if parallelism == "threads" else ProcessPoolExecutor
+        executor_class = (
+            ThreadPoolExecutor if parallelism == "threads" else ProcessPoolExecutor
+        )
 
         with executor_class(max_workers=max_workers) as executor:
             # Use executor.map to preserve deterministic ordering
@@ -330,7 +376,9 @@ class DslStrategyEngine:
 
         """
         try:
-            return self._evaluate_file(filename, correlation_id, normalized_file_weights)
+            return self._evaluate_file(
+                filename, correlation_id, normalized_file_weights
+            )
         except Exception as e:  # pragma: no cover - safety net
             self.logger.error(
                 f"DSL evaluation failed for {filename}: {e}",
@@ -345,7 +393,9 @@ class DslStrategyEngine:
         total = sum(weights.values()) or 1.0
         return {sym: w / total for sym, w in weights.items()}
 
-    def _format_dsl_allocation(self, filename: str, target_weights: dict[str, Decimal]) -> str:
+    def _format_dsl_allocation(
+        self, filename: str, target_weights: dict[str, Decimal]
+    ) -> str:
         """Format DSL allocation results for human-readable logging.
 
         Args:
