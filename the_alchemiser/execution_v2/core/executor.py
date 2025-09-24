@@ -26,6 +26,7 @@ from the_alchemiser.shared.dto.rebalance_plan_dto import (
     RebalancePlanDTO,
     RebalancePlanItemDTO,
 )
+from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 from the_alchemiser.shared.services.websocket_manager import WebSocketConnectionManager
 
@@ -69,6 +70,9 @@ class Executor:
 
         # Initialize execution validator for preflight checks
         self.validator = ExecutionValidator(alpaca_manager)
+        
+        # Initialize buying power service for verification
+        self.buying_power_service = BuyingPowerService(alpaca_manager)
 
         # Initialize pricing service for smart execution
         self.pricing_service: RealTimePricingService | None = None
@@ -211,6 +215,23 @@ class Executor:
             logger.warning(f"⚠️ Order validation: {warning}")
 
         try:
+            # For BUY orders, check buying power availability before placing order
+            if side.lower() == "buy":
+                is_sufficient, current_bp, estimated_cost = self.buying_power_service.check_sufficient_buying_power(
+                    symbol, final_quantity, buffer_pct=5.0
+                )
+                
+                if not is_sufficient and estimated_cost:
+                    logger.warning(
+                        f"⚠️ Insufficient buying power for {symbol}: "
+                        f"need ~${estimated_cost}, have ${current_bp}"
+                    )
+                    # Force account refresh and check again
+                    if self.buying_power_service.force_account_refresh():
+                        logger.info("💰 Account refreshed, proceeding with order attempt")
+                    else:
+                        logger.warning("⚠️ Account refresh failed, proceeding anyway")
+
             result = self.alpaca_manager.place_market_order(
                 symbol=symbol,
                 side=side.lower(),
@@ -229,6 +250,33 @@ class Executor:
             )
 
         except Exception as e:
+            error_str = str(e)
+            
+            # Special handling for buying power errors
+            if "insufficient buying power" in error_str.lower():
+                logger.error(f"💳 Insufficient buying power for {symbol}: {e}")
+                
+                # Try to get current account state for diagnostics
+                try:
+                    account = self.alpaca_manager.get_account_dict()
+                    if account:
+                        buying_power = account.get("buying_power", "unknown")
+                        logger.error(
+                            f"💳 Current account state - Buying power: ${buying_power}"
+                        )
+                except Exception as diagnostic_error:
+                    logger.debug(f"Diagnostic account retrieval failed: {diagnostic_error}")
+                    
+                return ExecutionResult(
+                    symbol=symbol,
+                    side=side,
+                    quantity=final_quantity,
+                    status="insufficient_buying_power",
+                    success=False,
+                    error=f"Insufficient buying power: {e}",
+                    execution_strategy="buying_power_error",
+                )
+            
             logger.error(f"❌ Market order failed for {symbol}: {e}")
             return ExecutionResult(
                 symbol=symbol,
@@ -501,6 +549,24 @@ class Executor:
             f"💰 Settlement complete: ${settlement_result.total_buying_power_released} "
             "buying power released"
         )
+
+        # Verify buying power is actually available before proceeding with BUY orders
+        # This addresses the Alpaca account state synchronization lag
+        buying_power_available, actual_buying_power = (
+            await settlement_monitor.verify_buying_power_available_after_settlement(
+                settlement_result.total_buying_power_released,
+                correlation_id,
+                max_wait_seconds=30,
+            )
+        )
+
+        if not buying_power_available:
+            logger.warning(
+                f"⚠️ Proceeding with BUY phase despite buying power shortfall: "
+                f"${actual_buying_power} available vs ${settlement_result.total_buying_power_released} expected"
+            )
+        else:
+            logger.info("✅ Buying power verified, proceeding with BUY phase")
 
         # Now execute buy orders with released buying power
         return await self._execute_buy_phase(buy_items)

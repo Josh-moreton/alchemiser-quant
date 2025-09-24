@@ -25,4 +25,8 @@ from __future__ import annotations
 # Note: The submodules listed below have been moved to other packages.
 # This __all__ is kept empty to avoid undefined references.
 # Import directly from the appropriate execution/, portfolio/, or strategy/ packages.
-__all__: list[str] = []
+
+# Export new services
+from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
+
+__all__: list[str] = ["BuyingPowerService"]

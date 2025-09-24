@@ -1371,6 +1371,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to get buying power: {e}")
             raise
 
+
+
     def get_portfolio_value(self) -> float | None:
         """Get current portfolio value."""
         try:
