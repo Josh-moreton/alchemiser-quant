@@ -1002,37 +1002,57 @@ class Executor:
             logger.error(f"Error finalizing {phase_type} phase orders: {e}")
             return orders, 0, Decimal("0")
 
+    def _log_repeg_status(self, phase_type: str, repeg_result: Any) -> None:  # noqa: ANN401
+        """Log repeg status with appropriate message for escalation or standard repeg."""
+        strategy = getattr(repeg_result, "execution_strategy", "")
+        order_id = getattr(repeg_result, "order_id", "")
+        repegs_used = getattr(repeg_result, "repegs_used", 0)
+
+        if "escalation" in strategy:
+            logger.info(
+                f"🚨 {phase_type} ESCALATED_TO_MARKET: {order_id} (after {repegs_used} re-pegs)"
+            )
+        else:
+            logger.info(f"✅ {phase_type} REPEG {repegs_used}/5: {order_id}")
+
+    def _extract_order_ids(self, repeg_result: Any) -> tuple[str, str]:  # noqa: ANN401
+        """Extract original and new order IDs from repeg result.
+
+        Returns:
+            Tuple of (original_id, new_id). Both will be empty strings if not found.
+
+        """
+        meta = getattr(repeg_result, "metadata", None) or {}
+        original_id = str(meta.get("original_order_id")) if isinstance(meta, dict) else ""
+        new_id = getattr(repeg_result, "order_id", None) or ""
+        return original_id, new_id
+
+    def _handle_failed_repeg(self, phase_type: str, repeg_result: Any) -> None:  # noqa: ANN401
+        """Handle logging for failed repeg results."""
+        error_message = getattr(repeg_result, "error_message", "")
+        logger.warning(f"⚠️ {phase_type} re-peg failed: {error_message}")
+
     def _build_replacement_map_from_repeg_results(
         self, phase_type: str, repeg_results: list[Any]
     ) -> dict[str, str]:
         """Build mapping from original to new order IDs for successful re-pegs."""
         replacement_map: dict[str, str] = {}
+
         for repeg_result in repeg_results:
             try:
-                if getattr(repeg_result, "success", False):
-                    strategy = getattr(repeg_result, "execution_strategy", "")
-                    if "escalation" in strategy:
-                        logger.info(
-                            f"🚨 {phase_type} ESCALATED_TO_MARKET: {getattr(repeg_result, 'order_id', '')} "
-                            f"(after {getattr(repeg_result, 'repegs_used', 0)} re-pegs)"
-                        )
-                    else:
-                        logger.info(
-                            f"✅ {phase_type} REPEG {getattr(repeg_result, 'repegs_used', 0)}/5: {getattr(repeg_result, 'order_id', '')}"
-                        )
-                    meta = getattr(repeg_result, "metadata", None) or {}
-                    original_id = (
-                        str(meta.get("original_order_id")) if isinstance(meta, dict) else ""
-                    )
-                    new_id = getattr(repeg_result, "order_id", None) or ""
-                    if original_id and new_id:
-                        replacement_map[original_id] = new_id
-                else:
-                    logger.warning(
-                        f"⚠️ {phase_type} re-peg failed: {getattr(repeg_result, 'error_message', '')}"
-                    )
+                if not getattr(repeg_result, "success", False):
+                    self._handle_failed_repeg(phase_type, repeg_result)
+                    continue
+
+                self._log_repeg_status(phase_type, repeg_result)
+                original_id, new_id = self._extract_order_ids(repeg_result)
+
+                if original_id and new_id:
+                    replacement_map[original_id] = new_id
+
             except Exception as exc:
                 logger.debug(f"Failed to process re-peg result for replacement mapping: {exc}")
+
         return replacement_map
 
     def _replace_order_ids(
