@@ -152,10 +152,14 @@ class PortfolioAnalysisHandler:
             # Get current account and position data
             account_data = self._get_comprehensive_account_data()
             if not account_data or not account_data.get("account_info"):
-                raise ValueError("Could not retrieve account data for portfolio analysis")
+                raise ValueError(
+                    "Could not retrieve account data for portfolio analysis"
+                )
 
             # Analyze allocation comparison
-            allocation_comparison = self._analyze_allocation_comparison(consolidated_portfolio)
+            allocation_comparison = self._analyze_allocation_comparison(
+                consolidated_portfolio
+            )
             if not allocation_comparison:
                 raise ValueError("Failed to generate allocation comparison")
 
@@ -169,7 +173,10 @@ class PortfolioAnalysisHandler:
 
             # Emit RebalancePlanned event (even if no trades needed)
             self._emit_rebalance_planned_event(
-                rebalance_plan, allocation_comparison, event.correlation_id, account_info
+                rebalance_plan,
+                allocation_comparison,
+                event.correlation_id,
+                account_info,
             )
 
             self.logger.info("✅ Portfolio analysis completed successfully")
@@ -203,7 +210,9 @@ class PortfolioAnalysisHandler:
             orders_list = [
                 {
                     "id": str(order.id) if hasattr(order, "id") else "unknown",
-                    "symbol": (str(order.symbol) if hasattr(order, "symbol") else "unknown"),
+                    "symbol": (
+                        str(order.symbol) if hasattr(order, "symbol") else "unknown"
+                    ),
                     "side": str(order.side) if hasattr(order, "side") else "unknown",
                     "qty": _to_float_safe(getattr(order, "qty", 0)),
                 }
@@ -317,10 +326,14 @@ class PortfolioAnalysisHandler:
             portfolio_service = PortfolioServiceV2(alpaca_manager)
 
             # Generate correlation_id for this analysis
-            correlation_id = f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+            correlation_id = (
+                f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+            )
 
             # Create StrategyAllocationDTO from allocation comparison
-            from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
+            from the_alchemiser.shared.dto.strategy_allocation_dto import (
+                StrategyAllocationDTO,
+            )
 
             portfolio_value = Decimal(str(account_info.get("portfolio_value", 0)))
 
@@ -375,7 +388,9 @@ class PortfolioAnalysisHandler:
                     causation_id=correlation_id,
                     timestamp=datetime.now(UTC),
                     items=[],
-                    total_portfolio_value=Decimal(str(account_info.get("portfolio_value", 0))),
+                    total_portfolio_value=Decimal(
+                        str(account_info.get("portfolio_value", 0))
+                    ),
                     total_trade_value=Decimal("0"),
                     metadata={"scenario": "no_trades_needed"},
                 )
@@ -402,13 +417,17 @@ class PortfolioAnalysisHandler:
             self.event_bus.publish(event)
 
             trades_count = len(rebalance_plan.items) if rebalance_plan else 0
-            self.logger.info(f"📡 Emitted RebalancePlanned event with {trades_count} trades")
+            self.logger.info(
+                f"📡 Emitted RebalancePlanned event with {trades_count} trades"
+            )
 
         except Exception as e:
             self.logger.error(f"Failed to emit RebalancePlanned event: {e}")
             raise
 
-    def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
+    def _emit_workflow_failure(
+        self, original_event: BaseEvent, error_message: str
+    ) -> None:
         """Emit WorkflowFailed event when portfolio analysis fails.
 
         Args:
