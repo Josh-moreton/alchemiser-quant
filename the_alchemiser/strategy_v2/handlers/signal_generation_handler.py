@@ -17,7 +17,9 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
+from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
+    ConsolidatedPortfolioDTO,
+)
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
@@ -94,7 +96,9 @@ class SignalGenerationHandler:
             "WorkflowStarted",
         ]
 
-    def _handle_signal_generation_request(self, event: StartupEvent | WorkflowStarted) -> None:
+    def _handle_signal_generation_request(
+        self, event: StartupEvent | WorkflowStarted
+    ) -> None:
         """Handle signal generation request from startup or workflow events.
 
         Args:
@@ -145,8 +149,8 @@ class SignalGenerationHandler:
         strategy_signals = self._convert_signals_to_display_format(signals)
 
         # Create consolidated portfolio from signals
-        consolidated_portfolio_dict, contributing_strategies = self._build_consolidated_portfolio(
-            signals
+        consolidated_portfolio_dict, contributing_strategies = (
+            self._build_consolidated_portfolio(signals)
         )
 
         # Create ConsolidatedPortfolioDTO
@@ -158,7 +162,9 @@ class SignalGenerationHandler:
 
         return strategy_signals, consolidated_portfolio
 
-    def _convert_signals_to_display_format(self, signals: list[StrategySignal]) -> dict[str, Any]:
+    def _convert_signals_to_display_format(
+        self, signals: list[StrategySignal]
+    ) -> dict[str, Any]:
         """Convert DSL signals to display format."""
         strategy_signals = {}
 
@@ -166,7 +172,9 @@ class SignalGenerationHandler:
             # For DSL engine, we group all signals under "DSL" strategy type
             if len(signals) > 1:
                 # Multiple signals - present a concise primary symbol; keep full list separately
-                symbols = [signal.symbol.value for signal in signals if signal.action == "BUY"]
+                symbols = [
+                    signal.symbol.value for signal in signals if signal.action == "BUY"
+                ]
                 primary_signal = signals[0]  # Use first signal for other attributes
                 primary_symbol = primary_signal.symbol.value
                 strategy_signals["DSL"] = {
@@ -240,7 +248,9 @@ class SignalGenerationHandler:
                     )
                     return False
 
-        self.logger.info(f"✅ Signal validation passed for {len(strategy_signals)} strategies")
+        self.logger.info(
+            f"✅ Signal validation passed for {len(strategy_signals)} strategies"
+        )
         return True
 
     def _emit_signal_generated_event(
@@ -283,7 +293,9 @@ class SignalGenerationHandler:
             self.logger.error(f"Failed to emit SignalGenerated event: {e}")
             raise
 
-    def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
+    def _emit_workflow_failure(
+        self, original_event: BaseEvent, error_message: str
+    ) -> None:
         """Emit WorkflowFailed event when signal generation fails.
 
         Args:
