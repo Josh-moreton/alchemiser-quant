@@ -22,7 +22,7 @@ import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from secrets import randbelow
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 # Type checking imports to avoid circular dependencies
 from alpaca.data.historical import StockHistoricalDataClient
@@ -105,7 +105,26 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     - TradingRepository: For order placement and position management
     - MarketDataRepository: For market data and quotes
     - AccountRepository: For account information and portfolio data
+    
+    Uses singleton behavior per credentials to prevent multiple WebSocket connections.
     """
+    
+    _instances: ClassVar[dict[str, AlpacaManager]] = {}
+    _lock: ClassVar[threading.Lock] = threading.Lock()
+    _initialized: bool
+
+    def __new__(
+        cls, api_key: str, secret_key: str, *, paper: bool = True, base_url: str | None = None
+    ) -> AlpacaManager:
+        """Create or return existing instance for the given credentials."""
+        credentials_key = f"{api_key}:{secret_key}:{paper}:{base_url}"
+        
+        with cls._lock:
+            if credentials_key not in cls._instances:
+                instance = super().__new__(cls)
+                cls._instances[credentials_key] = instance
+                instance._initialized = False
+            return cls._instances[credentials_key]
 
     def __init__(
         self,
@@ -115,7 +134,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         paper: bool = True,
         base_url: str | None = None,
     ) -> None:
-        """Initialize Alpaca clients.
+        """Initialize Alpaca clients (only once per credentials).
 
         Args:
             api_key: Alpaca API key
@@ -124,6 +143,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             base_url: Optional custom base URL
 
         """
+        # Skip initialization if already initialized (singleton pattern)
+        if hasattr(self, "_initialized") and self._initialized:
+            return
+            
         self._api_key = api_key
         self._secret_key = secret_key
         self._paper = paper
@@ -158,6 +181,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self._asset_cache_timestamps: dict[str, float] = {}
         self._asset_cache_ttl = 300.0  # 5 minutes TTL
         self._asset_cache_lock = threading.Lock()
+        
+        # Mark as initialized to prevent re-initialization
+        self._initialized = True
 
     @property
     def is_paper_trading(self) -> bool:
@@ -2010,6 +2036,24 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     # Note: MarketDataPort implementation removed to avoid protocol compliance issues
     # AlpacaManager provides market data functionality through direct methods
     # without implementing the full MarketDataPort protocol
+
+    @classmethod
+    def cleanup_all_instances(cls) -> None:
+        """Clean up all AlpacaManager instances and their WebSocket connections."""
+        with cls._lock:
+            for instance in cls._instances.values():
+                try:
+                    # Stop TradingStream if active
+                    with instance._trading_ws_lock:
+                        if instance._trading_stream:
+                            logger.info("Stopping TradingStream for cleanup")
+                            instance._trading_stream.stop()
+                            instance._trading_stream = None
+                        instance._trading_ws_connected = False
+                except Exception as e:
+                    logger.error(f"Error cleaning up AlpacaManager instance: {e}")
+            cls._instances.clear()
+            logger.info("All AlpacaManager instances cleaned up")
 
     def __repr__(self) -> str:
         """Return string representation."""
