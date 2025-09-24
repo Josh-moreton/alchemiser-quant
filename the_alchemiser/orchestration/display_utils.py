@@ -124,10 +124,10 @@ def _display_target_allocations(signals_result: dict[str, Any]) -> None:
 
 def _display_trades(trades: list[dict[str, Any]]) -> None:
     """Display individual trades in a rebalance plan.
-    
+
     Args:
         trades: List of trade dictionaries to display
-    
+
     """
     for trade in trades:
         if isinstance(trade, dict):

@@ -45,28 +45,30 @@ class _ArgumentParsing:
 
 def _parse_arguments(argv: list[str] | None) -> _ArgumentParsing:
     """Parse command line arguments for backward compatibility.
-    
+
     Args:
         argv: Command line arguments
-        
+
     Returns:
         Parsed argument configuration
 
     """
     if not argv:
         return _ArgumentParsing()
-    
+
     mode = argv[0] if argv else "trade"
     show_tracking = False
     export_tracking_json = None
-    
+
     for i, arg in enumerate(argv):
         if arg == "--show-tracking":
             show_tracking = True
         elif arg == "--export-tracking-json" and i + 1 < len(argv):
             export_tracking_json = argv[i + 1]
-    
-    return _ArgumentParsing(mode, show_tracking=show_tracking, export_tracking_json=export_tracking_json)
+
+    return _ArgumentParsing(
+        mode, show_tracking=show_tracking, export_tracking_json=export_tracking_json
+    )
 
 
 def _send_error_notification() -> None:
@@ -91,7 +93,7 @@ def _handle_error_with_notification(
     additional_data: dict[str, str | list[str] | None] | None = None,
 ) -> None:
     """Handle error with notification using standard pattern.
-    
+
     Args:
         error: The exception to handle
         context: Context description for the error

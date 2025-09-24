@@ -154,7 +154,7 @@ class TradingOrchestrator:
         try:
             # Get comprehensive account data for rebalancing context
             account_data = self.portfolio_orchestrator.get_comprehensive_account_data()
-            
+
             # Early return if account data is not available
             if not account_data or not account_data.get("account_info"):
                 self.logger.error("Cannot trigger rebalancing: account data not available")
@@ -162,10 +162,10 @@ class TradingOrchestrator:
                 return
 
             self.logger.info("🔄 Triggering portfolio rebalancing workflow")
-            
+
             # Populate workflow results with account data for CLI
             self._populate_workflow_results_for_signal(event.correlation_id, account_data)
-            
+
             # Process portfolio rebalancing
             self._process_portfolio_rebalancing(event)
 
@@ -227,15 +227,15 @@ class TradingOrchestrator:
             )
 
             # Trigger allocation comparison which should emit RebalancePlanned
-            allocation_comparison = (
-                self.portfolio_orchestrator.analyze_allocation_comparison(portfolio_dto)
+            allocation_comparison = self.portfolio_orchestrator.analyze_allocation_comparison(
+                portfolio_dto
             )
 
             if not allocation_comparison:
                 self.logger.error("Failed to generate allocation comparison")
                 self._reset_rebalancing_state()
                 return
-                
+
             # Populate workflow results for CLI
             if (
                 hasattr(self, "workflow_results")
@@ -248,9 +248,7 @@ class TradingOrchestrator:
             )
 
         except Exception as portfolio_error:
-            self.logger.error(
-                f"Failed to trigger portfolio orchestrator: {portfolio_error}"
-            )
+            self.logger.error(f"Failed to trigger portfolio orchestrator: {portfolio_error}")
             self._reset_rebalancing_state()
 
     def _reset_rebalancing_state(self) -> None:
@@ -1119,10 +1117,10 @@ class TradingOrchestrator:
 
     def _collect_unique_error_messages(self, execution_result: ExecutionResultDTO) -> list[str]:
         """Collect unique error messages from failed orders.
-        
+
         Args:
             execution_result: The execution result containing orders
-            
+
         Returns:
             List of unique error messages from failed orders
 
@@ -1137,39 +1135,39 @@ class TradingOrchestrator:
 
     def _get_reason_hint(self, msgs: list[str]) -> str:
         """Get reason hint from error messages.
-        
+
         Args:
             msgs: List of error messages
-            
+
         Returns:
             Reason hint string based on message content
 
         """
         if not msgs:
             return ""
-        
+
         joined = " ".join(msgs).lower()
         market_keywords = [
             "market hours",
-            "market closed", 
+            "market closed",
             "outside trading hours",
             "after hours",
             "pre-market",
             "premarket",
         ]
-        
+
         if any(keyword in joined for keyword in market_keywords):
             return "Market closed or outside regular trading hours"
-        
+
         # Use up to first 2 unique broker messages
         return "; ".join(msgs[:2])
 
     def _is_error_message_informative(self, error_message: str | None) -> bool:
         """Check if error message is already informative.
-        
+
         Args:
             error_message: The error message to check
-            
+
         Returns:
             True if message is informative, False if needs derivation
 
@@ -1200,9 +1198,11 @@ class TradingOrchestrator:
         try:
             msgs = self._collect_unique_error_messages(execution_result)
             reason_hint = self._get_reason_hint(msgs)
-            
-            summary = f"{execution_result.orders_succeeded}/{execution_result.orders_placed} succeeded"
-            
+
+            summary = (
+                f"{execution_result.orders_succeeded}/{execution_result.orders_placed} succeeded"
+            )
+
             if reason_hint:
                 derived_error = f"{summary}. Reason: {reason_hint}"
             else:
