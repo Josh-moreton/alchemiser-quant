@@ -29,12 +29,12 @@ from the_alchemiser.shared.constants import (
     REBALANCE_PLAN_GENERATED,
 )
 from the_alchemiser.shared.dto.portfolio_state_dto import (
-    PortfolioMetricsDTO,
-    PortfolioStateDTO,
+    PortfolioMetrics,
+    PortfolioSnapshot,
 )
 from the_alchemiser.shared.dto.rebalance_plan_dto import (
-    RebalancePlanDTO,
-    RebalancePlanItemDTO,
+    RebalancePlan,
+    RebalancePlanItem,
 )
 from the_alchemiser.shared.events import (
     BaseEvent,
@@ -823,15 +823,15 @@ class TradingOrchestrator:
         self,
         allocation_comparison: AllocationComparisonDTO,
         account_info: dict[str, Any],
-    ) -> RebalancePlanDTO | None:
-        """Convert allocation comparison DTO to RebalancePlanDTO.
+    ) -> RebalancePlan | None:
+        """Convert allocation comparison DTO to RebalancePlan.
 
         Args:
             allocation_comparison: AllocationComparisonDTO with target/current values, deltas
             account_info: Account information including portfolio_value
 
         Returns:
-            RebalancePlanDTO ready for execution, or None if no significant trades needed
+            RebalancePlan ready for execution, or None if no significant trades needed
 
         """
         try:
@@ -886,7 +886,7 @@ class TradingOrchestrator:
         target_values: dict[str, Decimal],
         current_values: dict[str, Decimal],
         portfolio_value_decimal: Decimal,
-    ) -> tuple[list[RebalancePlanItemDTO], Decimal]:
+    ) -> tuple[list[RebalancePlanItem], Decimal]:
         """Create plan items for symbols with significant deltas."""
         plan_items = []
         total_trade_value = DECIMAL_ZERO
@@ -913,7 +913,7 @@ class TradingOrchestrator:
         target_values: dict[str, Decimal],
         current_values: dict[str, Decimal],
         portfolio_value_decimal: Decimal,
-    ) -> RebalancePlanItemDTO:
+    ) -> RebalancePlanItem:
         """Create a single rebalance plan item."""
         # Determine trade action
         action = "BUY" if delta > 0 else "SELL"
@@ -927,7 +927,7 @@ class TradingOrchestrator:
             target_val, current_val, portfolio_value_decimal
         )
 
-        return RebalancePlanItemDTO(
+        return RebalancePlanItem(
             symbol=symbol,
             current_weight=current_weight,
             target_weight=target_weight,
@@ -957,16 +957,16 @@ class TradingOrchestrator:
 
     def _build_rebalance_plan_dto(
         self,
-        plan_items: list[RebalancePlanItemDTO],
+        plan_items: list[RebalancePlanItem],
         total_trade_value: Decimal,
         portfolio_value_decimal: Decimal,
-    ) -> RebalancePlanDTO:
-        """Build the final RebalancePlanDTO."""
+    ) -> RebalancePlan:
+        """Build the final RebalancePlan."""
         # Create correlation IDs
         correlation_id = str(uuid.uuid4())
         plan_id = f"rebalance-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}"
 
-        return RebalancePlanDTO(
+        return RebalancePlan(
             correlation_id=correlation_id,
             causation_id=f"trading-orchestrator-{correlation_id}",
             timestamp=datetime.now(UTC),
@@ -1045,7 +1045,7 @@ class TradingOrchestrator:
         execution_result: ExecutionResultDTO | None,
         correlation_id: str,
         causation_id: str,
-    ) -> PortfolioStateDTO | None:
+    ) -> PortfolioSnapshot | None:
         """Build portfolio state after execution.
 
         Args:
@@ -1055,13 +1055,13 @@ class TradingOrchestrator:
             causation_id: Event causation ID
 
         Returns:
-            PortfolioStateDTO if successful execution, None otherwise
+            PortfolioSnapshot if successful execution, None otherwise
 
         """
         if not success or not execution_result:
             return None
 
-        minimal_metrics = PortfolioMetricsDTO(
+        minimal_metrics = PortfolioMetrics(
             total_value=execution_result.total_trade_value,
             cash_value=DECIMAL_ZERO,
             equity_value=execution_result.total_trade_value,
@@ -1072,7 +1072,7 @@ class TradingOrchestrator:
             total_pnl_percent=DECIMAL_ZERO,
         )
 
-        return PortfolioStateDTO(
+        return PortfolioSnapshot(
             correlation_id=correlation_id,
             causation_id=causation_id,
             timestamp=datetime.now(UTC),
@@ -1397,7 +1397,7 @@ class TradingOrchestrator:
             # Don't let event emission failure break the traditional workflow
             self.logger.warning(f"Failed to emit TradeExecutionStarted event: {e}")
 
-    def _print_rebalance_plan_summary(self, plan: RebalancePlanDTO) -> None:
+    def _print_rebalance_plan_summary(self, plan: RebalancePlan) -> None:
         """Print a concise BUY/SELL summary of the rebalance plan before execution."""
         try:
             buy_lines: list[str] = []

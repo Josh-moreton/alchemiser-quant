@@ -15,9 +15,9 @@ from datetime import UTC, datetime
 
 from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
 from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
-from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
 from the_alchemiser.shared.dto.trace_dto import TraceDTO
 from the_alchemiser.shared.events.bus import EventBus
+from the_alchemiser.shared.schemas.strategy import StrategyAllocation
 from the_alchemiser.strategy_v2.indicators.indicator_service import IndicatorService
 
 from .context import DslContext
@@ -72,7 +72,7 @@ class DslEvaluator:
 
     def evaluate(
         self, ast: ASTNodeDTO, correlation_id: str, trace: TraceDTO | None = None
-    ) -> tuple[StrategyAllocationDTO, TraceDTO]:
+    ) -> tuple[StrategyAllocation, TraceDTO]:
         """Evaluate AST and return allocation with trace.
 
         Args:
@@ -81,7 +81,7 @@ class DslEvaluator:
             trace: Optional existing trace to append to
 
         Returns:
-            Tuple of (StrategyAllocationDTO, TraceDTO)
+            Tuple of (StrategyAllocation, TraceDTO)
 
         Raises:
             DslEvaluationError: If evaluation fails
@@ -107,27 +107,27 @@ class DslEvaluator:
             # Evaluate the AST
             result = self._evaluate_node(ast, correlation_id, trace)
 
-            # Convert result to StrategyAllocationDTO
+            # Convert result to StrategyAllocation
             if isinstance(result, PortfolioFragmentDTO):
                 # Convert fragment to allocation
                 allocation = self._fragment_to_allocation(result, correlation_id)
             elif isinstance(result, dict):
                 # Direct weights dictionary
-                allocation = StrategyAllocationDTO(
+                allocation = StrategyAllocation(
                     target_weights={k: decimal.Decimal(str(v)) for k, v in result.items()},
                     correlation_id=correlation_id,
                     as_of=datetime.now(UTC),
                 )
             elif isinstance(result, str):
                 # Single asset result
-                allocation = StrategyAllocationDTO(
+                allocation = StrategyAllocation(
                     target_weights={result: decimal.Decimal("1.0")},
                     correlation_id=correlation_id,
                     as_of=datetime.now(UTC),
                 )
             else:
                 # Fallback for other types
-                allocation = StrategyAllocationDTO(
+                allocation = StrategyAllocation(
                     target_weights={},
                     correlation_id=correlation_id,
                     as_of=datetime.now(UTC),
@@ -317,8 +317,8 @@ class DslEvaluator:
 
     def _fragment_to_allocation(
         self, fragment: PortfolioFragmentDTO, correlation_id: str
-    ) -> StrategyAllocationDTO:
-        """Convert PortfolioFragmentDTO to StrategyAllocationDTO.
+    ) -> StrategyAllocation:
+        """Convert PortfolioFragmentDTO to StrategyAllocation.
 
         Args:
             fragment: Portfolio fragment to convert
@@ -337,7 +337,7 @@ class DslEvaluator:
             for symbol, weight in normalized_fragment.weights.items()
         }
 
-        return StrategyAllocationDTO(
+        return StrategyAllocation(
             target_weights=target_weights,
             correlation_id=correlation_id,
             as_of=datetime.now(UTC),

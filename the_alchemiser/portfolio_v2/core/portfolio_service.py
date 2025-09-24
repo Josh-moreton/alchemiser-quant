@@ -10,13 +10,13 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
 from the_alchemiser.shared.logging.logging_utils import log_with_context
+from the_alchemiser.shared.schemas.rebalancing import RebalancePlan
 from the_alchemiser.shared.types.exceptions import PortfolioError
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-    from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
+    from the_alchemiser.shared.schemas.strategy import StrategyAllocation
 
 from ..adapters.alpaca_data_adapter import AlpacaDataAdapter
 from .planner import RebalancePlanCalculator
@@ -35,7 +35,7 @@ class PortfolioServiceV2:
     1. Reading current portfolio state via AlpacaDataAdapter
     2. Building portfolio snapshot via PortfolioStateReader
     3. Calculating rebalance plan via RebalancePlanCalculator
-    4. Returning clean RebalancePlanDTO for execution module
+    4. Returning clean RebalancePlan for execution module
     """
 
     def __init__(self, alpaca_manager: AlpacaManager) -> None:
@@ -50,9 +50,9 @@ class PortfolioServiceV2:
         self._planner = RebalancePlanCalculator()
 
     def create_rebalance_plan_dto(
-        self, strategy: StrategyAllocationDTO, correlation_id: str
-    ) -> RebalancePlanDTO:
-        """Create rebalance plan DTO from strategy allocation.
+        self, strategy: StrategyAllocation, correlation_id: str
+    ) -> RebalancePlan:
+        """Create rebalance plan from strategy allocation.
 
         This is the main entry point for portfolio rebalancing. It orchestrates
         the entire process from reading current state to producing a trade plan.
@@ -62,7 +62,7 @@ class PortfolioServiceV2:
             correlation_id: Correlation ID for tracking this operation
 
         Returns:
-            RebalancePlanDTO with trade items ready for execution
+            RebalancePlan with trade items ready for execution
 
         Raises:
             PortfolioError: If rebalance plan cannot be created

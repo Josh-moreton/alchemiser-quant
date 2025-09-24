@@ -24,10 +24,9 @@ from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
     ConsolidatedPortfolioDTO,
 )
 from the_alchemiser.shared.dto.portfolio_state_dto import (
-    PortfolioMetricsDTO,
-    PortfolioStateDTO,
+    PortfolioMetrics,
+    PortfolioSnapshot,
 )
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
 from the_alchemiser.shared.events import (
     AllocationComparisonCompleted,
     EventBus,
@@ -35,6 +34,7 @@ from the_alchemiser.shared.events import (
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
+from the_alchemiser.shared.schemas.rebalancing import RebalancePlan
 
 
 def _to_float_safe(value: object) -> float:
@@ -312,14 +312,14 @@ class PortfolioOrchestrator:
         try:
             # Use portfolio_v2 for rebalancing plan calculation
             from the_alchemiser.shared.dto.strategy_allocation_dto import (
-                StrategyAllocationDTO,
+                StrategyAllocation,
             )
 
             # Convert ConsolidatedPortfolioDTO to target weights for portfolio_v2
             target_weights = target_allocations.target_allocations
 
             # Create strategy allocation DTO
-            allocation_dto = StrategyAllocationDTO(
+            allocation_dto = StrategyAllocation(
                 target_weights=target_weights,
                 correlation_id=target_allocations.correlation_id,
                 as_of=target_allocations.timestamp,
@@ -348,7 +348,7 @@ class PortfolioOrchestrator:
             # DUAL-PATH: Emit RebalancePlanned event for event-driven consumers
             try:
                 # Create a minimal portfolio state DTO for event emission
-                minimal_metrics = PortfolioMetricsDTO(
+                minimal_metrics = PortfolioMetrics(
                     total_value=Decimal(str(rebalance_plan.total_trade_value)),
                     cash_value=Decimal("0"),
                     equity_value=Decimal(str(rebalance_plan.total_trade_value)),
@@ -359,7 +359,7 @@ class PortfolioOrchestrator:
                     total_pnl_percent=Decimal("0"),
                 )
 
-                portfolio_state = PortfolioStateDTO(
+                portfolio_state = PortfolioSnapshot(
                     correlation_id=str(uuid.uuid4()),
                     causation_id=f"portfolio-rebalancing-{datetime.now(UTC).isoformat()}",
                     timestamp=datetime.now(UTC),
@@ -666,7 +666,7 @@ class PortfolioOrchestrator:
         return open_orders
 
     def _emit_rebalance_planned_event(
-        self, rebalance_plan: RebalancePlanDTO, portfolio_state: PortfolioStateDTO
+        self, rebalance_plan: RebalancePlan, portfolio_state: PortfolioSnapshot
     ) -> None:
         """Emit RebalancePlanned event for event-driven architecture.
 

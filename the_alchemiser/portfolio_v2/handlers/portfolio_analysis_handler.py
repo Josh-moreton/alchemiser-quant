@@ -22,7 +22,6 @@ from the_alchemiser.portfolio_v2 import PortfolioServiceV2
 from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
     ConsolidatedPortfolioDTO,
 )
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
@@ -31,7 +30,8 @@ from the_alchemiser.shared.events import (
     WorkflowFailed,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
+from the_alchemiser.shared.schemas.common import AllocationComparison
+from the_alchemiser.shared.schemas.rebalancing import RebalancePlan
 
 
 def _to_float_safe(value: object) -> float:
@@ -225,14 +225,14 @@ class PortfolioAnalysisHandler:
 
     def _analyze_allocation_comparison(
         self, consolidated_portfolio: ConsolidatedPortfolioDTO
-    ) -> AllocationComparisonDTO | None:
+    ) -> AllocationComparison | None:
         """Analyze target vs current allocations.
 
         Args:
             consolidated_portfolio: Consolidated portfolio allocation DTO
 
         Returns:
-            AllocationComparisonDTO or None if analysis failed
+            AllocationComparison or None if analysis failed
 
         """
         try:
@@ -255,8 +255,8 @@ class PortfolioAnalysisHandler:
                 consolidated_portfolio, account_dict, positions_dict
             )
 
-            # Create and return AllocationComparisonDTO
-            return AllocationComparisonDTO(**allocation_comparison_data)
+            # Create and return AllocationComparison
+            return AllocationComparison(**allocation_comparison_data)
 
         except Exception as e:
             self.logger.error(f"Allocation comparison analysis failed: {e}")
@@ -283,7 +283,7 @@ class PortfolioAnalysisHandler:
         # Get all symbols from both target and current allocations
         all_symbols = set(target_allocations.keys()) | set(current_allocations.keys())
 
-        # Convert to Decimal values for AllocationComparisonDTO
+        # Convert to Decimal values for AllocationComparison
         target_values = {}
         current_values = {}
         deltas = {}
@@ -304,9 +304,9 @@ class PortfolioAnalysisHandler:
 
     def _create_rebalance_plan_from_allocation(
         self,
-        allocation_comparison: AllocationComparisonDTO,
+        allocation_comparison: AllocationComparison,
         account_info: dict[str, Any],
-    ) -> RebalancePlanDTO | None:
+    ) -> RebalancePlan | None:
         """Create rebalance plan from allocation comparison.
 
         Args:
@@ -314,7 +314,7 @@ class PortfolioAnalysisHandler:
             account_info: Account information
 
         Returns:
-            RebalancePlanDTO or None if no rebalancing needed
+            RebalancePlan or None if no rebalancing needed
 
         """
         try:
@@ -325,9 +325,9 @@ class PortfolioAnalysisHandler:
             # Generate correlation_id for this analysis
             correlation_id = f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
 
-            # Create StrategyAllocationDTO from allocation comparison
+            # Create StrategyAllocation from allocation comparison
             from the_alchemiser.shared.dto.strategy_allocation_dto import (
-                StrategyAllocationDTO,
+                StrategyAllocation,
             )
 
             portfolio_value = Decimal(str(account_info.get("portfolio_value", 0)))
@@ -337,7 +337,7 @@ class PortfolioAnalysisHandler:
             for symbol, value in allocation_comparison.target_values.items():
                 target_weights[symbol] = value
 
-            strategy_allocation = StrategyAllocationDTO(
+            strategy_allocation = StrategyAllocation(
                 target_weights=target_weights,
                 portfolio_value=portfolio_value,
                 correlation_id=correlation_id,
@@ -355,8 +355,8 @@ class PortfolioAnalysisHandler:
 
     def _emit_rebalance_planned_event(
         self,
-        rebalance_plan: RebalancePlanDTO | None,
-        allocation_comparison: AllocationComparisonDTO,
+        rebalance_plan: RebalancePlan | None,
+        allocation_comparison: AllocationComparison,
         correlation_id: str,
         account_info: dict[str, Any],
     ) -> None:
@@ -373,10 +373,10 @@ class PortfolioAnalysisHandler:
             # Create a plan even if None - represent as no-trade plan
             if rebalance_plan is None:
                 from the_alchemiser.shared.dto.rebalance_plan_dto import (
-                    RebalancePlanDTO,
+                    RebalancePlan,
                 )
 
-                rebalance_plan = RebalancePlanDTO(
+                rebalance_plan = RebalancePlan(
                     plan_id=f"no-trade-{uuid.uuid4()}",
                     correlation_id=correlation_id,
                     causation_id=correlation_id,

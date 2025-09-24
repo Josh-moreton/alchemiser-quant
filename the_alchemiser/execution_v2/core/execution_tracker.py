@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
+from the_alchemiser.shared.schemas.rebalancing import RebalancePlan
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class ExecutionTracker:
     """Basic execution tracking and logging."""
 
     @staticmethod
-    def log_plan_received(plan: RebalancePlanDTO) -> None:
+    def log_plan_received(plan: RebalancePlan) -> None:
         """Log when rebalance plan is received."""
         logger.info(f"📋 Plan received: {plan.plan_id}")
         logger.info(f"  Total value: ${plan.total_trade_value}")
@@ -27,7 +27,7 @@ class ExecutionTracker:
             logger.info(f"  📦 {item.action} ${item.trade_amount} {item.symbol}")
 
     @staticmethod
-    def log_execution_summary(plan: RebalancePlanDTO, result: ExecutionResultDTO) -> None:
+    def log_execution_summary(plan: RebalancePlan, result: ExecutionResultDTO) -> None:
         """Log execution summary."""
         success_rate = result.success_rate * 100
 

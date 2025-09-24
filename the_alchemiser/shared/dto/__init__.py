@@ -11,29 +11,24 @@ from typing import Any
 # Placeholder DTO classes for future implementation (to be enhanced in Phase 2)
 from pydantic import BaseModel, ConfigDict, Field
 
-# Import implemented DTOs
-from the_alchemiser.shared.dto.asset_info_dto import AssetInfoDTO
 from the_alchemiser.shared.dto.execution_report_dto import (
     ExecutedOrderDTO,
     ExecutionReportDTO,
 )
 from the_alchemiser.shared.dto.lambda_event_dto import LambdaEventDTO
-from the_alchemiser.shared.dto.market_bar_dto import MarketBarDTO
 from the_alchemiser.shared.dto.order_request_dto import (
     MarketDataDTO,
     OrderRequestDTO,
 )
 from the_alchemiser.shared.dto.portfolio_state_dto import (
-    PortfolioMetricsDTO,
-    PortfolioStateDTO,
-    PositionDTO,
+    PortfolioMetrics,
+    PortfolioSnapshot,
+    Position,
 )
 from the_alchemiser.shared.dto.rebalance_plan_dto import (
-    RebalancePlanDTO,
-    RebalancePlanItemDTO,
+    RebalancePlan,
+    RebalancePlanItem,
 )
-from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
-from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
 from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 from the_alchemiser.shared.dto.trade_ledger_dto import (
     AssetType,
@@ -48,6 +43,12 @@ from the_alchemiser.shared.dto.trade_run_result_dto import (
     OrderResultSummaryDTO,
     TradeRunResultDTO,
 )
+
+# Import implemented DTOs
+from the_alchemiser.shared.schemas.assets import AssetInfo
+from the_alchemiser.shared.schemas.market_data import MarketBar
+from the_alchemiser.shared.schemas.signals import StrategySignal
+from the_alchemiser.shared.schemas.strategy import StrategyAllocation
 
 
 class ConfigurationDTO(BaseModel):
@@ -89,7 +90,7 @@ class ErrorDTO(BaseModel):
 
 __all__ = [
     # Asset DTOs
-    "AssetInfoDTO",
+    "AssetInfo",
     # Trade Ledger DTOs
     "AssetType",
     # Placeholder DTOs
@@ -102,19 +103,19 @@ __all__ = [
     "LambdaEventDTO",
     # Trade Ledger DTOs
     "Lot",
-    "MarketBarDTO",
+    "MarketBar",
     "MarketDataDTO",
     "OrderRequestDTO",
     "OrderResultSummaryDTO",
     # Trade Ledger DTOs
     "PerformanceSummary",
-    "PortfolioMetricsDTO",
-    "PortfolioStateDTO",
-    "PositionDTO",
-    "RebalancePlanDTO",
-    "RebalancePlanItemDTO",
-    "StrategyAllocationDTO",
-    "StrategySignalDTO",
+    "PortfolioMetrics",
+    "PortfolioSnapshot",
+    "Position",
+    "RebalancePlan",
+    "RebalancePlanItem",
+    "StrategyAllocation",
+    "StrategySignal",
     "TechnicalIndicatorDTO",
     # Trade Ledger DTOs
     "TradeLedgerEntry",

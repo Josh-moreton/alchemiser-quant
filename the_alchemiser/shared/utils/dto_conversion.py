@@ -163,7 +163,7 @@ def convert_nested_order_data(order_data: dict[str, Any]) -> dict[str, Any]:
 
 
 def convert_nested_rebalance_item_data(item_data: dict[str, Any]) -> dict[str, Any]:
-    """Convert rebalance item data fields for RebalancePlanItemDTO.
+    """Convert rebalance item data fields for RebalancePlanItem.
 
     Args:
         item_data: Dictionary containing rebalance item data

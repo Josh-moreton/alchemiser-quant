@@ -14,14 +14,14 @@ from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.dto.rebalance_plan_dto import (
-    RebalancePlanDTO,
-    RebalancePlanItemDTO,
+    RebalancePlan,
+    RebalancePlanItem,
 )
 from the_alchemiser.shared.logging.logging_utils import log_with_context
 from the_alchemiser.shared.types.exceptions import PortfolioError
 
 if TYPE_CHECKING:
-    from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
+    from the_alchemiser.shared.schemas.strategy import StrategyAllocation
 
 from ..models.portfolio_snapshot import PortfolioSnapshot
 
@@ -43,10 +43,10 @@ class RebalancePlanCalculator:
 
     def build_plan(
         self,
-        strategy: StrategyAllocationDTO,
+        strategy: StrategyAllocation,
         snapshot: PortfolioSnapshot,
         correlation_id: str,
-    ) -> RebalancePlanDTO:
+    ) -> RebalancePlan:
         """Build rebalance plan from strategy allocation and portfolio snapshot.
 
         Args:
@@ -55,7 +55,7 @@ class RebalancePlanCalculator:
             correlation_id: Correlation ID for tracking
 
         Returns:
-            RebalancePlanDTO with trade items and metadata
+            RebalancePlan with trade items and metadata
 
         Raises:
             PortfolioError: If plan cannot be calculated
@@ -93,7 +93,7 @@ class RebalancePlanCalculator:
                     else "CASH"
                 )
                 trade_items = [
-                    RebalancePlanItemDTO(
+                    RebalancePlanItem(
                         symbol=dummy_symbol,
                         current_weight=Decimal("0"),
                         target_weight=Decimal("0"),
@@ -112,7 +112,7 @@ class RebalancePlanCalculator:
                 total_trade_value += abs(item.trade_amount)
 
             # Step 5: Create rebalance plan
-            plan = RebalancePlanDTO(
+            plan = RebalancePlan(
                 correlation_id=correlation_id,
                 causation_id=correlation_id,  # Use same ID for causation tracking
                 timestamp=datetime.now(UTC),
@@ -156,7 +156,7 @@ class RebalancePlanCalculator:
             raise PortfolioError(f"Failed to build rebalance plan: {e}") from e
 
     def _determine_portfolio_value(
-        self, strategy: StrategyAllocationDTO, snapshot: PortfolioSnapshot
+        self, strategy: StrategyAllocation, snapshot: PortfolioSnapshot
     ) -> Decimal:
         """Determine portfolio value to use for calculations.
 
@@ -174,7 +174,7 @@ class RebalancePlanCalculator:
 
     def _calculate_dollar_values(
         self,
-        strategy: StrategyAllocationDTO,
+        strategy: StrategyAllocation,
         snapshot: PortfolioSnapshot,
         portfolio_value: Decimal,
     ) -> tuple[dict[str, Decimal], dict[str, Decimal]]:
@@ -218,7 +218,7 @@ class RebalancePlanCalculator:
         self,
         target_values: dict[str, Decimal],
         current_values: dict[str, Decimal],
-    ) -> list[RebalancePlanItemDTO]:
+    ) -> list[RebalancePlanItem]:
         """Calculate trade items with amounts and actions.
 
         Args:
@@ -226,7 +226,7 @@ class RebalancePlanCalculator:
             current_values: Current dollar values by symbol
 
         Returns:
-            List of RebalancePlanItemDTO items
+            List of RebalancePlanItem items
 
         """
         items = []
@@ -263,7 +263,7 @@ class RebalancePlanCalculator:
             priority = self._calculate_priority(abs(final_trade_amount))
 
             # Create trade item
-            item = RebalancePlanItemDTO(
+            item = RebalancePlanItem(
                 symbol=symbol,
                 current_weight=current_weight,
                 target_weight=target_weight,
@@ -279,7 +279,7 @@ class RebalancePlanCalculator:
 
         # Sort items to ensure SELL orders are processed before BUY orders
         # This allows SELL orders to free up buying power for BUY orders
-        def order_priority(item: RebalancePlanItemDTO) -> tuple[int, int]:
+        def order_priority(item: RebalancePlanItem) -> tuple[int, int]:
             # Primary sort: action priority (SELL=0, BUY=1, HOLD=2)
             action_priority = {"SELL": 0, "BUY": 1, "HOLD": 2}.get(item.action, 3)
             # Secondary sort: item priority (lower number = higher priority)

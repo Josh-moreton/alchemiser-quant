@@ -14,7 +14,7 @@ import math
 
 import numpy as np
 
-from the_alchemiser.shared.dto.market_bar_dto import MarketBarDTO
+from the_alchemiser.shared.schemas.market_data import MarketBar
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +36,11 @@ class FeaturePipeline:
         self._tolerance = default_tolerance
         self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
-    def compute_returns(self, bars: list[MarketBarDTO]) -> list[float]:
+    def compute_returns(self, bars: list[MarketBar]) -> list[float]:
         """Compute price returns from bar data.
 
         Args:
-            bars: List of MarketBarDTO objects with closing prices
+            bars: List of MarketBar objects with closing prices
 
         Returns:
             List of returns (excluding first bar which has no prior price)
@@ -212,12 +212,12 @@ class FeaturePipeline:
         return 1.0
 
     def _compute_price_position(
-        self, bars: list[MarketBarDTO], current_close: float, lookback_window: int
+        self, bars: list[MarketBar], current_close: float, lookback_window: int
     ) -> float:
         """Compute price position within high-low range.
 
         Args:
-            bars: List of MarketBarDTO objects
+            bars: List of MarketBar objects
             current_close: Current closing price
             lookback_window: Window for high-low range calculation
 
@@ -253,12 +253,12 @@ class FeaturePipeline:
         return 1.0
 
     def extract_price_features(
-        self, bars: list[MarketBarDTO], lookback_window: int = 20
+        self, bars: list[MarketBar], lookback_window: int = 20
     ) -> dict[str, float]:
         """Extract common price-based features from bar data.
 
         Args:
-            bars: List of MarketBarDTO objects
+            bars: List of MarketBar objects
             lookback_window: Window for rolling calculations
 
         Returns:

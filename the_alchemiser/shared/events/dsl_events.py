@@ -21,7 +21,7 @@ from pydantic import Field
 from ..constants import EVENT_SCHEMA_VERSION_DESCRIPTION, EVENT_TYPE_DESCRIPTION
 from ..dto.ast_node_dto import ASTNodeDTO
 from ..dto.indicator_request_dto import PortfolioFragmentDTO
-from ..dto.strategy_allocation_dto import StrategyAllocationDTO
+from ..dto.strategy_allocation_dto import StrategyAllocation
 from ..dto.technical_indicators_dto import TechnicalIndicatorDTO
 from ..dto.trace_dto import TraceDTO
 from .base import BaseEvent
@@ -69,7 +69,7 @@ class StrategyEvaluated(BaseEvent):
 
     # Result fields
     strategy_id: str = Field(..., min_length=1, description="Strategy that was evaluated")
-    allocation: StrategyAllocationDTO = Field(..., description="Final portfolio allocation")
+    allocation: StrategyAllocation = Field(..., description="Final portfolio allocation")
     trace: TraceDTO = Field(..., description="Complete evaluation trace")
     success: bool = Field(..., description="Whether evaluation succeeded")
 
@@ -124,7 +124,7 @@ class PortfolioAllocationProduced(BaseEvent):
 
     # Allocation fields
     strategy_id: str = Field(..., min_length=1, description="Strategy that produced allocation")
-    allocation: StrategyAllocationDTO = Field(..., description="Portfolio allocation result")
+    allocation: StrategyAllocation = Field(..., description="Portfolio allocation result")
     allocation_type: str = Field(
         ..., min_length=1, description="Type of allocation (final, intermediate)"
     )

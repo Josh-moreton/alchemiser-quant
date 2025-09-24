@@ -18,8 +18,8 @@ from typing import Any
 from pydantic import Field
 
 from ..constants import EVENT_TYPE_DESCRIPTION
-from ..dto.portfolio_state_dto import PortfolioStateDTO
-from ..dto.rebalance_plan_dto import RebalancePlanDTO
+from ..dto.portfolio_state_dto import PortfolioSnapshot
+from ..dto.rebalance_plan_dto import RebalancePlan
 from ..schemas.common import AllocationComparisonDTO
 from .base import BaseEvent
 
@@ -70,7 +70,7 @@ class RebalancePlanned(BaseEvent):
     event_type: str = Field(default="RebalancePlanned", description=EVENT_TYPE_DESCRIPTION)
 
     # Rebalance-specific fields
-    rebalance_plan: RebalancePlanDTO = Field(..., description="Portfolio rebalancing plan")
+    rebalance_plan: RebalancePlan = Field(..., description="Portfolio rebalancing plan")
     allocation_comparison: AllocationComparisonDTO = Field(
         ..., description="Allocation comparison data"
     )
@@ -110,7 +110,7 @@ class TradeExecutionStarted(BaseEvent):
 
     # Execution startup fields
     execution_plan: dict[str, Any] = Field(..., description="Trading execution plan")
-    portfolio_state_before: PortfolioStateDTO | None = Field(
+    portfolio_state_before: PortfolioSnapshot | None = Field(
         default=None, description="Portfolio state before execution"
     )
     trade_mode: str = Field(..., description="Trading mode (live/paper)")
@@ -129,10 +129,10 @@ class PortfolioStateChanged(BaseEvent):
     event_type: str = Field(default="PortfolioStateChanged", description=EVENT_TYPE_DESCRIPTION)
 
     # Portfolio state change fields
-    portfolio_state_before: PortfolioStateDTO = Field(
+    portfolio_state_before: PortfolioSnapshot = Field(
         ..., description="Portfolio state before change"
     )
-    portfolio_state_after: PortfolioStateDTO = Field(
+    portfolio_state_after: PortfolioSnapshot = Field(
         ..., description="Portfolio state after change"
     )
     change_type: str = Field(..., description="Type of change (rebalance, trade, etc.)")

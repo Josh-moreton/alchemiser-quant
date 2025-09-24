@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class PositionDTO(BaseModel):
+class Position(BaseModel):
     """DTO for individual position data."""
 
     model_config = ConfigDict(
@@ -54,7 +54,7 @@ class PositionDTO(BaseModel):
         return ensure_timezone_aware(v)
 
 
-class PortfolioMetricsDTO(BaseModel):
+class PortfolioMetrics(BaseModel):
     """DTO for portfolio performance metrics."""
 
     model_config = ConfigDict(
@@ -79,7 +79,7 @@ class PortfolioMetricsDTO(BaseModel):
     maintenance_margin: Decimal | None = Field(default=None, ge=0, description="Maintenance margin")
 
 
-class PortfolioStateDTO(BaseModel):
+class PortfolioSnapshot(BaseModel):
     """DTO for complete portfolio state data transfer.
 
     Used for communication between portfolio module and other modules.
@@ -105,10 +105,10 @@ class PortfolioStateDTO(BaseModel):
     account_id: str | None = Field(default=None, description="Associated account ID")
 
     # Portfolio state
-    positions: list[PositionDTO] = Field(
+    positions: list[Position] = Field(
         default_factory=list, description="List of portfolio positions"
     )
-    metrics: PortfolioMetricsDTO = Field(..., description="Portfolio metrics")
+    metrics: PortfolioMetrics = Field(..., description="Portfolio metrics")
 
     # Strategy allocation
     strategy_allocations: dict[str, Decimal] = Field(
@@ -240,14 +240,14 @@ class PortfolioStateDTO(BaseModel):
             data["metrics"] = metrics_dict
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> PortfolioStateDTO:
+    def from_dict(cls, data: dict[str, Any]) -> PortfolioSnapshot:
         """Create DTO from dictionary.
 
         Args:
             data: Dictionary containing DTO data
 
         Returns:
-            PortfolioStateDTO instance
+            PortfolioSnapshot instance
 
         Raises:
             ValueError: If data is invalid or missing required fields
@@ -313,13 +313,13 @@ class PortfolioStateDTO(BaseModel):
 
     @classmethod
     def _convert_positions(cls, data: dict[str, Any]) -> None:
-        """Convert positions data to PositionDTO objects."""
+        """Convert positions data to Position objects."""
         if "positions" in data and isinstance(data["positions"], list):
             positions_data = []
             for position_data in data["positions"]:
                 if isinstance(position_data, dict):
                     cls._convert_position_data(position_data)
-                    positions_data.append(PositionDTO(**position_data))
+                    positions_data.append(Position(**position_data))
                 else:
                     positions_data.append(position_data)  # Assume already a DTO
             data["positions"] = positions_data
@@ -364,7 +364,7 @@ class PortfolioStateDTO(BaseModel):
 
     @classmethod
     def _convert_metrics(cls, data: dict[str, Any]) -> None:
-        """Convert metrics data to PortfolioMetricsDTO."""
+        """Convert metrics data to PortfolioMetrics."""
         if "metrics" in data and isinstance(data["metrics"], dict):
             metrics_data = data["metrics"]
             metrics_decimal_fields = [
@@ -391,4 +391,4 @@ class PortfolioStateDTO(BaseModel):
                         raise ValueError(
                             f"Invalid {field_name} value in metrics: {metrics_data[field_name]}"
                         ) from e
-            data["metrics"] = PortfolioMetricsDTO(**metrics_data)
+            data["metrics"] = PortfolioMetrics(**metrics_data)

@@ -21,10 +21,9 @@ from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
     ConsolidatedPortfolioDTO,
 )
-from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
 from the_alchemiser.shared.events import EventBus, SignalGenerated
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.types import StrategySignal
+from the_alchemiser.shared.schemas.signals import StrategySignal
 from the_alchemiser.shared.types.exceptions import DataProviderError
 from the_alchemiser.shared.types.strategy_types import StrategyType
 from the_alchemiser.shared.value_objects.symbol import Symbol
@@ -317,9 +316,9 @@ class SignalOrchestrator:
                     symbols_list = signal_data.get("symbols") or []
                     if symbols_list:
                         raw_symbol = symbols_list[0]
-                # Enforce 10-char max for StrategySignalDTO.symbol
+                # Enforce 10-char max for StrategySignal.symbol
                 sanitized_symbol = str(raw_symbol)[:10]
-                signal_dto = StrategySignalDTO(
+                signal_dto = StrategySignal(
                     correlation_id=correlation_id,
                     causation_id=causation_id,
                     timestamp=datetime.now(UTC),

@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Protocol
 
-from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
+from the_alchemiser.shared.schemas.strategy import StrategyAllocation
 
 from ...shared.types.market_data_port import MarketDataPort
 
@@ -22,7 +22,7 @@ class StrategyEngine(Protocol):
 
     def __call__(
         self, context: datetime | MarketDataPort | dict[str, datetime | MarketDataPort]
-    ) -> StrategyAllocationDTO:
+    ) -> StrategyAllocation:
         """Execute strategy and return allocation DTO."""
         ...
 

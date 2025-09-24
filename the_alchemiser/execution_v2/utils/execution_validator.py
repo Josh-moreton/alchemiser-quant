@@ -12,7 +12,7 @@ import logging
 from decimal import ROUND_DOWN, Decimal
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.dto.asset_info_dto import AssetInfoDTO
+from the_alchemiser.shared.schemas.assets import AssetInfo
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +139,7 @@ class ExecutionValidator:
         symbol: str,
         quantity: Decimal,
         _side: str,
-        _asset_info: AssetInfoDTO,
+        _asset_info: AssetInfo,
         correlation_id: str | None,
         *,
         auto_adjust: bool,

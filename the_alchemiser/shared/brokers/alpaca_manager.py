@@ -38,7 +38,6 @@ from alpaca.trading.requests import (
 )
 
 from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
-from the_alchemiser.shared.dto.asset_info_dto import AssetInfoDTO
 from the_alchemiser.shared.dto.broker_dto import (
     OrderExecutionResult,
     WebSocketResult,
@@ -51,6 +50,7 @@ from the_alchemiser.shared.protocols.repository import (
     MarketDataRepository,
     TradingRepository,
 )
+from the_alchemiser.shared.schemas.assets import AssetInfo
 
 # Import Alpaca exceptions for proper error handling with type safety
 _RetryExcImported: type[Exception]
@@ -187,7 +187,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self._trading_service_active: bool = False
 
         # Asset metadata cache with TTL
-        self._asset_cache: dict[str, AssetInfoDTO] = {}
+        self._asset_cache: dict[str, AssetInfo] = {}
         self._asset_cache_timestamps: dict[str, float] = {}
         self._asset_cache_ttl = 300.0  # 5 minutes TTL
         self._asset_cache_lock = threading.Lock()
@@ -1528,14 +1528,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to liquidate position for {symbol}: {e}")
             return None
 
-    def get_asset_info(self, symbol: str) -> AssetInfoDTO | None:
+    def get_asset_info(self, symbol: str) -> AssetInfo | None:
         """Get asset information with caching.
 
         Args:
             symbol: Stock symbol
 
         Returns:
-            AssetInfoDTO with asset metadata, or None if not found.
+            AssetInfo with asset metadata, or None if not found.
 
         """
         symbol_upper = symbol.upper()
@@ -1557,7 +1557,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             asset = self._trading_client.get_asset(symbol_upper)
 
             # Convert SDK object to DTO at adapter boundary
-            asset_dto = AssetInfoDTO(
+            asset_dto = AssetInfo(
                 symbol=getattr(asset, "symbol", symbol_upper),
                 name=getattr(asset, "name", None),
                 exchange=getattr(asset, "exchange", None),

@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validat
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class MarketBarDTO(BaseModel):
+class MarketBar(BaseModel):
     """DTO for market bar data optimized for strategy consumption.
 
     Focused specifically on OHLCV data needed by strategy engines
@@ -114,14 +114,14 @@ class MarketBarDTO(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> MarketBarDTO:
+    def from_dict(cls, data: dict[str, Any]) -> MarketBar:
         """Create DTO from dictionary.
 
         Args:
             data: Dictionary containing bar data
 
         Returns:
-            MarketBarDTO instance
+            MarketBar instance
 
         Raises:
             ValueError: If data is invalid or missing required fields
@@ -159,8 +159,8 @@ class MarketBarDTO(BaseModel):
         return cls(**data)
 
     @classmethod
-    def from_alpaca_bar(cls, bar_dict: dict[str, Any], symbol: str, timeframe: str) -> MarketBarDTO:
-        """Create MarketBarDTO from Alpaca SDK bar data.
+    def from_alpaca_bar(cls, bar_dict: dict[str, Any], symbol: str, timeframe: str) -> MarketBar:
+        """Create MarketBar from Alpaca SDK bar data.
 
         Args:
             bar_dict: Alpaca bar dictionary containing OHLCV data
@@ -168,7 +168,7 @@ class MarketBarDTO(BaseModel):
             timeframe: Bar timeframe
 
         Returns:
-            MarketBarDTO instance
+            MarketBar instance
 
         Raises:
             ValueError: If required fields are missing or invalid

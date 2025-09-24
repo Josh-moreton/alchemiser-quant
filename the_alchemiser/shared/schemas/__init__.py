@@ -29,6 +29,7 @@ from .errors import (
     ErrorSummaryData,
 )
 from .market_data import (
+    MarketBar,
     MarketStatusResult,
     MultiSymbolQuotesResult,
     PriceHistoryResult,
@@ -37,6 +38,8 @@ from .market_data import (
 )
 from .portfolio import PortfolioMetrics, PortfolioSnapshot, Position
 from .rebalancing import RebalancePlan, RebalancePlanItem
+from .signals import StrategySignal
+from .strategy import StrategyAllocation
 
 __all__ = [
     "AccountMetrics",
@@ -50,6 +53,7 @@ __all__ = [
     "ErrorNotificationData",
     "ErrorReportSummary",
     "ErrorSummaryData",
+    "MarketBar",
     "MarketStatusResult",
     "MultiStrategyExecutionResult",
     "MultiStrategySummary",
@@ -65,5 +69,7 @@ __all__ = [
     "Result",
     "RiskMetricsResult",
     "SpreadAnalysisResult",
+    "StrategyAllocation",
+    "StrategySignal",
     "TradeEligibilityResult",
 ]

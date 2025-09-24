@@ -18,7 +18,6 @@ if TYPE_CHECKING:
 
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
 from the_alchemiser.shared.constants import DECIMAL_ZERO
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
@@ -28,6 +27,7 @@ from the_alchemiser.shared.events import (
     WorkflowFailed,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.schemas.rebalancing import RebalancePlan
 
 
 class TradingExecutionHandler:
@@ -101,7 +101,7 @@ class TradingExecutionHandler:
         self.logger.info("🔄 Starting trade execution from RebalancePlanned event")
 
         try:
-            # Reconstruct RebalancePlanDTO from event data
+            # Reconstruct RebalancePlan from event data
             rebalance_plan_data = event.rebalance_plan
 
             # Handle no-trade scenario
@@ -130,7 +130,7 @@ class TradingExecutionHandler:
                 return
 
             # Reconstruct the rebalance plan for execution
-            rebalance_plan = RebalancePlanDTO.model_validate(rebalance_plan_data)
+            rebalance_plan = RebalancePlan.model_validate(rebalance_plan_data)
 
             # Execute the rebalance plan
             self.logger.info(f"🚀 Executing trades: {len(rebalance_plan.items)} items")

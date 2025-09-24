@@ -16,7 +16,7 @@ from the_alchemiser.execution_v2.models.execution_result import (
 )
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
+from the_alchemiser.shared.schemas.rebalancing import RebalancePlan
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class ExecutionManager:
         )
 
     def _record_execution_in_ledger(
-        self, result: ExecutionResultDTO, plan: RebalancePlanDTO
+        self, result: ExecutionResultDTO, plan: RebalancePlan
     ) -> None:
         """Record execution results in the trade ledger.
 
@@ -136,11 +136,11 @@ class ExecutionManager:
             error_message=order.error_message,
         )
 
-    def execute_rebalance_plan(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
+    def execute_rebalance_plan(self, plan: RebalancePlan) -> ExecutionResultDTO:
         """Execute rebalance plan using executor.
 
         Args:
-            plan: RebalancePlanDTO to execute
+            plan: RebalancePlan to execute
 
         Returns:
             ExecutionResultDTO with execution results

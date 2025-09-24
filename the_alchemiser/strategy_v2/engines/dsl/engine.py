@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.constants import DSL_ENGINE_MODULE
 from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
-from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
 from the_alchemiser.shared.dto.trace_dto import TraceDTO
 from the_alchemiser.shared.events.base import BaseEvent
 from the_alchemiser.shared.events.bus import EventBus
@@ -27,6 +26,7 @@ from the_alchemiser.shared.events.dsl_events import (
 )
 from the_alchemiser.shared.events.handlers import EventHandler
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.schemas.strategy import StrategyAllocation
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 
 from .dsl_evaluator import DslEvaluator, IndicatorService
@@ -103,7 +103,7 @@ class DslEngine(EventHandler):
 
     def evaluate_strategy(
         self, strategy_config_path: str, correlation_id: str | None = None
-    ) -> tuple[StrategyAllocationDTO, TraceDTO]:
+    ) -> tuple[StrategyAllocation, TraceDTO]:
         """Evaluate strategy from configuration file.
 
         Args:
@@ -111,7 +111,7 @@ class DslEngine(EventHandler):
             correlation_id: Optional correlation ID for tracking
 
         Returns:
-            Tuple of (StrategyAllocationDTO, TraceDTO)
+            Tuple of (StrategyAllocation, TraceDTO)
 
         Raises:
             DslEngineError: If evaluation fails
@@ -261,7 +261,7 @@ class DslEngine(EventHandler):
     def _publish_completion_events(
         self,
         request_event: StrategyEvaluationRequested,
-        allocation: StrategyAllocationDTO,
+        allocation: StrategyAllocation,
         trace: TraceDTO,
     ) -> None:
         """Publish completion events.
@@ -329,7 +329,7 @@ class DslEngine(EventHandler):
         ).mark_completed(success=False, error_message=error_message)
 
         # Create dummy allocation for failed case
-        failed_allocation = StrategyAllocationDTO(
+        failed_allocation = StrategyAllocation(
             target_weights={}, correlation_id=correlation_id, as_of=datetime.now(UTC)
         )
 
