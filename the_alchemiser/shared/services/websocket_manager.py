@@ -10,7 +10,8 @@ Manages both StockDataStream (pricing) and TradingStream (order updates).
 import logging
 import threading
 import time
-from typing import Any, ClassVar, Callable
+from collections.abc import Callable
+from typing import Any, ClassVar
 
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 
@@ -40,7 +41,7 @@ class WebSocketConnectionManager:
             # Wait for any cleanup to complete
             while cls._cleanup_in_progress:
                 time.sleep(0.001)  # Brief wait for cleanup to finish
-                
+
             if credentials_key not in cls._instances:
                 instance = super().__new__(cls)
                 cls._instances[credentials_key] = instance
@@ -55,18 +56,18 @@ class WebSocketConnectionManager:
         self.api_key = api_key
         self.secret_key = secret_key
         self.paper_trading = paper_trading
-        
+
         # Pricing service (StockDataStream)
         self._pricing_service: RealTimePricingService | None = None
         self._pricing_ref_count = 0
-        
+
         # Trading service (TradingStream)
         self._trading_stream = None
         self._trading_stream_thread: threading.Thread | None = None
         self._trading_ws_connected: bool = False
         self._trading_callback: Callable[[Any], None] | None = None
         self._trading_ref_count = 0
-        
+
         # Shared locks
         self._service_lock = threading.Lock()
         self._trading_lock = threading.Lock()
@@ -120,18 +121,19 @@ class WebSocketConnectionManager:
 
     def get_trading_service(self, callback: Callable[[Any], None]):
         """Get or create the shared trading service for order updates.
-        
+
         Args:
             callback: Async callback function for order updates
-            
+
         Returns:
             True if service is available, False if failed to start
+
         """
         with self._trading_lock:
             if self._trading_stream is None or not self._trading_ws_connected:
                 try:
                     from alpaca.trading.stream import TradingStream
-                    
+
                     logger.info("📡 Creating shared TradingStream service")
                     self._trading_stream = TradingStream(
                         self.api_key, self.secret_key, paper=self.paper_trading
@@ -141,7 +143,12 @@ class WebSocketConnectionManager:
 
                     def _runner() -> None:
                         try:
-                            ts = self._trading_stream
+                            # Check stream validity inside the try block to handle concurrent nullification
+                            with self._trading_lock:
+                                if self._trading_stream is None:
+                                    return
+                                ts = self._trading_stream
+                            
                             if ts is not None:
                                 ts.run()
                         except Exception as exc:
@@ -156,7 +163,7 @@ class WebSocketConnectionManager:
                     )
                     self._trading_stream_thread.start()
                     logger.info("✅ Shared TradingStream started successfully")
-                    
+
                 except Exception as exc:
                     logger.error(f"Failed to start shared TradingStream: {exc}")
                     self._trading_ws_connected = False
@@ -168,7 +175,7 @@ class WebSocketConnectionManager:
 
     def release_trading_service(self) -> None:
         """Release a reference to the trading service.
-        
+
         Stops the service when no more references exist.
         """
         with self._trading_lock:
@@ -178,12 +185,16 @@ class WebSocketConnectionManager:
             if self._trading_ref_count == 0 and self._trading_stream is not None:
                 logger.info("📡 Stopping shared TradingStream (no more references)")
                 try:
-                    self._trading_stream.stop()
+                    # Set to None BEFORE calling stop() to prevent race conditions
+                    stream = self._trading_stream
+                    self._trading_stream = None
+                    self._trading_ws_connected = False
+                    
+                    if stream:
+                        stream.stop()
                 except Exception as e:
                     logger.error(f"Error stopping TradingStream: {e}")
                 finally:
-                    self._trading_stream = None
-                    self._trading_ws_connected = False
                     self._trading_callback = None
 
     def is_service_available(self) -> bool:
@@ -199,26 +210,29 @@ class WebSocketConnectionManager:
     def get_service_stats(self) -> dict[str, Any]:
         """Get statistics from both pricing and trading services."""
         stats = {}
-        
+
         # Pricing service stats
         with self._service_lock:
             if self._pricing_service is None:
-                stats["pricing"] = {"status": "not_initialized", "ref_count": self._pricing_ref_count}
+                stats["pricing"] = {
+                    "status": "not_initialized",
+                    "ref_count": self._pricing_ref_count,
+                }
             else:
                 pricing_stats = self._pricing_service.get_stats()
                 pricing_stats["ref_count"] = self._pricing_ref_count
                 stats["pricing"] = pricing_stats
-        
+
         # Trading service stats
         with self._trading_lock:
             stats["trading"] = {
                 "status": "connected" if self._trading_ws_connected else "disconnected",
                 "ref_count": self._trading_ref_count,
-                "stream_active": self._trading_stream is not None
+                "stream_active": self._trading_stream is not None,
             }
-            
+
         return stats
-    
+
     @classmethod
     def get_connection_health(cls) -> dict[str, Any]:
         """Get health status of all connection managers."""
@@ -226,9 +240,9 @@ class WebSocketConnectionManager:
             health_info = {
                 "total_instances": len(cls._instances),
                 "cleanup_in_progress": cls._cleanup_in_progress,
-                "instances": {}
+                "instances": {},
             }
-            
+
             for key, instance in cls._instances.items():
                 try:
                     stats = instance.get_service_stats()
@@ -238,14 +252,11 @@ class WebSocketConnectionManager:
                         "pricing_connected": instance.is_service_available(),
                         "trading_status": stats.get("trading", {}).get("status", "unknown"),
                         "trading_ref_count": stats.get("trading", {}).get("ref_count", 0),
-                        "trading_connected": instance.is_trading_service_available()
+                        "trading_connected": instance.is_trading_service_available(),
                     }
                 except Exception as e:
-                    health_info["instances"][key] = {
-                        "status": "error",
-                        "error": str(e)
-                    }
-            
+                    health_info["instances"][key] = {"status": "error", "error": str(e)}
+
             return health_info
 
     @classmethod
@@ -256,23 +267,23 @@ class WebSocketConnectionManager:
             try:
                 # Create a copy of instances to avoid dictionary modification during iteration
                 instances_to_cleanup = list(cls._instances.values())
-                
+
                 for instance in instances_to_cleanup:
                     try:
                         # Clean up pricing service
-                        if hasattr(instance, '_pricing_service') and instance._pricing_service:
+                        if hasattr(instance, "_pricing_service") and instance._pricing_service:
                             instance._pricing_service.stop()
-                        
+
                         # Clean up trading service
-                        if hasattr(instance, '_trading_stream') and instance._trading_stream:
+                        if hasattr(instance, "_trading_stream") and instance._trading_stream:
                             logger.info("Stopping TradingStream for cleanup")
                             instance._trading_stream.stop()
                             instance._trading_stream = None
                             instance._trading_ws_connected = False
-                            
+
                     except Exception as e:
                         logger.error(f"Error cleaning up connection manager: {e}")
-                
+
                 cls._instances.clear()
                 logger.info("📡 All WebSocket connection managers cleaned up")
             finally:
