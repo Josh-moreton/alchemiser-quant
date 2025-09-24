@@ -405,12 +405,19 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             else pos.get("qty_available")
         )
         if qty_available is not None:
-            return qty_available
+            try:
+                return float(qty_available)
+            except (ValueError, TypeError):
+                pass
 
         # Fallback to total qty if qty_available is not available
-        return (
-            getattr(pos, "qty", None) if not isinstance(pos, dict) else pos.get("qty")
-        )
+        qty = getattr(pos, "qty", None) if not isinstance(pos, dict) else pos.get("qty")
+        if qty is not None:
+            try:
+                return float(qty)
+            except (ValueError, TypeError):
+                pass
+        return None
 
     def get_position(self, symbol: str) -> Position | None:
         """Get position for a specific symbol."""
@@ -437,7 +444,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             return self._create_failed_order_dto(order_request, e)
 
     def _create_success_order_dto(
-        self, order: Order, order_request: LimitOrderRequest | MarketOrderRequest
+        self,
+        order: Order | dict[str, Any],
+        order_request: LimitOrderRequest | MarketOrderRequest,
     ) -> ExecutedOrderDTO:
         """Create ExecutedOrderDTO from successful order placement.
 
@@ -476,7 +485,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             execution_timestamp=datetime.now(UTC),
         )
 
-    def _extract_order_attributes(self, order: Order) -> dict[str, Any]:
+    def _extract_order_attributes(
+        self, order: Order | dict[str, Any]
+    ) -> dict[str, Any]:
         """Extract attributes from order object safely.
 
         Args:
@@ -575,7 +586,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             return "BUY"  # Default fallback
 
         if hasattr(side, "value"):
-            return side.value.upper()
+            return str(side.value).upper()
 
         side_str = str(side).upper()
         if "SELL" in side_str:
@@ -1487,8 +1498,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             age_minutes = (current_time - submitted_at).total_seconds() / 60
 
             logger.info(
-                f"🗑️ Cancelling stale order {order_id} for {symbol} "
-                f"(age: {age_minutes:.1f} minutes)"
+                f"🗑️ Cancelling stale order {order_id} for {symbol} (age: {age_minutes:.1f} minutes)"
             )
             return True
 

@@ -101,6 +101,17 @@ class _SubscriptionPlan:
     successfully_added: int = 0
 
 
+@dataclass
+class QuoteValues:
+    """Container for quote values extracted from incoming data."""
+
+    bid_price: float | None
+    ask_price: float | None
+    bid_size: float | None
+    ask_size: float | None
+    timestamp_raw: datetime | None
+
+
 class RealTimePricingService:
     """Real-time pricing service using Alpaca's WebSocket data streams.
 
@@ -320,7 +331,9 @@ class RealTimePricingService:
                     task.cancel()
 
                 if pending:
-                    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                    loop.run_until_complete(
+                        asyncio.gather(*pending, return_exceptions=True)
+                    )
 
                 loop.close()
             except Exception as e:
@@ -338,81 +351,146 @@ class RealTimePricingService:
 
         while self._should_reconnect and retry_count < max_retries:
             try:
-                logging.info(
-                    f"🔄 Attempting to start real-time data stream (attempt {retry_count + 1})"
-                )
-
-                # Get current subscription list in a thread-safe way
-                with self._subscription_lock:
-                    symbols_to_subscribe = list(self._subscribed_symbols)
-
-                if symbols_to_subscribe:
-                    logging.info(
-                        f"📡 Setting up subscriptions for {len(symbols_to_subscribe)} symbols: {sorted(symbols_to_subscribe)}"
-                    )
-
-                    # Create a fresh stream instance for each attempt
-                    # This is necessary because streams are not reusable after they fail or close
-                    self._stream = create_stock_data_stream(
-                        api_key=self.api_key,
-                        secret_key=self.secret_key,
-                        feed=self._get_feed(),
-                    )
-
-                    # Subscribe to quotes and trades for all symbols at once
-                    # This must be done BEFORE calling stream.run()
-                    self._stream.subscribe_quotes(self._on_quote, *symbols_to_subscribe)
-                    self._stream.subscribe_trades(self._on_trade, *symbols_to_subscribe)
-
-                    logging.info("✅ All subscriptions set up successfully")
-
-                    # Mark as connected before starting the stream
-                    self._connected = True
-
-                    # Run the stream's internal async method directly
-                    # NOTE: We use _run_forever() instead of run() because run()
-                    # calls asyncio.run() internally, which would conflict with our event loop
-                    await self._stream._run_forever()
-
-                    # If we get here, the stream closed normally
-                    logging.info("📡 Real-time data stream closed normally")
-                    break  # No symbols to subscribe to - wait for symbols to be added
-                logging.info("📡 No symbols to subscribe to, waiting for subscription requests...")
-                self._connected = True  # Mark as ready to receive subscriptions
-
-                # Wait for subscriptions to be added
-                while self._should_reconnect and not symbols_to_subscribe:
-                    await asyncio.sleep(1.0)  # Check every second
-                    with self._subscription_lock:
-                        symbols_to_subscribe = list(self._subscribed_symbols)
-
-                # If symbols were added, restart the loop to set up subscriptions
-                if symbols_to_subscribe:
-                    logging.info(f"📡 New subscriptions detected: {sorted(symbols_to_subscribe)}")
-                    # Reset connection state to force re-setup
-                    self._connected = False
-                    continue
-
-                # Should not reconnect anymore
-                logging.info("📡 Shutting down stream - no reconnection requested")
-                break
+                should_break = await self._execute_stream_attempt(retry_count + 1)
+                if should_break:
+                    break
 
             except Exception as e:
                 retry_count += 1
-                delay = min(base_delay * (2 ** (retry_count - 1)), 30.0)  # Cap at 30 seconds
-
-                logging.error(f"❌ Real-time data stream error (attempt {retry_count}): {e}")
-
-                if retry_count < max_retries and self._should_reconnect:
-                    logging.info(f"⏱️ Retrying in {delay:.1f} seconds...")
-                    await asyncio.sleep(delay)
-                else:
-                    logging.error("🚨 Max retries exceeded, stopping real-time pricing service")
+                should_retry = await self._handle_stream_error(
+                    e, retry_count, max_retries, base_delay
+                )
+                if not should_retry:
                     break
             finally:
                 self._connected = False
 
         logging.info("📡 Real-time pricing stream thread exiting")
+
+    async def _execute_stream_attempt(self, attempt_number: int) -> bool:
+        """Execute a single stream attempt.
+
+        Args:
+            attempt_number: Current attempt number for logging
+
+        Returns:
+            True if should break from retry loop, False to continue
+
+        """
+        logging.info(
+            f"🔄 Attempting to start real-time data stream (attempt {attempt_number})"
+        )
+
+        symbols_to_subscribe = self._get_symbols_to_subscribe()
+
+        if symbols_to_subscribe:
+            return await self._setup_and_run_stream_with_symbols(symbols_to_subscribe)
+
+        return await self._handle_no_symbols_to_subscribe()
+
+    async def _handle_no_symbols_to_subscribe(self) -> bool:
+        """Handle case when no symbols are available to subscribe.
+
+        Returns:
+            True if should break from retry loop, False to continue
+
+        """
+        await self._wait_for_subscription_requests()
+        symbols_to_subscribe = self._get_symbols_to_subscribe()
+
+        if symbols_to_subscribe:
+            logging.info(
+                f"📡 New subscriptions detected: {sorted(symbols_to_subscribe)}"
+            )
+            self._connected = False
+            return False  # Continue retry loop
+
+        logging.info("📡 Shutting down stream - no reconnection requested")
+        return True  # Break from retry loop
+
+    def _get_symbols_to_subscribe(self) -> list[str]:
+        """Get current subscription list in a thread-safe way."""
+        with self._subscription_lock:
+            return list(self._subscribed_symbols)
+
+    async def _setup_and_run_stream_with_symbols(
+        self, symbols_to_subscribe: list[str]
+    ) -> bool:
+        """Set up stream with symbols and run it.
+
+        Args:
+            symbols_to_subscribe: List of symbols to subscribe to
+
+        Returns:
+            True if stream closed normally, False if should retry
+
+        """
+        logging.info(
+            f"📡 Setting up subscriptions for {len(symbols_to_subscribe)} symbols: {sorted(symbols_to_subscribe)}"
+        )
+
+        # Create a fresh stream instance for each attempt
+        self._stream = create_stock_data_stream(
+            api_key=self.api_key,
+            secret_key=self.secret_key,
+            feed=self._get_feed(),
+        )
+
+        # Subscribe to quotes and trades for all symbols at once
+        self._stream.subscribe_quotes(self._on_quote, *symbols_to_subscribe)
+        self._stream.subscribe_trades(self._on_trade, *symbols_to_subscribe)
+
+        logging.info("✅ All subscriptions set up successfully")
+
+        # Mark as connected before starting the stream
+        self._connected = True
+
+        # Run the stream's internal async method directly
+        await self._stream._run_forever()
+
+        # If we get here, the stream closed normally
+        logging.info("📡 Real-time data stream closed normally")
+        return True
+
+    async def _wait_for_subscription_requests(self) -> None:
+        """Wait for subscriptions to be added."""
+        logging.info(
+            "📡 No symbols to subscribe to, waiting for subscription requests..."
+        )
+        self._connected = True  # Mark as ready to receive subscriptions
+
+        symbols_to_subscribe: list[str] = []
+        while self._should_reconnect and not symbols_to_subscribe:
+            await asyncio.sleep(1.0)  # Check every second
+            symbols_to_subscribe = self._get_symbols_to_subscribe()
+
+    async def _handle_stream_error(
+        self, error: Exception, retry_count: int, max_retries: int, base_delay: float
+    ) -> bool:
+        """Handle stream errors and determine if retry should continue.
+
+        Args:
+            error: The exception that occurred
+            retry_count: Current retry attempt number
+            max_retries: Maximum number of retries allowed
+            base_delay: Base delay for exponential backoff
+
+        Returns:
+            True if should continue retrying, False otherwise
+
+        """
+        delay = min(base_delay * (2 ** (retry_count - 1)), 30.0)  # Cap at 30 seconds
+        logging.error(
+            f"❌ Real-time data stream error (attempt {retry_count}): {error}"
+        )
+
+        if retry_count < max_retries and self._should_reconnect:
+            logging.info(f"⏱️ Retrying in {delay:.1f} seconds...")
+            await asyncio.sleep(delay)
+            return True
+
+        logging.error("🚨 Max retries exceeded, stopping real-time pricing service")
+        return False
 
     async def _on_quote(self, data: AlpacaQuoteData) -> None:
         """Handle incoming quote data with async processing optimizations.
@@ -422,78 +500,141 @@ class RealTimePricingService:
 
         """
         try:
-            # Extract symbol from data and ensure it's a string
-            if hasattr(data, "symbol"):
-                symbol = str(data.symbol)
-            else:
-                symbol = str(data.get("S", "")) if isinstance(data, dict) else ""
-
+            symbol = self._extract_symbol_from_quote(data)
             if not symbol:
                 self.logger.warning("Received quote with no symbol")
                 return
 
-            # Extract bid/ask data with explicit branching to avoid precedence bugs
-            if isinstance(data, dict):
-                bid_price = data.get("bp")
-                ask_price = data.get("ap")
-                bid_size = data.get("bs")
-                ask_size = data.get("as")
-                timestamp_raw = data.get("t")
-            else:
-                bid_price = getattr(data, "bid_price", None)
-                ask_price = getattr(data, "ask_price", None)
-                bid_size = getattr(data, "bid_size", None)
-                ask_size = getattr(data, "ask_size", None)
-                timestamp_raw = getattr(data, "timestamp", None)
+            quote_values = self._extract_quote_values(data)
+            timestamp = self._get_quote_timestamp(quote_values.timestamp_raw)
 
-            # Ensure timestamp is a datetime
-            timestamp = timestamp_raw if isinstance(timestamp_raw, datetime) else datetime.now(UTC)
-
-            # Use asyncio.to_thread for debug logging to avoid blocking the event loop
-            if self.logger.isEnabledFor(logging.DEBUG):
-                # Create task but don't await it to avoid blocking
-                debug_task = asyncio.create_task(
-                    asyncio.to_thread(
-                        self.logger.debug,
-                        f"📊 Quote received for {symbol}: bid={bid_price}, ask={ask_price}",
-                    )
-                )
-                # Add task to background set and clean up when done
-                self._background_tasks.add(debug_task)
-                debug_task.add_done_callback(self._background_tasks.discard)
-
-            # Store complete quote data (non-blocking)
-            self._latest_quotes[symbol] = data
-
-            # Update bid/ask tracking and data structures concurrently where possible
-            if bid_price is not None and ask_price is not None:
-                # Update tracking data immediately (non-blocking)
-                self._latest_bid[symbol] = float(bid_price)
-                self._latest_ask[symbol] = float(ask_price)
-
-                # Use asyncio.to_thread for potentially blocking lock operations
-                await asyncio.to_thread(
-                    self._update_quote_data_sync,
-                    symbol,
-                    float(bid_price),
-                    float(ask_price),
-                    float(bid_size) if bid_size is not None else None,
-                    float(ask_size) if ask_size is not None else None,
-                    timestamp,
-                )
-
-            # Update statistics (atomic operations, non-blocking)
-            self._stats["quotes_received"] += 1
-            self._last_quote_time[symbol] = datetime.now(UTC)
+            await self._process_quote_data(symbol, quote_values, timestamp, data)
+            self._update_quote_statistics(symbol)
 
         except Exception as e:
-            # Use async logging for error cases to prevent blocking
-            error_task = asyncio.create_task(
-                asyncio.to_thread(self.logger.error, f"Error processing quote: {e}", exc_info=True)
+            await self._handle_quote_error(e)
+
+    def _extract_symbol_from_quote(self, data: AlpacaQuoteData) -> str:
+        """Extract symbol from quote data."""
+        if hasattr(data, "symbol"):
+            return str(data.symbol)
+        return str(data.get("S", "")) if isinstance(data, dict) else ""
+
+    def _extract_quote_values(self, data: AlpacaQuoteData) -> QuoteValues:
+        """Extract bid/ask data from quote."""
+        if isinstance(data, dict):
+            return QuoteValues(
+                bid_price=self._safe_float_convert(data.get("bp")),
+                ask_price=self._safe_float_convert(data.get("ap")),
+                bid_size=self._safe_float_convert(data.get("bs")),
+                ask_size=self._safe_float_convert(data.get("as")),
+                timestamp_raw=self._safe_datetime_convert(data.get("t")),
             )
-            # Add task to background set and clean up when done
-            self._background_tasks.add(error_task)
-            error_task.add_done_callback(self._background_tasks.discard)
+
+        return QuoteValues(
+            bid_price=self._safe_float_convert(getattr(data, "bid_price", None)),
+            ask_price=self._safe_float_convert(getattr(data, "ask_price", None)),
+            bid_size=self._safe_float_convert(getattr(data, "bid_size", None)),
+            ask_size=self._safe_float_convert(getattr(data, "ask_size", None)),
+            timestamp_raw=self._safe_datetime_convert(getattr(data, "timestamp", None)),
+        )
+
+    def _safe_float_convert(self, value: str | float | int | None) -> float | None:
+        """Safely convert value to float."""
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return None
+
+    def _safe_datetime_convert(
+        self, value: str | float | int | datetime | None
+    ) -> datetime | None:
+        """Safely convert value to datetime."""
+        if isinstance(value, datetime):
+            return value
+        return None
+
+    def _get_quote_timestamp(self, timestamp_raw: datetime | None) -> datetime:
+        """Ensure timestamp is a datetime."""
+        return (
+            timestamp_raw if isinstance(timestamp_raw, datetime) else datetime.now(UTC)
+        )
+
+    async def _process_quote_data(
+        self,
+        symbol: str,
+        quote_values: QuoteValues,
+        timestamp: datetime,
+        original_data: AlpacaQuoteData,
+    ) -> None:
+        """Process and store quote data."""
+        await self._log_quote_debug(
+            symbol, quote_values.bid_price, quote_values.ask_price
+        )
+
+        # Store complete quote data (non-blocking)
+        self._latest_quotes[symbol] = original_data
+
+        if quote_values.bid_price is not None and quote_values.ask_price is not None:
+            await self._update_bid_ask_data(symbol, quote_values, timestamp)
+
+    async def _log_quote_debug(
+        self, symbol: str, bid_price: float | None, ask_price: float | None
+    ) -> None:
+        """Log quote data asynchronously for debugging."""
+        if self.logger.isEnabledFor(logging.DEBUG):
+            debug_task = asyncio.create_task(
+                asyncio.to_thread(
+                    self.logger.debug,
+                    f"📊 Quote received for {symbol}: bid={bid_price}, ask={ask_price}",
+                )
+            )
+            self._background_tasks.add(debug_task)
+            debug_task.add_done_callback(self._background_tasks.discard)
+        # Yield control to event loop
+        await asyncio.sleep(0)
+
+    async def _update_bid_ask_data(
+        self, symbol: str, quote_values: QuoteValues, timestamp: datetime
+    ) -> None:
+        """Update bid/ask tracking and data structures."""
+        # These values are guaranteed to be non-None by caller's if-check
+        if quote_values.bid_price is None or quote_values.ask_price is None:
+            raise ValueError("Bid and ask prices must not be None")
+
+        # Update tracking data immediately (non-blocking)
+        self._latest_bid[symbol] = quote_values.bid_price
+        self._latest_ask[symbol] = quote_values.ask_price
+
+        # Use asyncio.to_thread for potentially blocking lock operations
+        await asyncio.to_thread(
+            self._update_quote_data_sync,
+            symbol,
+            quote_values.bid_price,
+            quote_values.ask_price,
+            quote_values.bid_size,
+            quote_values.ask_size,
+            timestamp,
+        )
+
+    def _update_quote_statistics(self, symbol: str) -> None:
+        """Update statistics for processed quote."""
+        self._stats["quotes_received"] += 1
+        self._last_quote_time[symbol] = datetime.now(UTC)
+
+    async def _handle_quote_error(self, error: Exception) -> None:
+        """Handle errors in quote processing."""
+        error_task = asyncio.create_task(
+            asyncio.to_thread(
+                self.logger.error, f"Error processing quote: {error}", exc_info=True
+            )
+        )
+        self._background_tasks.add(error_task)
+        error_task.add_done_callback(self._background_tasks.discard)
+        # Yield control to event loop
+        await asyncio.sleep(0)
 
     def _update_quote_data_sync(
         self,
@@ -554,7 +695,9 @@ class RealTimePricingService:
                 symbol_raw = trade.symbol
                 price = trade.price
                 size = trade.size
-                volume = getattr(trade, "volume", size)  # New field for structured types
+                volume = getattr(
+                    trade, "volume", size
+                )  # New field for structured types
                 timestamp_raw = trade.timestamp
 
             # Ensure symbol is a string
@@ -563,7 +706,11 @@ class RealTimePricingService:
             symbol = str(symbol_raw)
 
             # Ensure timestamp is a datetime
-            timestamp = timestamp_raw if isinstance(timestamp_raw, datetime) else datetime.now(UTC)
+            timestamp = (
+                timestamp_raw
+                if isinstance(timestamp_raw, datetime)
+                else datetime.now(UTC)
+            )
 
             # Use asyncio.to_thread for potentially blocking lock operations
             await asyncio.to_thread(
@@ -683,7 +830,9 @@ class RealTimePricingService:
                         self._last_update.pop(symbol, None)
 
                     if symbols_to_remove:
-                        logging.info(f"🧹 Cleaned up {len(symbols_to_remove)} old quotes")
+                        logging.info(
+                            f"🧹 Cleaned up {len(symbols_to_remove)} old quotes"
+                        )
 
             except Exception as e:
                 logging.error(f"Error during quote cleanup: {e}")
@@ -825,9 +974,13 @@ class RealTimePricingService:
 
     def get_stats(self) -> dict[str, str | int | float | datetime | bool]:
         """Get service statistics."""
-        last_hb = self._datetime_stats.get("last_heartbeat")  # May be absent until first trade
+        last_hb = self._datetime_stats.get(
+            "last_heartbeat"
+        )  # May be absent until first trade
         uptime = (
-            (datetime.now(UTC) - last_hb).total_seconds() if isinstance(last_hb, datetime) else 0
+            (datetime.now(UTC) - last_hb).total_seconds()
+            if isinstance(last_hb, datetime)
+            else 0
         )
         return {
             **self._stats,
@@ -848,7 +1001,9 @@ class RealTimePricingService:
         """
         import os
 
-        feed = (os.getenv("ALPACA_FEED") or os.getenv("ALPACA_DATA_FEED") or "iex").lower()
+        feed = (
+            os.getenv("ALPACA_FEED") or os.getenv("ALPACA_DATA_FEED") or "iex"
+        ).lower()
         if feed not in {"iex", "sip"}:
             self.logger.warning(f"Unknown ALPACA_FEED '{feed}', defaulting to 'iex'")
             return "iex"
@@ -879,7 +1034,9 @@ class RealTimePricingService:
         )
 
         with self._subscription_lock:
-            subscription_plan = self._plan_bulk_subscription(normalized_symbols, priority)
+            subscription_plan = self._plan_bulk_subscription(
+                normalized_symbols, priority
+            )
             self._execute_subscription_plan(subscription_plan, priority)
 
         self._restart_stream_if_needed(subscription_plan.successfully_added)
@@ -894,7 +1051,9 @@ class RealTimePricingService:
         """Normalize symbol list by cleaning and filtering."""
         return [symbol.upper().strip() for symbol in symbols if symbol.strip()]
 
-    def _plan_bulk_subscription(self, symbols: list[str], priority: float) -> _SubscriptionPlan:
+    def _plan_bulk_subscription(
+        self, symbols: list[str], priority: float
+    ) -> _SubscriptionPlan:
         """Plan bulk subscription operations."""
         results: dict[str, bool] = {}
         symbols_to_add = []
@@ -950,7 +1109,9 @@ class RealTimePricingService:
 
         return symbols_to_replace
 
-    def _execute_subscription_plan(self, plan: _SubscriptionPlan, priority: float) -> None:
+    def _execute_subscription_plan(
+        self, plan: _SubscriptionPlan, priority: float
+    ) -> None:
         """Execute the planned subscription operations."""
         # Remove symbols to be replaced
         for symbol_to_remove in plan.symbols_to_replace:
@@ -970,12 +1131,16 @@ class RealTimePricingService:
         # Mark symbols we couldn't subscribe to due to limits
         for symbol in plan.symbols_to_add[plan.available_slots :]:
             plan.results[symbol] = False
-            logging.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
+            logging.warning(
+                f"⚠️ Cannot subscribe to {symbol} - subscription limit reached"
+            )
 
     def _restart_stream_if_needed(self, successfully_added: int) -> None:
         """Restart stream if new symbols were added and we're connected."""
         if successfully_added > 0 and self._connected:
-            logging.info(f"🔄 Restarting stream to add {successfully_added} new subscriptions")
+            logging.info(
+                f"🔄 Restarting stream to add {successfully_added} new subscriptions"
+            )
             self._restart_stream_for_new_subscription()
 
     def subscribe_symbol(self, symbol: str, priority: float | None = None) -> None:
@@ -1001,7 +1166,9 @@ class RealTimePricingService:
                     self._subscribed_symbols,
                     key=lambda s: self._subscription_priority.get(s, 0),
                 )
-                lowest_priority = self._subscription_priority.get(lowest_priority_symbol, 0)
+                lowest_priority = self._subscription_priority.get(
+                    lowest_priority_symbol, 0
+                )
 
                 if priority > lowest_priority:
                     # Unsubscribe lowest priority symbol
@@ -1023,8 +1190,12 @@ class RealTimePricingService:
                 self._subscription_priority[symbol] = priority
                 needs_restart = self._connected  # Only restart if already connected
 
-                logging.info(f"📡 Added {symbol} to subscription list (priority: {priority:.1f})")
-                logging.debug(f"📊 Current subscriptions: {sorted(self._subscribed_symbols)}")
+                logging.info(
+                    f"📡 Added {symbol} to subscription list (priority: {priority:.1f})"
+                )
+                logging.debug(
+                    f"📊 Current subscriptions: {sorted(self._subscribed_symbols)}"
+                )
                 self._stats["total_subscriptions"] += 1
             else:
                 # Update priority for existing subscription
@@ -1070,7 +1241,9 @@ class RealTimePricingService:
             start_time = time.time()
             while time.time() - start_time < 5.0:
                 if self._connected:
-                    logging.info("✅ Stream restarted successfully with new subscriptions")
+                    logging.info(
+                        "✅ Stream restarted successfully with new subscriptions"
+                    )
                     break
                 time.sleep(0.1)
 
@@ -1159,7 +1332,9 @@ class RealTimePricingService:
             # Check if we have recent data for this symbol
             if symbol in self._quotes and symbol in self._last_update:
                 # If data is very recent (within 1 second), use it immediately
-                time_since_update = (datetime.now(UTC) - self._last_update[symbol]).total_seconds()
+                time_since_update = (
+                    datetime.now(UTC) - self._last_update[symbol]
+                ).total_seconds()
                 if time_since_update < 1.0:
                     break
 
@@ -1187,7 +1362,9 @@ class RealTimePricingManager:
     existing trading systems while maintaining backward compatibility.
     """
 
-    def __init__(self, api_key: str, secret_key: str, *, paper_trading: bool = True) -> None:
+    def __init__(
+        self, api_key: str, secret_key: str, *, paper_trading: bool = True
+    ) -> None:
         """Initialize real-time pricing manager.
 
         Args:
@@ -1238,7 +1415,11 @@ class RealTimePricingManager:
         primary_provider = type(
             "PriceProvider",
             (),
-            {"get_current_price": lambda _, sym: self.pricing_service.get_real_time_price(sym)},
+            {
+                "get_current_price": lambda _, sym: self.pricing_service.get_real_time_price(
+                    sym
+                )
+            },
         )()
 
         # Create fallback provider wrapper if available
@@ -1256,7 +1437,9 @@ class RealTimePricingManager:
                 },
             )()
 
-        return get_current_price_with_fallback(primary_provider, fallback_provider, symbol)
+        return get_current_price_with_fallback(
+            primary_provider, fallback_provider, symbol
+        )
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
         """Get latest bid/ask quote with real-time data priority.
