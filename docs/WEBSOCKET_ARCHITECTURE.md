@@ -93,10 +93,10 @@ alpaca_manager = AlpacaManager(api_key, secret_key, paper=True)
 class WebSocketConnectionManager:
     def get_pricing_service(self) -> RealTimePricingService:
         """Manage StockDataStream for market data"""
-        
+
     def get_trading_service(self) -> TradingService:
         """Manage TradingStream for order updates"""
-        
+
     def get_trading_stream(self) -> TradingStream:
         """Direct access to TradingStream if needed"""
 
