@@ -1117,6 +1117,69 @@ class TradingOrchestrator:
             ),
         }
 
+    def _collect_unique_error_messages(self, execution_result: ExecutionResultDTO) -> list[str]:
+        """Collect unique error messages from failed orders.
+        
+        Args:
+            execution_result: The execution result containing orders
+            
+        Returns:
+            List of unique error messages from failed orders
+
+        """
+        msgs: list[str] = []
+        for order in execution_result.orders:
+            if not order.success and order.error_message:
+                msg = str(order.error_message)
+                if msg not in msgs:
+                    msgs.append(msg)
+        return msgs
+
+    def _get_reason_hint(self, msgs: list[str]) -> str:
+        """Get reason hint from error messages.
+        
+        Args:
+            msgs: List of error messages
+            
+        Returns:
+            Reason hint string based on message content
+
+        """
+        if not msgs:
+            return ""
+        
+        joined = " ".join(msgs).lower()
+        market_keywords = [
+            "market hours",
+            "market closed", 
+            "outside trading hours",
+            "after hours",
+            "pre-market",
+            "premarket",
+        ]
+        
+        if any(keyword in joined for keyword in market_keywords):
+            return "Market closed or outside regular trading hours"
+        
+        # Use up to first 2 unique broker messages
+        return "; ".join(msgs[:2])
+
+    def _is_error_message_informative(self, error_message: str | None) -> bool:
+        """Check if error message is already informative.
+        
+        Args:
+            error_message: The error message to check
+            
+        Returns:
+            True if message is informative, False if needs derivation
+
+        """
+        return not (
+            error_message is None
+            or error_message.strip() == ""
+            or error_message == "Some orders failed"
+        )
+
     def _derive_error_message(
         self, execution_result: ExecutionResultDTO, error_message: str | None
     ) -> str | None:
@@ -1130,55 +1193,29 @@ class TradingOrchestrator:
             Derived error message or original if none could be derived
 
         """
-        derived_error: str | None = error_message
+        # Early return if error message is already informative
+        if self._is_error_message_informative(error_message):
+            return error_message
+
         try:
-            if (
-                error_message is None
-                or error_message.strip() == ""
-                or error_message == "Some orders failed"
-            ):
-                msgs: list[str] = []
-                for order in execution_result.orders:
-                    if not order.success and order.error_message:
-                        msg = str(order.error_message)
-                        if msg not in msgs:
-                            msgs.append(msg)
+            msgs = self._collect_unique_error_messages(execution_result)
+            reason_hint = self._get_reason_hint(msgs)
+            
+            summary = f"{execution_result.orders_succeeded}/{execution_result.orders_placed} succeeded"
+            
+            if reason_hint:
+                derived_error = f"{summary}. Reason: {reason_hint}"
+            else:
+                derived_error = f"{summary}. No detailed broker error messages available."
 
-                reason_hint = None
-                if msgs:
-                    joined = " ".join(msgs).lower()
-                    if any(
-                        s in joined
-                        for s in [
-                            "market hours",
-                            "market closed",
-                            "outside trading hours",
-                            "after hours",
-                            "pre-market",
-                            "premarket",
-                        ]
-                    ):
-                        reason_hint = "Market closed or outside regular trading hours"
-                    else:
-                        # Use up to first 2 unique broker messages
-                        reason_hint = "; ".join(msgs[:2])
+            return derived_error
 
-                summary = f"{execution_result.orders_succeeded}/{execution_result.orders_placed} succeeded"
-                if reason_hint:
-                    derived_error = f"{summary}. Reason: {reason_hint}"
-                else:
-                    derived_error = f"{summary}. No detailed broker error messages available."
-
-            # Apply derived message if we computed one
-            if derived_error and derived_error.strip():
-                error_message = derived_error
         except Exception as derivation_exc:
             self.logger.debug(
                 "Failed to derive detailed error message: %s",
                 derivation_exc,
             )
-
-        return error_message
+            return error_message
 
     def _derive_error_code_from_orders(self, execution_result: ExecutionResultDTO) -> str | None:
         """Derive error code from order failure patterns.
