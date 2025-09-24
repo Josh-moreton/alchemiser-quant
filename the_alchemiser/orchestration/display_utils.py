@@ -122,6 +122,21 @@ def _display_target_allocations(signals_result: dict[str, Any]) -> None:
             print(f"  • {symbol}: {allocation:.1%}")
 
 
+def _display_trades(trades: list[dict[str, Any]]) -> None:
+    """Display individual trades in a rebalance plan.
+    
+    Args:
+        trades: List of trade dictionaries to display
+    
+    """
+    for trade in trades:
+        if isinstance(trade, dict):
+            symbol = trade.get("symbol", "Unknown")
+            action = str(trade.get("side", "")).upper()
+            quantity = trade.get("qty", 0)
+            print(f"  • {action} {quantity} shares of {symbol}")
+
+
 def display_rebalance_plan(trading_result: dict[str, Any]) -> None:
     """Display rebalance plan details if a plan was generated.
 
@@ -132,22 +147,26 @@ def display_rebalance_plan(trading_result: dict[str, Any]) -> None:
     try:
         status = trading_result.get("status", "")
 
-        if status in {REBALANCE_PLAN_GENERATED, NO_TRADES_REQUIRED}:
-            rebalance_plan = trading_result.get("rebalance_plan", {})
+        # Early return for irrelevant statuses
+        if status not in {REBALANCE_PLAN_GENERATED, NO_TRADES_REQUIRED}:
+            return
 
-            if isinstance(rebalance_plan, dict):
-                trades = rebalance_plan.get("trades", [])
+        # Handle NO_TRADES_REQUIRED status
+        if status == NO_TRADES_REQUIRED:
+            print("\n⚖️  No rebalancing required - portfolio is already optimally allocated")
+            return
 
-                if trades:
-                    print(f"\n⚖️  Rebalance Plan ({len(trades)} trades):")
-                    for trade in trades:
-                        if isinstance(trade, dict):
-                            symbol = trade.get("symbol", "Unknown")
-                            action = str(trade.get("side", "")).upper()
-                            quantity = trade.get("qty", 0)
-                            print(f"  • {action} {quantity} shares of {symbol}")
-                elif status == NO_TRADES_REQUIRED:
-                    print("\n⚖️  No rebalancing required - portfolio is already optimally allocated")
+        # Handle REBALANCE_PLAN_GENERATED status
+        rebalance_plan = trading_result.get("rebalance_plan", {})
+        if not isinstance(rebalance_plan, dict):
+            return
+
+        trades = rebalance_plan.get("trades", [])
+        if not trades:
+            return
+
+        print(f"\n⚖️  Rebalance Plan ({len(trades)} trades):")
+        _display_trades(trades)
 
     except Exception as e:
         logger.warning(f"Failed to display rebalance plan: {e}")
