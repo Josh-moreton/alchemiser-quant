@@ -228,27 +228,33 @@ class TradingSystem:
                 self.logger.error(f"Event-driven workflow failed: {workflow_result}")
                 return None
 
-            # TODO: Collect results from workflow events
-            # For now, return a basic success result
+            # Collect results from workflow events
             completed_at = datetime.now(UTC)
 
-            # Create a basic result structure (will be enhanced with actual event data)
-            mock_trading_result = {
-                "success": True,
-                "strategy_signals": {"DSL": {"symbol": "TECL", "action": "BUY"}},
-                "rebalance_plan": {"items": [], "total_trades": 0},
-                "orders_executed": [],
-                "execution_summary": {"orders_placed": 0, "orders_succeeded": 0},
+            # Extract actual results from workflow_result
+            trading_result = {
+                "success": workflow_result.get("success", True),
+                "strategy_signals": workflow_result.get("strategy_signals", {}),
+                "rebalance_plan": workflow_result.get("rebalance_plan", {}),
+                "orders_executed": workflow_result.get("orders_executed", []),
+                "execution_summary": workflow_result.get("execution_summary", {}),
             }
 
+            # Create a minimal orchestrator-like object for trading mode determination
+            class MinimalOrchestrator:
+                def __init__(self, *, paper_trading: bool) -> None:
+                    self.live_trading = not paper_trading
+            
+            minimal_orchestrator = MinimalOrchestrator(paper_trading=self.settings.alpaca.paper_trading)
+
             return create_success_result(
-                trading_result=mock_trading_result,
-                orchestrator=None,  # No traditional orchestrator
+                trading_result=trading_result,
+                orchestrator=minimal_orchestrator,  # type: ignore[arg-type]
                 started_at=started_at,
                 completed_at=completed_at,
                 correlation_id=correlation_id,
-                warnings=[],
-                success=True,
+                warnings=workflow_result.get("warnings", []),
+                success=workflow_result.get("success", True),
             )
 
         except Exception as e:
@@ -279,6 +285,11 @@ class TradingSystem:
             from the_alchemiser.orchestration.trading_orchestrator import (
                 TradingOrchestrator,
             )
+
+            # Ensure container is available
+            if self.container is None:
+                self.logger.error("DI container not available for traditional orchestrator")
+                return None
 
             # Create trading orchestrator directly
             orchestrator = TradingOrchestrator(
