@@ -28,6 +28,9 @@ from .schemas import (
     StartupEvent,
     TradeExecuted,
     TradeExecutionStarted,
+    WorkflowCompleted,
+    WorkflowFailed,
+    WorkflowStarted,
 )
 
 __all__ = [
@@ -44,4 +47,7 @@ __all__ = [
     "StartupEvent",
     "TradeExecuted",
     "TradeExecutionStarted",
+    "WorkflowCompleted",
+    "WorkflowFailed",
+    "WorkflowStarted",
 ]

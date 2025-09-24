@@ -228,3 +228,54 @@ class ExecutionPhaseCompleted(BaseEvent):
     phase_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Phase execution metadata"
     )
+
+
+class WorkflowStarted(BaseEvent):
+    """Event emitted when a complete trading workflow starts.
+
+    Used to initiate the event-driven workflow coordination.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="WorkflowStarted", description=EVENT_TYPE_DESCRIPTION)
+
+    # Workflow fields
+    workflow_type: str = Field(..., description="Type of workflow (trading, signal_analysis, etc.)")
+    requested_by: str = Field(..., description="Component that requested the workflow")
+    configuration: dict[str, Any] = Field(
+        default_factory=dict, description="Workflow configuration parameters"
+    )
+
+
+class WorkflowCompleted(BaseEvent):
+    """Event emitted when a complete trading workflow finishes successfully.
+
+    Used to signal successful completion of event-driven workflow.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="WorkflowCompleted", description=EVENT_TYPE_DESCRIPTION)
+
+    # Workflow completion fields
+    workflow_type: str = Field(..., description="Type of workflow completed")
+    workflow_duration_ms: int = Field(..., description="Total workflow duration in milliseconds")
+    success: bool = Field(..., description="Whether the workflow completed successfully")
+    summary: dict[str, Any] = Field(default_factory=dict, description="Workflow execution summary")
+
+
+class WorkflowFailed(BaseEvent):
+    """Event emitted when a trading workflow fails.
+
+    Used to signal workflow failure and trigger recovery processes.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="WorkflowFailed", description=EVENT_TYPE_DESCRIPTION)
+
+    # Workflow failure fields
+    workflow_type: str = Field(..., description="Type of workflow that failed")
+    failure_reason: str = Field(..., description="Reason for workflow failure")
+    failure_step: str = Field(..., description="Step where the workflow failed")
+    error_details: dict[str, Any] = Field(
+        default_factory=dict, description="Detailed error information"
+    )

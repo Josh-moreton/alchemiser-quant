@@ -9,6 +9,7 @@ across the trading workflow. Focused on cross-cutting concerns rather than domai
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -21,6 +22,9 @@ from the_alchemiser.shared.events import (
     SignalGenerated,
     StartupEvent,
     TradeExecuted,
+    WorkflowCompleted,
+    WorkflowFailed,
+    WorkflowStarted,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.notifications.templates.multi_strategy import (
@@ -29,10 +33,11 @@ from the_alchemiser.shared.notifications.templates.multi_strategy import (
 
 
 class EventDrivenOrchestrator:
-    """Event-driven orchestrator for cross-cutting workflow concerns.
+    """Event-driven orchestrator for primary workflow coordination.
 
-    Handles notifications, reconciliation, monitoring, and recovery across
-    the trading workflow without duplicating domain logic.
+    Coordinates complete trading workflows through event-driven handlers,
+    managing domain handlers and workflow state. This is the primary coordinator
+    for event-driven architecture.
     """
 
     def __init__(self, container: ApplicationContainer) -> None:
@@ -48,7 +53,10 @@ class EventDrivenOrchestrator:
         # Get event bus from container
         self.event_bus: EventBus = container.services.event_bus()
 
-        # Register event handlers
+        # Initialize domain handlers
+        self.domain_handlers = self._initialize_domain_handlers()
+
+        # Register event handlers (both cross-cutting and domain)
         self._register_handlers()
 
         # Track workflow state for monitoring and recovery
@@ -59,18 +67,146 @@ class EventDrivenOrchestrator:
             "trading_in_progress": False,
             "last_successful_workflow": None,
             "active_correlations": set(),
+            "workflow_start_times": {},  # Track workflow start times for duration calculation
+        }
+
+    def _initialize_domain_handlers(self) -> dict[str, Any]:
+        """Initialize domain event handlers.
+
+        Returns:
+            Dictionary of initialized domain handlers
+
+        """
+        handlers = {}
+
+        try:
+            # Import and initialize domain handlers
+            from the_alchemiser.execution_v2.handlers import TradingExecutionHandler
+            from the_alchemiser.portfolio_v2.handlers import PortfolioAnalysisHandler
+            from the_alchemiser.strategy_v2.handlers import SignalGenerationHandler
+
+            handlers["signal_generation"] = SignalGenerationHandler(self.container)
+            handlers["portfolio_analysis"] = PortfolioAnalysisHandler(self.container)
+            handlers["trading_execution"] = TradingExecutionHandler(self.container)
+
+            self.logger.info("Initialized domain event handlers")
+
+        except Exception as e:
+            self.logger.error(f"Failed to initialize domain handlers: {e}")
+
+        return handlers
+
+    def start_trading_workflow(self, *, correlation_id: str | None = None) -> str:
+        """Start a complete trading workflow via event-driven coordination.
+
+        Args:
+            correlation_id: Optional correlation ID for tracking (generates one if None)
+
+        Returns:
+            The correlation ID for tracking the workflow
+
+        """
+        import uuid
+
+        workflow_correlation_id = correlation_id or str(uuid.uuid4())
+
+        self.logger.info(f"🚀 Starting event-driven trading workflow: {workflow_correlation_id}")
+
+        try:
+            # Emit WorkflowStarted event to trigger the domain handlers
+            workflow_event = WorkflowStarted(
+                correlation_id=workflow_correlation_id,
+                causation_id=f"system-request-{datetime.now(UTC).isoformat()}",
+                event_id=f"workflow-started-{uuid.uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="orchestration.event_driven_orchestrator",
+                source_component="EventDrivenOrchestrator",
+                workflow_type="trading",
+                requested_by="TradingSystem",
+                configuration={
+                    "live_trading": not self.container.config.paper_trading(),
+                },
+            )
+
+            self.event_bus.publish(workflow_event)
+            self.logger.info(f"📡 Emitted WorkflowStarted event: {workflow_correlation_id}")
+
+            return workflow_correlation_id
+
+        except Exception as e:
+            self.logger.error(f"Failed to start trading workflow: {e}")
+            raise
+
+    def wait_for_workflow_completion(
+        self, correlation_id: str, timeout_seconds: int = 300
+    ) -> dict[str, Any]:
+        """Wait for workflow completion and return results.
+
+        Args:
+            correlation_id: Correlation ID to track
+            timeout_seconds: Maximum time to wait for completion
+
+        Returns:
+            Dictionary containing workflow results
+
+        """
+        import time
+
+        start_time = time.time()
+
+        self.logger.info(f"⏳ Waiting for workflow completion: {correlation_id}")
+
+        while time.time() - start_time < timeout_seconds:
+            # Check if workflow completed
+            if correlation_id not in self.workflow_state["active_correlations"]:
+                self.logger.info(f"✅ Workflow completed: {correlation_id}")
+                return {
+                    "success": True,
+                    "correlation_id": correlation_id,
+                    "completion_status": "completed",
+                    "duration_seconds": time.time() - start_time,
+                }
+
+            # Brief sleep to avoid busy waiting
+            time.sleep(0.1)
+
+        # Timeout occurred
+        self.logger.warning(f"⏰ Workflow timeout after {timeout_seconds}s: {correlation_id}")
+        return {
+            "success": False,
+            "correlation_id": correlation_id,
+            "completion_status": "timeout",
+            "duration_seconds": timeout_seconds,
         }
 
     def _register_handlers(self) -> None:
-        """Register event handlers for cross-cutting orchestration concerns."""
-        # Subscribe to all event types for monitoring and cross-cutting concerns
+        """Register event handlers for primary workflow coordination and cross-cutting concerns."""
+        # Register domain handlers for primary workflow coordination
+        for handler_name, handler in self.domain_handlers.items():
+            if hasattr(handler, "can_handle") and hasattr(handler, "handle_event"):
+                # Register handler for events it can handle
+                if handler.can_handle("StartupEvent"):
+                    self.event_bus.subscribe("StartupEvent", handler)
+                if handler.can_handle("WorkflowStarted"):
+                    self.event_bus.subscribe("WorkflowStarted", handler)
+                if handler.can_handle("SignalGenerated"):
+                    self.event_bus.subscribe("SignalGenerated", handler)
+                if handler.can_handle("RebalancePlanned"):
+                    self.event_bus.subscribe("RebalancePlanned", handler)
+
+                self.logger.info(f"Registered domain handler: {handler_name}")
+
+        # Subscribe to all event types for cross-cutting concerns (monitoring, notifications)
         self.event_bus.subscribe("StartupEvent", self)
+        self.event_bus.subscribe("WorkflowStarted", self)
         self.event_bus.subscribe("SignalGenerated", self)
         self.event_bus.subscribe("RebalancePlanned", self)
         self.event_bus.subscribe("TradeExecuted", self)
+        self.event_bus.subscribe("WorkflowCompleted", self)
+        self.event_bus.subscribe("WorkflowFailed", self)
 
         self.logger.info(
-            "Registered event-driven orchestration handlers for cross-cutting concerns"
+            "Registered event-driven orchestration handlers for primary coordination and cross-cutting concerns"
         )
 
     def handle_event(self, event: BaseEvent) -> None:
@@ -83,12 +219,18 @@ class EventDrivenOrchestrator:
         try:
             if isinstance(event, StartupEvent):
                 self._handle_startup(event)
+            elif isinstance(event, WorkflowStarted):
+                self._handle_workflow_started(event)
             elif isinstance(event, SignalGenerated):
                 self._handle_signal_generated(event)
             elif isinstance(event, RebalancePlanned):
                 self._handle_rebalance_planned(event)
             elif isinstance(event, TradeExecuted):
                 self._handle_trade_executed(event)
+            elif isinstance(event, WorkflowCompleted):
+                self._handle_workflow_completed(event)
+            elif isinstance(event, WorkflowFailed):
+                self._handle_workflow_failed(event)
             else:
                 self.logger.debug(
                     f"EventDrivenOrchestrator ignoring event type: {event.event_type}"
@@ -115,9 +257,12 @@ class EventDrivenOrchestrator:
         """
         return event_type in [
             "StartupEvent",
+            "WorkflowStarted",
             "SignalGenerated",
             "RebalancePlanned",
             "TradeExecuted",
+            "WorkflowCompleted",
+            "WorkflowFailed",
         ]
 
     def _handle_startup(self, event: StartupEvent) -> None:
@@ -393,6 +538,86 @@ class EventDrivenOrchestrator:
 
         except Exception as e:
             self.logger.error(f"Recovery workflow failed: {e}")
+
+    def _handle_workflow_started(self, event: WorkflowStarted) -> None:
+        """Handle WorkflowStarted event for monitoring and state tracking.
+
+        Args:
+            event: The WorkflowStarted event
+
+        """
+        self.logger.info(f"🚀 Workflow started: {event.workflow_type}")
+
+        # Track workflow start time
+        self.workflow_state["workflow_start_times"][event.correlation_id] = event.timestamp
+        self.workflow_state["active_correlations"].add(event.correlation_id)
+
+        # Update workflow state based on type
+        if event.workflow_type == "trading":
+            self.workflow_state["signal_generation_in_progress"] = True
+
+    def _handle_workflow_completed(self, event: WorkflowCompleted) -> None:
+        """Handle WorkflowCompleted event for monitoring and cleanup.
+
+        Args:
+            event: The WorkflowCompleted event
+
+        """
+        self.logger.info(f"✅ Workflow completed successfully: {event.workflow_type}")
+
+        # Calculate and log workflow duration
+        start_time = self.workflow_state["workflow_start_times"].get(event.correlation_id)
+        if start_time:
+            duration_ms = (event.timestamp - start_time).total_seconds() * 1000
+            self.logger.info(f"📊 Workflow duration: {duration_ms:.0f}ms")
+
+        # Update workflow state
+        self.workflow_state["last_successful_workflow"] = event.workflow_type
+        self.workflow_state["active_correlations"].discard(event.correlation_id)
+
+        # Clean up tracking data
+        self.workflow_state["workflow_start_times"].pop(event.correlation_id, None)
+
+        # Reset progress flags
+        self.workflow_state.update(
+            {
+                "signal_generation_in_progress": False,
+                "rebalancing_in_progress": False,
+                "trading_in_progress": False,
+            }
+        )
+
+    def _handle_workflow_failed(self, event: WorkflowFailed) -> None:
+        """Handle WorkflowFailed event for error handling and recovery.
+
+        Args:
+            event: The WorkflowFailed event
+
+        """
+        self.logger.error(f"❌ Workflow failed: {event.workflow_type} - {event.failure_reason}")
+
+        # Update workflow state
+        self.workflow_state["active_correlations"].discard(event.correlation_id)
+
+        # Clean up tracking data
+        self.workflow_state["workflow_start_times"].pop(event.correlation_id, None)
+
+        # Reset progress flags
+        self.workflow_state.update(
+            {
+                "signal_generation_in_progress": False,
+                "rebalancing_in_progress": False,
+                "trading_in_progress": False,
+            }
+        )
+
+        # Trigger error notifications and recovery
+        try:
+            self.logger.info("Triggering error notification for workflow failure")
+            # In future iterations, implement comprehensive error handling
+
+        except Exception as e:
+            self.logger.error(f"Failed to handle workflow failure: {e}")
 
     def get_workflow_status(self) -> dict[str, Any]:
         """Get current workflow status for monitoring.
