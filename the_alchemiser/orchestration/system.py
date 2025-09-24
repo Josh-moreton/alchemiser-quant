@@ -66,7 +66,7 @@ class TradingSystem:
         """Initialize dependency injection system."""
         self.container = ApplicationContainer()
         ServiceFactory.initialize(self.container)
-        self.logger.info("Dependency injection initialized")
+        self.logger.debug("Dependency injection initialized")
 
     def _initialize_event_orchestration(self) -> None:
         """Initialize event-driven orchestration system."""
@@ -81,7 +81,7 @@ class TradingSystem:
             )
 
             self.event_driven_orchestrator = EventDrivenOrchestrator(self.container)
-            self.logger.info("Event-driven orchestration initialized")
+            self.logger.debug("Event-driven orchestration initialized")
 
         except Exception as e:
             # Don't let event orchestration failure break the traditional system
@@ -165,7 +165,6 @@ class TradingSystem:
             )
 
             # Execute full workflow once: generate signals, analyze portfolio, and trade
-            print("📊 Generating strategy signals and portfolio rebalance plan...")
 
             try:
                 # Execute complete workflow once (signals + analysis + trading)
