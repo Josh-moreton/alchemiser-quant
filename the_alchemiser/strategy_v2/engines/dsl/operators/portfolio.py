@@ -449,7 +449,11 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
                 take_top = False
             n_val = context.evaluate_node(sel_expr, context.correlation_id, context.trace)
             try:
-                take_n = int(n_val) if isinstance(n_val, (int, float)) else int(context.as_decimal(n_val))
+                take_n = (
+                    int(n_val)
+                    if isinstance(n_val, (int, float))
+                    else int(context.as_decimal(n_val))
+                )
             except Exception:
                 take_n = None
         return take_top, take_n
@@ -462,8 +466,14 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
         for sym in symbols:
             try:
                 metric_expr = create_indicator_with_symbol(condition_expr, sym)
-                metric_val = context.evaluate_node(metric_expr, context.correlation_id, context.trace)
-                metric_val = float(metric_val) if isinstance(metric_val, (int, float)) else float(context.as_decimal(metric_val))
+                metric_val = context.evaluate_node(
+                    metric_expr, context.correlation_id, context.trace
+                )
+                metric_val = (
+                    float(metric_val)
+                    if isinstance(metric_val, (int, float))
+                    else float(context.as_decimal(metric_val))
+                )
                 scored.append((sym, metric_val))
             except Exception:
                 logger.exception("DSL filter: condition evaluation failed for symbol %s", sym)
