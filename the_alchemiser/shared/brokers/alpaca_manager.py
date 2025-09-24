@@ -87,8 +87,9 @@ HTTPError = _HTTPErrorImported
 RequestException = _RequestExcImported
 
 if TYPE_CHECKING:
-    # Future imports for type checking can be added here as needed
-    pass
+    from the_alchemiser.shared.services.websocket_manager import (
+        WebSocketConnectionManager,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -182,7 +183,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self._order_avg_price: dict[str, Decimal | None] = {}
 
         # WebSocket connection manager (for centralized WebSocket management)
-        self._websocket_manager = None
+        self._websocket_manager: WebSocketConnectionManager | None = None
         self._trading_service_active: bool = False
 
         # Asset metadata cache with TTL
@@ -1869,7 +1870,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         try:
             # Import here to avoid circular dependency
-            from the_alchemiser.shared.services.websocket_manager import WebSocketConnectionManager
+            from the_alchemiser.shared.services.websocket_manager import (
+                WebSocketConnectionManager,
+            )
 
             # Get or create the shared WebSocket manager
             if self._websocket_manager is None:
@@ -2071,7 +2074,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def get_connection_health(cls) -> dict[str, Any]:
         """Get health status of all AlpacaManager instances."""
         with cls._lock:
-            health_info = {
+            health_info: dict[str, Any] = {
                 "total_instances": len(cls._instances),
                 "cleanup_in_progress": cls._cleanup_in_progress,
                 "instances": {},
