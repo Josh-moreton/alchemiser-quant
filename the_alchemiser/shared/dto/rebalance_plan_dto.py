@@ -34,15 +34,9 @@ class RebalancePlanItemDTO(BaseModel):
     )
 
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
-    current_weight: Decimal = Field(
-        ..., ge=0, le=1, description="Current portfolio weight (0-1)"
-    )
-    target_weight: Decimal = Field(
-        ..., ge=0, le=1, description="Target portfolio weight (0-1)"
-    )
-    weight_diff: Decimal = Field(
-        ..., description="Weight difference (target - current)"
-    )
+    current_weight: Decimal = Field(..., ge=0, le=1, description="Current portfolio weight (0-1)")
+    target_weight: Decimal = Field(..., ge=0, le=1, description="Target portfolio weight (0-1)")
+    weight_diff: Decimal = Field(..., description="Weight difference (target - current)")
     target_value: Decimal = Field(..., ge=0, description="Target dollar value")
     current_value: Decimal = Field(..., ge=0, description="Current dollar value")
     trade_amount: Decimal = Field(
@@ -64,9 +58,7 @@ class RebalancePlanItemDTO(BaseModel):
         valid_actions = {"BUY", "SELL", "HOLD"}
         action_upper = v.strip().upper()
         if action_upper not in valid_actions:
-            raise ValueError(
-                f"Action must be one of {valid_actions}, got {action_upper}"
-            )
+            raise ValueError(f"Action must be one of {valid_actions}, got {action_upper}")
         return action_upper
 
 
@@ -85,9 +77,7 @@ class RebalancePlanDTO(BaseModel):
     )
 
     # Required correlation fields
-    correlation_id: str = Field(
-        ..., min_length=1, description="Unique correlation identifier"
-    )
+    correlation_id: str = Field(..., min_length=1, description="Unique correlation identifier")
     causation_id: str = Field(
         ..., min_length=1, description="Causation identifier for traceability"
     )
@@ -102,9 +92,7 @@ class RebalancePlanDTO(BaseModel):
     )
 
     # Plan metadata
-    total_portfolio_value: Decimal = Field(
-        ..., ge=0, description="Total portfolio value"
-    )
+    total_portfolio_value: Decimal = Field(..., ge=0, description="Total portfolio value")
     total_trade_value: Decimal = Field(..., description="Total absolute trade value")
     max_drift_tolerance: Decimal = Field(
         default=Decimal("0.05"), ge=0, le=1, description="Maximum drift tolerance (0-1)"
@@ -119,9 +107,7 @@ class RebalancePlanDTO(BaseModel):
     )
 
     # Optional metadata
-    metadata: dict[str, Any] | None = Field(
-        default=None, description="Additional plan metadata"
-    )
+    metadata: dict[str, Any] | None = Field(default=None, description="Additional plan metadata")
 
     @field_validator("execution_urgency")
     @classmethod
@@ -130,9 +116,7 @@ class RebalancePlanDTO(BaseModel):
         valid_urgencies = {"LOW", "NORMAL", "HIGH", "URGENT"}
         urgency_upper = v.strip().upper()
         if urgency_upper not in valid_urgencies:
-            raise ValueError(
-                f"Urgency must be one of {valid_urgencies}, got {urgency_upper}"
-            )
+            raise ValueError(f"Urgency must be one of {valid_urgencies}, got {urgency_upper}")
         return urgency_upper
 
     @field_validator("timestamp")

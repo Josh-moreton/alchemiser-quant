@@ -1418,4 +1418,3 @@ class RealTimePricingService:
         """
         with self._subscription_lock:
             return self._subscribed_symbols.copy()
-
