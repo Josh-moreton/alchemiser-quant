@@ -167,7 +167,7 @@ class BaseTradeLedger:
             entries: Trade ledger entries
 
         Returns:
-            Tuple of (total_buy_quantity, total_sell_quantity, total_fees, 
+            Tuple of (total_buy_quantity, total_sell_quantity, total_fees,
                      total_buy_value, total_sell_value, realized_trades)
 
         """
