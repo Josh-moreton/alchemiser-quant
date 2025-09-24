@@ -89,8 +89,7 @@ def weight_specified(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFr
         if isinstance(value, str):
             return {value: 1.0}
         if isinstance(value, PortfolioFragmentDTO):
-            frag = value.normalize_weights()
-            return dict(frag.weights)
+            return dict(value.normalize_weights().weights)
         if isinstance(value, list):
             collected: dict[str, float] = {}
             for item in value:
@@ -98,9 +97,7 @@ def weight_specified(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFr
                 for sym, w in nested.items():
                     collected[sym] = collected.get(sym, 0.0) + w
             total = sum(collected.values())
-            if total > 0:
-                collected = {sym: w / total for sym, w in collected.items()}
-            return collected
+            return {sym: w / total for sym, w in collected.items()} if total > 0 else {}
         return {}
 
     def _process_weight_asset_pairs(pairs: list[ASTNodeDTO]) -> dict[str, float]:
@@ -108,21 +105,22 @@ def weight_specified(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFr
         consolidated: dict[str, float] = {}
         for i in range(0, len(pairs), 2):
             weight_node, asset_node = pairs[i], pairs[i + 1]
+
             weight_val = context.evaluate_node(weight_node, context.correlation_id, context.trace)
             if not isinstance(weight_val, (int, float)):
                 weight_val = float(context.as_decimal(weight_val))
+
             asset_val = context.evaluate_node(asset_node, context.correlation_id, context.trace)
             normalized_assets = _normalize_fragment(asset_val)
             if not normalized_assets:
-                raise DslEvaluationError(
-                    f"Expected asset symbol or fragment, got {type(asset_val)}"
-                )
+                raise DslEvaluationError(f"Expected asset symbol or fragment, got {type(asset_val)}")
+
             for sym, base_w in normalized_assets.items():
-                scaled = base_w * float(weight_val)
-                consolidated[sym] = consolidated.get(sym, 0.0) + scaled
+                consolidated[sym] = consolidated.get(sym, 0.0) + base_w * float(weight_val)
         return consolidated
 
     weights = _process_weight_asset_pairs(args)
+
     return PortfolioFragmentDTO(
         fragment_id=str(uuid.uuid4()),
         source_step="weight_specified",
