@@ -394,7 +394,6 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     selection_expr = args[1] if len(args) == 3 else None
     portfolio_expr = args[2] if len(args) == 3 else args[1]
 
-    # Evaluate portfolio and collect candidate symbols
     portfolio_val = context.evaluate_node(portfolio_expr, context.correlation_id, context.trace)
 
     def collect_assets(value: DSLValue) -> list[str]:
@@ -413,7 +412,6 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     if not candidates:
         return []
 
-    # Determine selection parameters
     def _parse_selection(sel_expr: ASTNodeDTO | None) -> tuple[bool, int | None]:
         take_top = True
         take_n: int | None = None
@@ -427,31 +425,20 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
                 take_top = False
             n_val = context.evaluate_node(sel_expr, context.correlation_id, context.trace)
             try:
-                take_n = (
-                    int(n_val)
-                    if isinstance(n_val, (int, float))
-                    else int(context.as_decimal(n_val))
-                )
+                take_n = int(n_val) if isinstance(n_val, (int, float)) else int(context.as_decimal(n_val))
             except Exception:
                 take_n = None
         return take_top, take_n
 
     take_top, take_n = _parse_selection(selection_expr)
 
-    # Score candidates based on condition
     def _score_candidates(symbols: list[str]) -> list[tuple[str, float]]:
         scored: list[tuple[str, float]] = []
         for sym in symbols:
             try:
                 metric_expr = create_indicator_with_symbol(condition_expr, sym)
-                metric_val = context.evaluate_node(
-                    metric_expr, context.correlation_id, context.trace
-                )
-                metric_val = (
-                    float(metric_val)
-                    if isinstance(metric_val, (int, float))
-                    else float(context.as_decimal(metric_val))
-                )
+                metric_val = context.evaluate_node(metric_expr, context.correlation_id, context.trace)
+                metric_val = float(metric_val) if isinstance(metric_val, (int, float)) else float(context.as_decimal(metric_val))
                 scored.append((sym, metric_val))
             except Exception:
                 logger.exception("DSL filter: condition evaluation failed for symbol %s", sym)
@@ -461,7 +448,6 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     if not scored:
         return []
 
-    # Sort and apply selection
     scored.sort(key=lambda x: x[1], reverse=take_top)
     if take_n is not None and take_n >= 0:
         scored = scored[:take_n]
