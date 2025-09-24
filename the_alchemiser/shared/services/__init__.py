@@ -22,11 +22,10 @@ from the relevant subpackage, for example:
 
 from __future__ import annotations
 
+from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
+
 # Note: The submodules listed below have been moved to other packages.
 # This __all__ is kept empty to avoid undefined references.
 # Import directly from the appropriate execution/, portfolio/, or strategy/ packages.
-
-# Export new services
-from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
 
 __all__: list[str] = ["BuyingPowerService"]

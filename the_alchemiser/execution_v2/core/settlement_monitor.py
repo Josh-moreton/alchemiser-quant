@@ -105,7 +105,9 @@ class SettlementMonitor:
 
                     # Calculate buying power released (for sell orders, this is the settled value)
                     if settlement_result.get("side") == "SELL":
-                        settled_value = settlement_result.get("settled_value", Decimal("0"))
+                        settled_value = settlement_result.get(
+                            "settled_value", Decimal("0")
+                        )
                         total_buying_power_released += settled_value
 
                         logger.info(
@@ -148,15 +150,15 @@ class SettlementMonitor:
         max_wait_seconds: int = 30,
     ) -> tuple[bool, Decimal]:
         """Verify that buying power is actually available after settlement.
-        
+
         This addresses the timing issue where Alpaca's account buying_power field
         hasn't been updated yet even though sell orders have settled.
-        
+
         Args:
             expected_buying_power: Expected minimum buying power after settlement
             settlement_correlation_id: Correlation ID for tracking
             max_wait_seconds: Maximum time to wait for buying power update
-            
+
         Returns:
             Tuple of (is_available, actual_buying_power)
 
@@ -165,14 +167,14 @@ class SettlementMonitor:
             f"💰 Verifying ${expected_buying_power} buying power availability after settlement "
             f"(correlation: {settlement_correlation_id})"
         )
-        
+
         # Use the buying power service for verification with retry logic
-        is_available, actual_buying_power = self.buying_power_service.verify_buying_power_available(
-            expected_buying_power, 
-            max_retries=5,
-            initial_wait=1.0
+        is_available, actual_buying_power = (
+            self.buying_power_service.verify_buying_power_available(
+                expected_buying_power, max_retries=5, initial_wait=1.0
+            )
         )
-        
+
         if is_available:
             logger.info(
                 f"✅ Post-settlement buying power verified: ${actual_buying_power} available "
@@ -184,7 +186,7 @@ class SettlementMonitor:
                 f"${actual_buying_power} available, needed ${expected_buying_power} "
                 f"(correlation: {settlement_correlation_id})"
             )
-            
+
         return is_available, actual_buying_power
 
     async def _monitor_single_order_settlement(
@@ -205,7 +207,9 @@ class SettlementMonitor:
         while (datetime.now(UTC) - start_time).total_seconds() < self.max_wait_seconds:
             try:
                 # Check order status using existing AlpacaManager method
-                order_status = self.alpaca_manager._check_order_completion_status(order_id)
+                order_status = self.alpaca_manager._check_order_completion_status(
+                    order_id
+                )
 
                 if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
                     # Order reached final state, get full order details
@@ -245,7 +249,9 @@ class SettlementMonitor:
         logger.warning(f"⏰ Settlement monitoring timeout for order {order_id}")
         return None
 
-    async def _get_order_settlement_details(self, order_id: str) -> dict[str, Any] | None:
+    async def _get_order_settlement_details(
+        self, order_id: str
+    ) -> dict[str, Any] | None:
         """Get detailed settlement information for a completed order.
 
         Args:
@@ -271,7 +277,9 @@ class SettlementMonitor:
             filled_avg_price = getattr(order, "filled_avg_price", 0)
 
             settled_quantity = Decimal(str(filled_qty)) if filled_qty else Decimal("0")
-            settlement_price = Decimal(str(filled_avg_price)) if filled_avg_price else Decimal("0")
+            settlement_price = (
+                Decimal(str(filled_avg_price)) if filled_avg_price else Decimal("0")
+            )
             settled_value = settled_quantity * settlement_price
 
             return {
@@ -324,11 +332,15 @@ class SettlementMonitor:
                 settlement_details = await self._get_order_settlement_details(order_id)
 
                 if settlement_details and settlement_details.get("side") == "SELL":
-                    settled_value = settlement_details.get("settled_value", Decimal("0"))
+                    settled_value = settlement_details.get(
+                        "settled_value", Decimal("0")
+                    )
                     accumulated_buying_power += settled_value
 
             if accumulated_buying_power >= target_buying_power:
-                logger.info(f"✅ Buying power threshold reached: ${accumulated_buying_power}")
+                logger.info(
+                    f"✅ Buying power threshold reached: ${accumulated_buying_power}"
+                )
                 return True
 
             await asyncio.sleep(self.polling_interval)
@@ -348,4 +360,6 @@ class SettlementMonitor:
             del self._active_monitors[task_id]
 
         if completed_tasks:
-            logger.debug(f"🧹 Cleaned up {len(completed_tasks)} completed monitoring tasks")
+            logger.debug(
+                f"🧹 Cleaned up {len(completed_tasks)} completed monitoring tasks"
+            )
