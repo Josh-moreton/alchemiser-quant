@@ -52,18 +52,14 @@ class BuyingPowerService:
             Tuple of (is_available, actual_buying_power)
 
         """
-        logger.info(
-            f"💰 Verifying ${expected_amount} buying power availability (with retries)"
-        )
+        logger.info(f"💰 Verifying ${expected_amount} buying power availability (with retries)")
 
         for attempt in range(max_retries):
             try:
                 # Force fresh account data retrieval
                 buying_power = self.broker_manager.get_buying_power()
                 if buying_power is None:
-                    logger.warning(
-                        f"Could not retrieve buying power on attempt {attempt + 1}"
-                    )
+                    logger.warning(f"Could not retrieve buying power on attempt {attempt + 1}")
                     if attempt < max_retries - 1:
                         wait_time = initial_wait * (2**attempt)
                         logger.info(f"⏳ Waiting {wait_time:.1f}s before retry...")
@@ -93,15 +89,11 @@ class BuyingPowerService:
                 # Wait before next attempt (exponential backoff)
                 if attempt < max_retries - 1:
                     wait_time = initial_wait * (2**attempt)
-                    logger.info(
-                        f"⏳ Waiting {wait_time:.1f}s for account state to update..."
-                    )
+                    logger.info(f"⏳ Waiting {wait_time:.1f}s for account state to update...")
                     time.sleep(wait_time)
 
             except Exception as e:
-                logger.error(
-                    f"Error verifying buying power on attempt {attempt + 1}: {e}"
-                )
+                logger.error(f"Error verifying buying power on attempt {attempt + 1}: {e}")
                 if attempt < max_retries - 1:
                     wait_time = initial_wait * (2**attempt)
                     time.sleep(wait_time)
@@ -110,9 +102,7 @@ class BuyingPowerService:
         try:
             final_buying_power_raw = self.broker_manager.get_buying_power()
             final_buying_power = (
-                Decimal(str(final_buying_power_raw))
-                if final_buying_power_raw
-                else Decimal("0")
+                Decimal(str(final_buying_power_raw)) if final_buying_power_raw else Decimal("0")
             )
         except Exception:
             final_buying_power = Decimal("0")

@@ -155,9 +155,7 @@ def display_rebalance_plan(trading_result: dict[str, Any]) -> None:
 
         # Handle NO_TRADES_REQUIRED status
         if status == NO_TRADES_REQUIRED:
-            message = (
-                "⚖️  No rebalancing required - portfolio is already optimally allocated"
-            )
+            message = "⚖️  No rebalancing required - portfolio is already optimally allocated"
             print(f"\n{message}")
             logger.info(message)
             return
