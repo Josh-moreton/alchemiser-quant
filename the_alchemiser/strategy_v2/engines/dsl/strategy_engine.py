@@ -347,23 +347,24 @@ class DslStrategyEngine:
 
     def _format_dsl_allocation(self, filename: str, target_weights: dict[str, Decimal]) -> str:
         """Format DSL allocation results for human-readable logging.
-        
+
         Args:
             filename: Name of the DSL file
             target_weights: Target allocation weights for each symbol
-            
+
         Returns:
             Formatted string for logging
+
         """
         if not target_weights:
             return f"📊 {filename}: No allocations"
-        
+
         # Format each allocation as percentage
         allocations = []
         for symbol, weight in target_weights.items():
             percentage = float(weight) * 100
             allocations.append(f"{symbol}: {percentage:.1f}%")
-        
+
         allocation_str = ", ".join(allocations)
         return f"📊 {filename}: {allocation_str}"
 

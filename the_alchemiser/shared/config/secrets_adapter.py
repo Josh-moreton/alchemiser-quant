@@ -96,7 +96,8 @@ def _get_alpaca_keys_from_aws() -> tuple[str, str, str] | tuple[None, None, None
         # Require at least API key and secret key
         if not api_key or not secret_key:
             logger.error(
-                "Missing required Alpaca credentials in AWS Secrets Manager: ALPACA_KEY, ALPACA_SECRET"
+                "Missing required Alpaca credentials in AWS Secrets Manager: "
+                "ALPACA_KEY, ALPACA_SECRET"
             )
             return None, None, None
 
@@ -128,7 +129,8 @@ def _get_alpaca_keys_from_env() -> tuple[str, str, str] | tuple[None, None, None
     # Require at least API key and secret key
     if not api_key or not secret_key:
         logger.error(
-            "Missing required Alpaca credentials in environment variables: ALPACA_KEY/ALPACA__KEY, ALPACA_SECRET/ALPACA__SECRET"
+            "Missing required Alpaca credentials in environment variables: "
+            "ALPACA_KEY/ALPACA__KEY, ALPACA_SECRET/ALPACA__SECRET"
         )
         return None, None, None
 
@@ -159,7 +161,9 @@ def get_twelvedata_api_key() -> str | None:
         logger.debug(SM_TOGGLE_FAIL_MSG, exc)
 
     if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
-        logger.debug("Detected AWS Lambda environment - loading TwelveData key from Secrets Manager")
+        logger.debug(
+            "Detected AWS Lambda environment - loading TwelveData key from Secrets Manager"
+        )
         return _get_twelvedata_key_from_aws()
 
     logger.debug("Detected local environment - loading TwelveData key from environment variables")
@@ -236,7 +240,9 @@ def get_email_password() -> str | None:
         logger.debug(SM_TOGGLE_FAIL_MSG, exc)
 
     if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
-        logger.debug("Detected AWS Lambda environment - loading email password from Secrets Manager")
+        logger.debug(
+            "Detected AWS Lambda environment - loading email password from Secrets Manager"
+        )
         return _get_email_password_from_aws()
 
     logger.debug("Detected local environment - loading email password from environment variables")
@@ -286,7 +292,9 @@ def _get_email_password_from_env() -> str | None:
     try:
         config = load_settings()
         if config.email.password:
-            logger.debug("Successfully loaded email password from Pydantic config (EMAIL__PASSWORD)")
+            logger.debug(
+                "Successfully loaded email password from Pydantic config (EMAIL__PASSWORD)"
+            )
             return config.email.password
     except Exception as e:
         logger.debug(f"Could not load email password from Pydantic config: {e}")
@@ -301,7 +309,8 @@ def _get_email_password_from_env() -> str | None:
 
     if not password:
         logger.warning(
-            "Email password not found in environment variables (tried EMAIL__PASSWORD, EMAIL_PASSWORD, EMAIL__SMTP_PASSWORD, SMTP_PASSWORD)"
+            "Email password not found in environment variables "
+            "(tried EMAIL__PASSWORD, EMAIL_PASSWORD, EMAIL__SMTP_PASSWORD, SMTP_PASSWORD)"
         )
         return None
 
