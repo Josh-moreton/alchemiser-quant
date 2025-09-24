@@ -64,58 +64,46 @@ class SexprParser:
         ]
 
     def tokenize(self, text: str) -> list[tuple[str, str]]:
-        """Tokenize S-expression text.
-
-        Args:
-            text: S-expression text to tokenize
-
-        Returns:
-            List of (token_value, token_type) tuples
-
-        Raises:
-            SexprParseError: If tokenization fails
-
-        """
-        tokens = []
+        """Tokenize S-expression text into (value, type) tuples."""
+        tokens: list[tuple[str, str]] = []
         position = 0
+        length = len(text)
 
-        while position < len(text):
-            matched = False
+        def _consume_string(start_pos: int) -> tuple[str, int]:
+            """Consume a string token handling escape characters."""
+            i = start_pos + 1
+            while i < length:
+                if text[i] == "\\":
+                    i += 2  # skip escaped character
+                    continue
+                if text[i] == '"':
+                    return text[start_pos : i + 1], i + 1
+                i += 1
+            raise SexprParseError("Unterminated string literal", start_pos)
 
-            # Fast-path for strings to correctly handle escapes
+        def _match_patterns(pos: int) -> tuple[str, int] | None:
+            """Try to match any compiled pattern at current position."""
+            for pattern, token_type in self.compiled_patterns:
+                match = pattern.match(text, pos)
+                if match:
+                    value = match.group()
+                    if token_type not in ("WHITESPACE", "COMMENT", "COMMA"):
+                        tokens.append((value, token_type))
+                    return value, match.end()
+            return None
+
+        while position < length:
             if text[position] == '"':
-                i = position + 1
-                while i < len(text):
-                    ch = text[i]
-                    if ch == "\\":
-                        i += 2  # Skip escaped character
-                        continue
-                    if ch == '"':
-                        token_value = text[position : i + 1]
-                        tokens.append((token_value, "STRING"))
-                        position = i + 1
-                        matched = True
-                        break
-                    i += 1
-                if not matched:
-                    raise SexprParseError("Unterminated string literal", position)
+                string_token, position = _consume_string(position)
+                tokens.append((string_token, "STRING"))
                 continue
 
-            for pattern, token_type in self.compiled_patterns:
-                match = pattern.match(text, position)
-                if match:
-                    token_value = match.group()
+            matched = _match_patterns(position)
+            if matched:
+                _, position = matched
+                continue
 
-                    # Skip whitespace, comments, and commas
-                    if token_type not in ("WHITESPACE", "COMMENT", "COMMA"):
-                        tokens.append((token_value, token_type))
-
-                    position = match.end()
-                    matched = True
-                    break
-
-            if not matched:
-                raise SexprParseError(f"Unexpected character: {text[position]}", position)
+            raise SexprParseError(f"Unexpected character: {text[position]}", position)
 
         return tokens
 
