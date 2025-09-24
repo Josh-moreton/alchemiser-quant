@@ -36,7 +36,9 @@ def safe_get_indicator(
 
     def _log_insufficient_data(func_name: str, series: pd.Series) -> None:
         if len(series) < 2:
-            logging.debug(f"Insufficient data for indicator {func_name} (only {len(series)} points)")
+            logging.debug(
+                f"Insufficient data for indicator {func_name} (only {len(series)} points)"
+            )
         else:
             tail_repr = series.tail(1) if hasattr(series, "tail") else series
             logging.warning(f"Indicator {func_name} returned no results for data: {tail_repr}")
@@ -50,7 +52,9 @@ def safe_get_indicator(
     try:
         series = _extract_series(data)
         if series.empty:
-            logging.debug(f"Insufficient data for indicator {indicator_func.__name__} (empty series)")
+            logging.debug(
+                f"Insufficient data for indicator {indicator_func.__name__} (empty series)"
+            )
             return FALLBACK_VALUE
 
         result = indicator_func(series, *args, **kwargs)
