@@ -154,47 +154,47 @@ def weight_specified(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFr
 
 def _extract_window(args: list[ASTNodeDTO], context: DslContext) -> float:
     """Extract and validate window parameter from arguments.
-    
+
     Args:
         args: List of AST nodes
         context: DSL evaluation context
-        
+
     Returns:
         Window parameter as float
-        
+
     Raises:
         DslEvaluationError: If window is invalid
 
     """
     if not args:
         raise DslEvaluationError("weight-inverse-volatility requires window and assets")
-    
+
     window_node = args[0]
     window = context.evaluate_node(window_node, context.correlation_id, context.trace)
-    
+
     if not isinstance(window, (int, float)):
         window = context.as_decimal(window)
         window = float(window)
-    
+
     return float(window)
 
 
 def _collect_assets_from_args(args: list[ASTNodeDTO], context: DslContext) -> list[str]:
     """Collect assets from DSL arguments.
-    
+
     Args:
         args: List of AST nodes (excluding window parameter)
         context: DSL evaluation context
-        
+
     Returns:
         List of asset symbols
 
     """
     all_assets: list[str] = []
-    
+
     for arg in args:
         result = context.evaluate_node(arg, context.correlation_id, context.trace)
-        
+
         if isinstance(result, PortfolioFragmentDTO):
             all_assets.extend(result.weights.keys())
         elif isinstance(result, list):
@@ -205,18 +205,18 @@ def _collect_assets_from_args(args: list[ASTNodeDTO], context: DslContext) -> li
                     all_assets.append(item)
         elif isinstance(result, str):
             all_assets.append(result)
-    
+
     return all_assets
 
 
 def _get_volatility_for_asset(asset: str, window: float, context: DslContext) -> float | None:
     """Get volatility value for a single asset.
-    
+
     Args:
         asset: Asset symbol
         window: Window parameter for volatility calculation
         context: DSL evaluation context
-        
+
     Returns:
         Volatility value or None if unavailable/invalid
 
@@ -230,13 +230,13 @@ def _get_volatility_for_asset(asset: str, window: float, context: DslContext) ->
             indicator_type="stdev_return",
             parameters={"window": int(window)},
         )
-        
+
         # Get volatility indicator from IndicatorService
         indicator = context.indicator_service.get_indicator(request)
-        
+
         # Extract volatility value from indicator
         volatility = None
-        
+
         # Check specific field for the window if available
         if int(window) == 6 and indicator.stdev_return_6 is not None:
             volatility = indicator.stdev_return_6
@@ -250,14 +250,14 @@ def _get_volatility_for_asset(asset: str, window: float, context: DslContext) ->
                     asset,
                 )
                 return None
-        
+
         if volatility is None or volatility <= 0:
             logger.warning(
                 "DSL weight-inverse-volatility: No valid volatility for %s, skipping",
                 asset,
             )
             return None
-        
+
         # Emit IndicatorComputed event for observability
         context.event_publisher.publish_indicator_computed(
             request_id=request.request_id,
@@ -265,9 +265,9 @@ def _get_volatility_for_asset(asset: str, window: float, context: DslContext) ->
             computation_time_ms=0.0,  # Not measuring computation time in this operator
             correlation_id=context.correlation_id,
         )
-        
+
         return volatility
-        
+
     except Exception as exc:
         logger.warning(
             "DSL weight-inverse-volatility: Failed to get volatility for %s: %s",
@@ -277,21 +277,23 @@ def _get_volatility_for_asset(asset: str, window: float, context: DslContext) ->
         return None
 
 
-def _calculate_inverse_weights(assets: list[str], window: float, context: DslContext) -> dict[str, float]:
+def _calculate_inverse_weights(
+    assets: list[str], window: float, context: DslContext
+) -> dict[str, float]:
     """Calculate and normalize inverse volatility weights.
-    
+
     Args:
         assets: List of asset symbols
         window: Window parameter for volatility calculation
         context: DSL evaluation context
-        
+
     Returns:
         Dictionary of normalized weights
 
     """
     inverse_weights = {}
     total_inverse = 0.0
-    
+
     # Calculate inverse volatility weights
     for asset in assets:
         volatility = _get_volatility_for_asset(asset, window, context)
@@ -299,14 +301,14 @@ def _calculate_inverse_weights(assets: list[str], window: float, context: DslCon
             inverse_vol = 1.0 / volatility
             inverse_weights[asset] = inverse_vol
             total_inverse += inverse_vol
-    
+
     # Handle case where no valid volatilities were obtained
     if not inverse_weights or total_inverse <= 0:
         logger.warning(
             "DSL weight-inverse-volatility: No valid volatilities obtained for any assets"
         )
         return {}
-    
+
     # Normalize weights to sum to 1
     return {asset: inv_weight / total_inverse for asset, inv_weight in inverse_weights.items()}
 
@@ -318,20 +320,20 @@ def weight_inverse_volatility(args: list[ASTNodeDTO], context: DslContext) -> Po
     """
     # Extract and validate window parameter
     window = _extract_window(args, context)
-    
+
     # Collect assets from remaining arguments
     all_assets = _collect_assets_from_args(args[1:], context)
-    
+
     if not all_assets:
         return PortfolioFragmentDTO(
             fragment_id=str(uuid.uuid4()),
             source_step="weight_inverse_volatility",
             weights={},
         )
-    
+
     # Calculate and normalize inverse volatility weights
     normalized_weights = _calculate_inverse_weights(all_assets, window, context)
-    
+
     return PortfolioFragmentDTO(
         fragment_id=str(uuid.uuid4()),
         source_step="weight_inverse_volatility",
