@@ -36,7 +36,6 @@ from alpaca.trading.requests import (
     LimitOrderRequest,
     MarketOrderRequest,
 )
-from alpaca.trading.stream import TradingStream
 
 from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
 from the_alchemiser.shared.dto.asset_info_dto import AssetInfoDTO
@@ -179,14 +178,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to initialize Alpaca clients: {e}")
             raise
 
-        # Trading WebSocket (order updates) state
-        self._trading_stream: TradingStream | None = None
-        self._trading_stream_thread: threading.Thread | None = None
-        self._trading_ws_connected: bool = False
-        self._trading_ws_lock = threading.Lock()
+        # Order tracking for WebSocket updates  
         self._order_events: dict[str, threading.Event] = {}
         self._order_status: dict[str, str] = {}
         self._order_avg_price: dict[str, Decimal | None] = {}
+        
+        # WebSocket connection manager (for centralized WebSocket management)
+        self._websocket_manager = None
+        self._trading_service_active: bool = False
 
         # Asset metadata cache with TTL
         self._asset_cache: dict[str, AssetInfoDTO] = {}
@@ -1929,35 +1928,30 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     # ---- TradingStream helpers ----
     def _ensure_trading_stream(self) -> None:
-        """Ensure TradingStream is running and subscribed to trade updates."""
-        with self._trading_ws_lock:
-            if self._trading_stream and self._trading_ws_connected:
-                return
-            try:
-                self._trading_stream = TradingStream(
-                    self._api_key, self._secret_key, paper=self._paper
+        """Ensure TradingStream is running via WebSocketConnectionManager."""
+        if self._trading_service_active:
+            return
+            
+        try:
+            # Import here to avoid circular dependency
+            from the_alchemiser.shared.services.websocket_manager import WebSocketConnectionManager
+            
+            # Get or create the shared WebSocket manager
+            if self._websocket_manager is None:
+                self._websocket_manager = WebSocketConnectionManager(
+                    self._api_key, self._secret_key, paper_trading=self._paper
                 )
-                self._trading_stream.subscribe_trade_updates(self._on_order_update)
-
-                def _runner() -> None:
-                    try:
-                        ts = self._trading_stream
-                        if ts is not None:
-                            ts.run()
-                    except Exception as exc:
-                        logger.error(f"TradingStream terminated: {exc}")
-                    finally:
-                        self._trading_ws_connected = False
-
-                self._trading_ws_connected = True
-                self._trading_stream_thread = threading.Thread(
-                    target=_runner, name="AlpacaTradingWS", daemon=True
-                )
-                self._trading_stream_thread.start()
-                logger.info("✅ TradingStream started (order updates)")
-            except Exception as exc:
-                logger.error(f"Failed to start TradingStream: {exc}")
-                self._trading_ws_connected = False
+            
+            # Request trading service from the manager
+            if self._websocket_manager.get_trading_service(self._on_order_update):
+                self._trading_service_active = True
+                logger.info("✅ TradingStream service activated via WebSocketConnectionManager")
+            else:
+                logger.error("❌ Failed to activate TradingStream service")
+                
+        except Exception as exc:
+            logger.error(f"Failed to ensure TradingStream via WebSocketConnectionManager: {exc}")
+            self._trading_service_active = False
 
     def _extract_event_and_order(
         self, data: dict[str, Any] | object
@@ -2129,15 +2123,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 
                 for instance in instances_to_cleanup:
                     try:
-                        # Stop TradingStream if active
-                        if hasattr(instance, '_trading_ws_lock'):
-                            with instance._trading_ws_lock:
-                                if hasattr(instance, '_trading_stream') and instance._trading_stream:
-                                    logger.info("Stopping TradingStream for cleanup")
-                                    instance._trading_stream.stop()
-                                    instance._trading_stream = None
-                                if hasattr(instance, '_trading_ws_connected'):
-                                    instance._trading_ws_connected = False
+                        # Release trading service from WebSocketConnectionManager
+                        if hasattr(instance, '_websocket_manager') and instance._websocket_manager:
+                            logger.info("Releasing TradingStream service from WebSocketConnectionManager")
+                            instance._websocket_manager.release_trading_service()
+                            instance._trading_service_active = False
                     except Exception as e:
                         logger.error(f"Error cleaning up AlpacaManager instance: {e}")
                 
@@ -2160,8 +2150,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 try:
                     health_info["instances"][key] = {
                         "paper_trading": instance._paper,
-                        "trading_ws_connected": getattr(instance, '_trading_ws_connected', False),
-                        "initialized": getattr(instance, '_initialized', False)
+                        "trading_service_active": getattr(instance, '_trading_service_active', False),
+                        "initialized": getattr(instance, '_initialized', False),
+                        "websocket_manager_available": getattr(instance, '_websocket_manager', None) is not None
                     }
                 except Exception as e:
                     health_info["instances"][key] = {
