@@ -1076,15 +1076,12 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                     continue
 
                 # Non-transient or out of retries: raise sanitized error
-                msg = (
-                    f"Alpaca API failure for {symbol}: {summary}"
-                    if isinstance(e, (RetryException, HTTPError))
-                    else (
-                        f"Network error retrieving data for {symbol}: {summary}"
-                        if isinstance(e, RequestException)
-                        else f"Failed to get historical data for {symbol}: {summary}"
-                    )
-                )
+                if isinstance(e, (RetryException, HTTPError)):
+                    msg = f"Alpaca API failure for {symbol}: {summary}"
+                elif isinstance(e, RequestException):
+                    msg = f"Network error retrieving data for {symbol}: {summary}"
+                else:
+                    msg = f"Failed to get historical data for {symbol}: {summary}"
                 logger.error(msg)
                 raise RuntimeError(msg)
 

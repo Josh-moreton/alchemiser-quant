@@ -14,13 +14,8 @@ import sys
 from the_alchemiser.main import main
 
 
-def run(config_path: str | None = None) -> None:
-    """Run The Alchemiser Trading System programmatically.
-
-    Args:
-        config_path: Optional path to configuration file (not currently used)
-
-    """
+def run() -> None:
+    """Run The Alchemiser Trading System programmatically."""
     # For the module entry point, we always run in trade mode
     # This is the simplest interface for local development/testing
     result = main(["trade"])
@@ -49,4 +44,4 @@ if __name__ == "__main__":
             print("Use --help for usage information.")
             sys.exit(1)
 
-    run(config_path)
+    run()
