@@ -17,18 +17,20 @@ logger = logging.getLogger(__name__)
 
 class WebSocketConnectionManager:
     """Singleton manager for Alpaca WebSocket connections.
-    
+
     Ensures only one data stream connection exists per set of credentials,
     preventing connection limit exceeded errors.
     """
-    
+
     _instances: ClassVar[dict[str, "WebSocketConnectionManager"]] = {}
     _lock: ClassVar[threading.Lock] = threading.Lock()
-    
-    def __new__(cls, api_key: str, secret_key: str, *, paper_trading: bool = True) -> "WebSocketConnectionManager":
+
+    def __new__(
+        cls, api_key: str, secret_key: str, *, paper_trading: bool = True
+    ) -> "WebSocketConnectionManager":
         """Create or return existing instance for the given credentials."""
         credentials_key = f"{api_key}:{secret_key}:{paper_trading}"
-        
+
         with cls._lock:
             if credentials_key not in cls._instances:
                 instance = super().__new__(cls)
@@ -36,7 +38,9 @@ class WebSocketConnectionManager:
                 instance._initialized = False
             return cls._instances[credentials_key]
 
-    def __init__(self, api_key: str, secret_key: str, *, paper_trading: bool = True) -> None:
+    def __init__(
+        self, api_key: str, secret_key: str, *, paper_trading: bool = True
+    ) -> None:
         """Initialize the connection manager (only once per credentials)."""
         if hasattr(self, "_initialized") and self._initialized:
             return
@@ -91,14 +95,19 @@ class WebSocketConnectionManager:
             logger.debug(f"📊 Pricing service reference count: {self._ref_count}")
 
             if self._ref_count == 0 and self._pricing_service is not None:
-                logger.info("📡 Stopping shared real-time pricing service (no more references)")
+                logger.info(
+                    "📡 Stopping shared real-time pricing service (no more references)"
+                )
                 self._pricing_service.stop()
                 self._pricing_service = None
 
     def is_service_available(self) -> bool:
         """Check if the pricing service is available and connected."""
         with self._service_lock:
-            return self._pricing_service is not None and self._pricing_service.is_connected()
+            return (
+                self._pricing_service is not None
+                and self._pricing_service.is_connected()
+            )
 
     def get_service_stats(self) -> dict[str, Any]:
         """Get statistics from the pricing service."""
