@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections.abc import Iterable
 
 from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
 from the_alchemiser.shared.dto.indicator_request_dto import (
@@ -33,49 +32,36 @@ logger = logging.getLogger(__name__)
 
 
 def weight_equal(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragmentDTO:
-    """Evaluate weight-equal - equal weight allocation."""
+    """Evaluate weight-equal - allocate equal weight to all assets."""
     if not args:
         return PortfolioFragmentDTO(
             fragment_id=str(uuid.uuid4()), source_step="weight_equal", weights={}
         )
 
-    # Collect all assets from arguments
-    all_assets: list[str] = []
+    def _collect_assets_from_value(value: DSLValue) -> list[str]:
+        """Recursively extract all asset symbols from a DSLValue."""
+        assets: list[str] = []
+        if isinstance(value, PortfolioFragmentDTO):
+            assets.extend(value.weights.keys())
+        elif isinstance(value, str):
+            assets.append(value)
+        elif isinstance(value, list):
+            for item in value:
+                assets.extend(_collect_assets_from_value(item))
+        return assets
 
+    # Collect all assets from all arguments
+    all_assets: list[str] = []
     for arg in args:
         result = context.evaluate_node(arg, context.correlation_id, context.trace)
+        all_assets.extend(_collect_assets_from_value(result))
 
-        if isinstance(result, PortfolioFragmentDTO):
-            # Add all assets from this fragment
-            for symbol in result.weights:
-                all_assets.append(symbol)
-        elif isinstance(result, list):
-            # Handle list of results - recursively process nested lists
-            def process_list_items(items: Iterable[DSLValue]) -> list[str]:
-                assets: list[str] = []
-                for item in items:
-                    if isinstance(item, PortfolioFragmentDTO):
-                        assets.extend(item.weights.keys())
-                    elif isinstance(item, str):
-                        assets.append(item)
-                    elif isinstance(item, list):
-                        # Recursively process nested lists
-                        assets.extend(process_list_items(item))
-                return assets
-
-            nested_assets = process_list_items(result)
-            all_assets.extend(nested_assets)
-        elif isinstance(result, str):
-            # Direct symbol string
-            all_assets.append(result)
-
-    # Create equal weights for all collected assets
     if not all_assets:
         return PortfolioFragmentDTO(
             fragment_id=str(uuid.uuid4()), source_step="weight_equal", weights={}
         )
 
-    # Remove duplicates while preserving order
+    # Deduplicate while preserving order
     unique_assets: list[str] = []
     seen: set[str] = set()
     for asset in all_assets:
