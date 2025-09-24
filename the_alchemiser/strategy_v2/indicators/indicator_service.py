@@ -46,12 +46,14 @@ class IndicatorService:
             return float(series.iloc[-1])
         return fallback
 
-    def _compute_rsi(self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
+    def _compute_rsi(
+        self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
+    ) -> TechnicalIndicatorDTO:
         """Compute RSI indicator."""
         window = parameters.get("window", 14)
         rsi_series = self.technical_indicators.rsi(prices, window=window)
         rsi_value = self._latest_value(rsi_series, 50.0)  # Neutral fallback
-        
+
         return TechnicalIndicatorDTO(
             symbol=symbol,
             timestamp=datetime.now(UTC),
@@ -59,19 +61,19 @@ class IndicatorService:
             rsi_10=rsi_value if window == 10 else None,
             rsi_20=rsi_value if window == 20 else None,
             rsi_21=rsi_value if window == 21 else None,
-            current_price=(
-                Decimal(str(prices.iloc[-1])) if len(prices) > 0 else Decimal("100.0")
-            ),
+            current_price=(Decimal(str(prices.iloc[-1])) if len(prices) > 0 else Decimal("100.0")),
             data_source="real_market_data",
             metadata={"value": rsi_value, "window": window},
         )
 
-    def _compute_current_price(self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
+    def _compute_current_price(
+        self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
+    ) -> TechnicalIndicatorDTO:
         """Compute current price indicator."""
         last_price = float(prices.iloc[-1]) if len(prices) > 0 else None
         if last_price is None:
             raise DslEvaluationError(f"No last price for symbol {symbol}")
-        
+
         return TechnicalIndicatorDTO(
             symbol=symbol,
             timestamp=datetime.now(UTC),
@@ -83,16 +85,16 @@ class IndicatorService:
             metadata={"value": last_price},
         )
 
-    def _compute_moving_average(self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
+    def _compute_moving_average(
+        self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
+    ) -> TechnicalIndicatorDTO:
         """Compute moving average indicator."""
         window = int(parameters.get("window", 200))
         ma_series = self.technical_indicators.moving_average(prices, window=window)
 
         latest_ma = float(ma_series.iloc[-1]) if len(ma_series) > 0 else None
         if latest_ma is None or pd.isna(latest_ma):
-            raise DslEvaluationError(
-                f"No moving average available for {symbol} window={window}"
-            )
+            raise DslEvaluationError(f"No moving average available for {symbol} window={window}")
         return TechnicalIndicatorDTO(
             symbol=symbol,
             timestamp=datetime.now(UTC),
@@ -104,16 +106,16 @@ class IndicatorService:
             metadata={"value": latest_ma, "window": window},
         )
 
-    def _compute_moving_average_return(self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
+    def _compute_moving_average_return(
+        self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
+    ) -> TechnicalIndicatorDTO:
         """Compute moving average return indicator."""
         window = int(parameters.get("window", 21))
         mar_series = self.technical_indicators.moving_average_return(prices, window=window)
 
         latest = float(mar_series.iloc[-1]) if len(mar_series) > 0 else None
         if latest is None or pd.isna(latest):
-            raise DslEvaluationError(
-                f"No moving average return for {symbol} window={window}"
-            )
+            raise DslEvaluationError(f"No moving average return for {symbol} window={window}")
         return TechnicalIndicatorDTO(
             symbol=symbol,
             timestamp=datetime.now(UTC),
@@ -123,7 +125,9 @@ class IndicatorService:
             metadata={"value": latest, "window": window},
         )
 
-    def _compute_cumulative_return(self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
+    def _compute_cumulative_return(
+        self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
+    ) -> TechnicalIndicatorDTO:
         """Compute cumulative return indicator."""
         window = int(parameters.get("window", 60))
         cum_series = self.technical_indicators.cumulative_return(prices, window=window)
@@ -140,12 +144,12 @@ class IndicatorService:
             metadata={"value": latest, "window": window},
         )
 
-    def _compute_ema(self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
+    def _compute_ema(
+        self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
+    ) -> TechnicalIndicatorDTO:
         """Compute exponential moving average indicator."""
         window = int(parameters.get("window", 12))
-        ema_series = self.technical_indicators.exponential_moving_average(
-            prices, window=window
-        )
+        ema_series = self.technical_indicators.exponential_moving_average(prices, window=window)
 
         latest = float(ema_series.iloc[-1]) if len(ema_series) > 0 else None
         if latest is None or pd.isna(latest):
@@ -160,7 +164,9 @@ class IndicatorService:
             metadata={"value": latest, "window": window},
         )
 
-    def _compute_stdev_return(self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
+    def _compute_stdev_return(
+        self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
+    ) -> TechnicalIndicatorDTO:
         """Compute standard deviation return indicator."""
         window = int(parameters.get("window", 6))
         std_series = self.technical_indicators.stdev_return(prices, window=window)
@@ -207,7 +213,9 @@ class IndicatorService:
         years = max(1, math.ceil(bars_with_buffer / 252))
         return f"{years}Y"
 
-    def _compute_max_drawdown(self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
+    def _compute_max_drawdown(
+        self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
+    ) -> TechnicalIndicatorDTO:
         """Compute maximum drawdown indicator."""
         window = int(parameters.get("window", 60))
         mdd_series = self.technical_indicators.max_drawdown(prices, window=window)
@@ -276,7 +284,7 @@ class IndicatorService:
 
             if indicator_type in indicator_dispatch:
                 return indicator_dispatch[indicator_type](symbol, prices, parameters)
-            
+
             # Unsupported indicator types
             raise DslEvaluationError(f"Unsupported indicator type: {indicator_type}")
 
