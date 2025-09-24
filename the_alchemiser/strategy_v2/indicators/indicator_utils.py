@@ -19,11 +19,7 @@ def _extract_series(input_data: pd.Series | pd.DataFrame) -> pd.Series:
         if "Close" in input_data.columns:
             return input_data["Close"]
         numeric_cols = input_data.select_dtypes(include=["number"]).columns
-        return (
-            input_data[numeric_cols[0]]
-            if len(numeric_cols) > 0
-            else pd.Series(dtype=float)
-        )
+        return input_data[numeric_cols[0]] if len(numeric_cols) > 0 else pd.Series(dtype=float)
     return input_data
 
 
@@ -36,14 +32,10 @@ def _last_valid_value(series: pd.Series) -> float | None:
 def _log_insufficient_data(func_name: str, series: pd.Series) -> None:
     """Log insufficient data scenarios with appropriate level."""
     if len(series) < 2:
-        logging.debug(
-            f"Insufficient data for indicator {func_name} (only {len(series)} points)"
-        )
+        logging.debug(f"Insufficient data for indicator {func_name} (only {len(series)} points)")
     else:
         tail_repr = series.tail(1) if hasattr(series, "tail") else series
-        logging.warning(
-            f"Indicator {func_name} returned no results for data: {tail_repr}"
-        )
+        logging.warning(f"Indicator {func_name} returned no results for data: {tail_repr}")
 
 
 def _safe_repr(input_data: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:

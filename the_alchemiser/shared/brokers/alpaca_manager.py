@@ -7,7 +7,7 @@ public API for gradual migration. The original ~2091 LOC implementation has been
 decomposed into focused adapters:
 
 - AlpacaTradingAdapter: Order placement, cancellation, positions
-- AlpacaMarketDataAdapter: Price retrieval, quotes, historical data  
+- AlpacaMarketDataAdapter: Price retrieval, quotes, historical data
 - AlpacaAccountAdapter: Account info, buying power, position queries
 - AlpacaStreamingManager: WebSocket lifecycle and order events
 - AlpacaAssetCache: Asset metadata caching with TTL
@@ -50,16 +50,16 @@ logger = logging.getLogger(__name__)
 
 class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     """Facade composing focused Alpaca adapters for backwards compatibility.
-    
+
     This class maintains the same public API as the original monolithic AlpacaManager
     while delegating to specialized adapters. This enables gradual migration of
     callers to use adapters directly while preserving backwards compatibility.
-    
+
     Implements:
     - TradingRepository: Delegated to AlpacaTradingAdapter
-    - MarketDataRepository: Delegated to AlpacaMarketDataAdapter  
+    - MarketDataRepository: Delegated to AlpacaMarketDataAdapter
     - AccountRepository: Delegated to AlpacaAccountAdapter
-    
+
     Additional capabilities:
     - WebSocket streaming: AlpacaStreamingManager
     - Asset caching: AlpacaAssetCache
@@ -75,7 +75,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         base_url: str | None = None,
     ) -> None:
         """Initialize Alpaca manager facade with composed adapters.
-        
+
         Args:
             api_key: Alpaca API key
             secret_key: Alpaca secret key
@@ -100,11 +100,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self._streaming_manager = AlpacaStreamingManager(
             api_key=api_key, secret_key=secret_key, paper=paper
         )
-        
+
         # Initialize asset cache using trading client
         self._asset_cache = AlpacaAssetCache(
             trading_client=self._trading_adapter.trading_client,
-            ttl_seconds=300.0  # 5 minutes TTL
+            ttl_seconds=300.0,  # 5 minutes TTL
         )
 
         logger.info(f"AlpacaManager facade initialized - Paper: {paper}")
@@ -126,7 +126,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         warnings.warn(
             "Direct access to secret_key is deprecated for security",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self._secret_key
 
@@ -141,7 +141,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         warnings.warn(
             "Direct access to trading_client is deprecated. Use adapter methods instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self._trading_adapter.trading_client
 
@@ -222,7 +222,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         warnings.warn(
             "get_account_object is deprecated. Use get_account() for dict representation.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self._account_adapter._get_account_object()
 
@@ -231,7 +231,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         warnings.warn(
             "get_account_dict is deprecated. Use get_account() instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.get_account()
 
@@ -244,7 +244,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         warnings.warn(
             "get_all_positions is deprecated. Use get_positions() instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.get_positions()
 
@@ -257,7 +257,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         warnings.warn(
             "get_current_positions is deprecated. Use get_positions_dict() instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.get_positions_dict()
 
@@ -293,7 +293,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         warnings.warn(
             "_ensure_trading_stream is deprecated. Streaming is managed automatically.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         self._streaming_manager.ensure_trading_stream()
 
