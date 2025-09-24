@@ -15,6 +15,7 @@ from typing import Protocol
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.dto.market_bar_dto import MarketBarDTO
+from the_alchemiser.shared.services.market_data_service import MarketDataService
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,9 @@ class StrategyMarketDataAdapter:
         """
         self._alpaca = alpaca_manager
         self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        
+        # Initialize MarketDataService for improved retry logic and consistent market data access
+        self._market_data_service = MarketDataService(alpaca_manager)
 
     def get_bars(
         self,
@@ -94,7 +98,7 @@ class StrategyMarketDataAdapter:
         # Note: Could be optimized for batch requests if Alpaca SDK supports it
         for symbol in symbols:
             try:
-                bars = self._alpaca.get_historical_bars(
+                bars = self._market_data_service.get_historical_bars(
                     symbol=symbol,
                     start_date=start_str,
                     end_date=end_str,
@@ -148,7 +152,7 @@ class StrategyMarketDataAdapter:
 
         for symbol in symbols:
             try:
-                quote = self._alpaca.get_quote(symbol)
+                quote = self._market_data_service.get_quote(symbol)
                 if quote and "ask_price" in quote and "bid_price" in quote:
                     # Use mid price as current price
                     mid_price = (quote["ask_price"] + quote["bid_price"]) / 2.0
