@@ -15,7 +15,7 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -124,42 +124,52 @@ class DslStrategyEngine:
             return self._create_fallback_signals(timestamp)
 
     def _get_parallelism_and_workers(
-        self, parallelism: str, max_workers: int | None, num_files: int
-    ) -> tuple[str, int]:
+        self,
+        parallelism: Literal["none", "threads", "processes"],
+        max_workers: int | None,
+        num_files: int,
+    ) -> tuple[Literal["none", "threads", "processes"], int]:
         """Get parallelism mode and worker count, applying environment overrides.
-        
+
         Args:
             parallelism: Requested parallelism mode
             max_workers: Requested max workers
             num_files: Number of DSL files to process
-            
+
         Returns:
             Tuple of (effective_parallelism, effective_max_workers)
 
         """
         # Check environment overrides
         env_parallelism = os.getenv("ALCHEMISER_DSL_PARALLELISM")
-        if env_parallelism in ("none", "threads", "processes"):
-            parallelism = env_parallelism
-            
+        allowed_parallelism: tuple[Literal["none", "threads", "processes"], ...] = (
+            "none",
+            "threads",
+            "processes",
+        )
+        if env_parallelism in allowed_parallelism:
+            parallelism = cast(Literal["none", "threads", "processes"], env_parallelism)
+
         env_max_workers = os.getenv("ALCHEMISER_DSL_MAX_WORKERS")
         if env_max_workers and env_max_workers.isdigit():
             max_workers = int(env_max_workers)
-            
+
         effective_max_workers = (
             max_workers if max_workers is not None else min(num_files, os.cpu_count() or 4)
         )
         return parallelism, effective_max_workers
 
     def _accumulate_results(
-        self, dsl_files: list[str], file_results: list[tuple[dict[str, float] | None, str, float, float]]
+        self,
+        dsl_files: list[str],
+        file_results: list[tuple[dict[str, float] | None, str, float, float]],
     ) -> dict[str, float]:
         """Accumulate per-symbol weights from DSL file evaluation results.
-        
+
         Args:
             dsl_files: List of DSL files that were evaluated
             file_results: Results from file evaluations
-            
+
         Returns:
             Dictionary mapping symbols to consolidated weights
 
@@ -176,12 +186,12 @@ class DslStrategyEngine:
         self, consolidated: dict[str, float], timestamp: datetime, correlation_id: str
     ) -> list[StrategySignal]:
         """Convert consolidated weights to StrategySignal objects.
-        
+
         Args:
             consolidated: Dictionary mapping symbols to weights
             timestamp: Timestamp for signal generation
             correlation_id: Correlation ID for tracing
-            
+
         Returns:
             List of StrategySignal objects for positive weights
 
