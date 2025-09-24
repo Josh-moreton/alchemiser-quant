@@ -225,14 +225,20 @@ class TradingExecutionHandler:
 
         """
         try:
-            # Calculate workflow duration (simplified - in real implementation, track start time)
-            workflow_duration_ms = 1000  # Placeholder
+            # Calculate workflow duration using workflow start timestamp from execution_result
+            if hasattr(execution_result, "workflow_start_timestamp") and execution_result.workflow_start_timestamp:
+                workflow_start = execution_result.workflow_start_timestamp
+            else:
+                # Fallback: use execution_timestamp if workflow_start_timestamp is not available
+                workflow_start = execution_result.execution_timestamp
+            workflow_end = datetime.now(UTC)
+            workflow_duration_ms = int((workflow_end - workflow_start).total_seconds() * 1000)
 
             event = WorkflowCompleted(
                 correlation_id=correlation_id,
                 causation_id=execution_result.plan_id,
                 event_id=f"workflow-completed-{uuid.uuid4()}",
-                timestamp=datetime.now(UTC),
+                timestamp=workflow_end,
                 source_module="execution_v2.handlers",
                 source_component="TradingExecutionHandler",
                 workflow_type="trading",
