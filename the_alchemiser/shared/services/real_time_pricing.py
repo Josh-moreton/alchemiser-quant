@@ -193,6 +193,11 @@ class RealTimePricingService:
         # Task tracking for async operations
         self._background_tasks: set[asyncio.Task[None]] = set()
 
+        # Initialize circuit breaker for connection management
+        from the_alchemiser.shared.utils.circuit_breaker import ConnectionCircuitBreaker
+
+        self._circuit_breaker = ConnectionCircuitBreaker()
+
         # Initialize logger for this instance
         self.logger = logging.getLogger(__name__)
 
@@ -368,7 +373,7 @@ class RealTimePricingService:
         logging.info("📡 Real-time pricing stream thread exiting")
 
     async def _execute_stream_attempt(self, attempt_number: int) -> bool:
-        """Execute a single stream attempt.
+        """Execute a single stream attempt with circuit breaker protection.
 
         Args:
             attempt_number: Current attempt number for logging
@@ -377,16 +382,43 @@ class RealTimePricingService:
             True if should break from retry loop, False to continue
 
         """
+        # Check circuit breaker before attempting connection
+        if not self._circuit_breaker.can_attempt_connection():
+            logging.warning(
+                f"🔧 Circuit breaker blocking connection attempt #{attempt_number}"
+            )
+            return False
+
         logging.info(
             f"🔄 Attempting to start real-time data stream (attempt {attempt_number})"
         )
 
         symbols_to_subscribe = self._get_symbols_to_subscribe()
 
-        if symbols_to_subscribe:
-            return await self._setup_and_run_stream_with_symbols(symbols_to_subscribe)
+        try:
+            if symbols_to_subscribe:
+                result = await self._setup_and_run_stream_with_symbols(
+                    symbols_to_subscribe
+                )
+            else:
+                result = await self._handle_no_symbols_to_subscribe()
 
-        return await self._handle_no_symbols_to_subscribe()
+            if result:
+                self._circuit_breaker.record_success()
+            return result
+
+        except Exception as e:
+            error_msg = str(e)
+            if (
+                "connection limit exceeded" in error_msg.lower()
+                or "http 429" in error_msg.lower()
+            ):
+                self._circuit_breaker.record_failure(
+                    f"Connection limit exceeded: {error_msg}"
+                )
+            else:
+                self._circuit_breaker.record_failure(f"Stream error: {error_msg}")
+            raise
 
     async def _handle_no_symbols_to_subscribe(self) -> bool:
         """Handle case when no symbols are available to subscribe.
@@ -1208,8 +1240,107 @@ class RealTimePricingService:
             logging.info(f"🔄 Restarting stream to add subscription for {symbol}")
             self._restart_stream_for_new_subscription()
 
+    def bulk_subscribe_symbols(
+        self, symbols: list[str], priority: float | None = None
+    ) -> dict[str, bool]:
+        """Subscribe to multiple symbols in a single operation to minimize restarts.
+
+        Args:
+            symbols: List of stock symbols to subscribe to
+            priority: Priority score for all symbols (higher = more important)
+
+        Returns:
+            Dictionary mapping symbol to subscription success (True/False)
+
+        """
+        if not symbols:
+            return {}
+
+        if priority is None:
+            priority = time.time()
+
+        results: dict[str, bool] = {}
+        symbols_to_add: list[str] = []
+        needs_restart = False
+
+        with self._subscription_lock:
+            # Process all symbols and determine which need to be added
+            for symbol in symbols:
+                if symbol in self._subscribed_symbols:
+                    # Update priority for existing subscription
+                    self._subscription_priority[symbol] = max(
+                        self._subscription_priority.get(symbol, 0), priority
+                    )
+                    results[symbol] = True
+                else:
+                    symbols_to_add.append(symbol)
+
+            if not symbols_to_add:
+                return results
+
+            # Handle subscription limits for new symbols
+            available_slots = max(0, self._max_symbols - len(self._subscribed_symbols))
+
+            if len(symbols_to_add) > available_slots:
+                # Need to replace some existing subscriptions
+                symbols_to_replace = []
+                needed_slots = len(symbols_to_add) - available_slots
+
+                # Find lowest priority symbols to replace
+                existing_symbols = sorted(
+                    self._subscribed_symbols,
+                    key=lambda s: self._subscription_priority.get(s, 0),
+                )
+
+                for symbol in existing_symbols:
+                    if len(symbols_to_replace) >= needed_slots:
+                        break
+                    if self._subscription_priority.get(symbol, 0) < priority:
+                        symbols_to_replace.append(symbol)
+
+                # Remove symbols to be replaced
+                for symbol_to_remove in symbols_to_replace:
+                    self._subscribed_symbols.discard(symbol_to_remove)
+                    self._subscription_priority.pop(symbol_to_remove, None)
+                    logging.info(
+                        f"📊 Replaced {symbol_to_remove} for higher priority symbols"
+                    )
+                    self._stats["subscription_limit_hits"] += 1
+
+            # Add new symbols (up to available capacity)
+            max_to_add = min(
+                len(symbols_to_add), self._max_symbols - len(self._subscribed_symbols)
+            )
+
+            for i, symbol in enumerate(symbols_to_add):
+                if i < max_to_add:
+                    self._subscribed_symbols.add(symbol)
+                    self._subscription_priority[symbol] = priority
+                    results[symbol] = True
+                    self._stats["total_subscriptions"] += 1
+                    needs_restart = True
+                else:
+                    results[symbol] = False
+                    logging.warning(
+                        f"⚠️ Cannot subscribe to {symbol} - subscription limit reached"
+                    )
+
+            if needs_restart:
+                logging.info(
+                    f"📡 Bulk subscribing to {sum(results.values())} symbols with priority {priority:.1f}"
+                )
+
+        # Single restart for all changes (outside the lock)
+        if needs_restart and self._connected:
+            logging.info(
+                f"🔄 Restarting stream to add {sum(results.values())} new subscriptions"
+            )
+            self._restart_stream_for_new_subscription()
+
+        return results
+
     def _restart_stream_for_new_subscription(self) -> None:
-        """Restart the stream to pick up new subscriptions.
+        """Restart the stream to pick up new subscriptions with proper cleanup.
 
         This is necessary because Alpaca SDK doesn't allow adding subscriptions
         to a running stream - they must be set up before stream.run().
@@ -1220,12 +1351,21 @@ class RealTimePricingService:
             if self._stream:
                 try:
                     self._stream.stop()
+                    # CRITICAL: Add explicit cleanup and wait for connection to close
+                    time.sleep(0.5)  # Give Alpaca time to close the connection
+                    self._stream = None  # Clear the reference
                 except Exception as e:
                     logging.debug(f"Error stopping stream for restart: {e}")
 
-            # Wait for the stream thread to finish
+            # Wait for the stream thread to finish with longer timeout
             if self._stream_thread and self._stream_thread.is_alive():
-                self._stream_thread.join(timeout=2.0)
+                self._stream_thread.join(timeout=5.0)  # Increased from 2.0
+                if self._stream_thread.is_alive():
+                    logging.warning("⚠️ Stream thread didn't terminate cleanly")
+                    return  # Don't restart if old thread is still running
+
+            # Add backoff delay before reconnecting to prevent rapid attempts
+            time.sleep(1.0)  # Prevent rapid reconnection attempts
 
             # Restart with new subscriptions
             self._should_reconnect = True
@@ -1237,15 +1377,17 @@ class RealTimePricingService:
             )
             self._stream_thread.start()
 
-            # Wait for reconnection
+            # Wait for reconnection with timeout
             start_time = time.time()
-            while time.time() - start_time < 5.0:
+            while time.time() - start_time < 10.0:  # Increased timeout
                 if self._connected:
                     logging.info(
                         "✅ Stream restarted successfully with new subscriptions"
                     )
                     break
                 time.sleep(0.1)
+            else:
+                logging.warning("⚠️ Stream restart timed out - may not be connected")
 
         except Exception as e:
             logging.error(f"Error restarting stream for new subscription: {e}")
