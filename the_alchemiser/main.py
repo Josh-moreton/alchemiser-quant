@@ -28,6 +28,86 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.dto.trade_run_result_dto import TradeRunResultDTO
 
 
+class _ArgumentParsing:
+    """Parsed argument results for main function."""
+
+    def __init__(
+        self,
+        mode: str = "trade",
+        *,
+        show_tracking: bool = False,
+        export_tracking_json: str | None = None,
+    ) -> None:
+        self.mode = mode
+        self.show_tracking = show_tracking
+        self.export_tracking_json = export_tracking_json
+
+
+def _parse_arguments(argv: list[str] | None) -> _ArgumentParsing:
+    """Parse command line arguments for backward compatibility.
+    
+    Args:
+        argv: Command line arguments
+        
+    Returns:
+        Parsed argument configuration
+
+    """
+    if not argv:
+        return _ArgumentParsing()
+    
+    mode = argv[0] if argv else "trade"
+    show_tracking = False
+    export_tracking_json = None
+    
+    for i, arg in enumerate(argv):
+        if arg == "--show-tracking":
+            show_tracking = True
+        elif arg == "--export-tracking-json" and i + 1 < len(argv):
+            export_tracking_json = argv[i + 1]
+    
+    return _ArgumentParsing(mode, show_tracking=show_tracking, export_tracking_json=export_tracking_json)
+
+
+def _send_error_notification() -> None:
+    """Send error notification if needed, with fallback handling."""
+    try:
+        from the_alchemiser.shared.errors.error_handler import (
+            send_error_notification_if_needed,
+        )
+
+        send_error_notification_if_needed()
+    except Exception as notification_error:  # pragma: no cover (best-effort)
+        import logging
+
+        logging.getLogger(__name__).warning(
+            f"Failed to send error notification: {notification_error}"
+        )
+
+
+def _handle_error_with_notification(
+    error: Exception,
+    context: str,
+    additional_data: dict[str, str | list[str] | None] | None = None,
+) -> None:
+    """Handle error with notification using standard pattern.
+    
+    Args:
+        error: The exception to handle
+        context: Context description for the error
+        additional_data: Additional data to include in error report
+
+    """
+    error_handler = TradingSystemErrorHandler()
+    error_handler.handle_error(
+        error=error,
+        context=context,
+        component="main",
+        additional_data=additional_data or {},
+    )
+    _send_error_notification()
+
+
 def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
     """Serve as main entry point for The Alchemiser Trading System.
 
@@ -44,89 +124,43 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
     request_id = generate_request_id()
     set_request_id(request_id)
 
-    # Simple argument handling for backward compatibility
-    # Primary usage should be programmatic via TradingSystem class
-    mode = "trade"  # Default mode
-    show_tracking = False
-    export_tracking_json = None
-
-    if argv:
-        if len(argv) > 0:
-            mode = argv[0]
-        # For backward compatibility, check for additional arguments
-        # but don't require full argument parsing
-        for i, arg in enumerate(argv):
-            if arg == "--show-tracking":
-                show_tracking = True
-            elif arg == "--export-tracking-json" and i + 1 < len(argv):
-                export_tracking_json = argv[i + 1]
+    # Parse arguments for backward compatibility
+    args = _parse_arguments(argv)
 
     # Execute operation with proper error boundary
     try:
         system = TradingSystem()
 
-        if mode == "trade":
+        if args.mode == "trade":
             return system.execute_trading(
-                show_tracking=show_tracking,
-                export_tracking_json=export_tracking_json,
+                show_tracking=args.show_tracking,
+                export_tracking_json=args.export_tracking_json,
             )
 
         return False
 
     except (ConfigurationError, ValueError, ImportError) as e:
-        error_handler = TradingSystemErrorHandler()
-        error_handler.handle_error(
+        _handle_error_with_notification(
             error=e,
             context="application initialization and execution",
-            component="main",
             additional_data={
-                "mode": mode,
+                "mode": args.mode,
                 "request_id": request_id,
                 "argv": argv,
             },
         )
-
-        try:
-            from the_alchemiser.shared.errors.error_handler import (
-                send_error_notification_if_needed,
-            )
-
-            send_error_notification_if_needed()
-        except Exception as notification_error:  # pragma: no cover (best-effort)
-            import logging
-
-            logging.getLogger(__name__).warning(
-                f"Failed to send error notification: {notification_error}"
-            )
-
         return False
 
     except Exception as e:  # pragma: no cover (broad fallback)
-        error_handler = TradingSystemErrorHandler()
-        error_handler.handle_error(
+        _handle_error_with_notification(
             error=e,
             context="application execution - unhandled exception",
-            component="main",
             additional_data={
-                "mode": mode,
+                "mode": args.mode,
                 "error_type": type(e).__name__,
                 "request_id": request_id,
             },
         )
-
-        try:
-            from the_alchemiser.shared.errors.error_handler import (
-                send_error_notification_if_needed,
-            )
-
-            send_error_notification_if_needed()
-        except Exception as notification_error:  # pragma: no cover (best-effort)
-            import logging
-
-            logging.getLogger(__name__).warning(
-                f"Failed to send error notification: {notification_error}"
-            )
-
         return False
 
 
