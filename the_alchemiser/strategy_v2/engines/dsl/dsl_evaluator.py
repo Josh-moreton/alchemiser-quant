@@ -289,9 +289,8 @@ class DslEvaluator:
         first_child = node.children[0]
         if first_child.is_symbol():
             return self._evaluate_function_application(node, context)
-        else:
-            # Evaluate each element and return as list
-            return self._evaluate_list_elements(node, correlation_id, trace)
+        # Evaluate each element and return as list
+        return self._evaluate_list_elements(node, correlation_id, trace)
 
     def _evaluate_node(self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO) -> DSLValue:
         """Evaluate a single AST node.
