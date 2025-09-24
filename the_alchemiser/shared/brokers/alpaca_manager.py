@@ -347,37 +347,62 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
 
         """
-        # Build symbol->qty mapping from positions
-        # Use qty_available to account for shares tied up in open orders
         result: dict[str, float] = {}
         try:
             for pos in self.get_positions():
-                symbol = getattr(pos, "symbol", None) or (
-                    pos.get("symbol") if isinstance(pos, dict) else None
-                )
-                # Use qty_available if available, fallback to qty for compatibility
-                qty_available = (
-                    getattr(pos, "qty_available", None)
-                    if not isinstance(pos, dict)
-                    else pos.get("qty_available")
-                )
-                if qty_available is not None:
-                    qty_raw = qty_available
-                else:
-                    # Fallback to total qty if qty_available is not available
-                    qty_raw = (
-                        getattr(pos, "qty", None) if not isinstance(pos, dict) else pos.get("qty")
-                    )
-
-                if symbol and qty_raw is not None:
-                    try:
-                        result[str(symbol)] = float(qty_raw)
-                    except (ValueError, TypeError):
-                        continue
+                position_entry = self._extract_position_entry(pos)
+                if position_entry:
+                    symbol, quantity = position_entry
+                    result[symbol] = quantity
         except (KeyError, AttributeError, TypeError):
             # Best-effort mapping; return what we have
             pass
         return result
+
+    def _extract_position_entry(self, pos: Position | dict[str, Any]) -> tuple[str, float] | None:
+        """Extract symbol and quantity from a position object.
+        
+        Args:
+            pos: Position object (SDK model or dict)
+            
+        Returns:
+            Tuple of (symbol, quantity) if valid, None otherwise
+            
+        """
+        symbol = self._extract_position_symbol(pos)
+        if not symbol:
+            return None
+            
+        qty_raw = self._extract_position_quantity(pos)
+        if qty_raw is None:
+            return None
+            
+        try:
+            return str(symbol), float(qty_raw)
+        except (ValueError, TypeError):
+            return None
+    
+    def _extract_position_symbol(self, pos: Position | dict[str, Any]) -> str | None:
+        """Extract symbol from position object."""
+        return getattr(pos, "symbol", None) or (
+            pos.get("symbol") if isinstance(pos, dict) else None
+        )
+    
+    def _extract_position_quantity(self, pos: Position | dict[str, Any]) -> float | None:
+        """Extract quantity from position object, preferring qty_available."""
+        # Use qty_available if available, fallback to qty for compatibility
+        qty_available = (
+            getattr(pos, "qty_available", None)
+            if not isinstance(pos, dict)
+            else pos.get("qty_available")
+        )
+        if qty_available is not None:
+            return qty_available
+            
+        # Fallback to total qty if qty_available is not available
+        return (
+            getattr(pos, "qty", None) if not isinstance(pos, dict) else pos.get("qty")
+        )
 
     def get_position(self, symbol: str) -> Position | None:
         """Get position for a specific symbol."""
@@ -398,88 +423,152 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Place an order and return execution details."""
         try:
             order = self._trading_client.submit_order(order_request)
-
-            # Avoid attribute assumptions for mypy
-            order_id = str(getattr(order, "id", ""))
-            order_symbol = str(getattr(order, "symbol", ""))
-            order_qty = getattr(order, "qty", "0")
-            order_filled_qty = getattr(order, "filled_qty", "0")
-            order_filled_avg_price = getattr(order, "filled_avg_price", None)
-            order_side = getattr(order, "side", "")
-            order_status = getattr(order, "status", "SUBMITTED")
-
-            logger.info(f"Successfully placed order: {order_id} for {order_symbol}")
-
-            # Handle price - use filled_avg_price if available, otherwise estimate
-            price = Decimal("0.01")  # Default minimal price
-            if order_filled_avg_price:
-                price = Decimal(str(order_filled_avg_price))
-            elif hasattr(order_request, "limit_price") and order_request.limit_price:
-                price = Decimal(str(order_request.limit_price))
-
-            # Extract enum values properly
-            action_value = (
-                order_side.value.upper()
-                if hasattr(order_side, "value")
-                else str(order_side).upper()
-            )
-            status_value = (
-                order_status.value.upper()
-                if hasattr(order_status, "value")
-                else str(order_status).upper()
-            )
-
-            # Calculate total_value: use filled_quantity if > 0, otherwise use order quantity
-            # This ensures total_value > 0 for DTO validation even for unfilled orders
-            filled_qty_decimal = Decimal(str(order_filled_qty))
-            order_qty_decimal = Decimal(str(order_qty))
-            if filled_qty_decimal > 0:
-                total_value = filled_qty_decimal * price
-            else:
-                total_value = order_qty_decimal * price
-
-            return ExecutedOrderDTO(
-                order_id=order_id,
-                symbol=order_symbol,
-                action=action_value,
-                quantity=order_qty_decimal,
-                filled_quantity=filled_qty_decimal,
-                price=price,
-                total_value=total_value,
-                status=status_value,
-                execution_timestamp=datetime.now(UTC),
-            )
+            return self._create_success_order_dto(order, order_request)
         except Exception as e:
             logger.error(f"Failed to place order: {e}")
+            return self._create_failed_order_dto(order_request, e)
 
-            # Return a failed order DTO with valid values
-            symbol = getattr(order_request, "symbol", "UNKNOWN")
-            side = getattr(order_request, "side", None)
+    def _create_success_order_dto(
+        self, order: Order, order_request: LimitOrderRequest | MarketOrderRequest
+    ) -> ExecutedOrderDTO:
+        """Create ExecutedOrderDTO from successful order placement.
+        
+        Args:
+            order: Successful order from Alpaca API
+            order_request: Original order request
+            
+        Returns:
+            ExecutedOrderDTO with order details
+            
+        """
+        # Extract basic order attributes
+        order_data = self._extract_order_attributes(order)
+        
+        logger.info(f"Successfully placed order: {order_data['order_id']} for {order_data['symbol']}")
 
-            # Extract action from order request
-            action = "BUY"  # Default fallback
-            if side:
-                if hasattr(side, "value"):
-                    action = side.value.upper()
-                else:
-                    side_str = str(side).upper()
-                    if "SELL" in side_str:
-                        action = "SELL"
-                    elif "BUY" in side_str:
-                        action = "BUY"
+        # Calculate price and total value
+        price = self._calculate_order_price(order_data["filled_avg_price"], order_request)
+        total_value = self._calculate_total_value(
+            order_data["filled_qty_decimal"], 
+            order_data["order_qty_decimal"], 
+            price
+        )
 
-            return ExecutedOrderDTO(
-                order_id="FAILED",  # Must be non-empty
-                symbol=symbol,
-                action=action,
-                quantity=Decimal("0.01"),  # Must be > 0
-                filled_quantity=Decimal("0"),
-                price=Decimal("0.01"),
-                total_value=Decimal("0.01"),  # Must be > 0
-                status="REJECTED",
-                execution_timestamp=datetime.now(UTC),
-                error_message=str(e),
-            )
+        return ExecutedOrderDTO(
+            order_id=order_data["order_id"],
+            symbol=order_data["symbol"],
+            action=order_data["action_value"],
+            quantity=order_data["order_qty_decimal"],
+            filled_quantity=order_data["filled_qty_decimal"],
+            price=price,
+            total_value=total_value,
+            status=order_data["status_value"],
+            execution_timestamp=datetime.now(UTC),
+        )
+
+    def _extract_order_attributes(self, order: Order) -> dict[str, Any]:
+        """Extract attributes from order object safely.
+        
+        Args:
+            order: Order object from Alpaca API
+            
+        Returns:
+            Dictionary with extracted attributes
+            
+        """
+        order_id = str(getattr(order, "id", ""))
+        order_symbol = str(getattr(order, "symbol", ""))
+        order_qty = getattr(order, "qty", "0")
+        order_filled_qty = getattr(order, "filled_qty", "0")
+        order_filled_avg_price = getattr(order, "filled_avg_price", None)
+        order_side = getattr(order, "side", "")
+        order_status = getattr(order, "status", "SUBMITTED")
+
+        # Extract enum values properly
+        action_value = self._extract_enum_value(order_side)
+        status_value = self._extract_enum_value(order_status)
+
+        return {
+            "order_id": order_id,
+            "symbol": order_symbol,
+            "filled_avg_price": order_filled_avg_price,
+            "filled_qty_decimal": Decimal(str(order_filled_qty)),
+            "order_qty_decimal": Decimal(str(order_qty)),
+            "action_value": action_value,
+            "status_value": status_value,
+        }
+
+    def _extract_enum_value(self, enum_obj: object) -> str:
+        """Extract string value from enum object safely."""
+        return (
+            enum_obj.value.upper()
+            if hasattr(enum_obj, "value")
+            else str(enum_obj).upper()
+        )
+
+    def _calculate_order_price(
+        self, filled_avg_price: float | None, order_request: LimitOrderRequest | MarketOrderRequest
+    ) -> Decimal:
+        """Calculate order price from filled price or request."""
+        # Handle price - use filled_avg_price if available, otherwise estimate
+        if filled_avg_price:
+            return Decimal(str(filled_avg_price))
+        if hasattr(order_request, "limit_price") and order_request.limit_price:
+            return Decimal(str(order_request.limit_price))
+        return Decimal("0.01")  # Default minimal price
+
+    def _calculate_total_value(
+        self, filled_qty_decimal: Decimal, order_qty_decimal: Decimal, price: Decimal
+    ) -> Decimal:
+        """Calculate total value ensuring positive result for DTO validation."""
+        if filled_qty_decimal > 0:
+            return filled_qty_decimal * price
+        return order_qty_decimal * price
+
+    def _create_failed_order_dto(
+        self, order_request: LimitOrderRequest | MarketOrderRequest, error: Exception
+    ) -> ExecutedOrderDTO:
+        """Create ExecutedOrderDTO for failed order placement.
+        
+        Args:
+            order_request: Original order request
+            error: Exception that occurred
+            
+        Returns:
+            ExecutedOrderDTO with error details
+            
+        """
+        symbol = getattr(order_request, "symbol", "UNKNOWN")
+        action = self._extract_action_from_request(order_request)
+
+        return ExecutedOrderDTO(
+            order_id="FAILED",  # Must be non-empty
+            symbol=symbol,
+            action=action,
+            quantity=Decimal("0.01"),  # Must be > 0
+            filled_quantity=Decimal("0"),
+            price=Decimal("0.01"),
+            total_value=Decimal("0.01"),  # Must be > 0
+            status="REJECTED",
+            execution_timestamp=datetime.now(UTC),
+            error_message=str(error),
+        )
+
+    def _extract_action_from_request(
+        self, order_request: LimitOrderRequest | MarketOrderRequest
+    ) -> str:
+        """Extract action from order request safely."""
+        side = getattr(order_request, "side", None)
+        if not side:
+            return "BUY"  # Default fallback
+            
+        if hasattr(side, "value"):
+            return side.value.upper()
+            
+        side_str = str(side).upper()
+        if "SELL" in side_str:
+            return "SELL"
+        return "BUY"
 
     def get_order_execution_result(self, order_id: str) -> OrderExecutionResult:
         """Fetch latest order state and map to execution result DTO.
@@ -1266,67 +1355,17 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         """
         try:
-            current_time = datetime.now(UTC)
-            cutoff_time = current_time - timedelta(minutes=timeout_minutes)
-
-            # Get all open orders
+            cutoff_time = datetime.now(UTC) - timedelta(minutes=timeout_minutes)
             open_orders = self.get_orders(status="open")
-
-            cancelled_orders = []
-            errors = []
-
+            
             logger.info(
                 f"🔍 Checking {len(open_orders)} open orders for staleness (>{timeout_minutes} minutes)"
             )
 
-            for order in open_orders:
-                try:
-                    # Get order submission time
-                    submitted_at = getattr(order, "submitted_at", None)
-                    if not submitted_at:
-                        continue
-
-                    # Handle string timestamps
-                    if isinstance(submitted_at, str):
-                        submitted_at = datetime.fromisoformat(
-                            submitted_at.replace("Z", UTC_TIMEZONE_SUFFIX)
-                        )
-
-                    # Check if order is stale
-                    if submitted_at < cutoff_time:
-                        order_id = str(getattr(order, "id", "unknown"))
-                        symbol = getattr(order, "symbol", "unknown")
-                        age_minutes = (current_time - submitted_at).total_seconds() / 60
-
-                        logger.info(
-                            f"🗑️ Cancelling stale order {order_id} for {symbol} "
-                            f"(age: {age_minutes:.1f} minutes)"
-                        )
-
-                        if self.cancel_order(order_id):
-                            cancelled_orders.append(order_id)
-                        else:
-                            errors.append(f"Failed to cancel order {order_id}")
-
-                except Exception as e:
-                    order_id = str(getattr(order, "id", "unknown"))
-                    error_msg = f"Error processing order {order_id}: {e}"
-                    logger.error(error_msg)
-                    errors.append(error_msg)
-
-            result = {
-                "cancelled_count": len(cancelled_orders),
-                "errors": errors,
-                "cancelled_orders": cancelled_orders,
-            }
-
-            if cancelled_orders:
-                logger.info(
-                    f"✅ Cancelled {len(cancelled_orders)} stale orders: {cancelled_orders}"
-                )
-            else:
-                logger.info("✅ No stale orders found to cancel")
-
+            cancelled_orders, errors = self._process_stale_orders(open_orders, cutoff_time)
+            result = self._build_stale_orders_result(cancelled_orders, errors)
+            self._log_stale_orders_result(cancelled_orders)
+            
             return result
 
         except Exception as e:
@@ -1337,6 +1376,97 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 "errors": [error_msg],
                 "cancelled_orders": [],
             }
+
+    def _process_stale_orders(
+        self, open_orders: list[Any], cutoff_time: datetime
+    ) -> tuple[list[str], list[str]]:
+        """Process open orders and cancel stale ones.
+        
+        Args:
+            open_orders: List of open orders to check
+            cutoff_time: Cutoff time for staleness
+            
+        Returns:
+            Tuple of (cancelled_orders, errors) lists
+            
+        """
+        cancelled_orders = []
+        errors = []
+        current_time = datetime.now(UTC)
+
+        for order in open_orders:
+            try:
+                if self._should_cancel_stale_order(order, cutoff_time, current_time):
+                    order_id = str(getattr(order, "id", "unknown"))
+                    if self.cancel_order(order_id):
+                        cancelled_orders.append(order_id)
+                    else:
+                        errors.append(f"Failed to cancel order {order_id}")
+                        
+            except Exception as e:
+                order_id = str(getattr(order, "id", "unknown"))
+                error_msg = f"Error processing order {order_id}: {e}"
+                logger.error(error_msg)
+                errors.append(error_msg)
+
+        return cancelled_orders, errors
+
+    def _should_cancel_stale_order(
+        self, order: Order | dict[str, Any], cutoff_time: datetime, current_time: datetime
+    ) -> bool:
+        """Check if an order should be cancelled for being stale.
+        
+        Args:
+            order: Order object to check
+            cutoff_time: Cutoff time for staleness
+            current_time: Current time for age calculation
+            
+        Returns:
+            True if order should be cancelled
+            
+        """
+        submitted_at = getattr(order, "submitted_at", None)
+        if not submitted_at:
+            return False
+
+        # Handle string timestamps
+        if isinstance(submitted_at, str):
+            submitted_at = datetime.fromisoformat(
+                submitted_at.replace("Z", UTC_TIMEZONE_SUFFIX)
+            )
+
+        # Check if order is stale
+        if submitted_at < cutoff_time:
+            order_id = str(getattr(order, "id", "unknown"))
+            symbol = getattr(order, "symbol", "unknown")
+            age_minutes = (current_time - submitted_at).total_seconds() / 60
+
+            logger.info(
+                f"🗑️ Cancelling stale order {order_id} for {symbol} "
+                f"(age: {age_minutes:.1f} minutes)"
+            )
+            return True
+            
+        return False
+
+    def _build_stale_orders_result(
+        self, cancelled_orders: list[str], errors: list[str]
+    ) -> dict[str, Any]:
+        """Build result dictionary for stale orders operation."""
+        return {
+            "cancelled_count": len(cancelled_orders),
+            "errors": errors,
+            "cancelled_orders": cancelled_orders,
+        }
+
+    def _log_stale_orders_result(self, cancelled_orders: list[str]) -> None:
+        """Log the result of stale orders cancellation."""
+        if cancelled_orders:
+            logger.info(
+                f"✅ Cancelled {len(cancelled_orders)} stale orders: {cancelled_orders}"
+            )
+        else:
+            logger.info("✅ No stale orders found to cancel")
 
     def liquidate_position(self, symbol: str) -> str | None:
         """Liquidate entire position using close_position API.

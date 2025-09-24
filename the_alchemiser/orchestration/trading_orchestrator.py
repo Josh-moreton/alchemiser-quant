@@ -1229,48 +1229,70 @@ class TradingOrchestrator:
         """
         # Import catalog to map error codes
         from the_alchemiser.shared.errors.catalog import map_exception_to_error_code
-        from the_alchemiser.shared.types.exceptions import (
-            InsufficientFundsError,
-            MarketClosedError,
-            OrderTimeoutError,
-        )
 
         # Look at order error messages to infer the type of error
         for order in execution_result.orders:
             if not order.success and order.error_message:
                 msg = str(order.error_message).lower()
-                # Try to map common error patterns to exception types for code derivation
-                mapped_exc: Exception | None = None
-                if any(
-                    s in msg
-                    for s in [
-                        "market hours",
-                        "market closed",
-                        "outside trading hours",
-                        "after hours",
-                        "pre-market",
-                        "premarket",
-                    ]
-                ):
-                    mapped_exc = MarketClosedError("Market closed")
-                elif any(
-                    s in msg
-                    for s in [
-                        "insufficient funds",
-                        "insufficient cash",
-                        "buying power",
-                    ]
-                ):
-                    mapped_exc = InsufficientFundsError("Insufficient funds")
-                elif any(s in msg for s in ["timeout", "timed out", "execution timeout"]):
-                    mapped_exc = OrderTimeoutError("Order timeout")
-
+                mapped_exc = self._map_error_message_to_exception(msg)
+                
                 if mapped_exc:
                     error_code_enum = map_exception_to_error_code(mapped_exc)
                     if error_code_enum:
                         return error_code_enum.value  # Use first mappable error
 
         return None
+
+    def _map_error_message_to_exception(self, msg: str) -> Exception | None:
+        """Map error message to appropriate exception type.
+        
+        Args:
+            msg: Lowercase error message to analyze
+            
+        Returns:
+            Exception instance if pattern matches, None otherwise
+            
+        """
+        from the_alchemiser.shared.types.exceptions import (
+            InsufficientFundsError,
+            MarketClosedError,
+            OrderTimeoutError,
+        )
+        
+        if self._is_market_closed_error(msg):
+            return MarketClosedError("Market closed")
+        if self._is_insufficient_funds_error(msg):
+            return InsufficientFundsError("Insufficient funds")
+        if self._is_timeout_error(msg):
+            return OrderTimeoutError("Order timeout")
+            
+        return None
+    
+    def _is_market_closed_error(self, msg: str) -> bool:
+        """Check if message indicates market closed error."""
+        market_closed_patterns = [
+            "market hours",
+            "market closed", 
+            "outside trading hours",
+            "after hours",
+            "pre-market",
+            "premarket",
+        ]
+        return any(pattern in msg for pattern in market_closed_patterns)
+    
+    def _is_insufficient_funds_error(self, msg: str) -> bool:
+        """Check if message indicates insufficient funds error."""
+        funds_patterns = [
+            "insufficient funds",
+            "insufficient cash",
+            "buying power",
+        ]
+        return any(pattern in msg for pattern in funds_patterns)
+    
+    def _is_timeout_error(self, msg: str) -> bool:
+        """Check if message indicates timeout error."""
+        timeout_patterns = ["timeout", "timed out", "execution timeout"]
+        return any(pattern in msg for pattern in timeout_patterns)
 
     def _emit_trade_executed_event(
         self,
