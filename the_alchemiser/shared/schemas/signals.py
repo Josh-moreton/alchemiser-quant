@@ -19,7 +19,7 @@ from ..utils.timezone_utils import ensure_timezone_aware
 
 
 class StrategySignal(BaseModel):
-    """Schema for strategy signal data transfer.
+    """DTO for strategy signal data transfer.
 
     Used for communication between strategy and portfolio modules.
     Includes correlation tracking and serialization helpers.
@@ -39,31 +39,24 @@ class StrategySignal(BaseModel):
     )
     timestamp: datetime = Field(..., description="Signal generation timestamp")
 
-    # Signal identification
-    signal_id: str = Field(..., min_length=1, description="Unique signal identifier")
-    strategy_name: str = Field(..., min_length=1, description="Strategy that generated the signal")
-    signal_type: str = Field(..., min_length=1, description="Type of signal (BUY, SELL, HOLD)")
-
-    # Signal data
+    # Signal fields
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
-    confidence: Decimal = Field(..., ge=0, le=1, description="Signal confidence (0-1)")
-    strength: Decimal = Field(..., ge=0, le=1, description="Signal strength (0-1)")
-    target_weight: Decimal | None = Field(
-        default=None, ge=0, le=1, description="Target portfolio weight (0-1)"
+    action: str = Field(..., description="Trading action (BUY, SELL, HOLD)")
+    reasoning: str = Field(..., min_length=1, description="Human-readable signal reasoning")
+
+    # Optional strategy context
+    strategy_name: str | None = Field(
+        default=None, description="Strategy that generated the signal"
+    )
+    allocation_weight: Decimal | None = Field(
+        default=None, ge=0, le=1, description="Recommended allocation weight (0-1)"
     )
 
     # Optional signal metadata
-    price_target: Decimal | None = Field(default=None, ge=0, description="Price target if available")
-    time_horizon: str | None = Field(default=None, description="Expected time horizon")
-    risk_level: str | None = Field(default=None, description="Risk level assessment")
-
-    # Signal context
-    market_conditions: dict[str, Any] = Field(
-        default_factory=dict, description="Market conditions when signal was generated"
+    signal_strength: Decimal | None = Field(
+        default=None, ge=0, description="Raw signal strength value"
     )
-    technical_indicators: dict[str, Any] = Field(
-        default_factory=dict, description="Technical indicators supporting the signal"
-    )
+    metadata: dict[str, Any] | None = Field(default=None, description="Additional signal metadata")
 
     @field_validator("symbol")
     @classmethod
@@ -71,11 +64,15 @@ class StrategySignal(BaseModel):
         """Normalize symbol to uppercase."""
         return v.strip().upper()
 
-    @field_validator("signal_type")
+    @field_validator("action")
     @classmethod
-    def normalize_signal_type(cls, v: str) -> str:
-        """Normalize signal type to uppercase."""
-        return v.strip().upper()
+    def validate_action(cls, v: str) -> str:
+        """Validate action is supported."""
+        valid_actions = {"BUY", "SELL", "HOLD"}
+        action_upper = v.strip().upper()
+        if action_upper not in valid_actions:
+            raise ValueError(f"Action must be one of {valid_actions}, got {action_upper}")
+        return action_upper
 
     @field_validator("timestamp")
     @classmethod
@@ -83,53 +80,61 @@ class StrategySignal(BaseModel):
         """Ensure timestamp is timezone-aware."""
         return ensure_timezone_aware(v)
 
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> StrategySignal:
-        """Create StrategySignal from dictionary data with type conversion.
-
-        Args:
-            data: Dictionary containing signal data
-
-        Returns:
-            StrategySignal instance with properly typed fields
-
-        """
-        # Create a copy to avoid mutating the original
-        processed_data = data.copy()
-
-        # Convert datetime fields from strings if needed
-        if "timestamp" in processed_data and isinstance(processed_data["timestamp"], str):
-            processed_data["timestamp"] = datetime.fromisoformat(processed_data["timestamp"])
-
-        # Convert decimal fields from strings if needed
-        decimal_fields = ["confidence", "strength", "target_weight", "price_target"]
-        for field_name in decimal_fields:
-            if (
-                field_name in processed_data
-                and processed_data[field_name] is not None
-                and isinstance(processed_data[field_name], str)
-            ):
-                processed_data[field_name] = Decimal(processed_data[field_name])
-
-        return cls(**processed_data)
-
     def to_dict(self) -> dict[str, Any]:
-        """Convert schema to dictionary for serialization.
+        """Convert DTO to dictionary for serialization.
 
         Returns:
-            Dictionary representation with properly serialized values.
+            Dictionary representation of the DTO with properly serialized values.
 
         """
         data = self.model_dump()
 
         # Convert datetime to ISO string
-        if data.get("timestamp"):
-            data["timestamp"] = data["timestamp"].isoformat()
+        if self.timestamp:
+            data["timestamp"] = self.timestamp.isoformat()
 
-        # Convert decimals to strings
-        decimal_fields = ["confidence", "strength", "target_weight", "price_target"]
-        for field_name in decimal_fields:
+        # Convert Decimal fields to string for JSON serialization
+        for field_name in ["allocation_weight", "signal_strength"]:
             if data.get(field_name) is not None:
                 data[field_name] = str(data[field_name])
 
         return data
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> StrategySignal:
+        """Create DTO from dictionary.
+
+        Args:
+            data: Dictionary containing DTO data
+
+        Returns:
+            StrategySignal instance
+
+        Raises:
+            ValueError: If data is invalid or missing required fields
+
+        """
+        # Convert string timestamp back to datetime
+        if "timestamp" in data and isinstance(data["timestamp"], str):
+            try:
+                # Handle both ISO format and other common formats
+                timestamp_str = data["timestamp"]
+                if timestamp_str.endswith("Z"):
+                    timestamp_str = timestamp_str[:-1] + "+00:00"
+                data["timestamp"] = datetime.fromisoformat(timestamp_str)
+            except ValueError as e:
+                raise ValueError(f"Invalid timestamp format: {data['timestamp']}") from e
+
+        # Convert string decimal fields back to Decimal
+        for field_name in ["allocation_weight", "signal_strength"]:
+            if (
+                field_name in data
+                and data[field_name] is not None
+                and isinstance(data[field_name], str)
+            ):
+                try:
+                    data[field_name] = Decimal(data[field_name])
+                except (ValueError, TypeError) as e:
+                    raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
+
+        return cls(**data)

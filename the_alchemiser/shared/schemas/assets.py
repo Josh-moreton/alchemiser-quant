@@ -1,8 +1,8 @@
 """Business Unit: shared; Status: current.
 
-Asset Information schemas.
+Asset Information DTO.
 
-Defines schemas for standardized asset metadata representation
+Defines the AssetInfo for standardized asset metadata representation
 including fractionability support as required for non-fractionable asset handling.
 """
 
@@ -12,9 +12,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class AssetInfo(BaseModel):
-    """Schema for asset information including trading characteristics.
+    """DTO for asset information including trading characteristics.
 
-    This schema provides standardized asset metadata with strict typing
+    This DTO provides standardized asset metadata with strict typing
     and validation, particularly for fractionability support.
     """
 

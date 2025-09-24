@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Business Unit: shared | Status: current.
 
-Strategy allocation schemas for inter-module communication.
+Strategy allocation data transfer objects for inter-module communication.
 
-Provides typed schemas for strategy allocation plans with correlation tracking
+Provides typed DTOs for strategy allocation plans with correlation tracking
 and serialization helpers for communication between strategy and portfolio modules.
 """
 
@@ -19,7 +19,7 @@ from ..utils.timezone_utils import ensure_timezone_aware
 
 
 class StrategyAllocation(BaseModel):
-    """Schema for strategy allocation plan.
+    """DTO for strategy allocation plan.
 
     Contains target weights for portfolio rebalancing with optional constraints
     and metadata for correlation tracking.
@@ -55,101 +55,111 @@ class StrategyAllocation(BaseModel):
     def validate_weights(cls, v: dict[str, Decimal]) -> dict[str, Decimal]:
         """Validate target weights."""
         if not v:
-            msg = "target_weights cannot be empty"
-            raise ValueError(msg)
+            raise ValueError("target_weights cannot be empty")
 
         # Normalize symbols to uppercase
         normalized = {}
-        for symbol, weight in v.items():
-            symbol_key = symbol.strip().upper()
-            if symbol_key in normalized:
-                msg = f"Duplicate symbol after normalization: {symbol_key}"
-                raise ValueError(msg)
-            if weight < 0 or weight > 1:
-                msg = f"Weight for {symbol_key} must be between 0 and 1, got {weight}"
-                raise ValueError(msg)
-            normalized[symbol_key] = weight
+        total_weight = Decimal("0")
 
-        # Check total weight doesn't exceed 1.0 (allowing slight precision error)
-        total_weight = sum(normalized.values())
-        if total_weight > Decimal("1.01"):
-            msg = f"Total weight {total_weight} exceeds 1.0"
-            raise ValueError(msg)
+        for symbol, weight in v.items():
+            if not symbol or not isinstance(symbol, str):
+                raise ValueError(f"Invalid symbol: {symbol}")
+
+            symbol_upper = symbol.strip().upper()
+            if symbol_upper in normalized:
+                raise ValueError(f"Duplicate symbol: {symbol_upper}")
+
+            if weight < 0 or weight > 1:
+                raise ValueError(f"Weight for {symbol_upper} must be between 0 and 1, got {weight}")
+
+            normalized[symbol_upper] = weight
+            total_weight += weight
+
+        # Allow small tolerance for weight sum (common with floating point conversions)
+        if not (Decimal("0.99") <= total_weight <= Decimal("1.01")):
+            raise ValueError(f"Total weights must sum to ~1.0, got {total_weight}")
 
         return normalized
+
+    @field_validator("correlation_id")
+    @classmethod
+    def validate_correlation_id(cls, v: str) -> str:
+        """Validate correlation ID format."""
+        v = v.strip()
+        if not v:
+            raise ValueError("correlation_id cannot be empty")
+        return v
 
     @field_validator("as_of")
     @classmethod
     def ensure_timezone_aware_as_of(cls, v: datetime | None) -> datetime | None:
         """Ensure as_of timestamp is timezone-aware."""
+        if v is None:
+            return None
         return ensure_timezone_aware(v)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> StrategyAllocation:
-        """Create StrategyAllocation from dictionary data with type conversion.
+        """Create DTO from dictionary with type conversion.
 
         Args:
-            data: Dictionary containing allocation data
+            data: Dictionary containing DTO fields
 
         Returns:
-            StrategyAllocation instance with properly typed fields
+            StrategyAllocation instance
+
+        Raises:
+            ValueError: If data is invalid or cannot be converted
 
         """
-        # Create a copy to avoid mutating the original
-        processed_data = data.copy()
+        converted_data = data.copy()
 
-        # Convert target_weights from string decimals if needed
-        if "target_weights" in processed_data:
-            weights = processed_data["target_weights"]
-            if isinstance(weights, dict):
-                processed_weights = {}
-                for symbol, weight in weights.items():
-                    if isinstance(weight, str):
-                        processed_weights[symbol] = Decimal(weight)
-                    else:
-                        processed_weights[symbol] = weight
-                processed_data["target_weights"] = processed_weights
+        # Convert target weights
+        if "target_weights" in converted_data:
+            converted_data["target_weights"] = cls._convert_target_weights(
+                converted_data["target_weights"]
+            )
 
-        # Convert portfolio_value from string if needed
-        if (
-            "portfolio_value" in processed_data
-            and processed_data["portfolio_value"] is not None
-            and isinstance(processed_data["portfolio_value"], str)
-        ):
-            processed_data["portfolio_value"] = Decimal(processed_data["portfolio_value"])
+        # Convert portfolio value
+        if "portfolio_value" in converted_data:
+            converted_data["portfolio_value"] = cls._convert_portfolio_value(
+                converted_data["portfolio_value"]
+            )
 
-        # Convert as_of from string if needed
-        if (
-            "as_of" in processed_data
-            and processed_data["as_of"] is not None
-            and isinstance(processed_data["as_of"], str)
-        ):
-            processed_data["as_of"] = datetime.fromisoformat(processed_data["as_of"])
+        return cls(**converted_data)
 
-        return cls(**processed_data)
+    @classmethod
+    def _convert_target_weights(
+        cls, weights_data: dict[str, float | Decimal | int | str]
+    ) -> dict[str, Decimal]:
+        """Convert target weights to Decimal format."""
+        if not isinstance(weights_data, dict):
+            return weights_data
 
-    def to_dict(self) -> dict[str, Any]:
-        """Convert schema to dictionary for serialization.
+        converted_weights = {}
+        for symbol, weight in weights_data.items():
+            try:
+                if isinstance(weight, str):
+                    converted_weights[symbol] = Decimal(weight)
+                else:
+                    converted_weights[symbol] = Decimal(str(weight))
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"Invalid weight value for {symbol}: {weight}") from e
 
-        Returns:
-            Dictionary representation with properly serialized values.
+        return converted_weights
 
-        """
-        data = self.model_dump()
+    @classmethod
+    def _convert_portfolio_value(
+        cls, portfolio_value: float | Decimal | int | str | None
+    ) -> Decimal | None:
+        """Convert portfolio value to Decimal if needed."""
+        if portfolio_value is None:
+            return None
 
-        # Convert target_weights decimals to strings
-        if data.get("target_weights"):
-            weights = {}
-            for symbol, weight in data["target_weights"].items():
-                weights[symbol] = str(weight)
-            data["target_weights"] = weights
+        if not isinstance(portfolio_value, str):
+            return Decimal(portfolio_value)
 
-        # Convert portfolio_value to string
-        if data.get("portfolio_value") is not None:
-            data["portfolio_value"] = str(data["portfolio_value"])
-
-        # Convert as_of to ISO string
-        if data.get("as_of"):
-            data["as_of"] = data["as_of"].isoformat()
-
-        return data
+        try:
+            return Decimal(portfolio_value)
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid portfolio_value: {portfolio_value}") from e

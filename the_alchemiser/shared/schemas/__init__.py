@@ -28,8 +28,8 @@ from .errors import (
     ErrorReportSummary,
     ErrorSummaryData,
 )
+from .market_bars import MarketBar
 from .market_data import (
-    MarketBar,
     MarketStatusResult,
     MultiSymbolQuotesResult,
     PriceHistoryResult,

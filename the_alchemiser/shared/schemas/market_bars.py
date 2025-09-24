@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Business Unit: shared | Status: current.
 
-Market bar data transfer objects for strategy consumption.
+Market bar schemas for strategy consumption.
 
-Provides typed DTOs specifically for OHLCV bar data used by strategy engines,
+Provides typed schemas specifically for OHLCV bar data used by strategy engines,
 with optimized structure for technical analysis and indicator calculations.
 """
 

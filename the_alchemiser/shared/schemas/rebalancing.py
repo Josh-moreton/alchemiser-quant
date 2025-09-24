@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Business Unit: shared | Status: current.
 
-Rebalance plan schemas for inter-module communication.
+Rebalance plan data transfer objects for inter-module communication.
 
-Provides typed schemas for portfolio rebalancing plans with correlation tracking
+Provides typed DTOs for portfolio rebalancing plans with correlation tracking
 and serialization helpers for communication between portfolio and execution modules.
 """
 
@@ -24,7 +24,7 @@ from ..utils.timezone_utils import ensure_timezone_aware
 
 
 class RebalancePlanItem(BaseModel):
-    """Schema for individual rebalance plan item."""
+    """DTO for individual rebalance plan item."""
 
     model_config = ConfigDict(
         strict=True,
@@ -53,13 +53,17 @@ class RebalancePlanItem(BaseModel):
 
     @field_validator("action")
     @classmethod
-    def normalize_action(cls, v: str) -> str:
-        """Normalize action to uppercase."""
-        return v.strip().upper()
+    def validate_action(cls, v: str) -> str:
+        """Validate action is supported."""
+        valid_actions = {"BUY", "SELL", "HOLD"}
+        action_upper = v.strip().upper()
+        if action_upper not in valid_actions:
+            raise ValueError(f"Action must be one of {valid_actions}, got {action_upper}")
+        return action_upper
 
 
 class RebalancePlan(BaseModel):
-    """Schema for complete rebalance plan data transfer.
+    """DTO for complete rebalance plan data transfer.
 
     Used for communication between portfolio and execution modules.
     Includes correlation tracking and serialization helpers.
@@ -77,109 +81,149 @@ class RebalancePlan(BaseModel):
     causation_id: str = Field(
         ..., min_length=1, description="Causation identifier for traceability"
     )
-    timestamp: datetime = Field(..., description="Plan creation timestamp")
+    timestamp: datetime = Field(..., description="Plan generation timestamp")
+
+    # Plan identification
+    plan_id: str = Field(..., min_length=1, description="Unique plan identifier")
+
+    # Plan content
+    items: list[RebalancePlanItem] = Field(
+        ..., min_length=1, description="List of rebalance plan items"
+    )
 
     # Plan metadata
-    plan_id: str = Field(..., min_length=1, description="Unique plan identifier")
-    portfolio_id: str = Field(..., min_length=1, description="Portfolio identifier")
-    strategy_name: str | None = Field(default=None, description="Strategy that generated the plan")
-
-    # Plan data
-    items: list[RebalancePlanItem] = Field(
-        ..., min_size=1, description="List of rebalance plan items"
-    )
-    total_trades: int = Field(..., ge=0, description="Total number of trades required")
-    estimated_cost: Decimal = Field(..., ge=0, description="Estimated execution cost")
-
-    # Plan status
-    is_valid: bool = Field(..., description="Whether the plan is valid for execution")
-    validation_errors: list[str] = Field(
-        default_factory=list, description="Plan validation error messages"
+    total_portfolio_value: Decimal = Field(..., ge=0, description="Total portfolio value")
+    total_trade_value: Decimal = Field(..., description="Total absolute trade value")
+    max_drift_tolerance: Decimal = Field(
+        default=Decimal("0.05"), ge=0, le=1, description="Maximum drift tolerance (0-1)"
     )
 
-    # Execution metadata
-    priority_levels: int = Field(..., ge=1, le=5, description="Number of priority levels")
-    requires_manual_review: bool = Field(
-        default=False, description="Whether plan requires manual review"
+    # Optional execution hints
+    execution_urgency: str = Field(
+        default="NORMAL", description="Execution urgency (LOW, NORMAL, HIGH, URGENT)"
     )
+    estimated_duration_minutes: int | None = Field(
+        default=None, ge=1, description="Estimated execution duration in minutes"
+    )
+
+    # Optional metadata
+    metadata: dict[str, Any] | None = Field(default=None, description="Additional plan metadata")
+
+    @field_validator("execution_urgency")
+    @classmethod
+    def validate_urgency(cls, v: str) -> str:
+        """Validate execution urgency."""
+        valid_urgencies = {"LOW", "NORMAL", "HIGH", "URGENT"}
+        urgency_upper = v.strip().upper()
+        if urgency_upper not in valid_urgencies:
+            raise ValueError(f"Urgency must be one of {valid_urgencies}, got {urgency_upper}")
+        return urgency_upper
 
     @field_validator("timestamp")
     @classmethod
     def ensure_timezone_aware_timestamp(cls, v: datetime) -> datetime:
         """Ensure timestamp is timezone-aware."""
-        return ensure_timezone_aware(v)
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> RebalancePlan:
-        """Create RebalancePlan from dictionary data with type conversion.
-
-        Args:
-            data: Dictionary containing rebalance plan data
-
-        Returns:
-            RebalancePlan instance with properly typed fields
-
-        """
-        # Create a copy to avoid mutating the original
-        processed_data = data.copy()
-
-        # Convert datetime fields from strings if needed
-        convert_datetime_fields_from_dict(processed_data, ["timestamp"])
-
-        # Convert decimal fields from strings if needed
-        convert_decimal_fields_from_dict(processed_data, ["estimated_cost"])
-
-        # Convert items data to RebalancePlanItem objects
-        cls._convert_items(processed_data)
-
-        return cls(**processed_data)
-
-    @classmethod
-    def _convert_items(cls, data: dict[str, Any]) -> None:
-        """Convert items data to RebalancePlanItem objects."""
-        if "items" in data and isinstance(data["items"], list):
-            items_data = []
-            for item_data in data["items"]:
-                if isinstance(item_data, dict):
-                    # Convert nested item data using utility function
-                    convert_nested_rebalance_item_data(item_data)
-                    items_data.append(RebalancePlanItem(**item_data))
-                else:
-                    items_data.append(item_data)  # Assume already a schema
-            data["items"] = items_data
+        result = ensure_timezone_aware(v)
+        if result is None:
+            raise ValueError("timestamp cannot be None")
+        return result
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert schema to dictionary for serialization.
+        """Convert DTO to dictionary for serialization.
 
         Returns:
-            Dictionary representation with properly serialized values.
+            Dictionary representation of the DTO with properly serialized values.
 
         """
         data = self.model_dump()
 
-        # Convert datetime fields to ISO strings
-        if data.get("timestamp"):
-            data["timestamp"] = data["timestamp"].isoformat()
+        # Convert datetime to ISO string
+        if self.timestamp:
+            data["timestamp"] = self.timestamp.isoformat()
 
-        # Convert decimal fields to strings
-        if data.get("estimated_cost") is not None:
-            data["estimated_cost"] = str(data["estimated_cost"])
+        # Convert Decimal fields to string for JSON serialization
+        decimal_fields = [
+            "total_portfolio_value",
+            "total_trade_value",
+            "max_drift_tolerance",
+        ]
+        for field_name in decimal_fields:
+            if data.get(field_name) is not None:
+                data[field_name] = str(data[field_name])
 
-        # Convert items data to dictionaries
-        if data.get("items"):
-            for item_data in data["items"]:
-                if isinstance(item_data, dict):
-                    # Convert decimals to strings
-                    decimal_fields = [
-                        "current_weight",
-                        "target_weight",
-                        "weight_diff",
-                        "target_value",
-                        "current_value",
-                        "trade_amount",
-                    ]
-                    for field_name in decimal_fields:
-                        if item_data.get(field_name) is not None:
-                            item_data[field_name] = str(item_data[field_name])
+        # Convert nested items
+        if "items" in data:
+            items_data = []
+            for item in data["items"]:
+                item_dict = dict(item)
+                # Convert Decimal fields in items
+                item_decimal_fields = [
+                    "current_weight",
+                    "target_weight",
+                    "weight_diff",
+                    "target_value",
+                    "current_value",
+                    "trade_amount",
+                ]
+                for field_name in item_decimal_fields:
+                    if item_dict.get(field_name) is not None:
+                        item_dict[field_name] = str(item_dict[field_name])
+                items_data.append(item_dict)
+            data["items"] = items_data
 
         return data
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> RebalancePlan:
+        """Create DTO from dictionary.
+
+        Args:
+            data: Dictionary containing DTO data
+
+        Returns:
+            RebalancePlan instance
+
+        Raises:
+            ValueError: If data is invalid or missing required fields
+
+        """
+        # Convert string timestamp back to datetime
+        datetime_fields = ["timestamp"]
+        convert_datetime_fields_from_dict(data, datetime_fields)
+
+        # Convert string decimal fields back to Decimal
+        decimal_fields = [
+            "total_portfolio_value",
+            "total_trade_value",
+            "max_drift_tolerance",
+        ]
+        convert_decimal_fields_from_dict(data, decimal_fields)
+
+        # Convert items if present
+        data["items"] = cls._convert_items_from_dict(data.get("items", []))
+
+        return cls(**data)
+
+    @classmethod
+    def _convert_items_from_dict(cls, items: list[Any]) -> list[RebalancePlanItem]:
+        """Convert items list from dictionary format.
+
+        Args:
+            items: List of item data (dicts or DTOs)
+
+        Returns:
+            List of RebalancePlanItem instances
+
+        """
+        if not isinstance(items, list):
+            return []
+
+        items_data = []
+        for item_data in items:
+            if isinstance(item_data, dict):
+                converted_item = convert_nested_rebalance_item_data(dict(item_data))
+                items_data.append(RebalancePlanItem(**converted_item))
+            else:
+                items_data.append(item_data)  # Assume already a DTO
+
+        return items_data
