@@ -73,16 +73,48 @@ alpaca_manager = AlpacaManager(api_key, secret_key, paper=True)
 
 **Recommended Architecture (Target State)**:
 
-- **Single instantiation point per stream type**:
-  - `StockDataStream`: Only through `WebSocketConnectionManager.get_pricing_service()`
-  - `TradingStream`: Only through `AlpacaManager` (but should use factory internally)
+- **ALL WebSocket streams should be managed by WebSocketConnectionManager**:
+  - `StockDataStream`: Through `WebSocketConnectionManager.get_pricing_service()`
+  - `TradingStream`: Should ALSO be managed by `WebSocketConnectionManager.get_trading_service()`
+  - `AlpacaManager`: Should request WebSocket services from `WebSocketConnectionManager`, not create them directly
 
 **Issues with Current Design**:
 
-- Inconsistent control patterns
-- Factory functions exist but aren't universally used
-- Potential for bypassing singleton protections
-- Violation of single responsibility principle
+- **Split WebSocket Management**: `StockDataStream` managed by `WebSocketConnectionManager`, `TradingStream` managed by `AlpacaManager`
+- **Violation of Single Responsibility**: `AlpacaManager` should handle business logic, not WebSocket lifecycle management
+- **Inconsistent patterns**: Different managers for similar WebSocket technologies
+- **Potential for connection conflicts**: Two different managers could potentially create overlapping connections
+- **Difficult debugging**: WebSocket issues scattered across multiple files instead of centralized
+
+**Correct Architecture Should Be**:
+
+```python
+# ✅ WebSocketConnectionManager should manage ALL WebSocket streams
+class WebSocketConnectionManager:
+    def get_pricing_service(self) -> RealTimePricingService:
+        """Manage StockDataStream for market data"""
+        
+    def get_trading_service(self) -> TradingService:
+        """Manage TradingStream for order updates"""
+        
+    def get_trading_stream(self) -> TradingStream:
+        """Direct access to TradingStream if needed"""
+
+# ✅ AlpacaManager should request WebSocket services, not create them
+class AlpacaManager:
+    def __init__(self, ...):
+        # Get WebSocket services from centralized manager
+        self.ws_manager = WebSocketConnectionManager(...)
+        self.trading_stream = self.ws_manager.get_trading_stream()
+```
+
+**Benefits of Correct Architecture**:
+
+- **Single Source of Truth**: All WebSocket connections managed in one place
+- **Consistent Patterns**: Same management approach for all WebSocket types
+- **Better Debugging**: All connection issues traceable to one component
+- **Separation of Concerns**: Business logic (AlpacaManager) separate from connection management (WebSocketConnectionManager)
+- **Easier Testing**: Mock one component to test WebSocket behavior
 
 ## Thread Safety & Race Condition Protection
 
