@@ -1150,7 +1150,7 @@ class TradingOrchestrator:
 
             # Apply derived message if we computed one
             if derived_error and derived_error.strip():
-                return derived_error
+                error_message = derived_error
         except Exception as derivation_exc:
             self.logger.debug(
                 "Failed to derive detailed error message: %s",
