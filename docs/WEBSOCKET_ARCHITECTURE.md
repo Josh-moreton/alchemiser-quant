@@ -11,12 +11,14 @@ This document describes the robust WebSocket connection management architecture 
 **Purpose**: Centralizes WebSocket data stream connections to prevent connection limit exceeded errors.
 
 **Key Features**:
+
 - Singleton pattern per credentials (`api_key:secret_key:paper_trading`)
 - Reference counting for proper service lifecycle management
 - Thread-safe creation and cleanup with race condition protection
 - Provides shared `RealTimePricingService` instances
 
 **Usage**:
+
 ```python
 # All components should use this pattern
 ws_manager = WebSocketConnectionManager(api_key, secret_key, paper_trading=True)
@@ -31,12 +33,14 @@ ws_manager.release_pricing_service()
 **Purpose**: Centralized Alpaca client management with singleton behavior for TradingStream connections.
 
 **Key Features**:
+
 - Singleton pattern per credentials (`api_key:secret_key:paper:base_url`)
 - Manages TradingStream for order updates
 - Thread-safe creation and cleanup with race condition protection
 - Implements domain interfaces for type safety
 
 **Usage**:
+
 ```python
 # All components should use this pattern
 alpaca_manager = AlpacaManager(api_key, secret_key, paper=True)
@@ -48,39 +52,56 @@ alpaca_manager = AlpacaManager(api_key, secret_key, paper=True)
 **Purpose**: Provides real-time stock price updates via Alpaca's WebSocket streams.
 
 **Key Features**:
+
 - Uses factory pattern through `WebSocketConnectionManager`
 - No direct `StockDataStream` instantiation
 - Proper connection reuse and cleanup
 
 ## Connection Creation Points
 
-The architecture has only **2 controlled WebSocket instantiation points**:
+⚠️ **ARCHITECTURAL DEBT**: The current architecture has 2 instantiation points which represents a design flaw that should be addressed:
 
-1. **`shared/brokers/alpaca_utils.py`**: Factory functions for controlled instantiation
-   - `create_trading_stream()`
-   - `create_stock_data_stream()`
+**Current State (Suboptimal)**:
 
-2. **`shared/brokers/alpaca_manager.py`**: TradingStream creation in `_ensure_trading_stream()`
-   - Protected by singleton pattern
-   - Thread-safe with proper locking
+1. **`shared/brokers/alpaca_utils.py`**: Factory functions (inconsistently used)
+   - `create_trading_stream()` - bypassed by AlpacaManager
+   - `create_stock_data_stream()` - properly used through WebSocketConnectionManager
+
+2. **`shared/brokers/alpaca_manager.py`**: Direct TradingStream instantiation
+   - `_ensure_trading_stream()` directly calls `TradingStream()` constructor
+   - Violates factory pattern and centralized control
+
+**Recommended Architecture (Target State)**:
+
+- **Single instantiation point per stream type**:
+  - `StockDataStream`: Only through `WebSocketConnectionManager.get_pricing_service()`
+  - `TradingStream`: Only through `AlpacaManager` (but should use factory internally)
+
+**Issues with Current Design**:
+
+- Inconsistent control patterns
+- Factory functions exist but aren't universally used
+- Potential for bypassing singleton protections
+- Violation of single responsibility principle
 
 ## Thread Safety & Race Condition Protection
 
-### Implemented Protections:
+### Implemented Protections
 
 1. **Cleanup Coordination**: `_cleanup_in_progress` flag prevents race conditions during cleanup
 2. **Wait Mechanism**: New instance creation waits for cleanup completion
 3. **Thread-Safe Cleanup**: Uses instance copying to avoid dictionary modification issues
 4. **Proper Locking**: All critical sections protected with class-level locks
 
-### Race Condition Prevention:
+### Race Condition Prevention
+
 ```python
 # WebSocketConnectionManager.__new__()
 with cls._lock:
     # Wait for any cleanup to complete
     while cls._cleanup_in_progress:
         time.sleep(0.001)
-    
+
     if credentials_key not in cls._instances:
         instance = super().__new__(cls)
         cls._instances[credentials_key] = instance
@@ -100,12 +121,13 @@ ws_health = WebSocketConnectionManager.get_connection_health()
 print(f"Total WS instances: {ws_health['total_instances']}")
 print(f"Cleanup in progress: {ws_health['cleanup_in_progress']}")
 
-# Get Alpaca manager health  
+# Get Alpaca manager health
 alpaca_health = AlpacaManager.get_connection_health()
 print(f"Total Alpaca instances: {alpaca_health['total_instances']}")
 ```
 
-### Health Information Includes:
+### Health Information Includes
+
 - Total instance counts
 - Cleanup status
 - Individual instance details:
@@ -122,7 +144,7 @@ print(f"Total Alpaca instances: {alpaca_health['total_instances']}")
 # Strategy components
 orchestrator = create_orchestrator(api_key, secret_key, paper=True)
 
-# Execution components  
+# Execution components
 alpaca_manager = AlpacaManager(api_key, secret_key, paper=True)
 executor = Executor(alpaca_manager, enable_smart_execution=True)
 
@@ -142,6 +164,7 @@ WebSocketConnectionManager.cleanup_all_instances()  # Should only be called at a
 ## Application Lifecycle Management
 
 ### Startup
+
 Components can be created in any order - the singleton patterns ensure connection reuse:
 
 ```python
@@ -152,6 +175,7 @@ ws_manager = WebSocketConnectionManager(api_key, secret_key, paper_trading=True)
 ```
 
 ### Shutdown
+
 Clean shutdown should call cleanup methods once:
 
 ```python
@@ -163,10 +187,12 @@ AlpacaManager.cleanup_all_instances()
 ## Connection Limits & Best Practices
 
 ### Alpaca Connection Limits
+
 - **StockDataStream**: 1 per API key (enforced by singleton pattern)
 - **TradingStream**: 1 per API key (enforced by singleton pattern)
 
 ### Best Practices
+
 1. **Use Factory Functions**: Always use `create_orchestrator()` and similar factory functions
 2. **Single Cleanup**: Only call cleanup methods during application shutdown
 3. **Monitor Health**: Use health monitoring APIs to track connection status
@@ -178,11 +204,12 @@ The architecture has been comprehensively tested with:
 
 - **Singleton Behavior**: 20 concurrent threads all receive same instances
 - **Race Condition Protection**: No duplicate instances under concurrent access
-- **Memory Leak Prevention**: Multiple create/cleanup cycles leave no residual instances  
+- **Memory Leak Prevention**: Multiple create/cleanup cycles leave no residual instances
 - **Health Monitoring**: Full visibility into connection state
 - **Integration Testing**: All components properly share connections
 
 ### Test Results Summary
+
 - ✅ 17/17 comprehensive tests passed (100% success rate)
 - ✅ Zero connection limit exceeded errors possible
 - ✅ 100% WebSocket connection reuse across components
@@ -222,9 +249,9 @@ for key, info in ws_health['instances'].items():
 
 ## Success Metrics Achieved
 
-🏆 **Zero connection limit exceeded errors**: Singleton patterns prevent duplicates  
-🏆 **100% WebSocket connection reuse**: All components share connections correctly  
-🏆 **Sub-second connection establishment**: Instant singleton retrieval  
-🏆 **Zero memory leaks**: Proper cleanup prevents resource buildup  
-🏆 **99.9% connection reliability**: Robust error handling and race condition fixes  
+🏆 **Zero connection limit exceeded errors**: Singleton patterns prevent duplicates
+🏆 **100% WebSocket connection reuse**: All components share connections correctly
+🏆 **Sub-second connection establishment**: Instant singleton retrieval
+🏆 **Zero memory leaks**: Proper cleanup prevents resource buildup
+🏆 **99.9% connection reliability**: Robust error handling and race condition fixes
 🏆 **Full observability**: Comprehensive health monitoring and logging
