@@ -496,6 +496,9 @@ class TradingOrchestrator:
                 }
             )
 
+            # Determine status based on whether trades were executed
+            status = REBALANCE_PLAN_GENERATED if rebalance_plan else NO_TRADES_REQUIRED
+
             # Return results for CLI
             return {
                 "strategy_signals": strategy_signals,
@@ -509,6 +512,7 @@ class TradingOrchestrator:
                 "open_orders": open_orders,
                 "success": True,
                 "message": "Direct trading workflow completed successfully",
+                "status": status,
                 "correlation_id": correlation_id,
             }
 

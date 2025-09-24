@@ -65,9 +65,12 @@ Globals:
         EMAIL__FROM_EMAIL: josh@rwxt.org
         EMAIL__TO_EMAIL: josh@rwxt.org
         EMAIL__NEUTRAL_MODE: true
-        # Strategy DSL configuration - matches .env file exactly
-        STRATEGY__DSL_FILES: '["Phoenix.clj","Nuclear.clj","TQQQ-FLT.clj","TECL.clj","Starburst.clj","Grail.clj"]'
-        STRATEGY__DSL_ALLOCATIONS: '{"Phoenix.clj":0.15,"Nuclear.clj":0.15,"TQQQ-FLT.clj":0.15,"TECL.clj":0.15,"Starburst.clj":0.2,"Grail.clj":0.2}'
+        # Strategy DSL configuration - matches current .env file exactly
+        STRATEGY__DSL_FILES: '["KLM.clj","Nuclear.clj","TECL.clj","TQQQ-FLT.clj"]'
+        STRATEGY__DSL_ALLOCATIONS: '{"KLM.clj":0.25,"Nuclear.clj":0.25,"TECL.clj":0.25,"TQQQ-FLT.clj":0.25}'
+        # DSL parallelism configuration
+        ALCHEMISER_DSL_PARALLELISM: threads
+        ALCHEMISER_DSL_MAX_WORKERS: 5
 
 Resources:
   # Lambda Layer for dependencies

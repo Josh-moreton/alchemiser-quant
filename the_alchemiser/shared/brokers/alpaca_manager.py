@@ -22,7 +22,7 @@ import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from secrets import randbelow
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 # Type checking imports to avoid circular dependencies
 from alpaca.data.historical import StockHistoricalDataClient
@@ -36,7 +36,6 @@ from alpaca.trading.requests import (
     LimitOrderRequest,
     MarketOrderRequest,
 )
-from alpaca.trading.stream import TradingStream
 
 from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
 from the_alchemiser.shared.dto.asset_info_dto import AssetInfoDTO
@@ -88,8 +87,9 @@ HTTPError = _HTTPErrorImported
 RequestException = _RequestExcImported
 
 if TYPE_CHECKING:
-    # Future imports for type checking can be added here as needed
-    pass
+    from the_alchemiser.shared.services.websocket_manager import (
+        WebSocketConnectionManager,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +105,36 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     - TradingRepository: For order placement and position management
     - MarketDataRepository: For market data and quotes
     - AccountRepository: For account information and portfolio data
+
+    Uses singleton behavior per credentials to prevent multiple WebSocket connections.
     """
+
+    _instances: ClassVar[dict[str, AlpacaManager]] = {}
+    _lock: ClassVar[threading.Lock] = threading.Lock()
+    _cleanup_in_progress: ClassVar[bool] = False
+    _initialized: bool
+
+    def __new__(
+        cls,
+        api_key: str,
+        secret_key: str,
+        *,
+        paper: bool = True,
+        base_url: str | None = None,
+    ) -> AlpacaManager:
+        """Create or return existing instance for the given credentials."""
+        credentials_key = f"{api_key}:{secret_key}:{paper}:{base_url}"
+
+        with cls._lock:
+            # Wait for any cleanup to complete
+            while cls._cleanup_in_progress:
+                time.sleep(0.001)  # Brief wait for cleanup to finish
+
+            if credentials_key not in cls._instances:
+                instance = super().__new__(cls)
+                cls._instances[credentials_key] = instance
+                instance._initialized = False
+            return cls._instances[credentials_key]
 
     def __init__(
         self,
@@ -115,7 +144,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         paper: bool = True,
         base_url: str | None = None,
     ) -> None:
-        """Initialize Alpaca clients.
+        """Initialize Alpaca clients (only once per credentials).
 
         Args:
             api_key: Alpaca API key
@@ -124,6 +153,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             base_url: Optional custom base URL
 
         """
+        # Skip initialization if already initialized (singleton pattern)
+        if hasattr(self, "_initialized") and self._initialized:
+            return
+
         self._api_key = api_key
         self._secret_key = secret_key
         self._paper = paper
@@ -144,20 +177,23 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to initialize Alpaca clients: {e}")
             raise
 
-        # Trading WebSocket (order updates) state
-        self._trading_stream: TradingStream | None = None
-        self._trading_stream_thread: threading.Thread | None = None
-        self._trading_ws_connected: bool = False
-        self._trading_ws_lock = threading.Lock()
+        # Order tracking for WebSocket updates
         self._order_events: dict[str, threading.Event] = {}
         self._order_status: dict[str, str] = {}
         self._order_avg_price: dict[str, Decimal | None] = {}
+
+        # WebSocket connection manager (for centralized WebSocket management)
+        self._websocket_manager: WebSocketConnectionManager | None = None
+        self._trading_service_active: bool = False
 
         # Asset metadata cache with TTL
         self._asset_cache: dict[str, AssetInfoDTO] = {}
         self._asset_cache_timestamps: dict[str, float] = {}
         self._asset_cache_ttl = 300.0  # 5 minutes TTL
         self._asset_cache_lock = threading.Lock()
+
+        # Mark as initialized to prevent re-initialization
+        self._initialized = True
 
     @property
     def is_paper_trading(self) -> bool:
@@ -1828,35 +1864,32 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     # ---- TradingStream helpers ----
     def _ensure_trading_stream(self) -> None:
-        """Ensure TradingStream is running and subscribed to trade updates."""
-        with self._trading_ws_lock:
-            if self._trading_stream and self._trading_ws_connected:
-                return
-            try:
-                self._trading_stream = TradingStream(
-                    self._api_key, self._secret_key, paper=self._paper
-                )
-                self._trading_stream.subscribe_trade_updates(self._on_order_update)
+        """Ensure TradingStream is running via WebSocketConnectionManager."""
+        if self._trading_service_active:
+            return
 
-                def _runner() -> None:
-                    try:
-                        ts = self._trading_stream
-                        if ts is not None:
-                            ts.run()
-                    except Exception as exc:
-                        logger.error(f"TradingStream terminated: {exc}")
-                    finally:
-                        self._trading_ws_connected = False
+        try:
+            # Import here to avoid circular dependency
+            from the_alchemiser.shared.services.websocket_manager import (
+                WebSocketConnectionManager,
+            )
 
-                self._trading_ws_connected = True
-                self._trading_stream_thread = threading.Thread(
-                    target=_runner, name="AlpacaTradingWS", daemon=True
+            # Get or create the shared WebSocket manager
+            if self._websocket_manager is None:
+                self._websocket_manager = WebSocketConnectionManager(
+                    self._api_key, self._secret_key, paper_trading=self._paper
                 )
-                self._trading_stream_thread.start()
-                logger.info("✅ TradingStream started (order updates)")
-            except Exception as exc:
-                logger.error(f"Failed to start TradingStream: {exc}")
-                self._trading_ws_connected = False
+
+            # Request trading service from the manager
+            if self._websocket_manager.get_trading_service(self._on_order_update):
+                self._trading_service_active = True
+                logger.info("✅ TradingStream service activated via WebSocketConnectionManager")
+            else:
+                logger.error("❌ Failed to activate TradingStream service")
+
+        except Exception as exc:
+            logger.error(f"Failed to ensure TradingStream via WebSocketConnectionManager: {exc}")
+            self._trading_service_active = False
 
     def _extract_event_and_order(
         self, data: dict[str, Any] | object
@@ -2010,6 +2043,58 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     # Note: MarketDataPort implementation removed to avoid protocol compliance issues
     # AlpacaManager provides market data functionality through direct methods
     # without implementing the full MarketDataPort protocol
+
+    @classmethod
+    def cleanup_all_instances(cls) -> None:
+        """Clean up all AlpacaManager instances and their WebSocket connections."""
+        with cls._lock:
+            cls._cleanup_in_progress = True
+            try:
+                # Create a copy of instances to avoid dictionary modification during iteration
+                instances_to_cleanup = list(cls._instances.values())
+
+                for instance in instances_to_cleanup:
+                    try:
+                        # Release trading service from WebSocketConnectionManager
+                        if hasattr(instance, "_websocket_manager") and instance._websocket_manager:
+                            logger.info(
+                                "Releasing TradingStream service from WebSocketConnectionManager"
+                            )
+                            instance._websocket_manager.release_trading_service()
+                            instance._trading_service_active = False
+                    except Exception as e:
+                        logger.error(f"Error cleaning up AlpacaManager instance: {e}")
+
+                cls._instances.clear()
+                logger.info("All AlpacaManager instances cleaned up")
+            finally:
+                cls._cleanup_in_progress = False
+
+    @classmethod
+    def get_connection_health(cls) -> dict[str, Any]:
+        """Get health status of all AlpacaManager instances."""
+        with cls._lock:
+            health_info: dict[str, Any] = {
+                "total_instances": len(cls._instances),
+                "cleanup_in_progress": cls._cleanup_in_progress,
+                "instances": {},
+            }
+
+            for key, instance in cls._instances.items():
+                try:
+                    health_info["instances"][key] = {
+                        "paper_trading": instance._paper,
+                        "trading_service_active": getattr(
+                            instance, "_trading_service_active", False
+                        ),
+                        "initialized": getattr(instance, "_initialized", False),
+                        "websocket_manager_available": getattr(instance, "_websocket_manager", None)
+                        is not None,
+                    }
+                except Exception as e:
+                    health_info["instances"][key] = {"status": "error", "error": str(e)}
+
+            return health_info
 
     def __repr__(self) -> str:
         """Return string representation."""
