@@ -49,8 +49,10 @@ def _display_strategy_signals(signals_result: dict[str, Any]) -> None:
 
     if signal_details:
         print("\n📡 Strategy Signals:")
+        logger.info("📡 Strategy Signals:")
         for detail in signal_details:
             print(f"  • {detail}")
+            logger.info(f"  • {detail}")
 
 
 def _process_strategy_signal(raw_name: object, data: object) -> str | None:
@@ -153,7 +155,11 @@ def display_rebalance_plan(trading_result: dict[str, Any]) -> None:
 
         # Handle NO_TRADES_REQUIRED status
         if status == NO_TRADES_REQUIRED:
-            print("\n⚖️  No rebalancing required - portfolio is already optimally allocated")
+            message = (
+                "⚖️  No rebalancing required - portfolio is already optimally allocated"
+            )
+            print(f"\n{message}")
+            logger.info(message)
             return
 
         # Handle REBALANCE_PLAN_GENERATED status
