@@ -11,16 +11,14 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from the_alchemiser.orchestration.trading_orchestrator import TradingOrchestrator
+from typing import Any
 
 from the_alchemiser.shared.dto.trade_run_result_dto import (
     ExecutionSummaryDTO,
     OrderResultSummaryDTO,
     TradeRunResultDTO,
 )
+from the_alchemiser.shared.protocols.orchestrator import TradingModeProvider
 
 
 def create_failure_result(
@@ -67,7 +65,7 @@ def create_failure_result(
 
 def create_success_result(
     trading_result: dict[str, Any],
-    orchestrator: TradingOrchestrator,
+    orchestrator: TradingModeProvider,
     started_at: datetime,
     completed_at: datetime,
     correlation_id: str,
@@ -236,7 +234,7 @@ def _determine_execution_status(*, success: bool, execution_summary: ExecutionSu
     return "FAILURE"
 
 
-def _determine_trading_mode(orchestrator: TradingOrchestrator) -> str:
+def _determine_trading_mode(orchestrator: TradingModeProvider) -> str:
     """Determine trading mode from orchestrator.
 
     Args:

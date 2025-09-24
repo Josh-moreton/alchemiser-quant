@@ -349,9 +349,12 @@ class SignalOrchestrator:
                 timestamp=datetime.now(UTC),
                 source_module="orchestration",
                 source_component="SignalOrchestrator",
-                signals=signal_dtos,
-                strategy_allocations=strategy_allocations,
+                signals_data={
+                    "signals": [signal.model_dump() for signal in signal_dtos],
+                    "strategy_allocations": strategy_allocations,
+                },
                 consolidated_portfolio=consolidated_decimal,
+                signal_count=len(signal_dtos),
             )
 
             self.event_bus.publish(event)

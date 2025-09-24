@@ -379,11 +379,6 @@ class RealTimePricingService:
             True if should break from retry loop, False to continue
 
         """
-        # Check circuit breaker before attempting connection
-        if not self._circuit_breaker.can_attempt_connection():
-            logging.warning(f"🔧 Circuit breaker blocking connection attempt #{attempt_number}")
-            return False
-
         logging.info(f"🔄 Attempting to start real-time data stream (attempt {attempt_number})")
 
         symbols_to_subscribe = self._get_symbols_to_subscribe()

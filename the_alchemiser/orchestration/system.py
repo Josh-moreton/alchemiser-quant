@@ -44,6 +44,23 @@ from the_alchemiser.shared.types.exceptions import (
 from the_alchemiser.shared.utils.service_factory import ServiceFactory
 
 
+class MinimalOrchestrator:
+    """Minimal orchestrator-like adapter for trading mode determination.
+
+    Provides a minimal interface to satisfy result factory requirements
+    when using event-driven orchestration without creating tight coupling.
+    """
+
+    def __init__(self, *, paper_trading: bool) -> None:
+        """Initialize with paper trading mode.
+
+        Args:
+            paper_trading: Whether this is paper trading mode
+
+        """
+        self.live_trading = not paper_trading
+
+
 class TradingSystem:
     """Main trading system orchestrator for initialization and execution delegation."""
 
@@ -149,29 +166,30 @@ class TradingSystem:
         warnings: list[str] = []
 
         try:
-            from the_alchemiser.orchestration.trading_orchestrator import (
-                TradingOrchestrator,
-            )
-
             if self.container is None:
                 return create_failure_result(
                     "DI container not initialized", started_at, correlation_id, warnings
                 )
 
-            # Create trading orchestrator directly
-            orchestrator = TradingOrchestrator(
-                settings=self.settings,
-                container=self.container,
-            )
+            # Try event-driven approach first, fallback to traditional orchestrator
+            use_event_driven = self.event_driven_orchestrator is not None
 
-            # Execute full workflow once: generate signals, analyze portfolio, and trade
-
-            try:
-                # Execute complete workflow once (signals + analysis + trading)
-                trading_result = orchestrator.execute_strategy_signals_with_trading()
-            except Exception:
-                # Fallback if anything fails
-                trading_result = orchestrator.execute_strategy_signals_with_trading()
+            if use_event_driven:
+                self.logger.info("🚀 Using event-driven orchestration for trading workflow")
+                trading_result = self._execute_trading_event_driven(
+                    correlation_id,
+                    started_at,
+                    show_tracking=show_tracking,
+                    export_tracking_json=export_tracking_json,
+                )
+            else:
+                self.logger.info("🔄 Using traditional orchestration (event-driven not available)")
+                trading_result = self._execute_trading_traditional(
+                    correlation_id,
+                    started_at,
+                    show_tracking=show_tracking,
+                    export_tracking_json=export_tracking_json,
+                )
 
             if trading_result is None:
                 return create_failure_result(
@@ -180,6 +198,131 @@ class TradingSystem:
                     correlation_id,
                     warnings,
                 )
+
+            return trading_result
+
+        except Exception as e:
+            return self._handle_trading_execution_error(
+                e,
+                show_tracking=show_tracking,
+                export_tracking_json=export_tracking_json,
+            )
+
+    def _execute_trading_event_driven(
+        self,
+        correlation_id: str,
+        started_at: datetime,
+        *,
+        show_tracking: bool,
+        export_tracking_json: str | None,
+    ) -> TradeRunResultDTO | None:
+        """Execute trading using event-driven orchestration.
+
+        Args:
+            correlation_id: Correlation ID for tracking
+            started_at: Start timestamp
+            show_tracking: Whether to display tracking
+            export_tracking_json: Path to export tracking JSON
+
+        Returns:
+            TradeRunResultDTO or None if failed
+
+        """
+        try:
+            if not self.event_driven_orchestrator:
+                self.logger.error("Event-driven orchestrator not available")
+                return None
+
+            # Start the event-driven workflow
+            workflow_correlation_id = self.event_driven_orchestrator.start_trading_workflow(
+                correlation_id=correlation_id
+            )
+
+            # Wait for workflow completion
+            workflow_result = self.event_driven_orchestrator.wait_for_workflow_completion(
+                workflow_correlation_id, timeout_seconds=300
+            )
+
+            if not workflow_result.get("success"):
+                self.logger.error(f"Event-driven workflow failed: {workflow_result}")
+                return None
+
+            # Collect results from workflow events
+            completed_at = datetime.now(UTC)
+
+            # Extract actual results from workflow_result
+            trading_result = {
+                "success": workflow_result.get("success", True),
+                "strategy_signals": workflow_result.get("strategy_signals", {}),
+                "rebalance_plan": workflow_result.get("rebalance_plan", {}),
+                "orders_executed": workflow_result.get("orders_executed", []),
+                "execution_summary": workflow_result.get("execution_summary", {}),
+            }
+
+            # Create a minimal orchestrator-like object for trading mode determination
+            minimal_orchestrator = MinimalOrchestrator(
+                paper_trading=self.settings.alpaca.paper_trading
+            )
+
+            return create_success_result(
+                trading_result=trading_result,
+                orchestrator=minimal_orchestrator,
+                started_at=started_at,
+                completed_at=completed_at,
+                correlation_id=correlation_id,
+                warnings=workflow_result.get("warnings", []),
+                success=workflow_result.get("success", True),
+            )
+
+        except Exception as e:
+            self.logger.error(f"Event-driven trading execution failed: {e}")
+            return None
+
+    def _execute_trading_traditional(
+        self,
+        correlation_id: str,
+        started_at: datetime,
+        *,
+        show_tracking: bool,
+        export_tracking_json: str | None,
+    ) -> TradeRunResultDTO | None:
+        """Execute trading using traditional orchestration (fallback).
+
+        Args:
+            correlation_id: Correlation ID for tracking
+            started_at: Start timestamp
+            show_tracking: Whether to display tracking
+            export_tracking_json: Path to export tracking JSON
+
+        Returns:
+            TradeRunResultDTO or None if failed
+
+        """
+        try:
+            from the_alchemiser.orchestration.trading_orchestrator import (
+                TradingOrchestrator,
+            )
+
+            # Ensure container is available
+            if self.container is None:
+                self.logger.error("DI container not available for traditional orchestrator")
+                return None
+
+            # Create trading orchestrator directly
+            orchestrator = TradingOrchestrator(
+                settings=self.settings,
+                container=self.container,
+            )
+
+            # Execute complete workflow once (signals + analysis + trading)
+            try:
+                trading_result = orchestrator.execute_strategy_signals_with_trading()
+            except Exception:
+                # Fallback if anything fails
+                trading_result = orchestrator.execute_strategy_signals_with_trading()
+
+            if trading_result is None:
+                return None
 
             # Show brief signals summary and the rebalance plan details
             display_signals_summary(trading_result)
@@ -210,11 +353,33 @@ class TradingSystem:
                 started_at=started_at,
                 completed_at=completed_at,
                 correlation_id=correlation_id,
-                warnings=warnings,
+                warnings=[],
                 success=success,
             )
 
-        except (TradingClientError, StrategyExecutionError) as e:
+        except Exception as e:
+            self.logger.error(f"Traditional trading execution failed: {e}")
+            return None
+
+    def _handle_trading_execution_error(
+        self, e: Exception, *, show_tracking: bool, export_tracking_json: str | None
+    ) -> TradeRunResultDTO:
+        """Handle trading execution errors with proper error handling and notifications.
+
+        Args:
+            e: The exception that occurred
+            show_tracking: Whether tracking was requested
+            export_tracking_json: Export path for tracking JSON
+
+        Returns:
+            TradeRunResultDTO representing the failure
+
+        """
+        started_at = datetime.now(UTC)
+        correlation_id = str(uuid.uuid4())
+        warnings: list[str] = []
+
+        if isinstance(e, (TradingClientError, StrategyExecutionError)):
             self.error_handler.handle_error(
                 error=e,
                 context="multi-strategy trading execution",
@@ -235,3 +400,6 @@ class TradingSystem:
                 self.logger.warning(f"Failed to send error notification: {notification_error}")
 
             return create_failure_result(f"System error: {e}", started_at, correlation_id, warnings)
+        # Generic error handling
+        self.logger.error(f"Unexpected trading execution error: {e}")
+        return create_failure_result(f"Unexpected error: {e}", started_at, correlation_id, warnings)

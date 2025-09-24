@@ -161,7 +161,9 @@ def _calculate_event_allocation_data(
     )
 
 
-def _extract_account_info_comprehensive(account_raw: dict[str, Any] | object) -> dict[str, Any]:
+def _extract_account_info_comprehensive(
+    account_raw: dict[str, Any] | object,
+) -> dict[str, Any]:
     """Extract comprehensive account info with proper value extraction.
 
     Args:
@@ -194,7 +196,9 @@ def _extract_account_info_comprehensive(account_raw: dict[str, Any] | object) ->
     }
 
 
-def _build_current_positions_comprehensive(positions_list: list[Any]) -> dict[str, dict[str, Any]]:
+def _build_current_positions_comprehensive(
+    positions_list: list[Any],
+) -> dict[str, dict[str, Any]]:
     """Build comprehensive current positions dict from broker position objects.
 
     Args:
@@ -686,7 +690,10 @@ class PortfolioOrchestrator:
                 source_module="orchestration",
                 source_component="PortfolioOrchestrator",
                 rebalance_plan=rebalance_plan,
-                portfolio_state=portfolio_state,
+                allocation_comparison=AllocationComparisonDTO(
+                    target_values={}, current_values={}, deltas={}
+                ),  # Placeholder allocation comparison
+                trades_required=bool(rebalance_plan and len(rebalance_plan.items) > 0),
             )
 
             self.event_bus.publish(event)

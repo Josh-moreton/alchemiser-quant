@@ -145,55 +145,64 @@ root_package = "the_alchemiser"
 
 # Progressive enforcement: Start with basic rules and add stricter ones as migration progresses
 [[tool.importlinter.contracts]]
-name = "Shared module isolation (enforced)"
+name = "Shared module isolation - prevent upward dependencies"
 type = "forbidden"
 source_modules = [
     "the_alchemiser.shared"
 ]
 forbidden_modules = [
-    "the_alchemiser.strategy",
-    "the_alchemiser.portfolio",
-    "the_alchemiser.execution"
+    "the_alchemiser.strategy_v2",
+    "the_alchemiser.portfolio_v2",
+    "the_alchemiser.execution_v2",
+    "the_alchemiser.orchestration"
 ]
 
-# These contracts check for violations but don't fail CI initially
-# Uncomment progressively as migration advances
+# Business module isolation - prevent cross-imports between business domains
+[[tool.importlinter.contracts]]
+name = "Strategy module isolation"
+type = "forbidden"
+source_modules = [
+    "the_alchemiser.strategy_v2"
+]
+forbidden_modules = [
+    "the_alchemiser.portfolio_v2",
+    "the_alchemiser.execution_v2",
+    "the_alchemiser.orchestration"
+]
 
-# [[tool.importlinter.contracts]]
-# name = "No strategy to portfolio/execution imports"
-# type = "forbidden"
-# source_modules = [
-#     "the_alchemiser.strategy"
-# ]
-# forbidden_modules = [
-#     "the_alchemiser.portfolio",
-#     "the_alchemiser.execution"
-# ]
+[[tool.importlinter.contracts]]
+name = "Portfolio module isolation"
+type = "forbidden"
+source_modules = [
+    "the_alchemiser.portfolio_v2"
+]
+forbidden_modules = [
+    "the_alchemiser.strategy_v2",
+    "the_alchemiser.execution_v2",
+    "the_alchemiser.orchestration"
+]
 
-# [[tool.importlinter.contracts]]
-# name = "No portfolio to execution imports"
-# type = "forbidden"
-# source_modules = [
-#     "the_alchemiser.portfolio"
-# ]
-# forbidden_modules = [
-#     "the_alchemiser.execution"
-# ]
+[[tool.importlinter.contracts]]
+name = "Execution module isolation"
+type = "forbidden"
+source_modules = [
+    "the_alchemiser.execution_v2"
+]
+forbidden_modules = [
+    "the_alchemiser.strategy_v2",
+    "the_alchemiser.portfolio_v2",
+    "the_alchemiser.orchestration"
+]
 
-# [[tool.importlinter.contracts]]
-# name = "No execution to portfolio imports"
-# type = "forbidden"
-# source_modules = [
-#     "the_alchemiser.execution"
-# ]
-# forbidden_modules = [
-#     "the_alchemiser.portfolio"
-# ]
-
-# [[tool.importlinter.contracts]]
-# name = "Modules may only import from shared"
-# type = "layers"
-# layers = [
-#     "the_alchemiser.shared",
-#     "the_alchemiser.strategy | the_alchemiser.portfolio | the_alchemiser.execution"
-# ]
+# Layered architecture: each layer can only import from layers below it
+# Layer 1 (bottom): shared - no dependencies on application modules
+# Layer 2 (middle): business modules - can import shared only
+# Layer 3 (top): orchestration - can import business modules + shared
+[[tool.importlinter.contracts]]
+name = "Event-driven layered architecture enforcement"
+type = "layers"
+layers = [
+    "the_alchemiser.shared",
+    "the_alchemiser.strategy_v2 | the_alchemiser.portfolio_v2 | the_alchemiser.execution_v2",
+    "the_alchemiser.orchestration"
+]

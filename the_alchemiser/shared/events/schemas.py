@@ -20,7 +20,7 @@ from pydantic import Field
 from ..constants import EVENT_TYPE_DESCRIPTION
 from ..dto.portfolio_state_dto import PortfolioStateDTO
 from ..dto.rebalance_plan_dto import RebalancePlanDTO
-from ..dto.signal_dto import StrategySignalDTO
+from ..schemas.common import AllocationComparisonDTO
 from .base import BaseEvent
 
 # Constants
@@ -52,13 +52,12 @@ class SignalGenerated(BaseEvent):
     event_type: str = Field(default="SignalGenerated", description=EVENT_TYPE_DESCRIPTION)
 
     # Signal-specific fields
-    signals: list[StrategySignalDTO] = Field(..., description="List of generated strategy signals")
-    strategy_allocations: dict[str, Decimal] = Field(
-        default_factory=dict, description="Strategy allocation weights"
+    signals_data: dict[str, Any] = Field(..., description="Strategy signals data")
+    consolidated_portfolio: dict[str, Any] = Field(
+        ..., description="Consolidated portfolio allocation"
     )
-    consolidated_portfolio: dict[str, Decimal] = Field(
-        default_factory=dict, description="Consolidated portfolio allocation"
-    )
+    signal_count: int = Field(..., description="Number of signals generated")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional signal metadata")
 
 
 class RebalancePlanned(BaseEvent):
@@ -72,7 +71,13 @@ class RebalancePlanned(BaseEvent):
 
     # Rebalance-specific fields
     rebalance_plan: RebalancePlanDTO = Field(..., description="Portfolio rebalancing plan")
-    portfolio_state: PortfolioStateDTO = Field(..., description="Current portfolio state")
+    allocation_comparison: AllocationComparisonDTO = Field(
+        ..., description="Allocation comparison data"
+    )
+    trades_required: bool = Field(..., description="Whether trades are required")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional rebalance metadata"
+    )
 
 
 class TradeExecuted(BaseEvent):
@@ -84,18 +89,13 @@ class TradeExecuted(BaseEvent):
     # Override event_type with default
     event_type: str = Field(default="TradeExecuted", description=EVENT_TYPE_DESCRIPTION)
 
-    # Schema version for backward compatibility
-    schema_version: int = Field(default=2, ge=1, description="Event schema version")
-
     # Trade execution fields
-    execution_results: dict[str, Any] = Field(..., description="Trade execution results")
-    portfolio_state_after: PortfolioStateDTO | None = Field(
-        default=None, description="Portfolio state after execution"
-    )
+    execution_data: dict[str, Any] = Field(..., description="Trade execution data")
     success: bool = Field(..., description="Whether execution was successful")
-    error_message: str | None = Field(default=None, description="Error message if execution failed")
-    error_code: str | None = Field(
-        default=None, description="Structured error code if execution failed"
+    orders_placed: int = Field(..., description="Number of orders placed")
+    orders_succeeded: int = Field(..., description="Number of orders that succeeded")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional execution metadata"
     )
 
 
@@ -227,4 +227,55 @@ class ExecutionPhaseCompleted(BaseEvent):
     failed_orders: list[str] = Field(default_factory=list, description="Failed order IDs")
     phase_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Phase execution metadata"
+    )
+
+
+class WorkflowStarted(BaseEvent):
+    """Event emitted when a complete trading workflow starts.
+
+    Used to initiate the event-driven workflow coordination.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="WorkflowStarted", description=EVENT_TYPE_DESCRIPTION)
+
+    # Workflow fields
+    workflow_type: str = Field(..., description="Type of workflow (trading, signal_analysis, etc.)")
+    requested_by: str = Field(..., description="Component that requested the workflow")
+    configuration: dict[str, Any] = Field(
+        default_factory=dict, description="Workflow configuration parameters"
+    )
+
+
+class WorkflowCompleted(BaseEvent):
+    """Event emitted when a complete trading workflow finishes successfully.
+
+    Used to signal successful completion of event-driven workflow.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="WorkflowCompleted", description=EVENT_TYPE_DESCRIPTION)
+
+    # Workflow completion fields
+    workflow_type: str = Field(..., description="Type of workflow completed")
+    workflow_duration_ms: int = Field(..., description="Total workflow duration in milliseconds")
+    success: bool = Field(..., description="Whether the workflow completed successfully")
+    summary: dict[str, Any] = Field(default_factory=dict, description="Workflow execution summary")
+
+
+class WorkflowFailed(BaseEvent):
+    """Event emitted when a trading workflow fails.
+
+    Used to signal workflow failure and trigger recovery processes.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="WorkflowFailed", description=EVENT_TYPE_DESCRIPTION)
+
+    # Workflow failure fields
+    workflow_type: str = Field(..., description="Type of workflow that failed")
+    failure_reason: str = Field(..., description="Reason for workflow failure")
+    failure_step: str = Field(..., description="Step where the workflow failed")
+    error_details: dict[str, Any] = Field(
+        default_factory=dict, description="Detailed error information"
     )

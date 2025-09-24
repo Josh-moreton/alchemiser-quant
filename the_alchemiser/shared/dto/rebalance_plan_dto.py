@@ -142,7 +142,11 @@ class RebalancePlanDTO(BaseModel):
             data["timestamp"] = self.timestamp.isoformat()
 
         # Convert Decimal fields to string for JSON serialization
-        decimal_fields = ["total_portfolio_value", "total_trade_value", "max_drift_tolerance"]
+        decimal_fields = [
+            "total_portfolio_value",
+            "total_trade_value",
+            "max_drift_tolerance",
+        ]
         for field_name in decimal_fields:
             if data.get(field_name) is not None:
                 data[field_name] = str(data[field_name])
@@ -188,7 +192,11 @@ class RebalancePlanDTO(BaseModel):
         convert_datetime_fields_from_dict(data, datetime_fields)
 
         # Convert string decimal fields back to Decimal
-        decimal_fields = ["total_portfolio_value", "total_trade_value", "max_drift_tolerance"]
+        decimal_fields = [
+            "total_portfolio_value",
+            "total_trade_value",
+            "max_drift_tolerance",
+        ]
         convert_decimal_fields_from_dict(data, decimal_fields)
 
         # Convert items if present
