@@ -212,9 +212,7 @@ class DslEvaluator:
                 m[key] = str(val)
         return m
 
-    def _evaluate_function_application(
-        self, node: ASTNodeDTO, context: DslContext
-    ) -> DSLValue:
+    def _evaluate_function_application(self, node: ASTNodeDTO, context: DslContext) -> DSLValue:
         """Evaluate a function application.
 
         Args:
@@ -257,7 +255,9 @@ class DslEvaluator:
         """
         return [self._evaluate_node(child, correlation_id, trace) for child in node.children]
 
-    def _evaluate_list_node(self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO) -> DSLValue:
+    def _evaluate_list_node(
+        self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO
+    ) -> DSLValue:
         """Evaluate a list node.
 
         Args:
