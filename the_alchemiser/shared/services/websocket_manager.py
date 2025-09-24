@@ -48,7 +48,9 @@ class WebSocketConnectionManager:
                 instance._initialized = False
             return cls._instances[credentials_key]
 
-    def __init__(self, api_key: str, secret_key: str, *, paper_trading: bool = True) -> None:
+    def __init__(
+        self, api_key: str, secret_key: str, *, paper_trading: bool = True
+    ) -> None:
         """Initialize the connection manager (only once per credentials)."""
         if hasattr(self, "_initialized") and self._initialized:
             return
@@ -102,7 +104,9 @@ class WebSocketConnectionManager:
                 logger.info("✅ Shared real-time pricing service started successfully")
 
             self._pricing_ref_count += 1
-            logger.debug(f"📊 Pricing service reference count: {self._pricing_ref_count}")
+            logger.debug(
+                f"📊 Pricing service reference count: {self._pricing_ref_count}"
+            )
             return self._pricing_service
 
     def release_pricing_service(self) -> None:
@@ -112,10 +116,14 @@ class WebSocketConnectionManager:
         """
         with self._service_lock:
             self._pricing_ref_count = max(0, self._pricing_ref_count - 1)
-            logger.debug(f"📊 Pricing service reference count: {self._pricing_ref_count}")
+            logger.debug(
+                f"📊 Pricing service reference count: {self._pricing_ref_count}"
+            )
 
             if self._pricing_ref_count == 0 and self._pricing_service is not None:
-                logger.info("📡 Stopping shared real-time pricing service (no more references)")
+                logger.info(
+                    "📡 Stopping shared real-time pricing service (no more references)"
+                )
                 self._pricing_service.stop()
                 self._pricing_service = None
 
@@ -148,7 +156,7 @@ class WebSocketConnectionManager:
                                 if self._trading_stream is None:
                                     return
                                 ts = self._trading_stream
-                            
+
                             if ts is not None:
                                 ts.run()
                         except Exception as exc:
@@ -170,7 +178,9 @@ class WebSocketConnectionManager:
                     return False
 
             self._trading_ref_count += 1
-            logger.debug(f"📊 Trading service reference count: {self._trading_ref_count}")
+            logger.debug(
+                f"📊 Trading service reference count: {self._trading_ref_count}"
+            )
             return self._trading_ws_connected
 
     def release_trading_service(self) -> None:
@@ -180,7 +190,9 @@ class WebSocketConnectionManager:
         """
         with self._trading_lock:
             self._trading_ref_count = max(0, self._trading_ref_count - 1)
-            logger.debug(f"📊 Trading service reference count: {self._trading_ref_count}")
+            logger.debug(
+                f"📊 Trading service reference count: {self._trading_ref_count}"
+            )
 
             if self._trading_ref_count == 0 and self._trading_stream is not None:
                 logger.info("📡 Stopping shared TradingStream (no more references)")
@@ -189,7 +201,7 @@ class WebSocketConnectionManager:
                     stream = self._trading_stream
                     self._trading_stream = None
                     self._trading_ws_connected = False
-                    
+
                     if stream:
                         stream.stop()
                 except Exception as e:
@@ -200,7 +212,10 @@ class WebSocketConnectionManager:
     def is_service_available(self) -> bool:
         """Check if the pricing service is available and connected."""
         with self._service_lock:
-            return self._pricing_service is not None and self._pricing_service.is_connected()
+            return (
+                self._pricing_service is not None
+                and self._pricing_service.is_connected()
+            )
 
     def is_trading_service_available(self) -> bool:
         """Check if the trading service is available and connected."""
@@ -247,11 +262,19 @@ class WebSocketConnectionManager:
                 try:
                     stats = instance.get_service_stats()
                     health_info["instances"][key] = {
-                        "pricing_status": stats.get("pricing", {}).get("status", "unknown"),
-                        "pricing_ref_count": stats.get("pricing", {}).get("ref_count", 0),
+                        "pricing_status": stats.get("pricing", {}).get(
+                            "status", "unknown"
+                        ),
+                        "pricing_ref_count": stats.get("pricing", {}).get(
+                            "ref_count", 0
+                        ),
                         "pricing_connected": instance.is_service_available(),
-                        "trading_status": stats.get("trading", {}).get("status", "unknown"),
-                        "trading_ref_count": stats.get("trading", {}).get("ref_count", 0),
+                        "trading_status": stats.get("trading", {}).get(
+                            "status", "unknown"
+                        ),
+                        "trading_ref_count": stats.get("trading", {}).get(
+                            "ref_count", 0
+                        ),
                         "trading_connected": instance.is_trading_service_available(),
                     }
                 except Exception as e:
@@ -271,11 +294,17 @@ class WebSocketConnectionManager:
                 for instance in instances_to_cleanup:
                     try:
                         # Clean up pricing service
-                        if hasattr(instance, "_pricing_service") and instance._pricing_service:
+                        if (
+                            hasattr(instance, "_pricing_service")
+                            and instance._pricing_service
+                        ):
                             instance._pricing_service.stop()
 
                         # Clean up trading service
-                        if hasattr(instance, "_trading_stream") and instance._trading_stream:
+                        if (
+                            hasattr(instance, "_trading_stream")
+                            and instance._trading_stream
+                        ):
                             logger.info("Stopping TradingStream for cleanup")
                             instance._trading_stream.stop()
                             instance._trading_stream = None
