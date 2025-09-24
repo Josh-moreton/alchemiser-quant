@@ -106,7 +106,9 @@ class TradingExecutionHandler:
 
             # Handle no-trade scenario
             if not event.trades_required or not rebalance_plan_data.items:
-                self.logger.info("📊 No significant trades needed - portfolio already balanced")
+                self.logger.info(
+                    "📊 No significant trades needed - portfolio already balanced"
+                )
 
                 # Create empty execution result
                 execution_result = ExecutionResultDTO(
@@ -125,7 +127,9 @@ class TradingExecutionHandler:
                 self._emit_trade_executed_event(execution_result, success=True)
 
                 # Emit workflow completed event
-                self._emit_workflow_completed_event(event.correlation_id, execution_result)
+                self._emit_workflow_completed_event(
+                    event.correlation_id, execution_result
+                )
 
                 return
 
@@ -136,8 +140,12 @@ class TradingExecutionHandler:
             self.logger.info(f"🚀 Executing trades: {len(rebalance_plan.items)} items")
 
             # Create execution manager directly from infrastructure (like other handlers)
-            from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
-            from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
+            from the_alchemiser.execution_v2.core.execution_manager import (
+                ExecutionManager,
+            )
+            from the_alchemiser.execution_v2.core.smart_execution_strategy import (
+                ExecutionConfig,
+            )
 
             execution_manager = ExecutionManager(
                 alpaca_manager=self.container.infrastructure.alpaca_manager(),
@@ -164,7 +172,9 @@ class TradingExecutionHandler:
 
             # Emit WorkflowCompleted event if successful
             if execution_success:
-                self._emit_workflow_completed_event(event.correlation_id, execution_result)
+                self._emit_workflow_completed_event(
+                    event.correlation_id, execution_result
+                )
             else:
                 # Emit failure if execution wasn't fully successful
                 self._emit_workflow_failure(
@@ -244,7 +254,9 @@ class TradingExecutionHandler:
                 # Fallback: use execution_timestamp if workflow_start_timestamp is not available
                 workflow_start = execution_result.execution_timestamp
             workflow_end = datetime.now(UTC)
-            workflow_duration_ms = int((workflow_end - workflow_start).total_seconds() * 1000)
+            workflow_duration_ms = int(
+                (workflow_end - workflow_start).total_seconds() * 1000
+            )
 
             event = WorkflowCompleted(
                 correlation_id=correlation_id,
@@ -273,7 +285,9 @@ class TradingExecutionHandler:
             self.logger.error(f"Failed to emit WorkflowCompleted event: {e}")
             raise
 
-    def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
+    def _emit_workflow_failure(
+        self, original_event: BaseEvent, error_message: str
+    ) -> None:
         """Emit WorkflowFailed event when trade execution fails.
 
         Args:
