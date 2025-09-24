@@ -72,7 +72,9 @@ class TradingSystem:
         """Initialize event-driven orchestration system."""
         try:
             if self.container is None:
-                self.logger.warning("Cannot initialize event orchestration: DI container not ready")
+                self.logger.warning(
+                    "Cannot initialize event orchestration: DI container not ready"
+                )
                 return
 
             # Initialize event-driven orchestrator
@@ -97,7 +99,9 @@ class TradingSystem:
         """
         try:
             if self.container is None:
-                self.logger.warning("Cannot emit StartupEvent: DI container not initialized")
+                self.logger.warning(
+                    "Cannot emit StartupEvent: DI container not initialized"
+                )
                 return
 
             # Get event bus from container
@@ -119,7 +123,9 @@ class TradingSystem:
 
             # Emit the event
             event_bus.publish(event)
-            self.logger.debug(f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}")
+            self.logger.debug(
+                f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}"
+            )
 
         except Exception as e:
             # Don't let startup event emission failure break the system
@@ -165,7 +171,6 @@ class TradingSystem:
             )
 
             # Execute full workflow once: generate signals, analyze portfolio, and trade
-            print("📊 Generating strategy signals and portfolio rebalance plan...")
 
             try:
                 # Execute complete workflow once (signals + analysis + trading)
@@ -191,7 +196,9 @@ class TradingSystem:
 
             # Display tracking if requested
             if show_tracking:
-                display_post_execution_tracking(paper_trading=not orchestrator.live_trading)
+                display_post_execution_tracking(
+                    paper_trading=not orchestrator.live_trading
+                )
 
             # Export tracking summary if requested
             if export_tracking_json:
@@ -233,6 +240,10 @@ class TradingSystem:
 
                 send_error_notification_if_needed()
             except Exception as notification_error:
-                self.logger.warning(f"Failed to send error notification: {notification_error}")
+                self.logger.warning(
+                    f"Failed to send error notification: {notification_error}"
+                )
 
-            return create_failure_result(f"System error: {e}", started_at, correlation_id, warnings)
+            return create_failure_result(
+                f"System error: {e}", started_at, correlation_id, warnings
+            )

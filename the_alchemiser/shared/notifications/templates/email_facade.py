@@ -297,6 +297,149 @@ class EmailTemplates:
         )
 
     @staticmethod
+    def _format_metric_value(metric_name: str, metric_value: int | float | str) -> str:
+        """Format a metric value based on its name and type.
+
+        Args:
+            metric_name: Name of the metric for determining format
+            metric_value: Value to format
+
+        Returns:
+            Formatted string representation of the value
+
+        """
+        if isinstance(metric_value, (int, float)):
+            if "pct" in metric_name.lower() or "percent" in metric_name.lower():
+                return f"{metric_value:.2%}"
+            if "ratio" in metric_name.lower():
+                return f"{metric_value:.2f}"
+            return f"${metric_value:,.2f}"
+        return str(metric_value)
+
+    @staticmethod
+    def _build_metrics_table(metrics: dict[str, int | float | str]) -> str:
+        """Build the performance metrics table HTML.
+
+        Args:
+            metrics: Dictionary of metric names and values
+
+        Returns:
+            HTML string for the metrics table, or empty string if no metrics
+
+        """
+        if not metrics:
+            return ""
+
+        metrics_rows = ""
+        for metric_name, metric_value in metrics.items():
+            display_name = metric_name.replace("_", " ").title()
+            formatted_value = EmailTemplates._format_metric_value(metric_name, metric_value)
+
+            metrics_rows += f"""
+            <tr>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
+                    {display_name}:
+                </td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
+                    {formatted_value}
+                </td>
+            </tr>
+            """
+
+        return f"""
+        <div style="margin-top: 24px;">
+            <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">
+                📊 Performance Metrics
+            </h3>
+            <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
+                <tbody>
+                    {metrics_rows}
+                </tbody>
+            </table>
+        </div>
+        """
+
+    @staticmethod
+    def _build_account_section(account_info: AccountInfo | EnrichedAccountInfo) -> str:
+        """Build the account summary section.
+
+        Args:
+            account_info: Account information to display
+
+        Returns:
+            HTML string for the account section
+
+        """
+        from .portfolio import PortfolioBuilder
+
+        return BaseEmailTemplate.create_section(
+            "💰 Account Summary", PortfolioBuilder.build_account_summary(account_info)
+        )
+
+    @staticmethod
+    def _build_strategy_performance_section(strategy_summary: dict[str, Any]) -> str:
+        """Build the strategy performance section.
+
+        Args:
+            strategy_summary: Strategy performance data
+
+        Returns:
+            HTML string for strategy performance section, or empty string if no data
+
+        """
+        if not strategy_summary:
+            return ""
+
+        from .performance import PerformanceBuilder
+
+        return BaseEmailTemplate.create_section(
+            "📈 Strategy Performance",
+            PerformanceBuilder.build_strategy_performance(strategy_summary),
+        )
+
+    @staticmethod
+    def _build_trading_activity_section(trading_summary: dict[str, Any]) -> str:
+        """Build the trading activity section.
+
+        Args:
+            trading_summary: Trading activity data
+
+        Returns:
+            HTML string for trading activity section, or empty string if no data
+
+        """
+        if not trading_summary:
+            return ""
+
+        from .performance import PerformanceBuilder
+
+        return BaseEmailTemplate.create_section(
+            "💼 Trading Activity",
+            PerformanceBuilder.build_trading_summary(trading_summary),
+        )
+
+    @staticmethod
+    def _build_summary_footer(period_label: str) -> str:
+        """Build the summary footer section.
+
+        Args:
+            period_label: Label for the reporting period
+
+        Returns:
+            HTML string for the summary footer
+
+        """
+        return BaseEmailTemplate.create_alert_box(
+            f"""
+            <strong>📝 {period_label} Summary:</strong><br>
+            • Portfolio performance and allocation changes reviewed<br>
+            • All financial metrics calculated and reported<br>
+            • Review detailed breakdowns above for strategic insights
+            """,
+            "info",
+        )
+
+    @staticmethod
     def monthly_performance_summary(
         account_info: AccountInfo | EnrichedAccountInfo,
         performance_data: dict[str, Any] | None = None,
@@ -316,9 +459,6 @@ class EmailTemplates:
             HTML email content for performance summary
 
         """
-        from .performance import PerformanceBuilder
-        from .portfolio import PortfolioBuilder
-
         header = BaseEmailTemplate.get_header(APPLICATION_NAME)
         status_banner = BaseEmailTemplate.get_status_banner(
             f"{period_label} Performance Report", "Complete", "#10B981", "📊"
@@ -327,83 +467,32 @@ class EmailTemplates:
         content_sections = []
 
         # Account summary with full financial details
-        account_html = BaseEmailTemplate.create_section(
-            "💰 Account Summary", PortfolioBuilder.build_account_summary(account_info)
-        )
+        account_html = EmailTemplates._build_account_section(account_info)
         content_sections.append(account_html)
 
         # Performance metrics if available
         if performance_data:
             # Strategy performance
-            strategy_summary = performance_data.get("strategy_summary", {})
-            if strategy_summary:
-                strategy_html = BaseEmailTemplate.create_section(
-                    "📈 Strategy Performance",
-                    PerformanceBuilder.build_strategy_performance(strategy_summary),
-                )
+            strategy_html = EmailTemplates._build_strategy_performance_section(
+                performance_data.get("strategy_summary", {})
+            )
+            if strategy_html:
                 content_sections.append(strategy_html)
 
             # Trading activity summary
-            trading_summary = performance_data.get("trading_summary", {})
-            if trading_summary:
-                trading_html = BaseEmailTemplate.create_section(
-                    "💼 Trading Activity",
-                    PerformanceBuilder.build_trading_summary(trading_summary),
-                )
+            trading_html = EmailTemplates._build_trading_activity_section(
+                performance_data.get("trading_summary", {})
+            )
+            if trading_html:
                 content_sections.append(trading_html)
 
             # Performance metrics table
-            metrics = performance_data.get("metrics", {})
-            if metrics:
-                metrics_rows = ""
-                for metric_name, metric_value in metrics.items():
-                    display_name = metric_name.replace("_", " ").title()
-                    if isinstance(metric_value, (int, float)):
-                        if "pct" in metric_name.lower() or "percent" in metric_name.lower():
-                            formatted_value = f"{metric_value:.2%}"
-                        elif "ratio" in metric_name.lower():
-                            formatted_value = f"{metric_value:.2f}"
-                        else:
-                            formatted_value = f"${metric_value:,.2f}"
-                    else:
-                        formatted_value = str(metric_value)
-
-                    metrics_rows += f"""
-                    <tr>
-                        <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
-                            {display_name}:
-                        </td>
-                        <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; text-align: right;">
-                            {formatted_value}
-                        </td>
-                    </tr>
-                    """
-
-                if metrics_rows:
-                    metrics_html = f"""
-                    <div style="margin-top: 24px;">
-                        <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">
-                            📊 Performance Metrics
-                        </h3>
-                        <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
-                            <tbody>
-                                {metrics_rows}
-                            </tbody>
-                        </table>
-                    </div>
-                    """
-                    content_sections.append(metrics_html)
+            metrics_html = EmailTemplates._build_metrics_table(performance_data.get("metrics", {}))
+            if metrics_html:
+                content_sections.append(metrics_html)
 
         # Summary footer with key takeaways
-        summary_html = BaseEmailTemplate.create_alert_box(
-            f"""
-            <strong>📝 {period_label} Summary:</strong><br>
-            • Portfolio performance and allocation changes reviewed<br>
-            • All financial metrics calculated and reported<br>
-            • Review detailed breakdowns above for strategic insights
-            """,
-            "info",
-        )
+        summary_html = EmailTemplates._build_summary_footer(period_label)
         content_sections.append(summary_html)
 
         footer = BaseEmailTemplate.get_footer()
