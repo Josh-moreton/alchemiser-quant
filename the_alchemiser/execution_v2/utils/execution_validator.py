@@ -102,9 +102,7 @@ class ExecutionValidator:
         # Get asset info
         asset_info = self.alpaca_manager.get_asset_info(symbol)
         if asset_info is None:
-            logger.warning(
-                f"{log_prefix} Could not get asset info for {symbol}, allowing order"
-            )
+            logger.warning(f"{log_prefix} Could not get asset info for {symbol}, allowing order")
             return OrderValidationResult(is_valid=True)
 
         # Check if asset is tradable
@@ -140,8 +138,8 @@ class ExecutionValidator:
         self,
         symbol: str,
         quantity: Decimal,
-        side: str,
-        asset_info: AssetInfoDTO,
+        _side: str,
+        _asset_info: AssetInfoDTO,
         correlation_id: str | None,
         *,
         auto_adjust: bool,
@@ -151,8 +149,8 @@ class ExecutionValidator:
         Args:
             symbol: Asset symbol
             quantity: Order quantity
-            side: "buy" or "sell"
-            asset_info: Asset information
+            _side: "buy" or "sell" (reserved for future use)
+            _asset_info: Asset information (reserved for future use)
             correlation_id: Optional correlation ID for tracing
             auto_adjust: Whether to auto-adjust quantities
 
@@ -192,7 +190,9 @@ class ExecutionValidator:
             )
 
         # Successfully adjusted
-        warning_msg = f"Non-fractionable {symbol}: adjusted quantity {quantity} → {adjusted_quantity} shares"
+        warning_msg = (
+            f"Non-fractionable {symbol}: adjusted quantity {quantity} → {adjusted_quantity} shares"
+        )
         logger.info(f"{log_prefix} 🔄 {warning_msg}")
 
         return OrderValidationResult(
