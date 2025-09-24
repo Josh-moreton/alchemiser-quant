@@ -1007,20 +1007,17 @@ class Executor:
         strategy = getattr(repeg_result, "execution_strategy", "")
         order_id = getattr(repeg_result, "order_id", "")
         repegs_used = getattr(repeg_result, "repegs_used", 0)
-        
+
         if "escalation" in strategy:
             logger.info(
-                f"🚨 {phase_type} ESCALATED_TO_MARKET: {order_id} "
-                f"(after {repegs_used} re-pegs)"
+                f"🚨 {phase_type} ESCALATED_TO_MARKET: {order_id} (after {repegs_used} re-pegs)"
             )
         else:
-            logger.info(
-                f"✅ {phase_type} REPEG {repegs_used}/5: {order_id}"
-            )
+            logger.info(f"✅ {phase_type} REPEG {repegs_used}/5: {order_id}")
 
     def _extract_order_ids(self, repeg_result: Any) -> tuple[str, str]:  # noqa: ANN401
         """Extract original and new order IDs from repeg result.
-        
+
         Returns:
             Tuple of (original_id, new_id). Both will be empty strings if not found.
 
@@ -1040,22 +1037,22 @@ class Executor:
     ) -> dict[str, str]:
         """Build mapping from original to new order IDs for successful re-pegs."""
         replacement_map: dict[str, str] = {}
-        
+
         for repeg_result in repeg_results:
             try:
                 if not getattr(repeg_result, "success", False):
                     self._handle_failed_repeg(phase_type, repeg_result)
                     continue
-                
+
                 self._log_repeg_status(phase_type, repeg_result)
                 original_id, new_id = self._extract_order_ids(repeg_result)
-                
+
                 if original_id and new_id:
                     replacement_map[original_id] = new_id
-                    
+
             except Exception as exc:
                 logger.debug(f"Failed to process re-peg result for replacement mapping: {exc}")
-                
+
         return replacement_map
 
     def _replace_order_ids(
