@@ -9,9 +9,12 @@ for integration with the multi-strategy orchestrator.
 
 from __future__ import annotations
 
+import os
 import uuid
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -60,11 +63,19 @@ class DslStrategyEngine:
 
         self.logger.info(f"DSL Strategy Engine initialized with file: {self.strategy_file}")
 
-    def generate_signals(self, timestamp: datetime) -> list[StrategySignal]:
+    def generate_signals(
+        self,
+        timestamp: datetime,
+        *,
+        parallelism: Literal["none", "threads", "processes"] = "none",
+        max_workers: int | None = None,
+    ) -> list[StrategySignal]:
         """Generate strategy signals using DSL engine.
 
         Args:
             timestamp: Timestamp for signal generation
+            parallelism: Parallelism mode - "none" (default), "threads", or "processes"
+            max_workers: Maximum number of workers. Defaults to min(len(files), os.cpu_count())
 
         Returns:
             List of StrategySignal objects
@@ -73,33 +84,59 @@ class DslStrategyEngine:
         try:
             correlation_id = str(uuid.uuid4())
 
-            self.logger.info(
-                f"Generating DSL signals from {self.strategy_file}",
-                extra={
-                    "correlation_id": correlation_id,
-                    "timestamp": timestamp.isoformat(),
-                },
-            )
+            # Check environment overrides
+            env_parallelism = os.getenv("ALCHEMISER_DSL_PARALLELISM")
+            if env_parallelism and env_parallelism in ("none", "threads", "processes"):
+                parallelism = env_parallelism  # type: ignore[assignment]
+
+            env_max_workers = os.getenv("ALCHEMISER_DSL_MAX_WORKERS")
+            if env_max_workers and env_max_workers.isdigit():
+                max_workers = int(env_max_workers)
 
             # Resolve configured files and normalized weights
             dsl_files, normalized_file_weights = self._resolve_dsl_files_and_weights()
 
-            # Evaluate each file and accumulate per-symbol weights scaled by file allocation
+            # Determine effective max_workers
+            effective_max_workers = (
+                max_workers if max_workers is not None else min(len(dsl_files), os.cpu_count() or 4)
+            )
+
+            self.logger.info(
+                f"Generating DSL signals from {len(dsl_files)} files",
+                extra={
+                    "correlation_id": correlation_id,
+                    "timestamp": timestamp.isoformat(),
+                    "parallelism": parallelism,
+                    "max_workers": effective_max_workers,
+                },
+            )
+
+            # Evaluate files with chosen parallelism mode
+            if parallelism == "none" or len(dsl_files) <= 1:
+                # Sequential evaluation (original behavior)
+                file_results = self._evaluate_files_sequential(
+                    dsl_files, correlation_id, normalized_file_weights
+                )
+            else:
+                # Parallel evaluation
+                file_results = self._evaluate_files_parallel(
+                    dsl_files,
+                    correlation_id,
+                    normalized_file_weights,
+                    parallelism,
+                    effective_max_workers,
+                )
+
+            # Accumulate per-symbol weights from file results
             consolidated: dict[str, float] = {}
             traces: dict[str, str] = {}
 
-            for f in dsl_files:
-                try:
-                    per_file_weights, trace_id, _, _ = self._evaluate_file(
-                        f, correlation_id, normalized_file_weights
-                    )
-                except Exception as e:  # pragma: no cover - safety net
-                    self.logger.error(f"DSL evaluation failed for {f}: {e}")
+            for f, (per_file_weights, trace_id, _, _) in zip(dsl_files, file_results, strict=True):
+                if per_file_weights is None:  # Evaluation failed
                     continue
-
+                traces[f] = trace_id
                 for symbol, weight in per_file_weights.items():
                     consolidated[symbol] = consolidated.get(symbol, 0.0) + weight
-                traces[f] = trace_id
 
             # If nothing produced, fallback to CASH
             if not consolidated:
@@ -217,6 +254,96 @@ class DslStrategyEngine:
         )
 
         return per_file_weights, trace.trace_id, file_weight, file_sum
+
+    def _evaluate_files_sequential(
+        self,
+        dsl_files: list[str],
+        correlation_id: str,
+        normalized_file_weights: dict[str, float],
+    ) -> list[tuple[dict[str, float] | None, str, float, float]]:
+        """Evaluate DSL files sequentially (original behavior).
+
+        Args:
+            dsl_files: List of DSL files to evaluate
+            correlation_id: Correlation ID for tracing
+            normalized_file_weights: Precomputed normalized file weights
+
+        Returns:
+            List of evaluation results for each file (preserves order)
+
+        """
+        results: list[tuple[dict[str, float] | None, str, float, float]] = []
+        for f in dsl_files:
+            try:
+                result = self._evaluate_file(f, correlation_id, normalized_file_weights)
+                results.append(result)
+            except Exception as e:  # pragma: no cover - safety net
+                self.logger.error(f"DSL evaluation failed for {f}: {e}")
+                results.append((None, "", 0.0, 0.0))
+        return results
+
+    def _evaluate_files_parallel(
+        self,
+        dsl_files: list[str],
+        correlation_id: str,
+        normalized_file_weights: dict[str, float],
+        parallelism: Literal["threads", "processes"],
+        max_workers: int,
+    ) -> list[tuple[dict[str, float] | None, str, float, float]]:
+        """Evaluate DSL files in parallel while preserving deterministic order.
+
+        Args:
+            dsl_files: List of DSL files to evaluate
+            correlation_id: Correlation ID for tracing
+            normalized_file_weights: Precomputed normalized file weights
+            parallelism: Either "threads" or "processes"
+            max_workers: Maximum number of worker threads/processes
+
+        Returns:
+            List of evaluation results for each file (preserves input order)
+
+        """
+        executor_class = ThreadPoolExecutor if parallelism == "threads" else ProcessPoolExecutor
+
+        with executor_class(max_workers=max_workers) as executor:
+            # Use executor.map to preserve deterministic ordering
+            return list(
+                executor.map(
+                    self._evaluate_file_wrapper,
+                    dsl_files,
+                    [correlation_id] * len(dsl_files),
+                    [normalized_file_weights] * len(dsl_files),
+                )
+            )
+
+    def _evaluate_file_wrapper(
+        self,
+        filename: str,
+        correlation_id: str,
+        normalized_file_weights: dict[str, float],
+    ) -> tuple[dict[str, float] | None, str, float, float]:
+        """Wrap _evaluate_file to handle exceptions for parallel execution.
+
+        Args:
+            filename: DSL file to evaluate
+            correlation_id: Correlation ID for tracing
+            normalized_file_weights: Precomputed normalized file weights
+
+        Returns:
+            Tuple of (per_file_scaled_weights, trace_id, file_weight, file_sum)
+            Returns (None, "", 0.0, 0.0) if evaluation fails
+
+        """
+        try:
+            return self._evaluate_file(filename, correlation_id, normalized_file_weights)
+        except Exception as e:  # pragma: no cover - safety net
+            self.logger.error(
+                f"DSL evaluation failed for {filename}: {e}",
+                extra={
+                    "correlation_id": correlation_id,
+                },
+            )
+            return (None, "", 0.0, 0.0)
 
     def _normalize_allocations(self, weights: dict[str, float]) -> dict[str, float]:
         """Normalize a weights dict to sum to 1.0 (if possible)."""
