@@ -32,50 +32,52 @@ logger = logging.getLogger(__name__)
 
 
 def weight_equal(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragmentDTO:
-    """Evaluate weight-equal - allocate equal weight to all assets."""
+    """Evaluate weight-equal - equal weight allocation."""
+    
+    def _collect_assets(value: DSLValue) -> list[str]:
+        """Recursively collect all asset symbols from a DSLValue."""
+        if isinstance(value, str):
+            return [value]
+        if isinstance(value, PortfolioFragmentDTO):
+            return list(value.weights.keys())
+        if isinstance(value, list):
+            symbols: list[str] = []
+            for item in value:
+                symbols.extend(_collect_assets(item))
+            return symbols
+        return []
+
+    def _unique_preserve_order(items: list[str]) -> list[str]:
+        seen: set[str] = set()
+        unique: list[str] = []
+        for item in items:
+            if item not in seen:
+                unique.append(item)
+                seen.add(item)
+        return unique
+
     if not args:
         return PortfolioFragmentDTO(
             fragment_id=str(uuid.uuid4()), source_step="weight_equal", weights={}
         )
 
-    def _collect_assets_from_value(value: DSLValue) -> list[str]:
-        """Recursively extract all asset symbols from a DSLValue."""
-        assets: list[str] = []
-        if isinstance(value, PortfolioFragmentDTO):
-            assets.extend(value.weights.keys())
-        elif isinstance(value, str):
-            assets.append(value)
-        elif isinstance(value, list):
-            for item in value:
-                assets.extend(_collect_assets_from_value(item))
-        return assets
-
-    # Collect all assets from all arguments
+    # Evaluate all arguments and collect assets
     all_assets: list[str] = []
     for arg in args:
         result = context.evaluate_node(arg, context.correlation_id, context.trace)
-        all_assets.extend(_collect_assets_from_value(result))
+        all_assets.extend(_collect_assets(result))
 
     if not all_assets:
         return PortfolioFragmentDTO(
             fragment_id=str(uuid.uuid4()), source_step="weight_equal", weights={}
         )
 
-    # Deduplicate while preserving order
-    unique_assets: list[str] = []
-    seen: set[str] = set()
-    for asset in all_assets:
-        if asset not in seen:
-            unique_assets.append(asset)
-            seen.add(asset)
-
+    unique_assets = _unique_preserve_order(all_assets)
     weight_per_asset = 1.0 / len(unique_assets)
     weights = dict.fromkeys(unique_assets, weight_per_asset)
 
     return PortfolioFragmentDTO(
-        fragment_id=str(uuid.uuid4()),
-        source_step="weight_equal",
-        weights=weights,
+        fragment_id=str(uuid.uuid4()), source_step="weight_equal", weights=weights
     )
 
 
