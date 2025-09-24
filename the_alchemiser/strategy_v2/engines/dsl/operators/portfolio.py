@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import Literal, cast
 
 from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
 from the_alchemiser.shared.dto.indicator_request_dto import (
@@ -29,6 +30,159 @@ from ..types import DslEvaluationError, DSLValue
 from .control_flow import create_indicator_with_symbol
 
 logger = logging.getLogger(__name__)
+
+
+# ---------- Shared helpers ----------
+
+
+def collect_assets_from_value(value: DSLValue) -> list[str]:
+    """Recursively extract all asset symbols from a DSLValue.
+
+    Handles `PortfolioFragmentDTO`, single symbol strings, and nested lists.
+    """
+    if isinstance(value, PortfolioFragmentDTO):
+        return list(value.weights.keys())
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        symbols: list[str] = []
+        for item in value:
+            symbols.extend(collect_assets_from_value(item))
+        return symbols
+    return []
+
+
+def parse_selection(
+    sel_expr: ASTNodeDTO | None, context: DslContext
+) -> tuple[bool, int | None]:
+    """Parse optional selection expression returning (take_top, take_n).
+
+    - take_top: True implies sort descending; False ascending (select-bottom)
+    - take_n: Optional limit; None if not parseable
+    """
+    take_top = True
+    take_n: int | None = None
+    if sel_expr:
+        sel_name = (
+            sel_expr.children[0].get_symbol_name()
+            if sel_expr.is_list() and sel_expr.children
+            else None
+        )
+        if sel_name == "select-bottom":
+            take_top = False
+        n_val = context.evaluate_node(sel_expr, context.correlation_id, context.trace)
+        try:
+            take_n = (
+                int(n_val)
+                if isinstance(n_val, (int, float))
+                else int(context.as_decimal(n_val))
+            )
+        except Exception:
+            take_n = None
+    return take_top, take_n
+
+
+def score_candidates(
+    symbols: list[str],
+    condition_expr: ASTNodeDTO,
+    context: DslContext,
+) -> list[tuple[str, float]]:
+    """Evaluate condition for each candidate symbol and return (symbol, score)."""
+    scored: list[tuple[str, float]] = []
+    for sym in symbols:
+        try:
+            metric_expr = create_indicator_with_symbol(condition_expr, sym)
+            metric_val = context.evaluate_node(
+                metric_expr, context.correlation_id, context.trace
+            )
+            metric_val = (
+                float(metric_val)
+                if isinstance(metric_val, (int, float))
+                else float(context.as_decimal(metric_val))
+            )
+            scored.append((sym, metric_val))
+        except Exception:
+            logger.exception(
+                "DSL filter: condition evaluation failed for symbol %s", sym
+            )
+    return scored
+
+
+def select_symbols(
+    condition_expr: ASTNodeDTO,
+    symbols: list[str],
+    order: Literal["top", "bottom"],
+    limit: int | None,
+    context: DslContext,
+) -> list[DSLValue]:
+    """Score, sort, and select symbols based on selection parameters.
+
+    order: "top" sorts descending (highest first); "bottom" ascending.
+    limit: optional number of items to return.
+    """
+    scored = score_candidates(symbols, condition_expr, context)
+    if not scored:
+        return []
+    scored.sort(key=lambda x: x[1], reverse=(order == "top"))
+    if limit is not None and limit >= 0:
+        scored = scored[:limit]
+    return cast(list[DSLValue], [sym for sym, _ in scored])
+
+
+def _normalize_fragment_weights(
+    value: DSLValue, context: DslContext
+) -> dict[str, float]:
+    """Convert a DSLValue into a normalized weights dict.
+
+    - str → {symbol: 1.0}
+    - PortfolioFragmentDTO → normalized weights
+    - list → merge recursively, then normalize to sum to 1 if total > 0
+    """
+    if isinstance(value, str):
+        return {value: 1.0}
+    if isinstance(value, PortfolioFragmentDTO):
+        frag = value.normalize_weights()
+        return dict(frag.weights)
+    if isinstance(value, list):
+        collected: dict[str, float] = {}
+        for item in value:
+            nested = _normalize_fragment_weights(item, context)
+            for sym, w in nested.items():
+                collected[sym] = collected.get(sym, 0.0) + w
+        total = sum(collected.values())
+        if total > 0:
+            return {sym: w / total for sym, w in collected.items()}
+        return collected
+    return {}
+
+
+def _process_weight_asset_pairs(
+    pairs: list[ASTNodeDTO], context: DslContext
+) -> dict[str, float]:
+    """Process (w1 a1 w2 a2 ...) pairs into consolidated weights."""
+    consolidated: dict[str, float] = {}
+    for i in range(0, len(pairs), 2):
+        weight_node, asset_node = pairs[i], pairs[i + 1]
+        weight_val = context.evaluate_node(
+            weight_node, context.correlation_id, context.trace
+        )
+        if not isinstance(weight_val, (int, float)):
+            weight_val = float(context.as_decimal(weight_val))
+        asset_val = context.evaluate_node(
+            asset_node, context.correlation_id, context.trace
+        )
+        normalized_assets = _normalize_fragment_weights(asset_val, context)
+        if not normalized_assets:
+            raise DslEvaluationError(
+                f"Expected asset symbol or fragment, got {type(asset_val)}"
+            )
+        for sym, base_w in normalized_assets.items():
+            scaled = base_w * float(weight_val)
+            consolidated[sym] = consolidated.get(sym, 0.0) + scaled
+    return consolidated
+
+
+# ---------- Operators ----------
 
 
 def weight_equal(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragmentDTO:
@@ -79,82 +233,33 @@ def weight_equal(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragme
     )
 
 
-def weight_specified(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragmentDTO:
-    """Evaluate weight-specified allocation: (weight-specified w1 asset1 w2 asset2 ...)."""
-    if len(args) < 2 or len(args) % 2 != 0:
-        raise DslEvaluationError("weight-specified requires pairs of weight and asset arguments")
+# ---------- Weight specified ----------
 
-    def _normalize_fragment(value: DSLValue) -> dict[str, float]:
-        """Convert DSLValue into normalized weights dict."""
-        if isinstance(value, str):
-            return {value: 1.0}
-        if isinstance(value, PortfolioFragmentDTO):
-            frag = value.normalize_weights()
-            return dict(frag.weights)
-        if isinstance(value, list):
-            collected: dict[str, float] = {}
-            for item in value:
-                nested = _normalize_fragment(item)
-                for sym, w in nested.items():
-                    collected[sym] = collected.get(sym, 0.0) + w
-            total = sum(collected.values())
-            if total > 0:
-                collected = {sym: w / total for sym, w in collected.items()}
-            return collected
-        return {}
 
-    def _process_weight_asset_pairs(pairs: list[ASTNodeDTO]) -> dict[str, float]:
-        """Process weight-asset pairs into consolidated weights."""
-        consolidated: dict[str, float] = {}
-        for i in range(0, len(pairs), 2):
-            weight_node, asset_node = pairs[i], pairs[i + 1]
-            weight_val = context.evaluate_node(weight_node, context.correlation_id, context.trace)
-            if not isinstance(weight_val, (int, float)):
-                weight_val = float(context.as_decimal(weight_val))
-            asset_val = context.evaluate_node(asset_node, context.correlation_id, context.trace)
-            normalized_assets = _normalize_fragment(asset_val)
-            if not normalized_assets:
-                raise DslEvaluationError(
-                    f"Expected asset symbol or fragment, got {type(asset_val)}"
-                )
-            for sym, base_w in normalized_assets.items():
-                scaled = base_w * float(weight_val)
-                consolidated[sym] = consolidated.get(sym, 0.0) + scaled
-        return consolidated
+def _validate_weight_specified_args(args: list[ASTNodeDTO]) -> None:
+    """Validate `weight-specified` arguments follow (w1 a1 w2 a2 ...).
 
-    weights = _process_weight_asset_pairs(args)
+    Requires at least one pair and an even number of arguments.
+    """
+    invalid_arg_count = len(args) < 2
+    not_pairs = (len(args) % 2) != 0
+    if invalid_arg_count or not_pairs:
+        raise DslEvaluationError(
+            "weight-specified requires pairs of weight and asset arguments"
+        )
+
+
+def weight_specified(
+    args: list[ASTNodeDTO], context: DslContext
+) -> PortfolioFragmentDTO:
+    """Evaluate weight-specified: (weight-specified w1 asset1 w2 asset2 ...)."""
+    _validate_weight_specified_args(args)
+    weights = _process_weight_asset_pairs(args, context)
     return PortfolioFragmentDTO(
         fragment_id=str(uuid.uuid4()),
         source_step="weight_specified",
         weights=weights,
     )
-
-
-def _extract_window(args: list[ASTNodeDTO], context: DslContext) -> float:
-    """Extract and validate window parameter from arguments.
-
-    Args:
-        args: List of AST nodes
-        context: DSL evaluation context
-
-    Returns:
-        Window parameter as float
-
-    Raises:
-        DslEvaluationError: If window is invalid
-
-    """
-    if not args:
-        raise DslEvaluationError("weight-inverse-volatility requires window and assets")
-
-    window_node = args[0]
-    window = context.evaluate_node(window_node, context.correlation_id, context.trace)
-
-    if not isinstance(window, (int, float)):
-        window = context.as_decimal(window)
-        window = float(window)
-
-    return float(window)
 
 
 def _collect_assets_from_args(args: list[ASTNodeDTO], context: DslContext) -> list[str]:
@@ -187,7 +292,9 @@ def _collect_assets_from_args(args: list[ASTNodeDTO], context: DslContext) -> li
     return all_assets
 
 
-def _get_volatility_for_asset(asset: str, window: float, context: DslContext) -> float | None:
+def _get_volatility_for_asset(
+    asset: str, window: float, context: DslContext
+) -> float | None:
     """Get volatility value for a single asset.
 
     Args:
@@ -288,10 +395,42 @@ def _calculate_inverse_weights(
         return {}
 
     # Normalize weights to sum to 1
-    return {asset: inv_weight / total_inverse for asset, inv_weight in inverse_weights.items()}
+    return {
+        asset: inv_weight / total_inverse
+        for asset, inv_weight in inverse_weights.items()
+    }
 
 
-def weight_inverse_volatility(args: list[ASTNodeDTO], context: DslContext) -> PortfolioFragmentDTO:
+def _extract_window(args: list[ASTNodeDTO], context: DslContext) -> float:
+    """Extract and validate window parameter from arguments.
+
+    Args:
+        args: List of AST nodes
+        context: DSL evaluation context
+
+    Returns:
+        Window parameter as float
+
+    Raises:
+        DslEvaluationError: If window is invalid
+
+    """
+    if not args:
+        raise DslEvaluationError("weight-inverse-volatility requires window and assets")
+
+    window_node = args[0]
+    window = context.evaluate_node(window_node, context.correlation_id, context.trace)
+
+    if not isinstance(window, (int, float)):
+        window = context.as_decimal(window)
+        window = float(window)
+
+    return float(window)
+
+
+def weight_inverse_volatility(
+    args: list[ASTNodeDTO], context: DslContext
+) -> PortfolioFragmentDTO:
     """Evaluate weight-inverse-volatility - inverse volatility weighting.
 
     Format: (weight-inverse-volatility window [assets...])
@@ -317,6 +456,9 @@ def weight_inverse_volatility(args: list[ASTNodeDTO], context: DslContext) -> Po
         source_step="weight_inverse_volatility",
         weights=normalized_weights,
     )
+
+
+# ---------- Group and asset ----------
 
 
 def group(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
@@ -364,7 +506,9 @@ def group(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     return (
         last_result
         if last_result is not None
-        else PortfolioFragmentDTO(fragment_id=str(uuid.uuid4()), source_step="group", weights={})
+        else PortfolioFragmentDTO(
+            fragment_id=str(uuid.uuid4()), source_step="group", weights={}
+        )
     )
 
 
@@ -383,6 +527,9 @@ def asset(args: list[ASTNodeDTO], context: DslContext) -> str:
     return symbol
 
 
+# ---------- Filter operator ----------
+
+
 def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     """Filter assets based on condition and optional selection."""
     if len(args) not in (2, 3):
@@ -394,79 +541,16 @@ def filter_assets(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     selection_expr = args[1] if len(args) == 3 else None
     portfolio_expr = args[2] if len(args) == 3 else args[1]
 
-    # Evaluate portfolio and collect candidate symbols
-    portfolio_val = context.evaluate_node(portfolio_expr, context.correlation_id, context.trace)
-
-    def collect_assets(value: DSLValue) -> list[str]:
-        if isinstance(value, PortfolioFragmentDTO):
-            return list(value.weights.keys())
-        if isinstance(value, str):
-            return [value]
-        if isinstance(value, list):
-            symbols: list[str] = []
-            for item in value:
-                symbols.extend(collect_assets(item))
-            return symbols
-        return []
-
-    candidates = collect_assets(portfolio_val)
+    portfolio_val = context.evaluate_node(
+        portfolio_expr, context.correlation_id, context.trace
+    )
+    candidates = collect_assets_from_value(portfolio_val)
     if not candidates:
         return []
 
-    # Determine selection parameters
-    def _parse_selection(sel_expr: ASTNodeDTO | None) -> tuple[bool, int | None]:
-        take_top = True
-        take_n: int | None = None
-        if sel_expr:
-            sel_name = (
-                sel_expr.children[0].get_symbol_name()
-                if sel_expr.is_list() and sel_expr.children
-                else None
-            )
-            if sel_name == "select-bottom":
-                take_top = False
-            n_val = context.evaluate_node(sel_expr, context.correlation_id, context.trace)
-            try:
-                take_n = (
-                    int(n_val)
-                    if isinstance(n_val, (int, float))
-                    else int(context.as_decimal(n_val))
-                )
-            except Exception:
-                take_n = None
-        return take_top, take_n
-
-    take_top, take_n = _parse_selection(selection_expr)
-
-    # Score candidates based on condition
-    def _score_candidates(symbols: list[str]) -> list[tuple[str, float]]:
-        scored: list[tuple[str, float]] = []
-        for sym in symbols:
-            try:
-                metric_expr = create_indicator_with_symbol(condition_expr, sym)
-                metric_val = context.evaluate_node(
-                    metric_expr, context.correlation_id, context.trace
-                )
-                metric_val = (
-                    float(metric_val)
-                    if isinstance(metric_val, (int, float))
-                    else float(context.as_decimal(metric_val))
-                )
-                scored.append((sym, metric_val))
-            except Exception:
-                logger.exception("DSL filter: condition evaluation failed for symbol %s", sym)
-        return scored
-
-    scored = _score_candidates(candidates)
-    if not scored:
-        return []
-
-    # Sort and apply selection
-    scored.sort(key=lambda x: x[1], reverse=take_top)
-    if take_n is not None and take_n >= 0:
-        scored = scored[:take_n]
-
-    return [sym for sym, _ in scored]
+    take_top, take_n = parse_selection(selection_expr, context)
+    order: Literal["top", "bottom"] = "top" if take_top else "bottom"
+    return select_symbols(condition_expr, candidates, order, take_n, context)
 
 
 def register_portfolio_operators(dispatcher: DslDispatcher) -> None:

@@ -93,7 +93,8 @@ class SexprParser:
             return None
 
         while position < length:
-            if text[position] == '"':
+            char = text[position]
+            if char == '"':
                 string_token, position = _consume_string(position)
                 tokens.append((string_token, "STRING"))
                 continue
@@ -103,7 +104,7 @@ class SexprParser:
                 _, position = matched
                 continue
 
-            raise SexprParseError(f"Unexpected character: {text[position]}", position)
+            raise SexprParseError(f"Unexpected character: {char}", position)
 
         return tokens
 
