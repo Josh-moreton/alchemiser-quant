@@ -38,7 +38,8 @@ class IndicatorService:
 
         """
         self.market_data_service = market_data_service
-        self.technical_indicators = TechnicalIndicators() if market_data_service else None
+        # Always initialize indicators; data access is gated separately by market_data_service
+        self.technical_indicators: TechnicalIndicators = TechnicalIndicators()
 
     def _latest_value(self, series: pd.Series, fallback: float) -> float:
         """Safely get the latest value from a pandas series with fallback."""
@@ -50,7 +51,7 @@ class IndicatorService:
         self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
     ) -> TechnicalIndicatorDTO:
         """Compute RSI indicator."""
-        window = parameters.get("window", 14)
+        window = int(parameters.get("window", 14))
         rsi_series = self.technical_indicators.rsi(prices, window=window)
         rsi_value = self._latest_value(rsi_series, 50.0)  # Neutral fallback
 
@@ -246,7 +247,7 @@ class IndicatorService:
         parameters = request.parameters
 
         # Require real market data; no mocks
-        if not self.market_data_service or not self.technical_indicators:
+        if not self.market_data_service:
             raise DslEvaluationError(
                 "IndicatorService requires a MarketDataPort; no fallback indicators allowed"
             )
