@@ -165,7 +165,6 @@ class TradingSystem:
             )
 
             # Execute full workflow once: generate signals, analyze portfolio, and trade
-            print("📊 Generating strategy signals and portfolio rebalance plan...")
 
             try:
                 # Execute complete workflow once (signals + analysis + trading)
