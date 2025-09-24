@@ -177,6 +177,36 @@ class IndicatorService:
             metadata={"value": latest, "window": window},
         )
 
+    def _required_bars(self, ind_type: str, params: dict[str, int | float | str]) -> int:
+        """Compute required bars based on indicator type and parameters."""
+        window = int(params.get("window", 0)) if params else 0
+        if ind_type in {
+            "moving_average",
+            "exponential_moving_average_price",
+            "max_drawdown",
+        }:
+            return max(window, 200)
+        if ind_type in {
+            "moving_average_return",
+            "stdev_return",
+            "cumulative_return",
+        }:
+            # Need at least window plus some extra for pct_change/shift stability
+            return max(window + 5, 60)
+        if ind_type == "rsi":
+            # RSI stabilizes with more data; fetch ~3x window (min 200)
+            return max(window * 3 if window > 0 else 200, 200)
+        if ind_type == "current_price":
+            return 1
+        return 252  # sensible default (~1Y)
+
+    def _period_for_bars(self, required_bars: int) -> str:
+        """Convert required trading bars to calendar period string."""
+        # Use years granularity to avoid weekend/holiday gaps; add 10% safety margin
+        bars_with_buffer = math.ceil(required_bars * 1.1)
+        years = max(1, math.ceil(bars_with_buffer / 252))
+        return f"{years}Y"
+
     def _compute_max_drawdown(self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]) -> TechnicalIndicatorDTO:
         """Compute maximum drawdown indicator."""
         window = int(parameters.get("window", 60))
@@ -214,38 +244,9 @@ class IndicatorService:
             )
 
         try:
-            # Compute dynamic lookback based on indicator/window to ensure enough bars
-            def _required_bars(ind_type: str, params: dict[str, int | float | str]) -> int:
-                window = int(params.get("window", 0)) if params else 0
-                if ind_type in {
-                    "moving_average",
-                    "exponential_moving_average_price",
-                    "max_drawdown",
-                }:
-                    return max(window, 200)
-                if ind_type in {
-                    "moving_average_return",
-                    "stdev_return",
-                    "cumulative_return",
-                }:
-                    # Need at least window plus some extra for pct_change/shift stability
-                    return max(window + 5, 60)
-                if ind_type == "rsi":
-                    # RSI stabilizes with more data; fetch ~3x window (min 200)
-                    return max(window * 3 if window > 0 else 200, 200)
-                if ind_type == "current_price":
-                    return 1
-                return 252  # sensible default (~1Y)
-
-            def _period_for_bars(required_bars: int) -> str:
-                # Convert required trading bars to calendar period string understood by MarketDataService
-                # Use years granularity to avoid weekend/holiday gaps; add 10% safety margin
-                bars_with_buffer = math.ceil(required_bars * 1.1)
-                years = max(1, math.ceil(bars_with_buffer / 252))
-                return f"{years}Y"
-
-            required = _required_bars(indicator_type, parameters)
-            period = _period_for_bars(required)
+            # Compute dynamic lookback and fetch market data
+            required = self._required_bars(indicator_type, parameters)
+            period = self._period_for_bars(required)
 
             # Fetch bars with computed lookback
             symbol_obj = Symbol(symbol)
