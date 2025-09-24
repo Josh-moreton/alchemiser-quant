@@ -28,7 +28,7 @@ class AlpacaSettings(BaseModel):
     endpoint: str = "https://api.alpaca.markets"
     paper_endpoint: str = "https://paper-api.alpaca.markets/v2"
     paper_trading: bool = True
-    cash_reserve_pct: float = 0.02  # 2% cash reserve to avoid buying power issues
+    cash_reserve_pct: float = 0.00  # 2% cash reserve to avoid buying power issues
     slippage_bps: int = 5
     enable_websocket_orders: bool = True
     # Credentials - typically loaded from .env file or environment variables
