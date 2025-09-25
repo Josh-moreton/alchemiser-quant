@@ -16,18 +16,15 @@ Phase 3 Update: Moved to shared module to resolve architectural boundary violati
 from __future__ import annotations
 
 import logging
-import re
 import threading
 import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from secrets import randbelow
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 # Type checking imports to avoid circular dependencies
 from alpaca.data.historical import StockHistoricalDataClient
-from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
-from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
+from alpaca.data.requests import StockLatestQuoteRequest
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, QueryOrderStatus, TimeInForce
 from alpaca.trading.models import Order, Position, TradeAccount
@@ -45,7 +42,6 @@ from the_alchemiser.shared.dto.broker_dto import (
     WebSocketStatus,
 )
 from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
-from the_alchemiser.shared.protocols.market_data import BarsIterable
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
     MarketDataRepository,
@@ -198,6 +194,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         # Mark as initialized to prevent re-initialization
         self._initialized = True
+
+        # Initialize MarketDataService for delegation
+        from the_alchemiser.shared.services.market_data_service import MarketDataService
+
+        self._market_data_service = MarketDataService(self)
 
     @property
     def is_paper_trading(self) -> bool:
@@ -834,15 +835,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         - RealTimePricingService.get_price_data() for volume and enhanced trade data
         - Enhanced price discovery with QuoteModel and PriceDataModel
         """
-        from the_alchemiser.shared.utils.price_discovery_utils import (
-            get_current_price_from_quote,
-        )
-
-        try:
-            return get_current_price_from_quote(self, symbol)
-        except Exception as e:
-            logger.error(f"Failed to get current price for {symbol}: {e}")
-            raise
+        return self._market_data_service.get_current_price(symbol)
 
     def get_current_prices(self, symbols: list[str]) -> dict[str, float]:
         """Get current prices for multiple symbols.
@@ -854,18 +847,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             Dictionary mapping symbols to their current prices
 
         """
-        try:
-            prices = {}
-            for symbol in symbols:
-                price = self.get_current_price(symbol)
-                if price is not None:
-                    prices[symbol] = price
-                else:
-                    logger.warning(f"Could not get price for {symbol}")
-            return prices
-        except Exception as e:
-            logger.error(f"Failed to get current prices for {symbols}: {e}")
-            raise
+        return self._market_data_service.get_current_prices(symbols)
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
         """Get latest bid/ask quote for a symbol.
@@ -920,33 +902,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             Dictionary with quote information or None if failed
 
         """
-        try:
-            request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
-            quotes = self._data_client.get_stock_latest_quote(request)
-            quote = quotes.get(symbol)
-
-            if quote:
-                # Use Pydantic model_dump() for consistent field names
-                quote_dict = quote.model_dump()
-                # Ensure we have symbol in the output
-                quote_dict["symbol"] = symbol
-                return quote_dict
-            return None
-        except (RetryException, HTTPError) as e:
-            # These are specific API failures that should not be silent
-            error_msg = f"Alpaca API failure getting quote for {symbol}: {e}"
-            if "429" in str(e) or "rate limit" in str(e).lower():
-                error_msg = f"Alpaca API rate limit exceeded getting quote for {symbol}: {e}"
-            logger.error(error_msg)
-            raise RuntimeError(error_msg) from e
-        except RequestException as e:
-            # Other network/HTTP errors
-            error_msg = f"Network error getting quote for {symbol}: {e}"
-            logger.error(error_msg)
-            raise RuntimeError(error_msg) from e
-        except Exception as e:
-            logger.error(f"Failed to get quote for {symbol}: {e}")
-            return None
+        return self._market_data_service.get_quote(symbol)
 
     def get_historical_bars(
         self, symbol: str, start_date: str, end_date: str, timeframe: str = "1Day"
@@ -963,231 +919,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             List of dictionaries with bar data using Pydantic model field names
 
         """
-        # Retry with exponential backoff and jitter for transient upstream failures
-        max_retries = 3
-        base_sleep = 0.6  # seconds
-
-        for attempt in range(1, max_retries + 1):
-            try:
-                # Resolve timeframe and create request
-                resolved_timeframe = self._resolve_timeframe(timeframe)
-
-                start_dt = datetime.fromisoformat(start_date)
-                end_dt = datetime.fromisoformat(end_date)
-
-                request = StockBarsRequest(
-                    symbol_or_symbols=symbol,
-                    timeframe=resolved_timeframe,
-                    start=start_dt,
-                    end=end_dt,
-                )
-
-                # Make API call and extract bars
-                response = self._data_client.get_stock_bars(request)
-                bars_obj = self._extract_bars_from_response(response, symbol)
-
-                if not bars_obj:
-                    if self._should_raise_missing_data_error(
-                        start_date, end_date, timeframe, symbol
-                    ):
-                        error_msg = f"No historical data returned for {symbol}"
-                        # Treat as transient in retry path, many times this is upstream glitch
-                        raise RuntimeError(error_msg)
-                    return []
-
-                # Convert bars to dictionaries and return
-                return self._convert_bars_to_dicts(bars_obj, symbol)
-
-            except (RetryException, HTTPError, RequestException, Exception) as e:
-                transient, reason = self._is_transient_error(e)
-                last_attempt = attempt == max_retries
-
-                if transient and not last_attempt:
-                    jitter = 1.0 + 0.2 * (randbelow(1000) / 1000.0)
-                    sleep_s = base_sleep * (2 ** (attempt - 1)) * jitter
-                    logger.warning(
-                        f"Transient market data error for {symbol} ({reason}); retry {attempt}/{max_retries} in {sleep_s:.2f}s"
-                    )
-                    time.sleep(sleep_s)
-                    continue
-
-                # Non-transient or out of retries: raise sanitized error
-                summary = self._sanitize_error_message(e)
-                msg = self._format_final_error_message(e, symbol, summary)
-                logger.error(msg)
-                raise RuntimeError(msg)
-
-        # Defensive fallback for static analysis (should not be reached)
-        return []
-
-    # Private helper methods for get_historical_bars
-    def _is_transient_error(self, err: Exception) -> tuple[bool, str]:
-        """Check if an error is transient and should be retried.
-
-        Args:
-            err: Exception to check
-
-        Returns:
-            Tuple of (is_transient, reason_description)
-
-        """
-        msg = str(err)
-        # Normalize common transient markers
-        if "502" in msg or "Bad Gateway" in msg:
-            return True, "502 Bad Gateway"
-        if "503" in msg or "Service Unavailable" in msg:
-            return True, "503 Service Unavailable"
-        if "504" in msg or "Gateway Timeout" in msg or "timeout" in msg.lower():
-            return True, "Gateway Timeout/Timeout"
-        # HTML error pages from proxies
-        if "<html" in msg.lower():
-            # Try to extract status code
-            m = re.search(r"\b(5\d{2})\b", msg)
-            code = m.group(1) if m else "5xx"
-            return True, f"HTTP {code} HTML error"
-        return False, ""
-
-    def _sanitize_error_message(self, err: Exception) -> str:
-        """Sanitize error message for logging and user display.
-
-        Args:
-            err: Exception to sanitize
-
-        Returns:
-            Clean error message string
-
-        """
-        transient, reason = self._is_transient_error(err)
-        if transient:
-            return reason
-        # Trim long HTML/text blobs
-        msg = str(err)
-        if "<html" in msg.lower():
-            return "Upstream returned HTML error page"
-        return msg
-
-    def _resolve_timeframe(self, timeframe: str) -> TimeFrame:
-        """Resolve timeframe string to Alpaca TimeFrame object.
-
-        Args:
-            timeframe: Timeframe string (case-insensitive)
-
-        Returns:
-            Alpaca TimeFrame object
-
-        Raises:
-            ValueError: If timeframe is not supported
-
-        """
-        timeframe_map = {
-            "1min": TimeFrame(1, TimeFrameUnit.Minute),
-            "5min": TimeFrame(5, TimeFrameUnit.Minute),
-            "15min": TimeFrame(15, TimeFrameUnit.Minute),
-            "1hour": TimeFrame(1, TimeFrameUnit.Hour),
-            "1day": TimeFrame(1, TimeFrameUnit.Day),
-        }
-
-        timeframe_lower = timeframe.lower()
-        if timeframe_lower not in timeframe_map:
-            raise ValueError(f"Unsupported timeframe: {timeframe}")
-
-        return timeframe_map[timeframe_lower]
-
-    def _extract_bars_from_response(self, response: object, symbol: str) -> BarsIterable | None:
-        """Extract bars object from various possible response shapes.
-
-        Args:
-            response: API response object
-            symbol: Stock symbol to extract bars for
-
-        Returns:
-            Bars object or None if not found
-
-        """
-        bars_obj: BarsIterable | None = None
-        try:
-            # Preferred: BarsBySymbol has a `.data` dict
-            data_attr = getattr(response, "data", None)
-            if isinstance(data_attr, dict) and symbol in data_attr:
-                bars_obj = cast(BarsIterable, data_attr[symbol])
-            # Some SDKs expose attributes per symbol
-            elif hasattr(response, symbol):
-                bars_obj = cast(BarsIterable, getattr(response, symbol))
-            # Fallback: mapping-like access
-            elif isinstance(response, dict) and symbol in response:
-                bars_obj = cast(BarsIterable, response[symbol])
-        except Exception:
-            bars_obj = None
-
-        return bars_obj
-
-    def _convert_bars_to_dicts(self, bars_obj: BarsIterable, symbol: str) -> list[dict[str, Any]]:
-        """Convert bars object to list of dictionaries using Pydantic model_dump.
-
-        Args:
-            bars_obj: Bars object from API response
-            symbol: Stock symbol for logging
-
-        Returns:
-            List of dictionaries with bar data
-
-        """
-        bars = list(bars_obj)
-        logger.debug(f"Successfully retrieved {len(bars)} bars for {symbol}")
-
-        result: list[dict[str, Any]] = []
-        for bar in bars:
-            try:
-                bar_dict = bar.model_dump()
-                result.append(bar_dict)
-            except Exception as e:  # pragma: no cover - conversion resilience
-                logger.warning(f"Failed to convert bar for {symbol}: {e}")
-                continue
-        return result
-
-    def _format_final_error_message(self, err: Exception, symbol: str, summary: str) -> str:
-        """Format final error message based on exception type.
-
-        Args:
-            err: Original exception
-            symbol: Stock symbol for context
-            summary: Sanitized error summary
-
-        Returns:
-            Formatted error message
-
-        """
-        if isinstance(err, (RetryException, HTTPError)):
-            return f"Alpaca API failure for {symbol}: {summary}"
-        if isinstance(err, RequestException):
-            return f"Network error retrieving data for {symbol}: {summary}"
-        return f"Failed to get historical data for {symbol}: {summary}"
-
-    def _should_raise_missing_data_error(
-        self, start_date: str, end_date: str, timeframe: str, symbol: str
-    ) -> bool:
-        """Check if missing data should raise an error for retry.
-
-        Args:
-            start_date: Start date string
-            end_date: End date string
-            timeframe: Timeframe string
-            symbol: Stock symbol for logging
-
-        Returns:
-            True if should raise error (will be retried), False if should return empty list
-
-        """
-        start_dt_local = datetime.fromisoformat(start_date)
-        end_dt_local = datetime.fromisoformat(end_date)
-        days_requested = (end_dt_local - start_dt_local).days
-
-        # For daily data over a reasonable period, we should expect some bars
-        if days_requested > 5 and timeframe.lower() == "1day":
-            return True
-
-        logger.warning(f"No historical data found for {symbol}")
-        return False
+        return self._market_data_service.get_historical_bars(
+            symbol, start_date, end_date, timeframe
+        )
 
     # Utility Methods
     def validate_connection(self) -> bool:
