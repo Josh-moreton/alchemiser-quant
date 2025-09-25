@@ -17,7 +17,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..utils.timezone_utils import ensure_timezone_aware
+from ...utils.timezone_utils import ensure_timezone_aware
 
 
 class TradeSide(str, Enum):

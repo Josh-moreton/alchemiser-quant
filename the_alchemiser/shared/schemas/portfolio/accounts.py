@@ -20,8 +20,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from the_alchemiser.shared.types.core import Symbol
-from the_alchemiser.shared.value_objects.money import Money
+from the_alchemiser.shared.value_objects.symbol import Symbol
+from the_alchemiser.shared.types.money import Money
 
 from the_alchemiser.shared.schemas.core.base import Result
 

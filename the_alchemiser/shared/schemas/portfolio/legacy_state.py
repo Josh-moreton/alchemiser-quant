@@ -15,7 +15,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..utils.timezone_utils import ensure_timezone_aware
+from ...utils.timezone_utils import ensure_timezone_aware
 
 
 class Position(BaseModel):

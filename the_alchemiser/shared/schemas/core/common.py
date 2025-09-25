@@ -21,7 +21,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 
 from the_alchemiser.shared.schemas.execution.execution_summary import ExecutionSummary
-from the_alchemiser.shared.schemas.portfolio.state import PortfolioSnapshot
+from the_alchemiser.shared.schemas.portfolio.legacy_state import PortfolioSnapshot
 from the_alchemiser.shared.value_objects.core_types import (
     AccountInfo,
     OrderDetails,

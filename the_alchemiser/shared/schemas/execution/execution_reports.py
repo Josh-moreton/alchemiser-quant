@@ -15,12 +15,12 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..utils.dto_conversion import (
+from ...utils.dto_conversion import (
     convert_datetime_fields_from_dict,
     convert_decimal_fields_from_dict,
     convert_nested_order_data,
 )
-from ..utils.timezone_utils import ensure_timezone_aware
+from ...utils.timezone_utils import ensure_timezone_aware
 
 
 class ExecutedOrder(BaseModel):
