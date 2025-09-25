@@ -19,6 +19,13 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.portfolio_v2 import PortfolioServiceV2
+from the_alchemiser.portfolio_v2.adapters import (
+    AccountInfoDTO,
+    PositionDTO,
+    adapt_account_info,
+    adapt_positions,
+    generate_account_snapshot_id,
+)
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
@@ -27,11 +34,15 @@ from the_alchemiser.shared.events import (
     WorkflowFailed,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.persistence.portfolio_idempotency_store import (
+    get_portfolio_idempotency_store,
+)
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 from the_alchemiser.shared.schemas.consolidated_portfolio import (
     ConsolidatedPortfolioDTO,
 )
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanDTO
+from the_alchemiser.shared.utils.plan_hashing import generate_plan_hash
 
 
 def _to_float_safe(value: object) -> float:
@@ -92,6 +103,9 @@ class PortfolioAnalysisHandler:
 
         # Get event bus from container
         self.event_bus: EventBus = container.services.event_bus()
+        
+        # Get idempotency store for plan deduplication
+        self.idempotency_store = get_portfolio_idempotency_store()
 
     def handle_event(self, event: BaseEvent) -> None:
         """Handle events for portfolio analysis.
@@ -141,7 +155,15 @@ class PortfolioAnalysisHandler:
             event: The SignalGenerated event
 
         """
-        self.logger.info("🔄 Starting portfolio analysis from SignalGenerated event")
+        self.logger.info(
+            "🔄 Starting portfolio analysis from SignalGenerated event",
+            extra={
+                "correlation_id": event.correlation_id,
+                "causation_id": event.causation_id,
+                "event_id": event.event_id,
+                "module": "portfolio_v2",
+            }
+        )
 
         try:
             # Reconstruct ConsolidatedPortfolioDTO from event data
@@ -149,39 +171,174 @@ class PortfolioAnalysisHandler:
                 event.consolidated_portfolio
             )
 
-            # Get current account and position data
-            account_data = self._get_comprehensive_account_data()
-            if not account_data or not account_data.get("account_info"):
+            # Get current account and position data using DTO adapters
+            account_data = self._get_account_data_with_adapters()
+            if not account_data:
                 raise ValueError("Could not retrieve account data for portfolio analysis")
+
+            # Generate account snapshot ID for correlation
+            account_snapshot_id = generate_account_snapshot_id(
+                account_data["account_info"], account_data["positions"]
+            )
 
             # Analyze allocation comparison
             allocation_comparison = self._analyze_allocation_comparison(consolidated_portfolio)
             if not allocation_comparison:
                 raise ValueError("Failed to generate allocation comparison")
 
-            # Create rebalance plan from allocation comparison
-            account_info = account_data.get("account_info", {})
-            if not isinstance(account_info, dict):
-                account_info = _normalize_account_info(account_info)
-            rebalance_plan = self._create_rebalance_plan_from_allocation(
-                allocation_comparison, account_info
+            # Create rebalance plan from allocation comparison  
+            rebalance_plan = self._create_rebalance_plan_from_allocation_dto(
+                allocation_comparison, account_data["account_info"]
             )
 
-            # Emit RebalancePlanned event (even if no trades needed)
-            self._emit_rebalance_planned_event(
-                rebalance_plan,
-                allocation_comparison,
-                event.correlation_id,
-                account_info,
+            # Generate plan hash for idempotency
+            plan_hash = generate_plan_hash(
+                rebalance_plan, allocation_comparison, account_snapshot_id
             )
 
-            self.logger.info("✅ Portfolio analysis completed successfully")
+            # Check if we've already processed this plan
+            if self.idempotency_store.has_plan_hash(plan_hash, event.correlation_id):
+                self.logger.info(
+                    f"Skipping duplicate plan processing for hash {plan_hash}",
+                    extra={
+                        "correlation_id": event.correlation_id,
+                        "plan_hash": plan_hash,
+                        "module": "portfolio_v2",
+                    }
+                )
+                return
+
+            # Store plan hash for idempotency
+            self.idempotency_store.store_plan_hash(
+                plan_hash=plan_hash,
+                correlation_id=event.correlation_id,
+                causation_id=event.causation_id,
+                account_snapshot_id=account_snapshot_id,
+                metadata={
+                    "event_id": event.event_id,
+                    "schema_version": event.schema_version,
+                    "signal_hash": event.signal_hash,
+                }
+            )
+
+            # Emit RebalancePlanned event with enhanced metadata
+            self._emit_enhanced_rebalance_planned_event(
+                rebalance_plan=rebalance_plan,
+                allocation_comparison=allocation_comparison,
+                correlation_id=event.correlation_id,
+                causation_id=event.causation_id,
+                plan_hash=plan_hash,
+                account_snapshot_id=account_snapshot_id,
+            )
+
+            self.logger.info(
+                "✅ Portfolio analysis completed successfully",
+                extra={
+                    "correlation_id": event.correlation_id,
+                    "plan_hash": plan_hash,
+                    "trades_required": len(rebalance_plan.items) > 0,
+                    "module": "portfolio_v2",
+                }
+            )
 
         except Exception as e:
-            self.logger.error(f"Portfolio analysis failed: {e}")
+            self.logger.error(
+                f"Portfolio analysis failed: {e}",
+                extra={
+                    "correlation_id": event.correlation_id,
+                    "causation_id": event.causation_id,
+                    "module": "portfolio_v2",
+                }
+            )
             self._emit_workflow_failure(event, str(e))
 
-    def _get_comprehensive_account_data(self) -> dict[str, Any] | None:
+    def _get_account_data_with_adapters(self) -> dict[str, Any] | None:
+        """Get account data using DTO adapters (eliminates raw dict usage).
+
+        Returns:
+            Dictionary containing AccountInfoDTO and list of PositionDTOs
+
+        """
+        try:
+            alpaca_manager = self.container.infrastructure.alpaca_manager()
+
+            # Get raw account information
+            raw_account_info = alpaca_manager.get_account()
+            if not raw_account_info:
+                self.logger.error("Failed to retrieve account information from Alpaca")
+                return None
+
+            # Get raw positions
+            raw_positions = alpaca_manager.get_positions()
+
+            # Adapt to DTOs
+            account_info_dto = adapt_account_info(raw_account_info)
+            positions_dto = adapt_positions(raw_positions or [])
+
+            self.logger.debug(
+                f"Retrieved account data: portfolio_value={account_info_dto.portfolio_value}, "
+                f"positions={len(positions_dto)}"
+            )
+
+            return {
+                "account_info": account_info_dto,
+                "positions": positions_dto,
+            }
+
+        except Exception as e:
+            self.logger.error(f"Failed to get account data with adapters: {e}")
+            return None
+
+    def _create_rebalance_plan_from_allocation_dto(
+        self, 
+        allocation_comparison: AllocationComparisonDTO,
+        account_info: AccountInfoDTO,
+    ) -> RebalancePlanDTO:
+        """Create rebalance plan using DTO-based data (eliminates raw dict usage).
+
+        Args:
+            allocation_comparison: Allocation comparison analysis
+            account_info: Account information DTO
+
+        Returns:
+            RebalancePlanDTO for the rebalance plan
+
+        """
+        try:
+            from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocationDTO
+
+            # Extract target weights from allocation comparison
+            target_weights = allocation_comparison.target_allocations
+            portfolio_value = account_info.portfolio_value
+            correlation_id = allocation_comparison.correlation_id
+
+            # Create strategy allocation DTO
+            strategy_allocation = StrategyAllocationDTO(
+                target_weights=target_weights,
+                portfolio_value=portfolio_value,
+                correlation_id=correlation_id,
+            )
+
+            # Generate rebalance plan using portfolio service
+            portfolio_service = PortfolioServiceV2(self.container)
+            return portfolio_service.create_rebalance_plan_dto(
+                strategy=strategy_allocation,
+                correlation_id=correlation_id,
+            )
+
+        except Exception as e:
+            self.logger.error(f"Failed to create rebalance plan: {e}")
+            # Return minimal no-trade plan on failure
+            return RebalancePlanDTO(
+                plan_id=f"fallback-{uuid.uuid4()}",
+                correlation_id=allocation_comparison.correlation_id,
+                causation_id=allocation_comparison.correlation_id,
+                timestamp=datetime.now(UTC),
+                items=[],
+                total_portfolio_value=account_info.portfolio_value,
+                total_trade_value=Decimal("0"),
+                metadata={"scenario": "fallback_no_trades"},
+            )
         """Get comprehensive account data including positions and orders.
 
         Returns:
@@ -353,66 +510,71 @@ class PortfolioAnalysisHandler:
             self.logger.error(f"Failed to create rebalance plan: {e}")
             return None
 
-    def _emit_rebalance_planned_event(
+    def _emit_enhanced_rebalance_planned_event(
         self,
-        rebalance_plan: RebalancePlanDTO | None,
+        rebalance_plan: RebalancePlanDTO,
         allocation_comparison: AllocationComparisonDTO,
         correlation_id: str,
-        account_info: dict[str, Any],
+        causation_id: str,
+        plan_hash: str,
+        account_snapshot_id: str,
     ) -> None:
-        """Emit RebalancePlanned event.
+        """Emit enhanced RebalancePlanned event with deterministic metadata.
 
         Args:
-            rebalance_plan: Generated rebalance plan (may be None for no-op)
+            rebalance_plan: Generated rebalance plan
             allocation_comparison: Allocation comparison data
             correlation_id: Correlation ID from the triggering event
-            account_info: Account information with portfolio value
+            causation_id: Causation ID from the triggering event
+            plan_hash: Deterministic plan hash for idempotency
+            account_snapshot_id: Account state snapshot identifier
 
         """
         try:
-            # Create a plan even if None - represent as no-trade plan
-            if rebalance_plan is None:
-                from the_alchemiser.shared.schemas.rebalance_plan import (
-                    RebalancePlanDTO,
-                )
-
-                rebalance_plan = RebalancePlanDTO(
-                    plan_id=f"no-trade-{uuid.uuid4()}",
-                    correlation_id=correlation_id,
-                    causation_id=correlation_id,
-                    timestamp=datetime.now(UTC),
-                    items=[],
-                    total_portfolio_value=Decimal(str(account_info.get("portfolio_value", 0))),
-                    total_trade_value=Decimal("0"),
-                    metadata={"scenario": "no_trades_needed"},
-                )
             event = RebalancePlanned(
                 correlation_id=correlation_id,
-                causation_id=correlation_id,  # This event is caused by the signal generation
+                causation_id=causation_id,
                 event_id=f"rebalance-planned-{uuid.uuid4()}",
                 timestamp=datetime.now(UTC),
                 source_module="portfolio_v2.handlers",
                 source_component="PortfolioAnalysisHandler",
                 rebalance_plan=rebalance_plan,
                 allocation_comparison=allocation_comparison,
-                trades_required=(
-                    rebalance_plan is not None and len(rebalance_plan.items) > 0
-                    if rebalance_plan
-                    else False
-                ),
+                trades_required=len(rebalance_plan.items) > 0,
                 metadata={
                     "analysis_timestamp": datetime.now(UTC).isoformat(),
                     "source": "event_driven_handler",
+                    "trades_count": len(rebalance_plan.items),
                 },
+                # Enhanced fields for idempotency and traceability
+                schema_version="1.0",
+                plan_hash=plan_hash,
+                account_snapshot_id=account_snapshot_id,
             )
 
             self.event_bus.publish(event)
 
-            trades_count = len(rebalance_plan.items) if rebalance_plan else 0
-            self.logger.info(f"📡 Emitted RebalancePlanned event with {trades_count} trades")
+            trades_count = len(rebalance_plan.items)
+            self.logger.info(
+                f"📡 Emitted RebalancePlanned event with {trades_count} trades",
+                extra={
+                    "correlation_id": correlation_id,
+                    "plan_hash": plan_hash,
+                    "account_snapshot_id": account_snapshot_id,
+                    "trades_count": trades_count,
+                    "module": "portfolio_v2",
+                }
+            )
 
         except Exception as e:
-            self.logger.error(f"Failed to emit RebalancePlanned event: {e}")
+            self.logger.error(
+                f"Failed to emit enhanced RebalancePlanned event: {e}",
+                extra={
+                    "correlation_id": correlation_id,
+                    "plan_hash": plan_hash,
+                    "module": "portfolio_v2",
+                }
+            )
             raise
 
     def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
@@ -441,7 +603,21 @@ class PortfolioAnalysisHandler:
             )
 
             self.event_bus.publish(failure_event)
-            self.logger.error(f"📡 Emitted WorkflowFailed event: {error_message}")
+            self.logger.error(
+                f"📡 Emitted WorkflowFailed event: {error_message}",
+                extra={
+                    "correlation_id": original_event.correlation_id,
+                    "causation_id": original_event.event_id,
+                    "workflow_type": "portfolio_analysis",
+                    "module": "portfolio_v2",
+                }
+            )
 
         except Exception as e:
-            self.logger.error(f"Failed to emit WorkflowFailed event: {e}")
+            self.logger.error(
+                f"Failed to emit WorkflowFailed event: {e}",
+                extra={
+                    "correlation_id": original_event.correlation_id,
+                    "module": "portfolio_v2",
+                }
+            )
