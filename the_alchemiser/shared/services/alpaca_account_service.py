@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 class AlpacaAccountService:
     """Service for account-related operations using Alpaca API.
-    
+
     This service encapsulates all account-related functionality previously
     scattered within AlpacaManager, providing a focused interface for:
     - Account information and validation
@@ -38,7 +38,7 @@ class AlpacaAccountService:
 
     def __init__(self, trading_client: TradingClient) -> None:
         """Initialize account service with Alpaca trading client.
-        
+
         Args:
             trading_client: Alpaca TradingClient instance
 
@@ -168,10 +168,10 @@ class AlpacaAccountService:
 
     def get_position(self, symbol: str) -> Position | None:
         """Get position for specific symbol.
-        
+
         Args:
             symbol: Trading symbol to get position for
-            
+
         Returns:
             Position object if found, None otherwise
 

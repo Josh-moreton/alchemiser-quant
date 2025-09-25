@@ -43,6 +43,7 @@ except ImportError:  # pragma: no cover - environment-dependent import
     class _RequestExcImported(Exception):  # type: ignore[no-redef]
         """Fallback RequestException."""
 
+
 RetryException = _RetryExcImported
 HTTPError = _HTTPErrorImported
 RequestException = _RequestExcImported
@@ -269,7 +270,6 @@ class MarketDataService(MarketDataPort):
         """
         # Import dependencies locally to avoid circular imports
         from alpaca.data.requests import StockBarsRequest
-        from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
         # Retry with exponential backoff and jitter for transient upstream failures
         max_retries = 3
@@ -366,7 +366,7 @@ class MarketDataService(MarketDataPort):
             Tuple of (start_date, end_date) as strings
 
         """
-        from datetime import datetime, timedelta
+        from datetime import datetime
 
         end_date = datetime.now(UTC)
 
@@ -488,6 +488,7 @@ class MarketDataService(MarketDataPort):
 
         """
         from typing import cast
+
         from the_alchemiser.shared.protocols.market_data import BarsIterable
 
         bars_obj: BarsIterable | None = None

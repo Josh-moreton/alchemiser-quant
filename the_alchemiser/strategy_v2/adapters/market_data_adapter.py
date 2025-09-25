@@ -53,7 +53,7 @@ class StrategyMarketDataAdapter:
         """
         self._alpaca = alpaca_manager
         self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
-        
+
         # Initialize MarketDataService for improved retry logic and consistent market data access
         self._market_data_service = MarketDataService(alpaca_manager)
 

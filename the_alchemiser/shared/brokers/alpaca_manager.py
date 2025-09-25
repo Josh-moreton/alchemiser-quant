@@ -16,18 +16,15 @@ Phase 3 Update: Moved to shared module to resolve architectural boundary violati
 from __future__ import annotations
 
 import logging
-import re
 import threading
 import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from secrets import randbelow
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 # Type checking imports to avoid circular dependencies
 from alpaca.data.historical import StockHistoricalDataClient
-from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
-from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
+from alpaca.data.requests import StockLatestQuoteRequest
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, QueryOrderStatus, TimeInForce
 from alpaca.trading.models import Order, Position, TradeAccount
@@ -45,7 +42,6 @@ from the_alchemiser.shared.dto.broker_dto import (
     WebSocketStatus,
 )
 from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
-from the_alchemiser.shared.protocols.market_data import BarsIterable
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
     MarketDataRepository,
@@ -201,6 +197,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         # Initialize MarketDataService for delegation
         from the_alchemiser.shared.services.market_data_service import MarketDataService
+
         self._market_data_service = MarketDataService(self)
 
     @property
@@ -922,7 +919,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             List of dictionaries with bar data using Pydantic model field names
 
         """
-        return self._market_data_service.get_historical_bars(symbol, start_date, end_date, timeframe)
+        return self._market_data_service.get_historical_bars(
+            symbol, start_date, end_date, timeframe
+        )
 
     # Utility Methods
     def validate_connection(self) -> bool:
