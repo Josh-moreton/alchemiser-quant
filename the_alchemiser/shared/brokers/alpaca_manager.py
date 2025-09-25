@@ -523,6 +523,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         Returns:
             ExecutedOrderDTO with execution details
 
+
         """
         try:
             # Validation
