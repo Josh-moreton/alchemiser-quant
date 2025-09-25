@@ -88,6 +88,7 @@ class ExecutionIdempotencyStore:
         self, 
         correlation_id: str, 
         execution_plan_hash: str,
+        *,
         success: bool,
         metadata: dict[str, Any] | None = None,
     ) -> None:
@@ -144,7 +145,7 @@ class ExecutionIdempotencyStore:
     def _load_attempts(self) -> dict[str, Any]:
         """Load execution attempts from persistence."""
         try:
-            data = self._persistence.read(self._store_key)
+            data = self._persistence.read_text(self._store_key)
             return json.loads(data) if data else {}
         except Exception:
             # Return empty dict if load fails
@@ -153,7 +154,7 @@ class ExecutionIdempotencyStore:
     def _save_attempts(self, attempts: dict[str, Any]) -> None:
         """Save execution attempts to persistence."""
         data = json.dumps(attempts, indent=2)
-        self._persistence.write(self._store_key, data)
+        self._persistence.write_text(self._store_key, data)
 
     def _get_current_timestamp(self) -> str:
         """Get current timestamp as string."""
@@ -180,16 +181,17 @@ def generate_execution_plan_hash(rebalance_plan: RebalancePlanDTO, correlation_i
             {
                 "symbol": item.symbol,
                 "action": item.action,
-                "shares": str(item.shares),  # Convert Decimal to string for deterministic hashing
-                "trade_amount": str(item.trade_amount),
+                "trade_amount": str(item.trade_amount),  # Convert Decimal to string for deterministic hashing
+                "target_weight": str(item.target_weight),
+                "current_weight": str(item.current_weight),
             }
             for item in sorted(rebalance_plan.items, key=lambda x: (x.symbol, x.action))
         ],
     }
     
     # Generate hash
-    plan_json = json.dumps(plan_data, sort_keys=True, separators=(',', ':'))
-    plan_hash = hashlib.sha256(plan_json.encode('utf-8')).hexdigest()
+    plan_json = json.dumps(plan_data, sort_keys=True, separators=(",", ":"))
+    plan_hash = hashlib.sha256(plan_json.encode("utf-8")).hexdigest()
     
     log_with_context(
         logger,

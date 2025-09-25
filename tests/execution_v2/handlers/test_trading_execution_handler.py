@@ -24,10 +24,13 @@ def mock_container():
 @pytest.fixture
 def sample_rebalance_planned_event():
     """Sample RebalancePlanned event."""
+    from datetime import datetime, UTC
+    
     rebalance_plan = RebalancePlanDTO(
         plan_id="test-plan-123",
         correlation_id="test-correlation-456",
-        created_at="2024-01-01T00:00:00Z",
+        causation_id="test-causation-789",
+        timestamp=datetime.now(UTC),
         items=[
             RebalancePlanItemDTO(
                 symbol="AAPL",
@@ -41,6 +44,8 @@ def sample_rebalance_planned_event():
                 priority=1,
             ),
         ],
+        total_portfolio_value=Decimal("5000.00"),
+        total_trade_value=Decimal("500.00"),
     )
     
     return RebalancePlanned(

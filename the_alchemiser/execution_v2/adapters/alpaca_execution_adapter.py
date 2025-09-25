@@ -16,7 +16,7 @@ from the_alchemiser.execution_v2.models.execution_result import ExecutionResultD
 from the_alchemiser.shared.constants import DECIMAL_ZERO
 from the_alchemiser.shared.logging.logging_utils import log_with_context
 from the_alchemiser.shared.schemas.execution_report import ExecutedOrderDTO
-from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanDTO
+from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanDTO, RebalancePlanItemDTO
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
@@ -75,6 +75,36 @@ class AlpacaExecutionAdapter:
         try:
             for item in rebalance_plan.items:
                 try:
+                    # Skip HOLD actions or zero trade amounts
+                    if item.action.upper() == "HOLD" or item.trade_amount == DECIMAL_ZERO:
+                        # Create a successful "no-op" order result
+                        order_result = OrderResultDTO(
+                            symbol=item.symbol,
+                            action=item.action,
+                            trade_amount=DECIMAL_ZERO,
+                            shares=DECIMAL_ZERO,
+                            price=None,
+                            order_id=None,
+                            success=True,
+                            error_message=None,
+                            timestamp=rebalance_plan.timestamp,
+                        )
+                        order_results.append(order_result)
+                        orders_placed += 1
+                        orders_succeeded += 1
+                        
+                        log_with_context(
+                            logger,
+                            logging.INFO,
+                            f"Skipped HOLD action or zero trade for {item.symbol}",
+                            module=MODULE_NAME,
+                            action="execute_single_order",
+                            symbol=item.symbol,
+                            action_type=item.action,
+                            trade_amount=str(item.trade_amount),
+                        )
+                        continue
+                    
                     # Execute individual order through AlpacaManager
                     executed_order = self._execute_single_order(item)
                     
@@ -110,7 +140,7 @@ class AlpacaExecutionAdapter:
                         order_id=None,
                         success=False,
                         error_message=str(e),
-                        timestamp=rebalance_plan.created_at,
+                        timestamp=rebalance_plan.timestamp,
                     )
                     order_results.append(order_result)
                     orders_placed += 1
@@ -136,7 +166,7 @@ class AlpacaExecutionAdapter:
                 orders_placed=orders_placed,
                 orders_succeeded=orders_succeeded,
                 total_trade_value=total_trade_value,
-                execution_timestamp=rebalance_plan.created_at,
+                execution_timestamp=rebalance_plan.timestamp,
                 metadata={
                     "adapter": MODULE_NAME,
                     "original_plan_items": len(rebalance_plan.items),
@@ -168,7 +198,7 @@ class AlpacaExecutionAdapter:
             )
             raise
 
-    def _execute_single_order(self, rebalance_item) -> ExecutedOrderDTO:
+    def _execute_single_order(self, rebalance_item: RebalancePlanItemDTO) -> ExecutedOrderDTO:
         """Execute a single order through AlpacaManager.
 
         Args:
@@ -192,7 +222,7 @@ class AlpacaExecutionAdapter:
             notional=abs(float(rebalance_item.trade_amount)),  # Use absolute value for notional
         )
 
-    def _convert_executed_order_to_dto(self, executed_order: ExecutedOrderDTO, original_item) -> OrderResultDTO:
+    def _convert_executed_order_to_dto(self, executed_order: ExecutedOrderDTO, original_item: RebalancePlanItemDTO) -> OrderResultDTO:
         """Convert ExecutedOrderDTO to OrderResultDTO.
 
         Args:
@@ -203,14 +233,17 @@ class AlpacaExecutionAdapter:
             OrderResultDTO for execution result
 
         """
+        # Map ExecutedOrder fields to OrderResult fields
+        success = executed_order.status in {"FILLED", "PARTIAL"}
+        
         return OrderResultDTO(
             symbol=executed_order.symbol,
             action=executed_order.action,
-            trade_amount=executed_order.trade_amount,
-            shares=executed_order.shares,
+            trade_amount=executed_order.total_value,  # Map total_value to trade_amount
+            shares=executed_order.filled_quantity,   # Map filled_quantity to shares
             price=executed_order.price,
             order_id=executed_order.order_id,
-            success=executed_order.success,
+            success=success,                          # Derive success from status
             error_message=executed_order.error_message,
-            timestamp=executed_order.timestamp,
+            timestamp=executed_order.execution_timestamp,  # Map execution_timestamp to timestamp
         )

@@ -20,10 +20,13 @@ def mock_alpaca_manager():
 @pytest.fixture
 def sample_rebalance_plan():
     """Sample rebalance plan for testing."""
+    from datetime import datetime, UTC
+    
     return RebalancePlanDTO(
         plan_id="test-plan-123",
         correlation_id="test-correlation-456",
-        created_at="2024-01-01T00:00:00Z",
+        causation_id="test-causation-789",
+        timestamp=datetime.now(UTC),
         items=[
             RebalancePlanItemDTO(
                 symbol="AAPL",
@@ -48,22 +51,27 @@ def sample_rebalance_plan():
                 priority=2,
             ),
         ],
+        total_portfolio_value=Decimal("5000.00"),
+        total_trade_value=Decimal("1000.00"),
     )
 
 
 @pytest.fixture
 def sample_executed_order():
     """Sample executed order DTO."""
+    from datetime import datetime, UTC
+    
     return ExecutedOrderDTO(
+        order_id="order-123",
         symbol="AAPL",
         action="BUY",
-        shares=Decimal("10"),
-        trade_amount=Decimal("500.00"),
-        price=Decimal("150.00"),
-        order_id="order-123",
-        success=True,
+        quantity=Decimal("10"),
+        filled_quantity=Decimal("10"),
+        price=Decimal("50.00"),
+        total_value=Decimal("500.00"),
+        status="FILLED",
+        execution_timestamp=datetime.now(UTC),
         error_message=None,
-        timestamp="2024-01-01T00:00:00Z",
     )
 
 
@@ -111,29 +119,33 @@ def test_execute_orders_successful(mock_alpaca_manager, sample_rebalance_plan, s
 
 def test_execute_orders_partial_failure(mock_alpaca_manager, sample_rebalance_plan):
     """Test execution with some failed orders."""
+    from datetime import datetime, UTC
+    
     # Setup mock trading service to return success for first order, failure for second
     successful_order = ExecutedOrderDTO(
+        order_id="order-123",
         symbol="AAPL",
         action="BUY",
-        shares=Decimal("10"),
-        trade_amount=Decimal("500.00"),
-        price=Decimal("150.00"),
-        order_id="order-123",
-        success=True,
+        quantity=Decimal("10"),
+        filled_quantity=Decimal("10"),
+        price=Decimal("50.00"),
+        total_value=Decimal("500.00"),
+        status="FILLED",
+        execution_timestamp=datetime.now(UTC),
         error_message=None,
-        timestamp="2024-01-01T00:00:00Z",
     )
     
     failed_order = ExecutedOrderDTO(
+        order_id="order-456",
         symbol="MSFT",
         action="SELL",
-        shares=Decimal("0"),  # No shares for failed order
-        trade_amount=Decimal("0.00"),  # No trade value for failed order
-        price=None,
-        order_id=None,
-        success=False,
+        quantity=Decimal("10"),
+        filled_quantity=Decimal("0"),  # No shares filled
+        price=Decimal("50.00"),
+        total_value=Decimal("0.00"),  # No trade value for failed order
+        status="REJECTED",
+        execution_timestamp=datetime.now(UTC),
         error_message="Insufficient shares",
-        timestamp="2024-01-01T00:00:00Z",
     )
     
     mock_trading_service = Mock()
@@ -147,7 +159,7 @@ def test_execute_orders_partial_failure(mock_alpaca_manager, sample_rebalance_pl
     # Verify result reflects partial success
     assert result.success is False  # Not all orders succeeded
     assert result.orders_placed == 2
-    assert result.orders_succeeded == 1
+    assert result.orders_succeeded == 1  # Only FILLED orders are successful
     assert result.total_trade_value == Decimal("500.00")  # Only successful order
     
     # Check order results
@@ -181,30 +193,48 @@ def test_execute_orders_all_failures(mock_alpaca_manager, sample_rebalance_plan)
 
 
 def test_execute_orders_empty_plan(mock_alpaca_manager):
-    """Test execution with empty rebalance plan."""
-    empty_plan = RebalancePlanDTO(
-        plan_id="empty-plan",
+    """Test execution with rebalance plan with no actual trades needed."""
+    from datetime import datetime, UTC
+    
+    # Create a plan with items but zero trade amounts (effectively no trades)
+    no_trade_plan = RebalancePlanDTO(
+        plan_id="no-trade-plan",
         correlation_id="test-correlation",
-        created_at="2024-01-01T00:00:00Z",
-        items=[],
+        causation_id="test-causation",
+        timestamp=datetime.now(UTC),
+        items=[
+            RebalancePlanItemDTO(
+                symbol="AAPL",
+                current_weight=Decimal("0.4"),
+                target_weight=Decimal("0.4"),
+                weight_diff=Decimal("0.0"),
+                target_value=Decimal("2000.00"),
+                current_value=Decimal("2000.00"),
+                trade_amount=Decimal("0.00"),  # No trade needed
+                action="BUY",  # Use valid action even though amount is zero
+                priority=1,
+            ),
+        ],
+        total_portfolio_value=Decimal("5000.00"),
+        total_trade_value=Decimal("0.00"),
     )
     
-    # Setup mock trading service (though it won't be called)
+    # Setup mock trading service (won't be called for zero amounts)
     mock_trading_service = Mock()
     mock_alpaca_manager._get_trading_service.return_value = mock_trading_service
     
     adapter = AlpacaExecutionAdapter(mock_alpaca_manager)
     
-    result = adapter.execute_orders(empty_plan)
+    result = adapter.execute_orders(no_trade_plan)
     
-    # Verify result for empty plan
-    assert result.success is False  # No orders placed means not successful
-    assert result.orders_placed == 0
-    assert result.orders_succeeded == 0
+    # Verify result for no-trade plan
+    assert result.success is True  # Successfully handled no-trade scenario
+    assert result.orders_placed == 1  # One "order" was processed
+    assert result.orders_succeeded == 1  # The no-op order succeeded
     assert result.total_trade_value == Decimal("0.00")
-    assert len(result.orders) == 0
+    assert len(result.orders) == 1
     
-    # Verify trading service was not called
+    # Should NOT be called for zero amounts
     mock_trading_service.place_market_order.assert_not_called()
 
 
