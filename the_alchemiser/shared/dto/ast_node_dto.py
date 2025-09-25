@@ -15,7 +15,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class ASTNodeDTO(BaseModel):
+class ASTNode(BaseModel):
     """DTO for Abstract Syntax Tree nodes from S-expression parsing.
 
     Represents parsed S-expressions as a tree structure with typed nodes
@@ -34,7 +34,7 @@ class ASTNodeDTO(BaseModel):
     value: str | Decimal | None = Field(default=None, description="Node value for atoms")
 
     # Tree structure
-    children: list[ASTNodeDTO] = Field(default_factory=list, description="Child nodes")
+    children: list[ASTNode] = Field(default_factory=list, description="Child nodes")
 
     # Metadata
     metadata: dict[str, Any] | None = Field(
@@ -42,7 +42,7 @@ class ASTNodeDTO(BaseModel):
     )
 
     @classmethod
-    def symbol(cls, name: str, metadata: dict[str, Any] | None = None) -> ASTNodeDTO:
+    def symbol(cls, name: str, metadata: dict[str, Any] | None = None) -> ASTNode:
         """Create a symbol node.
 
         Args:
@@ -50,13 +50,13 @@ class ASTNodeDTO(BaseModel):
             metadata: Optional metadata
 
         Returns:
-            ASTNodeDTO representing a symbol
+            ASTNode representing a symbol
 
         """
         return cls(node_type="symbol", value=name, metadata=metadata)
 
     @classmethod
-    def atom(cls, value: str | Decimal, metadata: dict[str, Any] | None = None) -> ASTNodeDTO:
+    def atom(cls, value: str | Decimal, metadata: dict[str, Any] | None = None) -> ASTNode:
         """Create an atom node.
 
         Args:
@@ -64,15 +64,15 @@ class ASTNodeDTO(BaseModel):
             metadata: Optional metadata
 
         Returns:
-            ASTNodeDTO representing an atom
+            ASTNode representing an atom
 
         """
         return cls(node_type="atom", value=value, metadata=metadata)
 
     @classmethod
     def list_node(
-        cls, children: list[ASTNodeDTO], metadata: dict[str, Any] | None = None
-    ) -> ASTNodeDTO:
+        cls, children: list[ASTNode], metadata: dict[str, Any] | None = None
+    ) -> ASTNode:
         """Create a list node.
 
         Args:
@@ -80,7 +80,7 @@ class ASTNodeDTO(BaseModel):
             metadata: Optional metadata
 
         Returns:
-            ASTNodeDTO representing a list
+            ASTNode representing a list
 
         """
         return cls(node_type="list", children=children, metadata=metadata)
@@ -108,3 +108,7 @@ class ASTNodeDTO(BaseModel):
         if self.is_atom():
             return self.value
         return None
+
+
+# TODO: Remove in Phase 3 - Temporary backward compatibility alias
+ASTNodeDTO = ASTNode

@@ -23,7 +23,7 @@ from ..utils.dto_conversion import (
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class RebalancePlanItemDTO(BaseModel):
+class RebalancePlanItem(BaseModel):
     """DTO for individual rebalance plan item."""
 
     model_config = ConfigDict(
@@ -62,7 +62,7 @@ class RebalancePlanItemDTO(BaseModel):
         return action_upper
 
 
-class RebalancePlanDTO(BaseModel):
+class RebalancePlan(BaseModel):
     """DTO for complete rebalance plan data transfer.
 
     Used for communication between portfolio and execution modules.
@@ -87,7 +87,7 @@ class RebalancePlanDTO(BaseModel):
     plan_id: str = Field(..., min_length=1, description="Unique plan identifier")
 
     # Plan content
-    items: list[RebalancePlanItemDTO] = Field(
+    items: list[RebalancePlanItem] = Field(
         ..., min_length=1, description="List of rebalance plan items"
     )
 
@@ -205,14 +205,14 @@ class RebalancePlanDTO(BaseModel):
         return cls(**data)
 
     @classmethod
-    def _convert_items_from_dict(cls, items: list[Any]) -> list[RebalancePlanItemDTO]:
+    def _convert_items_from_dict(cls, items: list[Any]) -> list[RebalancePlanItem]:
         """Convert items list from dictionary format.
 
         Args:
             items: List of item data (dicts or DTOs)
 
         Returns:
-            List of RebalancePlanItemDTO instances
+            List of RebalancePlanItem instances
 
         """
         if not isinstance(items, list):
@@ -222,8 +222,13 @@ class RebalancePlanDTO(BaseModel):
         for item_data in items:
             if isinstance(item_data, dict):
                 converted_item = convert_nested_rebalance_item_data(dict(item_data))
-                items_data.append(RebalancePlanItemDTO(**converted_item))
+                items_data.append(RebalancePlanItem(**converted_item))
             else:
                 items_data.append(item_data)  # Assume already a DTO
 
         return items_data
+
+
+# TODO: Remove in Phase 3 - Temporary backward compatibility aliases
+RebalancePlanItemDTO = RebalancePlanItem
+RebalancePlanDTO = RebalancePlan
