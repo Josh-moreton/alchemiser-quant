@@ -31,7 +31,7 @@ logger = get_logger(__name__)
 
 class AssetMetadataService:
     """Service for asset metadata management with caching.
-    
+
     This service handles asset metadata operations with thread-safe caching,
     providing a centralized interface for asset information retrieval.
     """
@@ -185,7 +185,7 @@ class AssetMetadataService:
                 for symbol, cache_time in self._asset_cache_timestamps.items()
                 if current_time - cache_time >= self._asset_cache_ttl
             )
-            
+
             return {
                 "total_cached": len(self._asset_cache),
                 "expired_entries": expired_count,
