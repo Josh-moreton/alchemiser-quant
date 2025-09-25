@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Business Unit: shared | Status: current.
 
-Lambda event data transfer objects for AWS Lambda event handling.
+Lambda event schemas for AWS Lambda event handling.
 
-Provides typed DTOs for Lambda event parsing and cross-module coordination.
+Provides typed schemas for Lambda event parsing and cross-module coordination.
 """
 
 from __future__ import annotations
@@ -11,8 +11,8 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class LambdaEventDTO(BaseModel):
-    """DTO for AWS Lambda event data.
+class LambdaEvent(BaseModel):
+    """Schema for AWS Lambda event data.
 
     Used for parsing Lambda events to determine trading mode and configuration.
     Supports both trading and signal-only modes.

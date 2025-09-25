@@ -31,6 +31,7 @@ from .errors import (
     ErrorSummaryData,
 )
 from .execution_reports import ExecutedOrder, ExecutionReport
+from .lambda_events import LambdaEvent
 from .market_bars import MarketBar
 from .market_data import (
     MarketStatusResult,
@@ -63,6 +64,7 @@ __all__ = [
     "ErrorSummaryData",
     "ExecutedOrder",
     "ExecutionReport",
+    "LambdaEvent",
     "MarketBar",
     "MarketStatusResult",
     "MultiStrategyExecutionResult",

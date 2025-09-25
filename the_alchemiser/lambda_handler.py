@@ -20,7 +20,7 @@ from typing import Any
 from the_alchemiser.main import main
 from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
-from the_alchemiser.shared.dto import LambdaEventDTO
+from the_alchemiser.shared.schemas.lambda_events import LambdaEvent
 from the_alchemiser.shared.errors.error_handler import (
     handle_trading_error,
     send_error_notification_if_needed,
@@ -75,7 +75,7 @@ def _build_response_message(trading_mode: str, *, result: bool) -> str:
 
 def _handle_error(
     error: Exception,
-    event: LambdaEventDTO | None,
+    event: LambdaEvent | None,
     request_id: str,
     context_suffix: str = "",
     command_args: list[str] | None = None,
@@ -131,7 +131,7 @@ def _handle_error(
 
 def _handle_trading_error(
     error: Exception,
-    event: LambdaEventDTO | None,
+    event: LambdaEvent | None,
     request_id: str,
     command_args: list[str] | None = None,
 ) -> None:
@@ -149,7 +149,7 @@ def _handle_trading_error(
 
 def _handle_critical_error(
     error: Exception,
-    event: LambdaEventDTO | None,
+    event: LambdaEvent | None,
     request_id: str,
     command_args: list[str] | None = None,
 ) -> None:
@@ -166,7 +166,7 @@ def _handle_critical_error(
 
 
 def parse_event_mode(
-    event: LambdaEventDTO | dict[str, Any],
+    event: LambdaEvent | dict[str, Any],
 ) -> list[str]:  # Lambda event can be flexible dict or TypedDict
     """Parse the Lambda event. Trade-only system; always returns ['trade'].
 
@@ -181,14 +181,14 @@ def parse_event_mode(
     """
     # Convert dict to DTO if provided, for potential future use/validation
     if isinstance(event, dict) and event:
-        _ = LambdaEventDTO(**event)
+        _ = LambdaEvent(**event)
 
     logger.info("Parsed event to command: trade")
     return ["trade"]
 
 
 def lambda_handler(
-    event: LambdaEventDTO | None = None, context: object | None = None
+    event: LambdaEvent | None = None, context: object | None = None
 ) -> dict[str, Any]:
     """AWS Lambda function handler for The Alchemiser trading system.
 
