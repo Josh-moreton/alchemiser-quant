@@ -14,6 +14,7 @@ import uuid
 import warnings
 from datetime import UTC, datetime
 
+from the_alchemiser.shared.constants import DSL_STRATEGY_SOURCE
 from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
 from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
 from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO

@@ -55,48 +55,17 @@ from the_alchemiser.shared.schemas import (
     TradeLedgerQuery,
     TradeRunResult,
     TradeRunResultDTO,
+    TradeSide,
 )
 
+# Emit deprecation warning on first import
+warnings.warn(
+    "`the_alchemiser.shared.dto` is deprecated; use `the_alchemiser.shared.schemas`.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
-class Configuration(BaseModel):
-    """Placeholder for configuration data transfer.
-
-    Proper Pydantic v2 DTO to replace placeholder class.
-    Will be enhanced with specific config fields in Phase 2.
-    """
-
-    model_config = ConfigDict(
-        strict=True,
-        frozen=True,
-        validate_assignment=True,
-    )
-
-    config_data: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Configuration data (flexible for Phase 1 scaffolding)",
-    )
-
-
-class Error(BaseModel):
-    """Placeholder for error data transfer.
-
-    Proper Pydantic v2 DTO to replace placeholder class.
-    Will be enhanced with specific error fields in Phase 2.
-    """
-
-    model_config = ConfigDict(
-        strict=True,
-        frozen=True,
-        validate_assignment=True,
-    )
-
-    error_type: str = Field(description="Type of error")
-    message: str = Field(description="Error message")
-    context: dict[str, Any] = Field(
-        default_factory=dict, description="Error context data"
-    )
-
-
+# Keep old __all__ for backward compatibility - it will be imported from schemas
 __all__ = [
     "AssetInfo",
     "AssetInfoDTO",
