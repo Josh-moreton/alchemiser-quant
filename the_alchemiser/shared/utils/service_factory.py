@@ -10,6 +10,7 @@ from typing import cast, Protocol
 
 from the_alchemiser.shared.config.container import ApplicationContainer
 
+
 class ExecutionManagerProtocol(Protocol):
     """Subset of ExecutionManager interface required by ServiceFactory."""
 
