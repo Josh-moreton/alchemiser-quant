@@ -23,11 +23,32 @@ _S3_PROTOCOL_PREFIX = "s3://"
 # Set of string values that, when present in configuration, indicate S3 logging should be enabled.
 _S3_ENABLED_VALUES = frozenset(["1", "true", "yes", "on"])
 # Set of environment variable names that, if present, indicate the code is running in an AWS Lambda environment.
-_LAMBDA_ENV_VARS = frozenset(["AWS_EXECUTION_ENV", "AWS_LAMBDA_RUNTIME_API", "LAMBDA_RUNTIME_DIR"])
+_LAMBDA_ENV_VARS = frozenset(
+    ["AWS_EXECUTION_ENV", "AWS_LAMBDA_RUNTIME_API", "LAMBDA_RUNTIME_DIR"]
+)
 
 # Context variables for request tracking
 request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
 error_id_context: ContextVar[str | None] = ContextVar("error_id", default=None)
+
+
+def _parse_log_level(level_str: str | None) -> int | None:
+    """Convert a string log level to its numeric value."""
+    if not level_str:
+        return None
+
+    lvl_upper = level_str.strip().upper()
+    if not lvl_upper:
+        return None
+
+    if lvl_upper.isdigit():
+        try:
+            return int(lvl_upper)
+        except ValueError:
+            return None
+
+    named_level = getattr(logging, lvl_upper, None)
+    return named_level if isinstance(named_level, int) else None
 
 
 class AlchemiserLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
@@ -237,7 +258,9 @@ def generate_request_id() -> str:
     return str(uuid.uuid4())
 
 
-def log_with_context(logger: logging.Logger, level: int, message: str, **context: object) -> None:
+def log_with_context(
+    logger: logging.Logger, level: int, message: str, **context: object
+) -> None:
     """Log a message with additional context fields.
 
     Args:
@@ -340,7 +363,9 @@ def setup_logging(
     if not respect_existing_handlers or not root_logger.hasHandlers():
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(formatter)
-        console_handler.setLevel(console_level if console_level is not None else log_level)
+        console_handler.setLevel(
+            console_level if console_level is not None else log_level
+        )
         handlers.append(console_handler)
 
     # File handler if specified
@@ -480,7 +505,9 @@ def log_trade_event(
         "timestamp": datetime.now(UTC).isoformat() + "Z",
         **details,
     }
-    log_with_context(logger, logging.INFO, f"Trading event: {event_type} for {symbol}", **context)
+    log_with_context(
+        logger, logging.INFO, f"Trading event: {event_type} for {symbol}", **context
+    )
 
 
 def log_error_with_context(
@@ -665,28 +692,17 @@ def resolve_log_level(*, is_production: bool) -> int:
 
     """
     # Environment override first
-    level_str = os.getenv("LOGGING__LEVEL")
-    if level_str:
-        # Support both names (e.g. DEBUG) and numeric strings (e.g. 10)
-        lvl_upper = level_str.strip().upper()
-        # Numeric string
-        if lvl_upper.isdigit():
-            try:
-                return int(lvl_upper)
-            except ValueError:
-                pass
-        # Named level
-        named = getattr(logging, lvl_upper, None)
-        if isinstance(named, int):
-            return named
+    env_level = _parse_log_level(os.getenv("LOGGING__LEVEL"))
+    if env_level is not None:
+        return env_level
 
     # Then settings
     try:
         from the_alchemiser.shared.config.config import load_settings
 
         settings = load_settings()
-        configured = getattr(logging, settings.logging.level.upper(), None)
-        if isinstance(configured, int):
+        configured = _parse_log_level(getattr(settings.logging, "level", None))
+        if configured is not None:
             return configured
     except (AttributeError, TypeError, ImportError):
         # Settings loading failed or invalid log level, fall back to default
@@ -712,23 +728,52 @@ def configure_application_logging() -> None:
 
     resolved_level = resolve_log_level(is_production=is_production)
 
+    settings = None
+    try:
+        from the_alchemiser.shared.config.config import load_settings
+
+        settings = load_settings()
+    except (AttributeError, ImportError, TypeError):
+        settings = None
+
     if is_production:
         log_file = None
-        try:
-            from the_alchemiser.shared.config.config import load_settings
-
-            settings = load_settings()
-            if settings.logging.enable_s3_logging and settings.logging.s3_log_uri:
-                log_file = settings.logging.s3_log_uri
-        except (AttributeError, ImportError):
-            # Settings loading failed, use default log file setting
-            pass
+        if (
+            settings
+            and settings.logging.enable_s3_logging
+            and settings.logging.s3_log_uri
+        ):
+            log_file = settings.logging.s3_log_uri
         configure_production_logging(log_level=resolved_level, log_file=log_file)
         return
 
+    def _determine_console_level(default_level: int) -> int:
+        env_console = _parse_log_level(os.getenv("LOGGING__CONSOLE_LEVEL"))
+        if env_console is not None:
+            return env_console
+
+        if settings:
+            configured_console = _parse_log_level(settings.logging.console_level)
+            if configured_console is not None:
+                return configured_console
+
+        return default_level
+
+    def _determine_log_file() -> str | None:
+        env_path = os.getenv("LOGGING__LOCAL_LOG_FILE")
+        if env_path and env_path.strip():
+            return env_path
+
+        if settings and settings.logging.local_log_file:
+            path = settings.logging.local_log_file.strip()
+            return path or None
+
+        return None
+
     setup_logging(
         log_level=resolved_level,
-        console_level=resolved_level,
+        log_file=_determine_log_file(),
+        console_level=_determine_console_level(resolved_level),
         suppress_third_party=True,
         structured_format=False,
         respect_existing_handlers=True,
