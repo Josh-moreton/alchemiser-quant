@@ -27,7 +27,7 @@ class ServiceProviders(containers.DeclarativeContainer):
 
     # Event bus (singleton for the application)
     event_bus = providers.Singleton(EventBus)
-    
+
     # Event handler registry (singleton for the application)
     event_handler_registry = providers.Singleton(EventHandlerRegistry)
 

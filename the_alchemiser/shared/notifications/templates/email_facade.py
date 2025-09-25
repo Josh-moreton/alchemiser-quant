@@ -71,9 +71,7 @@ def build_multi_strategy_email_html(
     return MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, mode)
 
 
-def build_trading_report_html(
-    *_args: object, **_kwargs: object
-) -> str:  # Deprecated shim
+def build_trading_report_html(*_args: object, **_kwargs: object) -> str:  # Deprecated shim
     """Return deprecation notice for removed trading report (neutral mode only)."""
     return BaseEmailTemplate.wrap_content(
         BaseEmailTemplate.create_alert_box(
@@ -128,9 +126,7 @@ class EmailTemplates:
         """
         from .multi_strategy import MultiStrategyReportBuilder
 
-        return MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-            result, mode
-        )
+        return MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, mode)
 
     @staticmethod
     def failed_trading_run(
@@ -265,9 +261,7 @@ class EmailTemplates:
         metrics_rows = ""
         for metric_name, metric_value in metrics.items():
             display_name = metric_name.replace("_", " ").title()
-            formatted_value = EmailTemplates._format_metric_value(
-                metric_name, metric_value
-            )
+            formatted_value = EmailTemplates._format_metric_value(metric_name, metric_value)
 
             metrics_rows += f"""
             <tr>
@@ -345,9 +339,7 @@ class EmailTemplates:
         )
 
     @staticmethod
-    def monthly_performance_summary(
-        *_args: object, **_kwargs: object
-    ) -> str:  # Deprecated
+    def monthly_performance_summary(*_args: object, **_kwargs: object) -> str:  # Deprecated
         """Return deprecated performance summary notice (neutral mode only)."""
         return BaseEmailTemplate.wrap_content(
             BaseEmailTemplate.create_alert_box(

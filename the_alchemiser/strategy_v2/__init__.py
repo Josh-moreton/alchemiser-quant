@@ -48,31 +48,31 @@ def register_strategy_handlers(
     container: ApplicationContainer, registry: EventHandlerRegistry
 ) -> None:
     """Register strategy event handlers with the handler registry.
-    
+
     Args:
         container: Application DI container
         registry: Event handler registry
 
     """
     from .handlers.signal_generation_handler import SignalGenerationHandler
-    
+
     def signal_handler_factory() -> SignalGenerationHandler:
         """Create SignalGenerationHandler."""
         return SignalGenerationHandler(container)
-    
+
     # Register handlers for events this module can handle
     registry.register_handler(
         event_type="StartupEvent",
         handler_factory=signal_handler_factory,
         module_name="strategy_v2",
         priority=100,
-        metadata={"description": "Generates strategy signals on startup"}
+        metadata={"description": "Generates strategy signals on startup"},
     )
-    
+
     registry.register_handler(
         event_type="WorkflowStarted",
         handler_factory=signal_handler_factory,
         module_name="strategy_v2",
         priority=100,
-        metadata={"description": "Generates strategy signals on workflow start"}
+        metadata={"description": "Generates strategy signals on workflow start"},
     )

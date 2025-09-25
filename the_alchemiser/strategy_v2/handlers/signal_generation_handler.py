@@ -26,11 +26,17 @@ from the_alchemiser.shared.events import (
     WorkflowStarted,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.schemas.consolidated_portfolio import (
-    ConsolidatedPortfolioDTO,
+from the_alchemiser.shared.persistence.signal_idempotency_store import (
+    get_signal_idempotency_store,
 )
+from the_alchemiser.shared.schemas import ConsolidatedPortfolioDTO
 from the_alchemiser.shared.types import StrategySignal
 from the_alchemiser.shared.types.exceptions import DataProviderError
+from the_alchemiser.shared.utils.event_hashing import (
+    generate_market_snapshot_id,
+    generate_signal_hash,
+)
+from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import DslStrategyEngine
 
 
@@ -53,6 +59,9 @@ class SignalGenerationHandler:
 
         # Get event bus from container
         self.event_bus: EventBus = container.services.event_bus()
+
+        # Initialize idempotency store for signal replay detection
+        self.idempotency_store = get_signal_idempotency_store()
 
     def handle_event(self, event: BaseEvent) -> None:
         """Handle events for signal generation.
@@ -118,9 +127,44 @@ class SignalGenerationHandler:
                     "Signal analysis failed validation - no meaningful data available"
                 )
 
-            # Emit SignalGenerated event
+            # Generate signal hash for idempotency checking
+            # Use model_dump for Pydantic object; fallback not needed now that DTO alias is Pydantic
+            signal_hash = generate_signal_hash(
+                strategy_signals,
+                consolidated_portfolio.model_dump(),
+            )
+
+            # Check if this signal was already processed
+            if self.idempotency_store.has_signal_hash(signal_hash):
+                existing_metadata = self.idempotency_store.get_signal_metadata(signal_hash)
+                existing_correlation = (
+                    existing_metadata.get("correlation_id") if existing_metadata else "unknown"
+                )
+
+                self.logger.info(
+                    f"🔄 Skipping duplicate signal generation - hash {signal_hash} "
+                    f"already processed (original correlation: {existing_correlation})"
+                )
+                return
+
+            # Store signal hash for future idempotency checks
+            self.idempotency_store.store_signal_hash(
+                signal_hash=signal_hash,
+                correlation_id=event.correlation_id,
+                causation_id=event.causation_id,
+                metadata={
+                    "event_type": event.event_type,
+                    "signal_count": len(strategy_signals),
+                    "generated_at": datetime.now(UTC).isoformat(),
+                },
+            )
+
+            # Emit SignalGenerated event with enhanced metadata
             self._emit_signal_generated_event(
-                strategy_signals, consolidated_portfolio, event.correlation_id
+                strategy_signals,
+                consolidated_portfolio,
+                event.correlation_id,
+                signal_hash,
             )
 
             self.logger.info("✅ Signal generation completed successfully")
@@ -151,7 +195,7 @@ class SignalGenerationHandler:
             signals
         )
 
-        # Create ConsolidatedPortfolioDTO
+        # Create ConsolidatedPortfolioDTO (alias of ConsolidatedPortfolio)
         consolidated_portfolio = ConsolidatedPortfolioDTO.from_dict_allocation(
             allocation_dict=consolidated_portfolio_dict,
             correlation_id=f"signal_handler_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
@@ -207,6 +251,26 @@ class SignalGenerationHandler:
 
         return consolidated_portfolio, contributing_strategies
 
+    def _generate_signals_from_portfolio(
+        self, consolidated_portfolio: ConsolidatedPortfolioDTO
+    ) -> list[StrategySignal]:
+        """Generate StrategySignal objects from portfolio for market snapshot ID.
+
+        This is a helper method to create signals from portfolio data for snapshot ID generation.
+        """
+        signals = []
+        for symbol_str, allocation in consolidated_portfolio.target_allocations.items():
+            if allocation > 0:
+                signal = StrategySignal(
+                    symbol=Symbol(symbol_str),
+                    action="BUY",
+                    target_allocation=allocation,
+                    reasoning="Generated from consolidated portfolio",
+                )
+                signals.append(signal)
+
+        return signals
+
     def _extract_signal_allocation(self, signal: StrategySignal) -> float:
         """Extract allocation percentage from signal."""
         if signal.target_allocation is not None:
@@ -250,16 +314,22 @@ class SignalGenerationHandler:
         strategy_signals: dict[str, Any],
         consolidated_portfolio: ConsolidatedPortfolioDTO,
         correlation_id: str,
+        signal_hash: str,
     ) -> None:
-        """Emit SignalGenerated event.
+        """Emit SignalGenerated event with enhanced metadata for idempotency.
 
         Args:
             strategy_signals: Generated strategy signals
             consolidated_portfolio: Consolidated portfolio allocation
             correlation_id: Correlation ID from the triggering event
+            signal_hash: Deterministic hash for idempotency checking
 
         """
         try:
+            # Generate market snapshot ID from the signal data
+            dsl_signals = self._generate_signals_from_portfolio(consolidated_portfolio)
+            market_snapshot_id = generate_market_snapshot_id(dsl_signals)
+
             event = SignalGenerated(
                 correlation_id=correlation_id,
                 causation_id=correlation_id,  # This event is caused by the startup/workflow event
@@ -270,15 +340,28 @@ class SignalGenerationHandler:
                 signals_data=strategy_signals,
                 consolidated_portfolio=consolidated_portfolio.model_dump(),
                 signal_count=len(strategy_signals),
+                # Enhanced metadata for event-driven architecture
+                schema_version="1.0",
+                signal_hash=signal_hash,
+                market_snapshot_id=market_snapshot_id,
                 metadata={
                     "generation_timestamp": datetime.now(UTC).isoformat(),
                     "source": "event_driven_handler",
+                    "signal_hash": signal_hash,  # Also include in metadata for convenience
+                    "market_snapshot_id": market_snapshot_id,
                 },
             )
 
             self.event_bus.publish(event)
             self.logger.info(
-                f"📡 Emitted SignalGenerated event with {len(strategy_signals)} signals"
+                f"📡 Emitted SignalGenerated event with {len(strategy_signals)} signals "
+                f"(hash: {signal_hash}, snapshot: {market_snapshot_id})",
+                extra={
+                    "correlation_id": correlation_id,
+                    "signal_hash": signal_hash,
+                    "market_snapshot_id": market_snapshot_id,
+                    "signal_count": len(strategy_signals),
+                },
             )
 
         except Exception as e:

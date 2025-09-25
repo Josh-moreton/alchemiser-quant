@@ -336,6 +336,22 @@ class SignalOrchestrator:
                 consolidated_decimal[symbol] = Decimal(str(allocation))
 
             # Create and emit the event
+            # Derive market snapshot id and hash similar to event-driven handler
+            # Build simplified signals structure for hashing
+            signals_hash_payload = {
+                "DSL": {
+                    "symbols": [s.symbol.value for s in signal_dtos if s.action == "BUY"],
+                    "count": len(signal_dtos),
+                }
+            }
+            from the_alchemiser.shared.utils.event_hashing import (
+                generate_market_snapshot_id,
+                generate_signal_hash,
+            )
+
+            market_snapshot_id = generate_market_snapshot_id(signal_dtos)
+            signal_hash = generate_signal_hash(signals_hash_payload, consolidated_decimal)
+
             event = SignalGenerated(
                 correlation_id=correlation_id,
                 causation_id=causation_id,
@@ -349,6 +365,15 @@ class SignalOrchestrator:
                 },
                 consolidated_portfolio=consolidated_decimal,
                 signal_count=len(signal_dtos),
+                signal_hash=signal_hash,
+                market_snapshot_id=market_snapshot_id,
+                schema_version="1.0",
+                metadata={
+                    "generation_timestamp": datetime.now(UTC).isoformat(),
+                    "source": "signal_orchestrator_dual_path",
+                    "signal_hash": signal_hash,
+                    "market_snapshot_id": market_snapshot_id,
+                },
             )
 
             self.event_bus.publish(event)

@@ -53,7 +53,7 @@ class EventDrivenOrchestrator:
 
         # Get event bus from container
         self.event_bus: EventBus = container.services.event_bus()
-        
+
         # Get event handler registry from container
         self.registry: EventHandlerRegistry = container.services.event_handler_registry()
 
@@ -90,25 +90,25 @@ class EventDrivenOrchestrator:
         try:
             # Get all handler registrations from registry
             registrations = self.registry.get_all_registrations()
-            
+
             # Create handlers from registrations, organized by module
             module_handlers: dict[str, Any] = {}
-            
+
             for registration in registrations:
                 module_name = registration.module_name
-                
+
                 # Create handler instance if we haven't already for this module
                 if module_name not in module_handlers:
                     handler_instance = registration.handler_factory()
                     module_handlers[module_name] = handler_instance
-                    
+
                     # Use a descriptive key based on module name
                     handler_key = {
                         "strategy_v2": "signal_generation",
-                        "portfolio_v2": "portfolio_analysis", 
-                        "execution_v2": "trading_execution"
+                        "portfolio_v2": "portfolio_analysis",
+                        "execution_v2": "trading_execution",
                     }.get(module_name, module_name)
-                    
+
                     handlers[handler_key] = handler_instance
 
             self.logger.info(f"Initialized {len(handlers)} domain handlers from registry")
@@ -221,18 +221,18 @@ class EventDrivenOrchestrator:
         """Register event handlers for primary workflow coordination and cross-cutting concerns."""
         # Register domain handlers using registry metadata
         registrations = self.registry.get_all_registrations()
-        
+
         for registration in registrations:
             event_type = registration.event_type
             module_name = registration.module_name
-            
+
             # Find the handler instance for this module
             handler_key = {
                 "strategy_v2": "signal_generation",
-                "portfolio_v2": "portfolio_analysis", 
-                "execution_v2": "trading_execution"
+                "portfolio_v2": "portfolio_analysis",
+                "execution_v2": "trading_execution",
             }.get(module_name, module_name)
-            
+
             handler = self.domain_handlers.get(handler_key)
             if handler and hasattr(handler, "can_handle") and handler.can_handle(event_type):
                 self.event_bus.subscribe(event_type, handler)
