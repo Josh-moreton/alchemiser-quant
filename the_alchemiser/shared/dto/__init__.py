@@ -2,6 +2,9 @@
 
 Typed DTOs for inter-module communication with correlation tracking
 and serialization helpers.
+
+NOTE: This module now provides backward compatibility re-exports.
+New code should import directly from shared.schemas submodules.
 """
 
 from __future__ import annotations
@@ -11,43 +14,39 @@ from typing import Any
 # Placeholder DTO classes for future implementation (to be enhanced in Phase 2)
 from pydantic import BaseModel, ConfigDict, Field
 
-# Import implemented DTOs
-from the_alchemiser.shared.dto.asset_info_dto import AssetInfoDTO
-from the_alchemiser.shared.dto.execution_report_dto import (
+# Re-export moved DTOs from new schema locations for backward compatibility
+from the_alchemiser.shared.schemas.execution import (
     ExecutedOrderDTO,
     ExecutionReportDTO,
-)
-from the_alchemiser.shared.dto.lambda_event_dto import LambdaEventDTO
-from the_alchemiser.shared.dto.market_bar_dto import MarketBarDTO
-from the_alchemiser.shared.dto.order_request_dto import (
+    ExecutionResult,
+    ExecutionSummaryDTO,
     MarketDataDTO,
     OrderRequestDTO,
+    OrderResultSummaryDTO,
+    TradeRunResultDTO,
 )
-from the_alchemiser.shared.dto.portfolio_state_dto import (
+from the_alchemiser.shared.schemas.market import AssetInfoDTO, MarketBarDTO
+from the_alchemiser.shared.schemas.portfolio import (
+    AssetType,
+    ConsolidatedPortfolioDTO,
+    Lot,
+    PerformanceSummary,
     PortfolioMetricsDTO,
     PortfolioStateDTO,
     PositionDTO,
-)
-from the_alchemiser.shared.dto.rebalance_plan_dto import (
     RebalancePlanDTO,
     RebalancePlanItemDTO,
-)
-from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
-from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
-from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
-from the_alchemiser.shared.dto.trade_ledger_dto import (
-    AssetType,
-    Lot,
-    PerformanceSummary,
     TradeLedgerEntry,
     TradeLedgerQuery,
     TradeSide,
 )
-from the_alchemiser.shared.dto.trade_run_result_dto import (
-    ExecutionSummaryDTO,
-    OrderResultSummaryDTO,
-    TradeRunResultDTO,
+from the_alchemiser.shared.schemas.strategy import (
+    IndicatorRequestDTO,
+    StrategyAllocationDTO,
+    StrategySignalDTO,
+    TechnicalIndicatorDTO,
 )
+from the_alchemiser.shared.schemas.system import ASTNodeDTO, LambdaEventDTO, TraceDTO
 
 
 class ConfigurationDTO(BaseModel):
@@ -90,18 +89,26 @@ class ErrorDTO(BaseModel):
 __all__ = [
     # Asset DTOs
     "AssetInfoDTO",
+    # AST DTOs
+    "ASTNodeDTO",
     # Trade Ledger DTOs
     "AssetType",
     # Placeholder DTOs
     "ConfigurationDTO",
+    "ConsolidatedPortfolioDTO",
     "ErrorDTO",
-    # Implemented DTOs
+    # Execution DTOs
     "ExecutedOrderDTO",
     "ExecutionReportDTO",
+    "ExecutionResult",
     "ExecutionSummaryDTO",
+    # Indicator DTOs
+    "IndicatorRequestDTO",
+    # Lambda DTOs
     "LambdaEventDTO",
     # Trade Ledger DTOs
     "Lot",
+    # Market DTOs
     "MarketBarDTO",
     "MarketDataDTO",
     "OrderRequestDTO",
@@ -116,6 +123,8 @@ __all__ = [
     "StrategyAllocationDTO",
     "StrategySignalDTO",
     "TechnicalIndicatorDTO",
+    # Trace DTOs
+    "TraceDTO",
     # Trade Ledger DTOs
     "TradeLedgerEntry",
     "TradeLedgerQuery",
