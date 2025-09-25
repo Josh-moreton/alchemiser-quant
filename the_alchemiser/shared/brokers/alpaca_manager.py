@@ -32,7 +32,6 @@ from alpaca.trading.requests import (
     MarketOrderRequest,
 )
 
-from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
 from the_alchemiser.shared.dto.asset_info_dto import AssetInfoDTO
 from the_alchemiser.shared.dto.broker_dto import (
     OrderExecutionResult,
@@ -47,7 +46,6 @@ from the_alchemiser.shared.protocols.repository import (
 from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountService
 from the_alchemiser.shared.services.alpaca_trading_service import AlpacaTradingService
 from the_alchemiser.shared.services.asset_metadata_service import AssetMetadataService
-from the_alchemiser.shared.utils.order_tracker import OrderTracker
 
 # Import Alpaca exceptions for proper error handling with type safety
 _RetryExcImported: type[Exception]
@@ -520,26 +518,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             if quote:
                 bid = float(getattr(quote, "bid_price", 0))
                 ask = float(getattr(quote, "ask_price", 0))
-
-                # Allow quotes where we have at least a valid bid or ask
-                # This handles cases like LEU where bid exists but ask is 0
-                if bid > 0 or ask > 0:
-                    # If only one side is available, use it for both bid and ask
-                    # This allows trading while acknowledging the spread uncertainty
-                    if bid > 0 and ask <= 0:
-                        logger.info(
-                            f"Using bid price for both bid/ask for {symbol} (ask unavailable)"
-                        )
-                        return (bid, bid)
-                    if ask > 0 and bid <= 0:
-                        logger.info(
-                            f"Using ask price for both bid/ask for {symbol} (bid unavailable)"
-                        )
-                        return (ask, ask)
-                    # Both bid and ask are available and positive
+                
+                if bid > 0 and ask > 0:
                     return (bid, ask)
+                elif bid > 0:
+                    return (bid, bid)  # Use bid for both if ask unavailable
+                elif ask > 0:
+                    return (ask, ask)  # Use ask for both if bid unavailable
 
-            logger.warning(f"No valid quote data available for {symbol}")
             return None
         except Exception as e:
             logger.error(f"Failed to get latest quote for {symbol}: {e}")
@@ -629,123 +615,41 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             timeout_minutes: Orders older than this many minutes will be cancelled
 
         Returns:
-            Dictionary containing:
-            - cancelled_count: Number of orders cancelled
-            - errors: List of any errors encountered
-            - cancelled_orders: List of order IDs that were cancelled
+            Dictionary containing cancelled_count, errors, and cancelled_orders
 
         """
         try:
             cutoff_time = datetime.now(UTC) - timedelta(minutes=timeout_minutes)
             open_orders = self.get_orders(status="open")
+            cancelled_orders = []
+            errors = []
 
-            logger.info(
-                f"🔍 Checking {len(open_orders)} open orders for staleness (>{timeout_minutes} minutes)"
-            )
+            for order in open_orders:
+                try:
+                    submitted_at = getattr(order, "submitted_at", None)
+                    if submitted_at and submitted_at < cutoff_time:
+                        order_id = str(getattr(order, "id", "unknown"))
+                        if self.cancel_order(order_id):
+                            cancelled_orders.append(order_id)
+                        else:
+                            errors.append(f"Failed to cancel order {order_id}")
+                except Exception as e:
+                    errors.append(f"Error processing order: {e}")
 
-            cancelled_orders, errors = self._process_stale_orders(open_orders, cutoff_time)
-            result = self._build_stale_orders_result(cancelled_orders, errors)
-            self._log_stale_orders_result(cancelled_orders)
-
-            return result
-
+            if cancelled_orders:
+                logger.info(f"✅ Cancelled {len(cancelled_orders)} stale orders")
+            return {
+                "cancelled_count": len(cancelled_orders),
+                "errors": errors,
+                "cancelled_orders": cancelled_orders,
+            }
         except Exception as e:
-            error_msg = f"Failed to cancel stale orders: {e}"
-            logger.error(error_msg)
+            logger.error(f"Failed to cancel stale orders: {e}")
             return {
                 "cancelled_count": 0,
-                "errors": [error_msg],
+                "errors": [str(e)],
                 "cancelled_orders": [],
             }
-
-    def _process_stale_orders(
-        self, open_orders: list[Any], cutoff_time: datetime
-    ) -> tuple[list[str], list[str]]:
-        """Process open orders and cancel stale ones.
-
-        Args:
-            open_orders: List of open orders to check
-            cutoff_time: Cutoff time for staleness
-
-        Returns:
-            Tuple of (cancelled_orders, errors) lists
-
-        """
-        cancelled_orders = []
-        errors = []
-        current_time = datetime.now(UTC)
-
-        for order in open_orders:
-            try:
-                if self._should_cancel_stale_order(order, cutoff_time, current_time):
-                    order_id = str(getattr(order, "id", "unknown"))
-                    if self.cancel_order(order_id):
-                        cancelled_orders.append(order_id)
-                    else:
-                        errors.append(f"Failed to cancel order {order_id}")
-
-            except Exception as e:
-                order_id = str(getattr(order, "id", "unknown"))
-                error_msg = f"Error processing order {order_id}: {e}"
-                logger.error(error_msg)
-                errors.append(error_msg)
-
-        return cancelled_orders, errors
-
-    def _should_cancel_stale_order(
-        self,
-        order: Order | dict[str, Any],
-        cutoff_time: datetime,
-        current_time: datetime,
-    ) -> bool:
-        """Check if an order should be cancelled for being stale.
-
-        Args:
-            order: Order object to check
-            cutoff_time: Cutoff time for staleness
-            current_time: Current time for age calculation
-
-        Returns:
-            True if order should be cancelled
-
-        """
-        submitted_at = getattr(order, "submitted_at", None)
-        if not submitted_at:
-            return False
-
-        # Handle string timestamps
-        if isinstance(submitted_at, str):
-            submitted_at = datetime.fromisoformat(submitted_at.replace("Z", UTC_TIMEZONE_SUFFIX))
-
-        # Check if order is stale
-        if submitted_at < cutoff_time:
-            order_id = str(getattr(order, "id", "unknown"))
-            symbol = getattr(order, "symbol", "unknown")
-            age_minutes = (current_time - submitted_at).total_seconds() / 60
-
-            logger.info(
-                f"🗑️ Cancelling stale order {order_id} for {symbol} (age: {age_minutes:.1f} minutes)"
-            )
-            return True
-
-        return False
-
-    def _build_stale_orders_result(
-        self, cancelled_orders: list[str], errors: list[str]
-    ) -> dict[str, Any]:
-        """Build result dictionary for stale orders operation."""
-        return {
-            "cancelled_count": len(cancelled_orders),
-            "errors": errors,
-            "cancelled_orders": cancelled_orders,
-        }
-
-    def _log_stale_orders_result(self, cancelled_orders: list[str]) -> None:
-        """Log the result of stale orders cancellation."""
-        if cancelled_orders:
-            logger.info(f"✅ Cancelled {len(cancelled_orders)} stale orders: {cancelled_orders}")
-        else:
-            logger.info("✅ No stale orders found to cancel")
 
     def liquidate_position(self, symbol: str) -> str | None:
         """Liquidate entire position using close_position API.
@@ -767,33 +671,13 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             return None
 
     def get_asset_info(self, symbol: str) -> AssetInfoDTO | None:
-        """Get asset information with caching.
-
-        Args:
-            symbol: Stock symbol
-
-        Returns:
-            AssetInfoDTO with asset metadata, or None if not found.
-
-        """
+        """Get asset information with caching."""
         return self._asset_metadata_service.get_asset_info(symbol)
 
     def is_fractionable(self, symbol: str) -> bool:
-        """Check if an asset supports fractional shares.
-
-        Args:
-            symbol: Stock symbol to check
-
-        Returns:
-            True if asset supports fractional shares, False otherwise.
-            Defaults to True if asset info cannot be retrieved.
-
-        """
+        """Check if an asset supports fractional shares."""
         asset_info = self.get_asset_info(symbol)
-        if asset_info is None:
-            logger.warning(f"Could not determine fractionability for {symbol}, defaulting to True")
-            return True
-        return asset_info.fractionable
+        return asset_info.fractionable if asset_info else True
 
     def is_market_open(self) -> bool:
         """Check if the market is currently open.
@@ -887,70 +771,20 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
 
 
-    def _extract_order_info(
-        self, order: dict[str, Any] | object | None
-    ) -> tuple[str | None, str | None, Decimal | None]:
-        """Extract order ID, status, and average price from order object.
-
-        Args:
-            order: Order object (SDK model or dict, may be None)
-
-        Returns:
-            Tuple of (order_id, status, avg_price) where any may be None
-
-        """
-        if order is None:
-            return None, None, None
-
-        order_id = str(
-            getattr(order, "id", "") or (order.get("id") if isinstance(order, dict) else "")
-        )
-        status = str(
-            getattr(order, "status", "") or (order.get("status") if isinstance(order, dict) else "")
-        ).lower()
-
-        avg_price = self._convert_avg_price(order)
-
-        return order_id if order_id else None, status if status else None, avg_price
-
-
-
-
-
-
-
-
-
-    # Note: MarketDataPort implementation removed to avoid protocol compliance issues
-    # AlpacaManager provides market data functionality through direct methods
-    # without implementing the full MarketDataPort protocol
-
     @classmethod
     def cleanup_all_instances(cls) -> None:
         """Clean up all AlpacaManager instances and their WebSocket connections."""
         with cls._lock:
             cls._cleanup_in_progress = True
             try:
-                # Create a copy of instances to avoid dictionary modification during iteration
-                instances_to_cleanup = list(cls._instances.values())
-
-                for instance in instances_to_cleanup:
+                for instance in list(cls._instances.values()):
                     try:
-                        # Clean up trading service
                         if hasattr(instance, "_trading_service") and instance._trading_service:
                             instance._trading_service.cleanup()
-                            instance._trading_service = None
-
-                        # Release trading service from WebSocketConnectionManager
                         if hasattr(instance, "_websocket_manager") and instance._websocket_manager:
-                            logger.info(
-                                "Releasing TradingStream service from WebSocketConnectionManager"
-                            )
                             instance._websocket_manager.release_trading_service()
-                            instance._trading_service_active = False
                     except Exception as e:
                         logger.error(f"Error cleaning up AlpacaManager instance: {e}")
-
                 cls._instances.clear()
                 logger.info("All AlpacaManager instances cleaned up")
             finally:
@@ -960,27 +794,17 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def get_connection_health(cls) -> dict[str, Any]:
         """Get health status of all AlpacaManager instances."""
         with cls._lock:
-            health_info: dict[str, Any] = {
+            return {
                 "total_instances": len(cls._instances),
                 "cleanup_in_progress": cls._cleanup_in_progress,
-                "instances": {},
-            }
-
-            for key, instance in cls._instances.items():
-                try:
-                    health_info["instances"][key] = {
+                "instances": {
+                    key: {
                         "paper_trading": instance._paper,
-                        "trading_service_active": getattr(
-                            instance, "_trading_service_active", False
-                        ),
                         "initialized": getattr(instance, "_initialized", False),
-                        "websocket_manager_available": getattr(instance, "_websocket_manager", None)
-                        is not None,
                     }
-                except Exception as e:
-                    health_info["instances"][key] = {"status": "error", "error": str(e)}
-
-            return health_info
+                    for key, instance in cls._instances.items()
+                },
+            }
 
     def __repr__(self) -> str:
         """Return string representation."""
