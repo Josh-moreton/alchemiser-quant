@@ -69,3 +69,6 @@ data/*
 # Test snapshots (can be regenerated)
 tests/snapshots/*
 !tests/snapshots/.gitkeep
+
+# Temporary investigation files
+/tmp/
