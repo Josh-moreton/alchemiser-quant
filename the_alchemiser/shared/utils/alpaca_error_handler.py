@@ -1,4 +1,4 @@
-"""Business Unit: shared | Status: current
+"""Business Unit: shared | Status: current.
 
 Alpaca Error Handling and Retry Logic Utility.
 
@@ -11,10 +11,11 @@ from __future__ import annotations
 
 import re
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from decimal import Decimal
 from secrets import randbelow
-from typing import Any, Generator, Literal
+from typing import Any, Literal
 
 from the_alchemiser.shared.dto.broker_dto import OrderExecutionResult
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -63,6 +64,7 @@ class AlpacaErrorHandler:
             
         Returns:
             Tuple of (is_transient, reason_description)
+
         """
         msg = str(error)
         # Normalize common transient markers
@@ -89,6 +91,7 @@ class AlpacaErrorHandler:
             
         Returns:
             Clean error message string
+
         """
         transient, reason = AlpacaErrorHandler.is_transient_error(error)
         if transient:
@@ -110,6 +113,7 @@ class AlpacaErrorHandler:
             
         Returns:
             True if should retry, False otherwise
+
         """
         if attempt >= max_retries:
             return False
@@ -134,6 +138,7 @@ class AlpacaErrorHandler:
             
         Returns:
             OrderExecutionResult with error details
+
         """
         from datetime import UTC, datetime
         
@@ -163,6 +168,7 @@ class AlpacaErrorHandler:
             
         Returns:
             Formatted error message string
+
         """
         if isinstance(error, (RetryException, HTTPError, RequestException)):
             return f"Market data API error for {symbol}: {summary}"
@@ -194,6 +200,7 @@ def alpaca_retry_context(
         with alpaca_retry_context(max_retries=3, operation_name="Get market data"):
             # Your Alpaca API call here
             result = some_alpaca_api_call()
+
     """
     last_error: Exception | None = None
     
