@@ -26,7 +26,7 @@ from the_alchemiser.shared.events.handlers import EventHandler
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNodeDTO
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocationDTO
-from the_alchemiser.shared.schemas.trace_dto import TraceDTO
+from the_alchemiser.shared.schemas.trace import TraceDTO
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 
 from .dsl_evaluator import DslEvaluator, IndicatorService

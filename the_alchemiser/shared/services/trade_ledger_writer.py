@@ -16,7 +16,9 @@ from decimal import Decimal
 from ..config.symbols_config import classify_symbol
 from ..persistence.trade_ledger_factory import get_default_trade_ledger
 from ..protocols.trade_ledger import TradeLedger
-from ..schemas.execution_report import ExecutedOrderDTO  # Using schemas instead of deprecated dto
+from ..schemas.execution_report import (
+    ExecutedOrderDTO,
+)  # Using schemas instead of deprecated dto
 from ..schemas.trade_ledger import AssetType, TradeLedgerEntry, TradeSide
 
 logger = logging.getLogger(__name__)

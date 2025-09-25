@@ -18,9 +18,9 @@ from typing import Any
 from pydantic import Field
 
 from ..constants import EVENT_TYPE_DESCRIPTION
+from ..schemas.common import AllocationComparisonDTO
 from ..schemas.portfolio_state import PortfolioStateDTO
 from ..schemas.rebalance_plan import RebalancePlanDTO
-from ..schemas.common import AllocationComparisonDTO
 from .base import BaseEvent
 
 # Constants

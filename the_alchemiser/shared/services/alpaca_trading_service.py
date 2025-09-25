@@ -25,7 +25,7 @@ from alpaca.trading.requests import (
 )
 
 from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
-from the_alchemiser.shared.schemas.broker_dto import (
+from the_alchemiser.shared.schemas.broker import (
     OrderExecutionResult,
     WebSocketResult,
     WebSocketStatus,

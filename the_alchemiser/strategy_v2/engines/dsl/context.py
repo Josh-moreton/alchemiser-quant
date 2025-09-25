@@ -15,7 +15,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.schemas.ast_node import ASTNodeDTO
-from the_alchemiser.shared.schemas.trace_dto import TraceDTO
+from the_alchemiser.shared.schemas.trace import TraceDTO
 
 from .types import DSLValue
 

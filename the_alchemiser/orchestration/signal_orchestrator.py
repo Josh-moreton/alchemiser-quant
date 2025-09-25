@@ -304,10 +304,7 @@ class SignalOrchestrator:
             correlation_id = str(uuid.uuid4())
             causation_id = f"signal-analysis-{datetime.now(UTC).isoformat()}"
 
-            for strategy_type, signal_data in strategy_signals.items():
-                strategy_name = (
-                    strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
-                )
+            for _strategy_type, signal_data in strategy_signals.items():
                 # Use short symbol for DTO (max length 10). If multi, pick first from list.
                 raw_symbol = signal_data.get("symbol", "UNKNOWN")
                 if signal_data.get("is_multi_symbol") and isinstance(
@@ -318,15 +315,13 @@ class SignalOrchestrator:
                         raw_symbol = symbols_list[0]
                 # Enforce 10-char max for StrategySignal.symbol
                 sanitized_symbol = str(raw_symbol)[:10]
+                # StrategySignal doesn't define allocation_weight; use target_allocation
                 signal_dto = StrategySignal(
-                    correlation_id=correlation_id,
-                    causation_id=causation_id,
-                    timestamp=datetime.now(UTC),
                     symbol=sanitized_symbol,
                     action=signal_data.get("action", "HOLD"),
                     reasoning=signal_data.get("reasoning", "Signal generated"),
-                    strategy_name=strategy_name,
-                    allocation_weight=None,  # Will be determined by portfolio module
+                    target_allocation=None,  # Portfolio module will derive allocation
+                    timestamp=datetime.now(UTC),
                 )
                 signal_dtos.append(signal_dto)
 

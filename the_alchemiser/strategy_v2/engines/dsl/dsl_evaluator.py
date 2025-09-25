@@ -17,7 +17,7 @@ from the_alchemiser.shared.events.bus import EventBus
 from the_alchemiser.shared.schemas.ast_node import ASTNodeDTO
 from the_alchemiser.shared.schemas.indicator_request import PortfolioFragmentDTO
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocationDTO
-from the_alchemiser.shared.schemas.trace_dto import TraceDTO
+from the_alchemiser.shared.schemas.trace import TraceDTO
 from the_alchemiser.strategy_v2.indicators.indicator_service import IndicatorService
 
 from .context import DslContext

@@ -90,12 +90,8 @@ def create_success_result(
     """
     orders_executed = trading_result.get("orders_executed", [])
     order_dtos = _convert_orders_to_dtos(orders_executed, completed_at)
-    execution_summary = _calculate_execution_summary(
-        order_dtos, started_at, completed_at
-    )
-    status = _determine_execution_status(
-        success=success, execution_summary=execution_summary
-    )
+    execution_summary = _calculate_execution_summary(order_dtos, started_at, completed_at)
+    status = _determine_execution_status(success=success, execution_summary=execution_summary)
     trading_mode = _determine_trading_mode(orchestrator)
 
     return TradeRunResult(
@@ -133,9 +129,7 @@ def _convert_orders_to_dtos(
     return order_dtos
 
 
-def _create_single_order_dto(
-    order: dict[str, Any], completed_at: datetime
-) -> OrderResultSummary:
+def _create_single_order_dto(order: dict[str, Any], completed_at: datetime) -> OrderResultSummary:
     """Create a single OrderResultSummary from order data.
 
     Args:
@@ -220,9 +214,7 @@ def _calculate_execution_summary(
     )
 
 
-def _determine_execution_status(
-    *, success: bool, execution_summary: ExecutionSummary
-) -> str:
+def _determine_execution_status(*, success: bool, execution_summary: ExecutionSummary) -> str:
     """Determine execution status based on success flag and summary.
 
     Args:

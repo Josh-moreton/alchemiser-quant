@@ -37,7 +37,7 @@ from the_alchemiser.shared.protocols.repository import (
     TradingRepository,
 )
 from the_alchemiser.shared.schemas.asset_info import AssetInfoDTO
-from the_alchemiser.shared.schemas.broker_dto import (
+from the_alchemiser.shared.schemas.broker import (
     OrderExecutionResult,
     WebSocketResult,
 )
