@@ -20,7 +20,10 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from the_alchemiser.shared.schemas.base import Result
+from the_alchemiser.shared.types.core import Symbol
+from the_alchemiser.shared.value_objects.money import Money
+
+from the_alchemiser.shared.schemas.core.base import Result
 
 
 class AccountSummary(BaseModel):
@@ -131,6 +134,3 @@ class EnrichedAccountSummaryView(BaseModel):
 
     raw: dict[str, Any]
     summary: AccountSummary
-
-
-

@@ -11,9 +11,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import ConfigDict
 
-from the_alchemiser.shared.schemas.base import Result
+from the_alchemiser.shared.schemas.core.base import Result
 
 
 class EnrichedOrderView(BaseModel):
@@ -66,6 +66,3 @@ class EnrichedPositionsView(Result):
     )
 
     positions: list[EnrichedPositionView]
-
-
-

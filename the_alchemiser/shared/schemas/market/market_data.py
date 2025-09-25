@@ -20,7 +20,10 @@ from typing import Any
 
 from pydantic import ConfigDict
 
-from the_alchemiser.shared.schemas.base import Result
+from the_alchemiser.shared.types.core import Symbol
+from the_alchemiser.shared.value_objects.money import Money
+
+from the_alchemiser.shared.schemas.core.base import Result
 
 
 class PriceResult(Result):
@@ -92,6 +95,3 @@ class MultiSymbolQuotesResult(Result):
     quotes: dict[str, Decimal] | None = None
     symbols: list[str] | None = None
     error: str | None = None
-
-
-

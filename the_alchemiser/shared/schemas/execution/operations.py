@@ -19,7 +19,7 @@ from typing import Any
 
 from pydantic import ConfigDict
 
-from the_alchemiser.shared.schemas.base import Result
+from the_alchemiser.shared.schemas.core.base import Result
 
 
 class OperationResult(Result):
@@ -57,6 +57,3 @@ class OrderStatusResult(Result):
 
     order_id: str | None = None
     status: str | None = None
-
-
-

@@ -2,8 +2,8 @@
 
 from .core import ExecutionResult
 from .operations import OperationResult, OrderCancellationResult, OrderStatusResult
-from .reports import ExecutedOrder, ExecutionReport
-from .results import OrderResultSummary, TradeExecutionSummary, TradeRunResult
+from .execution_reports import ExecutedOrder, ExecutionReport
+from .trade_results import OrderResultSummary, TradeExecutionSummary, TradeRunResult
 
 __all__ = [
     "ExecutedOrder",
