@@ -8,7 +8,6 @@ handling input normalization, error mapping, and providing a clean domain interf
 
 from __future__ import annotations
 
-import re
 import time
 from datetime import UTC, datetime, timedelta
 from secrets import randbelow
@@ -18,35 +17,16 @@ from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types.market_data import BarModel
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.quote import QuoteModel
+from the_alchemiser.shared.utils.alpaca_error_handler import (
+    AlpacaErrorHandler,
+    HTTPError,
+    RequestException,
+    RetryException,
+)
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-
-# Import exceptions for error handling with type safety
-_RetryExcImported: type[Exception]
-_HTTPErrorImported: type[Exception]
-_RequestExcImported: type[Exception]
-
-try:
-    from alpaca.common.exceptions import RetryException as _RetryExcImported
-    from requests.exceptions import HTTPError as _HTTPErrorImported
-    from requests.exceptions import RequestException as _RequestExcImported
-except ImportError:  # pragma: no cover - environment-dependent import
-    # Fallback if imports are unavailable
-    class _RetryExcImported(Exception):  # type: ignore[no-redef]
-        """Fallback RetryException."""
-
-    class _HTTPErrorImported(Exception):  # type: ignore[no-redef]
-        """Fallback HTTPError."""
-
-    class _RequestExcImported(Exception):  # type: ignore[no-redef]
-        """Fallback RequestException."""
-
-
-RetryException = _RetryExcImported
-HTTPError = _HTTPErrorImported
-RequestException = _RequestExcImported
 
 
 class MarketDataService(MarketDataPort):
@@ -307,7 +287,7 @@ class MarketDataService(MarketDataPort):
                 return self._convert_bars_to_dicts_core(bars_obj, symbol)
 
             except (RetryException, HTTPError, RequestException, Exception) as e:
-                transient, reason = self._is_transient_error(e)
+                transient, reason = AlpacaErrorHandler.is_transient_error(e)
                 last_attempt = attempt == max_retries
 
                 if transient and not last_attempt:
@@ -320,8 +300,8 @@ class MarketDataService(MarketDataPort):
                     continue
 
                 # Non-transient or out of retries: raise sanitized error
-                summary = self._sanitize_error_message(e)
-                msg = self._format_final_error_message(e, symbol, summary)
+                summary = AlpacaErrorHandler.sanitize_error_message(e)
+                msg = AlpacaErrorHandler.format_final_error_message(e, symbol, summary)
                 self.logger.error(msg)
                 raise RuntimeError(msg)
 
@@ -383,69 +363,6 @@ class MarketDataService(MarketDataPort):
         start_date = end_date - timedelta(days=days)
 
         return start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")
-
-    def _is_transient_error(self, err: Exception) -> tuple[bool, str]:
-        """Check if an error is transient and should be retried.
-
-        Args:
-            err: Exception to check
-
-        Returns:
-            Tuple of (is_transient, reason_description)
-
-        """
-        msg = str(err)
-        # Normalize common transient markers
-        if "502" in msg or "Bad Gateway" in msg:
-            return True, "502 Bad Gateway"
-        if "503" in msg or "Service Unavailable" in msg:
-            return True, "503 Service Unavailable"
-        if "504" in msg or "Gateway Timeout" in msg or "timeout" in msg.lower():
-            return True, "Gateway Timeout/Timeout"
-        # HTML error pages from proxies
-        if "<html" in msg.lower():
-            # Try to extract status code
-            m = re.search(r"\b(5\d{2})\b", msg)
-            code = m.group(1) if m else "5xx"
-            return True, f"HTTP {code} HTML error"
-        return False, ""
-
-    def _sanitize_error_message(self, err: Exception) -> str:
-        """Sanitize error message for logging and user display.
-
-        Args:
-            err: Exception to sanitize
-
-        Returns:
-            Clean error message string
-
-        """
-        transient, reason = self._is_transient_error(err)
-        if transient:
-            return reason
-        # Trim long HTML/text blobs
-        msg = str(err)
-        if "<html" in msg.lower():
-            return "Upstream returned HTML error page"
-        return msg
-
-    def _format_final_error_message(self, err: Exception, symbol: str, summary: str) -> str:
-        """Format final error message based on exception type.
-
-        Args:
-            err: Original exception
-            symbol: Stock symbol for context
-            summary: Sanitized error summary
-
-        Returns:
-            Formatted error message
-
-        """
-        if isinstance(err, (RetryException, HTTPError)):
-            return f"Alpaca API failure for {symbol}: {summary}"
-        if isinstance(err, RequestException):
-            return f"Network error retrieving data for {symbol}: {summary}"
-        return f"Failed to get historical data for {symbol}: {summary}"
 
     def _resolve_timeframe_core(self, timeframe: str) -> Any:  # noqa: ANN401
         """Resolve timeframe string to Alpaca TimeFrame object.
