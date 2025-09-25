@@ -48,6 +48,7 @@ from the_alchemiser.shared.protocols.repository import (
     TradingRepository,
 )
 from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountService
+from the_alchemiser.shared.services.alpaca_trading_service import AlpacaTradingService
 
 # Import Alpaca exceptions for proper error handling with type safety
 _RetryExcImported: type[Exception]
@@ -186,6 +187,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         # Initialize account service for account-related operations
         self._account_service = AlpacaAccountService(self._trading_client)
 
+        # Initialize trading service with lazy WebSocket manager
+        self._trading_service: AlpacaTradingService | None = None
+
         # Asset metadata cache with TTL
         self._asset_cache: dict[str, AssetInfoDTO] = {}
         self._asset_cache_timestamps: dict[str, float] = {}
@@ -225,6 +229,27 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def trading_client(self) -> TradingClient:
         """Return underlying trading client for backward compatibility."""
         return self._trading_client
+
+    def _get_trading_service(self) -> AlpacaTradingService:
+        """Get or create the trading service with WebSocket manager."""
+        if self._trading_service is None:
+            # Ensure WebSocket manager is available
+            if self._websocket_manager is None:
+                from the_alchemiser.shared.services.websocket_manager import (
+                    WebSocketConnectionManager,
+                )
+                self._websocket_manager = WebSocketConnectionManager(
+                    self._api_key, self._secret_key, paper_trading=self._paper
+                )
+            
+            # Create trading service with WebSocket manager
+            self._trading_service = AlpacaTradingService(
+                self._trading_client,
+                self._websocket_manager,
+                paper_trading=self._paper,
+            )
+        
+        return self._trading_service
 
     # Helper methods for DTO mapping
     def _alpaca_order_to_execution_result(self, order: Order) -> OrderExecutionResult:
@@ -342,12 +367,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self, order_request: LimitOrderRequest | MarketOrderRequest
     ) -> ExecutedOrderDTO:
         """Place an order and return execution details."""
-        try:
-            order = self._trading_client.submit_order(order_request)
-            return self._create_success_order_dto(order, order_request)
-        except Exception as e:
-            logger.error(f"Failed to place order: {e}")
-            return self._create_failed_order_dto(order_request, e)
+        return self._get_trading_service().place_order(order_request)
 
     def _create_success_order_dto(
         self,
@@ -501,21 +521,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             OrderExecutionResult reflecting the latest known state.
 
         """
-        try:
-            order = self._trading_client.get_order_by_id(order_id)
-            if isinstance(order, Order):
-                return self._alpaca_order_to_execution_result(order)
-            logger.error(f"Unexpected order type: {type(order)}")
-            return self._create_error_execution_result(
-                Exception("Invalid order type"),
-                context="Order type validation",
-                order_id=order_id,
-            )
-        except Exception as e:
-            logger.error(f"Failed to refresh order {order_id}: {e}")
-            return self._create_error_execution_result(
-                e, context="Order refresh", order_id=order_id
-            )
+        return self._get_trading_service().get_order_execution_result(order_id)
 
     def _validate_market_order_params(
         self, symbol: str, side: str, qty: float | None, notional: float | None
@@ -652,7 +658,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             side: 'buy' or 'sell'
             qty: Quantity to trade (use either qty OR notional)
             notional: Dollar amount to trade (use either qty OR notional)
-            is_complete_exit: If True and side is 'sell', use Alpaca's available quantity
+            is_complete_exit: If True and side is 'sell', use actual available quantity
 
         Returns:
             ExecutedOrderDTO with execution details
@@ -672,17 +678,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 is_complete_exit=is_complete_exit,
             )
 
-            # Create order request
-            order_request = MarketOrderRequest(
-                symbol=normalized_symbol,
-                qty=final_qty,
-                notional=notional,
-                side=OrderSide.BUY if side_normalized == "buy" else OrderSide.SELL,
-                time_in_force=TimeInForce.DAY,
+            # Use trading service to place the order
+            return self._get_trading_service().place_market_order(
+                normalized_symbol, side_normalized, final_qty, notional
             )
-
-            # Use the updated place_order method that returns ExecutedOrderDTO
-            return self.place_order(order_request)
 
         except ValueError as e:
             logger.error(f"Invalid order parameters: {e}")
@@ -712,116 +711,17 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             OrderExecutionResult with execution details
 
         """
-        try:
-            # Validation
-            if not symbol or not symbol.strip():
-                raise ValueError("Symbol cannot be empty")
-
-            if quantity <= 0:
-                raise ValueError("Quantity must be positive")
-
-            if limit_price <= 0:
-                raise ValueError("Limit price must be positive")
-
-            side_normalized = side.lower().strip()
-            if side_normalized not in ["buy", "sell"]:
-                raise ValueError("Side must be 'buy' or 'sell'")
-
-            # Create order request
-            order_request = LimitOrderRequest(
-                symbol=symbol.upper(),
-                qty=quantity,
-                side=OrderSide.BUY if side_normalized == "buy" else OrderSide.SELL,
-                limit_price=limit_price,
-                time_in_force=(
-                    TimeInForce.DAY if time_in_force.lower() == "day" else TimeInForce.GTC
-                ),
-            )
-
-            # Use the updated place_order method that returns ExecutedOrderDTO
-            executed_order_dto = self.place_order(order_request)
-
-            # Convert ExecutedOrderDTO to OrderExecutionResult
-            # Map ExecutedOrderDTO status to OrderExecutionResult Literal status
-            dto_status_to_result_status: dict[
-                str,
-                Literal["accepted", "filled", "partially_filled", "rejected", "canceled"],
-            ] = {
-                "FILLED": "filled",
-                "PARTIAL": "partially_filled",
-                "REJECTED": "rejected",
-                "CANCELLED": "canceled",
-                "CANCELED": "canceled",
-                "PENDING": "accepted",
-                "PENDING_NEW": "accepted",
-                "FAILED": "rejected",
-                "ACCEPTED": "accepted",
-            }
-
-            result_status: Literal[
-                "accepted", "filled", "partially_filled", "rejected", "canceled"
-            ] = dto_status_to_result_status.get(executed_order_dto.status.upper(), "accepted")
-
-            success = result_status not in ["rejected", "canceled"]
-
-            return OrderExecutionResult(
-                success=success,
-                order_id=executed_order_dto.order_id,
-                status=result_status,
-                filled_qty=executed_order_dto.filled_quantity,
-                avg_fill_price=(
-                    executed_order_dto.price if executed_order_dto.filled_quantity > 0 else None
-                ),
-                submitted_at=executed_order_dto.execution_timestamp,
-                completed_at=(executed_order_dto.execution_timestamp if success else None),
-                error=executed_order_dto.error_message if not success else None,
-            )
-
-        except ValueError as e:
-            logger.error(f"Invalid limit order parameters: {e}")
-            return self._create_error_execution_result(e, "Limit order validation")
-        except Exception as e:
-            logger.error(f"Failed to place limit order for {symbol}: {e}")
-            return self._create_error_execution_result(e, f"Limit order for {symbol}")
+        return self._get_trading_service().place_limit_order(
+            symbol, side, quantity, limit_price, time_in_force
+        )
 
     def cancel_order(self, order_id: str) -> bool:
         """Cancel an order by ID."""
-        try:
-            self._trading_client.cancel_order_by_id(order_id)
-            logger.info(f"Successfully cancelled order: {order_id}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to cancel order {order_id}: {e}")
-            raise
+        return self._get_trading_service().cancel_order(order_id)
 
     def get_orders(self, status: str | None = None) -> list[Any]:
         """Get orders, optionally filtered by status."""
-        try:
-            # Use proper request to get more orders (default limit is very low)
-            if status and status.lower() == "open":
-                # Use the API's built-in open status filter for efficiency
-                request = GetOrdersRequest(status=QueryOrderStatus.OPEN)
-                orders = self._trading_client.get_orders(request)
-            else:
-                # Get recent orders with higher limit to catch all relevant orders
-                request = GetOrdersRequest(limit=100)  # Increased from default
-                orders = self._trading_client.get_orders(request)
-
-            orders_list = list(orders)
-
-            # Apply manual filtering for non-open status requests
-            if status and status.lower() != "open":
-                status_lower = status.lower()
-                # For other statuses, try exact match on the enum name
-                orders_list = [
-                    o for o in orders_list if str(getattr(o, "status", "")).lower() == status_lower
-                ]
-
-            logger.debug(f"Successfully retrieved {len(orders_list)} orders")
-            return orders_list
-        except Exception as e:
-            logger.error(f"Failed to get orders: {e}")
-            raise
+        return self._get_trading_service().get_orders(status)
 
     # Market Data Operations
     def get_current_price(self, symbol: str) -> float | None:
@@ -1256,19 +1156,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             Order ID if successful, None if failed
 
         """
-        try:
-            # Use the place_market_order method which now returns ExecutedOrderDTO
-            result = self.place_market_order(symbol, "sell", qty=qty)
-
-            # Check if the order was successful and return order_id
-            if result.status not in ["REJECTED", "CANCELED"] and result.order_id:
-                return result.order_id
-            logger.error(f"Smart sell order failed for {symbol}: {result.error_message}")
-            return None
-
-        except Exception as e:
-            logger.error(f"Smart sell order failed for {symbol}: {e}")
-            return None
+        return self._get_trading_service().place_smart_sell_order(symbol, qty)
 
     def get_current_positions(self) -> dict[str, float]:
         """Get all current positions as dict mapping symbol to quantity.
@@ -1354,41 +1242,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             WebSocketResult with completion status and completed order IDs
 
         """
-        completed_orders: list[str] = []
-        start_time = time.time()
-
-        try:
-            # Prefer websocket order updates
-            completed_orders = self._wait_for_orders_via_ws(order_ids, max_wait_seconds)
-
-            # Fallback to polling for any remaining orders within remaining time
-            remaining = [oid for oid in order_ids if oid not in completed_orders]
-            if remaining:
-                time_left = max(0.0, max_wait_seconds - (time.time() - start_time))
-                local_start = time.time()
-                while remaining and (time.time() - local_start) < time_left:
-                    self._process_pending_orders(remaining, completed_orders)
-                    remaining = [oid for oid in remaining if oid not in completed_orders]
-                    if remaining:
-                        time.sleep(0.3)
-
-            success = len(completed_orders) == len(order_ids)
-
-            return WebSocketResult(
-                status=(WebSocketStatus.COMPLETED if success else WebSocketStatus.TIMEOUT),
-                message=f"Completed {len(completed_orders)}/{len(order_ids)} orders",
-                completed_order_ids=completed_orders,
-                metadata={"total_wait_time": time.time() - start_time},
-            )
-
-        except Exception as e:
-            logger.error(f"Error monitoring order completion: {e}")
-            return WebSocketResult(
-                status=WebSocketStatus.ERROR,
-                message=f"Error monitoring orders: {e}",
-                completed_order_ids=completed_orders,
-                metadata={"error": str(e)},
-            )
+        return self._get_trading_service().wait_for_order_completion(order_ids, max_wait_seconds)
 
     # ---- TradingStream helpers ----
     def _ensure_trading_stream(self) -> None:
