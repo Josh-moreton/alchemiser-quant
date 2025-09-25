@@ -20,13 +20,12 @@ import threading
 import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import Any, ClassVar
 
 # Type checking imports to avoid circular dependencies
 from alpaca.data.historical import StockHistoricalDataClient
-from alpaca.data.requests import StockLatestQuoteRequest
 from alpaca.trading.client import TradingClient
-from alpaca.trading.models import Order, Position, TradeAccount
+from alpaca.trading.models import Position, TradeAccount
 from alpaca.trading.requests import (
     LimitOrderRequest,
     MarketOrderRequest,
@@ -81,10 +80,7 @@ except ImportError:  # pragma: no cover - environment-dependent import
 HTTPError = _HTTPErrorImported
 RequestException = _RequestExcImported
 
-if TYPE_CHECKING:
-    from the_alchemiser.shared.services.websocket_manager import (
-        WebSocketConnectionManager,
-    )
+
 
 logger = logging.getLogger(__name__)
 
@@ -423,7 +419,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         return self._market_data_service.get_current_prices(symbols)
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
-        """Get latest bid/ask quote for a symbol.
+        """Get latest bid/ask quote for a symbol (delegates to MarketDataService).
 
         Args:
             symbol: Stock symbol
@@ -432,26 +428,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             Tuple of (bid, ask) prices, or None if not available.
 
         """
-        try:
-            request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
-            quotes = self._data_client.get_stock_latest_quote(request)
-            quote = quotes.get(symbol)
-
-            if quote:
-                bid = float(getattr(quote, "bid_price", 0))
-                ask = float(getattr(quote, "ask_price", 0))
-                
-                if bid > 0 and ask > 0:
-                    return (bid, ask)
-                elif bid > 0:
-                    return (bid, bid)  # Use bid for both if ask unavailable
-                elif ask > 0:
-                    return (ask, ask)  # Use ask for both if bid unavailable
-
-            return None
-        except Exception as e:
-            logger.error(f"Failed to get latest quote for {symbol}: {e}")
-            return None
+        return self._market_data_service.get_latest_quote_tuple(symbol)
 
     def get_quote(self, symbol: str) -> dict[str, Any] | None:
         """Get quote information for a symbol (MarketDataRepository interface).
@@ -574,7 +551,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             }
 
     def liquidate_position(self, symbol: str) -> str | None:
-        """Liquidate entire position using close_position API.
+        """Liquidate entire position using close_position API (delegates to TradingService).
 
         Args:
             symbol: Symbol to liquidate
@@ -583,14 +560,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             Order ID if successful, None if failed.
 
         """
-        try:
-            order = self._trading_client.close_position(symbol)
-            order_id = str(getattr(order, "id", "unknown"))
-            logger.info(f"Successfully liquidated position for {symbol}: {order_id}")
-            return order_id
-        except Exception as e:
-            logger.error(f"Failed to liquidate position for {symbol}: {e}")
-            return None
+        return self._get_trading_service().liquidate_position(symbol)
 
     def get_asset_info(self, symbol: str) -> AssetInfoDTO | None:
         """Get asset information with caching."""
@@ -699,7 +669,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         with cls._lock:
             cls._cleanup_in_progress = True
             try:
-                for instance in list(cls._instances.values()):
+                for instance in cls._instances.values():
                     try:
                         if hasattr(instance, "_trading_service") and instance._trading_service:
                             instance._trading_service.cleanup()

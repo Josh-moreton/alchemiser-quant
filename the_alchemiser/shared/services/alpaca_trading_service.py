@@ -316,6 +316,25 @@ class AlpacaTradingService:
             logger.error(f"Smart sell order failed for {symbol}: {e}")
             return None
 
+    def liquidate_position(self, symbol: str) -> str | None:
+        """Liquidate entire position using close_position API.
+
+        Args:
+            symbol: Symbol to liquidate
+
+        Returns:
+            Order ID if successful, None if failed.
+
+        """
+        try:
+            order = self._trading_client.close_position(symbol)
+            order_id = str(getattr(order, "id", "unknown"))
+            logger.info(f"Successfully liquidated position for {symbol}: {order_id}")
+            return order_id
+        except Exception as e:
+            logger.error(f"Failed to liquidate position for {symbol}: {e}")
+            return None
+
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 30
     ) -> WebSocketResult:
