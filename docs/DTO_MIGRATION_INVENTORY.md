@@ -1,9 +1,9 @@
 # DTO/Schema Migration Inventory
 
 ## Overview
-This document provides a comprehensive inventory of all DTO and Schema classes in the alchemiser-quant repository as part of Phase 1 of the DTO standardization effort.
+This document provides a comprehensive inventory of all DTO and Schema classes in the alchemiser-quant repository as part of Phase 1 of the DTO standardization effort. The goal is to **remove DTO suffixes** and use descriptive, domain-relevant class names following modern Pydantic v2 best practices.
 
-**Analysis Date**: Phase 1 Initial Assessment  
+**Analysis Date**: Phase 1 Initial Assessment (Revised)  
 **Repository**: Josh-moreton/alchemiser-quant  
 **Scope**: shared/dto/ and shared/schemas/ directories  
 
@@ -11,205 +11,274 @@ This document provides a comprehensive inventory of all DTO and Schema classes i
 
 - **Total DTO Files**: 20 files in `shared/dto/`
 - **Total Schema Files**: 11 files in `shared/schemas/`
-- **Total Classes**: 62+ DTO/Schema classes
-- **Backward Compatibility Aliases**: 28 identified aliases
+- **Total Classes**: 62+ boundary model classes
+- **Backward Compatibility Aliases**: 28 DTO suffix aliases to remove
 - **Import Usage**: 130+ import statements across codebase
+- **Migration Goal**: Remove DTO suffixes, use descriptive names, consolidate to `shared/schemas/`
 
-## 1. DTO Directory Inventory (`shared/dto/`)
+## 1. Boundary Models Inventory
 
-### 1.1 Core DTOs with Naming Convention: `*DTO`
+### 1.1 Models with DTO Suffixes (To Remove)
 
-| File | Classes | Naming Pattern | Notes |
+These classes currently have DTO suffixes but should be renamed to use descriptive, domain-relevant names:
+
+| File | Current Name | Proposed Name | Migration Action |
 | --- | --- | --- | --- |
-| `asset_info_dto.py` | `AssetInfoDTO` | DTO suffix | ✅ Consistent |
-| `ast_node_dto.py` | `ASTNodeDTO` | DTO suffix | ✅ Consistent |
-| `consolidated_portfolio_dto.py` | `ConsolidatedPortfolioDTO` | DTO suffix | ✅ Consistent |
-| `execution_report_dto.py` | `ExecutedOrderDTO`, `ExecutionReportDTO` | DTO suffix | ✅ Consistent |
-| `indicator_request_dto.py` | `IndicatorRequestDTO`, `PortfolioFragmentDTO` | DTO suffix | ✅ Consistent |
-| `lambda_event_dto.py` | `LambdaEventDTO` | DTO suffix | ✅ Consistent |
-| `market_bar_dto.py` | `MarketBarDTO` | DTO suffix | ✅ Consistent |
-| `order_request_dto.py` | `OrderRequestDTO`, `MarketDataDTO` | DTO suffix | ✅ Consistent |
-| `portfolio_state_dto.py` | `PositionDTO`, `PortfolioMetricsDTO`, `PortfolioStateDTO` | DTO suffix | ✅ Consistent |
-| `rebalance_plan_dto.py` | `RebalancePlanItemDTO`, `RebalancePlanDTO` | DTO suffix | ✅ Consistent |
-| `signal_dto.py` | `StrategySignalDTO` | DTO suffix | ✅ Consistent |
-| `strategy_allocation_dto.py` | `StrategyAllocationDTO` | DTO suffix | ✅ Consistent |
-| `technical_indicators_dto.py` | `TechnicalIndicatorDTO` | DTO suffix | ✅ Consistent |
-| `trace_dto.py` | `TraceEntryDTO`, `TraceDTO` | DTO suffix | ✅ Consistent |
-| `trade_run_result_dto.py` | `OrderResultSummaryDTO`, `ExecutionSummaryDTO`, `TradeRunResultDTO` | DTO suffix | ✅ Consistent |
+| `asset_info_dto.py` | `AssetInfoDTO` | `AssetInfo` | Remove DTO suffix |
+| `ast_node_dto.py` | `ASTNodeDTO` | `ASTNode` | Remove DTO suffix |
+| `consolidated_portfolio_dto.py` | `ConsolidatedPortfolioDTO` | `ConsolidatedPortfolio` | Remove DTO suffix |
+| `execution_report_dto.py` | `ExecutedOrderDTO` | `ExecutedOrder` | Remove DTO suffix |
+| `execution_report_dto.py` | `ExecutionReportDTO` | `ExecutionReport` | Remove DTO suffix |
+| `indicator_request_dto.py` | `IndicatorRequestDTO` | `IndicatorRequest` | Remove DTO suffix |
+| `indicator_request_dto.py` | `PortfolioFragmentDTO` | `PortfolioFragment` | Remove DTO suffix |
+| `lambda_event_dto.py` | `LambdaEventDTO` | `LambdaEvent` | Remove DTO suffix |
+| `market_bar_dto.py` | `MarketBarDTO` | `MarketBar` | Remove DTO suffix |
+| `order_request_dto.py` | `OrderRequestDTO` | `OrderRequest` | Remove DTO suffix |
+| `order_request_dto.py` | `MarketDataDTO` | `MarketData` | Remove DTO suffix |
+| `portfolio_state_dto.py` | `PositionDTO` | `Position` | Remove DTO suffix |
+| `portfolio_state_dto.py` | `PortfolioMetricsDTO` | `PortfolioMetrics` | Remove DTO suffix |
+| `portfolio_state_dto.py` | `PortfolioStateDTO` | `PortfolioState` | Remove DTO suffix |
+| `rebalance_plan_dto.py` | `RebalancePlanItemDTO` | `RebalancePlanItem` | Remove DTO suffix |
+| `rebalance_plan_dto.py` | `RebalancePlanDTO` | `RebalancePlan` | Remove DTO suffix |
+| `signal_dto.py` | `StrategySignalDTO` | `StrategySignal` | Remove DTO suffix |
+| `strategy_allocation_dto.py` | `StrategyAllocationDTO` | `StrategyAllocation` | Remove DTO suffix |
+| `technical_indicators_dto.py` | `TechnicalIndicatorDTO` | `TechnicalIndicator` | Remove DTO suffix |
+| `trace_dto.py` | `TraceEntryDTO` | `TraceEntry` | Remove DTO suffix |
+| `trace_dto.py` | `TraceDTO` | `Trace` | Remove DTO suffix |
+| `trade_run_result_dto.py` | `OrderResultSummaryDTO` | `OrderResultSummary` | Remove DTO suffix |
+| `trade_run_result_dto.py` | `ExecutionSummaryDTO` | `ExecutionSummary` | Remove DTO suffix (Note: conflicts with schema) |
+| `trade_run_result_dto.py` | `TradeRunResultDTO` | `TradeRunResult` | Remove DTO suffix |
 
-### 1.2 Mixed Convention DTOs
+### 1.2 Models with Correct Descriptive Names (Keep)
 
-| File | Classes | Naming Pattern | Issue |
+These classes already follow the desired naming pattern:
+
+| File | Classes | Naming Pattern | Status |
 | --- | --- | --- | --- |
-| `broker_dto.py` | `WebSocketResult`, `OrderExecutionResult` | No DTO suffix | ⚠️ Inconsistent - with aliases |
-| `execution_dto.py` | `ExecutionResult` | No DTO suffix | ⚠️ Inconsistent |
-| `trade_ledger_dto.py` | `TradeSide`, `AssetType`, `TradeLedgerEntry`, `TradeLedgerQuery`, `Lot`, `PerformanceSummary` | Mixed | ⚠️ Enums + DTOs mixed |
+| `broker_dto.py` | `WebSocketResult`, `OrderExecutionResult` | Descriptive | ✅ Correct naming |
+| `execution_dto.py` | `ExecutionResult` | Descriptive | ✅ Correct naming |
+| `trade_ledger_dto.py` | `TradeSide`, `AssetType`, `TradeLedgerEntry`, `TradeLedgerQuery`, `Lot`, `PerformanceSummary` | Mixed | ✅ Enums + descriptive names |
 
-### 1.3 Placeholder DTOs (`__init__.py`)
+### 1.3 Placeholder Models (`__init__.py`)
 
-| Class | Status | Notes |
+| Current Name | Proposed Name | Action |
 | --- | --- | --- |
-| `ConfigurationDTO` | Placeholder | To be enhanced in Phase 2 |
-| `ErrorDTO` | Placeholder | To be enhanced in Phase 2 |
+| `ConfigurationDTO` | `Configuration` | Remove DTO suffix |
+| `ErrorDTO` | `Error` | Remove DTO suffix |
 
 ## 2. Schema Directory Inventory (`shared/schemas/`)
 
-### 2.1 Descriptive Naming Convention (No DTO suffix)
+### 2.1 Correctly Named Schema Classes (Keep)
 
-| File | Classes | Naming Pattern | Notes |
+These classes already follow the desired descriptive naming pattern:
+
+| File | Classes | Naming Pattern | Status |
 | --- | --- | --- | --- |
-| `base.py` | `Result` | Base class | ✅ Core primitive |
-| `accounts.py` | `AccountSummary`, `AccountMetrics`, `BuyingPowerResult`, `RiskMetricsResult`, `TradeEligibilityResult`, `PortfolioAllocationResult`, `EnrichedAccountSummaryView` | Descriptive | ✅ Consistent |
-| `common.py` | `MultiStrategyExecutionResultDTO`, `AllocationComparisonDTO`, `MultiStrategySummaryDTO` | Mixed | ⚠️ Some have DTO suffix |
-| `enriched_data.py` | `EnrichedOrderView`, `OpenOrdersView`, `EnrichedPositionView`, `EnrichedPositionsView` | View suffix | ✅ Consistent |
-| `execution_summary.py` | `AllocationSummary`, `StrategyPnLSummary`, `StrategySummary`, `TradingSummary`, `ExecutionSummary`, `PortfolioState` | Descriptive | ✅ Consistent |
-| `market_data.py` | `PriceResult`, `PriceHistoryResult`, `SpreadAnalysisResult`, `MarketStatusResult`, `MultiSymbolQuotesResult` | Result suffix | ✅ Consistent |
-| `operations.py` | `OperationResult`, `OrderCancellationResult`, `OrderStatusResult` | Result suffix | ✅ Consistent |
+| `base.py` | `Result` | Base class | ✅ Correct |
+| `accounts.py` | `AccountSummary`, `AccountMetrics`, `BuyingPowerResult`, `RiskMetricsResult`, `TradeEligibilityResult`, `PortfolioAllocationResult`, `EnrichedAccountSummaryView` | Descriptive | ✅ Correct |
+| `enriched_data.py` | `EnrichedOrderView`, `OpenOrdersView`, `EnrichedPositionView`, `EnrichedPositionsView` | View suffix | ✅ Correct |
+| `execution_summary.py` | `AllocationSummary`, `StrategyPnLSummary`, `StrategySummary`, `TradingSummary`, `ExecutionSummary`, `PortfolioState` | Descriptive | ✅ Correct |
+| `market_data.py` | `PriceResult`, `PriceHistoryResult`, `SpreadAnalysisResult`, `MarketStatusResult`, `MultiSymbolQuotesResult` | Result suffix | ✅ Correct |
+| `operations.py` | `OperationResult`, `OrderCancellationResult`, `OrderStatusResult` | Result suffix | ✅ Correct |
 
-### 2.2 TypedDict Classes (Non-DTO)
+### 2.2 Schema Classes with DTO Suffixes (To Fix)
 
-| File | Classes | Type | Notes |
+These schema classes inappropriately use DTO suffixes and should be renamed:
+
+| File | Current Name | Proposed Name | Issue |
 | --- | --- | --- | --- |
-| `cli.py` | `CLIOptions`, `CLICommandResult`, `CLISignalData`, `CLIAccountDisplay`, `CLIPortfolioData` | TypedDict | Not DTOs |
-| `errors.py` | `ErrorDetailInfo`, `ErrorSummaryData`, `ErrorReportSummary`, `ErrorNotificationData`, `ErrorContextData` | TypedDict | Not DTOs |
-| `reporting.py` | `DashboardMetrics`, `ReportingData`, `EmailReportData`, `EmailCredentials`, `EmailSummary` | TypedDict | Not DTOs |
+| `common.py` | `MultiStrategyExecutionResultDTO` | `MultiStrategyExecutionResult` | Remove DTO suffix |
+| `common.py` | `AllocationComparisonDTO` | `AllocationComparison` | Remove DTO suffix |
+| `common.py` | `MultiStrategySummaryDTO` | `MultiStrategySummary` | Remove DTO suffix |
 
-## 3. Backward Compatibility Aliases
+### 2.3 TypedDict Classes (Keep Unchanged)
 
-### 3.1 Schema to DTO Aliases (28 total)
+These are not boundary DTOs and should remain as-is:
 
-| Original Class | Alias | Location | Status |
+| File | Classes | Type | Status |
 | --- | --- | --- | --- |
-| `AccountSummary` | `AccountSummaryDTO` | `schemas/accounts.py` | Active |
-| `AccountMetrics` | `AccountMetricsDTO` | `schemas/accounts.py` | Active |
-| `BuyingPowerResult` | `BuyingPowerDTO` | `schemas/accounts.py` | Active |
-| `RiskMetricsResult` | `RiskMetricsDTO` | `schemas/accounts.py` | Active |
-| `TradeEligibilityResult` | `TradeEligibilityDTO` | `schemas/accounts.py` | Active |
-| `PortfolioAllocationResult` | `PortfolioAllocationDTO` | `schemas/accounts.py` | Active |
-| `EnrichedAccountSummaryView` | `EnrichedAccountSummaryDTO` | `schemas/accounts.py` | Active |
-| `Result` | `ResultDTO` | `schemas/base.py` | Active |
-| `EnrichedOrderView` | `EnrichedOrderDTO` | `schemas/enriched_data.py` | Active |
-| `OpenOrdersView` | `OpenOrdersDTO` | `schemas/enriched_data.py` | Active |
-| `EnrichedPositionView` | `EnrichedPositionDTO` | `schemas/enriched_data.py` | Active |
-| `EnrichedPositionsView` | `EnrichedPositionsDTO` | `schemas/enriched_data.py` | Active |
-| `AllocationSummary` | `AllocationSummaryDTO` | `schemas/execution_summary.py` | Active |
-| `StrategyPnLSummary` | `StrategyPnLSummaryDTO` | `schemas/execution_summary.py` | Active |
-| `StrategySummary` | `StrategySummaryDTO` | `schemas/execution_summary.py` | Active |
-| `TradingSummary` | `TradingSummaryDTO` | `schemas/execution_summary.py` | Active |
-| `ExecutionSummary` | `ExecutionSummaryDTO` | `schemas/execution_summary.py` | Active |
-| `PortfolioState` | `PortfolioStateDTO` | `schemas/execution_summary.py` | Active |
-| `PriceResult` | `PriceDTO` | `schemas/market_data.py` | Active |
-| `PriceHistoryResult` | `PriceHistoryDTO` | `schemas/market_data.py` | Active |
-| `SpreadAnalysisResult` | `SpreadAnalysisDTO` | `schemas/market_data.py` | Active |
-| `MarketStatusResult` | `MarketStatusDTO` | `schemas/market_data.py` | Active |
-| `MultiSymbolQuotesResult` | `MultiSymbolQuotesDTO` | `schemas/market_data.py` | Active |
-| `OperationResult` | `OperationResultDTO` | `schemas/operations.py` | Active |
-| `OrderCancellationResult` | `OrderCancellationDTO` | `schemas/operations.py` | Active |
-| `OrderStatusResult` | `OrderStatusDTO` | `schemas/operations.py` | Active |
-| `WebSocketResult` | `WebSocketResultDTO` | `dto/broker_dto.py` | Active |
-| `OrderExecutionResult` | `OrderExecutionResultDTO` | `dto/broker_dto.py` | Active |
+| `cli.py` | `CLIOptions`, `CLICommandResult`, `CLISignalData`, `CLIAccountDisplay`, `CLIPortfolioData` | TypedDict | ✅ Keep as-is |
+| `errors.py` | `ErrorDetailInfo`, `ErrorSummaryData`, `ErrorReportSummary`, `ErrorNotificationData`, `ErrorContextData` | TypedDict | ✅ Keep as-is |
+| `reporting.py` | `DashboardMetrics`, `ReportingData`, `EmailReportData`, `EmailCredentials`, `EmailSummary` | TypedDict | ✅ Keep as-is |
+
+## 3. Backward Compatibility Aliases (To Remove)
+
+### 3.1 DTO Suffix Aliases (28 total to remove)
+
+These aliases create the DTO suffix variants and should be completely removed:
+
+| Original Class | Current Alias | Location | Action |
+| --- | --- | --- | --- |
+| `AccountSummary` | `AccountSummaryDTO` | `schemas/accounts.py` | Remove alias |
+| `AccountMetrics` | `AccountMetricsDTO` | `schemas/accounts.py` | Remove alias |
+| `BuyingPowerResult` | `BuyingPowerDTO` | `schemas/accounts.py` | Remove alias |
+| `RiskMetricsResult` | `RiskMetricsDTO` | `schemas/accounts.py` | Remove alias |
+| `TradeEligibilityResult` | `TradeEligibilityDTO` | `schemas/accounts.py` | Remove alias |
+| `PortfolioAllocationResult` | `PortfolioAllocationDTO` | `schemas/accounts.py` | Remove alias |
+| `EnrichedAccountSummaryView` | `EnrichedAccountSummaryDTO` | `schemas/accounts.py` | Remove alias |
+| `Result` | `ResultDTO` | `schemas/base.py` | Remove alias |
+| `EnrichedOrderView` | `EnrichedOrderDTO` | `schemas/enriched_data.py` | Remove alias |
+| `OpenOrdersView` | `OpenOrdersDTO` | `schemas/enriched_data.py` | Remove alias |
+| `EnrichedPositionView` | `EnrichedPositionDTO` | `schemas/enriched_data.py` | Remove alias |
+| `EnrichedPositionsView` | `EnrichedPositionsDTO` | `schemas/enriched_data.py` | Remove alias |
+| `AllocationSummary` | `AllocationSummaryDTO` | `schemas/execution_summary.py` | Remove alias |
+| `StrategyPnLSummary` | `StrategyPnLSummaryDTO` | `schemas/execution_summary.py` | Remove alias |
+| `StrategySummary` | `StrategySummaryDTO` | `schemas/execution_summary.py` | Remove alias |
+| `TradingSummary` | `TradingSummaryDTO` | `schemas/execution_summary.py` | Remove alias |
+| `ExecutionSummary` | `ExecutionSummaryDTO` | `schemas/execution_summary.py` | Remove alias |
+| `PortfolioState` | `PortfolioStateDTO` | `schemas/execution_summary.py` | Remove alias |
+| `PriceResult` | `PriceDTO` | `schemas/market_data.py` | Remove alias |
+| `PriceHistoryResult` | `PriceHistoryDTO` | `schemas/market_data.py` | Remove alias |
+| `SpreadAnalysisResult` | `SpreadAnalysisDTO` | `schemas/market_data.py` | Remove alias |
+| `MarketStatusResult` | `MarketStatusDTO` | `schemas/market_data.py` | Remove alias |
+| `MultiSymbolQuotesResult` | `MultiSymbolQuotesDTO` | `schemas/market_data.py` | Remove alias |
+| `OperationResult` | `OperationResultDTO` | `schemas/operations.py` | Remove alias |
+| `OrderCancellationResult` | `OrderCancellationDTO` | `schemas/operations.py` | Remove alias |
+| `OrderStatusResult` | `OrderStatusDTO` | `schemas/operations.py` | Remove alias |
+| `WebSocketResult` | `WebSocketResultDTO` | `dto/broker_dto.py` | Remove alias |
+| `OrderExecutionResult` | `OrderExecutionResultDTO` | `dto/broker_dto.py` | Remove alias |
 
 ## 4. Naming Convention Analysis
 
-### 4.1 Current Patterns
+### 4.1 Current State vs. Desired State
 
-1. **DTO Suffix Pattern** (`shared/dto/`): Classes explicitly named with `DTO` suffix
-   - Examples: `AssetInfoDTO`, `PortfolioStateDTO`, `StrategySignalDTO`
-   - **Count**: ~25 classes
-   - **Consistency**: High (95%)
+**Current Problem**: Mixed naming conventions create confusion and violate modern Python/Pydantic best practices.
 
-2. **Descriptive Pattern** (`shared/schemas/`): Classes with descriptive names, no suffix
+**Desired State**: All boundary models use descriptive, domain-relevant names without generic DTO suffixes.
+
+### 4.2 Current Patterns (To Change)
+
+1. **DTO Suffix Pattern** (25+ classes): Generic suffixes that don't add semantic value
+   - Examples: `AssetInfoDTO` → `AssetInfo`, `PortfolioStateDTO` → `PortfolioState`
+   - **Problem**: DTO is a pattern, not a type. Suffixes add no domain meaning.
+
+2. **Backward Compatibility Aliases** (28 aliases): Create import confusion
+   - Examples: `AccountSummaryDTO = AccountSummary`
+   - **Problem**: Multiple ways to import the same class
+
+### 4.3 Correct Patterns (To Keep/Adopt)
+
+1. **Descriptive Naming**: Classes named for their domain purpose
    - Examples: `AccountSummary`, `ExecutionSummary`, `AllocationSummary`
-   - **Count**: ~15 classes
-   - **Consistency**: High (90%)
+   - **Benefit**: Clear domain meaning, follows Python naming conventions
 
-3. **Result Suffix Pattern** (`shared/schemas/`): Classes ending with `Result`
-   - Examples: `BuyingPowerResult`, `PriceResult`, `OperationResult`
-   - **Count**: ~10 classes
-   - **Consistency**: High (100% within pattern)
+2. **Functional Suffixes**: When suffix adds semantic value
+   - Examples: `BuyingPowerResult`, `EnrichedOrderView`
+   - **Benefit**: Suffixes like `Result`, `View` indicate specific purposes
 
-4. **View Suffix Pattern** (`shared/schemas/`): Classes ending with `View`
-   - Examples: `EnrichedOrderView`, `EnrichedPositionView`
-   - **Count**: ~4 classes
-   - **Consistency**: High (100% within pattern)
+### 4.4 Modern Python/Pydantic Best Practices
 
-### 4.2 Inconsistencies
+**Technical Rationale**:
+- DTO describes a *pattern* (data transfer object), not a specific class type
+- Modern Python favors descriptive names over generic technical suffixes
+- Pydantic v2 handles serialization through configuration, not naming
+- Single location (`shared/schemas/`) reduces cognitive overhead
 
-1. **Mixed DTO Usage in Schemas**: Some schema files use DTO suffix inconsistently
-   - `schemas/common.py`: `MultiStrategyExecutionResultDTO`, `AllocationComparisonDTO` have DTO suffix
-   - **Impact**: Confuses the dto/ vs schemas/ separation
+**Examples from Other Projects**:
+```python
+# Modern approach (preferred)
+class User(BaseModel): ...
+class Order(BaseModel): ...
+class PaymentRequest(BaseModel): ...
 
-2. **Missing DTO Suffix in DTOs**: Some dto/ files don't use DTO suffix
-   - `dto/broker_dto.py`: `WebSocketResult`, `OrderExecutionResult`
-   - `dto/execution_dto.py`: `ExecutionResult`
-   - **Impact**: Inconsistent with DTO naming convention
+# Anti-pattern (avoid)
+class UserDTO(BaseModel): ...
+class OrderDTO(BaseModel): ...  
+class PaymentRequestDTO(BaseModel): ...
+```
 
-3. **Enum/Class Mixing**: Some DTO files contain both DTOs and enums
-   - `dto/trade_ledger_dto.py`: `TradeSide`, `AssetType` (enums) + `TradeLedgerEntry` (DTO)
-   - **Impact**: Unclear module purpose
+## 5. Directory Consolidation Plan
 
-## 5. Import Dependencies Summary
+### 5.1 Current Directory Structure Issues
 
-### 5.1 High-Impact Classes (Most Imported)
+**Problem**: Split between `dto/` and `schemas/` creates confusion about where to place boundary models.
 
-Based on grep analysis of import statements:
+**Current State**:
+- `shared/dto/`: 20 files, mostly with DTO suffixes
+- `shared/schemas/`: 11 files, mixed naming patterns
 
-1. **Top 10 Most Imported DTOs**:
-   - `RebalancePlanDTO` - Used in execution, orchestration
-   - `PortfolioStateDTO` - Used in portfolio, strategy modules  
-   - `StrategySignalDTO` - Used in strategy, orchestration
-   - `ASTNodeDTO` - Used extensively in DSL engine
-   - `TraceDTO` - Used in DSL evaluation
-   - `AssetInfoDTO` - Used in execution validation
-   - `TechnicalIndicatorDTO` - Used in strategy engines
-   - `ExecutionReportDTO` - Used in execution tracking
-   - `MarketBarDTO` - Used in strategy adapters
-   - `StrategyAllocationDTO` - Used in DSL events
+### 5.2 Proposed Consolidation
 
-### 5.2 Module Dependencies
+**Target State**: Consolidate all boundary models into `shared/schemas/` with descriptive names.
 
-- **Strategy Module**: Heavy usage of `ASTNodeDTO`, `TraceDTO`, `IndicatorRequestDTO`
-- **Execution Module**: Heavy usage of `RebalancePlanDTO`, `ExecutedOrderDTO`, `AssetInfoDTO`
-- **Portfolio Module**: Heavy usage of `PortfolioStateDTO`, `PortfolioMetricsDTO`
-- **Orchestration**: Uses DTOs from all modules for coordination
+**Migration Plan**:
+1. **Move all models** from `shared/dto/` to appropriate files in `shared/schemas/`
+2. **Remove DTO suffixes** from class names during the move
+3. **Organize by domain** rather than technical classification
+4. **Remove the `dto/` directory** entirely
+
+**Example Consolidation**:
+```python
+# BEFORE: scattered across dto/ and schemas/
+shared/dto/portfolio_state_dto.py → PortfolioStateDTO, PositionDTO, PortfolioMetricsDTO
+shared/schemas/execution_summary.py → PortfolioState (different class!)
+
+# AFTER: consolidated in schemas/ with clear names
+shared/schemas/portfolio.py → PortfolioState, Position, PortfolioMetrics
+shared/schemas/execution.py → ExecutionSummary, TradingSummary
+```
+
+### 5.3 Proposed File Organization
+
+| Domain | New File | Classes to Include |
+| --- | --- | --- |
+| `schemas/portfolio.py` | Portfolio models | `PortfolioState`, `Position`, `PortfolioMetrics`, `RebalancePlan`, `RebalancePlanItem` |
+| `schemas/execution.py` | Execution models | `ExecutedOrder`, `ExecutionReport`, `ExecutionResult`, `OrderRequest` |
+| `schemas/strategy.py` | Strategy models | `StrategySignal`, `StrategyAllocation`, `TechnicalIndicator` |
+| `schemas/market_data.py` | Market models | `MarketBar`, `MarketData` (extend existing) |
+| `schemas/assets.py` | Asset models | `AssetInfo` |
+| `schemas/events.py` | Event models | `LambdaEvent` |
+| `schemas/dsl.py` | DSL models | `ASTNode`, `Trace`, `TraceEntry`, `IndicatorRequest`, `PortfolioFragment` |
+| `schemas/trading.py` | Trading models | `TradeLedgerEntry`, `TradeLedgerQuery`, `Lot`, `PerformanceSummary` |
+| `schemas/results.py` | Result models | `TradeRunResult`, `OrderResultSummary` |
+| `schemas/infrastructure.py` | Infrastructure models | `Configuration`, `Error` (from placeholders) |
 
 ## 6. Assessment Summary
 
 ### 6.1 Current State Assessment
 
-**Strengths**:
-- Clear separation between `dto/` and `schemas/` directories
-- Most files follow consistent naming within their directory
-- Comprehensive backward compatibility through aliases
-- Good Pydantic v2 adoption with proper config
+**Problems Identified**:
+- **Generic DTO suffixes**: 25+ classes with meaningless DTO suffixes
+- **Naming inconsistency**: Mixed patterns across files and directories
+- **Directory confusion**: Split between dto/ and schemas/ with unclear boundaries
+- **Alias burden**: 28 backward compatibility aliases create import confusion
+- **Technical debt**: Pattern violates modern Python/Pydantic best practices
 
-**Issues**:
-- Naming inconsistencies between directories cause confusion
-- Some schema files inappropriately use DTO suffix  
-- Some DTO files don't use DTO suffix
-- Aliases create import confusion
-- Mixed class types in some files (enums + DTOs)
+**Root Cause**: The DTO suffix pattern treats "DTO" as a type rather than a design pattern.
 
-### 6.2 Migration Complexity Assessment
+### 6.2 Migration Benefits
 
-**Risk Level**: Medium-High
-- **High Import Volume**: 130+ imports across codebase
-- **Active Aliases**: 28 backward compatibility aliases in use
-- **Cross-Module Dependencies**: Heavy usage across all business modules
+**Post-Migration Benefits**:
+- **Clear semantics**: Class names describe domain purpose, not technical implementation
+- **Reduced cognitive load**: Single location for all boundary models
+- **Better maintainability**: No confusion about where to put new models
+- **Modern compliance**: Follows Python/Pydantic v2 best practices
+- **Import clarity**: One canonical name per class, no aliases
 
-**Impact Areas**:
-- Strategy v2 module (heavy DSL DTO usage)
-- Execution v2 module (execution and portfolio DTOs)
-- Orchestration layer (cross-module DTO coordination)
-- Event system (DTO payloads in events)
+### 6.3 Migration Complexity Assessment
 
-## Next Steps
+**Risk Level**: Medium-High (due to import volume and cross-module usage)
+- **High Import Volume**: 130+ imports across codebase need updating
+- **Cross-Module Dependencies**: Changes affect all business modules
+- **Name Conflicts**: Some classes may have naming conflicts during consolidation
 
-This inventory serves as the foundation for:
-1. **Usage Analysis Document** - Detailed dependency mapping
-2. **Migration Plan Document** - Phased approach with risk mitigation
-3. **Implementation Phases** - Systematic alias removal and standardization
+**Mitigation Strategies**:
+- **Staged approach**: Remove aliases first, then rename classes, then consolidate files
+- **Comprehensive testing**: Full test coverage before any changes
+- **Automated tooling**: Scripts to validate imports and detect conflicts
+- **Clear communication**: Document all changes and coordinate with teams
+
+## 7. Next Steps
+
+This inventory provides the foundation for the corrected migration approach:
+
+1. **Phase 2**: Remove DTO suffixes from class names and update imports
+2. **Phase 3**: Remove all backward compatibility aliases  
+3. **Phase 4**: Consolidate all models into `shared/schemas/` with domain organization
+4. **Phase 5**: Update documentation to clarify boundary model patterns
+
+The revised approach aligns with modern Python practices and will result in a cleaner, more maintainable codebase.
 
 ---
 
-*Generated: Phase 1 DTO/Schema Inventory Analysis*
+*Generated: Phase 1 DTO/Schema Inventory Analysis (Revised)*
