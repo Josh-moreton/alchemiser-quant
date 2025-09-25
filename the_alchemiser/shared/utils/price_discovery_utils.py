@@ -27,6 +27,8 @@ import logging
 from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
+from the_alchemiser.shared.types.quote import QuoteModel
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,11 +36,14 @@ logger = logging.getLogger(__name__)
 class QuoteProvider(Protocol):
     """Protocol for providers that can fetch bid-ask quotes."""
 
-    def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
+    def get_latest_quote(self, symbol: str) -> tuple[float, float] | QuoteModel | None:
         """Get latest bid-ask quote for a symbol.
 
         Returns:
-            Tuple of (bid, ask) prices or None if unavailable
+            Tuple of (bid, ask) prices, QuoteModel, or None if unavailable
+
+        Note: This protocol supports both tuple and QuoteModel return types.
+        The get_current_price_from_quote() function handles both formats.
 
         """
         ...
@@ -114,8 +119,18 @@ def get_current_price_from_quote(quote_provider: QuoteProvider, symbol: str) -> 
     try:
         quote = quote_provider.get_latest_quote(symbol)
         if quote is not None:
-            bid, ask = quote
-            return calculate_midpoint_price(bid, ask)
+            # Handle both tuple and QuoteModel return types
+            if isinstance(quote, tuple) and len(quote) == 2:
+                bid, ask = quote
+                return calculate_midpoint_price(bid, ask)
+            if hasattr(quote, "bid") and hasattr(quote, "ask"):
+                # QuoteModel has bid/ask as Decimal, convert to float
+                bid = float(quote.bid)
+                ask = float(quote.ask)
+                return calculate_midpoint_price(bid, ask)
+            if hasattr(quote, "mid"):
+                # QuoteModel has a mid property
+                return float(quote.mid)
         logger.warning(f"No quote available for symbol: {symbol}")
         return None
     except Exception as e:

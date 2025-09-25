@@ -45,6 +45,7 @@ from the_alchemiser.shared.protocols.repository import (
 from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountService
 from the_alchemiser.shared.services.alpaca_trading_service import AlpacaTradingService
 from the_alchemiser.shared.services.asset_metadata_service import AssetMetadataService
+from the_alchemiser.shared.types.quote import QuoteModel
 
 # Import Alpaca exceptions for proper error handling with type safety
 _RetryExcImported: type[Exception]
@@ -79,7 +80,6 @@ except ImportError:  # pragma: no cover - environment-dependent import
 
 HTTPError = _HTTPErrorImported
 RequestException = _RequestExcImported
-
 
 
 logger = logging.getLogger(__name__)
@@ -152,7 +152,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 api_key=api_key, secret_key=secret_key, paper=paper
             )
 
-            self._data_client = StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
+            self._data_client = StockHistoricalDataClient(
+                api_key=api_key, secret_key=secret_key
+            )
 
             logger.info(f"AlpacaManager initialized - Paper: {paper}")
 
@@ -161,7 +163,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             raise
 
         # Initialize WebSocket manager for centralized WebSocket management
-        from the_alchemiser.shared.services.websocket_manager import WebSocketConnectionManager
+        from the_alchemiser.shared.services.websocket_manager import (
+            WebSocketConnectionManager,
+        )
+
         self._websocket_manager = WebSocketConnectionManager(
             self._api_key, self._secret_key, paper_trading=self._paper
         )
@@ -175,6 +180,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         # Initialize MarketDataService for delegation
         from the_alchemiser.shared.services.market_data_service import MarketDataService
+
         self._market_data_service = MarketDataService(self)
 
         # Mark as initialized to prevent re-initialization
@@ -271,11 +277,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             raise ValueError("Quantity must be positive")
         if notional is not None and notional <= 0:
             raise ValueError("Notional amount must be positive")
-        
+
         side_normalized = side.lower().strip()
         if side_normalized not in ["buy", "sell"]:
             raise ValueError("Side must be 'buy' or 'sell'")
-        
+
         return symbol.upper(), side_normalized
 
     def _adjust_quantity_for_complete_exit(
@@ -289,7 +295,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             position = self.get_position(symbol)
             if position:
                 # Use qty_available if available, fallback to qty
-                available_qty = getattr(position, "qty_available", None) or getattr(position, "qty", None)
+                available_qty = getattr(position, "qty_available", None) or getattr(
+                    position, "qty", None
+                )
                 if available_qty:
                     return float(available_qty)
         except Exception as e:
@@ -418,17 +426,20 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         return self._market_data_service.get_current_prices(symbols)
 
-    def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
+    def get_latest_quote(self, symbol: str) -> QuoteModel | None:
         """Get latest bid/ask quote for a symbol (delegates to MarketDataService).
 
         Args:
             symbol: Stock symbol
 
         Returns:
-            Tuple of (bid, ask) prices, or None if not available.
+            QuoteModel with bid/ask prices, or None if not available.
 
         """
-        return self._market_data_service.get_latest_quote_tuple(symbol)
+        from the_alchemiser.shared.value_objects.symbol import Symbol
+
+        symbol_obj = Symbol(value=symbol.upper())
+        return self._market_data_service.get_latest_quote(symbol_obj)
 
     def get_quote(self, symbol: str) -> dict[str, Any] | None:
         """Get quote information for a symbol (MarketDataRepository interface).
@@ -491,7 +502,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 # Get orders for specific symbol and cancel them
                 orders = self.get_orders(status="open")
                 symbol_orders = [
-                    order for order in orders if getattr(order, "symbol", None) == symbol
+                    order
+                    for order in orders
+                    if getattr(order, "symbol", None) == symbol
                 ]
                 for order in symbol_orders:
                     order_id = getattr(order, "id", None)
@@ -501,7 +514,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 # Cancel all open orders
                 self._trading_client.cancel_orders()
 
-            logger.info("Successfully cancelled orders" + (f" for {symbol}" if symbol else ""))
+            logger.info(
+                "Successfully cancelled orders" + (f" for {symbol}" if symbol else "")
+            )
             return True
         except Exception as e:
             logger.error(f"Failed to cancel orders: {e}")
@@ -580,7 +595,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         return self._asset_metadata_service.is_market_open()
 
-    def get_market_calendar(self, _start_date: str, _end_date: str) -> list[dict[str, Any]]:
+    def get_market_calendar(
+        self, _start_date: str, _end_date: str
+    ) -> list[dict[str, Any]]:
         """Get market calendar information.
 
         Args:
@@ -600,7 +617,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         timeframe: str = "1Day",
     ) -> dict[str, Any] | None:
         """Get portfolio performance history."""
-        return self._account_service.get_portfolio_history(_start_date, _end_date, timeframe)
+        return self._account_service.get_portfolio_history(
+            _start_date, _end_date, timeframe
+        )
 
     def get_activities(
         self,
@@ -637,12 +656,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         return self.get_positions_dict()
 
-
-
-
-
-
-
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 30
     ) -> WebSocketResult:
@@ -656,12 +669,27 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             WebSocketResult with completion status and completed order IDs
 
         """
-        return self._get_trading_service().wait_for_order_completion(order_ids, max_wait_seconds)
+        return self._get_trading_service().wait_for_order_completion(
+            order_ids, max_wait_seconds
+        )
+
+    def _check_order_completion_status(self, order_id: str) -> str | None:
+        """Check if a single order has reached a final state (delegates to TradingService).
+
+        Args:
+            order_id: Order ID to check
+
+        Returns:
+            Order status if in final state, None otherwise
+
+        """
+        return self._get_trading_service()._check_order_completion_status(order_id)
+
+    def _ensure_trading_stream(self) -> None:
+        """Ensure trading stream is active (delegates to TradingService)."""
+        self._get_trading_service()._ensure_trading_stream()
 
     # ---- TradingStream helpers ----
-
-
-
 
     @classmethod
     def cleanup_all_instances(cls) -> None:
@@ -671,9 +699,15 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             try:
                 for instance in cls._instances.values():
                     try:
-                        if hasattr(instance, "_trading_service") and instance._trading_service:
+                        if (
+                            hasattr(instance, "_trading_service")
+                            and instance._trading_service
+                        ):
                             instance._trading_service.cleanup()
-                        if hasattr(instance, "_websocket_manager") and instance._websocket_manager:
+                        if (
+                            hasattr(instance, "_websocket_manager")
+                            and instance._websocket_manager
+                        ):
                             instance._websocket_manager.release_trading_service()
                     except Exception as e:
                         logger.error(f"Error cleaning up AlpacaManager instance: {e}")
@@ -712,4 +746,6 @@ def create_alpaca_manager(
     This function provides a clean way to create AlpacaManager instances
     and can be easily extended with additional configuration options.
     """
-    return AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url)
+    return AlpacaManager(
+        api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url
+    )

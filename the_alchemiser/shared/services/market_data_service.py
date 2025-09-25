@@ -105,57 +105,33 @@ class MarketDataService(MarketDataPort):
 
         """
         try:
-            # Convert Symbol to string for repository call
+            # Convert Symbol to string for API call
             symbol_str = symbol.value if hasattr(symbol, "value") else str(symbol)
 
-            quote_data = self._repo.get_latest_quote(symbol_str)
-            if quote_data is None:
-                return None
+            # Call Alpaca API directly to avoid circular calls (AlpacaManager delegates back to us)
+            from alpaca.data.requests import StockLatestQuoteRequest
 
-            # Convert tuple to QuoteModel if needed
-            if isinstance(quote_data, tuple) and len(quote_data) == 2:
+            request = StockLatestQuoteRequest(symbol_or_symbols=[symbol_str])
+            quotes = self._repo._data_client.get_stock_latest_quote(request)
+            quote = quotes.get(symbol_str)
+
+            if quote:
                 from decimal import Decimal
 
-                bid, ask = quote_data
-                return QuoteModel(ts=None, bid=Decimal(str(bid)), ask=Decimal(str(ask)))
+                bid = float(getattr(quote, "bid_price", 0))
+                ask = float(getattr(quote, "ask_price", 0))
 
-            return quote_data
+                if bid > 0 and ask > 0:
+                    return QuoteModel(ts=None, bid=Decimal(str(bid)), ask=Decimal(str(ask)))
+                if bid > 0:
+                    return QuoteModel(ts=None, bid=Decimal(str(bid)), ask=Decimal(str(bid)))
+                if ask > 0:
+                    return QuoteModel(ts=None, bid=Decimal(str(ask)), ask=Decimal(str(ask)))
+
+            return None
 
         except Exception as e:
             self.logger.warning(f"Failed to get quote for {symbol}: {e}")
-            return None
-
-    def get_latest_quote_tuple(self, symbol: str) -> tuple[float, float] | None:
-        """Get latest bid/ask quote as tuple for backward compatibility.
-
-        Args:
-            symbol: Stock symbol
-
-        Returns:
-            Tuple of (bid, ask) prices, or None if not available.
-
-        """
-        try:
-            from alpaca.data.requests import StockLatestQuoteRequest
-
-            request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
-            quotes = self._repo._data_client.get_stock_latest_quote(request)
-            quote = quotes.get(symbol)
-
-            if quote:
-                bid = float(getattr(quote, "bid_price", 0))
-                ask = float(getattr(quote, "ask_price", 0))
-                
-                if bid > 0 and ask > 0:
-                    return (bid, ask)
-                if bid > 0:
-                    return (bid, bid)  # Use bid for both if ask unavailable
-                if ask > 0:
-                    return (ask, ask)  # Use ask for both if bid unavailable
-
-            return None
-        except Exception as e:
-            self.logger.error(f"Failed to get latest quote for {symbol}: {e}")
             return None
 
     def get_mid_price(self, symbol: Symbol) -> float | None:
@@ -532,7 +508,7 @@ class MarketDataService(MarketDataPort):
 
             return BarModel(
                 symbol=symbol,
-                timestamp=timestamp if isinstance(timestamp, datetime) else datetime.now(UTC),
+                timestamp=(timestamp if isinstance(timestamp, datetime) else datetime.now(UTC)),
                 open=float(open_price),
                 high=float(high_price),
                 low=float(low_price),
