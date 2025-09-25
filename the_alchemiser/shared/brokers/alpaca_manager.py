@@ -20,19 +20,17 @@ import threading
 import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import Any, ClassVar
 
 # Type checking imports to avoid circular dependencies
 from alpaca.data.historical import StockHistoricalDataClient
-from alpaca.data.requests import StockLatestQuoteRequest
 from alpaca.trading.client import TradingClient
-from alpaca.trading.models import Order, Position, TradeAccount
+from alpaca.trading.models import Position, TradeAccount
 from alpaca.trading.requests import (
     LimitOrderRequest,
     MarketOrderRequest,
 )
 
-from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
 from the_alchemiser.shared.dto.asset_info_dto import AssetInfoDTO
 from the_alchemiser.shared.dto.broker_dto import (
     OrderExecutionResult,
@@ -47,7 +45,7 @@ from the_alchemiser.shared.protocols.repository import (
 from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountService
 from the_alchemiser.shared.services.alpaca_trading_service import AlpacaTradingService
 from the_alchemiser.shared.services.asset_metadata_service import AssetMetadataService
-from the_alchemiser.shared.utils.order_tracker import OrderTracker
+from the_alchemiser.shared.types.quote import QuoteModel
 
 # Import Alpaca exceptions for proper error handling with type safety
 _RetryExcImported: type[Exception]
@@ -83,10 +81,6 @@ except ImportError:  # pragma: no cover - environment-dependent import
 HTTPError = _HTTPErrorImported
 RequestException = _RequestExcImported
 
-if TYPE_CHECKING:
-    from the_alchemiser.shared.services.websocket_manager import (
-        WebSocketConnectionManager,
-    )
 
 logger = logging.getLogger(__name__)
 
@@ -141,15 +135,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         paper: bool = True,
         base_url: str | None = None,
     ) -> None:
-        """Initialize Alpaca clients (only once per credentials).
-
-        Args:
-            api_key: Alpaca API key
-            secret_key: Alpaca secret key
-            paper: Whether to use paper trading (default: True for safety)
-            base_url: Optional custom base URL
-
-        """
+        """Initialize Alpaca clients (only once per credentials)."""
         # Skip initialization if already initialized (singleton pattern)
         if hasattr(self, "_initialized") and self._initialized:
             return
@@ -166,7 +152,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 api_key=api_key, secret_key=secret_key, paper=paper
             )
 
-            self._data_client = StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
+            self._data_client = StockHistoricalDataClient(
+                api_key=api_key, secret_key=secret_key
+            )
 
             logger.info(f"AlpacaManager initialized - Paper: {paper}")
 
@@ -174,29 +162,29 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to initialize Alpaca clients: {e}")
             raise
 
-        # Order tracking for WebSocket updates (centralized utility)
-        self._order_tracker = OrderTracker()
+        # Initialize WebSocket manager for centralized WebSocket management
+        from the_alchemiser.shared.services.websocket_manager import (
+            WebSocketConnectionManager,
+        )
 
-        # WebSocket connection manager (for centralized WebSocket management)
-        self._websocket_manager: WebSocketConnectionManager | None = None
-        self._trading_service_active: bool = False
+        self._websocket_manager = WebSocketConnectionManager(
+            self._api_key, self._secret_key, paper_trading=self._paper
+        )
 
-        # Initialize account service for account-related operations
+        # Initialize extracted services
         self._account_service = AlpacaAccountService(self._trading_client)
-
-        # Initialize trading service with lazy WebSocket manager
-        self._trading_service: AlpacaTradingService | None = None
-
-        # Initialize asset metadata service for asset-related operations
+        self._trading_service = AlpacaTradingService(
+            self._trading_client, self._websocket_manager, paper_trading=self._paper
+        )
         self._asset_metadata_service = AssetMetadataService(self._trading_client)
-
-        # Mark as initialized to prevent re-initialization
-        self._initialized = True
 
         # Initialize MarketDataService for delegation
         from the_alchemiser.shared.services.market_data_service import MarketDataService
 
         self._market_data_service = MarketDataService(self)
+
+        # Mark as initialized to prevent re-initialization
+        self._initialized = True
 
     @property
     def is_paper_trading(self) -> bool:
@@ -225,25 +213,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         return self._trading_client
 
     def _get_trading_service(self) -> AlpacaTradingService:
-        """Get or create the trading service with WebSocket manager."""
-        if self._trading_service is None:
-            # Ensure WebSocket manager is available
-            if self._websocket_manager is None:
-                from the_alchemiser.shared.services.websocket_manager import (
-                    WebSocketConnectionManager,
-                )
-
-                self._websocket_manager = WebSocketConnectionManager(
-                    self._api_key, self._secret_key, paper_trading=self._paper
-                )
-
-            # Create trading service with WebSocket manager
-            self._trading_service = AlpacaTradingService(
-                self._trading_client,
-                self._websocket_manager,
-                paper_trading=self._paper,
-            )
-
+        """Get the trading service."""
         return self._trading_service
 
     # Trading Operations
@@ -296,33 +266,15 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def _validate_market_order_params(
         self, symbol: str, side: str, qty: float | None, notional: float | None
     ) -> tuple[str, str]:
-        """Validate market order parameters.
-
-        Args:
-            symbol: Stock symbol
-            side: 'buy' or 'sell'
-            qty: Quantity to trade
-            notional: Dollar amount to trade
-
-        Returns:
-            Tuple of (normalized_symbol, normalized_side)
-
-        Raises:
-            ValueError: If validation fails
-
-        """
+        """Validate market order parameters."""
         if not symbol or not symbol.strip():
             raise ValueError("Symbol cannot be empty")
-
         if qty is None and notional is None:
             raise ValueError("Either qty or notional must be specified")
-
         if qty is not None and notional is not None:
             raise ValueError("Cannot specify both qty and notional")
-
         if qty is not None and qty <= 0:
             raise ValueError("Quantity must be positive")
-
         if notional is not None and notional <= 0:
             raise ValueError("Notional amount must be positive")
 
@@ -335,44 +287,19 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def _adjust_quantity_for_complete_exit(
         self, symbol: str, side: str, qty: float | None, *, is_complete_exit: bool
     ) -> float | None:
-        """Adjust quantity for complete exit if needed.
-
-        Args:
-            symbol: Stock symbol
-            side: Order side
-            qty: Original quantity
-            is_complete_exit: Whether this is a complete exit
-
-        Returns:
-            Adjusted quantity or original quantity
-
-        """
+        """Adjust quantity for complete exit if needed."""
         if not (is_complete_exit and side == "sell" and qty is not None):
             return qty
 
         try:
             position = self.get_position(symbol)
-            if not position:
-                return qty
-            # Use qty_available if available, fallback to qty
-            available_qty = getattr(position, "qty_available", None)
-            if available_qty is not None:
-                final_qty = float(available_qty)
-                logger.info(
-                    f"Complete exit detected for {symbol}: using Alpaca's available quantity "
-                    f"{final_qty} instead of calculated {qty}"
+            if position:
+                # Use qty_available if available, fallback to qty
+                available_qty = getattr(position, "qty_available", None) or getattr(
+                    position, "qty", None
                 )
-                return final_qty
-
-            # Fallback to total qty if qty_available not available
-            total_qty = getattr(position, "qty", None)
-            if total_qty is not None:
-                final_qty = float(total_qty)
-                logger.info(
-                    f"Complete exit detected for {symbol}: using total quantity "
-                    f"{final_qty} instead of calculated {qty}"
-                )
-                return final_qty
+                if available_qty:
+                    return float(available_qty)
         except Exception as e:
             logger.warning(f"Failed to get position for complete exit of {symbol}: {e}")
 
@@ -386,19 +313,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         qty: float | None,
         error_message: str,
     ) -> ExecutedOrderDTO:
-        """Create error ExecutedOrderDTO for failed orders.
-
-        Args:
-            order_id: Error order ID
-            symbol: Stock symbol
-            side: Order side
-            qty: Order quantity
-            error_message: Error description
-
-        Returns:
-            ExecutedOrderDTO with error details
-
-        """
+        """Create error ExecutedOrderDTO for failed orders."""
         return ExecutedOrderDTO(
             order_id=order_id,
             symbol=symbol.upper() if symbol else "UNKNOWN",
@@ -421,20 +336,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         *,
         is_complete_exit: bool = False,
     ) -> ExecutedOrderDTO:
-        """Place a market order with validation and execution result return.
-
-        Args:
-            symbol: Stock symbol (e.g., 'AAPL')
-            side: 'buy' or 'sell'
-            qty: Quantity to trade (use either qty OR notional)
-            notional: Dollar amount to trade (use either qty OR notional)
-            is_complete_exit: If True and side is 'sell', use actual available quantity
-
-        Returns:
-            ExecutedOrderDTO with execution details
-
-
-        """
+        """Place a market order with validation and execution result return."""
         try:
             # Validation
             normalized_symbol, side_normalized = self._validate_market_order_params(
@@ -524,48 +426,20 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         return self._market_data_service.get_current_prices(symbols)
 
-    def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
-        """Get latest bid/ask quote for a symbol.
+    def get_latest_quote(self, symbol: str) -> QuoteModel | None:
+        """Get latest bid/ask quote for a symbol (delegates to MarketDataService).
 
         Args:
             symbol: Stock symbol
 
         Returns:
-            Tuple of (bid, ask) prices, or None if not available.
+            QuoteModel with bid/ask prices, or None if not available.
 
         """
-        try:
-            request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
-            quotes = self._data_client.get_stock_latest_quote(request)
-            quote = quotes.get(symbol)
+        from the_alchemiser.shared.value_objects.symbol import Symbol
 
-            if quote:
-                bid = float(getattr(quote, "bid_price", 0))
-                ask = float(getattr(quote, "ask_price", 0))
-
-                # Allow quotes where we have at least a valid bid or ask
-                # This handles cases like LEU where bid exists but ask is 0
-                if bid > 0 or ask > 0:
-                    # If only one side is available, use it for both bid and ask
-                    # This allows trading while acknowledging the spread uncertainty
-                    if bid > 0 and ask <= 0:
-                        logger.info(
-                            f"Using bid price for both bid/ask for {symbol} (ask unavailable)"
-                        )
-                        return (bid, bid)
-                    if ask > 0 and bid <= 0:
-                        logger.info(
-                            f"Using ask price for both bid/ask for {symbol} (bid unavailable)"
-                        )
-                        return (ask, ask)
-                    # Both bid and ask are available and positive
-                    return (bid, ask)
-
-            logger.warning(f"No valid quote data available for {symbol}")
-            return None
-        except Exception as e:
-            logger.error(f"Failed to get latest quote for {symbol}: {e}")
-            return None
+        symbol_obj = Symbol(value=symbol.upper())
+        return self._market_data_service.get_latest_quote(symbol_obj)
 
     def get_quote(self, symbol: str) -> dict[str, Any] | None:
         """Get quote information for a symbol (MarketDataRepository interface).
@@ -628,7 +502,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 # Get orders for specific symbol and cancel them
                 orders = self.get_orders(status="open")
                 symbol_orders = [
-                    order for order in orders if getattr(order, "symbol", None) == symbol
+                    order
+                    for order in orders
+                    if getattr(order, "symbol", None) == symbol
                 ]
                 for order in symbol_orders:
                     order_id = getattr(order, "id", None)
@@ -638,7 +514,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 # Cancel all open orders
                 self._trading_client.cancel_orders()
 
-            logger.info("Successfully cancelled orders" + (f" for {symbol}" if symbol else ""))
+            logger.info(
+                "Successfully cancelled orders" + (f" for {symbol}" if symbol else "")
+            )
             return True
         except Exception as e:
             logger.error(f"Failed to cancel orders: {e}")
@@ -651,126 +529,44 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             timeout_minutes: Orders older than this many minutes will be cancelled
 
         Returns:
-            Dictionary containing:
-            - cancelled_count: Number of orders cancelled
-            - errors: List of any errors encountered
-            - cancelled_orders: List of order IDs that were cancelled
+            Dictionary containing cancelled_count, errors, and cancelled_orders
 
         """
         try:
             cutoff_time = datetime.now(UTC) - timedelta(minutes=timeout_minutes)
             open_orders = self.get_orders(status="open")
+            cancelled_orders = []
+            errors = []
 
-            logger.info(
-                f"🔍 Checking {len(open_orders)} open orders for staleness (>{timeout_minutes} minutes)"
-            )
+            for order in open_orders:
+                try:
+                    submitted_at = getattr(order, "submitted_at", None)
+                    if submitted_at and submitted_at < cutoff_time:
+                        order_id = str(getattr(order, "id", "unknown"))
+                        if self.cancel_order(order_id):
+                            cancelled_orders.append(order_id)
+                        else:
+                            errors.append(f"Failed to cancel order {order_id}")
+                except Exception as e:
+                    errors.append(f"Error processing order: {e}")
 
-            cancelled_orders, errors = self._process_stale_orders(open_orders, cutoff_time)
-            result = self._build_stale_orders_result(cancelled_orders, errors)
-            self._log_stale_orders_result(cancelled_orders)
-
-            return result
-
+            if cancelled_orders:
+                logger.info(f"✅ Cancelled {len(cancelled_orders)} stale orders")
+            return {
+                "cancelled_count": len(cancelled_orders),
+                "errors": errors,
+                "cancelled_orders": cancelled_orders,
+            }
         except Exception as e:
-            error_msg = f"Failed to cancel stale orders: {e}"
-            logger.error(error_msg)
+            logger.error(f"Failed to cancel stale orders: {e}")
             return {
                 "cancelled_count": 0,
-                "errors": [error_msg],
+                "errors": [str(e)],
                 "cancelled_orders": [],
             }
 
-    def _process_stale_orders(
-        self, open_orders: list[Any], cutoff_time: datetime
-    ) -> tuple[list[str], list[str]]:
-        """Process open orders and cancel stale ones.
-
-        Args:
-            open_orders: List of open orders to check
-            cutoff_time: Cutoff time for staleness
-
-        Returns:
-            Tuple of (cancelled_orders, errors) lists
-
-        """
-        cancelled_orders = []
-        errors = []
-        current_time = datetime.now(UTC)
-
-        for order in open_orders:
-            try:
-                if self._should_cancel_stale_order(order, cutoff_time, current_time):
-                    order_id = str(getattr(order, "id", "unknown"))
-                    if self.cancel_order(order_id):
-                        cancelled_orders.append(order_id)
-                    else:
-                        errors.append(f"Failed to cancel order {order_id}")
-
-            except Exception as e:
-                order_id = str(getattr(order, "id", "unknown"))
-                error_msg = f"Error processing order {order_id}: {e}"
-                logger.error(error_msg)
-                errors.append(error_msg)
-
-        return cancelled_orders, errors
-
-    def _should_cancel_stale_order(
-        self,
-        order: Order | dict[str, Any],
-        cutoff_time: datetime,
-        current_time: datetime,
-    ) -> bool:
-        """Check if an order should be cancelled for being stale.
-
-        Args:
-            order: Order object to check
-            cutoff_time: Cutoff time for staleness
-            current_time: Current time for age calculation
-
-        Returns:
-            True if order should be cancelled
-
-        """
-        submitted_at = getattr(order, "submitted_at", None)
-        if not submitted_at:
-            return False
-
-        # Handle string timestamps
-        if isinstance(submitted_at, str):
-            submitted_at = datetime.fromisoformat(submitted_at.replace("Z", UTC_TIMEZONE_SUFFIX))
-
-        # Check if order is stale
-        if submitted_at < cutoff_time:
-            order_id = str(getattr(order, "id", "unknown"))
-            symbol = getattr(order, "symbol", "unknown")
-            age_minutes = (current_time - submitted_at).total_seconds() / 60
-
-            logger.info(
-                f"🗑️ Cancelling stale order {order_id} for {symbol} (age: {age_minutes:.1f} minutes)"
-            )
-            return True
-
-        return False
-
-    def _build_stale_orders_result(
-        self, cancelled_orders: list[str], errors: list[str]
-    ) -> dict[str, Any]:
-        """Build result dictionary for stale orders operation."""
-        return {
-            "cancelled_count": len(cancelled_orders),
-            "errors": errors,
-            "cancelled_orders": cancelled_orders,
-        }
-
-    def _log_stale_orders_result(self, cancelled_orders: list[str]) -> None:
-        """Log the result of stale orders cancellation."""
-        if cancelled_orders:
-            logger.info(f"✅ Cancelled {len(cancelled_orders)} stale orders: {cancelled_orders}")
-        else:
-            logger.info("✅ No stale orders found to cancel")
-
     def liquidate_position(self, symbol: str) -> str | None:
-        """Liquidate entire position using close_position API.
+        """Liquidate entire position using close_position API (delegates to TradingService).
 
         Args:
             symbol: Symbol to liquidate
@@ -779,43 +575,16 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             Order ID if successful, None if failed.
 
         """
-        try:
-            order = self._trading_client.close_position(symbol)
-            order_id = str(getattr(order, "id", "unknown"))
-            logger.info(f"Successfully liquidated position for {symbol}: {order_id}")
-            return order_id
-        except Exception as e:
-            logger.error(f"Failed to liquidate position for {symbol}: {e}")
-            return None
+        return self._get_trading_service().liquidate_position(symbol)
 
     def get_asset_info(self, symbol: str) -> AssetInfoDTO | None:
-        """Get asset information with caching.
-
-        Args:
-            symbol: Stock symbol
-
-        Returns:
-            AssetInfoDTO with asset metadata, or None if not found.
-
-        """
+        """Get asset information with caching."""
         return self._asset_metadata_service.get_asset_info(symbol)
 
     def is_fractionable(self, symbol: str) -> bool:
-        """Check if an asset supports fractional shares.
-
-        Args:
-            symbol: Stock symbol to check
-
-        Returns:
-            True if asset supports fractional shares, False otherwise.
-            Defaults to True if asset info cannot be retrieved.
-
-        """
+        """Check if an asset supports fractional shares."""
         asset_info = self.get_asset_info(symbol)
-        if asset_info is None:
-            logger.warning(f"Could not determine fractionability for {symbol}, defaulting to True")
-            return True
-        return asset_info.fractionable
+        return asset_info.fractionable if asset_info else True
 
     def is_market_open(self) -> bool:
         """Check if the market is currently open.
@@ -826,7 +595,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         return self._asset_metadata_service.is_market_open()
 
-    def get_market_calendar(self, _start_date: str, _end_date: str) -> list[dict[str, Any]]:
+    def get_market_calendar(
+        self, _start_date: str, _end_date: str
+    ) -> list[dict[str, Any]]:
         """Get market calendar information.
 
         Args:
@@ -846,7 +617,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         timeframe: str = "1Day",
     ) -> dict[str, Any] | None:
         """Get portfolio performance history."""
-        return self._account_service.get_portfolio_history(_start_date, _end_date, timeframe)
+        return self._account_service.get_portfolio_history(
+            _start_date, _end_date, timeframe
+        )
 
     def get_activities(
         self,
@@ -883,66 +656,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         return self.get_positions_dict()
 
-    def _check_order_completion_status(self, order_id: str) -> str | None:
-        """Check if a single order has reached a final state.
-
-        Args:
-            order_id: The order ID to check
-
-        Returns:
-            Order status if completed, None if still pending or error occurred
-
-        """
-        try:
-            order = self._trading_client.get_order_by_id(order_id)
-            order_status = getattr(order, "status", "").upper()
-
-            # Check if order is in a final state
-            if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
-                return order_status
-            return None
-        except Exception as e:
-            logger.warning(f"Failed to check order {order_id} status: {e}")
-            return None
-
-    def _process_pending_orders(self, order_ids: list[str], completed_orders: list[str]) -> None:
-        """Process pending orders and update completed_orders list.
-
-        Args:
-            order_ids: All order IDs to monitor
-            completed_orders: List of completed order IDs (modified in place)
-
-        """
-        for order_id in order_ids:
-            if order_id not in completed_orders:
-                final_status = self._check_order_completion_status(order_id)
-                if final_status:
-                    completed_orders.append(order_id)
-                    logger.info(f"Order {order_id} completed with status: {final_status}")
-
-    def _should_continue_waiting(
-        self,
-        completed_orders: list[str],
-        order_ids: list[str],
-        start_time: float,
-        max_wait_seconds: int,
-    ) -> bool:
-        """Check if we should continue waiting for order completion.
-
-        Args:
-            completed_orders: List of completed order IDs
-            order_ids: All order IDs being monitored
-            start_time: When monitoring started
-            max_wait_seconds: Maximum wait time
-
-        Returns:
-            True if should continue waiting, False otherwise
-
-        """
-        return (
-            len(completed_orders) < len(order_ids) and (time.time() - start_time) < max_wait_seconds
-        )
-
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 30
     ) -> WebSocketResult:
@@ -956,179 +669,27 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             WebSocketResult with completion status and completed order IDs
 
         """
-        return self._get_trading_service().wait_for_order_completion(order_ids, max_wait_seconds)
+        return self._get_trading_service().wait_for_order_completion(
+            order_ids, max_wait_seconds
+        )
+
+    def _check_order_completion_status(self, order_id: str) -> str | None:
+        """Check if a single order has reached a final state (delegates to TradingService).
+
+        Args:
+            order_id: Order ID to check
+
+        Returns:
+            Order status if in final state, None otherwise
+
+        """
+        return self._get_trading_service()._check_order_completion_status(order_id)
+
+    def _ensure_trading_stream(self) -> None:
+        """Ensure trading stream is active (delegates to TradingService)."""
+        self._get_trading_service()._ensure_trading_stream()
 
     # ---- TradingStream helpers ----
-    def _ensure_trading_stream(self) -> None:
-        """Ensure TradingStream is running via WebSocketConnectionManager."""
-        if self._trading_service_active:
-            return
-
-        try:
-            # Import here to avoid circular dependency
-            from the_alchemiser.shared.services.websocket_manager import (
-                WebSocketConnectionManager,
-            )
-
-            # Get or create the shared WebSocket manager
-            if self._websocket_manager is None:
-                self._websocket_manager = WebSocketConnectionManager(
-                    self._api_key, self._secret_key, paper_trading=self._paper
-                )
-
-            # Request trading service from the manager
-            if self._websocket_manager.get_trading_service(self._on_order_update):
-                self._trading_service_active = True
-                logger.info("✅ TradingStream service activated via WebSocketConnectionManager")
-            else:
-                logger.error("❌ Failed to activate TradingStream service")
-
-        except Exception as exc:
-            logger.error(f"Failed to ensure TradingStream via WebSocketConnectionManager: {exc}")
-            self._trading_service_active = False
-
-    def _extract_event_and_order(
-        self, data: dict[str, Any] | object
-    ) -> tuple[str, dict[str, Any] | object | None]:
-        """Extract event type and order from data (SDK model or dict).
-
-        Args:
-            data: Stream data from TradingStream callback
-
-        Returns:
-            Tuple of (event_type, order) where order may be None
-
-        """
-        if hasattr(data, "event"):
-            event_type = str(getattr(data, "event", "")).lower()
-            order = getattr(data, "order", None)
-        else:
-            event_type = str(data.get("event", "")).lower() if isinstance(data, dict) else ""
-            order = data.get("order") if isinstance(data, dict) else None
-        return event_type, order
-
-    def _extract_order_info(
-        self, order: dict[str, Any] | object | None
-    ) -> tuple[str | None, str | None, Decimal | None]:
-        """Extract order ID, status, and average price from order object.
-
-        Args:
-            order: Order object (SDK model or dict, may be None)
-
-        Returns:
-            Tuple of (order_id, status, avg_price) where any may be None
-
-        """
-        if order is None:
-            return None, None, None
-
-        order_id = str(
-            getattr(order, "id", "") or (order.get("id") if isinstance(order, dict) else "")
-        )
-        status = str(
-            getattr(order, "status", "") or (order.get("status") if isinstance(order, dict) else "")
-        ).lower()
-
-        avg_price = self._convert_avg_price(order)
-
-        return order_id if order_id else None, status if status else None, avg_price
-
-    def _convert_avg_price(self, order: dict[str, Any] | object) -> Decimal | None:
-        """Convert average price from order to Decimal.
-
-        Args:
-            order: Order object (SDK model or dict)
-
-        Returns:
-            Average price as Decimal or None if conversion fails
-
-        """
-        avg_raw = (
-            getattr(order, "filled_avg_price", None)
-            if not isinstance(order, dict)
-            else order.get("filled_avg_price")
-        )
-
-        if avg_raw is not None:
-            try:
-                return Decimal(str(avg_raw))
-            except Exception:
-                return None
-        return None
-
-    def _is_terminal_event(self, event_type: str, status: str | None) -> bool:
-        """Check if the event/status indicates a terminal order state.
-
-        Args:
-            event_type: The event type from the stream
-            status: The order status (may be None)
-
-        Returns:
-            True if this is a terminal event requiring event signaling
-
-        """
-        final_events = {"fill", "canceled", "rejected", "expired"}
-        final_statuses = {"filled", "canceled", "rejected", "expired"}
-
-        return (
-            event_type in final_events
-            or (status is not None and status in final_events)
-            or (status is not None and status in final_statuses)
-        )
-
-    async def _on_order_update(self, data: dict[str, Any] | object) -> None:
-        """Order update callback for TradingStream (async).
-
-        Handles both SDK models and dict payloads. Must be async for TradingStream.
-        """
-        try:
-            event_type, order = self._extract_event_and_order(data)
-            order_id, status, avg_price = self._extract_order_info(order)
-
-            if not order_id:
-                return
-
-            # Update order tracking
-            self._order_tracker.update_order_status(order_id, status or event_type or "", avg_price)
-
-            # Handle terminal events
-            if self._is_terminal_event(event_type, status):
-                self._order_tracker.signal_completion(order_id)
-        except Exception as exc:
-            logger.error(f"Error in TradingStream order update: {exc}")
-
-    def _wait_for_orders_via_ws(self, order_ids: list[str], timeout: float) -> list[str]:
-        """Use TradingStream updates to wait for orders to complete within timeout."""
-        self._ensure_trading_stream()
-
-        # Ensure events exist for ids
-        for oid in order_ids:
-            self._order_tracker.create_event(oid)
-
-        start = time.time()
-        completed: list[str] = []
-
-        # Check cached statuses first
-        for oid in order_ids:
-            status = self._order_tracker.get_status(oid) or ""
-            if status.lower() in {"filled", "canceled", "rejected", "expired"}:
-                completed.append(oid)
-
-        # Wait for the rest
-        for oid in order_ids:
-            if oid in completed:
-                continue
-            time_left = timeout - (time.time() - start)
-            if time_left <= 0:
-                break
-            if self._order_tracker.wait_for_completion(oid, time_left):
-                completed.append(oid)
-
-        return completed
-
-    # Note: MarketDataPort implementation removed to avoid protocol compliance issues
-    # AlpacaManager provides market data functionality through direct methods
-    # without implementing the full MarketDataPort protocol
 
     @classmethod
     def cleanup_all_instances(cls) -> None:
@@ -1136,26 +697,20 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         with cls._lock:
             cls._cleanup_in_progress = True
             try:
-                # Create a copy of instances to avoid dictionary modification during iteration
-                instances_to_cleanup = list(cls._instances.values())
-
-                for instance in instances_to_cleanup:
+                for instance in cls._instances.values():
                     try:
-                        # Clean up trading service
-                        if hasattr(instance, "_trading_service") and instance._trading_service:
+                        if (
+                            hasattr(instance, "_trading_service")
+                            and instance._trading_service
+                        ):
                             instance._trading_service.cleanup()
-                            instance._trading_service = None
-
-                        # Release trading service from WebSocketConnectionManager
-                        if hasattr(instance, "_websocket_manager") and instance._websocket_manager:
-                            logger.info(
-                                "Releasing TradingStream service from WebSocketConnectionManager"
-                            )
+                        if (
+                            hasattr(instance, "_websocket_manager")
+                            and instance._websocket_manager
+                        ):
                             instance._websocket_manager.release_trading_service()
-                            instance._trading_service_active = False
                     except Exception as e:
                         logger.error(f"Error cleaning up AlpacaManager instance: {e}")
-
                 cls._instances.clear()
                 logger.info("All AlpacaManager instances cleaned up")
             finally:
@@ -1165,27 +720,17 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def get_connection_health(cls) -> dict[str, Any]:
         """Get health status of all AlpacaManager instances."""
         with cls._lock:
-            health_info: dict[str, Any] = {
+            return {
                 "total_instances": len(cls._instances),
                 "cleanup_in_progress": cls._cleanup_in_progress,
-                "instances": {},
-            }
-
-            for key, instance in cls._instances.items():
-                try:
-                    health_info["instances"][key] = {
+                "instances": {
+                    key: {
                         "paper_trading": instance._paper,
-                        "trading_service_active": getattr(
-                            instance, "_trading_service_active", False
-                        ),
                         "initialized": getattr(instance, "_initialized", False),
-                        "websocket_manager_available": getattr(instance, "_websocket_manager", None)
-                        is not None,
                     }
-                except Exception as e:
-                    health_info["instances"][key] = {"status": "error", "error": str(e)}
-
-            return health_info
+                    for key, instance in cls._instances.items()
+                },
+            }
 
     def __repr__(self) -> str:
         """Return string representation."""
@@ -1201,4 +746,6 @@ def create_alpaca_manager(
     This function provides a clean way to create AlpacaManager instances
     and can be easily extended with additional configuration options.
     """
-    return AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url)
+    return AlpacaManager(
+        api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url
+    )

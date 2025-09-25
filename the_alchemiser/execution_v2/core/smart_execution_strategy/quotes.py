@@ -169,9 +169,11 @@ class QuoteProvider:
             logger.error(f"❌ No quote data available for {symbol} (streaming and REST failed)")
             return None
 
-        bid_price, ask_price = rest_quote
+        # Extract bid/ask from QuoteModel
+        bid_price = float(rest_quote.bid)
+        ask_price = float(rest_quote.ask)
 
-        # Create QuoteModel from REST data for consistent processing
+        # Create enhanced QuoteModel from REST data for consistent processing
         quote = QuoteModel(
             symbol=symbol,
             bid_price=bid_price,
