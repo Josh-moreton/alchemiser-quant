@@ -82,6 +82,8 @@ class TradingSystem:
     def _initialize_di(self) -> None:
         """Initialize dependency injection system."""
         self.container = ApplicationContainer()
+        # Initialize execution providers for late binding
+        self.container.initialize_execution_providers()
         ServiceFactory.initialize(self.container)
         self.logger.debug("Dependency injection initialized")
 

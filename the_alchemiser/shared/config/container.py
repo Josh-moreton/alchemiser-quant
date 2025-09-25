@@ -4,6 +4,8 @@ Main application container for dependency injection.
 """
 
 from __future__ import annotations
+import importlib
+from typing import Any
 
 from dependency_injector import containers, providers
 
@@ -12,6 +14,8 @@ from the_alchemiser.shared.config.infrastructure_providers import (
     InfrastructureProviders,
 )
 from the_alchemiser.shared.config.service_providers import ServiceProviders
+
+# Avoid importing execution types at module level to prevent circular imports
 
 
 class ApplicationContainer(containers.DeclarativeContainer):
@@ -29,8 +33,24 @@ class ApplicationContainer(containers.DeclarativeContainer):
     config = providers.Container(ConfigProviders)
     infrastructure = providers.Container(InfrastructureProviders, config=config)
     services = providers.Container(ServiceProviders, infrastructure=infrastructure, config=config)
+    
+    # Execution providers (late binding to avoid circular imports)
+    execution: providers.Container[Any] | None = None
 
     # Application layer (will be added in Phase 2)
+
+    def initialize_execution_providers(self) -> None:
+        """Initialize execution providers with late binding to avoid circular imports."""
+        if self.execution is None:
+            # Use importlib to avoid static import detection
+            execution_config_module = importlib.import_module("the_alchemiser.execution_v2.config")
+            ExecutionProviders = execution_config_module.ExecutionProviders
+            
+            self.execution = providers.Container(
+                ExecutionProviders,
+                infrastructure=self.infrastructure,
+                config=self.config,
+            )
 
     @classmethod
     def create_for_environment(cls, env: str = "development") -> ApplicationContainer:
@@ -45,6 +65,9 @@ class ApplicationContainer(containers.DeclarativeContainer):
         elif env == "production":
             # Production uses environment variables (default behavior)
             pass
+
+        # Initialize execution providers with late binding
+        container.initialize_execution_providers()
 
         return container
 
