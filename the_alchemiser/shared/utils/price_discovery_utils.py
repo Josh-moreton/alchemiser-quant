@@ -97,7 +97,9 @@ def calculate_midpoint_price(bid: float, ask: float) -> float | None:
         return None
 
 
-def get_current_price_from_quote(quote_provider: QuoteProvider, symbol: str) -> float | None:
+def get_current_price_from_quote(
+    quote_provider: QuoteProvider, symbol: str
+) -> float | None:
     """Get current price from quote provider using bid-ask midpoint.
 
     This function consolidates the quote-based price discovery logic that was
@@ -210,7 +212,9 @@ def get_current_price_as_decimal(
     try:
         price = _get_price_from_provider(provider, symbol)
         if price is not None:
-            return Decimal(str(price))  # Convert via string to avoid float precision issues
+            return Decimal(
+                str(price)
+            )  # Convert via string to avoid float precision issues
         return None
     except Exception as e:
         logger.error(f"Error getting decimal price for {symbol}: {e}")
@@ -238,7 +242,9 @@ def _get_price_from_provider(
         # Otherwise assume QuoteProvider interface
         if isinstance(provider, QuoteProvider):
             return get_current_price_from_quote(provider, symbol)
-        logger.error(f"Provider does not implement expected interface: {type(provider)}")
+        logger.error(
+            f"Provider does not implement expected interface: {type(provider)}"
+        )
         return None
     except Exception as e:
         logger.error(f"Error getting price from provider for {symbol}: {e}")
