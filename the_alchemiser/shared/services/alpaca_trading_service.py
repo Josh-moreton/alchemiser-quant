@@ -31,6 +31,7 @@ from the_alchemiser.shared.dto.broker_dto import (
     WebSocketStatus,
 )
 from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
+from the_alchemiser.shared.utils.alpaca_error_handler import AlpacaErrorHandler
 from the_alchemiser.shared.utils.order_tracker import OrderTracker
 
 if TYPE_CHECKING:
@@ -231,7 +232,7 @@ class AlpacaTradingService:
 
         except Exception as e:
             logger.error(f"Failed to place limit order for {symbol}: {e}")
-            return self._create_error_execution_result(e, "Limit order placement")
+            return AlpacaErrorHandler.create_error_result(e, "Limit order placement")
 
     def cancel_order(self, order_id: str) -> bool:
         """Cancel an order by ID.
@@ -290,7 +291,7 @@ class AlpacaTradingService:
             return self._alpaca_order_to_execution_result(order)
         except Exception as e:
             logger.error(f"Failed to get order execution result for {order_id}: {e}")
-            return self._create_error_execution_result(
+            return AlpacaErrorHandler.create_error_result(
                 e, "Order status fetch", order_id
             )
 
@@ -509,25 +510,7 @@ class AlpacaTradingService:
             )
         except Exception as e:
             logger.error(f"Failed to convert order to execution result: {e}")
-            return self._create_error_execution_result(e, "Order conversion")
-
-    def _create_error_execution_result(
-        self, error: Exception, context: str = "Operation", order_id: str = "unknown"
-    ) -> OrderExecutionResult:
-        """Create an error OrderExecutionResult."""
-        status: Literal[
-            "accepted", "filled", "partially_filled", "rejected", "canceled"
-        ] = "rejected"
-        return OrderExecutionResult(
-            success=False,
-            order_id=order_id,
-            status=status,
-            filled_qty=Decimal("0"),
-            avg_fill_price=None,
-            submitted_at=datetime.now(UTC),
-            completed_at=datetime.now(UTC),
-            error=f"{context} failed: {error!s}",
-        )
+            return AlpacaErrorHandler.create_error_result(e, "Order conversion")
 
     # --- Helper Methods ---
 
