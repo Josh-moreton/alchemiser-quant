@@ -5,9 +5,9 @@
 
 ## Purpose
 
-The shared module provides DTOs, utilities, and cross-cutting concerns. This module contains:
+The shared module provides schemas, utilities, and cross-cutting concerns. This module contains:
 
-- **DTOs**: Data transfer objects for inter-module communication
+- **Schemas**: Data models for inter-module communication
 - **Types**: Common value objects (Money, Symbol classes)
 - **Utils**: Utility functions and helpers
 - **Config**: Configuration management

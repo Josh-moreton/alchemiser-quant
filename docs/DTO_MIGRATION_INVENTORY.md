@@ -53,18 +53,18 @@ This document provides a comprehensive inventory of all DTO and Schema classes i
 ### Compatibility Layer Status
 
 **Deprecation Shim**: `shared/dto/__init__.py`
-- ✅ Emits `DeprecationWarning` on first import
-- ✅ Re-exports all classes from `shared.schemas`
-- ✅ Full backward compatibility maintained
-- 🔄 **Planned removal**: Phase 3 final cleanup
+- ✅ Previously emitted `DeprecationWarning` on first import
+- ✅ Previously re-exported all classes from `shared.schemas`
+- ✅ Previously maintained full backward compatibility
+- ✅ **REMOVED**: Phase 3b complete - shim fully removed
 
 **Example Usage**:
 ```python
-# NEW: Canonical import (recommended)
+# CURRENT: Canonical import (use this)
 from the_alchemiser.shared.schemas import AssetInfo, RebalancePlan
 
-# OLD: Still works but deprecated (emits warning)
-from the_alchemiser.shared.dto import AssetInfo, RebalancePlan
+# OLD: No longer works (removed in Phase 3b)
+# from the_alchemiser.shared.dto import AssetInfo, RebalancePlan  # ImportError
 ```
 
 ## 1. Boundary Models Inventory

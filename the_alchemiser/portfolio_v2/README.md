@@ -45,7 +45,7 @@ portfolio_v2/
 
 ```python
 from the_alchemiser.portfolio_v2 import PortfolioServiceV2
-from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
+from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocationDTO
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from decimal import Decimal
 
