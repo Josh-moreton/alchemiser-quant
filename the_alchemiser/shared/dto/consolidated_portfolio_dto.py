@@ -115,8 +115,8 @@ class ConsolidatedPortfolio(BaseModel):
         allocation_dict: dict[str, float],
         correlation_id: str,
         source_strategies: list[str] | None = None,
-    ) -> ConsolidatedPortfolioDTO:
-        """Create DTO from dict allocation data.
+    ) -> ConsolidatedPortfolio:
+        """Create ConsolidatedPortfolio from dict allocation data.
 
         Args:
             allocation_dict: Dictionary of symbol -> weight allocations
@@ -124,7 +124,7 @@ class ConsolidatedPortfolio(BaseModel):
             source_strategies: Optional list of contributing strategy names
 
         Returns:
-            ConsolidatedPortfolioDTO instance
+            ConsolidatedPortfolio instance
 
         Raises:
             ValueError: If allocation data is invalid
