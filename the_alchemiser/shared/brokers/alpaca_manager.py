@@ -823,7 +823,13 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             Defaults to True if asset info cannot be retrieved.
 
         """
-        return self._asset_metadata_service.is_fractionable(symbol)
+        asset_info = self.get_asset_info(symbol)
+        if asset_info is None:
+            logger.warning(
+                f"Could not determine fractionability for {symbol}, defaulting to True"
+            )
+            return True
+        return asset_info.fractionable
 
     def is_market_open(self) -> bool:
         """Check if the market is currently open.
