@@ -46,6 +46,7 @@ from the_alchemiser.shared.protocols.repository import (
 )
 from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountService
 from the_alchemiser.shared.services.alpaca_trading_service import AlpacaTradingService
+from the_alchemiser.shared.services.asset_metadata_service import AssetMetadataService
 from the_alchemiser.shared.utils.order_tracker import OrderTracker
 
 # Import Alpaca exceptions for proper error handling with type safety
@@ -188,11 +189,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         # Initialize trading service with lazy WebSocket manager
         self._trading_service: AlpacaTradingService | None = None
 
-        # Asset metadata cache with TTL
-        self._asset_cache: dict[str, AssetInfoDTO] = {}
-        self._asset_cache_timestamps: dict[str, float] = {}
-        self._asset_cache_ttl = 300.0  # 5 minutes TTL
-        self._asset_cache_lock = threading.Lock()
+        # Initialize asset metadata service for asset-related operations
+        self._asset_metadata_service = AssetMetadataService(self._trading_client)
 
         # Mark as initialized to prevent re-initialization
         self._initialized = True
@@ -812,49 +810,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             AssetInfoDTO with asset metadata, or None if not found.
 
         """
-        symbol_upper = symbol.upper()
-        current_time = time.time()
-
-        # Check cache first
-        with self._asset_cache_lock:
-            if symbol_upper in self._asset_cache:
-                cache_time = self._asset_cache_timestamps.get(symbol_upper, 0)
-                if current_time - cache_time < self._asset_cache_ttl:
-                    logger.debug(f"📋 Asset cache hit for {symbol_upper}")
-                    return self._asset_cache[symbol_upper]
-                # Cache expired, remove
-                self._asset_cache.pop(symbol_upper, None)
-                self._asset_cache_timestamps.pop(symbol_upper, None)
-                logger.debug(f"🗑️ Asset cache expired for {symbol_upper}")
-
-        try:
-            asset = self._trading_client.get_asset(symbol_upper)
-
-            # Convert SDK object to DTO at adapter boundary
-            asset_dto = AssetInfoDTO(
-                symbol=getattr(asset, "symbol", symbol_upper),
-                name=getattr(asset, "name", None),
-                exchange=getattr(asset, "exchange", None),
-                asset_class=getattr(asset, "asset_class", None),
-                tradable=getattr(asset, "tradable", True),
-                fractionable=getattr(asset, "fractionable", True),
-                marginable=getattr(asset, "marginable", None),
-                shortable=getattr(asset, "shortable", None),
-            )
-
-            # Cache the result
-            with self._asset_cache_lock:
-                self._asset_cache[symbol_upper] = asset_dto
-                self._asset_cache_timestamps[symbol_upper] = current_time
-
-            logger.debug(
-                f"📡 Fetched asset info for {symbol_upper}: fractionable={asset_dto.fractionable}"
-            )
-            return asset_dto
-
-        except Exception as e:
-            logger.error(f"Failed to get asset info for {symbol_upper}: {e}")
-            return None
+        return self._asset_metadata_service.get_asset_info(symbol)
 
     def is_fractionable(self, symbol: str) -> bool:
         """Check if an asset supports fractional shares.
@@ -867,13 +823,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             Defaults to True if asset info cannot be retrieved.
 
         """
-        asset_info = self.get_asset_info(symbol)
-        if asset_info is None:
-            logger.warning(
-                f"Could not determine fractionability for {symbol}, defaulting to True"
-            )
-            return True
-        return asset_info.fractionable
+        return self._asset_metadata_service.is_fractionable(symbol)
 
     def is_market_open(self) -> bool:
         """Check if the market is currently open.
@@ -882,12 +832,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             True if market is open, False otherwise.
 
         """
-        try:
-            clock = self._trading_client.get_clock()
-            return getattr(clock, "is_open", False)
-        except Exception as e:
-            logger.error(f"Failed to get market status: {e}")
-            return False
+        return self._asset_metadata_service.is_market_open()
 
     def get_market_calendar(
         self, _start_date: str, _end_date: str
@@ -902,21 +847,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             List of market calendar entries.
 
         """
-        try:
-            # Some stubs may not accept start/end; fetch without filters
-            calendar = self._trading_client.get_calendar()
-            # Convert to list of dictionaries
-            return [
-                {
-                    "date": str(getattr(day, "date", "")),
-                    "open": str(getattr(day, "open", "")),
-                    "close": str(getattr(day, "close", "")),
-                }
-                for day in calendar
-            ]
-        except Exception as e:
-            logger.error(f"Failed to get market calendar: {e}")
-            return []
+        return self._asset_metadata_service.get_market_calendar(_start_date, _end_date)
 
     def get_portfolio_history(
         self,
