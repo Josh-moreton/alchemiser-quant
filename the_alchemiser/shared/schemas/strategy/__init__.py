@@ -1,6 +1,6 @@
 """Strategy schemas module."""
 
-from .allocation import StrategyAllocation
+from .legacy_allocation import StrategyAllocation
 from .indicators import IndicatorRequest, PortfolioFragment
 from .signals import StrategySignal
 from .technical_indicators import TechnicalIndicator

@@ -33,7 +33,9 @@ class StrategySignal(BaseModel):
     )
 
     # Required correlation fields
-    correlation_id: str = Field(..., min_length=1, description="Unique correlation identifier")
+    correlation_id: str = Field(
+        ..., min_length=1, description="Unique correlation identifier"
+    )
     causation_id: str = Field(
         ..., min_length=1, description="Causation identifier for traceability"
     )
@@ -42,7 +44,9 @@ class StrategySignal(BaseModel):
     # Signal fields
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
     action: str = Field(..., description="Trading action (BUY, SELL, HOLD)")
-    reasoning: str = Field(..., min_length=1, description="Human-readable signal reasoning")
+    reasoning: str = Field(
+        ..., min_length=1, description="Human-readable signal reasoning"
+    )
 
     # Optional strategy context
     strategy_name: str | None = Field(
@@ -56,7 +60,9 @@ class StrategySignal(BaseModel):
     signal_strength: Decimal | None = Field(
         default=None, ge=0, description="Raw signal strength value"
     )
-    metadata: dict[str, Any] | None = Field(default=None, description="Additional signal metadata")
+    metadata: dict[str, Any] | None = Field(
+        default=None, description="Additional signal metadata"
+    )
 
     @field_validator("symbol")
     @classmethod
@@ -71,7 +77,9 @@ class StrategySignal(BaseModel):
         valid_actions = {"BUY", "SELL", "HOLD"}
         action_upper = v.strip().upper()
         if action_upper not in valid_actions:
-            raise ValueError(f"Action must be one of {valid_actions}, got {action_upper}")
+            raise ValueError(
+                f"Action must be one of {valid_actions}, got {action_upper}"
+            )
         return action_upper
 
     @field_validator("timestamp")
@@ -123,7 +131,9 @@ class StrategySignal(BaseModel):
                     timestamp_str = timestamp_str[:-1] + "+00:00"
                 data["timestamp"] = datetime.fromisoformat(timestamp_str)
             except ValueError as e:
-                raise ValueError(f"Invalid timestamp format: {data['timestamp']}") from e
+                raise ValueError(
+                    f"Invalid timestamp format: {data['timestamp']}"
+                ) from e
 
         # Convert string decimal fields back to Decimal
         for field_name in ["allocation_weight", "signal_strength"]:
@@ -135,6 +145,8 @@ class StrategySignal(BaseModel):
                 try:
                     data[field_name] = Decimal(data[field_name])
                 except (ValueError, TypeError) as e:
-                    raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
+                    raise ValueError(
+                        f"Invalid {field_name} value: {data[field_name]}"
+                    ) from e
 
         return cls(**data)

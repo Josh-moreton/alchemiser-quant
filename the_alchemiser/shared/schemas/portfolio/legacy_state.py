@@ -29,17 +29,25 @@ class Position(BaseModel):
     )
 
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
-    quantity: Decimal = Field(..., description="Position quantity (can be negative for short)")
+    quantity: Decimal = Field(
+        ..., description="Position quantity (can be negative for short)"
+    )
     average_cost: Decimal = Field(..., ge=0, description="Average cost basis")
     current_price: Decimal = Field(..., ge=0, description="Current market price")
     market_value: Decimal = Field(..., description="Current market value")
     unrealized_pnl: Decimal = Field(..., description="Unrealized profit/loss")
-    unrealized_pnl_percent: Decimal = Field(..., description="Unrealized P&L percentage")
+    unrealized_pnl_percent: Decimal = Field(
+        ..., description="Unrealized P&L percentage"
+    )
 
     # Optional position metadata
-    last_updated: datetime | None = Field(default=None, description="Last update timestamp")
+    last_updated: datetime | None = Field(
+        default=None, description="Last update timestamp"
+    )
     side: str | None = Field(default=None, description="Position side (long/short)")
-    cost_basis: Decimal | None = Field(default=None, ge=0, description="Total cost basis")
+    cost_basis: Decimal | None = Field(
+        default=None, ge=0, description="Total cost basis"
+    )
 
     @field_validator("symbol")
     @classmethod
@@ -75,8 +83,12 @@ class PortfolioMetrics(BaseModel):
     total_pnl_percent: Decimal = Field(..., description="Total P&L percentage")
 
     # Risk metrics
-    portfolio_margin: Decimal | None = Field(default=None, ge=0, description="Portfolio margin")
-    maintenance_margin: Decimal | None = Field(default=None, ge=0, description="Maintenance margin")
+    portfolio_margin: Decimal | None = Field(
+        default=None, ge=0, description="Portfolio margin"
+    )
+    maintenance_margin: Decimal | None = Field(
+        default=None, ge=0, description="Maintenance margin"
+    )
 
 
 class PortfolioSnapshot(BaseModel):
@@ -94,7 +106,9 @@ class PortfolioSnapshot(BaseModel):
     )
 
     # Required correlation fields
-    correlation_id: str = Field(..., min_length=1, description="Unique correlation identifier")
+    correlation_id: str = Field(
+        ..., min_length=1, description="Unique correlation identifier"
+    )
     causation_id: str = Field(
         ..., min_length=1, description="Causation identifier for traceability"
     )
@@ -116,7 +130,9 @@ class PortfolioSnapshot(BaseModel):
     )
 
     # Portfolio constraints and settings
-    cash_target: Decimal | None = Field(default=None, ge=0, description="Target cash percentage")
+    cash_target: Decimal | None = Field(
+        default=None, ge=0, description="Target cash percentage"
+    )
     max_position_size: Decimal | None = Field(
         default=None, ge=0, le=1, description="Maximum position size as percentage"
     )
@@ -277,7 +293,9 @@ class PortfolioSnapshot(BaseModel):
                         timestamp_str = timestamp_str[:-1] + "+00:00"
                     data[field_name] = datetime.fromisoformat(timestamp_str)
                 except ValueError as e:
-                    raise ValueError(f"Invalid {field_name} format: {data[field_name]}") from e
+                    raise ValueError(
+                        f"Invalid {field_name} format: {data[field_name]}"
+                    ) from e
 
     @classmethod
     def _convert_decimal_fields(cls, data: dict[str, Any]) -> None:
@@ -292,12 +310,16 @@ class PortfolioSnapshot(BaseModel):
                 try:
                     data[field_name] = Decimal(data[field_name])
                 except (ValueError, TypeError) as e:
-                    raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
+                    raise ValueError(
+                        f"Invalid {field_name} value: {data[field_name]}"
+                    ) from e
 
     @classmethod
     def _convert_strategy_allocations(cls, data: dict[str, Any]) -> None:
         """Convert strategy allocations from strings to Decimal objects."""
-        if "strategy_allocations" in data and isinstance(data["strategy_allocations"], dict):
+        if "strategy_allocations" in data and isinstance(
+            data["strategy_allocations"], dict
+        ):
             allocations = {}
             for strategy, weight in data["strategy_allocations"].items():
                 if isinstance(weight, str):
@@ -328,7 +350,9 @@ class PortfolioSnapshot(BaseModel):
     def _convert_position_data(cls, position_data: dict[str, Any]) -> None:
         """Convert individual position data fields."""
         # Convert last_updated timestamp in position
-        if "last_updated" in position_data and isinstance(position_data["last_updated"], str):
+        if "last_updated" in position_data and isinstance(
+            position_data["last_updated"], str
+        ):
             try:
                 timestamp_str = position_data["last_updated"]
                 if timestamp_str.endswith("Z"):

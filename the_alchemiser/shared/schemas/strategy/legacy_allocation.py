@@ -70,7 +70,9 @@ class StrategyAllocation(BaseModel):
                 raise ValueError(f"Duplicate symbol: {symbol_upper}")
 
             if weight < 0 or weight > 1:
-                raise ValueError(f"Weight for {symbol_upper} must be between 0 and 1, got {weight}")
+                raise ValueError(
+                    f"Weight for {symbol_upper} must be between 0 and 1, got {weight}"
+                )
 
             normalized[symbol_upper] = weight
             total_weight += weight

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import ConfigDict
+from pydantic import BaseModel, ConfigDict
 
 from the_alchemiser.shared.schemas.core.base import Result
 

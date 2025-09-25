@@ -52,37 +52,63 @@ class TradeLedgerEntry(BaseModel):
     )
 
     # Unique identifiers for idempotency and traceability
-    ledger_id: str = Field(..., min_length=1, description="Unique ledger entry identifier (UUID4)")
-    event_id: str = Field(..., min_length=1, description="Event identifier from execution")
-    correlation_id: str = Field(..., min_length=1, description="Workflow correlation identifier")
-    causation_id: str = Field(..., min_length=1, description="Causation identifier for chaining")
+    ledger_id: str = Field(
+        ..., min_length=1, description="Unique ledger entry identifier (UUID4)"
+    )
+    event_id: str = Field(
+        ..., min_length=1, description="Event identifier from execution"
+    )
+    correlation_id: str = Field(
+        ..., min_length=1, description="Workflow correlation identifier"
+    )
+    causation_id: str = Field(
+        ..., min_length=1, description="Causation identifier for chaining"
+    )
 
     # Strategy attribution
-    strategy_name: str = Field(..., min_length=1, description="Strategy that generated this trade")
+    strategy_name: str = Field(
+        ..., min_length=1, description="Strategy that generated this trade"
+    )
 
     # Instrument identification
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
-    asset_type: AssetType | None = Field(default=None, description="Asset type classification")
+    asset_type: AssetType | None = Field(
+        default=None, description="Asset type classification"
+    )
 
     # Execution details
     side: TradeSide = Field(..., description="Trade side (BUY/SELL)")
     quantity: Decimal = Field(..., gt=0, description="Executed quantity")
     price: Decimal = Field(..., gt=0, description="Execution price per share")
-    fees: Decimal = Field(default=Decimal("0"), ge=0, description="Total fees for this fill")
+    fees: Decimal = Field(
+        default=Decimal("0"), ge=0, description="Total fees for this fill"
+    )
     timestamp: datetime = Field(..., description="Execution timestamp (UTC)")
 
     # Broker references for reconciliation
     order_id: str = Field(..., min_length=1, description="Broker order identifier")
-    client_order_id: str | None = Field(default=None, description="Client-side order identifier")
-    fill_id: str | None = Field(default=None, description="Broker fill/execution identifier")
+    client_order_id: str | None = Field(
+        default=None, description="Client-side order identifier"
+    )
+    fill_id: str | None = Field(
+        default=None, description="Broker fill/execution identifier"
+    )
 
     # Account and venue context
-    account_id: str | None = Field(default=None, description="Trading account identifier")
-    venue: str | None = Field(default=None, description="Execution venue (e.g., 'ALPACA')")
+    account_id: str | None = Field(
+        default=None, description="Trading account identifier"
+    )
+    venue: str | None = Field(
+        default=None, description="Execution venue (e.g., 'ALPACA')"
+    )
 
     # Metadata and versioning
-    schema_version: int = Field(default=1, ge=1, description="Schema version for migrations")
-    source: str = Field(..., min_length=1, description="Source module (e.g., 'execution_v2.core')")
+    schema_version: int = Field(
+        default=1, ge=1, description="Schema version for migrations"
+    )
+    source: str = Field(
+        ..., min_length=1, description="Source module (e.g., 'execution_v2.core')"
+    )
     notes: str | None = Field(default=None, description="Optional execution notes")
 
     @field_validator("symbol")
@@ -141,19 +167,31 @@ class TradeLedgerQuery(BaseModel):
     )
 
     # Filter criteria
-    strategy_name: str | None = Field(default=None, description="Filter by strategy name")
+    strategy_name: str | None = Field(
+        default=None, description="Filter by strategy name"
+    )
     symbol: str | None = Field(default=None, description="Filter by symbol")
-    asset_type: AssetType | None = Field(default=None, description="Filter by asset type")
+    asset_type: AssetType | None = Field(
+        default=None, description="Filter by asset type"
+    )
     side: TradeSide | None = Field(default=None, description="Filter by trade side")
     account_id: str | None = Field(default=None, description="Filter by account ID")
 
     # Date range filtering
-    start_date: datetime | None = Field(default=None, description="Start of date range (inclusive)")
-    end_date: datetime | None = Field(default=None, description="End of date range (inclusive)")
+    start_date: datetime | None = Field(
+        default=None, description="Start of date range (inclusive)"
+    )
+    end_date: datetime | None = Field(
+        default=None, description="End of date range (inclusive)"
+    )
 
     # Pagination
-    limit: int | None = Field(default=None, ge=1, le=10000, description="Maximum results to return")
-    offset: int | None = Field(default=None, ge=0, description="Number of results to skip")
+    limit: int | None = Field(
+        default=None, ge=1, le=10000, description="Maximum results to return"
+    )
+    offset: int | None = Field(
+        default=None, ge=0, description="Number of results to skip"
+    )
 
     # Ordering
     order_by: Literal["timestamp", "symbol", "strategy_name"] = Field(
@@ -194,19 +232,25 @@ class Lot(BaseModel):
 
     # Lot identification
     lot_id: str = Field(..., min_length=1, description="Unique lot identifier")
-    strategy_name: str = Field(..., min_length=1, description="Strategy that owns this lot")
+    strategy_name: str = Field(
+        ..., min_length=1, description="Strategy that owns this lot"
+    )
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
 
     # Position details
     quantity: Decimal = Field(..., gt=0, description="Lot quantity (always positive)")
-    cost_basis: Decimal = Field(..., gt=0, description="Average cost per share for this lot")
+    cost_basis: Decimal = Field(
+        ..., gt=0, description="Average cost per share for this lot"
+    )
     opened_timestamp: datetime = Field(..., description="When this lot was opened")
 
     # Attribution details
     opening_ledger_ids: list[str] = Field(
         description="Ledger entry IDs that created this lot", min_length=1
     )
-    remaining_quantity: Decimal = Field(..., ge=0, description="Remaining unmatched quantity")
+    remaining_quantity: Decimal = Field(
+        ..., ge=0, description="Remaining unmatched quantity"
+    )
 
     # Optional metadata
     notes: str | None = Field(default=None, description="Optional lot notes")
@@ -255,28 +299,48 @@ class PerformanceSummary(BaseModel):
 
     # Summary identification
     strategy_name: str = Field(..., min_length=1, description="Strategy name")
-    symbol: str | None = Field(default=None, description="Symbol (None for all symbols)")
-    calculation_timestamp: datetime = Field(..., description="When summary was calculated")
+    symbol: str | None = Field(
+        default=None, description="Symbol (None for all symbols)"
+    )
+    calculation_timestamp: datetime = Field(
+        ..., description="When summary was calculated"
+    )
 
     # Realized P&L
-    realized_pnl: Decimal = Field(default=Decimal("0"), description="Realized profit/loss")
-    realized_trades: int = Field(default=0, ge=0, description="Number of completed round trips")
+    realized_pnl: Decimal = Field(
+        default=Decimal("0"), description="Realized profit/loss"
+    )
+    realized_trades: int = Field(
+        default=0, ge=0, description="Number of completed round trips"
+    )
 
     # Open position summary
-    open_quantity: Decimal = Field(default=Decimal("0"), ge=0, description="Total open quantity")
+    open_quantity: Decimal = Field(
+        default=Decimal("0"), ge=0, description="Total open quantity"
+    )
     open_lots_count: int = Field(default=0, ge=0, description="Number of open lots")
     average_cost_basis: Decimal | None = Field(
         default=None, ge=0, description="Weighted average cost basis of open position"
     )
 
     # Unrealized P&L (requires current price)
-    current_price: Decimal | None = Field(default=None, gt=0, description="Current market price")
-    unrealized_pnl: Decimal | None = Field(default=None, description="Unrealized profit/loss")
+    current_price: Decimal | None = Field(
+        default=None, gt=0, description="Current market price"
+    )
+    unrealized_pnl: Decimal | None = Field(
+        default=None, description="Unrealized profit/loss"
+    )
 
     # Trading activity summary
-    total_buy_quantity: Decimal = Field(default=Decimal("0"), ge=0, description="Total bought")
-    total_sell_quantity: Decimal = Field(default=Decimal("0"), ge=0, description="Total sold")
-    total_fees: Decimal = Field(default=Decimal("0"), ge=0, description="Total fees paid")
+    total_buy_quantity: Decimal = Field(
+        default=Decimal("0"), ge=0, description="Total bought"
+    )
+    total_sell_quantity: Decimal = Field(
+        default=Decimal("0"), ge=0, description="Total sold"
+    )
+    total_fees: Decimal = Field(
+        default=Decimal("0"), ge=0, description="Total fees paid"
+    )
 
     @field_validator("strategy_name")
     @classmethod
