@@ -13,12 +13,12 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.shared.dto.trade_run_result_dto import (
-    ExecutionSummaryDTO,
-    OrderResultSummaryDTO,
-    TradeRunResultDTO,
-)
 from the_alchemiser.shared.protocols.orchestrator import TradingModeProvider
+from the_alchemiser.shared.schemas.trade_run_result import (
+    ExecutionSummary,
+    OrderResultSummary,
+    TradeRunResult,
+)
 
 
 def create_failure_result(
@@ -26,7 +26,7 @@ def create_failure_result(
     started_at: datetime,
     correlation_id: str,
     warnings: list[str],
-) -> TradeRunResultDTO:
+) -> TradeRunResult:
     """Create a failure result DTO.
 
     Args:
@@ -43,10 +43,10 @@ def create_failure_result(
 
     completed_at = datetime.now(UTC)
 
-    return TradeRunResultDTO(
+    return TradeRunResult(
         status="FAILURE",
         success=False,
-        execution_summary=ExecutionSummaryDTO(
+        execution_summary=ExecutionSummary(
             orders_total=0,
             orders_succeeded=0,
             orders_failed=0,
@@ -72,7 +72,7 @@ def create_success_result(
     warnings: list[str],
     *,
     success: bool,
-) -> TradeRunResultDTO:
+) -> TradeRunResult:
     """Create a success result DTO from trading results.
 
     Args:
@@ -94,7 +94,7 @@ def create_success_result(
     status = _determine_execution_status(success=success, execution_summary=execution_summary)
     trading_mode = _determine_trading_mode(orchestrator)
 
-    return TradeRunResultDTO(
+    return TradeRunResult(
         status=status,
         success=success,
         execution_summary=execution_summary,
@@ -109,7 +109,7 @@ def create_success_result(
 
 def _convert_orders_to_dtos(
     orders_executed: list[dict[str, Any]], completed_at: datetime
-) -> list[OrderResultSummaryDTO]:
+) -> list[OrderResultSummary]:
     """Convert executed orders to OrderResultSummaryDTO instances.
 
     Args:
@@ -120,7 +120,7 @@ def _convert_orders_to_dtos(
         List of OrderResultSummaryDTO instances
 
     """
-    order_dtos: list[OrderResultSummaryDTO] = []
+    order_dtos: list[OrderResultSummary] = []
 
     for order in orders_executed:
         order_dto = _create_single_order_dto(order, completed_at)
@@ -131,7 +131,7 @@ def _convert_orders_to_dtos(
 
 def _create_single_order_dto(
     order: dict[str, Any], completed_at: datetime
-) -> OrderResultSummaryDTO:
+) -> OrderResultSummary:
     """Create a single OrderResultSummaryDTO from order data.
 
     Args:
@@ -149,7 +149,7 @@ def _create_single_order_dto(
     filled_price = order.get("filled_avg_price")
     trade_amount = _calculate_trade_amount(order, qty, filled_price)
 
-    return OrderResultSummaryDTO(
+    return OrderResultSummary(
         symbol=order.get("symbol", ""),
         action=order.get("side", "").upper(),
         trade_amount=trade_amount,
@@ -185,10 +185,10 @@ def _calculate_trade_amount(
 
 
 def _calculate_execution_summary(
-    order_dtos: list[OrderResultSummaryDTO],
+    order_dtos: list[OrderResultSummary],
     started_at: datetime,
     completed_at: datetime,
-) -> ExecutionSummaryDTO:
+) -> ExecutionSummary:
     """Calculate execution summary metrics from order DTOs.
 
     Args:
@@ -206,7 +206,7 @@ def _calculate_execution_summary(
     total_value = sum((order.trade_amount for order in order_dtos), Decimal("0"))
     success_rate = orders_succeeded / orders_total if orders_total > 0 else 1.0
 
-    return ExecutionSummaryDTO(
+    return ExecutionSummary(
         orders_total=orders_total,
         orders_succeeded=orders_succeeded,
         orders_failed=orders_failed,
@@ -216,7 +216,7 @@ def _calculate_execution_summary(
     )
 
 
-def _determine_execution_status(*, success: bool, execution_summary: ExecutionSummaryDTO) -> str:
+def _determine_execution_status(*, success: bool, execution_summary: ExecutionSummary) -> str:
     """Determine execution status based on success flag and summary.
 
     Args:

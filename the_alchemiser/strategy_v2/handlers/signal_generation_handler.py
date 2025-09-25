@@ -17,9 +17,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-    ConsolidatedPortfolioDTO,
-)
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
@@ -29,6 +26,9 @@ from the_alchemiser.shared.events import (
     WorkflowStarted,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.schemas.consolidated_portfolio import (
+    ConsolidatedPortfolioDTO,
+)
 from the_alchemiser.shared.types import StrategySignal
 from the_alchemiser.shared.types.exceptions import DataProviderError
 from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import DslStrategyEngine

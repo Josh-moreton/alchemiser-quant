@@ -20,21 +20,21 @@ if TYPE_CHECKING:
 
 from the_alchemiser.portfolio_v2 import PortfolioServiceV2
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-    ConsolidatedPortfolioDTO,
-)
-from the_alchemiser.shared.dto.portfolio_state_dto import (
-    PortfolioMetricsDTO,
-    PortfolioStateDTO,
-)
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
 from the_alchemiser.shared.events import (
     AllocationComparisonCompleted,
     EventBus,
     RebalancePlanned,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
+from the_alchemiser.shared.schemas.common import AllocationComparison
+from the_alchemiser.shared.schemas.consolidated_portfolio import (
+    ConsolidatedPortfolio,
+)
+from the_alchemiser.shared.schemas.portfolio_state import (
+    PortfolioMetrics,
+    PortfolioState,
+)
+from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 
 
 def _to_float_safe(value: object) -> float:
@@ -112,7 +112,7 @@ def _build_positions_dict(current_positions: list[Any]) -> dict[str, float]:
 
 
 def _calculate_event_allocation_data(
-    consolidated_portfolio: ConsolidatedPortfolioDTO,
+    consolidated_portfolio: ConsolidatedPortfolio,
     account_dict: dict[str, float],
     positions_dict: dict[str, float],
 ) -> tuple[dict[str, Decimal], dict[str, Decimal], dict[str, Decimal], bool]:
@@ -298,7 +298,7 @@ class PortfolioOrchestrator:
             return None
 
     def generate_rebalancing_plan(
-        self, target_allocations: ConsolidatedPortfolioDTO
+        self, target_allocations: ConsolidatedPortfolio
     ) -> dict[str, Any] | None:
         """Generate rebalancing plan based on target allocations.
 
@@ -311,15 +311,15 @@ class PortfolioOrchestrator:
         """
         try:
             # Use portfolio_v2 for rebalancing plan calculation
-            from the_alchemiser.shared.dto.strategy_allocation_dto import (
-                StrategyAllocationDTO,
+            from the_alchemiser.shared.schemas.strategy_allocation import (
+                StrategyAllocation,
             )
 
-            # Convert ConsolidatedPortfolioDTO to target weights for portfolio_v2
+            # Convert ConsolidatedPortfolio to target weights for portfolio_v2
             target_weights = target_allocations.target_allocations
 
             # Create strategy allocation DTO
-            allocation_dto = StrategyAllocationDTO(
+            allocation_dto = StrategyAllocation(
                 target_weights=target_weights,
                 correlation_id=target_allocations.correlation_id,
                 as_of=target_allocations.timestamp,
@@ -348,7 +348,7 @@ class PortfolioOrchestrator:
             # DUAL-PATH: Emit RebalancePlanned event for event-driven consumers
             try:
                 # Create a minimal portfolio state DTO for event emission
-                minimal_metrics = PortfolioMetricsDTO(
+                minimal_metrics = PortfolioMetrics(
                     total_value=Decimal(str(rebalance_plan.total_trade_value)),
                     cash_value=Decimal("0"),
                     equity_value=Decimal(str(rebalance_plan.total_trade_value)),
@@ -359,7 +359,7 @@ class PortfolioOrchestrator:
                     total_pnl_percent=Decimal("0"),
                 )
 
-                portfolio_state = PortfolioStateDTO(
+                portfolio_state = PortfolioState(
                     correlation_id=str(uuid.uuid4()),
                     causation_id=f"portfolio-rebalancing-{datetime.now(UTC).isoformat()}",
                     timestamp=datetime.now(UTC),
@@ -388,15 +388,15 @@ class PortfolioOrchestrator:
             return None
 
     def analyze_allocation_comparison(
-        self, consolidated_portfolio: ConsolidatedPortfolioDTO
-    ) -> AllocationComparisonDTO | None:
+        self, consolidated_portfolio: ConsolidatedPortfolio
+    ) -> AllocationComparison | None:
         """Analyze target vs current allocations.
 
         Args:
             consolidated_portfolio: Consolidated portfolio allocation DTO
 
         Returns:
-            AllocationComparisonDTO or None if analysis failed
+            AllocationComparison or None if analysis failed
 
         """
         try:
@@ -422,8 +422,8 @@ class PortfolioOrchestrator:
                 consolidated_portfolio, account_dict, positions_dict
             )
 
-            # Create AllocationComparisonDTO from the calculation result
-            allocation_comparison_dto = AllocationComparisonDTO(
+            # Create AllocationComparison from the calculation result
+            allocation_comparison_dto = AllocationComparison(
                 target_values=allocation_comparison_data["target_values"],
                 current_values=allocation_comparison_data["current_values"],
                 deltas=allocation_comparison_data["deltas"],
@@ -469,7 +469,7 @@ class PortfolioOrchestrator:
 
     def _build_allocation_comparison_data(
         self,
-        consolidated_portfolio: ConsolidatedPortfolioDTO,
+        consolidated_portfolio: ConsolidatedPortfolio,
         account_dict: dict[str, float],
         positions_dict: dict[str, float],
     ) -> dict[str, Any]:
@@ -496,9 +496,9 @@ class PortfolioOrchestrator:
 
     def _log_allocation_dto_summary(
         self,
-        allocation_comparison_dto: AllocationComparisonDTO,
+        allocation_comparison_dto: AllocationComparison,
         account_dict: dict[str, float],
-        consolidated_portfolio: ConsolidatedPortfolioDTO,
+        consolidated_portfolio: ConsolidatedPortfolio,
     ) -> None:
         """Log summary of allocation comparison DTO for debugging.
 
@@ -533,7 +533,7 @@ class PortfolioOrchestrator:
 
     def _emit_allocation_comparison_event(
         self,
-        consolidated_portfolio: ConsolidatedPortfolioDTO,
+        consolidated_portfolio: ConsolidatedPortfolio,
         account_dict: dict[str, float],
         positions_dict: dict[str, float],
     ) -> None:
@@ -666,7 +666,7 @@ class PortfolioOrchestrator:
         return open_orders
 
     def _emit_rebalance_planned_event(
-        self, rebalance_plan: RebalancePlanDTO, portfolio_state: PortfolioStateDTO
+        self, rebalance_plan: RebalancePlan, portfolio_state: PortfolioState
     ) -> None:
         """Emit RebalancePlanned event for event-driven architecture.
 
@@ -690,7 +690,7 @@ class PortfolioOrchestrator:
                 source_module="orchestration",
                 source_component="PortfolioOrchestrator",
                 rebalance_plan=rebalance_plan,
-                allocation_comparison=AllocationComparisonDTO(
+                allocation_comparison=AllocationComparison(
                     target_values={}, current_values={}, deltas={}
                 ),  # Placeholder allocation comparison
                 trades_required=bool(rebalance_plan and len(rebalance_plan.items) > 0),
@@ -762,20 +762,20 @@ class PortfolioOrchestrator:
 
         """
         try:
-            # Convert float dict to ConsolidatedPortfolioDTO
+            # Convert float dict to ConsolidatedPortfolio
             import uuid
             from datetime import UTC, datetime
             from decimal import Decimal
 
-            from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-                ConsolidatedPortfolioDTO,
+            from the_alchemiser.shared.schemas.consolidated_portfolio import (
+                ConsolidatedPortfolio,
             )
 
             target_allocations_decimal = {
                 symbol: Decimal(str(weight)) for symbol, weight in target_allocations.items()
             }
 
-            consolidated_portfolio = ConsolidatedPortfolioDTO(
+            consolidated_portfolio = ConsolidatedPortfolio(
                 target_allocations=target_allocations_decimal,
                 correlation_id=str(uuid.uuid4()),
                 timestamp=datetime.now(UTC),

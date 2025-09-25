@@ -14,7 +14,7 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from ..dto.trade_ledger_dto import (
+from ..schemas.trade_ledger import (
     Lot,
     PerformanceSummary,
     TradeLedgerEntry,

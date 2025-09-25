@@ -24,9 +24,9 @@ from the_alchemiser.execution_v2.utils.execution_validator import (
     OrderValidationResult,
 )
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.dto.execution_dto import ExecutionResult
-from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
-from the_alchemiser.shared.dto.rebalance_plan_dto import (
+from the_alchemiser.shared.schemas.execution_result import ExecutionResult
+from the_alchemiser.shared.schemas.execution_report import ExecutedOrderDTO
+from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlanDTO,
     RebalancePlanItemDTO,
 )

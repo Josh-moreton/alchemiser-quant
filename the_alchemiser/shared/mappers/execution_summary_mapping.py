@@ -15,7 +15,6 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
 from the_alchemiser.shared.schemas.execution_summary import (
     AllocationSummary as AllocationSummaryDTO,
 )
@@ -31,6 +30,7 @@ from the_alchemiser.shared.schemas.execution_summary import (
 from the_alchemiser.shared.schemas.execution_summary import (
     TradingSummary as TradingSummaryDTO,
 )
+from the_alchemiser.shared.schemas.portfolio_state import PortfolioStateDTO
 
 
 def dict_to_allocation_summary_dto(data: dict[str, Any]) -> AllocationSummaryDTO:
@@ -120,7 +120,7 @@ def dict_to_portfolio_state_dto(data: dict[str, Any]) -> PortfolioStateDTO:
     """
     from datetime import UTC, datetime
 
-    from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioMetricsDTO
+    from the_alchemiser.shared.schemas.portfolio_state import PortfolioMetricsDTO
 
     # Generate required correlation fields
     correlation_id = f"portfolio_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"

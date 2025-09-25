@@ -25,12 +25,12 @@ from alpaca.trading.requests import (
 )
 
 from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
-from the_alchemiser.shared.dto.broker_dto import (
+from the_alchemiser.shared.schemas.broker_dto import (
     OrderExecutionResult,
     WebSocketResult,
     WebSocketStatus,
 )
-from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
+from the_alchemiser.shared.schemas.execution_report import ExecutedOrderDTO
 from the_alchemiser.shared.utils.alpaca_error_handler import AlpacaErrorHandler
 from the_alchemiser.shared.utils.order_tracker import OrderTracker
 

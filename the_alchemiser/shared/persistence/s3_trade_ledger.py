@@ -21,7 +21,7 @@ from typing import Any
 from botocore.exceptions import ClientError
 
 from ..constants import DEFAULT_DATE_FORMAT
-from ..dto.trade_ledger_dto import (
+from ..schemas.trade_ledger import (
     Lot,
     PerformanceSummary,
     TradeLedgerEntry,

@@ -18,12 +18,11 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-    ConsolidatedPortfolioDTO,
-)
-from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
 from the_alchemiser.shared.events import EventBus, SignalGenerated
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.schemas.consolidated_portfolio import (
+    ConsolidatedPortfolio,
+)
 from the_alchemiser.shared.types import StrategySignal
 from the_alchemiser.shared.types.exceptions import DataProviderError
 from the_alchemiser.shared.types.strategy_types import StrategyType
@@ -43,11 +42,11 @@ class SignalOrchestrator:
         # Get event bus from container for dual-path emission
         self.event_bus: EventBus = container.services.event_bus()
 
-    def generate_signals(self) -> tuple[dict[str, Any], ConsolidatedPortfolioDTO]:
+    def generate_signals(self) -> tuple[dict[str, Any], ConsolidatedPortfolio]:
         """Generate strategy signals and consolidated portfolio allocation.
 
         Returns:
-            Tuple of (strategy_signals dict, ConsolidatedPortfolioDTO)
+            Tuple of (strategy_signals dict, ConsolidatedPortfolio)
 
         """
         # Use DSL strategy engine directly for signal generation
@@ -65,8 +64,8 @@ class SignalOrchestrator:
             signals
         )
 
-        # Create ConsolidatedPortfolioDTO
-        consolidated_portfolio = ConsolidatedPortfolioDTO.from_dict_allocation(
+        # Create ConsolidatedPortfolio
+        consolidated_portfolio = ConsolidatedPortfolio.from_dict_allocation(
             allocation_dict=consolidated_portfolio_dict,
             correlation_id=f"signal_orchestrator_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
             source_strategies=contributing_strategies,
@@ -317,9 +316,9 @@ class SignalOrchestrator:
                     symbols_list = signal_data.get("symbols") or []
                     if symbols_list:
                         raw_symbol = symbols_list[0]
-                # Enforce 10-char max for StrategySignalDTO.symbol
+                # Enforce 10-char max for StrategySignal.symbol
                 sanitized_symbol = str(raw_symbol)[:10]
-                signal_dto = StrategySignalDTO(
+                signal_dto = StrategySignal(
                     correlation_id=correlation_id,
                     causation_id=causation_id,
                     timestamp=datetime.now(UTC),
