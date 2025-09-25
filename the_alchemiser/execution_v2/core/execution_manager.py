@@ -84,9 +84,11 @@ class ExecutionManager:
                     executed_orders.append(executed_order)
 
             if executed_orders:
-                # Extract strategy name from metadata or use default
+                # Extract strategy name from plan metadata (preferred) or execution result metadata (fallback)
                 strategy_name = "unknown"
-                if result.metadata and "strategy_name" in result.metadata:
+                if plan.metadata and "strategy_name" in plan.metadata:
+                    strategy_name = plan.metadata["strategy_name"]
+                elif result.metadata and "strategy_name" in result.metadata:
                     strategy_name = result.metadata["strategy_name"]
 
                 # Record in trade ledger

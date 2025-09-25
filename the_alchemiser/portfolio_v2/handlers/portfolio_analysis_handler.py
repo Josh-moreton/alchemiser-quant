@@ -341,6 +341,7 @@ class PortfolioAnalysisHandler:
                 target_weights=target_weights,
                 portfolio_value=portfolio_value,
                 correlation_id=correlation_id,
+                strategy_name="PortfolioAnalysis",
             )
 
             # Generate rebalance plan using portfolio service

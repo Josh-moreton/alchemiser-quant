@@ -43,6 +43,9 @@ class StrategyAllocationDTO(BaseModel):
     correlation_id: str = Field(
         ..., min_length=1, max_length=100, description="Correlation ID for tracking"
     )
+    strategy_name: str = Field(
+        ..., min_length=1, description="Strategy that generated this allocation"
+    )
     as_of: datetime | None = Field(
         default=None, description="Optional timestamp when allocation was calculated"
     )
@@ -81,13 +84,13 @@ class StrategyAllocationDTO(BaseModel):
 
         return normalized
 
-    @field_validator("correlation_id")
+    @field_validator("correlation_id", "strategy_name")
     @classmethod
-    def validate_correlation_id(cls, v: str) -> str:
-        """Validate correlation ID format."""
+    def validate_string_fields(cls, v: str) -> str:
+        """Validate correlation ID and strategy name format."""
         v = v.strip()
         if not v:
-            raise ValueError("correlation_id cannot be empty")
+            raise ValueError("Field cannot be empty")
         return v
 
     @field_validator("as_of")

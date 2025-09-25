@@ -127,6 +127,7 @@ class RebalancePlanCalculator:
                     "cash_balance": str(snapshot.cash),
                     "position_count": len(snapshot.positions),
                     "module": MODULE_NAME,
+                    "strategy_name": strategy.strategy_name,
                 },
             )
 

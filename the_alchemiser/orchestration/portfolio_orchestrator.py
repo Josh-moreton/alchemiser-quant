@@ -319,9 +319,17 @@ class PortfolioOrchestrator:
             target_weights = target_allocations.target_allocations
 
             # Create strategy allocation DTO
+            # Use the first strategy name if available, otherwise use "Consolidated"
+            strategy_name = (
+                target_allocations.source_strategies[0]
+                if target_allocations.source_strategies
+                else "Consolidated"
+            )
+            
             allocation_dto = StrategyAllocationDTO(
                 target_weights=target_weights,
                 correlation_id=target_allocations.correlation_id,
+                strategy_name=strategy_name,
                 as_of=target_allocations.timestamp,
                 constraints=target_allocations.constraints,
             )

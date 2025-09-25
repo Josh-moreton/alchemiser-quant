@@ -86,6 +86,7 @@ class SingleStrategyOrchestrator:
             allocation = StrategyAllocationDTO(
                 target_weights=normalized_weights,
                 correlation_id=correlation_id,
+                strategy_name=strategy_id,
                 as_of=context.as_of or datetime.now(UTC),
                 constraints={
                     "strategy_id": strategy_id,

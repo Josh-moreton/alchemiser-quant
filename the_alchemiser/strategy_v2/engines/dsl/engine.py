@@ -133,8 +133,11 @@ class DslEngine(EventHandler):
             # Parse strategy file
             ast = self._parse_strategy_file(strategy_config_path)
 
+            # Extract strategy name from file path
+            strategy_name = self._extract_strategy_name(strategy_config_path)
+
             # Evaluate AST
-            allocation, trace = self.evaluator.evaluate(ast, correlation_id)
+            allocation, trace = self.evaluator.evaluate(ast, correlation_id, strategy_name)
 
             self.logger.info(
                 "DSL strategy evaluation completed successfully",
@@ -258,6 +261,28 @@ class DslEngine(EventHandler):
         # Last resort - return the first option and let parsing handle the error
         return possible_paths[0]
 
+    def _extract_strategy_name(self, strategy_config_path: str) -> str:
+        """Extract strategy name from file path.
+
+        Args:
+            strategy_config_path: Path to strategy configuration file
+
+        Returns:
+            Strategy name extracted from file path
+
+        """
+        from pathlib import Path
+
+        # Extract filename without extension
+        file_path = Path(strategy_config_path)
+        strategy_name = file_path.stem
+
+        # Clean up common suffixes
+        if strategy_name.endswith(" original"):
+            strategy_name = strategy_name[: -len(" original")]
+
+        return strategy_name or "DSL"
+
     def _publish_completion_events(
         self,
         request_event: StrategyEvaluationRequested,
@@ -330,7 +355,10 @@ class DslEngine(EventHandler):
 
         # Create dummy allocation for failed case
         failed_allocation = StrategyAllocationDTO(
-            target_weights={}, correlation_id=correlation_id, as_of=datetime.now(UTC)
+            target_weights={},
+            correlation_id=correlation_id,
+            strategy_name=request_event.strategy_id or "DSL",
+            as_of=datetime.now(UTC),
         )
 
         # Publish StrategyEvaluated event with error

@@ -71,13 +71,14 @@ class DslEvaluator:
         register_indicator_operators(self.dispatcher)
 
     def evaluate(
-        self, ast: ASTNodeDTO, correlation_id: str, trace: TraceDTO | None = None
+        self, ast: ASTNodeDTO, correlation_id: str, strategy_name: str, trace: TraceDTO | None = None
     ) -> tuple[StrategyAllocationDTO, TraceDTO]:
         """Evaluate AST and return allocation with trace.
 
         Args:
             ast: AST to evaluate
             correlation_id: Correlation ID for tracking
+            strategy_name: Name of the strategy being evaluated
             trace: Optional existing trace to append to
 
         Returns:
@@ -116,6 +117,7 @@ class DslEvaluator:
                 allocation = StrategyAllocationDTO(
                     target_weights={k: decimal.Decimal(str(v)) for k, v in result.items()},
                     correlation_id=correlation_id,
+                    strategy_name=strategy_name,
                     as_of=datetime.now(UTC),
                 )
             elif isinstance(result, str):
@@ -123,6 +125,7 @@ class DslEvaluator:
                 allocation = StrategyAllocationDTO(
                     target_weights={result: decimal.Decimal("1.0")},
                     correlation_id=correlation_id,
+                    strategy_name=strategy_name,
                     as_of=datetime.now(UTC),
                 )
             else:
@@ -130,6 +133,7 @@ class DslEvaluator:
                 allocation = StrategyAllocationDTO(
                     target_weights={},
                     correlation_id=correlation_id,
+                    strategy_name=strategy_name,
                     as_of=datetime.now(UTC),
                 )
 
@@ -340,5 +344,6 @@ class DslEvaluator:
         return StrategyAllocationDTO(
             target_weights=target_weights,
             correlation_id=correlation_id,
+            strategy_name="DSL",  # Default strategy name for fragment conversion
             as_of=datetime.now(UTC),
         )
