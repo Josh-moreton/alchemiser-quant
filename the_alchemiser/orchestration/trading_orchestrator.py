@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
+from the_alchemiser.execution_v2.models.execution_result import ExecutionResult
 from the_alchemiser.orchestration.portfolio_orchestrator import PortfolioOrchestrator
 from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.config.config import Settings
@@ -27,14 +27,6 @@ from the_alchemiser.shared.constants import (
     MIN_TRADE_AMOUNT_USD,
     NO_TRADES_REQUIRED,
     REBALANCE_PLAN_GENERATED,
-)
-from the_alchemiser.shared.dto.portfolio_state_dto import (
-    PortfolioMetricsDTO,
-    PortfolioStateDTO,
-)
-from the_alchemiser.shared.dto.rebalance_plan_dto import (
-    RebalancePlanDTO,
-    RebalancePlanItemDTO,
 )
 from the_alchemiser.shared.events import (
     BaseEvent,
@@ -48,7 +40,15 @@ from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.notifications.templates.multi_strategy import (
     MultiStrategyReportBuilder,
 )
-from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
+from the_alchemiser.shared.schemas.common import AllocationComparison
+from the_alchemiser.shared.schemas.portfolio_state import (
+    PortfolioMetrics,
+    PortfolioState,
+)
+from the_alchemiser.shared.schemas.rebalance_plan import (
+    RebalancePlan,
+    RebalancePlanItemDTO,
+)
 from the_alchemiser.shared.types.exceptions import (
     NotificationError,
     TradingClientError,
@@ -203,8 +203,8 @@ class TradingOrchestrator:
 
         """
         # Reconstruct consolidated portfolio from event signals for rebalancing
-        from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-            ConsolidatedPortfolioDTO,
+        from the_alchemiser.shared.schemas.consolidated_portfolio import (
+            ConsolidatedPortfolio,
         )
 
         # Extract strategy names from signals
@@ -221,7 +221,7 @@ class TradingOrchestrator:
             }
 
             # Create a consolidated portfolio DTO from the signals
-            portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
+            portfolio_dto = ConsolidatedPortfolio.from_dict_allocation(
                 allocation_dict=allocation_dict_float,
                 correlation_id=event.correlation_id,
                 source_strategies=source_strategies,
@@ -291,7 +291,7 @@ class TradingOrchestrator:
 
             # Populate workflow results for CLI if this is the active correlation
             if self.workflow_state.get("last_correlation_id") == event.correlation_id:
-                # Convert ExecutionResultDTO to format expected by CLI
+                # Convert ExecutionResult to format expected by CLI
                 orders_executed = self._convert_execution_result_to_orders(execution_result)
                 self.workflow_results.update(
                     {
@@ -327,7 +327,7 @@ class TradingOrchestrator:
 
             # Create and emit failure event
             try:
-                failed_result = ExecutionResultDTO(
+                failed_result = ExecutionResult(
                     success=False,
                     plan_id=f"failed-{uuid.uuid4()}",
                     correlation_id=event.correlation_id,
@@ -382,11 +382,11 @@ class TradingOrchestrator:
             strategy_signals, consolidated_portfolio_dict = analyzed
 
             # Build DTO from the consolidated dict to avoid re-running engines
-            from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-                ConsolidatedPortfolioDTO,
+            from the_alchemiser.shared.schemas.consolidated_portfolio import (
+                ConsolidatedPortfolio,
             )
 
-            consolidated_portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
+            consolidated_portfolio_dto = ConsolidatedPortfolio.from_dict_allocation(
                 allocation_dict=consolidated_portfolio_dict,
                 correlation_id=str(uuid.uuid4()),
                 source_strategies=[str(k) for k in strategy_signals],
@@ -455,7 +455,7 @@ class TradingOrchestrator:
                 execution_manager = self.container.services.execution_manager()
                 execution_result = execution_manager.execute_rebalance_plan(rebalance_plan)
 
-                # Convert ExecutionResultDTO to format expected by CLI
+                # Convert ExecutionResult to format expected by CLI
                 orders_executed = self._convert_execution_result_to_orders(execution_result)
 
                 self.logger.info(
@@ -474,7 +474,7 @@ class TradingOrchestrator:
                 self.logger.info("📊 No significant trades needed - portfolio already balanced")
 
                 # Create empty execution result
-                execution_result = ExecutionResultDTO(
+                execution_result = ExecutionResult(
                     success=True,
                     plan_id=f"no-trade-{uuid.uuid4()}",
                     correlation_id=correlation_id,
@@ -561,11 +561,11 @@ class TradingOrchestrator:
             strategy_signals, consolidated_portfolio_dict = analyzed
 
             # Build DTO from the consolidated dict to avoid re-running engines
-            from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-                ConsolidatedPortfolioDTO,
+            from the_alchemiser.shared.schemas.consolidated_portfolio import (
+                ConsolidatedPortfolio,
             )
 
-            consolidated_portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
+            consolidated_portfolio_dto = ConsolidatedPortfolio.from_dict_allocation(
                 allocation_dict=consolidated_portfolio_dict,
                 correlation_id=str(uuid.uuid4()),
                 source_strategies=[str(k) for k in strategy_signals],
@@ -821,17 +821,17 @@ class TradingOrchestrator:
 
     def _create_rebalance_plan_from_allocation(
         self,
-        allocation_comparison: AllocationComparisonDTO,
+        allocation_comparison: AllocationComparison,
         account_info: dict[str, Any],
-    ) -> RebalancePlanDTO | None:
-        """Convert allocation comparison DTO to RebalancePlanDTO.
+    ) -> RebalancePlan | None:
+        """Convert allocation comparison DTO to RebalancePlan.
 
         Args:
-            allocation_comparison: AllocationComparisonDTO with target/current values, deltas
+            allocation_comparison: AllocationComparison with target/current values, deltas
             account_info: Account information including portfolio_value
 
         Returns:
-            RebalancePlanDTO ready for execution, or None if no significant trades needed
+            RebalancePlan ready for execution, or None if no significant trades needed
 
         """
         try:
@@ -960,13 +960,13 @@ class TradingOrchestrator:
         plan_items: list[RebalancePlanItemDTO],
         total_trade_value: Decimal,
         portfolio_value_decimal: Decimal,
-    ) -> RebalancePlanDTO:
-        """Build the final RebalancePlanDTO."""
+    ) -> RebalancePlan:
+        """Build the final RebalancePlan."""
         # Create correlation IDs
         correlation_id = str(uuid.uuid4())
         plan_id = f"rebalance-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}"
 
-        return RebalancePlanDTO(
+        return RebalancePlan(
             correlation_id=correlation_id,
             causation_id=f"trading-orchestrator-{correlation_id}",
             timestamp=datetime.now(UTC),
@@ -978,12 +978,12 @@ class TradingOrchestrator:
         )
 
     def _convert_execution_result_to_orders(
-        self, execution_result: ExecutionResultDTO
+        self, execution_result: ExecutionResult
     ) -> list[dict[str, Any]]:
-        """Convert ExecutionResultDTO to format expected by CLI display.
+        """Convert ExecutionResult to format expected by CLI display.
 
         Args:
-            execution_result: ExecutionResultDTO from ExecutionManager
+            execution_result: ExecutionResult from ExecutionManager
 
         Returns:
             List of order dictionaries in format expected by CLI
@@ -1010,11 +1010,11 @@ class TradingOrchestrator:
 
         return orders_executed
 
-    def _log_detailed_execution_results(self, execution_result: ExecutionResultDTO) -> None:
+    def _log_detailed_execution_results(self, execution_result: ExecutionResult) -> None:
         """Log detailed execution results for each order.
 
         Args:
-            execution_result: ExecutionResultDTO with order details
+            execution_result: ExecutionResult with order details
 
         """
         for order in execution_result.orders:
@@ -1042,10 +1042,10 @@ class TradingOrchestrator:
         self,
         *,
         success: bool,
-        execution_result: ExecutionResultDTO | None,
+        execution_result: ExecutionResult | None,
         correlation_id: str,
         causation_id: str,
-    ) -> PortfolioStateDTO | None:
+    ) -> PortfolioState | None:
         """Build portfolio state after execution.
 
         Args:
@@ -1055,13 +1055,13 @@ class TradingOrchestrator:
             causation_id: Event causation ID
 
         Returns:
-            PortfolioStateDTO if successful execution, None otherwise
+            PortfolioState if successful execution, None otherwise
 
         """
         if not success or not execution_result:
             return None
 
-        minimal_metrics = PortfolioMetricsDTO(
+        minimal_metrics = PortfolioMetrics(
             total_value=execution_result.total_trade_value,
             cash_value=DECIMAL_ZERO,
             equity_value=execution_result.total_trade_value,
@@ -1072,7 +1072,7 @@ class TradingOrchestrator:
             total_pnl_percent=DECIMAL_ZERO,
         )
 
-        return PortfolioStateDTO(
+        return PortfolioState(
             correlation_id=correlation_id,
             causation_id=causation_id,
             timestamp=datetime.now(UTC),
@@ -1082,7 +1082,7 @@ class TradingOrchestrator:
             metrics=minimal_metrics,
         )
 
-    def _build_execution_data(self, execution_result: ExecutionResultDTO | None) -> dict[str, Any]:
+    def _build_execution_data(self, execution_result: ExecutionResult | None) -> dict[str, Any]:
         """Build execution results dictionary from execution result.
 
         Args:
@@ -1120,7 +1120,7 @@ class TradingOrchestrator:
             ),
         }
 
-    def _collect_unique_error_messages(self, execution_result: ExecutionResultDTO) -> list[str]:
+    def _collect_unique_error_messages(self, execution_result: ExecutionResult) -> list[str]:
         """Collect unique error messages from failed orders.
 
         Args:
@@ -1184,7 +1184,7 @@ class TradingOrchestrator:
         )
 
     def _derive_error_message(
-        self, execution_result: ExecutionResultDTO, error_message: str | None
+        self, execution_result: ExecutionResult, error_message: str | None
     ) -> str | None:
         """Derive a more descriptive error message if not provided.
 
@@ -1222,7 +1222,7 @@ class TradingOrchestrator:
             )
             return error_message
 
-    def _derive_error_code_from_orders(self, execution_result: ExecutionResultDTO) -> str | None:
+    def _derive_error_code_from_orders(self, execution_result: ExecutionResult) -> str | None:
         """Derive error code from order failure patterns.
 
         Args:
@@ -1301,7 +1301,7 @@ class TradingOrchestrator:
 
     def _emit_trade_executed_event(
         self,
-        execution_result: ExecutionResultDTO,
+        execution_result: ExecutionResult,
         *,
         success: bool,
         error_message: str | None = None,
@@ -1397,7 +1397,7 @@ class TradingOrchestrator:
             # Don't let event emission failure break the traditional workflow
             self.logger.warning(f"Failed to emit TradeExecutionStarted event: {e}")
 
-    def _print_rebalance_plan_summary(self, plan: RebalancePlanDTO) -> None:
+    def _print_rebalance_plan_summary(self, plan: RebalancePlan) -> None:
         """Print a concise BUY/SELL summary of the rebalance plan before execution."""
         try:
             buy_lines: list[str] = []

@@ -15,8 +15,8 @@ from decimal import Decimal
 
 import pandas as pd
 
-from the_alchemiser.shared.dto.indicator_request_dto import IndicatorRequestDTO
-from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
+from the_alchemiser.shared.schemas.indicator_request import IndicatorRequestDTO
+from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicatorDTO
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy_v2.engines.dsl.types import DslEvaluationError

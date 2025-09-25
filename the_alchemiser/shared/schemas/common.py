@@ -18,10 +18,10 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
-from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
 from the_alchemiser.shared.schemas.execution_summary import ExecutionSummary
+from the_alchemiser.shared.schemas.portfolio_state import PortfolioState
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, StrategySignal
 
 
@@ -56,7 +56,7 @@ class MultiStrategyExecutionResult(BaseModel):
 
     # Structured execution summary and portfolio state
     execution_summary: ExecutionSummary
-    final_portfolio_state: PortfolioStateDTO | None = None
+    final_portfolio_state: PortfolioState | None = None
 
 
 class AllocationComparison(BaseModel):
@@ -103,3 +103,45 @@ class MultiStrategySummary(BaseModel):
 MultiStrategyExecutionResultDTO = MultiStrategyExecutionResult
 AllocationComparisonDTO = AllocationComparison
 MultiStrategySummaryDTO = MultiStrategySummary
+
+
+class Configuration(BaseModel):
+    """Placeholder for configuration data transfer.
+
+    Proper Pydantic v2 DTO to replace placeholder class.
+    Will be enhanced with specific config fields in Phase 2.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    config_data: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Configuration data (flexible for Phase 1 scaffolding)",
+    )
+
+
+class Error(BaseModel):
+    """Placeholder for error data transfer.
+
+    Proper Pydantic v2 DTO to replace placeholder class.
+    Will be enhanced with specific error fields in Phase 2.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    error_type: str = Field(description="Type of error")
+    message: str = Field(description="Error message")
+    context: dict[str, Any] = Field(default_factory=dict, description="Error context data")
+
+
+# TODO: Remove in Phase 3 - Temporary backward compatibility aliases for these too
+ConfigurationDTO = Configuration
+ErrorDTO = Error

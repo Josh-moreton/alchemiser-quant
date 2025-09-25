@@ -17,8 +17,8 @@ from decimal import Decimal
 from secrets import randbelow
 from typing import Any, Literal
 
-from the_alchemiser.shared.dto.broker_dto import OrderExecutionResult
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.schemas.broker import OrderExecutionResult
 
 # Import exceptions for error handling with type safety
 _RetryExcImported: type[Exception]

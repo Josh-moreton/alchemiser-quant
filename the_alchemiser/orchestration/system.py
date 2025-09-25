@@ -27,16 +27,16 @@ from the_alchemiser.orchestration.display_utils import (
 )
 from the_alchemiser.shared.config.config import Settings, load_settings
 from the_alchemiser.shared.config.container import ApplicationContainer
-from the_alchemiser.shared.dto.result_factory import (
-    create_failure_result,
-    create_success_result,
-)
-from the_alchemiser.shared.dto.trade_run_result_dto import TradeRunResultDTO
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.events import EventBus, StartupEvent
 from the_alchemiser.shared.logging.logging_utils import (
     get_logger,
 )
+from the_alchemiser.shared.schemas.trade_result_factory import (
+    create_failure_result,
+    create_success_result,
+)
+from the_alchemiser.shared.schemas.trade_run_result import TradeRunResult
 from the_alchemiser.shared.types.exceptions import (
     StrategyExecutionError,
     TradingClientError,
@@ -149,7 +149,7 @@ class TradingSystem:
         *,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
-    ) -> TradeRunResultDTO:
+    ) -> TradeRunResult:
         """Execute multi-strategy trading.
 
         Note: Trading mode (live/paper) is now determined by deployment stage.
@@ -159,7 +159,7 @@ class TradingSystem:
             export_tracking_json: Path to export tracking JSON (optional)
 
         Returns:
-            TradeRunResultDTO with complete execution results and metadata
+            TradeRunResult with complete execution results and metadata
 
         """
         # Start timing and correlation tracking
@@ -217,7 +217,7 @@ class TradingSystem:
         *,
         show_tracking: bool,
         export_tracking_json: str | None,
-    ) -> TradeRunResultDTO | None:
+    ) -> TradeRunResult | None:
         """Execute trading using event-driven orchestration.
 
         Args:
@@ -227,7 +227,7 @@ class TradingSystem:
             export_tracking_json: Path to export tracking JSON
 
         Returns:
-            TradeRunResultDTO or None if failed
+            TradeRunResult or None if failed
 
         """
         try:
@@ -287,7 +287,7 @@ class TradingSystem:
         *,
         show_tracking: bool,
         export_tracking_json: str | None,
-    ) -> TradeRunResultDTO | None:
+    ) -> TradeRunResult | None:
         """Execute trading using traditional orchestration (fallback).
 
         Args:
@@ -297,7 +297,7 @@ class TradingSystem:
             export_tracking_json: Path to export tracking JSON
 
         Returns:
-            TradeRunResultDTO or None if failed
+            TradeRunResult or None if failed
 
         """
         try:
@@ -365,7 +365,7 @@ class TradingSystem:
 
     def _handle_trading_execution_error(
         self, e: Exception, *, show_tracking: bool, export_tracking_json: str | None
-    ) -> TradeRunResultDTO:
+    ) -> TradeRunResult:
         """Handle trading execution errors with proper error handling and notifications.
 
         Args:
@@ -374,7 +374,7 @@ class TradingSystem:
             export_tracking_json: Export path for tracking JSON
 
         Returns:
-            TradeRunResultDTO representing the failure
+            TradeRunResult representing the failure
 
         """
         started_at = datetime.now(UTC)
