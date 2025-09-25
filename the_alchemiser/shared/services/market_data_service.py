@@ -79,22 +79,16 @@ class MarketDataService(MarketDataPort):
 
             # Convert to BarModel list if needed
             if isinstance(bars_data, list):
-                return [
-                    self._convert_to_bar_model(bar, symbol_str) for bar in bars_data
-                ]
+                return [self._convert_to_bar_model(bar, symbol_str) for bar in bars_data]
 
             return []
 
         except Exception as e:
-            self.logger.error(
-                f"Failed to get bars for {symbol} ({period}, {timeframe}): {e}"
-            )
+            self.logger.error(f"Failed to get bars for {symbol} ({period}, {timeframe}): {e}")
             # Re-raise with domain-appropriate error type
             from the_alchemiser.shared.types.exceptions import DataProviderError
 
-            raise DataProviderError(
-                f"Market data fetch failed for {symbol}: {e}"
-            ) from e
+            raise DataProviderError(f"Market data fetch failed for {symbol}: {e}") from e
 
     def get_latest_quote(self, symbol: Symbol) -> QuoteModel | None:
         """Get latest quote with error handling.
@@ -128,17 +122,11 @@ class MarketDataService(MarketDataPort):
                 ask = float(getattr(quote, "ask_price", 0))
 
                 if bid > 0 and ask > 0:
-                    return QuoteModel(
-                        ts=None, bid=Decimal(str(bid)), ask=Decimal(str(ask))
-                    )
+                    return QuoteModel(ts=None, bid=Decimal(str(bid)), ask=Decimal(str(ask)))
                 if bid > 0:
-                    return QuoteModel(
-                        ts=None, bid=Decimal(str(bid)), ask=Decimal(str(bid))
-                    )
+                    return QuoteModel(ts=None, bid=Decimal(str(bid)), ask=Decimal(str(bid)))
                 if ask > 0:
-                    return QuoteModel(
-                        ts=None, bid=Decimal(str(ask)), ask=Decimal(str(ask))
-                    )
+                    return QuoteModel(ts=None, bid=Decimal(str(ask)), ask=Decimal(str(ask)))
 
             return None
 
@@ -242,9 +230,7 @@ class MarketDataService(MarketDataPort):
             # These are specific API failures that should not be silent
             error_msg = f"Alpaca API failure getting quote for {symbol}: {e}"
             if "429" in str(e) or "rate limit" in str(e).lower():
-                error_msg = (
-                    f"Alpaca API rate limit exceeded getting quote for {symbol}: {e}"
-                )
+                error_msg = f"Alpaca API rate limit exceeded getting quote for {symbol}: {e}"
             self.logger.error(error_msg)
             raise RuntimeError(error_msg) from e
         except RequestException as e:
@@ -416,9 +402,7 @@ class MarketDataService(MarketDataPort):
 
         return timeframe_map[timeframe_lower]
 
-    def _extract_bars_from_response_core(
-        self, response: object, symbol: str
-    ) -> Any | None:  # noqa: ANN401
+    def _extract_bars_from_response_core(self, response: object, symbol: str) -> Any | None:  # noqa: ANN401
         """Extract bars object from various possible response shapes.
 
         Args:
@@ -450,9 +434,7 @@ class MarketDataService(MarketDataPort):
 
         return bars_obj
 
-    def _convert_bars_to_dicts_core(
-        self, bars_obj: Any, symbol: str
-    ) -> list[dict[str, Any]]:  # noqa: ANN401
+    def _convert_bars_to_dicts_core(self, bars_obj: Any, symbol: str) -> list[dict[str, Any]]:  # noqa: ANN401
         """Convert bars object to list of dictionaries using Pydantic model_dump.
 
         Args:
@@ -502,9 +484,7 @@ class MarketDataService(MarketDataPort):
         self.logger.warning(f"No historical data found for {symbol}")
         return False
 
-    def _convert_to_bar_model(
-        self, bar_data: Any, symbol: str
-    ) -> BarModel:  # noqa: ANN401
+    def _convert_to_bar_model(self, bar_data: Any, symbol: str) -> BarModel:  # noqa: ANN401
         """Convert raw bar data to BarModel.
 
         Args:
@@ -528,9 +508,7 @@ class MarketDataService(MarketDataPort):
 
             return BarModel(
                 symbol=symbol,
-                timestamp=(
-                    timestamp if isinstance(timestamp, datetime) else datetime.now(UTC)
-                ),
+                timestamp=(timestamp if isinstance(timestamp, datetime) else datetime.now(UTC)),
                 open=float(open_price),
                 high=float(high_price),
                 low=float(low_price),
@@ -539,6 +517,4 @@ class MarketDataService(MarketDataPort):
             )
 
         # This should not happen with clean Pydantic model_dump() data
-        raise ValueError(
-            f"Expected dictionary from Pydantic model_dump(), got {type(bar_data)}"
-        )
+        raise ValueError(f"Expected dictionary from Pydantic model_dump(), got {type(bar_data)}")
