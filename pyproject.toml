@@ -202,7 +202,7 @@ forbidden_modules = [
 name = "Event-driven layered architecture enforcement"
 type = "layers"
 layers = [
-    "the_alchemiser.shared",
+    "the_alchemiser.orchestration",
     "the_alchemiser.strategy_v2 | the_alchemiser.portfolio_v2 | the_alchemiser.execution_v2",
-    "the_alchemiser.orchestration"
+    "the_alchemiser.shared"
 ]

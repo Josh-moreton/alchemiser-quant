@@ -13,6 +13,8 @@ from the_alchemiser.shared.config.infrastructure_providers import (
 )
 from the_alchemiser.shared.config.service_providers import ServiceProviders
 
+# Avoid importing execution types at module level to prevent circular imports
+
 
 class ApplicationContainer(containers.DeclarativeContainer):
     """Main application container orchestrating all dependencies."""
@@ -28,9 +30,34 @@ class ApplicationContainer(containers.DeclarativeContainer):
     # Sub-containers
     config = providers.Container(ConfigProviders)
     infrastructure = providers.Container(InfrastructureProviders, config=config)
-    services = providers.Container(ServiceProviders, infrastructure=infrastructure, config=config)
+    services = providers.Container(
+        ServiceProviders, infrastructure=infrastructure, config=config
+    )
+
+    # Execution providers (initialized lazily to avoid circular imports)
+    execution = None
 
     # Application layer (will be added in Phase 2)
+
+    @staticmethod
+    def initialize_execution_providers(container: ApplicationContainer) -> None:
+        """Attach execution providers using late binding."""
+        if getattr(container, "execution", None) is not None:
+            return
+
+        import importlib
+
+        execution_config_module = importlib.import_module(
+            "the_alchemiser.execution_v2.config"
+        )
+        ExecutionProviders = execution_config_module.ExecutionProviders
+
+        execution_container = ExecutionProviders()
+        execution_container.infrastructure.alpaca_manager.override(
+            container.infrastructure.alpaca_manager
+        )
+        execution_container.config.execution.override(container.config.execution)
+        container.execution = execution_container
 
     @classmethod
     def create_for_environment(cls, env: str = "development") -> ApplicationContainer:
@@ -40,12 +67,15 @@ class ApplicationContainer(containers.DeclarativeContainer):
         # Load environment-specific configuration
         if env == "test":
             container.config.alpaca_api_key.override("test_api_key_valid_for_testing")
-            container.config.alpaca_secret_key.override("test_secret_key_valid_for_testing")
+            container.config.alpaca_secret_key.override(
+                "test_secret_key_valid_for_testing"
+            )
             container.config.paper_trading.override(True)  # noqa: FBT003
         elif env == "production":
             # Production uses environment variables (default behavior)
             pass
 
+        # Execution providers will be initialized when needed
         return container
 
     @classmethod

@@ -7,8 +7,6 @@ from __future__ import annotations
 
 from dependency_injector import containers, providers
 
-from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
-from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
 from the_alchemiser.shared.events.bus import EventBus
 
 # - AccountService → Use AlpacaManager directly
@@ -29,18 +27,6 @@ class ServiceProviders(containers.DeclarativeContainer):
     # Event bus (singleton for the application)
     event_bus = providers.Singleton(EventBus)
 
-    # V2 execution manager
-    execution_manager = providers.Factory(
-        ExecutionManager,
-        alpaca_manager=infrastructure.alpaca_manager,
-        execution_config=providers.Factory(ExecutionConfig),
-        enable_smart_execution=providers.Factory(
-            lambda exec_settings: exec_settings.enable_smart_execution,
-            exec_settings=config.execution,
-        ),
-        enable_trade_ledger=providers.Factory(
-            lambda exec_settings: exec_settings.enable_trade_ledger,
-            exec_settings=config.execution,
-        ),
-    )
+    # Execution providers will be injected from execution_v2 module
+    # This maintains the layered architecture by preventing shared -> execution_v2 imports
     # These will be replaced with v2 equivalents as they are migrated
