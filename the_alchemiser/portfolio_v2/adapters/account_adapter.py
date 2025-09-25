@@ -198,11 +198,11 @@ def generate_account_snapshot_id(account_info: AccountInfoDTO, positions: list[P
         content_hash = hashlib.sha256(content.encode()).hexdigest()[:8]
         
         # Include timestamp for uniqueness
-        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
         return f"account_{timestamp}_{content_hash}"
         
     except Exception as e:
         logger.error(f"Failed to generate account snapshot ID: {e}")
         # Return timestamp-based fallback
-        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
         return f"account_fallback_{timestamp}"
