@@ -174,29 +174,25 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             logger.error(f"Failed to initialize Alpaca clients: {e}")
             raise
 
-        # Order tracking for WebSocket updates (centralized utility)
-        self._order_tracker = OrderTracker()
+        # Initialize WebSocket manager for centralized WebSocket management
+        from the_alchemiser.shared.services.websocket_manager import WebSocketConnectionManager
+        self._websocket_manager = WebSocketConnectionManager(
+            self._api_key, self._secret_key, paper_trading=self._paper
+        )
 
-        # WebSocket connection manager (for centralized WebSocket management)
-        self._websocket_manager: WebSocketConnectionManager | None = None
-        self._trading_service_active: bool = False
-
-        # Initialize account service for account-related operations
+        # Initialize extracted services
         self._account_service = AlpacaAccountService(self._trading_client)
-
-        # Initialize trading service with lazy WebSocket manager
-        self._trading_service: AlpacaTradingService | None = None
-
-        # Initialize asset metadata service for asset-related operations
+        self._trading_service = AlpacaTradingService(
+            self._trading_client, self._websocket_manager, paper_trading=self._paper
+        )
         self._asset_metadata_service = AssetMetadataService(self._trading_client)
-
-        # Mark as initialized to prevent re-initialization
-        self._initialized = True
 
         # Initialize MarketDataService for delegation
         from the_alchemiser.shared.services.market_data_service import MarketDataService
-
         self._market_data_service = MarketDataService(self)
+
+        # Mark as initialized to prevent re-initialization
+        self._initialized = True
 
     @property
     def is_paper_trading(self) -> bool:
@@ -225,25 +221,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         return self._trading_client
 
     def _get_trading_service(self) -> AlpacaTradingService:
-        """Get or create the trading service with WebSocket manager."""
-        if self._trading_service is None:
-            # Ensure WebSocket manager is available
-            if self._websocket_manager is None:
-                from the_alchemiser.shared.services.websocket_manager import (
-                    WebSocketConnectionManager,
-                )
-
-                self._websocket_manager = WebSocketConnectionManager(
-                    self._api_key, self._secret_key, paper_trading=self._paper
-                )
-
-            # Create trading service with WebSocket manager
-            self._trading_service = AlpacaTradingService(
-                self._trading_client,
-                self._websocket_manager,
-                paper_trading=self._paper,
-            )
-
+        """Get the trading service."""
         return self._trading_service
 
     # Trading Operations
