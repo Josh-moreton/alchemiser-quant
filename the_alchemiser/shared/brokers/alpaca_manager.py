@@ -538,7 +538,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             # Use trading service to place the order
             return self._get_trading_service().place_market_order(
-                normalized_symbol, side_normalized, final_qty, notional
+                normalized_symbol, side_normalized, final_qty, notional, is_complete_exit=is_complete_exit
             )
 
         except ValueError as e:
