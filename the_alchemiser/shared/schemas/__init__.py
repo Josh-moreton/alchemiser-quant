@@ -29,9 +29,12 @@ __all__ = [
     # Portfolio schemas
     "AccountMetrics",
     "AccountSummary",
+    "AssetType",
     "BuyingPowerResult",
     "ConsolidatedPortfolio",
     "EnrichedAccountSummaryView",
+    "Lot",
+    "PerformanceSummary",
     "PortfolioAllocationResult",
     "PortfolioMetrics",
     "PortfolioSnapshot",
@@ -40,10 +43,14 @@ __all__ = [
     "RebalancePlanItem",
     "RiskMetricsResult",
     "TradeEligibilityResult",
+    "TradeLedgerEntry",
+    "TradeLedgerQuery",
+    "TradeSide",
     
     # Execution schemas
     "ExecutedOrder",
     "ExecutionReport",
+    "ExecutionResult",
     "OperationResult",
     "OrderCancellationResult",
     "OrderResultSummary",
@@ -77,6 +84,9 @@ __all__ = [
     "Error",
     "LambdaEvent",
     "OpenOrdersView",
+    "OrderExecutionResult",
+    "WebSocketResult", 
+    "WebSocketStatus",
     
     # DSL schemas
     "ASTNode",

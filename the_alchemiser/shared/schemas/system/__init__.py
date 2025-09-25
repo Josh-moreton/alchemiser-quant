@@ -1,6 +1,7 @@
 """System schemas module."""
 
 from .assets import AssetInfo
+from .brokers import OrderExecutionResult, WebSocketResult, WebSocketStatus
 from .config import Configuration, Error
 from .enriched_data import EnrichedOrderView, EnrichedPositionView, EnrichedPositionsView, OpenOrdersView
 from .lambda_events import LambdaEvent
@@ -14,4 +15,7 @@ __all__ = [
     "Error",
     "LambdaEvent",
     "OpenOrdersView",
+    "OrderExecutionResult",
+    "WebSocketResult", 
+    "WebSocketStatus",
 ]

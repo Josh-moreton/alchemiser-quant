@@ -9,16 +9,20 @@ from .accounts import (
     RiskMetricsResult,
     TradeEligibilityResult,
 )
-from .consolidated import ConsolidatedPortfolio
+from .consolidated_portfolio import ConsolidatedPortfolio
+from .ledger import AssetType, Lot, PerformanceSummary, TradeLedgerEntry, TradeLedgerQuery, TradeSide
 from .rebalancing import RebalancePlan, RebalancePlanItem
-from .state import PortfolioMetrics, PortfolioSnapshot, Position
+from .legacy_state import PortfolioMetrics, PortfolioSnapshot, Position
 
 __all__ = [
     "AccountMetrics",
     "AccountSummary",
+    "AssetType",
     "BuyingPowerResult",
     "ConsolidatedPortfolio",
     "EnrichedAccountSummaryView",
+    "Lot",
+    "PerformanceSummary",
     "PortfolioAllocationResult",
     "PortfolioMetrics",
     "PortfolioSnapshot",
@@ -27,4 +31,7 @@ __all__ = [
     "RebalancePlanItem",
     "RiskMetricsResult",
     "TradeEligibilityResult",
+    "TradeLedgerEntry",
+    "TradeLedgerQuery",
+    "TradeSide",
 ]
