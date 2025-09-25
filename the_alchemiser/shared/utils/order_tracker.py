@@ -56,7 +56,7 @@ class OrderTracker:
         """
         with self._lock:
             if status is not None:
-                self._order_status[order_id] = status
+                self._order_status[order_id] = str(status).lower()
             if avg_price is not None:
                 self._order_avg_price[order_id] = avg_price
 
@@ -69,8 +69,9 @@ class OrderTracker:
         """
         with self._lock:
             event = self._order_events.get(order_id)
-            if event:
-                event.set()
+            if event is None:
+                event = self._order_events.setdefault(order_id, threading.Event())
+            event.set()
 
     def wait_for_completion(self, order_id: str, timeout: float = 30.0) -> bool:
         """Wait for a single order to complete.

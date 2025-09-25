@@ -10,13 +10,13 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
 from the_alchemiser.shared.logging.logging_utils import log_with_context
+from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanDTO
 from the_alchemiser.shared.types.exceptions import PortfolioError
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-    from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
+    from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocationDTO
 
 from ..adapters.alpaca_data_adapter import AlpacaDataAdapter
 from .planner import RebalancePlanCalculator

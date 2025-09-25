@@ -72,6 +72,7 @@ class EventDrivenOrchestrator:
             "last_successful_workflow": None,
             "active_correlations": set(),
             "workflow_start_times": {},  # Track workflow start times for duration calculation
+            "completed_correlations": set(),  # Track completed/failed correlation IDs to dedupe starts
         }
 
         # Collect workflow results for each correlation ID
@@ -617,6 +618,14 @@ class EventDrivenOrchestrator:
             event: The WorkflowStarted event
 
         """
+        # Check if this workflow has already completed - ignore duplicate starts
+        if event.correlation_id in self.workflow_state["completed_correlations"]:
+            self.logger.info(
+                f"🔄 Ignoring duplicate WorkflowStarted event for already completed workflow: "
+                f"{event.workflow_type} (correlation_id: {event.correlation_id})"
+            )
+            return
+
         self.logger.info(f"🚀 Workflow started: {event.workflow_type}")
 
         # Track workflow start time
@@ -646,6 +655,9 @@ class EventDrivenOrchestrator:
         self.workflow_state["last_successful_workflow"] = event.workflow_type
         self.workflow_state["active_correlations"].discard(event.correlation_id)
 
+        # Track completion to prevent duplicate starts
+        self.workflow_state["completed_correlations"].add(event.correlation_id)
+
         # Clean up tracking data
         self.workflow_state["workflow_start_times"].pop(event.correlation_id, None)
 
@@ -669,6 +681,9 @@ class EventDrivenOrchestrator:
 
         # Update workflow state
         self.workflow_state["active_correlations"].discard(event.correlation_id)
+
+        # Track completion to prevent duplicate starts
+        self.workflow_state["completed_correlations"].add(event.correlation_id)
 
         # Clean up tracking data
         self.workflow_state["workflow_start_times"].pop(event.correlation_id, None)

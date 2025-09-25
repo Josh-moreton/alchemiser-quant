@@ -6,15 +6,66 @@ This document provides a comprehensive inventory of all DTO and Schema classes i
 **Analysis Date**: Phase 1 Initial Assessment (Revised)  
 **Repository**: Josh-moreton/alchemiser-quant  
 **Scope**: shared/dto/ and shared/schemas/ directories  
+**Update**: Phase 3a namespace unification completed (December 2024)
 
 ## Executive Summary
 
-- **Total DTO Files**: 20 files in `shared/dto/`
-- **Total Schema Files**: 11 files in `shared/schemas/`
-- **Total Classes**: 62+ boundary model classes
-- **Backward Compatibility Aliases**: 28 DTO suffix aliases to remove
-- **Import Usage**: 130+ import statements across codebase
-- **Migration Goal**: Remove DTO suffixes, use descriptive names, consolidate to `shared/schemas/`
+- **Total DTO Files**: ~~20 files in `shared/dto/`~~ → **Migrated to `shared/schemas/`**
+- **Total Schema Files**: ~~11 files in `shared/schemas/`~~ → **31 files total**
+- **Total Classes**: 90+ boundary model classes (all preserved)
+- **Backward Compatibility Aliases**: 28 DTO suffix aliases (maintained for compatibility)
+- **Import Usage**: 89+ import statements updated to use `shared.schemas`
+- **Migration Goal**: ✅ **COMPLETED** - Single authoritative namespace achieved
+
+## Migration Status: Phase 3a Complete ✅
+
+### Namespace Unification Results
+- **✅ All DTO files moved** to `shared/schemas/` with git history preservation
+- **✅ Single canonical namespace** established: `the_alchemiser.shared.schemas`
+- **✅ Compatibility maintained** via deprecation shim in `shared/dto/`
+- **✅ All imports updated** from 89+ locations across codebase
+- **✅ Quality gates maintained** (ruff ✓, mypy ✓, import-linter ✓)
+
+### File Migration Mapping
+
+| Original DTO File | New Schema File | Status |
+|------------------|-----------------|--------|
+| `asset_info_dto.py` | `asset_info.py` | ✅ Moved |
+| `ast_node_dto.py` | `ast_node.py` | ✅ Moved |
+| `consolidated_portfolio_dto.py` | `consolidated_portfolio.py` | ✅ Moved |
+| `execution_dto.py` | `execution_result.py` | ✅ Moved (renamed) |
+| `execution_report_dto.py` | `execution_report.py` | ✅ Moved |
+| `indicator_request_dto.py` | `indicator_request.py` | ✅ Moved |
+| `lambda_event_dto.py` | `lambda_event.py` | ✅ Moved |
+| `market_bar_dto.py` | `market_bar.py` | ✅ Moved |
+| `order_request_dto.py` | `order_request.py` | ✅ Moved |
+| `portfolio_state_dto.py` | `portfolio_state.py` | ✅ Moved |
+| `rebalance_plan_dto.py` | `rebalance_plan.py` | ✅ Moved |
+| `result_factory.py` | `trade_result_factory.py` | ✅ Moved (renamed) |
+| `signal_dto.py` | `strategy_signal.py` | ✅ Moved (renamed) |
+| `strategy_allocation_dto.py` | `strategy_allocation.py` | ✅ Moved |
+| `technical_indicators_dto.py` | `technical_indicator.py` | ✅ Moved |
+| `trace_dto.py` | `trace.py` | ✅ Moved |
+| `trade_ledger_dto.py` | `trade_ledger.py` | ✅ Moved |
+| `trade_run_result_dto.py` | `trade_run_result.py` | ✅ Moved |
+| `broker_dto.py` | `broker.py` | ✅ Moved |
+
+### Compatibility Layer Status
+
+**Deprecation Shim**: `shared/dto/__init__.py`
+- ✅ Previously emitted `DeprecationWarning` on first import
+- ✅ Previously re-exported all classes from `shared.schemas`
+- ✅ Previously maintained full backward compatibility
+- ✅ **REMOVED**: Phase 3b complete - shim fully removed
+
+**Example Usage**:
+```python
+# CURRENT: Canonical import (use this)
+from the_alchemiser.shared.schemas import AssetInfo, RebalancePlan
+
+# OLD: No longer works (removed in Phase 3b)
+# from the_alchemiser.shared.dto import AssetInfo, RebalancePlan  # ImportError
+```
 
 ## 1. Boundary Models Inventory
 

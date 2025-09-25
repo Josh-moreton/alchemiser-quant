@@ -13,14 +13,14 @@ import uuid
 from datetime import UTC, datetime
 
 from the_alchemiser.shared.constants import DSL_ENGINE_MODULE
-from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
-from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
-from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
 from the_alchemiser.shared.events.bus import EventBus
 from the_alchemiser.shared.events.dsl_events import (
     DecisionEvaluated,
     IndicatorComputed,
 )
+from the_alchemiser.shared.schemas.ast_node import ASTNodeDTO
+from the_alchemiser.shared.schemas.indicator_request import PortfolioFragmentDTO
+from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicatorDTO
 
 
 class DslEventPublisher:

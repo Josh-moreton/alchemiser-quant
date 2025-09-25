@@ -5,7 +5,7 @@ Strategy_v2 module for signal generation and indicator calculation.
 
 This module provides a clean, boundary-enforcing strategy system that:
 - Consumes market data via shared Alpaca capabilities
-- Outputs pure strategy signal DTOs (StrategyAllocationDTO)
+- Outputs pure strategy signal DTOs (StrategyAllocation)
 - Maintains strict separation from portfolio and execution concerns
 
 Public API:

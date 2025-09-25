@@ -36,7 +36,6 @@ from .templates import (
     build_trading_report_html,
 )
 from .templates.base import BaseEmailTemplate
-from .templates.performance import PerformanceBuilder
 
 # Import specific template builders for advanced usage
 from .templates.portfolio import PortfolioBuilder
@@ -47,7 +46,6 @@ __all__ = [
     "BaseEmailTemplate",
     "EmailClient",
     "EmailTemplates",
-    "PerformanceBuilder",
     "PortfolioBuilder",
     "SignalsBuilder",
     "build_error_email_html",

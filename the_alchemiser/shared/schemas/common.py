@@ -18,14 +18,14 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
-from the_alchemiser.shared.dto.portfolio_state_dto import PortfolioStateDTO
 from the_alchemiser.shared.schemas.execution_summary import ExecutionSummary
+from the_alchemiser.shared.schemas.portfolio_state import PortfolioState
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, StrategySignal
 
 
-class MultiStrategyExecutionResultDTO(BaseModel):
+class MultiStrategyExecutionResult(BaseModel):
     """DTO for multi-strategy execution results.
 
     Provides an immutable, validated container for multi-strategy execution
@@ -56,10 +56,10 @@ class MultiStrategyExecutionResultDTO(BaseModel):
 
     # Structured execution summary and portfolio state
     execution_summary: ExecutionSummary
-    final_portfolio_state: PortfolioStateDTO | None = None
+    final_portfolio_state: PortfolioState | None = None
 
 
-class AllocationComparisonDTO(BaseModel):
+class AllocationComparison(BaseModel):
     """DTO for allocation comparison with Decimal precision."""
 
     model_config = ConfigDict(
@@ -73,7 +73,7 @@ class AllocationComparisonDTO(BaseModel):
     deltas: dict[str, Decimal]
 
 
-class MultiStrategySummaryDTO(BaseModel):
+class MultiStrategySummary(BaseModel):
     """DTO for multi-strategy summary including allocation comparison & account info.
 
     Provides a unified summary structure that includes execution results,
@@ -87,13 +87,61 @@ class MultiStrategySummaryDTO(BaseModel):
     )
 
     # Core execution result
-    execution_result: MultiStrategyExecutionResultDTO
+    execution_result: MultiStrategyExecutionResult
 
     # Allocation comparison with Decimal precision
-    allocation_comparison: AllocationComparisonDTO | None = None
+    allocation_comparison: AllocationComparison | None = None
 
     # Enriched account information
     enriched_account: dict[str, Any] | None = None
 
     # Closed P&L subset for performance display
     closed_pnl_subset: dict[str, Any] | None = None
+
+
+# TODO: Remove in Phase 3 - Temporary backward compatibility aliases
+MultiStrategyExecutionResultDTO = MultiStrategyExecutionResult
+AllocationComparisonDTO = AllocationComparison
+MultiStrategySummaryDTO = MultiStrategySummary
+
+
+class Configuration(BaseModel):
+    """Placeholder for configuration data transfer.
+
+    Proper Pydantic v2 DTO to replace placeholder class.
+    Will be enhanced with specific config fields in Phase 2.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    config_data: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Configuration data (flexible for Phase 1 scaffolding)",
+    )
+
+
+class Error(BaseModel):
+    """Placeholder for error data transfer.
+
+    Proper Pydantic v2 DTO to replace placeholder class.
+    Will be enhanced with specific error fields in Phase 2.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    error_type: str = Field(description="Type of error")
+    message: str = Field(description="Error message")
+    context: dict[str, Any] = Field(default_factory=dict, description="Error context data")
+
+
+# TODO: Remove in Phase 3 - Temporary backward compatibility aliases for these too
+ConfigurationDTO = Configuration
+ErrorDTO = Error

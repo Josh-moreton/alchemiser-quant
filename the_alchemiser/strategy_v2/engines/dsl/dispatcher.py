@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
+from the_alchemiser.shared.schemas.ast_node import ASTNodeDTO
 
 from .context import DslContext
 from .types import DSLValue

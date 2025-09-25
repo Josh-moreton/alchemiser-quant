@@ -27,16 +27,16 @@ from the_alchemiser.orchestration.display_utils import (
 )
 from the_alchemiser.shared.config.config import Settings, load_settings
 from the_alchemiser.shared.config.container import ApplicationContainer
-from the_alchemiser.shared.dto.result_factory import (
-    create_failure_result,
-    create_success_result,
-)
-from the_alchemiser.shared.dto.trade_run_result_dto import TradeRunResultDTO
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.events import EventBus, StartupEvent
 from the_alchemiser.shared.logging.logging_utils import (
     get_logger,
 )
+from the_alchemiser.shared.schemas.trade_result_factory import (
+    create_failure_result,
+    create_success_result,
+)
+from the_alchemiser.shared.schemas.trade_run_result import TradeRunResult
 from the_alchemiser.shared.types.exceptions import (
     StrategyExecutionError,
     TradingClientError,
@@ -91,9 +91,7 @@ class TradingSystem:
         """Initialize event-driven orchestration system."""
         try:
             if self.container is None:
-                self.logger.warning(
-                    "Cannot initialize event orchestration: DI container not ready"
-                )
+                self.logger.warning("Cannot initialize event orchestration: DI container not ready")
                 return
 
             # Build the registry and register handlers from each module
@@ -151,9 +149,7 @@ class TradingSystem:
         """
         try:
             if self.container is None:
-                self.logger.warning(
-                    "Cannot emit StartupEvent: DI container not initialized"
-                )
+                self.logger.warning("Cannot emit StartupEvent: DI container not initialized")
                 return
 
             # Get event bus from container
@@ -175,9 +171,7 @@ class TradingSystem:
 
             # Emit the event
             event_bus.publish(event)
-            self.logger.debug(
-                f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}"
-            )
+            self.logger.debug(f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}")
 
         except Exception as e:
             # Don't let startup event emission failure break the system
@@ -188,7 +182,7 @@ class TradingSystem:
         *,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
-    ) -> TradeRunResultDTO:
+    ) -> TradeRunResult:
         """Execute multi-strategy trading.
 
         Note: Trading mode (live/paper) is now determined by deployment stage.
@@ -198,7 +192,7 @@ class TradingSystem:
             export_tracking_json: Path to export tracking JSON (optional)
 
         Returns:
-            TradeRunResultDTO with complete execution results and metadata
+            TradeRunResult with complete execution results and metadata
 
         """
         # Start timing and correlation tracking
@@ -216,9 +210,7 @@ class TradingSystem:
             use_event_driven = self.event_driven_orchestrator is not None
 
             if use_event_driven:
-                self.logger.info(
-                    "🚀 Using event-driven orchestration for trading workflow"
-                )
+                self.logger.info("🚀 Using event-driven orchestration for trading workflow")
                 trading_result = self._execute_trading_event_driven(
                     correlation_id,
                     started_at,
@@ -226,9 +218,7 @@ class TradingSystem:
                     export_tracking_json=export_tracking_json,
                 )
             else:
-                self.logger.info(
-                    "🔄 Using traditional orchestration (event-driven not available)"
-                )
+                self.logger.info("🔄 Using traditional orchestration (event-driven not available)")
                 trading_result = self._execute_trading_traditional(
                     correlation_id,
                     started_at,
@@ -260,7 +250,7 @@ class TradingSystem:
         *,
         show_tracking: bool,
         export_tracking_json: str | None,
-    ) -> TradeRunResultDTO | None:
+    ) -> TradeRunResult | None:
         """Execute trading using event-driven orchestration.
 
         Args:
@@ -270,7 +260,7 @@ class TradingSystem:
             export_tracking_json: Path to export tracking JSON
 
         Returns:
-            TradeRunResultDTO or None if failed
+            TradeRunResult or None if failed
 
         """
         try:
@@ -279,17 +269,13 @@ class TradingSystem:
                 return None
 
             # Start the event-driven workflow
-            workflow_correlation_id = (
-                self.event_driven_orchestrator.start_trading_workflow(
-                    correlation_id=correlation_id
-                )
+            workflow_correlation_id = self.event_driven_orchestrator.start_trading_workflow(
+                correlation_id=correlation_id
             )
 
             # Wait for workflow completion
-            workflow_result = (
-                self.event_driven_orchestrator.wait_for_workflow_completion(
-                    workflow_correlation_id, timeout_seconds=300
-                )
+            workflow_result = self.event_driven_orchestrator.wait_for_workflow_completion(
+                workflow_correlation_id, timeout_seconds=300
             )
 
             if not workflow_result.get("success"):
@@ -334,7 +320,7 @@ class TradingSystem:
         *,
         show_tracking: bool,
         export_tracking_json: str | None,
-    ) -> TradeRunResultDTO | None:
+    ) -> TradeRunResult | None:
         """Execute trading using traditional orchestration (fallback).
 
         Args:
@@ -344,7 +330,7 @@ class TradingSystem:
             export_tracking_json: Path to export tracking JSON
 
         Returns:
-            TradeRunResultDTO or None if failed
+            TradeRunResult or None if failed
 
         """
         try:
@@ -354,9 +340,7 @@ class TradingSystem:
 
             # Ensure container is available
             if self.container is None:
-                self.logger.error(
-                    "DI container not available for traditional orchestrator"
-                )
+                self.logger.error("DI container not available for traditional orchestrator")
                 return None
 
             # Create trading orchestrator directly
@@ -384,9 +368,7 @@ class TradingSystem:
 
             # Display tracking if requested
             if show_tracking:
-                display_post_execution_tracking(
-                    paper_trading=not orchestrator.live_trading
-                )
+                display_post_execution_tracking(paper_trading=not orchestrator.live_trading)
 
             # Export tracking summary if requested
             if export_tracking_json:
@@ -416,7 +398,7 @@ class TradingSystem:
 
     def _handle_trading_execution_error(
         self, e: Exception, *, show_tracking: bool, export_tracking_json: str | None
-    ) -> TradeRunResultDTO:
+    ) -> TradeRunResult:
         """Handle trading execution errors with proper error handling and notifications.
 
         Args:
@@ -425,7 +407,7 @@ class TradingSystem:
             export_tracking_json: Export path for tracking JSON
 
         Returns:
-            TradeRunResultDTO representing the failure
+            TradeRunResult representing the failure
 
         """
         started_at = datetime.now(UTC)
@@ -450,15 +432,9 @@ class TradingSystem:
 
                 send_error_notification_if_needed()
             except Exception as notification_error:
-                self.logger.warning(
-                    f"Failed to send error notification: {notification_error}"
-                )
+                self.logger.warning(f"Failed to send error notification: {notification_error}")
 
-            return create_failure_result(
-                f"System error: {e}", started_at, correlation_id, warnings
-            )
+            return create_failure_result(f"System error: {e}", started_at, correlation_id, warnings)
         # Generic error handling
         self.logger.error(f"Unexpected trading execution error: {e}")
-        return create_failure_result(
-            f"Unexpected error: {e}", started_at, correlation_id, warnings
-        )
+        return create_failure_result(f"Unexpected error: {e}", started_at, correlation_id, warnings)
