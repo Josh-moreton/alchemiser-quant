@@ -10,7 +10,6 @@ placement, execution monitoring, and smart execution logic.
 from __future__ import annotations
 
 import logging
-import threading
 import time
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -32,6 +31,7 @@ from the_alchemiser.shared.dto.broker_dto import (
     WebSocketStatus,
 )
 from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
+from the_alchemiser.shared.utils.order_tracker import OrderTracker
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.services.websocket_manager import (
@@ -70,9 +70,8 @@ class AlpacaTradingService:
         self._websocket_manager = websocket_manager
         self._paper_trading = paper_trading
 
-        # Order tracking for WebSocket updates (minimal local state)
-        self._order_events: dict[str, threading.Event] = {}
-        self._order_status: dict[str, str] = {}
+        # Order tracking for WebSocket updates (centralized utility)
+        self._order_tracker = OrderTracker()
 
         # WebSocket trading stream state
         self._trading_service_active = False
@@ -92,6 +91,9 @@ class AlpacaTradingService:
                 logger.debug("🧹 AlpacaTradingService WebSocket resources released")
             except Exception as e:
                 logger.error(f"Error releasing WebSocket resources: {e}")
+
+        # Clean up order tracking
+        self._order_tracker.cleanup_all()
 
     @property
     def is_paper_trading(self) -> bool:
@@ -612,9 +614,8 @@ class AlpacaTradingService:
 
             # Initialize order tracking
             for order_id in order_ids:
-                if order_id not in self._order_events:
-                    self._order_events[order_id] = threading.Event()
-                    self._order_status[order_id] = "pending"
+                self._order_tracker.create_event(order_id)
+                self._order_tracker.update_order_status(order_id, "pending")
 
             # Wait for completion with timeout
             completed = []
@@ -625,9 +626,9 @@ class AlpacaTradingService:
                 if remaining_time <= 0:
                     break
 
-                if self._order_events[order_id].wait(
-                    timeout=remaining_time
-                ) and self._order_status.get(order_id) in [
+                if self._order_tracker.wait_for_completion(
+                    order_id, timeout=remaining_time
+                ) and self._order_tracker.get_status(order_id) in [
                     "filled",
                     "canceled",
                     "rejected",
@@ -672,13 +673,11 @@ class AlpacaTradingService:
                 return
 
             # Update order tracking
-            self._order_status[order_id] = status or event_type or ""
+            self._order_tracker.update_order_status(order_id, status or event_type or "")
 
             # Signal completion for terminal events
             if self._is_terminal_trading_event(event_type, status):
-                event = self._order_events.get(order_id)
-                if event:
-                    event.set()
+                self._order_tracker.signal_completion(order_id)
 
         except Exception as e:
             logger.error(f"Error in trading stream update: {e}")
