@@ -77,7 +77,9 @@ class StrategyAllocation(BaseModel):
                 raise ValueError(f"Duplicate symbol: {symbol_upper}")
 
             if weight < 0 or weight > 1:
-                raise ValueError(f"Weight for {symbol_upper} must be between 0 and 1, got {weight}")
+                raise ValueError(
+                    f"Weight for {symbol_upper} must be between 0 and 1, got {weight}"
+                )
 
             normalized[symbol_upper] = weight
             total_weight += weight
@@ -153,7 +155,9 @@ class StrategyAllocation(BaseModel):
                 DeprecationWarning,
                 stacklevel=2,
             )
-            object.__setattr__(allocation, "strategy_name", "UNKNOWN_LEGACY")  # frozen model mutation via object.__setattr__
+            object.__setattr__(
+                allocation, "strategy_name", "UNKNOWN_LEGACY"
+            )  # frozen model mutation via object.__setattr__
         return allocation
 
     @classmethod
