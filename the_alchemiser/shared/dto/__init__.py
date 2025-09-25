@@ -50,7 +50,7 @@ from the_alchemiser.shared.dto.trade_run_result_dto import (
 )
 
 
-class ConfigurationDTO(BaseModel):
+class Configuration(BaseModel):
     """Placeholder for configuration data transfer.
 
     Proper Pydantic v2 DTO to replace placeholder class.
@@ -69,7 +69,7 @@ class ConfigurationDTO(BaseModel):
     )
 
 
-class ErrorDTO(BaseModel):
+class Error(BaseModel):
     """Placeholder for error data transfer.
 
     Proper Pydantic v2 DTO to replace placeholder class.
@@ -123,3 +123,8 @@ __all__ = [
     # Trade Ledger DTOs
     "TradeSide",
 ]
+
+
+# TODO: Remove in Phase 3 - Temporary backward compatibility aliases
+ConfigurationDTO = Configuration
+ErrorDTO = Error

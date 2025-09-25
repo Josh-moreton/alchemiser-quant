@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class ConsolidatedPortfolioDTO(BaseModel):
+class ConsolidatedPortfolio(BaseModel):
     """DTO for consolidated portfolio allocation from multiple strategies.
 
     Contains aggregated target allocations from strategy signals with
@@ -151,3 +151,7 @@ class ConsolidatedPortfolioDTO(BaseModel):
 
         """
         return {symbol: float(weight) for symbol, weight in self.target_allocations.items()}
+
+
+# TODO: Remove in Phase 3 - Temporary backward compatibility alias
+ConsolidatedPortfolioDTO = ConsolidatedPortfolio
