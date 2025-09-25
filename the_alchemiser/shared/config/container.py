@@ -4,8 +4,6 @@ Main application container for dependency injection.
 """
 
 from __future__ import annotations
-import importlib
-from typing import Any
 
 from dependency_injector import containers, providers
 
@@ -32,25 +30,33 @@ class ApplicationContainer(containers.DeclarativeContainer):
     # Sub-containers
     config = providers.Container(ConfigProviders)
     infrastructure = providers.Container(InfrastructureProviders, config=config)
-    services = providers.Container(ServiceProviders, infrastructure=infrastructure, config=config)
-    
-    # Execution providers (late binding to avoid circular imports)
-    execution: providers.Container[Any] | None = None
+    services = providers.Container(
+        ServiceProviders, infrastructure=infrastructure, config=config
+    )
+
+    # Execution providers (initialized lazily to avoid circular imports)
+    execution = None
 
     # Application layer (will be added in Phase 2)
 
-    def initialize_execution_providers(self) -> None:
-        """Initialize execution providers with late binding to avoid circular imports."""
-        if self.execution is None:
-            # Use importlib to avoid static import detection
-            execution_config_module = importlib.import_module("the_alchemiser.execution_v2.config")
-            ExecutionProviders = execution_config_module.ExecutionProviders
-            
-            self.execution = providers.Container(
-                ExecutionProviders,
-                infrastructure=self.infrastructure,
-                config=self.config,
-            )
+    @staticmethod
+    def initialize_execution_providers(container: ApplicationContainer) -> None:
+        """Attach execution providers using late binding."""
+        if getattr(container, "execution", None) is not None:
+            return
+
+        import importlib
+
+        execution_config_module = importlib.import_module(
+            "the_alchemiser.execution_v2.config"
+        )
+        ExecutionProviders = execution_config_module.ExecutionProviders
+
+        container.execution = providers.Container(
+            ExecutionProviders,
+            infrastructure=container.infrastructure,
+            config=container.config,
+        )
 
     @classmethod
     def create_for_environment(cls, env: str = "development") -> ApplicationContainer:
@@ -60,15 +66,15 @@ class ApplicationContainer(containers.DeclarativeContainer):
         # Load environment-specific configuration
         if env == "test":
             container.config.alpaca_api_key.override("test_api_key_valid_for_testing")
-            container.config.alpaca_secret_key.override("test_secret_key_valid_for_testing")
+            container.config.alpaca_secret_key.override(
+                "test_secret_key_valid_for_testing"
+            )
             container.config.paper_trading.override(True)  # noqa: FBT003
         elif env == "production":
             # Production uses environment variables (default behavior)
             pass
 
-        # Initialize execution providers with late binding
-        container.initialize_execution_providers()
-
+        # Execution providers will be initialized when needed
         return container
 
     @classmethod
