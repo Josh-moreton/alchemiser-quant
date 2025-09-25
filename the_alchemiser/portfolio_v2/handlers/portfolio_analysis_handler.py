@@ -19,10 +19,6 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.portfolio_v2 import PortfolioServiceV2
-from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-    ConsolidatedPortfolioDTO,
-)
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
@@ -32,6 +28,10 @@ from the_alchemiser.shared.events import (
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
+from the_alchemiser.shared.schemas.consolidated_portfolio import (
+    ConsolidatedPortfolioDTO,
+)
+from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanDTO
 
 
 def _to_float_safe(value: object) -> float:
@@ -326,7 +326,7 @@ class PortfolioAnalysisHandler:
             correlation_id = f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
 
             # Create StrategyAllocationDTO from allocation comparison
-            from the_alchemiser.shared.dto.strategy_allocation_dto import (
+            from the_alchemiser.shared.schemas.strategy_allocation import (
                 StrategyAllocationDTO,
             )
 
@@ -372,7 +372,7 @@ class PortfolioAnalysisHandler:
         try:
             # Create a plan even if None - represent as no-trade plan
             if rebalance_plan is None:
-                from the_alchemiser.shared.dto.rebalance_plan_dto import (
+                from the_alchemiser.shared.schemas.rebalance_plan import (
                     RebalancePlanDTO,
                 )
 

@@ -15,9 +15,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.constants import DSL_ENGINE_MODULE
-from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
-from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
-from the_alchemiser.shared.dto.trace_dto import TraceDTO
 from the_alchemiser.shared.events.base import BaseEvent
 from the_alchemiser.shared.events.bus import EventBus
 from the_alchemiser.shared.events.dsl_events import (
@@ -27,6 +24,9 @@ from the_alchemiser.shared.events.dsl_events import (
 )
 from the_alchemiser.shared.events.handlers import EventHandler
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.schemas.ast_node import ASTNodeDTO
+from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocationDTO
+from the_alchemiser.shared.schemas.trace import TraceDTO
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 
 from .dsl_evaluator import DslEvaluator, IndicatorService
@@ -69,7 +69,9 @@ class DslEngine(EventHandler):
             self.indicator_service = IndicatorService(market_data_service)
         else:
             # Fallback to mock service for backward compatibility
-            self.indicator_service = IndicatorService(None)  # Will use fallback indicators
+            self.indicator_service = IndicatorService(
+                None
+            )  # Will use fallback indicators
 
         self.evaluator = DslEvaluator(self.indicator_service, event_bus)
 
@@ -175,7 +177,9 @@ class DslEngine(EventHandler):
             )
 
             # Evaluate strategy
-            allocation, trace = self.evaluate_strategy(strategy_config_path, correlation_id)
+            allocation, trace = self.evaluate_strategy(
+                strategy_config_path, correlation_id
+            )
 
             # Publish completion events
             self._publish_completion_events(event, allocation, trace)

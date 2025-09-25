@@ -12,7 +12,7 @@ import logging
 from decimal import ROUND_DOWN, Decimal
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.dto.asset_info_dto import AssetInfoDTO
+from the_alchemiser.shared.schemas.asset_info import AssetInfoDTO
 
 logger = logging.getLogger(__name__)
 

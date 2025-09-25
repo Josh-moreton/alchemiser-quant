@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 if TYPE_CHECKING:
     from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
-    from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
+    from the_alchemiser.shared.schemas.execution_report import ExecutedOrderDTO
 
 
 class AccountRepository(Protocol):

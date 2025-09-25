@@ -18,12 +18,11 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-    ConsolidatedPortfolioDTO,
-)
-from the_alchemiser.shared.dto.signal_dto import StrategySignalDTO
 from the_alchemiser.shared.events import EventBus, SignalGenerated
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.schemas.consolidated_portfolio import (
+    ConsolidatedPortfolio,
+)
 from the_alchemiser.shared.types import StrategySignal
 from the_alchemiser.shared.types.exceptions import DataProviderError
 from the_alchemiser.shared.types.strategy_types import StrategyType
@@ -43,11 +42,11 @@ class SignalOrchestrator:
         # Get event bus from container for dual-path emission
         self.event_bus: EventBus = container.services.event_bus()
 
-    def generate_signals(self) -> tuple[dict[str, Any], ConsolidatedPortfolioDTO]:
+    def generate_signals(self) -> tuple[dict[str, Any], ConsolidatedPortfolio]:
         """Generate strategy signals and consolidated portfolio allocation.
 
         Returns:
-            Tuple of (strategy_signals dict, ConsolidatedPortfolioDTO)
+            Tuple of (strategy_signals dict, ConsolidatedPortfolio)
 
         """
         # Use DSL strategy engine directly for signal generation
@@ -61,12 +60,12 @@ class SignalOrchestrator:
         strategy_signals = self._convert_signals_to_display_format(signals)
 
         # Create consolidated portfolio from signals
-        consolidated_portfolio_dict, contributing_strategies = self._build_consolidated_portfolio(
-            signals
+        consolidated_portfolio_dict, contributing_strategies = (
+            self._build_consolidated_portfolio(signals)
         )
 
-        # Create ConsolidatedPortfolioDTO
-        consolidated_portfolio = ConsolidatedPortfolioDTO.from_dict_allocation(
+        # Create ConsolidatedPortfolio
+        consolidated_portfolio = ConsolidatedPortfolio.from_dict_allocation(
             allocation_dict=consolidated_portfolio_dict,
             correlation_id=f"signal_orchestrator_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
             source_strategies=contributing_strategies,
@@ -74,7 +73,9 @@ class SignalOrchestrator:
 
         return strategy_signals, consolidated_portfolio
 
-    def _convert_signals_to_display_format(self, signals: list[StrategySignal]) -> dict[str, Any]:
+    def _convert_signals_to_display_format(
+        self, signals: list[StrategySignal]
+    ) -> dict[str, Any]:
         """Convert DSL signals to display format."""
         strategy_signals = {}
 
@@ -82,7 +83,9 @@ class SignalOrchestrator:
             # For DSL engine, we group all signals under "DSL" strategy type
             if len(signals) > 1:
                 # Multiple signals - present a concise primary symbol; keep full list separately
-                symbols = [signal.symbol.value for signal in signals if signal.action == "BUY"]
+                symbols = [
+                    signal.symbol.value for signal in signals if signal.action == "BUY"
+                ]
                 primary_signal = signals[0]  # Use first signal for other attributes
                 primary_symbol = primary_signal.symbol.value
                 strategy_signals["DSL"] = {
@@ -195,7 +198,11 @@ class SignalOrchestrator:
         """Extract strategy name from strategy type."""
         if isinstance(strategy_type, str):
             return strategy_type
-        return strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
+        return (
+            strategy_type.value
+            if hasattr(strategy_type, "value")
+            else str(strategy_type)
+        )
 
     def _log_all_strategies_affected(
         self, failed_strategies: list[str], fallback_strategies: list[str]
@@ -305,10 +312,7 @@ class SignalOrchestrator:
             correlation_id = str(uuid.uuid4())
             causation_id = f"signal-analysis-{datetime.now(UTC).isoformat()}"
 
-            for strategy_type, signal_data in strategy_signals.items():
-                strategy_name = (
-                    strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
-                )
+            for _strategy_type, signal_data in strategy_signals.items():
                 # Use short symbol for DTO (max length 10). If multi, pick first from list.
                 raw_symbol = signal_data.get("symbol", "UNKNOWN")
                 if signal_data.get("is_multi_symbol") and isinstance(
@@ -317,17 +321,15 @@ class SignalOrchestrator:
                     symbols_list = signal_data.get("symbols") or []
                     if symbols_list:
                         raw_symbol = symbols_list[0]
-                # Enforce 10-char max for StrategySignalDTO.symbol
+                # Enforce 10-char max for StrategySignal.symbol
                 sanitized_symbol = str(raw_symbol)[:10]
-                signal_dto = StrategySignalDTO(
-                    correlation_id=correlation_id,
-                    causation_id=causation_id,
-                    timestamp=datetime.now(UTC),
+                # StrategySignal doesn't define allocation_weight; use target_allocation
+                signal_dto = StrategySignal(
                     symbol=sanitized_symbol,
                     action=signal_data.get("action", "HOLD"),
                     reasoning=signal_data.get("reasoning", "Signal generated"),
-                    strategy_name=strategy_name,
-                    allocation_weight=None,  # Will be determined by portfolio module
+                    target_allocation=None,  # Portfolio module will derive allocation
+                    timestamp=datetime.now(UTC),
                 )
                 signal_dtos.append(signal_dto)
 
@@ -387,7 +389,9 @@ class SignalOrchestrator:
             # Single position strategies
             return 1 if signal.get("action") == "BUY" else 0
         # Count from consolidated portfolio if possible
-        strategy_symbols = self._get_symbols_for_strategy(strategy_name, strategy_signals)
+        strategy_symbols = self._get_symbols_for_strategy(
+            strategy_name, strategy_signals
+        )
         return len([s for s in strategy_symbols if s in consolidated_portfolio])
 
     def _find_signal_for_strategy(
@@ -422,7 +426,9 @@ class SignalOrchestrator:
             symbols_list = signal.get("symbols")
             if isinstance(symbols_list, list):
                 return len([s for s in symbols_list if s in consolidated_portfolio])
-            return self._count_nuclear_portfolio_symbols(symbol_text, consolidated_portfolio)
+            return self._count_nuclear_portfolio_symbols(
+                symbol_text, consolidated_portfolio
+            )
         return 0
 
     def _count_nuclear_portfolio_symbols(

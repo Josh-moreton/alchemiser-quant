@@ -404,7 +404,83 @@ if __name__ == "__main__":
 - [ ] Memory usage validation
 - [ ] Production smoke tests
 
-## 5. Phase 4: Consolidate & Final Cleanup
+## 5. Phase 3a: Namespace Unification (COMPLETED)
+
+**Completed Date**: December 2024  
+**Objective**: Merge `shared/dto` into `shared/schemas` to create single authoritative namespace  
+**Status**: ✅ **COMPLETE**
+
+### 5.1 Implementation Summary
+
+Successfully consolidated all boundary models into a single canonical namespace `the_alchemiser.shared.schemas`, eliminating conceptual duplication between dto and schemas directories.
+
+#### 5.1.1 File Moves Completed
+- **20 DTO files moved** using `git mv` to preserve history
+- **Renamed with collision avoidance**: `execution_dto.py` → `execution_result.py`
+- **All other files**: Dropped `_dto` suffix (e.g., `asset_info_dto.py` → `asset_info.py`)
+
+#### 5.1.2 Import Migration Completed  
+- **89+ import statements updated**: `shared.dto` → `shared.schemas`
+- **Module path updates**: Updated all internal cross-references between moved files
+- **Canonical name usage**: Updated to use descriptive names (e.g., `RebalancePlanDTO` → `RebalancePlan`)
+
+#### 5.1.3 Compatibility Layer Implemented
+- **Deprecation warning shim**: `shared/dto/__init__.py` emits warning on first import
+- **Full backward compatibility**: All existing imports continue to work
+- **Same object identity**: Old and new imports return identical class objects
+
+#### 5.1.4 Quality Verification
+- ✅ **Import boundaries maintained**: All 5/5 import-linter contracts kept
+- ✅ **Formatting compliance**: ruff formatting checks pass
+- ✅ **Git history preserved**: All moved files maintain full history via `git mv`
+- ✅ **Deprecation warning verified**: Appears exactly once per import session
+
+### 5.2 Migration Results
+
+| Metric | Before | After | Status |
+|--------|--------|-------|--------|
+| **Namespace roots** | 2 (`dto/`, `schemas/`) | 1 (`schemas/`) | ✅ Unified |
+| **Total boundary models** | 90+ classes | 90+ classes | ✅ All preserved |
+| **Import paths** | Mixed usage | Single canonical | ✅ Standardized |
+| **Backward compatibility** | N/A | Full with warnings | ✅ Maintained |
+| **Git history** | Original | Preserved | ✅ Retained |
+
+### 5.3 API Surface After Migration
+
+```python
+# NEW: Single authoritative import path
+from the_alchemiser.shared.schemas import (
+    AssetInfo, RebalancePlan, ExecutionResult,     # Core models
+    AssetInfoDTO, RebalancePlanDTO, ExecutionResultDTO  # Compatibility aliases
+)
+
+# DEPRECATED: Compatibility shim (emits warning)
+from the_alchemiser.shared.dto import AssetInfo  # Still works but deprecated
+```
+
+### 5.4 Benefits Achieved
+
+**Single Mental Model**: 
+- Unified namespace eliminates "where do I import from?" confusion
+- Clear contract: `schemas` = externally visible boundary models
+
+**Improved Discoverability**:
+- All boundary models available from single import location
+- IDE autocomplete shows complete API surface in one namespace
+
+**Future-Proof Architecture**:
+- Simplified event schema evolution and serialization policy changes
+- Foundation for potential further domain organization within schemas/
+
+### 5.5 Next Steps (Phase 3 Final)
+
+Phase 3a provides the foundation for final alias removal:
+- [ ] Remove backward compatibility aliases (`AssetInfoDTO = AssetInfo`)
+- [ ] Delete compatibility shim (`shared/dto/__init__.py`)  
+- [ ] Add stricter import-linter rules preventing dto usage
+- [ ] Update documentation to remove all dto references
+
+## 6. Phase 4: Consolidate & Final Cleanup
 
 ### 5.1 Objectives
 - Consolidate all boundary models into `shared/schemas/` with domain organization

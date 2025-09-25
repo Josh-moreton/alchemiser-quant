@@ -18,7 +18,6 @@ if TYPE_CHECKING:
 
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
 from the_alchemiser.shared.constants import DECIMAL_ZERO
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
@@ -28,6 +27,7 @@ from the_alchemiser.shared.events import (
     WorkflowFailed,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanDTO
 
 
 class TradingExecutionHandler:

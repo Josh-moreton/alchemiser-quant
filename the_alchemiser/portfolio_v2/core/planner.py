@@ -13,15 +13,15 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.config.config import load_settings
-from the_alchemiser.shared.dto.rebalance_plan_dto import (
+from the_alchemiser.shared.logging.logging_utils import log_with_context
+from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlanDTO,
     RebalancePlanItemDTO,
 )
-from the_alchemiser.shared.logging.logging_utils import log_with_context
 from the_alchemiser.shared.types.exceptions import PortfolioError
 
 if TYPE_CHECKING:
-    from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
+    from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocationDTO
 
 from ..models.portfolio_snapshot import PortfolioSnapshot
 

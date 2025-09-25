@@ -20,8 +20,8 @@ import threading
 import time
 from typing import TYPE_CHECKING, Any
 
-from the_alchemiser.shared.dto.asset_info_dto import AssetInfoDTO
 from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.schemas.asset_info import AssetInfoDTO
 
 if TYPE_CHECKING:
     from alpaca.trading.client import TradingClient

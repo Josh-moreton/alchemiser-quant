@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
+from the_alchemiser.shared.schemas.indicator_request import PortfolioFragmentDTO
 
 # Values that may result from evaluating a DSL node
 type DSLValue = (

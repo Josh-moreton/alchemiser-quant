@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
-from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
+from the_alchemiser.shared.schemas.ast_node import ASTNodeDTO
+from the_alchemiser.shared.schemas.indicator_request import PortfolioFragmentDTO
 
 from ..context import DslContext
 from ..dispatcher import DslDispatcher
