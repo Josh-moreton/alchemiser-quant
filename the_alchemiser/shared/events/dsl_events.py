@@ -20,7 +20,7 @@ from pydantic import Field
 
 from ..constants import EVENT_SCHEMA_VERSION_DESCRIPTION, EVENT_TYPE_DESCRIPTION
 from ..dto.ast_node_dto import ASTNode
-from ..dto.indicator_request_dto import PortfolioFragmentDTO
+from ..dto.indicator_request_dto import PortfolioFragment
 from ..dto.strategy_allocation_dto import StrategyAllocation
 from ..dto.technical_indicators_dto import TechnicalIndicator
 from ..dto.trace_dto import Trace
@@ -212,7 +212,7 @@ class DecisionEvaluated(BaseEvent):
     )
     condition_result: bool = Field(..., description="Result of condition evaluation")
     branch_taken: str = Field(..., min_length=1, description="Branch taken (then/else)")
-    branch_result: PortfolioFragmentDTO | None = Field(
+    branch_result: PortfolioFragment | None = Field(
         default=None, description="Result of branch evaluation"
     )
 

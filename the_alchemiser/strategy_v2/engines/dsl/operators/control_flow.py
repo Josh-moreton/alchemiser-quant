@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from the_alchemiser.shared.schemas.ast_nodes import ASTNode
-from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
+from the_alchemiser.shared.schemas.dsl.ast_nodes import ASTNode
+from the_alchemiser.shared.schemas.strategy.indicators import PortfolioFragment
 
 from ..context import DslContext
 from ..dispatcher import DslDispatcher
@@ -62,7 +62,7 @@ def if_condition(args: list[ASTNode], context: DslContext) -> DSLValue:
         decision_expression=condition,
         condition_result=bool(condition_result),
         branch_taken=branch_taken,
-        branch_result=(result if isinstance(result, PortfolioFragmentDTO) else None),
+        branch_result=(result if isinstance(result, PortfolioFragment) else None),
         correlation_id=context.correlation_id,
     )
 

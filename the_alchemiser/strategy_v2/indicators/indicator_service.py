@@ -15,8 +15,8 @@ from decimal import Decimal
 
 import pandas as pd
 
-from the_alchemiser.shared.dto.indicator_request_dto import IndicatorRequestDTO
-from the_alchemiser.shared.schemas.technical_indicators import TechnicalIndicator
+from the_alchemiser.shared.schemas.strategy.indicators import IndicatorRequest
+from the_alchemiser.shared.schemas.strategy.technical_indicators import TechnicalIndicator
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy_v2.engines.dsl.types import DslEvaluationError
@@ -232,7 +232,7 @@ class IndicatorService:
             metadata={"value": latest, "window": window},
         )
 
-    def get_indicator(self, request: IndicatorRequestDTO) -> TechnicalIndicator:
+    def get_indicator(self, request: IndicatorRequest) -> TechnicalIndicator:
         """Get technical indicator for symbol using real market data.
 
         Args:

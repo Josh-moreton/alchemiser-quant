@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.constants import DSL_ENGINE_MODULE
-from the_alchemiser.shared.schemas.ast_nodes import ASTNode
-from the_alchemiser.shared.schemas.traces import Trace
+from the_alchemiser.shared.schemas.dsl.ast_nodes import ASTNode
+from the_alchemiser.shared.schemas.dsl.traces import Trace
 from the_alchemiser.shared.events.base import BaseEvent
 from the_alchemiser.shared.events.bus import EventBus
 from the_alchemiser.shared.events.dsl_events import (
@@ -26,7 +26,7 @@ from the_alchemiser.shared.events.dsl_events import (
 )
 from the_alchemiser.shared.events.handlers import EventHandler
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.schemas.strategy import StrategyAllocation
+from the_alchemiser.shared.schemas.strategy.allocation import StrategyAllocation
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 
 from .dsl_evaluator import DslEvaluator, IndicatorService

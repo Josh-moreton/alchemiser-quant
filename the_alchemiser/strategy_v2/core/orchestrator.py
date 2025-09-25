@@ -15,7 +15,7 @@ import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from the_alchemiser.shared.schemas.strategy import StrategyAllocation
+from the_alchemiser.shared.schemas.strategy.allocation import StrategyAllocation
 
 from ..adapters.market_data_adapter import StrategyMarketDataAdapter
 from ..models.context import StrategyContext

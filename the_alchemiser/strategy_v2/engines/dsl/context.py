@@ -14,8 +14,8 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.schemas.ast_nodes import ASTNode
-from the_alchemiser.shared.schemas.traces import Trace
+from the_alchemiser.shared.schemas.dsl.ast_nodes import ASTNode
+from the_alchemiser.shared.schemas.dsl.traces import Trace
 
 from .types import DSLValue
 

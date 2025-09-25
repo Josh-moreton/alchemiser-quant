@@ -43,14 +43,14 @@ from the_alchemiser.shared.dto.broker_dto import (
     WebSocketResult,
     WebSocketStatus,
 )
-from the_alchemiser.shared.schemas.execution_reports import ExecutedOrder
+from the_alchemiser.shared.schemas.execution.reports import ExecutedOrder
 from the_alchemiser.shared.protocols.market_data import BarsIterable
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
     MarketDataRepository,
     TradingRepository,
 )
-from the_alchemiser.shared.schemas.assets import AssetInfo
+from the_alchemiser.shared.schemas.system.assets import AssetInfo
 
 # Import Alpaca exceptions for proper error handling with type safety
 _RetryExcImported: type[Exception]

@@ -13,9 +13,9 @@ import uuid
 from datetime import UTC, datetime
 
 from the_alchemiser.shared.constants import DSL_ENGINE_MODULE
-from the_alchemiser.shared.schemas.ast_nodes import ASTNode
-from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
-from the_alchemiser.shared.schemas.technical_indicators import TechnicalIndicator
+from the_alchemiser.shared.schemas.dsl.ast_nodes import ASTNode
+from the_alchemiser.shared.schemas.strategy.indicators import PortfolioFragment
+from the_alchemiser.shared.schemas.strategy.technical_indicators import TechnicalIndicator
 from the_alchemiser.shared.events.bus import EventBus
 from the_alchemiser.shared.events.dsl_events import (
     DecisionEvaluated,
@@ -78,7 +78,7 @@ class DslEventPublisher:
         *,
         condition_result: bool,
         branch_taken: str,
-        branch_result: PortfolioFragmentDTO | None,
+        branch_result: PortfolioFragment | None,
         correlation_id: str,
         causation_id: str | None = None,
     ) -> None:

@@ -25,7 +25,7 @@ from the_alchemiser.shared.logging.logging_utils import (
 from the_alchemiser.shared.types.exceptions import ConfigurationError
 
 if TYPE_CHECKING:
-    from the_alchemiser.shared.schemas.trade_results import TradeRunResult
+    from the_alchemiser.shared.schemas.execution.results import TradeRunResult
 
 
 class _ArgumentParsing:

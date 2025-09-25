@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
+from the_alchemiser.execution_v2.models.execution_result import ExecutionResult
 from the_alchemiser.orchestration.portfolio_orchestrator import PortfolioOrchestrator
 from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.config.config import Settings
@@ -291,7 +291,7 @@ class TradingOrchestrator:
 
             # Populate workflow results for CLI if this is the active correlation
             if self.workflow_state.get("last_correlation_id") == event.correlation_id:
-                # Convert ExecutionResultDTO to format expected by CLI
+                # Convert ExecutionResult to format expected by CLI
                 orders_executed = self._convert_execution_result_to_orders(execution_result)
                 self.workflow_results.update(
                     {
@@ -327,7 +327,7 @@ class TradingOrchestrator:
 
             # Create and emit failure event
             try:
-                failed_result = ExecutionResultDTO(
+                failed_result = ExecutionResult(
                     success=False,
                     plan_id=f"failed-{uuid.uuid4()}",
                     correlation_id=event.correlation_id,
@@ -455,7 +455,7 @@ class TradingOrchestrator:
                 execution_manager = self.container.services.execution_manager()
                 execution_result = execution_manager.execute_rebalance_plan(rebalance_plan)
 
-                # Convert ExecutionResultDTO to format expected by CLI
+                # Convert ExecutionResult to format expected by CLI
                 orders_executed = self._convert_execution_result_to_orders(execution_result)
 
                 self.logger.info(
@@ -474,7 +474,7 @@ class TradingOrchestrator:
                 self.logger.info("📊 No significant trades needed - portfolio already balanced")
 
                 # Create empty execution result
-                execution_result = ExecutionResultDTO(
+                execution_result = ExecutionResult(
                     success=True,
                     plan_id=f"no-trade-{uuid.uuid4()}",
                     correlation_id=correlation_id,
@@ -978,12 +978,12 @@ class TradingOrchestrator:
         )
 
     def _convert_execution_result_to_orders(
-        self, execution_result: ExecutionResultDTO
+        self, execution_result: ExecutionResult
     ) -> list[dict[str, Any]]:
-        """Convert ExecutionResultDTO to format expected by CLI display.
+        """Convert ExecutionResult to format expected by CLI display.
 
         Args:
-            execution_result: ExecutionResultDTO from ExecutionManager
+            execution_result: ExecutionResult from ExecutionManager
 
         Returns:
             List of order dictionaries in format expected by CLI
@@ -1010,11 +1010,11 @@ class TradingOrchestrator:
 
         return orders_executed
 
-    def _log_detailed_execution_results(self, execution_result: ExecutionResultDTO) -> None:
+    def _log_detailed_execution_results(self, execution_result: ExecutionResult) -> None:
         """Log detailed execution results for each order.
 
         Args:
-            execution_result: ExecutionResultDTO with order details
+            execution_result: ExecutionResult with order details
 
         """
         for order in execution_result.orders:
@@ -1042,7 +1042,7 @@ class TradingOrchestrator:
         self,
         *,
         success: bool,
-        execution_result: ExecutionResultDTO | None,
+        execution_result: ExecutionResult | None,
         correlation_id: str,
         causation_id: str,
     ) -> PortfolioSnapshot | None:
@@ -1082,7 +1082,7 @@ class TradingOrchestrator:
             metrics=minimal_metrics,
         )
 
-    def _build_execution_data(self, execution_result: ExecutionResultDTO | None) -> dict[str, Any]:
+    def _build_execution_data(self, execution_result: ExecutionResult | None) -> dict[str, Any]:
         """Build execution results dictionary from execution result.
 
         Args:
@@ -1120,7 +1120,7 @@ class TradingOrchestrator:
             ),
         }
 
-    def _collect_unique_error_messages(self, execution_result: ExecutionResultDTO) -> list[str]:
+    def _collect_unique_error_messages(self, execution_result: ExecutionResult) -> list[str]:
         """Collect unique error messages from failed orders.
 
         Args:
@@ -1184,7 +1184,7 @@ class TradingOrchestrator:
         )
 
     def _derive_error_message(
-        self, execution_result: ExecutionResultDTO, error_message: str | None
+        self, execution_result: ExecutionResult, error_message: str | None
     ) -> str | None:
         """Derive a more descriptive error message if not provided.
 
@@ -1222,7 +1222,7 @@ class TradingOrchestrator:
             )
             return error_message
 
-    def _derive_error_code_from_orders(self, execution_result: ExecutionResultDTO) -> str | None:
+    def _derive_error_code_from_orders(self, execution_result: ExecutionResult) -> str | None:
         """Derive error code from order failure patterns.
 
         Args:
@@ -1301,7 +1301,7 @@ class TradingOrchestrator:
 
     def _emit_trade_executed_event(
         self,
-        execution_result: ExecutionResultDTO,
+        execution_result: ExecutionResult,
         *,
         success: bool,
         error_message: str | None = None,

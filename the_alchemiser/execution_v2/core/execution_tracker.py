@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import logging
 
-from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
-from the_alchemiser.shared.schemas.rebalancing import RebalancePlan
+from the_alchemiser.execution_v2.models.execution_result import ExecutionResult
+from the_alchemiser.shared.schemas.portfolio.rebalancing import RebalancePlan
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class ExecutionTracker:
             logger.info(f"  📦 {item.action} ${item.trade_amount} {item.symbol}")
 
     @staticmethod
-    def log_execution_summary(plan: RebalancePlan, result: ExecutionResultDTO) -> None:
+    def log_execution_summary(plan: RebalancePlan, result: ExecutionResult) -> None:
         """Log execution summary."""
         success_rate = result.success_rate * 100
 
@@ -44,7 +44,7 @@ class ExecutionTracker:
                     logger.warning(f"    ❌ {order.symbol}: {order.error_message}")
 
     @staticmethod
-    def check_execution_health(result: ExecutionResultDTO) -> None:
+    def check_execution_health(result: ExecutionResult) -> None:
         """Check execution health and alert on issues."""
         failure_rate = 1.0 - result.success_rate
 

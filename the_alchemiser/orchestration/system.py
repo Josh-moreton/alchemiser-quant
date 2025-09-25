@@ -31,7 +31,7 @@ from the_alchemiser.shared.dto.result_factory import (
     create_failure_result,
     create_success_result,
 )
-from the_alchemiser.shared.schemas.trade_results import TradeRunResult
+from the_alchemiser.shared.schemas.execution.results import TradeRunResult
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.events import EventBus, StartupEvent
 from the_alchemiser.shared.logging.logging_utils import (

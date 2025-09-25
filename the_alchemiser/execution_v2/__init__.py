@@ -10,9 +10,9 @@ This module provides a clean, minimal execution system that:
 """
 
 from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
-from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
+from the_alchemiser.execution_v2.models.execution_result import ExecutionResult
 
 __all__ = [
     "ExecutionManager",
-    "ExecutionResultDTO",
+    "ExecutionResult",
 ]

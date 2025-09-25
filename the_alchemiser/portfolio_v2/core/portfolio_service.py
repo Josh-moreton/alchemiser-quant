@@ -11,12 +11,12 @@ import logging
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.logging.logging_utils import log_with_context
-from the_alchemiser.shared.schemas.rebalancing import RebalancePlan
+from the_alchemiser.shared.schemas.portfolio.rebalancing import RebalancePlan
 from the_alchemiser.shared.types.exceptions import PortfolioError
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-    from the_alchemiser.shared.schemas.strategy import StrategyAllocation
+    from the_alchemiser.shared.schemas.strategy.allocation import StrategyAllocation
 
 from ..adapters.alpaca_data_adapter import AlpacaDataAdapter
 from .planner import RebalancePlanCalculator

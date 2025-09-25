@@ -16,8 +16,8 @@ from the_alchemiser.execution_v2.core.smart_execution_strategy import (
     SmartOrderResult,
 )
 from the_alchemiser.execution_v2.models.execution_result import (
-    ExecutionResultDTO,
-    OrderResultDTO,
+    ExecutionResult,
+    OrderResult,
 )
 from the_alchemiser.execution_v2.utils.execution_validator import ExecutionValidator
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
@@ -288,7 +288,7 @@ class Executor:
                 execution_strategy="market_order_failed",
             )
 
-    async def execute_rebalance_plan(self, plan: RebalancePlan) -> ExecutionResultDTO:
+    async def execute_rebalance_plan(self, plan: RebalancePlan) -> ExecutionResult:
         """Execute a rebalance plan with settlement-aware sell-first, buy-second workflow.
 
         Enhanced execution flow:
@@ -301,7 +301,7 @@ class Executor:
             plan: RebalancePlan containing the rebalance plan
 
         Returns:
-            ExecutionResultDTO with execution results
+            ExecutionResult with execution results
 
         """
         logger.info(
@@ -345,7 +345,7 @@ class Executor:
             f"{len(hold_items)} HOLDs"
         )
 
-        orders: list[OrderResultDTO] = []
+        orders: list[OrderResult] = []
         orders_placed = 0
         orders_succeeded = 0
         total_trade_value = Decimal("0")
@@ -398,7 +398,7 @@ class Executor:
         self._cleanup_subscriptions(all_symbols)
 
         # Create execution result
-        execution_result = ExecutionResultDTO(
+        execution_result = ExecutionResult(
             success=orders_succeeded == orders_placed and orders_placed > 0,
             plan_id=plan.plan_id,
             correlation_id=plan.correlation_id,
@@ -467,7 +467,7 @@ class Executor:
 
     async def _execute_sell_phase(
         self, sell_items: list[RebalancePlanItem]
-    ) -> tuple[list[OrderResultDTO], ExecutionStats]:
+    ) -> tuple[list[OrderResult], ExecutionStats]:
         """Execute sell orders phase with integrated re-pegging monitoring.
 
         Args:
@@ -516,7 +516,7 @@ class Executor:
         sell_order_ids: list[str],
         correlation_id: str,
         plan_id: str,
-    ) -> tuple[list[OrderResultDTO], ExecutionStats]:
+    ) -> tuple[list[OrderResult], ExecutionStats]:
         """Execute buy phase with settlement monitoring.
 
         Args:
@@ -574,7 +574,7 @@ class Executor:
 
     async def _execute_buy_phase(
         self, buy_items: list[RebalancePlanItem]
-    ) -> tuple[list[OrderResultDTO], ExecutionStats]:
+    ) -> tuple[list[OrderResult], ExecutionStats]:
         """Execute buy orders phase with integrated re-pegging monitoring.
 
         Args:
@@ -616,8 +616,8 @@ class Executor:
         }
 
     async def _monitor_and_repeg_phase_orders(
-        self, phase_type: str, orders: list[OrderResultDTO]
-    ) -> list[OrderResultDTO]:
+        self, phase_type: str, orders: list[OrderResult]
+    ) -> list[OrderResult]:
         """Monitor and re-peg orders from a specific execution phase.
 
         Args:
@@ -689,10 +689,10 @@ class Executor:
     async def _execute_repeg_monitoring_loop(
         self,
         phase_type: str,
-        orders: list[OrderResultDTO],
+        orders: list[OrderResult],
         config: dict[str, int],
         start_time: float,
-    ) -> list[OrderResultDTO]:
+    ) -> list[OrderResult]:
         """Execute the main repeg monitoring loop.
 
         Args:
@@ -745,10 +745,10 @@ class Executor:
     def _process_repeg_results(
         self,
         phase_type: str,
-        orders: list[OrderResultDTO],
+        orders: list[OrderResult],
         repeg_results: list[SmartOrderResult],
         elapsed_total: float,
-    ) -> list[OrderResultDTO]:
+    ) -> list[OrderResult]:
         """Process repeg results and update orders.
 
         Args:
@@ -849,14 +849,14 @@ class Executor:
 
         logger.info("✅ Subscription cleanup complete")
 
-    async def _execute_single_item(self, item: RebalancePlanItem) -> OrderResultDTO:
+    async def _execute_single_item(self, item: RebalancePlanItem) -> OrderResult:
         """Execute a single rebalance plan item.
 
         Args:
             item: RebalancePlanItem to execute
 
         Returns:
-            OrderResultDTO with execution results
+            OrderResult with execution results
 
         """
         try:
@@ -896,7 +896,7 @@ class Executor:
             )
 
             # Create order result
-            order_result = OrderResultDTO(
+            order_result = OrderResult(
                 symbol=item.symbol,
                 action=item.action,
                 trade_amount=abs(item.trade_amount),
@@ -920,7 +920,7 @@ class Executor:
         except Exception as e:
             logger.error(f"❌ Error executing {item.action} for {item.symbol}: {e}")
 
-            return OrderResultDTO(
+            return OrderResult(
                 symbol=item.symbol,
                 action=item.action,
                 trade_amount=abs(item.trade_amount),
@@ -1044,9 +1044,9 @@ class Executor:
         self,
         *,
         phase_type: str,
-        orders: list[OrderResultDTO],
+        orders: list[OrderResult],
         items: list[RebalancePlanItem],
-    ) -> tuple[list[OrderResultDTO], int, Decimal]:
+    ) -> tuple[list[OrderResult], int, Decimal]:
         """Wait for placed orders to complete and rebuild results based on final status.
 
         Args:
@@ -1132,10 +1132,10 @@ class Executor:
         return replacement_map
 
     def _replace_order_ids(
-        self, orders: list[OrderResultDTO], replacement_map: dict[str, str]
-    ) -> list[OrderResultDTO]:
+        self, orders: list[OrderResult], replacement_map: dict[str, str]
+    ) -> list[OrderResult]:
         """Replace order IDs in the given order list according to replacement_map."""
-        updated: list[OrderResultDTO] = []
+        updated: list[OrderResult] = []
         for o in orders:
             if o.order_id and o.order_id in replacement_map:
                 updated.append(o.model_copy(update={"order_id": replacement_map[o.order_id]}))
@@ -1278,12 +1278,12 @@ class Executor:
 
     def _rebuild_orders_with_final_status(
         self,
-        orders: list[OrderResultDTO],
+        orders: list[OrderResult],
         items: list[RebalancePlanItem],
         final_status_map: dict[str, tuple[str, Decimal | None]],
-    ) -> tuple[list[OrderResultDTO], int, Decimal]:
+    ) -> tuple[list[OrderResult], int, Decimal]:
         """Rebuild OrderResultDTOs with final semantics, compute success and trade value."""
-        updated_orders: list[OrderResultDTO] = []
+        updated_orders: list[OrderResult] = []
         succeeded = 0
         trade_value = Decimal("0")
 

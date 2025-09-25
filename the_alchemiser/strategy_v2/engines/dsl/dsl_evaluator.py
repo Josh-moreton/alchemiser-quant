@@ -13,11 +13,11 @@ import decimal
 import uuid
 from datetime import UTC, datetime
 
-from the_alchemiser.shared.schemas.ast_nodes import ASTNode
-from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
-from the_alchemiser.shared.schemas.traces import Trace
+from the_alchemiser.shared.schemas.dsl.ast_nodes import ASTNode
+from the_alchemiser.shared.schemas.strategy.indicators import PortfolioFragment
+from the_alchemiser.shared.schemas.dsl.traces import Trace
 from the_alchemiser.shared.events.bus import EventBus
-from the_alchemiser.shared.schemas.strategy import StrategyAllocation
+from the_alchemiser.shared.schemas.strategy.allocation import StrategyAllocation
 from the_alchemiser.strategy_v2.indicators.indicator_service import IndicatorService
 
 from .context import DslContext
@@ -108,7 +108,7 @@ class DslEvaluator:
             result = self._evaluate_node(ast, correlation_id, trace)
 
             # Convert result to StrategyAllocation
-            if isinstance(result, PortfolioFragmentDTO):
+            if isinstance(result, PortfolioFragment):
                 # Convert fragment to allocation
                 allocation = self._fragment_to_allocation(result, correlation_id)
             elif isinstance(result, dict):
@@ -316,9 +316,9 @@ class DslEvaluator:
         raise DslEvaluationError(f"Unknown node type: {node}")
 
     def _fragment_to_allocation(
-        self, fragment: PortfolioFragmentDTO, correlation_id: str
+        self, fragment: PortfolioFragment, correlation_id: str
     ) -> StrategyAllocation:
-        """Convert PortfolioFragmentDTO to StrategyAllocation.
+        """Convert PortfolioFragment to StrategyAllocation.
 
         Args:
             fragment: Portfolio fragment to convert

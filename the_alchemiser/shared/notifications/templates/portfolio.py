@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from decimal import Decimal, InvalidOperation
 from typing import Any, Protocol, cast, runtime_checkable
 
-from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
+from the_alchemiser.execution_v2.models.execution_result import ExecutionResult
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.shared.value_objects.core_types import (
     AccountInfo,
@@ -37,7 +37,7 @@ class ExecutionSummaryLike(Protocol):  # pragma: no cover - structural typing he
 
 
 ExecutionLike = (
-    ExecutionResultDTO
+    ExecutionResult
     | MultiStrategyExecutionResultDTO
     | Mapping[str, Any]
     | ExecutionSummaryLike

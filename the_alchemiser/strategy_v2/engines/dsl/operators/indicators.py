@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import uuid
 
-from the_alchemiser.shared.schemas.ast_nodes import ASTNode
-from the_alchemiser.shared.dto.indicator_request_dto import IndicatorRequestDTO
+from the_alchemiser.shared.schemas.dsl.ast_nodes import ASTNode
+from the_alchemiser.shared.schemas.strategy.indicators import IndicatorRequest
 
 from ..context import DslContext
 from ..dispatcher import DslDispatcher
@@ -51,7 +51,7 @@ def rsi(args: list[ASTNode], context: DslContext) -> float:
                 window = 14
 
     # Request indicator from service
-    request = IndicatorRequestDTO.rsi_request(
+    request = IndicatorRequest.rsi_request(
         request_id=str(uuid.uuid4()),
         correlation_id=context.correlation_id,
         symbol=symbol,
@@ -101,7 +101,7 @@ def current_price(args: list[ASTNode], context: DslContext) -> float:
         raise DslEvaluationError(f"Symbol must be string, got {type(symbol)}")
 
     # Get indicator to access current price
-    request = IndicatorRequestDTO(
+    request = IndicatorRequest(
         request_id=str(uuid.uuid4()),
         correlation_id=context.correlation_id,
         symbol=symbol,
@@ -137,7 +137,7 @@ def moving_average_price(args: list[ASTNode], context: DslContext) -> float:
         window = int(context.as_decimal(window))
 
     # Request MA indicator
-    request = IndicatorRequestDTO(
+    request = IndicatorRequest(
         request_id=str(uuid.uuid4()),
         correlation_id=context.correlation_id,
         symbol=symbol_val,
@@ -183,7 +183,7 @@ def moving_average_return(args: list[ASTNode], context: DslContext) -> float:
     if not isinstance(window, (int, float)):
         window = int(context.as_decimal(window))
 
-    request = IndicatorRequestDTO(
+    request = IndicatorRequest(
         request_id=str(uuid.uuid4()),
         correlation_id=context.correlation_id,
         symbol=symbol_val,
@@ -240,7 +240,7 @@ def cumulative_return(args: list[ASTNode], context: DslContext) -> float:
     if not isinstance(window, (int, float)):
         window = int(context.as_decimal(window))
 
-    request = IndicatorRequestDTO(
+    request = IndicatorRequest(
         request_id=str(uuid.uuid4()),
         correlation_id=context.correlation_id,
         symbol=symbol_val,
@@ -281,7 +281,7 @@ def exponential_moving_average_price(args: list[ASTNode], context: DslContext) -
     if not isinstance(window, (int, float)):
         window = int(context.as_decimal(window))
 
-    request = IndicatorRequestDTO(
+    request = IndicatorRequest(
         request_id=str(uuid.uuid4()),
         correlation_id=context.correlation_id,
         symbol=symbol_val,
@@ -324,7 +324,7 @@ def stdev_return(args: list[ASTNode], context: DslContext) -> float:
     if not isinstance(window, (int, float)):
         window = int(context.as_decimal(window))
 
-    request = IndicatorRequestDTO(
+    request = IndicatorRequest(
         request_id=str(uuid.uuid4()),
         correlation_id=context.correlation_id,
         symbol=symbol_val,
@@ -365,7 +365,7 @@ def max_drawdown(args: list[ASTNode], context: DslContext) -> float:
     if not isinstance(window, (int, float)):
         window = int(context.as_decimal(window))
 
-    request = IndicatorRequestDTO(
+    request = IndicatorRequest(
         request_id=str(uuid.uuid4()),
         correlation_id=context.correlation_id,
         symbol=symbol_val,

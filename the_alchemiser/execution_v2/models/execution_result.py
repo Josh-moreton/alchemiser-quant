@@ -1,6 +1,6 @@
 """Business Unit: execution | Status: current.
 
-Execution result DTOs for execution_v2 module.
+Execution result schemas for execution_v2 module.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class OrderResultDTO(BaseModel):
+class OrderResult(BaseModel):
     """Result of a single order execution."""
 
     model_config = ConfigDict(
@@ -32,7 +32,7 @@ class OrderResultDTO(BaseModel):
     timestamp: datetime = Field(..., description="Order execution timestamp")
 
 
-class ExecutionResultDTO(BaseModel):
+class ExecutionResult(BaseModel):
     """Complete execution result for a rebalance plan."""
 
     model_config = ConfigDict(
@@ -44,7 +44,7 @@ class ExecutionResultDTO(BaseModel):
     success: bool = Field(..., description="Overall execution success")
     plan_id: str = Field(..., description="Rebalance plan ID")
     correlation_id: str = Field(..., description="Correlation ID for traceability")
-    orders: list[OrderResultDTO] = Field(
+    orders: list[OrderResult] = Field(
         default_factory=list, description="Individual order results"
     )
     orders_placed: int = Field(..., description="Number of orders placed")

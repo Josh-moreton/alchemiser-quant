@@ -23,7 +23,7 @@ from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
 )
 from the_alchemiser.shared.events import EventBus, SignalGenerated
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.schemas.signals import StrategySignal
+from the_alchemiser.shared.schemas.strategy.signals import StrategySignal
 from the_alchemiser.shared.types.exceptions import DataProviderError
 from the_alchemiser.shared.types.strategy_types import StrategyType
 from the_alchemiser.shared.value_objects.symbol import Symbol

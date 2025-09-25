@@ -5,89 +5,81 @@ Business Unit: shared | Status: current
 Common schema definitions used across modules.
 """
 
-from .accounts import (
-    AccountMetrics,
-    AccountSummary,
-    BuyingPowerResult,
-    EnrichedAccountSummaryView,
-    PortfolioAllocationResult,
-    RiskMetricsResult,
-    TradeEligibilityResult,
-)
-from .assets import AssetInfo
-from .ast_nodes import ASTNode
-from .base import Result
-from .common import (
-    AllocationComparison,
-    MultiStrategyExecutionResult,
-    MultiStrategySummary,
-)
-from .consolidated_portfolio import ConsolidatedPortfolio
-from .errors import (
-    ErrorContextData,
-    ErrorDetailInfo,
-    ErrorNotificationData,
-    ErrorReportSummary,
-    ErrorSummaryData,
-)
-from .execution_reports import ExecutedOrder, ExecutionReport
-from .lambda_events import LambdaEvent
-from .market_bars import MarketBar
-from .market_data import (
-    MarketStatusResult,
-    MultiSymbolQuotesResult,
-    PriceHistoryResult,
-    PriceResult,
-    SpreadAnalysisResult,
-)
-from .portfolio import PortfolioMetrics, PortfolioSnapshot, Position
-from .rebalancing import RebalancePlan, RebalancePlanItem
-from .signals import StrategySignal
-from .strategy import StrategyAllocation
-from .technical_indicators import TechnicalIndicator
-from .traces import Trace, TraceEntry
-from .trade_results import OrderResultSummary, TradeExecutionSummary, TradeRunResult
+# Import from organized submodules
+from .core import *
+from .dsl import *
+from .execution import *
+from .market import *
+from .portfolio import *
+from .strategy import *
+from .system import *
 
 __all__ = [
-    "AccountMetrics",
-    "AccountSummary",
+    # Core schemas
     "AllocationComparison",
-    "ASTNode",
-    "AssetInfo",
-    "BuyingPowerResult",
-    "ConsolidatedPortfolio",
-    "EnrichedAccountSummaryView",
     "ErrorContextData",
-    "ErrorDetailInfo",
+    "ErrorDetailInfo", 
     "ErrorNotificationData",
     "ErrorReportSummary",
     "ErrorSummaryData",
-    "ExecutedOrder",
-    "ExecutionReport",
-    "LambdaEvent",
-    "MarketBar",
-    "MarketStatusResult",
     "MultiStrategyExecutionResult",
     "MultiStrategySummary",
-    "MultiSymbolQuotesResult",
-    "OrderResultSummary",
+    "Result",
+    
+    # Portfolio schemas
+    "AccountMetrics",
+    "AccountSummary",
+    "BuyingPowerResult",
+    "ConsolidatedPortfolio",
+    "EnrichedAccountSummaryView",
     "PortfolioAllocationResult",
     "PortfolioMetrics",
     "PortfolioSnapshot",
     "Position",
-    "PriceHistoryResult",
-    "PriceResult",
     "RebalancePlan",
     "RebalancePlanItem",
-    "Result",
     "RiskMetricsResult",
-    "SpreadAnalysisResult",
+    "TradeEligibilityResult",
+    
+    # Execution schemas
+    "ExecutedOrder",
+    "ExecutionReport",
+    "OperationResult",
+    "OrderCancellationResult",
+    "OrderResultSummary",
+    "OrderStatusResult",
+    "TradeExecutionSummary",
+    "TradeRunResult",
+    
+    # Strategy schemas
+    "IndicatorRequest",
+    "PortfolioFragment",
     "StrategyAllocation",
     "StrategySignal",
     "TechnicalIndicator",
+    
+    # Market schemas
+    "MarketBar",
+    "MarketData", 
+    "MarketStatusResult",
+    "MultiSymbolQuotesResult",
+    "OrderRequest",
+    "PriceHistoryResult",
+    "PriceResult",
+    "SpreadAnalysisResult",
+    
+    # System schemas
+    "AssetInfo",
+    "Configuration",
+    "EnrichedOrderView",
+    "EnrichedPositionView",
+    "EnrichedPositionsView",
+    "Error",
+    "LambdaEvent",
+    "OpenOrdersView",
+    
+    # DSL schemas
+    "ASTNode",
     "Trace",
     "TraceEntry",
-    "TradeEligibilityResult",
-    "TradeExecutionSummary",
-    "TradeRunResult",
 ]

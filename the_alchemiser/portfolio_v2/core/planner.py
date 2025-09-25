@@ -21,7 +21,7 @@ from the_alchemiser.shared.logging.logging_utils import log_with_context
 from the_alchemiser.shared.types.exceptions import PortfolioError
 
 if TYPE_CHECKING:
-    from the_alchemiser.shared.schemas.strategy import StrategyAllocation
+    from the_alchemiser.shared.schemas.strategy.allocation import StrategyAllocation
 
 from ..models.portfolio_snapshot import PortfolioSnapshot
 

@@ -31,7 +31,7 @@ from the_alchemiser.shared.events import (
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparison
-from the_alchemiser.shared.schemas.rebalancing import RebalancePlan
+from the_alchemiser.shared.schemas.portfolio.rebalancing import RebalancePlan
 
 
 def _to_float_safe(value: object) -> float:

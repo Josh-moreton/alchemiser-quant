@@ -10,7 +10,7 @@ Implements DSL operators for selecting subsets of assets:
 
 from __future__ import annotations
 
-from the_alchemiser.shared.schemas.ast_nodes import ASTNode
+from the_alchemiser.shared.schemas.dsl.ast_nodes import ASTNode
 
 from ..context import DslContext
 from ..dispatcher import DslDispatcher

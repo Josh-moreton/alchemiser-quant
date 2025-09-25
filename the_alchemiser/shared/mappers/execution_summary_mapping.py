@@ -22,7 +22,7 @@ from the_alchemiser.shared.schemas.execution_summary import (
     StrategySummary,
     TradingSummary,
 )
-from the_alchemiser.shared.schemas.portfolio import PortfolioSnapshot
+from the_alchemiser.shared.schemas.portfolio.state import PortfolioSnapshot
 
 
 def dict_to_allocation_summary_dto(data: dict[str, Any]) -> AllocationSummary:
@@ -112,7 +112,7 @@ def dict_to_portfolio_state_dto(data: dict[str, Any]) -> PortfolioSnapshot:
     """
     from datetime import UTC, datetime
 
-    from the_alchemiser.shared.schemas.portfolio import PortfolioMetrics
+    from the_alchemiser.shared.schemas.portfolio.state import PortfolioMetrics
 
     # Generate required correlation fields
     correlation_id = f"portfolio_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"

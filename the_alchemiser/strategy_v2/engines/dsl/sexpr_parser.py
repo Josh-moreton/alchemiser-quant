@@ -13,7 +13,7 @@ import re
 from decimal import Decimal
 from pathlib import Path
 
-from the_alchemiser.shared.schemas.ast_nodes import ASTNode
+from the_alchemiser.shared.schemas.dsl.ast_nodes import ASTNode
 
 
 class SexprParseError(Exception):

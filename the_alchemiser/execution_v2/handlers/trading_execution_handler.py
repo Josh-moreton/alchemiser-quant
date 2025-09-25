@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
+from the_alchemiser.execution_v2.models.execution_result import ExecutionResult
 from the_alchemiser.shared.constants import DECIMAL_ZERO
 from the_alchemiser.shared.events import (
     BaseEvent,
@@ -27,7 +27,7 @@ from the_alchemiser.shared.events import (
     WorkflowFailed,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.schemas.rebalancing import RebalancePlan
+from the_alchemiser.shared.schemas.portfolio.rebalancing import RebalancePlan
 
 
 class TradingExecutionHandler:
@@ -109,7 +109,7 @@ class TradingExecutionHandler:
                 self.logger.info("📊 No significant trades needed - portfolio already balanced")
 
                 # Create empty execution result
-                execution_result = ExecutionResultDTO(
+                execution_result = ExecutionResult(
                     success=True,
                     plan_id=rebalance_plan_data.plan_id,
                     correlation_id=event.correlation_id,
@@ -182,7 +182,7 @@ class TradingExecutionHandler:
             self._emit_workflow_failure(event, str(e))
 
     def _emit_trade_executed_event(
-        self, execution_result: ExecutionResultDTO, *, success: bool
+        self, execution_result: ExecutionResult, *, success: bool
     ) -> None:
         """Emit TradeExecuted event.
 
@@ -228,7 +228,7 @@ class TradingExecutionHandler:
             raise
 
     def _emit_workflow_completed_event(
-        self, correlation_id: str, execution_result: ExecutionResultDTO
+        self, correlation_id: str, execution_result: ExecutionResult
     ) -> None:
         """Emit WorkflowCompleted event when trading workflow finishes successfully.
 
