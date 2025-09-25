@@ -19,9 +19,8 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.portfolio_v2 import PortfolioServiceV2
-from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-    ConsolidatedPortfolioDTO,
-)
+from the_alchemiser.shared.constants import PORTFOLIO_ANALYSIS_STRATEGY_NAME
+from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
 from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
 from the_alchemiser.shared.events import (
     BaseEvent,
@@ -341,7 +340,7 @@ class PortfolioAnalysisHandler:
                 target_weights=target_weights,
                 portfolio_value=portfolio_value,
                 correlation_id=correlation_id,
-                strategy_name="PortfolioAnalysis",
+                strategy_name=PORTFOLIO_ANALYSIS_STRATEGY_NAME,
             )
 
             # Generate rebalance plan using portfolio service

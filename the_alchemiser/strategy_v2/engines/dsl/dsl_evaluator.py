@@ -11,8 +11,10 @@ from __future__ import annotations
 
 import decimal
 import uuid
+import warnings
 from datetime import UTC, datetime
 
+from the_alchemiser.shared.constants import DSL_STRATEGY_SOURCE
 from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
 from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
 from the_alchemiser.shared.dto.strategy_allocation_dto import StrategyAllocationDTO
@@ -74,7 +76,7 @@ class DslEvaluator:
         self,
         ast: ASTNodeDTO,
         correlation_id: str,
-        strategy_name: str,
+        strategy_name: str | None = None,
         trace: TraceDTO | None = None,
     ) -> tuple[StrategyAllocationDTO, TraceDTO]:
         """Evaluate AST and return allocation with trace.
@@ -82,7 +84,7 @@ class DslEvaluator:
         Args:
             ast: AST to evaluate
             correlation_id: Correlation ID for tracking
-            strategy_name: Name of the strategy being evaluated
+            strategy_name: Optional strategy name (deprecated optional; becomes required Phase 3)
             trace: Optional existing trace to append to
 
         Returns:
@@ -99,6 +101,14 @@ class DslEvaluator:
                 strategy_id="dsl_strategy",
                 started_at=datetime.now(UTC),
             )
+
+        if strategy_name is None:
+            warnings.warn(
+                "DslEvaluator.evaluate called without strategy_name; defaulting to DSL_STRATEGY_SOURCE (will be required in Phase 3)",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            strategy_name = DSL_STRATEGY_SOURCE
 
         try:
             # Add trace entry for evaluation start
@@ -348,6 +358,6 @@ class DslEvaluator:
         return StrategyAllocationDTO(
             target_weights=target_weights,
             correlation_id=correlation_id,
-            strategy_name="DSL",  # Default strategy name for fragment conversion
+            strategy_name=DSL_STRATEGY_SOURCE,
             as_of=datetime.now(UTC),
         )

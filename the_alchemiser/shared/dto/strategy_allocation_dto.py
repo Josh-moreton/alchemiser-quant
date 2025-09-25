@@ -9,11 +9,12 @@ and serialization helpers for communication between strategy and portfolio modul
 
 from __future__ import annotations
 
+import warnings
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 from ..utils.timezone_utils import ensure_timezone_aware
 
@@ -43,8 +44,11 @@ class StrategyAllocation(BaseModel):
     correlation_id: str = Field(
         ..., min_length=1, max_length=100, description="Correlation ID for tracking"
     )
-    strategy_name: str = Field(
-        ..., min_length=1, description="Strategy that generated this allocation"
+    # Temporarily optional for backward compatibility; will become required (no default) in Phase 3.
+    strategy_name: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Strategy that generated this allocation (required; temporary None triggers deprecation warning)",
     )
     as_of: datetime | None = Field(
         default=None, description="Optional timestamp when allocation was calculated"
@@ -86,11 +90,23 @@ class StrategyAllocation(BaseModel):
 
     @field_validator("correlation_id", "strategy_name")
     @classmethod
-    def validate_string_fields(cls, v: str) -> str:
-        """Validate correlation ID and strategy name format."""
+    def validate_string_fields(
+        cls, v: str | None, info: ValidationInfo
+    ) -> str | None:  # type: ignore[override]
+        """Validate correlation_id & strategy_name (allow None for strategy_name in Phase 2)."""
+        if v is None:
+            # Only permitted for strategy_name during deprecation window
+            if info.field_name == "strategy_name":  # type: ignore[attr-defined]
+                warnings.warn(
+                    "StrategyAllocation.strategy_name will become required in Phase 3; provide a non-empty value.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                return None
+            raise ValueError(f"{info.field_name} cannot be None")  # type: ignore[attr-defined]
         v = v.strip()
         if not v:
-            raise ValueError("Field cannot be empty")
+            raise ValueError(f"{info.field_name} cannot be empty")  # type: ignore[attr-defined]
         return v
 
     @field_validator("as_of")
@@ -129,7 +145,16 @@ class StrategyAllocation(BaseModel):
                 converted_data["portfolio_value"]
             )
 
-        return cls(**converted_data)
+        allocation = cls(**converted_data)
+        # Backward compatibility: if strategy_name is still None after construction, set placeholder & warn
+        if allocation.strategy_name is None:
+            warnings.warn(
+                "StrategyAllocation instantiated without strategy_name; defaulting to 'UNKNOWN_LEGACY' (will error in Phase 3)",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            object.__setattr__(allocation, "strategy_name", "UNKNOWN_LEGACY")  # frozen model mutation via object.__setattr__
+        return allocation
 
     @classmethod
     def _convert_target_weights(
@@ -168,5 +193,5 @@ class StrategyAllocation(BaseModel):
             raise ValueError(f"Invalid portfolio_value: {portfolio_value}") from e
 
 
-# TODO: Remove in Phase 3 - Temporary backward compatibility alias
+# Backward compatibility alias (scheduled for removal in Phase 3 migration)
 StrategyAllocationDTO = StrategyAllocation
