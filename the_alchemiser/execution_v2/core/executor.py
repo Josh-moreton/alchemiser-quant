@@ -415,7 +415,9 @@ class Executor:
         if sell_items:
             logger.info("🔄 Phase 1: Executing SELL orders with settlement monitoring...")
 
-            sell_orders, sell_stats = await self._execute_sell_phase(sell_items)
+            sell_orders, sell_stats = await self._execute_sell_phase(
+                sell_items, plan.correlation_id
+            )
             orders.extend(sell_orders)
             orders_placed += sell_stats["placed"]
             orders_succeeded += sell_stats["succeeded"]
@@ -444,7 +446,7 @@ class Executor:
             # No sells to wait for, execute buys immediately
             logger.info("🔄 Phase 2: Executing BUY orders (no settlement monitoring needed)...")
 
-            buy_orders, buy_stats = await self._execute_buy_phase(buy_items)
+            buy_orders, buy_stats = await self._execute_buy_phase(buy_items, plan.correlation_id)
             orders.extend(buy_orders)
             orders_placed += buy_stats["placed"]
             orders_succeeded += buy_stats["succeeded"]
@@ -526,12 +528,13 @@ class Executor:
         return subscription_results
 
     async def _execute_sell_phase(
-        self, sell_items: list[RebalancePlanItemDTO]
+        self, sell_items: list[RebalancePlanItemDTO], correlation_id: str | None = None
     ) -> tuple[list[OrderResultDTO], ExecutionStats]:
         """Execute sell orders phase with integrated re-pegging monitoring.
 
         Args:
             sell_items: List of sell order items
+            correlation_id: Optional correlation ID for tracking
 
         Returns:
             Tuple of (order results, execution statistics)
@@ -557,7 +560,7 @@ class Executor:
         # Monitor and re-peg sell orders that haven't filled and await completion
         if self.smart_strategy and self.enable_smart_execution:
             logger.info("🔄 Monitoring SELL orders for re-pegging opportunities...")
-            orders = await self._monitor_and_repeg_phase_orders("SELL", orders)
+            orders = await self._monitor_and_repeg_phase_orders("SELL", orders, correlation_id)
 
         # Await completion and finalize statuses
         orders, succeeded, trade_value = self._finalize_phase_orders(
@@ -630,15 +633,16 @@ class Executor:
             logger.info("✅ Buying power verified, proceeding with BUY phase")
 
         # Now execute buy orders with released buying power
-        return await self._execute_buy_phase(buy_items)
+        return await self._execute_buy_phase(buy_items, correlation_id)
 
     async def _execute_buy_phase(
-        self, buy_items: list[RebalancePlanItemDTO]
+        self, buy_items: list[RebalancePlanItemDTO], correlation_id: str | None = None
     ) -> tuple[list[OrderResultDTO], ExecutionStats]:
         """Execute buy orders phase with integrated re-pegging monitoring.
 
         Args:
             buy_items: List of buy order items
+            correlation_id: Optional correlation ID for tracking
 
         Returns:
             Tuple of (order results, execution statistics)
@@ -662,7 +666,7 @@ class Executor:
         # Monitor and re-peg buy orders that haven't filled and await completion
         if self.smart_strategy and self.enable_smart_execution:
             logger.info("🔄 Monitoring BUY orders for re-pegging opportunities...")
-            orders = await self._monitor_and_repeg_phase_orders("BUY", orders)
+            orders = await self._monitor_and_repeg_phase_orders("BUY", orders, correlation_id)
 
         # Await completion and finalize statuses
         orders, succeeded, trade_value = self._finalize_phase_orders(
@@ -676,13 +680,14 @@ class Executor:
         }
 
     async def _monitor_and_repeg_phase_orders(
-        self, phase_type: str, orders: list[OrderResultDTO]
+        self, phase_type: str, orders: list[OrderResultDTO], correlation_id: str | None = None
     ) -> list[OrderResultDTO]:
         """Monitor and re-peg orders from a specific execution phase.
 
         Args:
             phase_type: Type of phase ("SELL" or "BUY")
             orders: List of orders from this phase to monitor
+            correlation_id: Optional correlation ID for tracking
 
         Returns:
             Updated list of orders with any re-pegged order IDs swapped in.
@@ -697,7 +702,9 @@ class Executor:
         config = self._get_repeg_monitoring_config()
         self._log_monitoring_config(phase_type, config)
 
-        return await self._execute_repeg_monitoring_loop(phase_type, orders, config, time.time())
+        return await self._execute_repeg_monitoring_loop(
+            phase_type, orders, config, time.time(), correlation_id
+        )
 
     def _get_repeg_monitoring_config(self) -> dict[str, int]:
         """Get configuration parameters for repeg monitoring.
@@ -752,6 +759,7 @@ class Executor:
         orders: list[OrderResultDTO],
         config: dict[str, int],
         start_time: float,
+        correlation_id: str | None = None,
     ) -> list[OrderResultDTO]:
         """Execute the main repeg monitoring loop.
 
@@ -760,6 +768,7 @@ class Executor:
             orders: List of orders to monitor
             config: Configuration parameters
             start_time: Start time of monitoring
+            correlation_id: Optional correlation ID for tracking
 
         Returns:
             Updated list of orders with any re-pegged order IDs swapped in.
@@ -799,7 +808,7 @@ class Executor:
                 )
                 break
 
-        self._log_monitoring_completion(phase_type, start_time, attempts)
+        self._log_monitoring_completion(phase_type, start_time, attempts, correlation_id)
         return orders
 
     def _process_repeg_results(
@@ -866,27 +875,40 @@ class Executor:
         import time
 
         time_since_last_action = time.time() - last_repeg_action_time
-        return (
-            time_since_last_action > fill_wait_seconds * 2
-            and self.smart_strategy is not None
-            and self.smart_strategy.get_active_order_count() == 0
-        )
 
-    def _log_monitoring_completion(self, phase_type: str, start_time: float, attempts: int) -> None:
+        # If smart strategy is not available, use the old logic
+        if self.smart_strategy is None:
+            return time_since_last_action > fill_wait_seconds * 2
+
+        active_order_count = self.smart_strategy.get_active_order_count()
+
+        # If no active orders, use a short grace window instead of full 2x wait
+        if active_order_count == 0:
+            grace_window_seconds = 5  # Short grace period for zero active orders
+            return time_since_last_action > grace_window_seconds
+
+        # If there are active orders, use the original longer timeout
+        return time_since_last_action > fill_wait_seconds * 2
+
+    def _log_monitoring_completion(
+        self, phase_type: str, start_time: float, attempts: int, correlation_id: str | None = None
+    ) -> None:
         """Log completion of monitoring phase.
 
         Args:
             phase_type: Type of phase ("SELL" or "BUY")
             start_time: Start time of monitoring
             attempts: Number of attempts made
+            correlation_id: Optional correlation ID for tracking
 
         """
         import time
 
         final_elapsed = time.time() - start_time
+        correlation_info = f" (correlation_id: {correlation_id})" if correlation_id else ""
         logger.info(
             f"📊 {phase_type} phase monitoring completed after {final_elapsed:.1f}s "
-            f"({attempts} check attempts)"
+            f"({attempts} check attempts){correlation_info}"
         )
 
     def _cleanup_subscriptions(self, symbols: list[str]) -> None:

@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class OrderRequestDTO(BaseModel):
+class OrderRequest(BaseModel):
     """DTO for order request data transfer.
 
     Used for communication from portfolio module to execution module.
@@ -182,7 +182,7 @@ class OrderRequestDTO(BaseModel):
         return cls(**data)
 
 
-class MarketDataDTO(BaseModel):
+class MarketData(BaseModel):
     """DTO for market data transfer between modules."""
 
     model_config = ConfigDict(
@@ -274,7 +274,7 @@ class MarketDataDTO(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> MarketDataDTO:
+    def from_dict(cls, data: dict[str, Any]) -> MarketData:
         """Create DTO from dictionary."""
         # Convert string timestamp back to datetime
         if "timestamp" in data and isinstance(data["timestamp"], str):
@@ -312,3 +312,8 @@ class MarketDataDTO(BaseModel):
                     raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
 
         return cls(**data)
+
+
+# TODO: Remove in Phase 3 - Temporary backward compatibility aliases
+OrderRequestDTO = OrderRequest
+MarketDataDTO = MarketData

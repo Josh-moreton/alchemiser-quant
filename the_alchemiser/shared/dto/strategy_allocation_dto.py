@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class StrategyAllocationDTO(BaseModel):
+class StrategyAllocation(BaseModel):
     """DTO for strategy allocation plan.
 
     Contains target weights for portfolio rebalancing with optional constraints
@@ -102,14 +102,14 @@ class StrategyAllocationDTO(BaseModel):
         return ensure_timezone_aware(v)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> StrategyAllocationDTO:
+    def from_dict(cls, data: dict[str, Any]) -> StrategyAllocation:
         """Create DTO from dictionary with type conversion.
 
         Args:
             data: Dictionary containing DTO fields
 
         Returns:
-            StrategyAllocationDTO instance
+            StrategyAllocation instance
 
         Raises:
             ValueError: If data is invalid or cannot be converted
@@ -166,3 +166,7 @@ class StrategyAllocationDTO(BaseModel):
             return Decimal(portfolio_value)
         except (ValueError, TypeError) as e:
             raise ValueError(f"Invalid portfolio_value: {portfolio_value}") from e
+
+
+# TODO: Remove in Phase 3 - Temporary backward compatibility alias
+StrategyAllocationDTO = StrategyAllocation

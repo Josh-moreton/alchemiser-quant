@@ -42,9 +42,7 @@ class ServiceFactory:
         enable_trade_ledger: bool | None = None,
     ) -> ExecutionManagerType:
         """Create ExecutionManager using DI or traditional method."""
-        if cls._container is not None and all(
-            x is None for x in [api_key, secret_key, paper]
-        ):
+        if cls._container is not None and all(x is None for x in [api_key, secret_key, paper]):
             # Use DI container - get ExecutionManager from execution providers
             ApplicationContainer.initialize_execution_providers(cls._container)
             execution_container = getattr(cls._container, "execution", None)
@@ -63,9 +61,7 @@ class ServiceFactory:
         api_key = api_key or "default_key"
         secret_key = secret_key or "default_secret"
         paper = paper if paper is not None else True
-        enable_trade_ledger = (
-            enable_trade_ledger if enable_trade_ledger is not None else False
-        )
+        enable_trade_ledger = enable_trade_ledger if enable_trade_ledger is not None else False
         return cast(
             ExecutionManagerType,
             ExecutionManager.create_with_config(

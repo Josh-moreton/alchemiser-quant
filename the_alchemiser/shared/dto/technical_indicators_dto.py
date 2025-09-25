@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class TechnicalIndicatorDTO(BaseModel):
+class TechnicalIndicator(BaseModel):
     """DTO for technical indicator data used by strategy engines.
 
     Provides a standardized structure for technical indicators computed
@@ -162,14 +162,14 @@ class TechnicalIndicatorDTO(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> TechnicalIndicatorDTO:
+    def from_dict(cls, data: dict[str, Any]) -> TechnicalIndicator:
         """Create DTO from dictionary.
 
         Args:
             data: Dictionary containing indicator data
 
         Returns:
-            TechnicalIndicatorDTO instance
+            TechnicalIndicator instance
 
         Raises:
             ValueError: If data is invalid or missing required fields
@@ -199,17 +199,15 @@ class TechnicalIndicatorDTO(BaseModel):
         return cls(**data)
 
     @classmethod
-    def from_legacy_dict(
-        cls, symbol: str, legacy_indicators: dict[str, Any]
-    ) -> TechnicalIndicatorDTO:
-        """Create TechnicalIndicatorDTO from legacy indicator dictionary.
+    def from_legacy_dict(cls, symbol: str, legacy_indicators: dict[str, Any]) -> TechnicalIndicator:
+        """Create TechnicalIndicator from legacy indicator dictionary.
 
         Args:
             symbol: Trading symbol
             legacy_indicators: Dictionary with legacy indicator structure
 
         Returns:
-            TechnicalIndicatorDTO instance
+            TechnicalIndicator instance
 
         Note:
             Handles conversion from existing strategy engine indicator formats
@@ -382,3 +380,7 @@ class TechnicalIndicatorDTO(BaseModel):
         """
         field_name = f"ma_{period}"
         return getattr(self, field_name, None)
+
+
+# TODO: Remove in Phase 3 - Temporary backward compatibility alias
+TechnicalIndicatorDTO = TechnicalIndicator

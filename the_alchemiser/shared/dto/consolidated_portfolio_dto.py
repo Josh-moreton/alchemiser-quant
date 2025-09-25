@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class ConsolidatedPortfolioDTO(BaseModel):
+class ConsolidatedPortfolio(BaseModel):
     """DTO for consolidated portfolio allocation from multiple strategies.
 
     Contains aggregated target allocations from strategy signals with
@@ -44,7 +44,9 @@ class ConsolidatedPortfolioDTO(BaseModel):
 
     # Metadata
     timestamp: datetime = Field(..., description="When the consolidation was performed")
-    strategy_count: int = Field(..., ge=1, description="Number of strategies that contributed")
+    strategy_count: int = Field(
+        ..., ge=1, description="Number of strategies that contributed"
+    )
     source_strategies: list[str] = Field(
         default_factory=list, description="Names of contributing strategies"
     )
@@ -74,7 +76,9 @@ class ConsolidatedPortfolioDTO(BaseModel):
                 raise ValueError(f"Duplicate symbol: {symbol_upper}")
 
             if weight < 0 or weight > 1:
-                raise ValueError(f"Weight for {symbol_upper} must be between 0 and 1, got {weight}")
+                raise ValueError(
+                    f"Weight for {symbol_upper} must be between 0 and 1, got {weight}"
+                )
 
             normalized[symbol_upper] = weight
             total_weight += weight
@@ -115,8 +119,8 @@ class ConsolidatedPortfolioDTO(BaseModel):
         allocation_dict: dict[str, float],
         correlation_id: str,
         source_strategies: list[str] | None = None,
-    ) -> ConsolidatedPortfolioDTO:
-        """Create DTO from dict allocation data.
+    ) -> ConsolidatedPortfolio:
+        """Create ConsolidatedPortfolio from dict allocation data.
 
         Args:
             allocation_dict: Dictionary of symbol -> weight allocations
@@ -124,7 +128,7 @@ class ConsolidatedPortfolioDTO(BaseModel):
             source_strategies: Optional list of contributing strategy names
 
         Returns:
-            ConsolidatedPortfolioDTO instance
+            ConsolidatedPortfolio instance
 
         Raises:
             ValueError: If allocation data is invalid
@@ -150,4 +154,10 @@ class ConsolidatedPortfolioDTO(BaseModel):
             Dictionary of symbol -> weight as floats
 
         """
-        return {symbol: float(weight) for symbol, weight in self.target_allocations.items()}
+        return {
+            symbol: float(weight) for symbol, weight in self.target_allocations.items()
+        }
+
+
+# TODO: Remove in Phase 3 - Temporary backward compatibility alias
+ConsolidatedPortfolioDTO = ConsolidatedPortfolio
