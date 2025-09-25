@@ -6,21 +6,17 @@ Service factory using dependency injection.
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING, cast
+from typing import cast, Protocol
 
-from the_alchemiser.shared.config.container import (
-    ApplicationContainer,
-)
+from the_alchemiser.shared.config.container import ApplicationContainer
 
-# Only import execution types for static analysis to avoid circular imports.
-if TYPE_CHECKING:
-    from the_alchemiser.execution_v2.core.execution_manager import (
-        ExecutionManager as ExecutionManagerType,
-    )
-else:  # pragma: no cover - runtime placeholder to avoid circular import
-    ExecutionManagerType = object
+class ExecutionManagerProtocol(Protocol):
+    """Subset of ExecutionManager interface required by ServiceFactory."""
 
-# Import ExecutionManager only when needed to avoid circular imports
+    ...
+
+
+ExecutionManagerType = ExecutionManagerProtocol
 
 
 class ServiceFactory:
