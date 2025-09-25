@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-    ConsolidatedPortfolioDTO,
+    ConsolidatedPortfolio,
 )
 from the_alchemiser.shared.events import EventBus, SignalGenerated
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -42,11 +42,11 @@ class SignalOrchestrator:
         # Get event bus from container for dual-path emission
         self.event_bus: EventBus = container.services.event_bus()
 
-    def generate_signals(self) -> tuple[dict[str, Any], ConsolidatedPortfolioDTO]:
+    def generate_signals(self) -> tuple[dict[str, Any], ConsolidatedPortfolio]:
         """Generate strategy signals and consolidated portfolio allocation.
 
         Returns:
-            Tuple of (strategy_signals dict, ConsolidatedPortfolioDTO)
+            Tuple of (strategy_signals dict, ConsolidatedPortfolio)
 
         """
         # Use DSL strategy engine directly for signal generation
@@ -64,8 +64,8 @@ class SignalOrchestrator:
             signals
         )
 
-        # Create ConsolidatedPortfolioDTO
-        consolidated_portfolio = ConsolidatedPortfolioDTO.from_dict_allocation(
+        # Create ConsolidatedPortfolio
+        consolidated_portfolio = ConsolidatedPortfolio.from_dict_allocation(
             allocation_dict=consolidated_portfolio_dict,
             correlation_id=f"signal_orchestrator_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
             source_strategies=contributing_strategies,

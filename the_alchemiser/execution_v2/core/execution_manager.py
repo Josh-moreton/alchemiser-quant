@@ -15,7 +15,7 @@ from the_alchemiser.execution_v2.models.execution_result import (
     OrderResultDTO,
 )
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
+from the_alchemiser.shared.schemas.execution_reports import ExecutedOrder
 from the_alchemiser.shared.schemas.rebalancing import RebalancePlan
 
 logger = logging.getLogger(__name__)
@@ -75,11 +75,11 @@ class ExecutionManager:
             if not self.trade_ledger_writer:
                 return
 
-            # Convert OrderResultDTO to ExecutedOrderDTO format for trade ledger
+            # Convert OrderResultDTO to ExecutedOrder format for trade ledger
             executed_orders = []
             for order in result.orders:
                 if order.success and order.shares > 0:
-                    # Convert OrderResultDTO to ExecutedOrderDTO
+                    # Convert OrderResultDTO to ExecutedOrder
                     executed_order = self._convert_order_result_to_executed_order(order)
                     executed_orders.append(executed_order)
 
@@ -103,14 +103,14 @@ class ExecutionManager:
             # Don't fail execution if trade ledger recording fails
             logger.error(f"Failed to record execution in trade ledger: {e}")
 
-    def _convert_order_result_to_executed_order(self, order: OrderResultDTO) -> ExecutedOrderDTO:
-        """Convert OrderResultDTO to ExecutedOrderDTO for trade ledger.
+    def _convert_order_result_to_executed_order(self, order: OrderResultDTO) -> ExecutedOrder:
+        """Convert OrderResultDTO to ExecutedOrder for trade ledger.
 
         Args:
             order: Order result from execution
 
         Returns:
-            ExecutedOrderDTO for trade ledger recording
+            ExecutedOrder for trade ledger recording
 
         """
         # Calculate filled quantity (assume full fill if successful)
@@ -121,7 +121,7 @@ class ExecutionManager:
         if not price and order.shares and order.shares > 0:
             price = order.trade_amount / order.shares
 
-        return ExecutedOrderDTO(
+        return ExecutedOrder(
             order_id=order.order_id or f"unknown-{order.symbol}-{order.timestamp.isoformat()}",
             symbol=order.symbol,
             action=order.action,

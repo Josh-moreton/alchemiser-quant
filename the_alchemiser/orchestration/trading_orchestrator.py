@@ -204,7 +204,7 @@ class TradingOrchestrator:
         """
         # Reconstruct consolidated portfolio from event signals for rebalancing
         from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-            ConsolidatedPortfolioDTO,
+            ConsolidatedPortfolio,
         )
 
         # Extract strategy names from signals
@@ -221,7 +221,7 @@ class TradingOrchestrator:
             }
 
             # Create a consolidated portfolio DTO from the signals
-            portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
+            portfolio_dto = ConsolidatedPortfolio.from_dict_allocation(
                 allocation_dict=allocation_dict_float,
                 correlation_id=event.correlation_id,
                 source_strategies=source_strategies,
@@ -383,10 +383,10 @@ class TradingOrchestrator:
 
             # Build DTO from the consolidated dict to avoid re-running engines
             from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-                ConsolidatedPortfolioDTO,
+                ConsolidatedPortfolio,
             )
 
-            consolidated_portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
+            consolidated_portfolio_dto = ConsolidatedPortfolio.from_dict_allocation(
                 allocation_dict=consolidated_portfolio_dict,
                 correlation_id=str(uuid.uuid4()),
                 source_strategies=[str(k) for k in strategy_signals],
@@ -562,10 +562,10 @@ class TradingOrchestrator:
 
             # Build DTO from the consolidated dict to avoid re-running engines
             from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-                ConsolidatedPortfolioDTO,
+                ConsolidatedPortfolio,
             )
 
-            consolidated_portfolio_dto = ConsolidatedPortfolioDTO.from_dict_allocation(
+            consolidated_portfolio_dto = ConsolidatedPortfolio.from_dict_allocation(
                 allocation_dict=consolidated_portfolio_dict,
                 correlation_id=str(uuid.uuid4()),
                 source_strategies=[str(k) for k in strategy_signals],

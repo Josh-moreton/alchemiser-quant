@@ -19,11 +19,11 @@ from typing import Any
 from pydantic import Field
 
 from ..constants import EVENT_SCHEMA_VERSION_DESCRIPTION, EVENT_TYPE_DESCRIPTION
-from ..dto.ast_node_dto import ASTNodeDTO
+from ..dto.ast_node_dto import ASTNode
 from ..dto.indicator_request_dto import PortfolioFragmentDTO
 from ..dto.strategy_allocation_dto import StrategyAllocation
-from ..dto.technical_indicators_dto import TechnicalIndicatorDTO
-from ..dto.trace_dto import TraceDTO
+from ..dto.technical_indicators_dto import TechnicalIndicator
+from ..dto.trace_dto import Trace
 from .base import BaseEvent
 
 # Constants
@@ -70,7 +70,7 @@ class StrategyEvaluated(BaseEvent):
     # Result fields
     strategy_id: str = Field(..., min_length=1, description="Strategy that was evaluated")
     allocation: StrategyAllocation = Field(..., description="Final portfolio allocation")
-    trace: TraceDTO = Field(..., description="Complete evaluation trace")
+    trace: Trace = Field(..., description="Complete evaluation trace")
     success: bool = Field(..., description="Whether evaluation succeeded")
 
     # Optional error information
@@ -99,7 +99,7 @@ class IndicatorComputed(BaseEvent):
 
     # Indicator fields
     request_id: str = Field(..., min_length=1, description="Original request identifier")
-    indicator: TechnicalIndicatorDTO = Field(..., description="Computed indicator data")
+    indicator: TechnicalIndicator = Field(..., description="Computed indicator data")
     computation_time_ms: float = Field(ge=0, description="Computation time in milliseconds")
 
     # Optional metadata
@@ -148,7 +148,7 @@ class FilterEvaluated(BaseEvent):
     schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
 
     # Filter fields
-    filter_expression: ASTNodeDTO = Field(..., description="Filter expression that was evaluated")
+    filter_expression: ASTNode = Field(..., description="Filter expression that was evaluated")
     input_symbols: list[str] = Field(default_factory=list, description="Input symbols to filter")
     filtered_symbols: list[str] = Field(
         default_factory=list, description="Symbols that passed filter"
@@ -176,7 +176,7 @@ class TopNSelected(BaseEvent):
     schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
 
     # Selection fields
-    selection_expression: ASTNodeDTO = Field(
+    selection_expression: ASTNode = Field(
         ..., description="Selection expression that was evaluated"
     )
     input_symbols: list[str] = Field(
@@ -207,7 +207,7 @@ class DecisionEvaluated(BaseEvent):
     schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
 
     # Decision fields
-    decision_expression: ASTNodeDTO = Field(
+    decision_expression: ASTNode = Field(
         ..., description="Decision expression that was evaluated"
     )
     condition_result: bool = Field(..., description="Result of condition evaluation")

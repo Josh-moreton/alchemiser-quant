@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Business Unit: shared | Status: current.
 
-Technical indicator data transfer objects for strategy engines.
+Technical indicator schemas for strategy engines.
 
-Provides typed DTOs for technical indicators with standardized field names
+Provides typed schemas for technical indicators with standardized field names
 and validation to ensure consistent indicator data across strategy engines.
 """
 
@@ -18,8 +18,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class TechnicalIndicatorDTO(BaseModel):
-    """DTO for technical indicator data used by strategy engines.
+class TechnicalIndicator(BaseModel):
+    """Schema for technical indicator data used by strategy engines.
 
     Provides a standardized structure for technical indicators computed
     from market data, with proper validation and type safety.
@@ -162,14 +162,14 @@ class TechnicalIndicatorDTO(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> TechnicalIndicatorDTO:
+    def from_dict(cls, data: dict[str, Any]) -> TechnicalIndicator:
         """Create DTO from dictionary.
 
         Args:
             data: Dictionary containing indicator data
 
         Returns:
-            TechnicalIndicatorDTO instance
+            TechnicalIndicator instance
 
         Raises:
             ValueError: If data is invalid or missing required fields
@@ -201,15 +201,15 @@ class TechnicalIndicatorDTO(BaseModel):
     @classmethod
     def from_legacy_dict(
         cls, symbol: str, legacy_indicators: dict[str, Any]
-    ) -> TechnicalIndicatorDTO:
-        """Create TechnicalIndicatorDTO from legacy indicator dictionary.
+    ) -> TechnicalIndicator:
+        """Create TechnicalIndicator from legacy indicator dictionary.
 
         Args:
             symbol: Trading symbol
             legacy_indicators: Dictionary with legacy indicator structure
 
         Returns:
-            TechnicalIndicatorDTO instance
+            TechnicalIndicator instance
 
         Note:
             Handles conversion from existing strategy engine indicator formats

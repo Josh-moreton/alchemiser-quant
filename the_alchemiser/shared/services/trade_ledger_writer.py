@@ -14,7 +14,7 @@ import uuid
 from decimal import Decimal
 
 from ..config.symbols_config import classify_symbol
-from ..dto.execution_report_dto import ExecutedOrderDTO
+from ..dto.execution_report_dto import ExecutedOrder
 from ..dto.trade_ledger_dto import AssetType, TradeLedgerEntry, TradeSide
 from ..persistence.trade_ledger_factory import get_default_trade_ledger
 from ..protocols.trade_ledger import TradeLedger
@@ -36,7 +36,7 @@ class TradeLedgerWriter:
 
     def record_execution(
         self,
-        executed_order: ExecutedOrderDTO,
+        executed_order: ExecutedOrder,
         *,
         strategy_name: str | None = None,
         correlation_id: str | None = None,
@@ -86,7 +86,7 @@ class TradeLedgerWriter:
 
     def record_executions(
         self,
-        executed_orders: list[ExecutedOrderDTO],
+        executed_orders: list[ExecutedOrder],
         *,
         strategy_name: str | None = None,
         correlation_id: str | None = None,
@@ -139,7 +139,7 @@ class TradeLedgerWriter:
 
     def _convert_to_ledger_entry(
         self,
-        executed_order: ExecutedOrderDTO,
+        executed_order: ExecutedOrder,
         *,
         strategy_name: str | None = None,
         correlation_id: str | None = None,
@@ -207,7 +207,7 @@ class TradeLedgerWriter:
             timestamp=executed_order.execution_timestamp,
             # Broker references
             order_id=executed_order.order_id,
-            client_order_id=None,  # Not available in ExecutedOrderDTO
+            client_order_id=None,  # Not available in ExecutedOrder
             fill_id=None,  # Would need to be provided by broker API
             # Account and venue context
             account_id=account_id,

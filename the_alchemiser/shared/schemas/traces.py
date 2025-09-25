@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Business Unit: shared | Status: current.
 
-Trace data transfer objects for DSL engine execution tracking.
+Trace schemas for DSL engine execution tracking.
 
-Provides typed DTOs for tracking strategy evaluation traces with structured
+Provides typed schemas for tracking strategy evaluation traces with structured
 logging and observability support.
 """
 
@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class TraceEntryDTO(BaseModel):
+class TraceEntry(BaseModel):
     """Single trace entry in strategy evaluation."""
 
     model_config = ConfigDict(
@@ -43,8 +43,8 @@ class TraceEntryDTO(BaseModel):
         return ensure_timezone_aware(v)
 
 
-class TraceDTO(BaseModel):
-    """DTO for complete strategy evaluation trace.
+class Trace(BaseModel):
+    """Schema for complete strategy evaluation trace.
 
     Contains structured trace log for audit and observability purposes.
     """
@@ -66,7 +66,7 @@ class TraceDTO(BaseModel):
     completed_at: datetime | None = Field(default=None, description="When evaluation completed")
 
     # Trace entries
-    entries: list[TraceEntryDTO] = Field(default_factory=list, description="Ordered trace entries")
+    entries: list[TraceEntry] = Field(default_factory=list, description="Ordered trace entries")
 
     # Results
     final_allocation: dict[str, Decimal] = Field(
@@ -100,7 +100,7 @@ class TraceDTO(BaseModel):
         inputs: dict[str, Any] | None = None,
         outputs: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
-    ) -> TraceDTO:
+    ) -> Trace:
         """Add a trace entry and return new immutable trace.
 
         Args:
@@ -112,10 +112,10 @@ class TraceDTO(BaseModel):
             metadata: Additional metadata
 
         Returns:
-            New TraceDTO with added entry
+            New Trace with added entry
 
         """
-        entry = TraceEntryDTO(
+        entry = TraceEntry(
             step_id=step_id,
             step_type=step_type,
             timestamp=datetime.now(UTC),
@@ -128,7 +128,7 @@ class TraceDTO(BaseModel):
         new_entries = [*list(self.entries), entry]
         return self.model_copy(update={"entries": new_entries})
 
-    def mark_completed(self, *, success: bool = True, error_message: str | None = None) -> TraceDTO:
+    def mark_completed(self, *, success: bool = True, error_message: str | None = None) -> Trace:
         """Mark trace as completed and return new immutable trace.
 
         Args:
@@ -136,7 +136,7 @@ class TraceDTO(BaseModel):
             error_message: Error message if failed
 
         Returns:
-            New TraceDTO marked as completed
+            New Trace marked as completed
 
         """
         return self.model_copy(

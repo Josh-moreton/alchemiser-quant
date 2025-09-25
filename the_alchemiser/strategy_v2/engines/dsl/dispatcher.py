@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
+from the_alchemiser.shared.schemas.ast_nodes import ASTNode
 
 from .context import DslContext
 from .types import DSLValue
@@ -26,10 +26,10 @@ class DslDispatcher:
 
     def __init__(self) -> None:
         """Initialize empty dispatcher."""
-        self.symbol_table: dict[str, Callable[[list[ASTNodeDTO], DslContext], DSLValue]] = {}
+        self.symbol_table: dict[str, Callable[[list[ASTNode], DslContext], DSLValue]] = {}
 
     def register(
-        self, symbol: str, func: Callable[[list[ASTNodeDTO], DslContext], DSLValue]
+        self, symbol: str, func: Callable[[list[ASTNode], DslContext], DSLValue]
     ) -> None:
         """Register a function for a DSL symbol.
 
@@ -40,7 +40,7 @@ class DslDispatcher:
         """
         self.symbol_table[symbol] = func
 
-    def dispatch(self, symbol: str, args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
+    def dispatch(self, symbol: str, args: list[ASTNode], context: DslContext) -> DSLValue:
         """Dispatch a DSL function call.
 
         Args:

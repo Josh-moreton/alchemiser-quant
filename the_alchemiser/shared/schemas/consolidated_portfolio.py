@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Business Unit: shared | Status: current.
 
-Consolidated portfolio data transfer objects for inter-module communication.
+Consolidated portfolio schemas for inter-module communication.
 
-Provides typed DTOs for consolidated portfolio allocation data from strategy
+Provides typed schemas for consolidated portfolio allocation data from strategy
 signal aggregation, ensuring type safety in orchestrator communication.
 """
 
@@ -18,8 +18,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class ConsolidatedPortfolioDTO(BaseModel):
-    """DTO for consolidated portfolio allocation from multiple strategies.
+class ConsolidatedPortfolio(BaseModel):
+    """Schema for consolidated portfolio allocation from multiple strategies.
 
     Contains aggregated target allocations from strategy signals with
     correlation tracking and metadata for orchestrator communication.
@@ -115,7 +115,7 @@ class ConsolidatedPortfolioDTO(BaseModel):
         allocation_dict: dict[str, float],
         correlation_id: str,
         source_strategies: list[str] | None = None,
-    ) -> ConsolidatedPortfolioDTO:
+    ) -> ConsolidatedPortfolio:
         """Create DTO from dict allocation data.
 
         Args:
@@ -124,7 +124,7 @@ class ConsolidatedPortfolioDTO(BaseModel):
             source_strategies: Optional list of contributing strategy names
 
         Returns:
-            ConsolidatedPortfolioDTO instance
+            ConsolidatedPortfolio instance
 
         Raises:
             ValueError: If allocation data is invalid

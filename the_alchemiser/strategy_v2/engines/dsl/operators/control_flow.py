@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
+from the_alchemiser.shared.schemas.ast_nodes import ASTNode
 from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
 
 from ..context import DslContext
@@ -21,7 +21,7 @@ from ..dispatcher import DslDispatcher
 from ..types import DslEvaluationError, DSLValue
 
 
-def defsymphony(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
+def defsymphony(args: list[ASTNode], context: DslContext) -> DSLValue:
     """Evaluate defsymphony - main strategy definition."""
     if len(args) < 3:
         raise DslEvaluationError("defsymphony requires at least 3 arguments")
@@ -34,7 +34,7 @@ def defsymphony(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     return context.evaluate_node(body, context.correlation_id, context.trace)
 
 
-def if_condition(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
+def if_condition(args: list[ASTNode], context: DslContext) -> DSLValue:
     """Evaluate if - conditional expression."""
     if len(args) < 2:
         raise DslEvaluationError("if requires at least 2 arguments")
@@ -69,7 +69,7 @@ def if_condition(args: list[ASTNodeDTO], context: DslContext) -> DSLValue:
     return result
 
 
-def create_indicator_with_symbol(indicator_expr: ASTNodeDTO, symbol: str) -> ASTNodeDTO:
+def create_indicator_with_symbol(indicator_expr: ASTNode, symbol: str) -> ASTNode:
     """Create indicator expression with specific symbol."""
     if not indicator_expr.is_list() or not indicator_expr.children:
         return indicator_expr
@@ -85,7 +85,7 @@ def create_indicator_with_symbol(indicator_expr: ASTNodeDTO, symbol: str) -> AST
         "stdev-return",
         "max-drawdown",
     }:
-        children = [ASTNodeDTO.symbol(func_name), ASTNodeDTO.atom(symbol)]
+        children = [ASTNode.symbol(func_name), ASTNode.atom(symbol)]
         # Add parameters if present
         if len(indicator_expr.children) > 1:
             children.append(indicator_expr.children[1])
@@ -108,16 +108,16 @@ def create_indicator_with_symbol(indicator_expr: ASTNodeDTO, symbol: str) -> AST
                 default_window = 60
 
             children.append(
-                ASTNodeDTO.list_node(
+                ASTNode.list_node(
                     [
-                        ASTNodeDTO.symbol(":window"),
-                        ASTNodeDTO.atom(Decimal(str(default_window))),
+                        ASTNode.symbol(":window"),
+                        ASTNode.atom(Decimal(str(default_window))),
                     ],
                     metadata={"node_subtype": "map"},
                 )
             )
 
-        return ASTNodeDTO.list_node(children)
+        return ASTNode.list_node(children)
 
     return indicator_expr
 

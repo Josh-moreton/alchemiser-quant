@@ -4,7 +4,7 @@
 Mapping functions for execution summary DTOs.
 
 This module provides mapping utilities to convert between dict structures
-and ExecutionSummaryDTO/PortfolioSnapshot, supporting the migration from
+and TradeExecutionSummary/PortfolioSnapshot, supporting the migration from
 Any/dict types to structured DTOs.
 
 Part of the anti-corruption layer for clean DTO boundaries.

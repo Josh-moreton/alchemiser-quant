@@ -15,14 +15,14 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
+from the_alchemiser.shared.schemas.ast_nodes import ASTNode
 
 from ..context import DslContext
 from ..dispatcher import DslDispatcher
 from ..types import DslEvaluationError, DSLValue
 
 
-def greater_than(args: list[ASTNodeDTO], context: DslContext) -> bool:
+def greater_than(args: list[ASTNode], context: DslContext) -> bool:
     """Evaluate > - greater than comparison."""
     if len(args) != 2:
         raise DslEvaluationError("> requires exactly 2 arguments")
@@ -32,7 +32,7 @@ def greater_than(args: list[ASTNodeDTO], context: DslContext) -> bool:
     return context.as_decimal(left_v) > context.as_decimal(right_v)
 
 
-def less_than(args: list[ASTNodeDTO], context: DslContext) -> bool:
+def less_than(args: list[ASTNode], context: DslContext) -> bool:
     """Evaluate < - less than comparison."""
     if len(args) != 2:
         raise DslEvaluationError("< requires exactly 2 arguments")
@@ -42,7 +42,7 @@ def less_than(args: list[ASTNodeDTO], context: DslContext) -> bool:
     return context.as_decimal(left_v) < context.as_decimal(right_v)
 
 
-def greater_equal(args: list[ASTNodeDTO], context: DslContext) -> bool:
+def greater_equal(args: list[ASTNode], context: DslContext) -> bool:
     """Evaluate >= - greater than or equal comparison."""
     if len(args) != 2:
         raise DslEvaluationError(">= requires exactly 2 arguments")
@@ -52,7 +52,7 @@ def greater_equal(args: list[ASTNodeDTO], context: DslContext) -> bool:
     return context.as_decimal(left_v) >= context.as_decimal(right_v)
 
 
-def less_equal(args: list[ASTNodeDTO], context: DslContext) -> bool:
+def less_equal(args: list[ASTNode], context: DslContext) -> bool:
     """Evaluate <= - less than or equal comparison."""
     if len(args) != 2:
         raise DslEvaluationError("<= requires exactly 2 arguments")
@@ -62,7 +62,7 @@ def less_equal(args: list[ASTNodeDTO], context: DslContext) -> bool:
     return context.as_decimal(left_v) <= context.as_decimal(right_v)
 
 
-def equal(args: list[ASTNodeDTO], context: DslContext) -> bool:
+def equal(args: list[ASTNode], context: DslContext) -> bool:
     """Evaluate = - equality comparison."""
     if len(args) != 2:
         raise DslEvaluationError("= requires exactly 2 arguments")

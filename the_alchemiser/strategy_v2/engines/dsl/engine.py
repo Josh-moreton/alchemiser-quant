@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.constants import DSL_ENGINE_MODULE
-from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
-from the_alchemiser.shared.dto.trace_dto import TraceDTO
+from the_alchemiser.shared.schemas.ast_nodes import ASTNode
+from the_alchemiser.shared.schemas.traces import Trace
 from the_alchemiser.shared.events.base import BaseEvent
 from the_alchemiser.shared.events.bus import EventBus
 from the_alchemiser.shared.events.dsl_events import (
@@ -103,7 +103,7 @@ class DslEngine(EventHandler):
 
     def evaluate_strategy(
         self, strategy_config_path: str, correlation_id: str | None = None
-    ) -> tuple[StrategyAllocation, TraceDTO]:
+    ) -> tuple[StrategyAllocation, Trace]:
         """Evaluate strategy from configuration file.
 
         Args:
@@ -111,7 +111,7 @@ class DslEngine(EventHandler):
             correlation_id: Optional correlation ID for tracking
 
         Returns:
-            Tuple of (StrategyAllocation, TraceDTO)
+            Tuple of (StrategyAllocation, Trace)
 
         Raises:
             DslEngineError: If evaluation fails
@@ -193,7 +193,7 @@ class DslEngine(EventHandler):
             # Publish error events
             self._publish_error_events(event, str(e))
 
-    def _parse_strategy_file(self, strategy_config_path: str) -> ASTNodeDTO:
+    def _parse_strategy_file(self, strategy_config_path: str) -> ASTNode:
         """Parse strategy configuration file.
 
         Args:
@@ -262,7 +262,7 @@ class DslEngine(EventHandler):
         self,
         request_event: StrategyEvaluationRequested,
         allocation: StrategyAllocation,
-        trace: TraceDTO,
+        trace: Trace,
     ) -> None:
         """Publish completion events.
 
@@ -321,7 +321,7 @@ class DslEngine(EventHandler):
         correlation_id = request_event.correlation_id
 
         # Create failed trace
-        failed_trace = TraceDTO(
+        failed_trace = Trace(
             trace_id=str(uuid.uuid4()),
             correlation_id=correlation_id,
             strategy_id=request_event.strategy_id,

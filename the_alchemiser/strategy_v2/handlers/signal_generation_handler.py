@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-    ConsolidatedPortfolioDTO,
+    ConsolidatedPortfolio,
 )
 from the_alchemiser.shared.events import (
     BaseEvent,
@@ -129,11 +129,11 @@ class SignalGenerationHandler:
             self.logger.error(f"Signal generation failed: {e}")
             self._emit_workflow_failure(event, str(e))
 
-    def _generate_signals(self) -> tuple[dict[str, Any], ConsolidatedPortfolioDTO]:
+    def _generate_signals(self) -> tuple[dict[str, Any], ConsolidatedPortfolio]:
         """Generate strategy signals and consolidated portfolio allocation.
 
         Returns:
-            Tuple of (strategy_signals dict, ConsolidatedPortfolioDTO)
+            Tuple of (strategy_signals dict, ConsolidatedPortfolio)
 
         """
         # Use DSL strategy engine directly for signal generation
@@ -151,8 +151,8 @@ class SignalGenerationHandler:
             signals
         )
 
-        # Create ConsolidatedPortfolioDTO
-        consolidated_portfolio = ConsolidatedPortfolioDTO.from_dict_allocation(
+        # Create ConsolidatedPortfolio
+        consolidated_portfolio = ConsolidatedPortfolio.from_dict_allocation(
             allocation_dict=consolidated_portfolio_dict,
             correlation_id=f"signal_handler_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
             source_strategies=contributing_strategies,
@@ -248,7 +248,7 @@ class SignalGenerationHandler:
     def _emit_signal_generated_event(
         self,
         strategy_signals: dict[str, Any],
-        consolidated_portfolio: ConsolidatedPortfolioDTO,
+        consolidated_portfolio: ConsolidatedPortfolio,
         correlation_id: str,
     ) -> None:
         """Emit SignalGenerated event.

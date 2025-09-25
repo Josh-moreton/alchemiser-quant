@@ -13,9 +13,9 @@ import decimal
 import uuid
 from datetime import UTC, datetime
 
-from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
+from the_alchemiser.shared.schemas.ast_nodes import ASTNode
 from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
-from the_alchemiser.shared.dto.trace_dto import TraceDTO
+from the_alchemiser.shared.schemas.traces import Trace
 from the_alchemiser.shared.events.bus import EventBus
 from the_alchemiser.shared.schemas.strategy import StrategyAllocation
 from the_alchemiser.strategy_v2.indicators.indicator_service import IndicatorService
@@ -71,8 +71,8 @@ class DslEvaluator:
         register_indicator_operators(self.dispatcher)
 
     def evaluate(
-        self, ast: ASTNodeDTO, correlation_id: str, trace: TraceDTO | None = None
-    ) -> tuple[StrategyAllocation, TraceDTO]:
+        self, ast: ASTNode, correlation_id: str, trace: Trace | None = None
+    ) -> tuple[StrategyAllocation, Trace]:
         """Evaluate AST and return allocation with trace.
 
         Args:
@@ -81,14 +81,14 @@ class DslEvaluator:
             trace: Optional existing trace to append to
 
         Returns:
-            Tuple of (StrategyAllocation, TraceDTO)
+            Tuple of (StrategyAllocation, Trace)
 
         Raises:
             DslEvaluationError: If evaluation fails
 
         """
         if trace is None:
-            trace = TraceDTO(
+            trace = Trace(
                 trace_id=str(uuid.uuid4()),
                 correlation_id=correlation_id,
                 strategy_id="dsl_strategy",
@@ -153,7 +153,7 @@ class DslEvaluator:
             )
             raise DslEvaluationError(f"DSL evaluation failed: {e}") from e
 
-    def _evaluate_atom_node(self, node: ASTNodeDTO) -> DSLValue:
+    def _evaluate_atom_node(self, node: ASTNode) -> DSLValue:
         """Evaluate an atom node.
 
         Args:
@@ -165,7 +165,7 @@ class DslEvaluator:
         """
         return node.get_atom_value()
 
-    def _evaluate_symbol_node(self, node: ASTNodeDTO) -> DSLValue:
+    def _evaluate_symbol_node(self, node: ASTNode) -> DSLValue:
         """Evaluate a symbol node.
 
         Args:
@@ -179,7 +179,7 @@ class DslEvaluator:
         return node.get_symbol_name()
 
     def _evaluate_map_literal(
-        self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO
+        self, node: ASTNode, correlation_id: str, trace: Trace
     ) -> dict[str, float | int | decimal.Decimal | str]:
         """Evaluate a map literal node.
 
@@ -212,7 +212,7 @@ class DslEvaluator:
                 m[key] = str(val)
         return m
 
-    def _evaluate_function_application(self, node: ASTNodeDTO, context: DslContext) -> DSLValue:
+    def _evaluate_function_application(self, node: ASTNode, context: DslContext) -> DSLValue:
         """Evaluate a function application.
 
         Args:
@@ -240,7 +240,7 @@ class DslEvaluator:
             raise DslEvaluationError(f"Unknown function: {func_name}")
 
     def _evaluate_list_elements(
-        self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO
+        self, node: ASTNode, correlation_id: str, trace: Trace
     ) -> list[DSLValue]:
         """Evaluate list elements as a regular list.
 
@@ -256,7 +256,7 @@ class DslEvaluator:
         return [self._evaluate_node(child, correlation_id, trace) for child in node.children]
 
     def _evaluate_list_node(
-        self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO
+        self, node: ASTNode, correlation_id: str, trace: Trace
     ) -> DSLValue:
         """Evaluate a list node.
 
@@ -292,7 +292,7 @@ class DslEvaluator:
         # Evaluate each element and return as list
         return self._evaluate_list_elements(node, correlation_id, trace)
 
-    def _evaluate_node(self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO) -> DSLValue:
+    def _evaluate_node(self, node: ASTNode, correlation_id: str, trace: Trace) -> DSLValue:
         """Evaluate a single AST node.
 
         Args:

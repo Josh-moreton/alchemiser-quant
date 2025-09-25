@@ -133,7 +133,7 @@ def convert_decimal_fields_to_dict(
 
 
 def convert_nested_order_data(order_data: dict[str, Any]) -> dict[str, Any]:
-    """Convert order data fields for ExecutedOrderDTO.
+    """Convert order data fields for ExecutedOrder.
 
     Args:
         order_data: Dictionary containing order data

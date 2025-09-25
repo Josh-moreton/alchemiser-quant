@@ -43,7 +43,7 @@ from the_alchemiser.shared.dto.broker_dto import (
     WebSocketResult,
     WebSocketStatus,
 )
-from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
+from the_alchemiser.shared.schemas.execution_reports import ExecutedOrder
 from the_alchemiser.shared.protocols.market_data import BarsIterable
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
@@ -462,7 +462,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def place_order(
         self, order_request: LimitOrderRequest | MarketOrderRequest
-    ) -> ExecutedOrderDTO:
+    ) -> ExecutedOrder:
         """Place an order and return execution details."""
         try:
             order = self._trading_client.submit_order(order_request)
@@ -475,15 +475,15 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self,
         order: Order | dict[str, Any],
         order_request: LimitOrderRequest | MarketOrderRequest,
-    ) -> ExecutedOrderDTO:
-        """Create ExecutedOrderDTO from successful order placement.
+    ) -> ExecutedOrder:
+        """Create ExecutedOrder from successful order placement.
 
         Args:
             order: Successful order from Alpaca API
             order_request: Original order request
 
         Returns:
-            ExecutedOrderDTO with order details
+            ExecutedOrder with order details
 
         """
         # Extract basic order attributes
@@ -499,7 +499,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             order_data["filled_qty_decimal"], order_data["order_qty_decimal"], price
         )
 
-        return ExecutedOrderDTO(
+        return ExecutedOrder(
             order_id=order_data["order_id"],
             symbol=order_data["symbol"],
             action=order_data["action_value"],
@@ -570,21 +570,21 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def _create_failed_order_dto(
         self, order_request: LimitOrderRequest | MarketOrderRequest, error: Exception
-    ) -> ExecutedOrderDTO:
-        """Create ExecutedOrderDTO for failed order placement.
+    ) -> ExecutedOrder:
+        """Create ExecutedOrder for failed order placement.
 
         Args:
             order_request: Original order request
             error: Exception that occurred
 
         Returns:
-            ExecutedOrderDTO with error details
+            ExecutedOrder with error details
 
         """
         symbol = getattr(order_request, "symbol", "UNKNOWN")
         action = self._extract_action_from_request(order_request)
 
-        return ExecutedOrderDTO(
+        return ExecutedOrder(
             order_id="FAILED",  # Must be non-empty
             symbol=symbol,
             action=action,
@@ -731,8 +731,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         side: str,
         qty: float | None,
         error_message: str,
-    ) -> ExecutedOrderDTO:
-        """Create error ExecutedOrderDTO for failed orders.
+    ) -> ExecutedOrder:
+        """Create error ExecutedOrder for failed orders.
 
         Args:
             order_id: Error order ID
@@ -742,10 +742,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             error_message: Error description
 
         Returns:
-            ExecutedOrderDTO with error details
+            ExecutedOrder with error details
 
         """
-        return ExecutedOrderDTO(
+        return ExecutedOrder(
             order_id=order_id,
             symbol=symbol.upper() if symbol else "UNKNOWN",
             action=side.upper() if side and side.upper() in ["BUY", "SELL"] else "BUY",
@@ -766,7 +766,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         notional: float | None = None,
         *,
         is_complete_exit: bool = False,
-    ) -> ExecutedOrderDTO:
+    ) -> ExecutedOrder:
         """Place a market order with validation and execution result return.
 
         Args:
@@ -777,7 +777,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             is_complete_exit: If True and side is 'sell', use Alpaca's available quantity
 
         Returns:
-            ExecutedOrderDTO with execution details
+            ExecutedOrder with execution details
 
         """
         try:
@@ -803,7 +803,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 time_in_force=TimeInForce.DAY,
             )
 
-            # Use the updated place_order method that returns ExecutedOrderDTO
+            # Use the updated place_order method that returns ExecutedOrder
             return self.place_order(order_request)
 
         except ValueError as e:
@@ -860,11 +860,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 ),
             )
 
-            # Use the updated place_order method that returns ExecutedOrderDTO
+            # Use the updated place_order method that returns ExecutedOrder
             executed_order_dto = self.place_order(order_request)
 
-            # Convert ExecutedOrderDTO to OrderExecutionResult
-            # Map ExecutedOrderDTO status to OrderExecutionResult Literal status
+            # Convert ExecutedOrder to OrderExecutionResult
+            # Map ExecutedOrder status to OrderExecutionResult Literal status
             dto_status_to_result_status: dict[
                 str,
                 Literal["accepted", "filled", "partially_filled", "rejected", "canceled"],
@@ -1729,7 +1729,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         """
         try:
-            # Use the place_market_order method which now returns ExecutedOrderDTO
+            # Use the place_market_order method which now returns ExecutedOrder
             result = self.place_market_order(symbol, "sell", qty=qty)
 
             # Check if the order was successful and return order_id

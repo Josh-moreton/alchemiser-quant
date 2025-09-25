@@ -12,8 +12,8 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from the_alchemiser.shared.dto.execution_report_dto import (
-    ExecutedOrderDTO,
-    ExecutionReportDTO,
+    ExecutedOrder,
+    ExecutionReport,
 )
 from the_alchemiser.shared.dto.lambda_event_dto import LambdaEventDTO
 from the_alchemiser.shared.dto.order_request_dto import (
@@ -29,7 +29,7 @@ from the_alchemiser.shared.dto.rebalance_plan_dto import (
     RebalancePlan,
     RebalancePlanItem,
 )
-from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
+from the_alchemiser.shared.schemas.technical_indicators import TechnicalIndicator
 from the_alchemiser.shared.dto.trade_ledger_dto import (
     AssetType,
     Lot,
@@ -39,9 +39,9 @@ from the_alchemiser.shared.dto.trade_ledger_dto import (
     TradeSide,
 )
 from the_alchemiser.shared.dto.trade_run_result_dto import (
-    ExecutionSummaryDTO,
-    OrderResultSummaryDTO,
-    TradeRunResultDTO,
+    TradeExecutionSummary,
+    OrderResultSummary,
+    TradeRunResult,
 )
 
 # Import implemented DTOs
@@ -97,16 +97,16 @@ __all__ = [
     "ConfigurationDTO",
     "ErrorDTO",
     # Implemented DTOs
-    "ExecutedOrderDTO",
-    "ExecutionReportDTO",
-    "ExecutionSummaryDTO",
+    "ExecutedOrder",
+    "ExecutionReport",
+    "TradeExecutionSummary",
     "LambdaEventDTO",
     # Trade Ledger DTOs
     "Lot",
     "MarketBar",
     "MarketDataDTO",
     "OrderRequestDTO",
-    "OrderResultSummaryDTO",
+    "OrderResultSummary",
     # Trade Ledger DTOs
     "PerformanceSummary",
     "PortfolioMetrics",
@@ -116,11 +116,11 @@ __all__ = [
     "RebalancePlanItem",
     "StrategyAllocation",
     "StrategySignal",
-    "TechnicalIndicatorDTO",
+    "TechnicalIndicator",
     # Trade Ledger DTOs
     "TradeLedgerEntry",
     "TradeLedgerQuery",
-    "TradeRunResultDTO",
+    "TradeRunResult",
     # Trade Ledger DTOs
     "TradeSide",
 ]

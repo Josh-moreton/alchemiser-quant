@@ -13,9 +13,9 @@ import uuid
 from datetime import UTC, datetime
 
 from the_alchemiser.shared.constants import DSL_ENGINE_MODULE
-from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
+from the_alchemiser.shared.schemas.ast_nodes import ASTNode
 from the_alchemiser.shared.dto.indicator_request_dto import PortfolioFragmentDTO
-from the_alchemiser.shared.dto.technical_indicators_dto import TechnicalIndicatorDTO
+from the_alchemiser.shared.schemas.technical_indicators import TechnicalIndicator
 from the_alchemiser.shared.events.bus import EventBus
 from the_alchemiser.shared.events.dsl_events import (
     DecisionEvaluated,
@@ -42,7 +42,7 @@ class DslEventPublisher:
     def publish_indicator_computed(
         self,
         request_id: str,
-        indicator: TechnicalIndicatorDTO,
+        indicator: TechnicalIndicator,
         computation_time_ms: float,
         correlation_id: str,
         causation_id: str | None = None,
@@ -74,7 +74,7 @@ class DslEventPublisher:
 
     def publish_decision_evaluated(
         self,
-        decision_expression: ASTNodeDTO,
+        decision_expression: ASTNode,
         *,
         condition_result: bool,
         branch_taken: str,

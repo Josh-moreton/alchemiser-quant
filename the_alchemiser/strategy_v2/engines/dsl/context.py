@@ -14,8 +14,8 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
-from the_alchemiser.shared.dto.trace_dto import TraceDTO
+from the_alchemiser.shared.schemas.ast_nodes import ASTNode
+from the_alchemiser.shared.schemas.traces import Trace
 
 from .types import DSLValue
 
@@ -38,8 +38,8 @@ class DslContext:
         indicator_service: IndicatorService,
         event_publisher: DslEventPublisher,
         correlation_id: str,
-        trace: TraceDTO,
-        evaluate_node: Callable[[ASTNodeDTO, str, TraceDTO], DSLValue],
+        trace: Trace,
+        evaluate_node: Callable[[ASTNode, str, Trace], DSLValue],
     ) -> None:
         """Initialize DSL context.
 

@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 from the_alchemiser.portfolio_v2 import PortfolioServiceV2
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-    ConsolidatedPortfolioDTO,
+    ConsolidatedPortfolio,
 )
 from the_alchemiser.shared.dto.portfolio_state_dto import (
     PortfolioMetrics,
@@ -112,7 +112,7 @@ def _build_positions_dict(current_positions: list[Any]) -> dict[str, float]:
 
 
 def _calculate_event_allocation_data(
-    consolidated_portfolio: ConsolidatedPortfolioDTO,
+    consolidated_portfolio: ConsolidatedPortfolio,
     account_dict: dict[str, float],
     positions_dict: dict[str, float],
 ) -> tuple[dict[str, Decimal], dict[str, Decimal], dict[str, Decimal], bool]:
@@ -298,7 +298,7 @@ class PortfolioOrchestrator:
             return None
 
     def generate_rebalancing_plan(
-        self, target_allocations: ConsolidatedPortfolioDTO
+        self, target_allocations: ConsolidatedPortfolio
     ) -> dict[str, Any] | None:
         """Generate rebalancing plan based on target allocations.
 
@@ -315,7 +315,7 @@ class PortfolioOrchestrator:
                 StrategyAllocation,
             )
 
-            # Convert ConsolidatedPortfolioDTO to target weights for portfolio_v2
+            # Convert ConsolidatedPortfolio to target weights for portfolio_v2
             target_weights = target_allocations.target_allocations
 
             # Create strategy allocation DTO
@@ -388,7 +388,7 @@ class PortfolioOrchestrator:
             return None
 
     def analyze_allocation_comparison(
-        self, consolidated_portfolio: ConsolidatedPortfolioDTO
+        self, consolidated_portfolio: ConsolidatedPortfolio
     ) -> AllocationComparisonDTO | None:
         """Analyze target vs current allocations.
 
@@ -469,7 +469,7 @@ class PortfolioOrchestrator:
 
     def _build_allocation_comparison_data(
         self,
-        consolidated_portfolio: ConsolidatedPortfolioDTO,
+        consolidated_portfolio: ConsolidatedPortfolio,
         account_dict: dict[str, float],
         positions_dict: dict[str, float],
     ) -> dict[str, Any]:
@@ -498,7 +498,7 @@ class PortfolioOrchestrator:
         self,
         allocation_comparison_dto: AllocationComparisonDTO,
         account_dict: dict[str, float],
-        consolidated_portfolio: ConsolidatedPortfolioDTO,
+        consolidated_portfolio: ConsolidatedPortfolio,
     ) -> None:
         """Log summary of allocation comparison DTO for debugging.
 
@@ -533,7 +533,7 @@ class PortfolioOrchestrator:
 
     def _emit_allocation_comparison_event(
         self,
-        consolidated_portfolio: ConsolidatedPortfolioDTO,
+        consolidated_portfolio: ConsolidatedPortfolio,
         account_dict: dict[str, float],
         positions_dict: dict[str, float],
     ) -> None:
@@ -762,20 +762,20 @@ class PortfolioOrchestrator:
 
         """
         try:
-            # Convert float dict to ConsolidatedPortfolioDTO
+            # Convert float dict to ConsolidatedPortfolio
             import uuid
             from datetime import UTC, datetime
             from decimal import Decimal
 
             from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-                ConsolidatedPortfolioDTO,
+                ConsolidatedPortfolio,
             )
 
             target_allocations_decimal = {
                 symbol: Decimal(str(weight)) for symbol, weight in target_allocations.items()
             }
 
-            consolidated_portfolio = ConsolidatedPortfolioDTO(
+            consolidated_portfolio = ConsolidatedPortfolio(
                 target_allocations=target_allocations_decimal,
                 correlation_id=str(uuid.uuid4()),
                 timestamp=datetime.now(UTC),

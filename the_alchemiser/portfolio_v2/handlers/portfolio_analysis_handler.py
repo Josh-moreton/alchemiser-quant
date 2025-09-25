@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 from the_alchemiser.portfolio_v2 import PortfolioServiceV2
 from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
-    ConsolidatedPortfolioDTO,
+    ConsolidatedPortfolio,
 )
 from the_alchemiser.shared.events import (
     BaseEvent,
@@ -144,8 +144,8 @@ class PortfolioAnalysisHandler:
         self.logger.info("🔄 Starting portfolio analysis from SignalGenerated event")
 
         try:
-            # Reconstruct ConsolidatedPortfolioDTO from event data
-            consolidated_portfolio = ConsolidatedPortfolioDTO.model_validate(
+            # Reconstruct ConsolidatedPortfolio from event data
+            consolidated_portfolio = ConsolidatedPortfolio.model_validate(
                 event.consolidated_portfolio
             )
 
@@ -224,7 +224,7 @@ class PortfolioAnalysisHandler:
             return None
 
     def _analyze_allocation_comparison(
-        self, consolidated_portfolio: ConsolidatedPortfolioDTO
+        self, consolidated_portfolio: ConsolidatedPortfolio
     ) -> AllocationComparison | None:
         """Analyze target vs current allocations.
 
@@ -264,7 +264,7 @@ class PortfolioAnalysisHandler:
 
     def _build_allocation_comparison_data(
         self,
-        consolidated_portfolio: ConsolidatedPortfolioDTO,
+        consolidated_portfolio: ConsolidatedPortfolio,
         account_dict: dict[str, float],
         positions_dict: dict[str, float],
     ) -> dict[str, Any]:

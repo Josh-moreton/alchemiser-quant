@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import uuid
 
-from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
+from the_alchemiser.shared.schemas.ast_nodes import ASTNode
 from the_alchemiser.shared.dto.indicator_request_dto import IndicatorRequestDTO
 
 from ..context import DslContext
@@ -28,7 +28,7 @@ from ..dispatcher import DslDispatcher
 from ..types import DslEvaluationError
 
 
-def rsi(args: list[ASTNodeDTO], context: DslContext) -> float:
+def rsi(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate rsi - RSI indicator."""
     if not args:
         raise DslEvaluationError("rsi requires at least 1 argument")
@@ -89,7 +89,7 @@ def rsi(args: list[ASTNodeDTO], context: DslContext) -> float:
     return indicator.rsi_14 or 50.0
 
 
-def current_price(args: list[ASTNodeDTO], context: DslContext) -> float:
+def current_price(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate current-price - get current price of symbol (requires market data)."""
     if not args:
         raise DslEvaluationError("current-price requires symbol argument")
@@ -115,7 +115,7 @@ def current_price(args: list[ASTNodeDTO], context: DslContext) -> float:
     return float(indicator.current_price)
 
 
-def moving_average_price(args: list[ASTNodeDTO], context: DslContext) -> float:
+def moving_average_price(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate moving-average-price using TechnicalIndicators via IndicatorService."""
     if len(args) < 2:
         raise DslEvaluationError("moving-average-price requires symbol and parameters")
@@ -163,7 +163,7 @@ def moving_average_price(args: list[ASTNodeDTO], context: DslContext) -> float:
     raise DslEvaluationError(f"Moving average for {symbol_val} window={window} not available")
 
 
-def moving_average_return(args: list[ASTNodeDTO], context: DslContext) -> float:
+def moving_average_return(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate moving-average-return via IndicatorService."""
     if len(args) < 2:
         raise DslEvaluationError("moving-average-return requires symbol and parameters")
@@ -206,21 +206,21 @@ def moving_average_return(args: list[ASTNodeDTO], context: DslContext) -> float:
     )
 
 
-def moving_average(args: list[ASTNodeDTO], context: DslContext) -> float:
+def moving_average(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate ma - disabled mock; not implemented."""
     raise DslEvaluationError(
         "ma is not implemented in DSL evaluator; use moving-average-* indicators via data layer"
     )
 
 
-def volatility(args: list[ASTNodeDTO], context: DslContext) -> float:
+def volatility(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate volatility - disabled mock; not implemented."""
     raise DslEvaluationError(
         "volatility is not implemented in DSL evaluator; compute via data layer"
     )
 
 
-def cumulative_return(args: list[ASTNodeDTO], context: DslContext) -> float:
+def cumulative_return(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate cumulative-return via IndicatorService."""
     if len(args) < 2:
         raise DslEvaluationError("cumulative-return requires symbol and parameters")
@@ -261,7 +261,7 @@ def cumulative_return(args: list[ASTNodeDTO], context: DslContext) -> float:
     raise DslEvaluationError(f"Cumulative return for {symbol_val} window={window} not available")
 
 
-def exponential_moving_average_price(args: list[ASTNodeDTO], context: DslContext) -> float:
+def exponential_moving_average_price(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate exponential-moving-average-price via IndicatorService."""
     if len(args) < 2:
         raise DslEvaluationError("exponential-moving-average-price requires symbol and parameters")
@@ -304,7 +304,7 @@ def exponential_moving_average_price(args: list[ASTNodeDTO], context: DslContext
     raise DslEvaluationError(f"EMA for {symbol_val} window={window} not available")
 
 
-def stdev_return(args: list[ASTNodeDTO], context: DslContext) -> float:
+def stdev_return(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate stdev-return via IndicatorService."""
     if len(args) < 2:
         raise DslEvaluationError("stdev-return requires symbol and parameters")
@@ -345,7 +345,7 @@ def stdev_return(args: list[ASTNodeDTO], context: DslContext) -> float:
     raise DslEvaluationError(f"Stdev return for {symbol_val} window={window} not available")
 
 
-def max_drawdown(args: list[ASTNodeDTO], context: DslContext) -> float:
+def max_drawdown(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate max-drawdown via IndicatorService."""
     if len(args) < 2:
         raise DslEvaluationError("max-drawdown requires symbol and parameters")
