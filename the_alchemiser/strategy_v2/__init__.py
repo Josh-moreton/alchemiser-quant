@@ -16,6 +16,15 @@ Public API:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from the_alchemiser.shared.config.container import ApplicationContainer
+    from the_alchemiser.shared.registry.handler_registry import EventHandlerRegistry
+    from the_alchemiser.strategy_v2.handlers.signal_generation_handler import (
+        SignalGenerationHandler,
+    )
+
 # Core imports
 from .core.orchestrator import SingleStrategyOrchestrator
 from .core.registry import get_strategy, list_strategies, register_strategy
@@ -28,7 +37,42 @@ __all__ = [
     "get_strategy",
     "list_strategies",
     "register_strategy",
+    "register_strategy_handlers",
 ]
 
 # Version for compatibility tracking
 __version__ = "2.0.0"
+
+
+def register_strategy_handlers(
+    container: ApplicationContainer, registry: EventHandlerRegistry
+) -> None:
+    """Register strategy event handlers with the handler registry.
+    
+    Args:
+        container: Application DI container
+        registry: Event handler registry
+
+    """
+    from .handlers.signal_generation_handler import SignalGenerationHandler
+    
+    def signal_handler_factory() -> SignalGenerationHandler:
+        """Create SignalGenerationHandler."""
+        return SignalGenerationHandler(container)
+    
+    # Register handlers for events this module can handle
+    registry.register_handler(
+        event_type="StartupEvent",
+        handler_factory=signal_handler_factory,
+        module_name="strategy_v2",
+        priority=100,
+        metadata={"description": "Generates strategy signals on startup"}
+    )
+    
+    registry.register_handler(
+        event_type="WorkflowStarted",
+        handler_factory=signal_handler_factory,
+        module_name="strategy_v2",
+        priority=100,
+        metadata={"description": "Generates strategy signals on workflow start"}
+    )

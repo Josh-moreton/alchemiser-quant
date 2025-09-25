@@ -8,6 +8,7 @@ from __future__ import annotations
 from dependency_injector import containers, providers
 
 from the_alchemiser.shared.events.bus import EventBus
+from the_alchemiser.shared.registry.handler_registry import EventHandlerRegistry
 
 # - AccountService → Use AlpacaManager directly
 # - TradingServiceManager → Use ExecutionManager from execution_v2
@@ -26,6 +27,9 @@ class ServiceProviders(containers.DeclarativeContainer):
 
     # Event bus (singleton for the application)
     event_bus = providers.Singleton(EventBus)
+    
+    # Event handler registry (singleton for the application)
+    event_handler_registry = providers.Singleton(EventHandlerRegistry)
 
     # Execution providers will be injected from execution_v2 module
     # This maintains the layered architecture by preventing shared -> execution_v2 imports

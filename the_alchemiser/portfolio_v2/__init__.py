@@ -16,10 +16,46 @@ This module implements the core design principle:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from the_alchemiser.portfolio_v2.handlers.portfolio_analysis_handler import (
+        PortfolioAnalysisHandler,
+    )
+    from the_alchemiser.shared.config.container import ApplicationContainer
+    from the_alchemiser.shared.registry.handler_registry import EventHandlerRegistry
+
 from .core.planner import RebalancePlanCalculator
 from .core.portfolio_service import PortfolioServiceV2
 
 __all__ = [
     "PortfolioServiceV2",
-    "RebalancePlanCalculator",
+    "RebalancePlanCalculator", 
+    "register_portfolio_handlers",
 ]
+
+
+def register_portfolio_handlers(
+    container: ApplicationContainer, registry: EventHandlerRegistry
+) -> None:
+    """Register portfolio event handlers with the handler registry.
+    
+    Args:
+        container: Application DI container
+        registry: Event handler registry
+
+    """
+    from .handlers.portfolio_analysis_handler import PortfolioAnalysisHandler
+    
+    def portfolio_handler_factory() -> PortfolioAnalysisHandler:
+        """Create PortfolioAnalysisHandler."""
+        return PortfolioAnalysisHandler(container)
+    
+    # Register handler for events this module can handle
+    registry.register_handler(
+        event_type="SignalGenerated",
+        handler_factory=portfolio_handler_factory,
+        module_name="portfolio_v2",
+        priority=100,
+        metadata={"description": "Analyzes portfolio and creates rebalance plan"}
+    )
