@@ -45,7 +45,8 @@ class StartupEvent(BaseEvent):
 class SignalGenerated(BaseEvent):
     """Event emitted when strategy signals are generated.
 
-    Contains the strategy signal data for portfolio consumption.
+    Contains the strategy signal data for portfolio consumption with
+    idempotency support and enhanced metadata for event-driven workflows.
     """
 
     # Override event_type with default
@@ -58,6 +59,11 @@ class SignalGenerated(BaseEvent):
     )
     signal_count: int = Field(..., description="Number of signals generated")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional signal metadata")
+    
+    # Event-driven enhancement fields for idempotency and traceability
+    schema_version: str = Field(default="1.0", description="Event schema version for compatibility")
+    signal_hash: str = Field(..., description="Deterministic hash of signal data for idempotency")
+    market_snapshot_id: str = Field(..., description="Market data snapshot identifier for correlation")
 
 
 class RebalancePlanned(BaseEvent):
