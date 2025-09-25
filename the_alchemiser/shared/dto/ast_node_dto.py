@@ -70,9 +70,7 @@ class ASTNode(BaseModel):
         return cls(node_type="atom", value=value, metadata=metadata)
 
     @classmethod
-    def list_node(
-        cls, children: list[ASTNode], metadata: dict[str, Any] | None = None
-    ) -> ASTNode:
+    def list_node(cls, children: list[ASTNode], metadata: dict[str, Any] | None = None) -> ASTNode:
         """Create a list node.
 
         Args:

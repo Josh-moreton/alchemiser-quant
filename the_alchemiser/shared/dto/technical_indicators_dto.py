@@ -199,9 +199,7 @@ class TechnicalIndicator(BaseModel):
         return cls(**data)
 
     @classmethod
-    def from_legacy_dict(
-        cls, symbol: str, legacy_indicators: dict[str, Any]
-    ) -> TechnicalIndicator:
+    def from_legacy_dict(cls, symbol: str, legacy_indicators: dict[str, Any]) -> TechnicalIndicator:
         """Create TechnicalIndicator from legacy indicator dictionary.
 
         Args:

@@ -136,9 +136,7 @@ class ExecutionReport(BaseModel):
     total_duration_seconds: int = Field(..., ge=0, description="Total execution duration")
 
     # Order details
-    orders: list[ExecutedOrder] = Field(
-        default_factory=list, description="List of executed orders"
-    )
+    orders: list[ExecutedOrder] = Field(default_factory=list, description="List of executed orders")
 
     # Performance metrics
     success_rate: Decimal = Field(..., ge=0, le=1, description="Success rate (0-1)")

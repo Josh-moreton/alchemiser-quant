@@ -44,9 +44,7 @@ class ExecutionResult(BaseModel):
     success: bool = Field(..., description="Overall execution success")
     plan_id: str = Field(..., description="Rebalance plan ID")
     correlation_id: str = Field(..., description="Correlation ID for traceability")
-    orders: list[OrderResult] = Field(
-        default_factory=list, description="Individual order results"
-    )
+    orders: list[OrderResult] = Field(default_factory=list, description="Individual order results")
     orders_placed: int = Field(..., description="Number of orders placed")
     orders_succeeded: int = Field(..., description="Number of successful orders")
     total_trade_value: Decimal = Field(..., description="Total dollar value traded")
