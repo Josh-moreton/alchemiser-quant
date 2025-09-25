@@ -5,48 +5,60 @@ and serialization helpers.
 
 NOTE: This module now provides backward compatibility re-exports.
 New code should import directly from shared.schemas submodules.
+The DTOs have been moved using git mv to preserve history and eliminate duplication.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-# Placeholder DTO classes for future implementation (to be enhanced in Phase 2)
 from pydantic import BaseModel, ConfigDict, Field
 
 # Re-export moved DTOs from new schema locations for backward compatibility
-from the_alchemiser.shared.schemas.execution import (
-    ExecutedOrderDTO,
-    ExecutionReportDTO,
-    ExecutionResult,
-    ExecutionSummaryDTO,
-    MarketDataDTO,
-    OrderRequestDTO,
-    OrderResultSummaryDTO,
-    TradeRunResultDTO,
-)
-from the_alchemiser.shared.schemas.market import AssetInfoDTO, MarketBarDTO
+from the_alchemiser.shared.schemas.assets import AssetInfoDTO
+from the_alchemiser.shared.schemas.broker import WebSocketResult, WebSocketStatus
+from the_alchemiser.shared.schemas.dsl import ASTNodeDTO, TraceDTO
+from the_alchemiser.shared.schemas.events import LambdaEventDTO
+from the_alchemiser.shared.schemas.execution import ExecutionResult
+from the_alchemiser.shared.schemas.indicators import TechnicalIndicatorDTO
+from the_alchemiser.shared.schemas.market_data import MarketBarDTO
+from the_alchemiser.shared.schemas.orders import MarketDataDTO, OrderRequestDTO
 from the_alchemiser.shared.schemas.portfolio import (
-    AssetType,
-    ConsolidatedPortfolioDTO,
-    Lot,
-    PerformanceSummary,
     PortfolioMetricsDTO,
     PortfolioStateDTO,
     PositionDTO,
-    RebalancePlanDTO,
-    RebalancePlanItemDTO,
+)
+from the_alchemiser.shared.schemas.strategy import StrategyAllocationDTO, StrategySignalDTO
+from the_alchemiser.shared.schemas.trading import (
+    AssetType,
+    Lot,
+    PerformanceSummary,
     TradeLedgerEntry,
     TradeLedgerQuery,
     TradeSide,
 )
-from the_alchemiser.shared.schemas.strategy import (
-    IndicatorRequestDTO,
-    StrategyAllocationDTO,
-    StrategySignalDTO,
-    TechnicalIndicatorDTO,
-)
-from the_alchemiser.shared.schemas.system import ASTNodeDTO, LambdaEventDTO, TraceDTO
+
+# Import remaining DTOs that haven't been fully consolidated yet
+# These will be handled in subsequent consolidation steps
+try:
+    from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
+    from the_alchemiser.shared.dto.execution_report_dto import (
+        ExecutedOrderDTO,
+        ExecutionReportDTO,
+    )
+    from the_alchemiser.shared.dto.indicator_request_dto import IndicatorRequestDTO
+    from the_alchemiser.shared.dto.rebalance_plan_dto import (
+        RebalancePlanDTO,
+        RebalancePlanItemDTO,
+    )
+    from the_alchemiser.shared.dto.trade_run_result_dto import (
+        ExecutionSummaryDTO,
+        OrderResultSummaryDTO,
+        TradeRunResultDTO,
+    )
+except ImportError:
+    # Handle gracefully if files have been moved/consolidated
+    pass
 
 
 class ConfigurationDTO(BaseModel):
@@ -87,48 +99,42 @@ class ErrorDTO(BaseModel):
 
 
 __all__ = [
-    # Asset DTOs
-    "AssetInfoDTO",
-    # AST DTOs
+    # Moved DTOs (now re-exported from schema locations)
     "ASTNodeDTO",
-    # Trade Ledger DTOs
+    "AssetInfoDTO",
     "AssetType",
-    # Placeholder DTOs
-    "ConfigurationDTO",
-    "ConsolidatedPortfolioDTO",
-    "ErrorDTO",
-    # Execution DTOs
-    "ExecutedOrderDTO",
-    "ExecutionReportDTO",
     "ExecutionResult",
-    "ExecutionSummaryDTO",
-    # Indicator DTOs
-    "IndicatorRequestDTO",
-    # Lambda DTOs
     "LambdaEventDTO",
-    # Trade Ledger DTOs
     "Lot",
-    # Market DTOs
     "MarketBarDTO",
     "MarketDataDTO",
     "OrderRequestDTO",
-    "OrderResultSummaryDTO",
-    # Trade Ledger DTOs
     "PerformanceSummary",
     "PortfolioMetricsDTO",
     "PortfolioStateDTO",
     "PositionDTO",
-    "RebalancePlanDTO",
-    "RebalancePlanItemDTO",
     "StrategyAllocationDTO",
     "StrategySignalDTO",
     "TechnicalIndicatorDTO",
-    # Trace DTOs
-    "TraceDTO",
-    # Trade Ledger DTOs
     "TradeLedgerEntry",
     "TradeLedgerQuery",
-    "TradeRunResultDTO",
-    # Trade Ledger DTOs
+    "TraceDTO",
     "TradeSide",
+    "WebSocketResult",
+    "WebSocketStatus",
+    
+    # DTOs not yet fully consolidated (temporary)
+    "ConsolidatedPortfolioDTO",
+    "ExecutedOrderDTO", 
+    "ExecutionReportDTO",
+    "ExecutionSummaryDTO",
+    "IndicatorRequestDTO",
+    "OrderResultSummaryDTO",
+    "RebalancePlanDTO",
+    "RebalancePlanItemDTO",
+    "TradeRunResultDTO",
+    
+    # Placeholder DTOs
+    "ConfigurationDTO",
+    "ErrorDTO",
 ]

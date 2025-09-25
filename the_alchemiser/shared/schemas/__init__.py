@@ -5,7 +5,6 @@ Business Unit: shared | Status: current
 Common schema definitions used across modules.
 """
 
-# Import existing parent-level schemas (from .py files)
 from .accounts import (
     AccountMetrics,
     AccountSummary,
@@ -15,12 +14,15 @@ from .accounts import (
     RiskMetricsResult,
     TradeEligibilityResult,
 )
+from .assets import AssetInfoDTO
 from .base import Result
+from .broker import WebSocketResult, WebSocketStatus
 from .common import (
     AllocationComparisonDTO,
     MultiStrategyExecutionResultDTO,
     MultiStrategySummaryDTO,
 )
+from .dsl import ASTNodeDTO, TraceDTO, TraceEntryDTO
 from .errors import (
     ErrorContextData,
     ErrorDetailInfo,
@@ -28,26 +30,36 @@ from .errors import (
     ErrorReportSummary,
     ErrorSummaryData,
 )
+from .events import LambdaEventDTO
+from .execution import ExecutionResult
+from .indicators import TechnicalIndicatorDTO
 from .market_data import (
+    MarketBarDTO,
     MarketStatusResult,
     MultiSymbolQuotesResult,
     PriceHistoryResult,
     PriceResult,
     SpreadAnalysisResult,
 )
-
-# Import from new submodules (from subdirectories)
-from .execution import *
-from .market import *
-from .portfolio import *  
-from .strategy import *
-from .system import *
+from .orders import MarketDataDTO, OrderRequestDTO
+from .portfolio import PortfolioMetricsDTO, PortfolioStateDTO, PositionDTO
+from .strategy import StrategyAllocationDTO, StrategySignalDTO
+from .trading import (
+    AssetType,
+    Lot,
+    PerformanceSummary,
+    TradeLedgerEntry,
+    TradeLedgerQuery,
+    TradeSide,
+)
 
 __all__ = [
-    # From parent-level modules
     "AccountMetrics",
     "AccountSummary",
     "AllocationComparisonDTO",
+    "ASTNodeDTO",
+    "AssetInfoDTO",
+    "AssetType",
     "BuyingPowerResult",
     "EnrichedAccountSummaryView",
     "ErrorContextData",
@@ -55,56 +67,35 @@ __all__ = [
     "ErrorNotificationData",
     "ErrorReportSummary",
     "ErrorSummaryData",
+    "ExecutionResult",
+    "LambdaEventDTO",
+    "Lot",
+    "MarketBarDTO",
+    "MarketDataDTO",
     "MarketStatusResult",
     "MultiStrategyExecutionResultDTO",
     "MultiStrategySummaryDTO",
     "MultiSymbolQuotesResult",
+    "OrderRequestDTO",
+    "PerformanceSummary",
     "PortfolioAllocationResult",
+    "PortfolioMetricsDTO",
+    "PortfolioStateDTO",
+    "PositionDTO",
     "PriceHistoryResult",
     "PriceResult",
     "Result",
     "RiskMetricsResult",
     "SpreadAnalysisResult",
-    "TradeEligibilityResult",
-    
-    # From execution submodule  
-    "ExecutedOrderDTO",
-    "ExecutionReportDTO",
-    "ExecutionResult",
-    "ExecutionSummaryDTO",
-    "MarketDataDTO",
-    "OrderRequestDTO",
-    "OrderResultSummaryDTO",
-    "TradeRunResultDTO",
-    
-    # From market submodule
-    "AssetInfoDTO",
-    "MarketBarDTO",
-    
-    # From portfolio submodule
-    "AssetType",
-    "ConsolidatedPortfolioDTO",
-    "Lot",
-    "PerformanceSummary",
-    "PortfolioMetricsDTO",
-    "PortfolioStateDTO",
-    "PositionDTO",
-    "RebalancePlanDTO",
-    "RebalancePlanItemDTO",
+    "StrategyAllocationDTO",
+    "StrategySignalDTO",
+    "TechnicalIndicatorDTO",
     "TradeLedgerEntry",
     "TradeLedgerQuery",
-    "TradeSide",
-    
-    # From strategy submodule
-    "IndicatorRequestDTO",
-    "StrategyAllocationDTO",
-    "StrategySignalDTO", 
-    "TechnicalIndicatorDTO",
-    
-    # From system submodule
-    "ASTNodeDTO",
-    "LambdaEventDTO",
     "TraceDTO",
+    "TraceEntryDTO",
+    "TradeEligibilityResult",
+    "TradeSide",
     "WebSocketResult",
     "WebSocketStatus",
 ]
