@@ -139,15 +139,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         paper: bool = True,
         base_url: str | None = None,
     ) -> None:
-        """Initialize Alpaca clients (only once per credentials).
-
-        Args:
-            api_key: Alpaca API key
-            secret_key: Alpaca secret key
-            paper: Whether to use paper trading (default: True for safety)
-            base_url: Optional custom base URL
-
-        """
+        """Initialize Alpaca clients (only once per credentials)."""
         # Skip initialization if already initialized (singleton pattern)
         if hasattr(self, "_initialized") and self._initialized:
             return
@@ -272,83 +264,38 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def _validate_market_order_params(
         self, symbol: str, side: str, qty: float | None, notional: float | None
     ) -> tuple[str, str]:
-        """Validate market order parameters.
-
-        Args:
-            symbol: Stock symbol
-            side: 'buy' or 'sell'
-            qty: Quantity to trade
-            notional: Dollar amount to trade
-
-        Returns:
-            Tuple of (normalized_symbol, normalized_side)
-
-        Raises:
-            ValueError: If validation fails
-
-        """
+        """Validate market order parameters."""
         if not symbol or not symbol.strip():
             raise ValueError("Symbol cannot be empty")
-
         if qty is None and notional is None:
             raise ValueError("Either qty or notional must be specified")
-
         if qty is not None and notional is not None:
             raise ValueError("Cannot specify both qty and notional")
-
         if qty is not None and qty <= 0:
             raise ValueError("Quantity must be positive")
-
         if notional is not None and notional <= 0:
             raise ValueError("Notional amount must be positive")
-
+        
         side_normalized = side.lower().strip()
         if side_normalized not in ["buy", "sell"]:
             raise ValueError("Side must be 'buy' or 'sell'")
-
+        
         return symbol.upper(), side_normalized
 
     def _adjust_quantity_for_complete_exit(
         self, symbol: str, side: str, qty: float | None, *, is_complete_exit: bool
     ) -> float | None:
-        """Adjust quantity for complete exit if needed.
-
-        Args:
-            symbol: Stock symbol
-            side: Order side
-            qty: Original quantity
-            is_complete_exit: Whether this is a complete exit
-
-        Returns:
-            Adjusted quantity or original quantity
-
-        """
+        """Adjust quantity for complete exit if needed."""
         if not (is_complete_exit and side == "sell" and qty is not None):
             return qty
 
         try:
             position = self.get_position(symbol)
-            if not position:
-                return qty
-            # Use qty_available if available, fallback to qty
-            available_qty = getattr(position, "qty_available", None)
-            if available_qty is not None:
-                final_qty = float(available_qty)
-                logger.info(
-                    f"Complete exit detected for {symbol}: using Alpaca's available quantity "
-                    f"{final_qty} instead of calculated {qty}"
-                )
-                return final_qty
-
-            # Fallback to total qty if qty_available not available
-            total_qty = getattr(position, "qty", None)
-            if total_qty is not None:
-                final_qty = float(total_qty)
-                logger.info(
-                    f"Complete exit detected for {symbol}: using total quantity "
-                    f"{final_qty} instead of calculated {qty}"
-                )
-                return final_qty
+            if position:
+                # Use qty_available if available, fallback to qty
+                available_qty = getattr(position, "qty_available", None) or getattr(position, "qty", None)
+                if available_qty:
+                    return float(available_qty)
         except Exception as e:
             logger.warning(f"Failed to get position for complete exit of {symbol}: {e}")
 
@@ -362,19 +309,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         qty: float | None,
         error_message: str,
     ) -> ExecutedOrderDTO:
-        """Create error ExecutedOrderDTO for failed orders.
-
-        Args:
-            order_id: Error order ID
-            symbol: Stock symbol
-            side: Order side
-            qty: Order quantity
-            error_message: Error description
-
-        Returns:
-            ExecutedOrderDTO with error details
-
-        """
+        """Create error ExecutedOrderDTO for failed orders."""
         return ExecutedOrderDTO(
             order_id=order_id,
             symbol=symbol.upper() if symbol else "UNKNOWN",
@@ -397,20 +332,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         *,
         is_complete_exit: bool = False,
     ) -> ExecutedOrderDTO:
-        """Place a market order with validation and execution result return.
-
-        Args:
-            symbol: Stock symbol (e.g., 'AAPL')
-            side: 'buy' or 'sell'
-            qty: Quantity to trade (use either qty OR notional)
-            notional: Dollar amount to trade (use either qty OR notional)
-            is_complete_exit: If True and side is 'sell', use actual available quantity
-
-        Returns:
-            ExecutedOrderDTO with execution details
-
-
-        """
+        """Place a market order with validation and execution result return."""
         try:
             # Validation
             normalized_symbol, side_normalized = self._validate_market_order_params(
