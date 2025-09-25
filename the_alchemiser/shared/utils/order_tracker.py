@@ -55,7 +55,7 @@ class OrderTracker:
 
         """
         with self._lock:
-            if status:
+            if status is not None:
                 self._order_status[order_id] = status
             if avg_price is not None:
                 self._order_avg_price[order_id] = avg_price

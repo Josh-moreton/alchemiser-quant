@@ -34,16 +34,38 @@ logger = logging.getLogger(__name__)
 
 @runtime_checkable
 class QuoteProvider(Protocol):
-    """Protocol for providers that can fetch bid-ask quotes."""
+    """Protocol for providers that can fetch bid-ask quotes.
 
-    def get_latest_quote(self, symbol: str) -> tuple[float, float] | QuoteModel | None:
+    This protocol defines a standard interface for quote retrieval.
+    Implementers should consistently return one of the defined types.
+    """
+
+    def get_latest_quote(self, symbol: str) -> QuoteModel | None:
         """Get latest bid-ask quote for a symbol.
 
         Returns:
-            Tuple of (bid, ask) prices, QuoteModel, or None if unavailable
+            QuoteModel with bid/ask prices, or None if unavailable
 
-        Note: This protocol supports both tuple and QuoteModel return types.
-        The get_current_price_from_quote() function handles both formats.
+        Note: This protocol now standardizes on QuoteModel for consistency.
+        Legacy tuple-based providers should convert to QuoteModel at the adapter boundary.
+
+        """
+        ...
+
+
+@runtime_checkable
+class LegacyQuoteProvider(Protocol):
+    """Legacy protocol for providers that return tuple-based quotes.
+
+    This protocol is maintained for backward compatibility with existing
+    implementations that haven't been migrated to QuoteModel yet.
+    """
+
+    def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
+        """Get latest bid-ask quote for a symbol.
+
+        Returns:
+            Tuple of (bid, ask) prices, or None if unavailable
 
         """
         ...
@@ -98,7 +120,7 @@ def calculate_midpoint_price(bid: float, ask: float) -> float | None:
 
 
 def get_current_price_from_quote(
-    quote_provider: QuoteProvider, symbol: str
+    quote_provider: QuoteProvider | LegacyQuoteProvider, symbol: str
 ) -> float | None:
     """Get current price from quote provider using bid-ask midpoint.
 
@@ -107,7 +129,7 @@ def get_current_price_from_quote(
     strategy_v2 market data clients.
 
     Args:
-        quote_provider: Provider that can fetch bid-ask quotes
+        quote_provider: Provider that can fetch bid-ask quotes (modern or legacy)
         symbol: Stock symbol
 
     Returns:
@@ -121,18 +143,22 @@ def get_current_price_from_quote(
     try:
         quote = quote_provider.get_latest_quote(symbol)
         if quote is not None:
-            # Handle both tuple and QuoteModel return types
+            # Handle legacy tuple return type first (most specific)
             if isinstance(quote, tuple) and len(quote) == 2:
                 bid, ask = quote
                 return calculate_midpoint_price(bid, ask)
+            # Handle QuoteModel return type (preferred)
             if hasattr(quote, "bid") and hasattr(quote, "ask"):
                 # QuoteModel has bid/ask as Decimal, convert to float
                 bid = float(quote.bid)
                 ask = float(quote.ask)
                 return calculate_midpoint_price(bid, ask)
+            # Handle QuoteModel with mid property
             if hasattr(quote, "mid"):
-                # QuoteModel has a mid property
                 return float(quote.mid)
+
+            logger.error(f"Unexpected quote type for {symbol}: {type(quote)}")
+            return None
         logger.warning(f"No quote available for symbol: {symbol}")
         return None
     except Exception as e:
@@ -212,9 +238,7 @@ def get_current_price_as_decimal(
     try:
         price = _get_price_from_provider(provider, symbol)
         if price is not None:
-            return Decimal(
-                str(price)
-            )  # Convert via string to avoid float precision issues
+            return Decimal(str(price))  # Convert via string to avoid float precision issues
         return None
     except Exception as e:
         logger.error(f"Error getting decimal price for {symbol}: {e}")
@@ -242,9 +266,7 @@ def _get_price_from_provider(
         # Otherwise assume QuoteProvider interface
         if isinstance(provider, QuoteProvider):
             return get_current_price_from_quote(provider, symbol)
-        logger.error(
-            f"Provider does not implement expected interface: {type(provider)}"
-        )
+        logger.error(f"Provider does not implement expected interface: {type(provider)}")
         return None
     except Exception as e:
         logger.error(f"Error getting price from provider for {symbol}: {e}")

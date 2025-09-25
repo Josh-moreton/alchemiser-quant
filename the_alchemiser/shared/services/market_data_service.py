@@ -112,7 +112,7 @@ class MarketDataService(MarketDataPort):
             from alpaca.data.requests import StockLatestQuoteRequest
 
             request = StockLatestQuoteRequest(symbol_or_symbols=[symbol_str])
-            quotes = self._repo._data_client.get_stock_latest_quote(request)
+            quotes = self._repo.get_data_client().get_stock_latest_quote(request)
             quote = quotes.get(symbol_str)
 
             if quote:
@@ -216,7 +216,7 @@ class MarketDataService(MarketDataPort):
             from alpaca.data.requests import StockLatestQuoteRequest
 
             request = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
-            quotes = self._repo._data_client.get_stock_latest_quote(request)
+            quotes = self._repo.get_data_client().get_stock_latest_quote(request)
             quote = quotes.get(symbol)
 
             if quote:
@@ -280,7 +280,7 @@ class MarketDataService(MarketDataPort):
                 )
 
                 # Make API call and extract bars
-                response = self._repo._data_client.get_stock_bars(request)
+                response = self._repo.get_data_client().get_stock_bars(request)
                 bars_obj = self._extract_bars_from_response_core(response, symbol)
 
                 if not bars_obj:
