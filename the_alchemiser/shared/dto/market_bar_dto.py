@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validat
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class MarketBarDTO(BaseModel):
+class MarketBar(BaseModel):
     """DTO for market bar data optimized for strategy consumption.
 
     Focused specifically on OHLCV data needed by strategy engines
@@ -219,3 +219,7 @@ class MarketBarDTO(BaseModel):
             "vw": float(self.vwap) if self.vwap else None,
             "n": self.trade_count,
         }
+
+
+# TODO: Remove in Phase 3 - Temporary backward compatibility alias
+MarketBarDTO = MarketBar

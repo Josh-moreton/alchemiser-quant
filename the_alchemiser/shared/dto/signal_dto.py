@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class StrategySignalDTO(BaseModel):
+class StrategySignal(BaseModel):
     """DTO for strategy signal data transfer.
 
     Used for communication between strategy and portfolio modules.
@@ -101,14 +101,14 @@ class StrategySignalDTO(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> StrategySignalDTO:
+    def from_dict(cls, data: dict[str, Any]) -> StrategySignal:
         """Create DTO from dictionary.
 
         Args:
             data: Dictionary containing DTO data
 
         Returns:
-            StrategySignalDTO instance
+            StrategySignal instance
 
         Raises:
             ValueError: If data is invalid or missing required fields
@@ -138,3 +138,7 @@ class StrategySignalDTO(BaseModel):
                     raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
 
         return cls(**data)
+
+
+# TODO: Remove in Phase 3 - Temporary backward compatibility alias
+StrategySignalDTO = StrategySignal
