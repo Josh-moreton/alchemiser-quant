@@ -106,7 +106,9 @@ class AlpacaTradingService:
     ) -> ExecutedOrderDTO:
         """Place an order and return execution details."""
         try:
+            self._ensure_trading_stream()
             order = self._trading_client.submit_order(order_request)
+            self._track_submitted_order(order)
             return self._create_success_order_dto(order, order_request)
         except Exception as e:
             logger.error(f"Failed to place order: {e}")
@@ -225,7 +227,9 @@ class AlpacaTradingService:
             )
 
             # Submit order
+            self._ensure_trading_stream()
             order = self._trading_client.submit_order(order_request)
+            self._track_submitted_order(order)
             return self._alpaca_order_to_execution_result(order)
 
         except Exception as e:
@@ -628,13 +632,12 @@ class AlpacaTradingService:
                 if remaining_time <= 0:
                     break
 
-                if self._order_tracker.wait_for_completion(
+                event_completed = self._order_tracker.wait_for_completion(
                     order_id, timeout=remaining_time
-                ) and self._order_tracker.get_status(order_id) in [
-                    "filled",
-                    "canceled",
-                    "rejected",
-                ]:
+                )
+                status = self._order_tracker.get_status(order_id)
+
+                if event_completed or self._order_tracker.is_terminal_status(status):
                     completed.append(order_id)
 
             return completed
@@ -642,6 +645,42 @@ class AlpacaTradingService:
         except Exception as e:
             logger.error(f"WebSocket order monitoring failed: {e}")
             return []
+
+    def _track_submitted_order(self, order: Order | dict[str, Any]) -> None:
+        """Register submitted orders with the tracker for websocket completion."""
+        try:
+            order_id: str | None = None
+            status_raw: Any = None
+            avg_price_raw: Any = None
+
+            if hasattr(order, "id"):
+                order_id = str(getattr(order, "id", "") or "")
+                status_raw = getattr(order, "status", None)
+                avg_price_raw = getattr(order, "filled_avg_price", None)
+            elif isinstance(order, dict):
+                order_id = str(order.get("id", "") or "")
+                status_raw = order.get("status")
+                avg_price_raw = order.get("filled_avg_price")
+
+            if not order_id:
+                return
+
+            self._order_tracker.create_event(order_id)
+
+            status: str | None = None
+            if status_raw is not None:
+                status = self._extract_enum_value(status_raw).lower()
+
+            avg_price: Decimal | None = None
+            if avg_price_raw is not None:
+                avg_price = Decimal(str(avg_price_raw))
+
+            self._order_tracker.update_order_status(order_id, status, avg_price)
+
+            if self._order_tracker.is_terminal_status(status):
+                self._order_tracker.signal_completion(order_id)
+        except Exception as exc:
+            logger.debug(f"Skipping order tracking for submitted order: {exc}")
 
     def _ensure_trading_stream(self) -> None:
         """Ensure TradingStream is running via WebSocketConnectionManager."""
