@@ -101,9 +101,7 @@ class Error(BaseModel):
 
     error_type: str = Field(description="Type of error")
     message: str = Field(description="Error message")
-    context: dict[str, Any] = Field(
-        default_factory=dict, description="Error context data"
-    )
+    context: dict[str, Any] = Field(default_factory=dict, description="Error context data")
 
 
 __all__ = [

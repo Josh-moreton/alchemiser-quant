@@ -325,7 +325,7 @@ class PortfolioOrchestrator:
                 if target_allocations.source_strategies
                 else "Consolidated"
             )
-            
+
             allocation_dto = StrategyAllocationDTO(
                 target_weights=target_weights,
                 correlation_id=target_allocations.correlation_id,

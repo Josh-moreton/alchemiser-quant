@@ -71,7 +71,11 @@ class DslEvaluator:
         register_indicator_operators(self.dispatcher)
 
     def evaluate(
-        self, ast: ASTNodeDTO, correlation_id: str, strategy_name: str, trace: TraceDTO | None = None
+        self,
+        ast: ASTNodeDTO,
+        correlation_id: str,
+        strategy_name: str,
+        trace: TraceDTO | None = None,
     ) -> tuple[StrategyAllocationDTO, TraceDTO]:
         """Evaluate AST and return allocation with trace.
 
