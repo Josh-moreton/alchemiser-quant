@@ -52,11 +52,12 @@ class ApplicationContainer(containers.DeclarativeContainer):
         )
         ExecutionProviders = execution_config_module.ExecutionProviders
 
-        container.execution = providers.Container(
-            ExecutionProviders,
-            infrastructure=container.infrastructure,
-            config=container.config,
+        execution_container = ExecutionProviders()
+        execution_container.infrastructure.alpaca_manager.override(
+            container.infrastructure.alpaca_manager
         )
+        execution_container.config.execution.override(container.config.execution)
+        container.execution = execution_container
 
     @classmethod
     def create_for_environment(cls, env: str = "development") -> ApplicationContainer:

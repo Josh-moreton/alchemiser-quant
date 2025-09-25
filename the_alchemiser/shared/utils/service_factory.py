@@ -14,7 +14,9 @@ from the_alchemiser.shared.config.container import (
 
 # Only import execution types for static analysis to avoid circular imports.
 if TYPE_CHECKING:
-    from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager as ExecutionManagerType
+    from the_alchemiser.execution_v2.core.execution_manager import (
+        ExecutionManager as ExecutionManagerType,
+    )
 else:  # pragma: no cover - runtime placeholder to avoid circular import
     ExecutionManagerType = object
 
