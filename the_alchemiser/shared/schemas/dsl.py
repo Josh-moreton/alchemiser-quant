@@ -213,7 +213,7 @@ class Trace(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> TraceDTO:
+    def from_dict(cls, data: dict[str, Any]) -> Trace:
         """Create DTO from dictionary."""
         # Convert datetime strings back to datetime objects
         datetime_fields = ["start_timestamp", "end_timestamp"]

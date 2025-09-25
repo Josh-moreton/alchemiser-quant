@@ -14,15 +14,15 @@ from .accounts import (
     RiskMetricsResult,
     TradeEligibilityResult,
 )
-from .assets import AssetInfoDTO
+from .assets import AssetInfo
 from .base import Result
 from .broker import WebSocketResult, WebSocketStatus
 from .common import (
-    AllocationComparisonDTO,
-    MultiStrategyExecutionResultDTO,
-    MultiStrategySummaryDTO,
+    AllocationComparison,
+    MultiStrategyExecutionResult,
+    MultiStrategySummary,
 )
-from .dsl import ASTNodeDTO, TraceDTO, TraceEntryDTO
+from .dsl import ASTNode, Trace, TraceEntry
 from .errors import (
     ErrorContextData,
     ErrorDetailInfo,
@@ -30,20 +30,20 @@ from .errors import (
     ErrorReportSummary,
     ErrorSummaryData,
 )
-from .events import LambdaEventDTO
+from .events import LambdaEvent
 from .execution import ExecutionResult
-from .indicators import TechnicalIndicatorDTO
+from .indicators import TechnicalIndicator
 from .market_data import (
-    MarketBarDTO,
+    MarketBar,
     MarketStatusResult,
     MultiSymbolQuotesResult,
     PriceHistoryResult,
     PriceResult,
     SpreadAnalysisResult,
 )
-from .orders import MarketDataDTO, OrderRequestDTO
-from .portfolio import PortfolioMetricsDTO, PortfolioStateDTO, PositionDTO
-from .strategy import StrategyAllocationDTO, StrategySignalDTO
+from .orders import MarketData, OrderRequest
+from .portfolio import PortfolioMetrics, PortfolioState, Position
+from .strategy import StrategyAllocation, StrategySignal
 from .trading import (
     AssetType,
     Lot,
@@ -54,11 +54,11 @@ from .trading import (
 )
 
 __all__ = [
+    "ASTNode",
     "AccountMetrics",
     "AccountSummary",
-    "AllocationComparisonDTO",
-    "ASTNodeDTO",
-    "AssetInfoDTO",
+    "AllocationComparison",
+    "AssetInfo",
     "AssetType",
     "BuyingPowerResult",
     "EnrichedAccountSummaryView",
@@ -68,33 +68,33 @@ __all__ = [
     "ErrorReportSummary",
     "ErrorSummaryData",
     "ExecutionResult",
-    "LambdaEventDTO",
+    "LambdaEvent",
     "Lot",
-    "MarketBarDTO",
-    "MarketDataDTO",
+    "MarketBar",
+    "MarketData",
     "MarketStatusResult",
-    "MultiStrategyExecutionResultDTO",
-    "MultiStrategySummaryDTO",
+    "MultiStrategyExecutionResult",
+    "MultiStrategySummary",
     "MultiSymbolQuotesResult",
-    "OrderRequestDTO",
+    "OrderRequest",
     "PerformanceSummary",
     "PortfolioAllocationResult",
-    "PortfolioMetricsDTO",
-    "PortfolioStateDTO",
-    "PositionDTO",
+    "PortfolioMetrics",
+    "PortfolioState",
+    "Position",
     "PriceHistoryResult",
     "PriceResult",
     "Result",
     "RiskMetricsResult",
     "SpreadAnalysisResult",
-    "StrategyAllocationDTO",
-    "StrategySignalDTO",
-    "TechnicalIndicatorDTO",
+    "StrategyAllocation",
+    "StrategySignal",
+    "TechnicalIndicator",
+    "Trace",
+    "TraceEntry",
+    "TradeEligibilityResult",
     "TradeLedgerEntry",
     "TradeLedgerQuery",
-    "TraceDTO",
-    "TraceEntryDTO",
-    "TradeEligibilityResult",
     "TradeSide",
     "WebSocketResult",
     "WebSocketStatus",

@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class ConsolidatedPortfolioDTO(BaseModel):
+class ConsolidatedPortfolio(BaseModel):
     """DTO for consolidated portfolio allocation from multiple strategies.
 
     Contains aggregated target allocations from strategy signals with
@@ -115,7 +115,7 @@ class ConsolidatedPortfolioDTO(BaseModel):
         allocation_dict: dict[str, float],
         correlation_id: str,
         source_strategies: list[str] | None = None,
-    ) -> ConsolidatedPortfolioDTO:
+    ) -> ConsolidatedPortfolio:
         """Create DTO from dict allocation data.
 
         Args:

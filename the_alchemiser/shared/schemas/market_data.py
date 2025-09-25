@@ -192,7 +192,7 @@ class MarketBar(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> MarketBarDTO:
+    def from_dict(cls, data: dict[str, Any]) -> MarketBar:
         """Create DTO from dictionary.
 
         Args:
@@ -237,7 +237,7 @@ class MarketBar(BaseModel):
         return cls(**data)
 
     @classmethod
-    def from_alpaca_bar(cls, bar_dict: dict[str, Any], symbol: str, timeframe: str) -> MarketBarDTO:
+    def from_alpaca_bar(cls, bar_dict: dict[str, Any], symbol: str, timeframe: str) -> MarketBar:
         """Create MarketBarDTO from Alpaca SDK bar data.
 
         Args:

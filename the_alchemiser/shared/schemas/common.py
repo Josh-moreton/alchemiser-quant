@@ -87,10 +87,10 @@ class MultiStrategySummary(BaseModel):
     )
 
     # Core execution result
-    execution_result: MultiStrategyExecutionResultDTO
+    execution_result: MultiStrategyExecutionResult
 
     # Allocation comparison with Decimal precision
-    allocation_comparison: AllocationComparisonDTO | None = None
+    allocation_comparison: AllocationComparison | None = None
 
     # Enriched account information
     enriched_account: dict[str, Any] | None = None

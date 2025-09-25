@@ -221,7 +221,7 @@ class StrategyAllocation(BaseModel):
         return ensure_timezone_aware(v)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> StrategyAllocationDTO:
+    def from_dict(cls, data: dict[str, Any]) -> StrategyAllocation:
         """Create DTO from dictionary with type conversion."""
         converted_data = data.copy()
 

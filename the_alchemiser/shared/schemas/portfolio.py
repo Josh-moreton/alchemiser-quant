@@ -240,7 +240,7 @@ class PortfolioState(BaseModel):
             data["metrics"] = metrics_dict
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> PortfolioStateDTO:
+    def from_dict(cls, data: dict[str, Any]) -> PortfolioState:
         """Create DTO from dictionary.
 
         Args:
@@ -319,7 +319,7 @@ class PortfolioState(BaseModel):
             for position_data in data["positions"]:
                 if isinstance(position_data, dict):
                     cls._convert_position_data(position_data)
-                    positions_data.append(PositionDTO(**position_data))
+                    positions_data.append(Position(**position_data))
                 else:
                     positions_data.append(position_data)  # Assume already a DTO
             data["positions"] = positions_data
@@ -391,4 +391,4 @@ class PortfolioState(BaseModel):
                         raise ValueError(
                             f"Invalid {field_name} value in metrics: {metrics_data[field_name]}"
                         ) from e
-            data["metrics"] = PortfolioMetricsDTO(**metrics_data)
+            data["metrics"] = PortfolioMetrics(**metrics_data)
