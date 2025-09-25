@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any, cast
 
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -117,55 +118,56 @@ def generate_market_snapshot_id(signals: list[StrategySignal]) -> str:
 def _normalize_signals_for_hash(signals_data: dict[str, Any]) -> dict[str, Any]:
     """Normalize signal data for consistent hashing.
 
-    Removes volatile fields and sorts data for deterministic hashing.
+    Removes volatile fields and sorts list values for deterministic ordering.
     """
-    normalized = {}
-
+    normalized: dict[str, Any] = {}
     for strategy_type, signal_data in signals_data.items():
         if isinstance(signal_data, dict):
-            # Keep only stable fields for hashing
-            stable_data = {}
+            stable: dict[str, Any] = {}
             for key, value in signal_data.items():
-                if key not in {"timestamp", "id", "uuid"}:  # Exclude volatile fields
-                    if isinstance(value, list):
-                        stable_data[key] = (
-                            sorted(value) if all(isinstance(x, str) for x in value) else value
-                        )
+                if key in {"timestamp", "id", "uuid"}:
+                    continue
+                if isinstance(value, list):
+                    if all(isinstance(x, str) for x in value):
+                        stable[key] = sorted(value)
                     else:
-                        stable_data[key] = value
-
-            normalized[strategy_type] = stable_data
-
+                        stable[key] = value
+                else:
+                    stable[key] = value
+            normalized[strategy_type] = stable
     return normalized
 
-
-def _normalize_portfolio_for_hash(portfolio_data: dict[str, Any]) -> dict[str, Any]:
+def _normalize_portfolio_for_hash(portfolio_data: object) -> object:
     """Normalize portfolio data for consistent hashing.
 
-    Converts allocation values to stable format and sorts by symbol.
+    Ensures all numeric allocation values are converted to floats, Decimals are
+    rounded for deterministic representation, and volatile fields are removed.
     """
-    if isinstance(portfolio_data, dict):
-        # If it's allocation data, sort by symbol and normalize values
+    # Primitive numeric conversion
+    if isinstance(portfolio_data, Decimal):
+        return round(float(portfolio_data), 6)
+    if isinstance(portfolio_data, (int, float)):
+        return round(float(portfolio_data), 6)
+
+    if isinstance(portfolio_data, dict):  # type: ignore[redundant-expr]
+        # Detect direct allocation dict (symbol -> weight)
         if all(
-            isinstance(k, str) and isinstance(v, (int, float)) for k, v in portfolio_data.items()
+            isinstance(k, str) and isinstance(v, (int, float, Decimal))
+            for k, v in portfolio_data.items()
         ):
-            # Direct allocation dictionary - sort by symbol
             return {
                 symbol: round(float(allocation), 6)
                 for symbol, allocation in sorted(portfolio_data.items())
             }
-        # Complex object - extract stable fields
-        stable_data = {}
+
+        stable_data: dict[str, Any] = {}
         for key, value in portfolio_data.items():
-            if key not in {
-                "timestamp",
-                "correlation_id",
-                "id",
-            }:  # Exclude volatile fields
-                if isinstance(value, dict):
-                    stable_data[key] = _normalize_portfolio_for_hash(value)
-                else:
-                    stable_data[key] = value
+            if key in {"timestamp", "correlation_id", "id"}:
+                continue  # Skip volatile/unnecessary fields
+            stable_data[key] = _normalize_portfolio_for_hash(value)
         return stable_data
+
+    if isinstance(portfolio_data, list):  # type: ignore[redundant-expr]
+        return [_normalize_portfolio_for_hash(item) for item in portfolio_data]
 
     return portfolio_data
