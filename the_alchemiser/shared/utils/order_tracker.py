@@ -86,7 +86,9 @@ class OrderTracker:
         event = self.create_event(order_id)
         return event.wait(timeout)
 
-    def wait_for_multiple_orders(self, order_ids: list[str], timeout: float = 30.0) -> list[str]:
+    def wait_for_multiple_orders(
+        self, order_ids: list[str], timeout: float = 30.0
+    ) -> list[str]:
         """Wait for multiple orders to complete within timeout.
 
         Args:
@@ -148,7 +150,13 @@ class OrderTracker:
         """
         if not status:
             return False
-        return status.lower() in {"filled", "canceled", "cancelled", "rejected", "expired"}
+        return status.lower() in {
+            "filled",
+            "canceled",
+            "cancelled",
+            "rejected",
+            "expired",
+        }
 
     def get_completed_orders(self, order_ids: list[str]) -> list[str]:
         """Get list of orders that have completed from a list.
@@ -202,6 +210,10 @@ class OrderTracker:
                     [p for p in self._order_avg_price.values() if p is not None]
                 ),
                 "completed_orders": len(
-                    [s for s in self._order_status.values() if self.is_terminal_status(s)]
+                    [
+                        s
+                        for s in self._order_status.values()
+                        if self.is_terminal_status(s)
+                    ]
                 ),
             }
