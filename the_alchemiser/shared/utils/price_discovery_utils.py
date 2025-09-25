@@ -27,18 +27,45 @@ import logging
 from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
+from the_alchemiser.shared.types.quote import QuoteModel
+
 logger = logging.getLogger(__name__)
 
 
 @runtime_checkable
 class QuoteProvider(Protocol):
-    """Protocol for providers that can fetch bid-ask quotes."""
+    """Protocol for providers that can fetch bid-ask quotes.
+
+    This protocol defines a standard interface for quote retrieval.
+    Implementers should consistently return one of the defined types.
+    """
+
+    def get_latest_quote(self, symbol: str) -> QuoteModel | None:
+        """Get latest bid-ask quote for a symbol.
+
+        Returns:
+            QuoteModel with bid/ask prices, or None if unavailable
+
+        Note: This protocol now standardizes on QuoteModel for consistency.
+        Legacy tuple-based providers should convert to QuoteModel at the adapter boundary.
+
+        """
+        ...
+
+
+@runtime_checkable
+class LegacyQuoteProvider(Protocol):
+    """Legacy protocol for providers that return tuple-based quotes.
+
+    This protocol is maintained for backward compatibility with existing
+    implementations that haven't been migrated to QuoteModel yet.
+    """
 
     def get_latest_quote(self, symbol: str) -> tuple[float, float] | None:
         """Get latest bid-ask quote for a symbol.
 
         Returns:
-            Tuple of (bid, ask) prices or None if unavailable
+            Tuple of (bid, ask) prices, or None if unavailable
 
         """
         ...
@@ -92,7 +119,9 @@ def calculate_midpoint_price(bid: float, ask: float) -> float | None:
         return None
 
 
-def get_current_price_from_quote(quote_provider: QuoteProvider, symbol: str) -> float | None:
+def get_current_price_from_quote(
+    quote_provider: QuoteProvider | LegacyQuoteProvider, symbol: str
+) -> float | None:
     """Get current price from quote provider using bid-ask midpoint.
 
     This function consolidates the quote-based price discovery logic that was
@@ -100,7 +129,7 @@ def get_current_price_from_quote(quote_provider: QuoteProvider, symbol: str) -> 
     strategy_v2 market data clients.
 
     Args:
-        quote_provider: Provider that can fetch bid-ask quotes
+        quote_provider: Provider that can fetch bid-ask quotes (modern or legacy)
         symbol: Stock symbol
 
     Returns:
@@ -114,8 +143,22 @@ def get_current_price_from_quote(quote_provider: QuoteProvider, symbol: str) -> 
     try:
         quote = quote_provider.get_latest_quote(symbol)
         if quote is not None:
-            bid, ask = quote
-            return calculate_midpoint_price(bid, ask)
+            # Handle legacy tuple return type first (most specific)
+            if isinstance(quote, tuple) and len(quote) == 2:
+                bid, ask = quote
+                return calculate_midpoint_price(bid, ask)
+            # Handle QuoteModel return type (preferred)
+            if hasattr(quote, "bid") and hasattr(quote, "ask"):
+                # QuoteModel has bid/ask as Decimal, convert to float
+                bid = float(quote.bid)
+                ask = float(quote.ask)
+                return calculate_midpoint_price(bid, ask)
+            # Handle QuoteModel with mid property
+            if hasattr(quote, "mid"):
+                return float(quote.mid)
+
+            logger.error(f"Unexpected quote type for {symbol}: {type(quote)}")
+            return None
         logger.warning(f"No quote available for symbol: {symbol}")
         return None
     except Exception as e:
