@@ -20,6 +20,8 @@ class LoggingSettings(BaseModel):
     level: str = "INFO"
     enable_s3_logging: bool = False  # Explicit opt-in for S3 logging
     s3_log_uri: str = ""  # S3 URI for log files when S3 logging is enabled
+    console_level: str | None = None
+    local_log_file: str | None = None
 
 
 class AlpacaSettings(BaseModel):
