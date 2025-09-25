@@ -114,9 +114,7 @@ class DslEvaluator:
             elif isinstance(result, dict):
                 # Direct weights dictionary
                 allocation = StrategyAllocationDTO(
-                    target_weights={
-                        k: decimal.Decimal(str(v)) for k, v in result.items()
-                    },
+                    target_weights={k: decimal.Decimal(str(v)) for k, v in result.items()},
                     correlation_id=correlation_id,
                     as_of=datetime.now(UTC),
                 )
@@ -214,9 +212,7 @@ class DslEvaluator:
                 m[key] = str(val)
         return m
 
-    def _evaluate_function_application(
-        self, node: ASTNodeDTO, context: DslContext
-    ) -> DSLValue:
+    def _evaluate_function_application(self, node: ASTNodeDTO, context: DslContext) -> DSLValue:
         """Evaluate a function application.
 
         Args:
@@ -257,9 +253,7 @@ class DslEvaluator:
             List of evaluated elements
 
         """
-        return [
-            self._evaluate_node(child, correlation_id, trace) for child in node.children
-        ]
+        return [self._evaluate_node(child, correlation_id, trace) for child in node.children]
 
     def _evaluate_list_node(
         self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO
@@ -298,9 +292,7 @@ class DslEvaluator:
         # Evaluate each element and return as list
         return self._evaluate_list_elements(node, correlation_id, trace)
 
-    def _evaluate_node(
-        self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO
-    ) -> DSLValue:
+    def _evaluate_node(self, node: ASTNodeDTO, correlation_id: str, trace: TraceDTO) -> DSLValue:
         """Evaluate a single AST node.
 
         Args:
