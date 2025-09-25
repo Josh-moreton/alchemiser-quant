@@ -14,7 +14,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class IndicatorRequestDTO(BaseModel):
+class IndicatorRequest(BaseModel):
     """DTO for requesting technical indicators.
 
     Contains the parameters needed to request specific indicators
@@ -45,7 +45,7 @@ class IndicatorRequestDTO(BaseModel):
     @classmethod
     def rsi_request(
         cls, request_id: str, correlation_id: str, symbol: str, window: int = 14
-    ) -> IndicatorRequestDTO:
+    ) -> IndicatorRequest:
         """Create RSI indicator request.
 
         Args:
@@ -55,7 +55,7 @@ class IndicatorRequestDTO(BaseModel):
             window: RSI window period
 
         Returns:
-            IndicatorRequestDTO for RSI
+            IndicatorRequest for RSI
 
         """
         return cls(
@@ -69,7 +69,7 @@ class IndicatorRequestDTO(BaseModel):
     @classmethod
     def moving_average_request(
         cls, request_id: str, correlation_id: str, symbol: str, window: int = 200
-    ) -> IndicatorRequestDTO:
+    ) -> IndicatorRequest:
         """Create moving average indicator request.
 
         Args:
@@ -79,7 +79,7 @@ class IndicatorRequestDTO(BaseModel):
             window: Moving average window period
 
         Returns:
-            IndicatorRequestDTO for moving average
+            IndicatorRequest for moving average
 
         """
         return cls(
@@ -91,7 +91,7 @@ class IndicatorRequestDTO(BaseModel):
         )
 
 
-class PortfolioFragmentDTO(BaseModel):
+class PortfolioFragment(BaseModel):
     """DTO for intermediate portfolio allocation fragments.
 
     Represents partial allocation results during DSL evaluation
@@ -118,11 +118,11 @@ class PortfolioFragmentDTO(BaseModel):
     # Metadata
     metadata: dict[str, Any] = Field(default_factory=dict, description="Fragment metadata")
 
-    def normalize_weights(self) -> PortfolioFragmentDTO:
+    def normalize_weights(self) -> PortfolioFragment:
         """Normalize weights to sum to total_weight.
 
         Returns:
-            New PortfolioFragmentDTO with normalized weights
+            New PortfolioFragment with normalized weights
 
         """
         if not self.weights:
@@ -138,3 +138,8 @@ class PortfolioFragmentDTO(BaseModel):
         }
 
         return self.model_copy(update={"weights": normalized_weights})
+
+
+# TODO: Remove in Phase 3 - Temporary backward compatibility aliases
+IndicatorRequestDTO = IndicatorRequest
+PortfolioFragmentDTO = PortfolioFragment

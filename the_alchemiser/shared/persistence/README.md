@@ -111,7 +111,7 @@ manager = ExecutionManager(
 
 ```python
 from the_alchemiser.shared.persistence.trade_ledger_factory import get_default_trade_ledger
-from the_alchemiser.shared.dto.trade_ledger_dto import TradeLedgerQuery
+from the_alchemiser.shared.schemas.trade_ledger import TradeLedgerQuery
 
 ledger = get_default_trade_ledger()
 
@@ -146,7 +146,7 @@ report = service.get_attribution_report("AAPL")
 
 ```python
 from the_alchemiser.shared.persistence.trade_ledger_factory import get_default_trade_ledger
-from the_alchemiser.shared.dto.trade_ledger_dto import TradeLedgerQuery
+from the_alchemiser.shared.schemas.trade_ledger import TradeLedgerQuery
 
 ledger = get_default_trade_ledger()
 

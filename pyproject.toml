@@ -206,3 +206,14 @@ layers = [
     "the_alchemiser.strategy_v2 | the_alchemiser.portfolio_v2 | the_alchemiser.execution_v2",
     "the_alchemiser.shared"
 ]
+
+# Forbid deprecated DTO imports - use shared.schemas instead
+[[tool.importlinter.contracts]]
+name = "Deprecated DTO module forbidden"
+type = "forbidden"
+source_modules = [
+    "the_alchemiser"
+]
+forbidden_modules = [
+    "the_alchemiser.shared.dto"
+]

@@ -9,7 +9,7 @@ serve as wrappers around the existing template builder classes.
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
 from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
 from the_alchemiser.shared.value_objects.core_types import (
@@ -62,91 +62,25 @@ def build_error_email_html(title: str, message: str) -> str:
 def build_multi_strategy_email_html(
     result: MultiStrategyExecutionResultDTO, mode: str = "PAPER"
 ) -> str:
-    """Build a multi-strategy execution report email.
+    """Build a multi-strategy execution report email (neutral only).
 
-    This function wraps the existing MultiStrategyReportBuilder.build_multi_strategy_report method.
-
-    Args:
-        result: Execution result object
-        mode: Trading mode (PAPER, LIVE, etc.)
-
-    Returns:
-        Complete HTML email content
-
+    Legacy financial variant removed; this delegates to the neutral builder.
     """
-    # Use the existing multi-strategy builder
     from .multi_strategy import MultiStrategyReportBuilder
 
-    return MultiStrategyReportBuilder.build_multi_strategy_report(result, mode)
+    return MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, mode)
 
 
 def build_trading_report_html(
-    trading_summary: dict[str, object],
-    strategy_signals: dict[str, object] | None = None,
-    account_info: dict[str, object] | None = None,
-) -> str:
-    """Build a general trading report email.
-
-    This function combines existing builder methods to create a comprehensive trading report.
-
-    Args:
-        trading_summary: Summary of trading activity
-        strategy_signals: Optional strategy signals data
-        account_info: Optional account information
-
-    Returns:
-        Complete HTML email content
-
-    """
-    # Import the existing builders
-    from .performance import PerformanceBuilder
-    from .portfolio import PortfolioBuilder
-    from .signals import SignalsBuilder
-
-    # Build content sections using existing template methods
-    header = BaseEmailTemplate.get_header(APPLICATION_NAME)
-    status_banner = BaseEmailTemplate.get_status_banner(
-        "Trading Report", "Complete", "#10B981", "✅"
+    *_args: object, **_kwargs: object
+) -> str:  # Deprecated shim
+    """Return deprecation notice for removed trading report (neutral mode only)."""
+    return BaseEmailTemplate.wrap_content(
+        BaseEmailTemplate.create_alert_box(
+            "Trading report template deprecated - neutral mode only.", "warning"
+        ),
+        "The Alchemiser - Trading Report (Deprecated)",
     )
-
-    content_sections = []
-
-    # Trading summary using existing performance builder
-    if trading_summary:
-        trading_html = PerformanceBuilder.build_trading_summary(trading_summary)
-        content_sections.append(trading_html)
-
-    # Strategy signals using existing signals builder
-    if strategy_signals:
-        signals_html = SignalsBuilder.build_technical_indicators(strategy_signals)
-        content_sections.append(signals_html)
-
-    # Account summary using existing portfolio builder
-    if account_info:
-        account_html = BaseEmailTemplate.create_section(
-            "💰 Account Summary",
-            PortfolioBuilder.build_account_summary(
-                cast(AccountInfo | EnrichedAccountInfo, account_info)
-            ),
-        )
-        content_sections.append(account_html)
-
-    footer = BaseEmailTemplate.get_footer()
-
-    # Combine all content
-    main_content = "".join(content_sections)
-    content = f"""
-    {header}
-    {status_banner}
-    <tr>
-        <td style="padding: 32px 24px; background-color: white;">
-            {main_content}
-        </td>
-    </tr>
-    {footer}
-    """
-
-    return BaseEmailTemplate.wrap_content(content, "The Alchemiser - Trading Report")
 
 
 class EmailTemplates:
@@ -168,13 +102,9 @@ class EmailTemplates:
         return build_error_email_html(title, error_message)
 
     @staticmethod
-    def trading_report(
-        trading_summary: dict[str, object],
-        strategy_signals: dict[str, object] | None = None,
-        account_info: dict[str, object] | None = None,
-    ) -> str:
-        """Generate a general trading report using existing builder classes."""
-        return build_trading_report_html(trading_summary, strategy_signals, account_info)
+    def trading_report(*_args: object, **_kwargs: object) -> str:  # Deprecated
+        """Return deprecated trading report notice (financial view removed)."""
+        return build_trading_report_html()
 
     # ================ NEW EMAIL TEMPLATES (Issue #1038) ================
 
@@ -198,7 +128,9 @@ class EmailTemplates:
         """
         from .multi_strategy import MultiStrategyReportBuilder
 
-        return MultiStrategyReportBuilder.build_multi_strategy_report_neutral(result, mode)
+        return MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
+            result, mode
+        )
 
     @staticmethod
     def failed_trading_run(
@@ -333,7 +265,9 @@ class EmailTemplates:
         metrics_rows = ""
         for metric_name, metric_value in metrics.items():
             display_name = metric_name.replace("_", " ").title()
-            formatted_value = EmailTemplates._format_metric_value(metric_name, metric_value)
+            formatted_value = EmailTemplates._format_metric_value(
+                metric_name, metric_value
+            )
 
             metrics_rows += f"""
             <tr>
@@ -373,50 +307,21 @@ class EmailTemplates:
         from .portfolio import PortfolioBuilder
 
         return BaseEmailTemplate.create_section(
-            "💰 Account Summary", PortfolioBuilder.build_account_summary(account_info)
+            "💰 Account Summary",
+            PortfolioBuilder.build_account_summary_neutral(account_info),
         )
 
     @staticmethod
-    def _build_strategy_performance_section(strategy_summary: dict[str, Any]) -> str:
-        """Build the strategy performance section.
-
-        Args:
-            strategy_summary: Strategy performance data
-
-        Returns:
-            HTML string for strategy performance section, or empty string if no data
-
-        """
-        if not strategy_summary:
-            return ""
-
-        from .performance import PerformanceBuilder
-
-        return BaseEmailTemplate.create_section(
-            "📈 Strategy Performance",
-            PerformanceBuilder.build_strategy_performance(strategy_summary),
-        )
+    def _build_strategy_performance_section(
+        _strategy_summary: dict[str, Any],
+    ) -> str:  # Deprecated
+        return ""
 
     @staticmethod
-    def _build_trading_activity_section(trading_summary: dict[str, Any]) -> str:
-        """Build the trading activity section.
-
-        Args:
-            trading_summary: Trading activity data
-
-        Returns:
-            HTML string for trading activity section, or empty string if no data
-
-        """
-        if not trading_summary:
-            return ""
-
-        from .performance import PerformanceBuilder
-
-        return BaseEmailTemplate.create_section(
-            "💼 Trading Activity",
-            PerformanceBuilder.build_trading_summary(trading_summary),
-        )
+    def _build_trading_activity_section(
+        _trading_summary: dict[str, Any],
+    ) -> str:  # Deprecated
+        return ""
 
     @staticmethod
     def _build_summary_footer(period_label: str) -> str:
@@ -441,75 +346,12 @@ class EmailTemplates:
 
     @staticmethod
     def monthly_performance_summary(
-        account_info: AccountInfo | EnrichedAccountInfo,
-        performance_data: dict[str, Any] | None = None,
-        period_label: str = "Monthly",
-    ) -> str:
-        """Generate monthly performance summary with full financial details.
-
-        This template includes dollar values, P&L, and comprehensive account performance
-        metrics for regular performance reporting.
-
-        Args:
-            account_info: Current account information with financial details
-            performance_data: Optional performance metrics and analytics
-            period_label: Label for the reporting period (e.g., "Monthly", "Quarterly")
-
-        Returns:
-            HTML email content for performance summary
-
-        """
-        header = BaseEmailTemplate.get_header(APPLICATION_NAME)
-        status_banner = BaseEmailTemplate.get_status_banner(
-            f"{period_label} Performance Report", "Complete", "#10B981", "📊"
-        )
-
-        content_sections = []
-
-        # Account summary with full financial details
-        account_html = EmailTemplates._build_account_section(account_info)
-        content_sections.append(account_html)
-
-        # Performance metrics if available
-        if performance_data:
-            # Strategy performance
-            strategy_html = EmailTemplates._build_strategy_performance_section(
-                performance_data.get("strategy_summary", {})
-            )
-            if strategy_html:
-                content_sections.append(strategy_html)
-
-            # Trading activity summary
-            trading_html = EmailTemplates._build_trading_activity_section(
-                performance_data.get("trading_summary", {})
-            )
-            if trading_html:
-                content_sections.append(trading_html)
-
-            # Performance metrics table
-            metrics_html = EmailTemplates._build_metrics_table(performance_data.get("metrics", {}))
-            if metrics_html:
-                content_sections.append(metrics_html)
-
-        # Summary footer with key takeaways
-        summary_html = EmailTemplates._build_summary_footer(period_label)
-        content_sections.append(summary_html)
-
-        footer = BaseEmailTemplate.get_footer()
-
-        # Combine all content
-        main_content = "".join(content_sections)
-        content = f"""
-        {header}
-        {status_banner}
-        <tr>
-            <td style="padding: 32px 24px; background-color: white;">
-                {main_content}
-            </td>
-        </tr>
-        {footer}
-        """
-
+        *_args: object, **_kwargs: object
+    ) -> str:  # Deprecated
+        """Return deprecated performance summary notice (neutral mode only)."""
         return BaseEmailTemplate.wrap_content(
-            content, f"The Alchemiser - {period_label} Performance Report"
+            BaseEmailTemplate.create_alert_box(
+                "Monthly performance summary deprecated - neutral mode only.", "info"
+            ),
+            "The Alchemiser - Performance Report (Deprecated)",
         )

@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
-from the_alchemiser.shared.dto.rebalance_plan_dto import RebalancePlanDTO
+from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanDTO
 
 logger = logging.getLogger(__name__)
 

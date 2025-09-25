@@ -18,8 +18,8 @@ import logging
 import uuid
 from typing import Literal, cast
 
-from the_alchemiser.shared.dto.ast_node_dto import ASTNodeDTO
-from the_alchemiser.shared.dto.indicator_request_dto import (
+from the_alchemiser.shared.schemas.ast_node import ASTNodeDTO
+from the_alchemiser.shared.schemas.indicator_request import (
     IndicatorRequestDTO,
     PortfolioFragmentDTO,
 )

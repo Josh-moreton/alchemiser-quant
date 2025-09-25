@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class ConsolidatedPortfolioDTO(BaseModel):
+class ConsolidatedPortfolio(BaseModel):
     """DTO for consolidated portfolio allocation from multiple strategies.
 
     Contains aggregated target allocations from strategy signals with
@@ -115,8 +115,8 @@ class ConsolidatedPortfolioDTO(BaseModel):
         allocation_dict: dict[str, float],
         correlation_id: str,
         source_strategies: list[str] | None = None,
-    ) -> ConsolidatedPortfolioDTO:
-        """Create DTO from dict allocation data.
+    ) -> ConsolidatedPortfolio:
+        """Create ConsolidatedPortfolio from dict allocation data.
 
         Args:
             allocation_dict: Dictionary of symbol -> weight allocations
@@ -124,7 +124,7 @@ class ConsolidatedPortfolioDTO(BaseModel):
             source_strategies: Optional list of contributing strategy names
 
         Returns:
-            ConsolidatedPortfolioDTO instance
+            ConsolidatedPortfolio instance
 
         Raises:
             ValueError: If allocation data is invalid
@@ -151,3 +151,7 @@ class ConsolidatedPortfolioDTO(BaseModel):
 
         """
         return {symbol: float(weight) for symbol, weight in self.target_allocations.items()}
+
+
+# TODO: Remove in Phase 3 - Temporary backward compatibility alias
+ConsolidatedPortfolioDTO = ConsolidatedPortfolio

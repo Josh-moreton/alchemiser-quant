@@ -14,7 +14,7 @@ import math
 
 import numpy as np
 
-from the_alchemiser.shared.dto.market_bar_dto import MarketBarDTO
+from the_alchemiser.shared.schemas.market_bar import MarketBarDTO
 
 logger = logging.getLogger(__name__)
 

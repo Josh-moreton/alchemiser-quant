@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Protocol
 
-from ..dto.trade_ledger_dto import Lot, PerformanceSummary, TradeLedgerEntry, TradeLedgerQuery
+from ..schemas.trade_ledger import Lot, PerformanceSummary, TradeLedgerEntry, TradeLedgerQuery
 
 
 class TradeLedger(Protocol):

@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.dto.market_bar_dto import MarketBarDTO
+from the_alchemiser.shared.schemas.market_bar import MarketBarDTO
 from the_alchemiser.shared.services.market_data_service import MarketDataService
 
 logger = logging.getLogger(__name__)

@@ -20,7 +20,6 @@ from typing import Any
 from the_alchemiser.main import main
 from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
-from the_alchemiser.shared.dto import LambdaEventDTO
 from the_alchemiser.shared.errors.error_handler import (
     handle_trading_error,
     send_error_notification_if_needed,
@@ -30,6 +29,7 @@ from the_alchemiser.shared.logging.logging_utils import (
     log_error_with_context,
     set_request_id,
 )
+from the_alchemiser.shared.schemas import LambdaEventDTO
 from the_alchemiser.shared.types.exceptions import (
     DataProviderError,
     NotificationError,

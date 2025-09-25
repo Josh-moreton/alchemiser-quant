@@ -42,3 +42,7 @@ class ExecutionResult(BaseModel):
     metadata: dict[str, Any] | None = Field(
         default=None, description="Additional execution metadata"
     )
+
+
+# TODO: Remove in Phase 3 - Temporary backward compatibility alias
+ExecutionResultDTO = ExecutionResult

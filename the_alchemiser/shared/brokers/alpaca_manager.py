@@ -31,17 +31,17 @@ from alpaca.trading.requests import (
     MarketOrderRequest,
 )
 
-from the_alchemiser.shared.dto.asset_info_dto import AssetInfoDTO
-from the_alchemiser.shared.dto.broker_dto import (
-    OrderExecutionResult,
-    WebSocketResult,
-)
-from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
     MarketDataRepository,
     TradingRepository,
 )
+from the_alchemiser.shared.schemas.asset_info import AssetInfoDTO
+from the_alchemiser.shared.schemas.broker import (
+    OrderExecutionResult,
+    WebSocketResult,
+)
+from the_alchemiser.shared.schemas.execution_report import ExecutedOrderDTO
 from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountService
 from the_alchemiser.shared.services.alpaca_trading_service import AlpacaTradingService
 from the_alchemiser.shared.services.asset_metadata_service import AssetMetadataService
