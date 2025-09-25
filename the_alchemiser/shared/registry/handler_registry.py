@@ -47,10 +47,10 @@ class HandlerRegistration:
     
     def __post_init__(self) -> None:
         """Validate registration data."""
-        if not self.event_type:
-            raise ValueError("event_type cannot be empty")
-        if not self.module_name:
-            raise ValueError("module_name cannot be empty")
+        if self.event_type is None or not self.event_type.strip():
+            raise ValueError("event_type cannot be empty or whitespace")
+        if self.module_name is None or not self.module_name.strip():
+            raise ValueError("module_name cannot be empty or whitespace")
         if self.priority < 0:
             raise ValueError("priority must be non-negative")
 
