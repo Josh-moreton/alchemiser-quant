@@ -73,7 +73,7 @@ def create_success_result(
     *,
     success: bool,
 ) -> TradeRunResult:
-    """Create a success result DTO from trading results.
+    """Create a success result from trading results.
 
     Args:
         trading_result: Dictionary containing execution results
@@ -90,8 +90,12 @@ def create_success_result(
     """
     orders_executed = trading_result.get("orders_executed", [])
     order_dtos = _convert_orders_to_dtos(orders_executed, completed_at)
-    execution_summary = _calculate_execution_summary(order_dtos, started_at, completed_at)
-    status = _determine_execution_status(success=success, execution_summary=execution_summary)
+    execution_summary = _calculate_execution_summary(
+        order_dtos, started_at, completed_at
+    )
+    status = _determine_execution_status(
+        success=success, execution_summary=execution_summary
+    )
     trading_mode = _determine_trading_mode(orchestrator)
 
     return TradeRunResult(
@@ -110,7 +114,7 @@ def create_success_result(
 def _convert_orders_to_dtos(
     orders_executed: list[dict[str, Any]], completed_at: datetime
 ) -> list[OrderResultSummary]:
-    """Convert executed orders to OrderResultSummaryDTO instances.
+    """Convert executed orders to OrderResultSummary instances.
 
     Args:
         orders_executed: List of executed order dictionaries
@@ -132,7 +136,7 @@ def _convert_orders_to_dtos(
 def _create_single_order_dto(
     order: dict[str, Any], completed_at: datetime
 ) -> OrderResultSummary:
-    """Create a single OrderResultSummaryDTO from order data.
+    """Create a single OrderResultSummary from order data.
 
     Args:
         order: Order dictionary with execution details
@@ -216,7 +220,9 @@ def _calculate_execution_summary(
     )
 
 
-def _determine_execution_status(*, success: bool, execution_summary: ExecutionSummary) -> str:
+def _determine_execution_status(
+    *, success: bool, execution_summary: ExecutionSummary
+) -> str:
     """Determine execution status based on success flag and summary.
 
     Args:

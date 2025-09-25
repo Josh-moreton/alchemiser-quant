@@ -18,8 +18,8 @@ from typing import Any
 from pydantic import Field
 
 from ..constants import EVENT_TYPE_DESCRIPTION
-from ..dto.portfolio_state_dto import PortfolioStateDTO
-from ..dto.rebalance_plan_dto import RebalancePlanDTO
+from ..schemas.portfolio_state import PortfolioStateDTO
+from ..schemas.rebalance_plan import RebalancePlanDTO
 from ..schemas.common import AllocationComparisonDTO
 from .base import BaseEvent
 

@@ -44,5 +44,5 @@ class ExecutionResult(BaseModel):
     )
 
 
-# TODO: Remove in Phase 3 - Temporary backward compatibility alias  
+# TODO: Remove in Phase 3 - Temporary backward compatibility alias
 ExecutionResultDTO = ExecutionResult

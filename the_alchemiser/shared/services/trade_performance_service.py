@@ -13,8 +13,8 @@ import logging
 from decimal import Decimal
 from typing import Any
 
-from ..schemas.trade_ledger import Lot, PerformanceSummary, TradeLedgerQuery
 from ..protocols.trade_ledger import TradeLedger
+from ..schemas.trade_ledger import Lot, PerformanceSummary, TradeLedgerQuery
 
 logger = logging.getLogger(__name__)
 
