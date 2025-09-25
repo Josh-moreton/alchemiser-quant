@@ -30,9 +30,7 @@ class ApplicationContainer(containers.DeclarativeContainer):
     # Sub-containers
     config = providers.Container(ConfigProviders)
     infrastructure = providers.Container(InfrastructureProviders, config=config)
-    services = providers.Container(
-        ServiceProviders, infrastructure=infrastructure, config=config
-    )
+    services = providers.Container(ServiceProviders, infrastructure=infrastructure, config=config)
 
     # Execution providers (initialized lazily to avoid circular imports)
     execution = None
@@ -47,9 +45,7 @@ class ApplicationContainer(containers.DeclarativeContainer):
 
         import importlib
 
-        execution_config_module = importlib.import_module(
-            "the_alchemiser.execution_v2.config"
-        )
+        execution_config_module = importlib.import_module("the_alchemiser.execution_v2.config")
         ExecutionProviders = execution_config_module.ExecutionProviders
 
         execution_container = ExecutionProviders()
@@ -67,9 +63,7 @@ class ApplicationContainer(containers.DeclarativeContainer):
         # Load environment-specific configuration
         if env == "test":
             container.config.alpaca_api_key.override("test_api_key_valid_for_testing")
-            container.config.alpaca_secret_key.override(
-                "test_secret_key_valid_for_testing"
-            )
+            container.config.alpaca_secret_key.override("test_secret_key_valid_for_testing")
             container.config.paper_trading.override(True)  # noqa: FBT003
         elif env == "production":
             # Production uses environment variables (default behavior)
