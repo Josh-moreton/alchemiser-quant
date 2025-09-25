@@ -52,17 +52,13 @@ class MultiStrategyReportBuilder:
         content_sections.append(rebalancing_html)
 
         # Market regime analysis (no financial data)
-        market_regime_html = SignalsBuilder.build_market_regime_analysis(
-            strategy_signals
-        )
+        market_regime_html = SignalsBuilder.build_market_regime_analysis(strategy_signals)
         if market_regime_html:
             content_sections.append(market_regime_html)
 
         # Strategy signals (neutral mode)
         if strategy_signals:
-            neutral_signals_html = SignalsBuilder.build_strategy_signals_neutral(
-                strategy_signals
-            )
+            neutral_signals_html = SignalsBuilder.build_strategy_signals_neutral(strategy_signals)
             content_sections.append(neutral_signals_html)
 
         # Orders executed (detailed table, no values)
