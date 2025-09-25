@@ -6,7 +6,7 @@ Service factory using dependency injection.
 from __future__ import annotations
 
 import importlib
-from typing import cast, Protocol
+from typing import Protocol, cast
 
 from the_alchemiser.shared.config.container import ApplicationContainer
 

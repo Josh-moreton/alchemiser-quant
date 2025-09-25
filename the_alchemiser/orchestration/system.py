@@ -96,6 +96,9 @@ class TradingSystem:
                 )
                 return
 
+            # Build the registry and register handlers from each module
+            self._build_handler_registry()
+
             # Initialize event-driven orchestrator
             from the_alchemiser.orchestration.event_driven_orchestrator import (
                 EventDrivenOrchestrator,
@@ -108,6 +111,36 @@ class TradingSystem:
             # Don't let event orchestration failure break the traditional system
             self.logger.warning(f"Failed to initialize event orchestration: {e}")
             self.event_driven_orchestrator = None
+    
+    def _build_handler_registry(self) -> None:
+        """Build the event handler registry by invoking module registration functions."""
+        if self.container is None:
+            self.logger.warning("Cannot build handler registry: DI container not ready")
+            return
+            
+        try:
+            # Get the registry from the container
+            registry = self.container.services.event_handler_registry()
+            
+            # Import module registration functions and invoke them
+            from the_alchemiser.execution_v2 import register_execution_handlers
+            from the_alchemiser.portfolio_v2 import register_portfolio_handlers
+            from the_alchemiser.strategy_v2 import register_strategy_handlers
+            
+            # Register handlers from each module
+            register_strategy_handlers(self.container, registry)
+            register_portfolio_handlers(self.container, registry)
+            register_execution_handlers(self.container, registry)
+            
+            supported_events = registry.get_supported_events()
+            self.logger.debug(
+                f"Handler registry built with {len(registry.get_all_registrations())} "
+                f"registrations for events: {sorted(supported_events)}"
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Failed to build handler registry: {e}")
+            raise
 
     def _emit_startup_event(self, startup_mode: str) -> None:
         """Emit StartupEvent to trigger event-driven workflows.

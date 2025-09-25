@@ -30,6 +30,7 @@ from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.notifications.templates.multi_strategy import (
     MultiStrategyReportBuilder,
 )
+from the_alchemiser.shared.registry.handler_registry import EventHandlerRegistry
 
 
 class EventDrivenOrchestrator:
@@ -52,9 +53,12 @@ class EventDrivenOrchestrator:
 
         # Get event bus from container
         self.event_bus: EventBus = container.services.event_bus()
+        
+        # Get event handler registry from container
+        self.registry: EventHandlerRegistry = container.services.event_handler_registry()
 
-        # Initialize domain handlers
-        self.domain_handlers = self._initialize_domain_handlers()
+        # Initialize domain handlers via registry (no direct imports)
+        self.domain_handlers = self._initialize_handlers_from_registry()
 
         # Register event handlers (both cross-cutting and domain)
         self._register_handlers()
@@ -73,8 +77,8 @@ class EventDrivenOrchestrator:
         # Collect workflow results for each correlation ID
         self.workflow_results: dict[str, dict[str, Any]] = {}
 
-    def _initialize_domain_handlers(self) -> dict[str, Any]:
-        """Initialize domain event handlers.
+    def _initialize_handlers_from_registry(self) -> dict[str, Any]:
+        """Initialize domain event handlers from registry.
 
         Returns:
             Dictionary of initialized domain handlers
@@ -83,19 +87,33 @@ class EventDrivenOrchestrator:
         handlers: dict[str, Any] = {}
 
         try:
-            # Import and initialize domain handlers
-            from the_alchemiser.execution_v2.handlers import TradingExecutionHandler
-            from the_alchemiser.portfolio_v2.handlers import PortfolioAnalysisHandler
-            from the_alchemiser.strategy_v2.handlers import SignalGenerationHandler
+            # Get all handler registrations from registry
+            registrations = self.registry.get_all_registrations()
+            
+            # Create handlers from registrations, organized by module
+            module_handlers: dict[str, Any] = {}
+            
+            for registration in registrations:
+                module_name = registration.module_name
+                
+                # Create handler instance if we haven't already for this module
+                if module_name not in module_handlers:
+                    handler_instance = registration.handler_factory()
+                    module_handlers[module_name] = handler_instance
+                    
+                    # Use a descriptive key based on module name
+                    handler_key = {
+                        "strategy_v2": "signal_generation",
+                        "portfolio_v2": "portfolio_analysis", 
+                        "execution_v2": "trading_execution"
+                    }.get(module_name, module_name)
+                    
+                    handlers[handler_key] = handler_instance
 
-            handlers["signal_generation"] = SignalGenerationHandler(self.container)
-            handlers["portfolio_analysis"] = PortfolioAnalysisHandler(self.container)
-            handlers["trading_execution"] = TradingExecutionHandler(self.container)
-
-            self.logger.info("Initialized domain event handlers")
+            self.logger.info(f"Initialized {len(handlers)} domain handlers from registry")
 
         except Exception as e:
-            self.logger.error(f"Failed to initialize domain handlers: {e}")
+            self.logger.error(f"Failed to initialize handlers from registry: {e}")
 
         return handlers
 
@@ -200,20 +218,27 @@ class EventDrivenOrchestrator:
 
     def _register_handlers(self) -> None:
         """Register event handlers for primary workflow coordination and cross-cutting concerns."""
-        # Register domain handlers for primary workflow coordination
-        for handler_name, handler in self.domain_handlers.items():
-            if hasattr(handler, "can_handle") and hasattr(handler, "handle_event"):
-                # Register handler for events it can handle
-                if handler.can_handle("StartupEvent"):
-                    self.event_bus.subscribe("StartupEvent", handler)
-                if handler.can_handle("WorkflowStarted"):
-                    self.event_bus.subscribe("WorkflowStarted", handler)
-                if handler.can_handle("SignalGenerated"):
-                    self.event_bus.subscribe("SignalGenerated", handler)
-                if handler.can_handle("RebalancePlanned"):
-                    self.event_bus.subscribe("RebalancePlanned", handler)
-
-                self.logger.info(f"Registered domain handler: {handler_name}")
+        # Register domain handlers using registry metadata
+        registrations = self.registry.get_all_registrations()
+        
+        for registration in registrations:
+            event_type = registration.event_type
+            module_name = registration.module_name
+            
+            # Find the handler instance for this module
+            handler_key = {
+                "strategy_v2": "signal_generation",
+                "portfolio_v2": "portfolio_analysis", 
+                "execution_v2": "trading_execution"
+            }.get(module_name, module_name)
+            
+            handler = self.domain_handlers.get(handler_key)
+            if handler and hasattr(handler, "can_handle") and handler.can_handle(event_type):
+                self.event_bus.subscribe(event_type, handler)
+                self.logger.info(
+                    f"Registered handler {handler_key} for {event_type} "
+                    f"(priority: {registration.priority})"
+                )
 
         # Subscribe to all event types for cross-cutting concerns (monitoring, notifications)
         self.event_bus.subscribe("StartupEvent", self)
