@@ -34,14 +34,16 @@ from the_alchemiser.shared.dto.broker_dto import (
 from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
 
 if TYPE_CHECKING:
-    from the_alchemiser.shared.services.websocket_manager import WebSocketConnectionManager
+    from the_alchemiser.shared.services.websocket_manager import (
+        WebSocketConnectionManager,
+    )
 
 logger = logging.getLogger(__name__)
 
 
 class AlpacaTradingService:
     """Service for trading operations using Alpaca API.
-    
+
     Provides all trading functionality extracted from AlpacaManager including:
     - Order placement (market, limit, smart execution)
     - Order management (cancellation, retrieval, monitoring)
@@ -57,25 +59,39 @@ class AlpacaTradingService:
         paper_trading: bool = True,
     ) -> None:
         """Initialize trading service.
-        
+
         Args:
             trading_client: Alpaca trading client
             websocket_manager: WebSocket manager for order updates
             paper_trading: Whether using paper trading mode
+
         """
         self._trading_client = trading_client
         self._websocket_manager = websocket_manager
         self._paper_trading = paper_trading
-        
-        # Order tracking for WebSocket updates
+
+        # Order tracking for WebSocket updates (minimal local state)
         self._order_events: dict[str, threading.Event] = {}
         self._order_status: dict[str, str] = {}
-        self._order_avg_price: dict[str, Decimal | None] = {}
-        
+
         # WebSocket trading stream state
         self._trading_service_active = False
-        
+
         logger.info(f"🏪 AlpacaTradingService initialized ({'paper' if paper_trading else 'live'})")
+
+    def __del__(self) -> None:
+        """Cleanup WebSocket resources when service is garbage collected."""
+        self.cleanup()
+
+    def cleanup(self) -> None:
+        """Release WebSocket resources."""
+        if self._trading_service_active:
+            try:
+                self._websocket_manager.release_trading_service()
+                self._trading_service_active = False
+                logger.debug("🧹 AlpacaTradingService WebSocket resources released")
+            except Exception as e:
+                logger.error(f"Error releasing WebSocket resources: {e}")
 
     @property
     def is_paper_trading(self) -> bool:
@@ -113,6 +129,7 @@ class AlpacaTradingService:
 
         Returns:
             ExecutedOrderDTO with execution details
+
         """
         try:
             # Validation
@@ -120,9 +137,18 @@ class AlpacaTradingService:
                 symbol, side, qty, notional
             )
 
-            # For complete exits, we would need access to position data
-            # This should be handled by the calling code that has access to positions
+            # Handle complete exit functionality
+            # Note: is_complete_exit is passed through but not implemented in the trading service
+            # by design. Position data access should be handled by the calling code (AlpacaManager)
+            # which calls _adjust_quantity_for_complete_exit() before delegating to this service.
+            # This maintains proper separation of concerns between trading operations and position management.
             final_qty = qty
+
+            # Log warning if is_complete_exit is True but qty wasn't adjusted by caller
+            if is_complete_exit and qty:
+                logger.debug(
+                    f"Complete exit requested for {symbol}, using provided qty={qty} (caller should have adjusted)"
+                )
 
             # Create order request
             order_request = MarketOrderRequest(
@@ -161,6 +187,7 @@ class AlpacaTradingService:
 
         Returns:
             OrderExecutionResult with execution details
+
         """
         try:
             # Validate inputs
@@ -210,6 +237,7 @@ class AlpacaTradingService:
 
         Returns:
             True if successful, False otherwise
+
         """
         try:
             self._trading_client.cancel_order_by_id(order_id)
@@ -227,6 +255,7 @@ class AlpacaTradingService:
 
         Returns:
             List of order objects
+
         """
         try:
             if status == "open":
@@ -250,6 +279,7 @@ class AlpacaTradingService:
 
         Returns:
             OrderExecutionResult with current order state
+
         """
         try:
             order = self._trading_client.get_order_by_id(order_id)
@@ -267,6 +297,7 @@ class AlpacaTradingService:
 
         Returns:
             Order ID if successful, None if failed
+
         """
         try:
             # Use the place_market_order method which returns ExecutedOrderDTO
@@ -293,6 +324,7 @@ class AlpacaTradingService:
 
         Returns:
             WebSocketResult with completion status and completed order IDs
+
         """
         completed_orders: list[str] = []
         start_time = time.time()
@@ -400,7 +432,7 @@ class AlpacaTradingService:
             error_message=error,
         )
 
-    def _alpaca_order_to_execution_result(self, order: Order) -> OrderExecutionResult:
+    def _alpaca_order_to_execution_result(self, order: Order | dict[str, Any]) -> OrderExecutionResult:
         """Convert Alpaca order object to OrderExecutionResult."""
         try:
             # Extract basic fields from order object
@@ -575,7 +607,7 @@ class AlpacaTradingService:
         """Wait for orders to complete using WebSocket updates."""
         try:
             self._ensure_trading_stream()
-            
+
             # Initialize order tracking
             for order_id in order_ids:
                 if order_id not in self._order_events:
@@ -585,18 +617,23 @@ class AlpacaTradingService:
             # Wait for completion with timeout
             completed = []
             start_time = time.time()
-            
+
             for order_id in order_ids:
                 remaining_time = max(0, timeout - (time.time() - start_time))
                 if remaining_time <= 0:
                     break
-                    
-                if self._order_events[order_id].wait(timeout=remaining_time):
-                    if self._order_status.get(order_id) in ["filled", "canceled", "rejected"]:
-                        completed.append(order_id)
+
+                if self._order_events[order_id].wait(
+                    timeout=remaining_time
+                ) and self._order_status.get(order_id) in [
+                    "filled",
+                    "canceled",
+                    "rejected",
+                ]:
+                    completed.append(order_id)
 
             return completed
-            
+
         except Exception as e:
             logger.error(f"WebSocket order monitoring failed: {e}")
             return []
@@ -607,12 +644,79 @@ class AlpacaTradingService:
             return
 
         try:
-            # Use the websocket manager to get trading stream
-            # The actual implementation would depend on the WebSocketConnectionManager API
-            logger.debug("Trading stream ensured via WebSocketConnectionManager")
-            self._trading_service_active = True
+            # Use the websocket manager to get trading stream with order update callback
+            if self._websocket_manager.get_trading_service(self._on_trading_update):
+                self._trading_service_active = True
+                logger.info("✅ TradingStream service activated via WebSocketConnectionManager")
+            else:
+                logger.error("❌ Failed to activate TradingStream service")
+                self._trading_service_active = False
         except Exception as e:
             logger.error(f"Failed to ensure trading stream: {e}")
+            self._trading_service_active = False
+
+    async def _on_trading_update(self, data: object) -> None:
+        """Handle order updates from TradingStream.
+
+        Args:
+            data: Order update data from TradingStream
+
+        """
+        try:
+            # Extract event and order information
+            event_type, order_id, status = self._extract_trading_update_info(data)
+
+            if not order_id:
+                return
+
+            # Update order tracking
+            self._order_status[order_id] = status or event_type or ""
+
+            # Signal completion for terminal events
+            if self._is_terminal_trading_event(event_type, status):
+                event = self._order_events.get(order_id)
+                if event:
+                    event.set()
+
+        except Exception as e:
+            logger.error(f"Error in trading stream update: {e}")
+
+    def _extract_trading_update_info(self, data: object) -> tuple[str, str | None, str | None]:
+        """Extract event type, order ID, and status from trading update data."""
+        try:
+            # Handle SDK model objects
+            if hasattr(data, "event"):
+                event_type = str(getattr(data, "event", "")).lower()
+                order = getattr(data, "order", None)
+                if order:
+                    order_id = str(getattr(order, "id", ""))
+                    status = str(getattr(order, "status", "")).lower()
+                    return event_type, order_id or None, status or None
+
+            # Handle dict payloads
+            elif isinstance(data, dict):
+                event_type = str(data.get("event", "")).lower()
+                order = data.get("order", {})
+                if isinstance(order, dict):
+                    order_id = str(order.get("id", ""))
+                    status = str(order.get("status", "")).lower()
+                    return event_type, order_id or None, status or None
+
+            return "", None, None
+
+        except Exception as e:
+            logger.error(f"Error extracting trading update info: {e}")
+            return "", None, None
+
+    def _is_terminal_trading_event(self, event_type: str, status: str | None) -> bool:
+        """Check if event/status indicates terminal order state."""
+        terminal_events = {"fill", "canceled", "rejected", "expired"}
+        terminal_statuses = {"filled", "canceled", "rejected", "expired"}
+
+        return (
+            event_type in terminal_events
+            or (status is not None and status in terminal_statuses)
+        )
 
     def _process_pending_orders(self, order_ids: list[str], completed_orders: list[str]) -> None:
         """Check pending orders for completion via polling."""
@@ -635,7 +739,7 @@ class AlpacaTradingService:
             if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
                 return order_status
             return None
-            
+
         except Exception as e:
             logger.error(f"Failed to check order {order_id} status: {e}")
             return None

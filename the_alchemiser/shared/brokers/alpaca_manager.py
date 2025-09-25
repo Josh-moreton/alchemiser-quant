@@ -26,10 +26,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockLatestQuoteRequest
 from alpaca.trading.client import TradingClient
-from alpaca.trading.enums import OrderSide, QueryOrderStatus, TimeInForce
 from alpaca.trading.models import Order, Position, TradeAccount
 from alpaca.trading.requests import (
-    GetOrdersRequest,
     LimitOrderRequest,
     MarketOrderRequest,
 )
@@ -39,7 +37,6 @@ from the_alchemiser.shared.dto.asset_info_dto import AssetInfoDTO
 from the_alchemiser.shared.dto.broker_dto import (
     OrderExecutionResult,
     WebSocketResult,
-    WebSocketStatus,
 )
 from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
 from the_alchemiser.shared.protocols.repository import (
@@ -238,17 +235,18 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 from the_alchemiser.shared.services.websocket_manager import (
                     WebSocketConnectionManager,
                 )
+
                 self._websocket_manager = WebSocketConnectionManager(
                     self._api_key, self._secret_key, paper_trading=self._paper
                 )
-            
+
             # Create trading service with WebSocket manager
             self._trading_service = AlpacaTradingService(
                 self._trading_client,
                 self._websocket_manager,
                 paper_trading=self._paper,
             )
-        
+
         return self._trading_service
 
     # Helper methods for DTO mapping
@@ -538,7 +536,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             # Use trading service to place the order
             return self._get_trading_service().place_market_order(
-                normalized_symbol, side_normalized, final_qty, notional
+                normalized_symbol,
+                side_normalized,
+                final_qty,
+                notional,
+                is_complete_exit=is_complete_exit,
             )
 
         except ValueError as e:
@@ -1295,6 +1297,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
                 for instance in instances_to_cleanup:
                     try:
+                        # Clean up trading service
+                        if hasattr(instance, "_trading_service") and instance._trading_service:
+                            instance._trading_service.cleanup()
+                            instance._trading_service = None
+
                         # Release trading service from WebSocketConnectionManager
                         if hasattr(instance, "_websocket_manager") and instance._websocket_manager:
                             logger.info(
