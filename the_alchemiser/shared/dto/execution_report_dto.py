@@ -23,7 +23,7 @@ from ..utils.dto_conversion import (
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class ExecutedOrderDTO(BaseModel):
+class ExecutedOrder(BaseModel):
     """DTO for individual executed order."""
 
     model_config = ConfigDict(
@@ -94,7 +94,7 @@ class ExecutedOrderDTO(BaseModel):
         return result
 
 
-class ExecutionReportDTO(BaseModel):
+class ExecutionReport(BaseModel):
     """DTO for execution report data transfer.
 
     Used for communication between execution module and other modules.
@@ -136,7 +136,7 @@ class ExecutionReportDTO(BaseModel):
     total_duration_seconds: int = Field(..., ge=0, description="Total execution duration")
 
     # Order details
-    orders: list[ExecutedOrderDTO] = Field(
+    orders: list[ExecutedOrder] = Field(
         default_factory=list, description="List of executed orders"
     )
 
@@ -247,14 +247,14 @@ class ExecutionReportDTO(BaseModel):
                 order_dict[field_name] = str(order_dict[field_name])
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> ExecutionReportDTO:
+    def from_dict(cls, data: dict[str, Any]) -> ExecutionReport:
         """Create DTO from dictionary.
 
         Args:
             data: Dictionary containing DTO data
 
         Returns:
-            ExecutionReportDTO instance
+            ExecutionReport instance
 
         Raises:
             ValueError: If data is invalid or missing required fields
@@ -281,14 +281,14 @@ class ExecutionReportDTO(BaseModel):
         return cls(**data)
 
     @classmethod
-    def _convert_orders_from_dict(cls, orders: list[Any]) -> list[ExecutedOrderDTO]:
+    def _convert_orders_from_dict(cls, orders: list[Any]) -> list[ExecutedOrder]:
         """Convert orders list from dictionary format.
 
         Args:
             orders: List of order data (dicts or DTOs)
 
         Returns:
-            List of ExecutedOrderDTO instances
+            List of ExecutedOrder instances
 
         """
         if not isinstance(orders, list):
@@ -298,7 +298,7 @@ class ExecutionReportDTO(BaseModel):
         for order_data in orders:
             if isinstance(order_data, dict):
                 converted_order = convert_nested_order_data(dict(order_data))
-                orders_data.append(ExecutedOrderDTO(**converted_order))
+                orders_data.append(ExecutedOrder(**converted_order))
             else:
                 orders_data.append(order_data)  # Assume already a DTO
 

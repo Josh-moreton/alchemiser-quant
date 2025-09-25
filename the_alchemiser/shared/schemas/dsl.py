@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from the_alchemiser.shared.utils.timezone_utils import ensure_timezone_aware
 
 
-class ASTNodeDTO(BaseModel):
+class ASTNode(BaseModel):
     """DTO for Abstract Syntax Tree nodes from S-expression parsing.
 
     Represents parsed S-expressions as a tree structure with typed nodes
@@ -37,7 +37,7 @@ class ASTNodeDTO(BaseModel):
     value: str | Decimal | None = Field(default=None, description="Node value for atoms")
 
     # Tree structure
-    children: list[ASTNodeDTO] = Field(default_factory=list, description="Child nodes")
+    children: list[ASTNode] = Field(default_factory=list, description="Child nodes")
 
     # Metadata
     metadata: dict[str, Any] | None = Field(
@@ -45,7 +45,7 @@ class ASTNodeDTO(BaseModel):
     )
 
     @classmethod
-    def symbol(cls, name: str, metadata: dict[str, Any] | None = None) -> ASTNodeDTO:
+    def symbol(cls, name: str, metadata: dict[str, Any] | None = None) -> ASTNode:
         """Create a symbol node.
 
         Args:
@@ -53,13 +53,13 @@ class ASTNodeDTO(BaseModel):
             metadata: Optional metadata
 
         Returns:
-            ASTNodeDTO representing a symbol
+            ASTNode representing a symbol
 
         """
         return cls(node_type="symbol", value=name, metadata=metadata)
 
     @classmethod
-    def atom(cls, value: str | Decimal, metadata: dict[str, Any] | None = None) -> ASTNodeDTO:
+    def atom(cls, value: str | Decimal, metadata: dict[str, Any] | None = None) -> ASTNode:
         """Create an atom node.
 
         Args:
@@ -67,15 +67,15 @@ class ASTNodeDTO(BaseModel):
             metadata: Optional metadata
 
         Returns:
-            ASTNodeDTO representing an atom
+            ASTNode representing an atom
 
         """
         return cls(node_type="atom", value=value, metadata=metadata)
 
     @classmethod
     def list_node(
-        cls, children: list[ASTNodeDTO], metadata: dict[str, Any] | None = None
-    ) -> ASTNodeDTO:
+        cls, children: list[ASTNode], metadata: dict[str, Any] | None = None
+    ) -> ASTNode:
         """Create a list node.
 
         Args:
@@ -83,7 +83,7 @@ class ASTNodeDTO(BaseModel):
             metadata: Optional metadata
 
         Returns:
-            ASTNodeDTO representing a list
+            ASTNode representing a list
 
         """
         return cls(node_type="list", children=children, metadata=metadata)
@@ -113,7 +113,7 @@ class ASTNodeDTO(BaseModel):
         return None
 
 
-class TraceEntryDTO(BaseModel):
+class TraceEntry(BaseModel):
     """Single trace entry in strategy evaluation."""
 
     model_config = ConfigDict(
@@ -138,7 +138,7 @@ class TraceEntryDTO(BaseModel):
         return ensure_timezone_aware(v)
 
 
-class TraceDTO(BaseModel):
+class Trace(BaseModel):
     """DTO for complete strategy evaluation trace.
 
     Contains structured trace log for audit and observability purposes.
@@ -163,7 +163,7 @@ class TraceDTO(BaseModel):
     end_timestamp: datetime | None = Field(default=None, description="When trace completed")
 
     # Trace entries
-    entries: list[TraceEntryDTO] = Field(default_factory=list, description="Trace entries")
+    entries: list[TraceEntry] = Field(default_factory=list, description="Trace entries")
 
     # Summary
     total_steps: int = Field(default=0, ge=0, description="Total number of steps")
@@ -185,7 +185,7 @@ class TraceDTO(BaseModel):
             return v
         return ensure_timezone_aware(v)
 
-    def add_entry(self, entry: TraceEntryDTO) -> None:
+    def add_entry(self, entry: TraceEntry) -> None:
         """Add a trace entry (if model wasn't frozen)."""
         # Note: This would not work with frozen=True, but provided for interface compatibility
         raise RuntimeError("Cannot modify frozen model - create new instance with updated entries")
@@ -241,9 +241,9 @@ class TraceDTO(BaseModel):
                             entry_data["timestamp"] = datetime.fromisoformat(timestamp_str)
                         except ValueError as e:
                             raise ValueError(f"Invalid entry timestamp: {entry_data['timestamp']}") from e
-                    entries_data.append(TraceEntryDTO(**entry_data))
+                    entries_data.append(TraceEntry(**entry_data))
                 else:
-                    entries_data.append(entry_data)  # Assume already TraceEntryDTO
+                    entries_data.append(entry_data)  # Assume already TraceEntry
             data["entries"] = entries_data
 
         return cls(**data)

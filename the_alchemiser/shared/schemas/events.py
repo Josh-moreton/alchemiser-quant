@@ -11,7 +11,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class LambdaEventDTO(BaseModel):
+class LambdaEvent(BaseModel):
     """DTO for AWS Lambda event data.
 
     Used for parsing Lambda events to determine trading mode and configuration.

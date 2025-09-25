@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class OrderRequestDTO(BaseModel):
+class OrderRequest(BaseModel):
     """DTO for order request data transfer.
 
     Used for communication from portfolio module to execution module.
@@ -182,7 +182,7 @@ class OrderRequestDTO(BaseModel):
         return cls(**data)
 
 
-class MarketDataDTO(BaseModel):
+class MarketData(BaseModel):
     """DTO for market data transfer between modules."""
 
     model_config = ConfigDict(

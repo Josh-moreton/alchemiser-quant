@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..utils.timezone_utils import ensure_timezone_aware
 
 
-class PositionDTO(BaseModel):
+class Position(BaseModel):
     """DTO for individual position data."""
 
     model_config = ConfigDict(
@@ -54,7 +54,7 @@ class PositionDTO(BaseModel):
         return ensure_timezone_aware(v)
 
 
-class PortfolioMetricsDTO(BaseModel):
+class PortfolioMetrics(BaseModel):
     """DTO for portfolio performance metrics."""
 
     model_config = ConfigDict(
@@ -79,7 +79,7 @@ class PortfolioMetricsDTO(BaseModel):
     maintenance_margin: Decimal | None = Field(default=None, ge=0, description="Maintenance margin")
 
 
-class PortfolioStateDTO(BaseModel):
+class PortfolioState(BaseModel):
     """DTO for complete portfolio state data transfer.
 
     Used for communication between portfolio module and other modules.
@@ -105,10 +105,10 @@ class PortfolioStateDTO(BaseModel):
     account_id: str | None = Field(default=None, description="Associated account ID")
 
     # Portfolio state
-    positions: list[PositionDTO] = Field(
+    positions: list[Position] = Field(
         default_factory=list, description="List of portfolio positions"
     )
-    metrics: PortfolioMetricsDTO = Field(..., description="Portfolio metrics")
+    metrics: PortfolioMetrics = Field(..., description="Portfolio metrics")
 
     # Strategy allocation
     strategy_allocations: dict[str, Decimal] = Field(

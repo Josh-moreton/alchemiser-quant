@@ -96,7 +96,7 @@ class MultiSymbolQuotesResult(Result):
     error: str | None = None
 
 
-class MarketBarDTO(BaseModel):
+class MarketBar(BaseModel):
     """DTO for market bar data optimized for strategy consumption.
 
     Focused specifically on OHLCV data needed by strategy engines
@@ -305,4 +305,4 @@ PriceHistoryDTO = PriceHistoryResult
 SpreadAnalysisDTO = SpreadAnalysisResult
 MarketStatusDTO = MarketStatusResult
 MultiSymbolQuotesDTO = MultiSymbolQuotesResult
-MarketBarDTO = MarketBarDTO  # Keep the DTO name for now until Phase 3
+

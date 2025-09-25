@@ -25,7 +25,7 @@ from the_alchemiser.shared.schemas.execution_summary import ExecutionSummary
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, StrategySignal
 
 
-class MultiStrategyExecutionResultDTO(BaseModel):
+class MultiStrategyExecutionResult(BaseModel):
     """DTO for multi-strategy execution results.
 
     Provides an immutable, validated container for multi-strategy execution
@@ -59,7 +59,7 @@ class MultiStrategyExecutionResultDTO(BaseModel):
     final_portfolio_state: PortfolioStateDTO | None = None
 
 
-class AllocationComparisonDTO(BaseModel):
+class AllocationComparison(BaseModel):
     """DTO for allocation comparison with Decimal precision."""
 
     model_config = ConfigDict(
@@ -73,7 +73,7 @@ class AllocationComparisonDTO(BaseModel):
     deltas: dict[str, Decimal]
 
 
-class MultiStrategySummaryDTO(BaseModel):
+class MultiStrategySummary(BaseModel):
     """DTO for multi-strategy summary including allocation comparison & account info.
 
     Provides a unified summary structure that includes execution results,

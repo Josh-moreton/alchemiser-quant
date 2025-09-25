@@ -15,20 +15,20 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 # Re-export moved DTOs from new schema locations for backward compatibility
-from the_alchemiser.shared.schemas.assets import AssetInfoDTO
+from the_alchemiser.shared.schemas.assets import AssetInfo
 from the_alchemiser.shared.schemas.broker import WebSocketResult, WebSocketStatus
 from the_alchemiser.shared.schemas.dsl import ASTNodeDTO, TraceDTO
 from the_alchemiser.shared.schemas.events import LambdaEventDTO
 from the_alchemiser.shared.schemas.execution import ExecutionResult
-from the_alchemiser.shared.schemas.indicators import TechnicalIndicatorDTO
+from the_alchemiser.shared.schemas.indicators import TechnicalIndicator
 from the_alchemiser.shared.schemas.market_data import MarketBarDTO
 from the_alchemiser.shared.schemas.orders import MarketDataDTO, OrderRequestDTO
 from the_alchemiser.shared.schemas.portfolio import (
-    PortfolioMetricsDTO,
-    PortfolioStateDTO,
-    PositionDTO,
+    PortfolioMetrics,
+    PortfolioState,
+    Position,
 )
-from the_alchemiser.shared.schemas.strategy import StrategyAllocationDTO, StrategySignalDTO
+from the_alchemiser.shared.schemas.strategy import StrategyAllocation, StrategySignal
 from the_alchemiser.shared.schemas.trading import (
     AssetType,
     Lot,
@@ -43,8 +43,8 @@ from the_alchemiser.shared.schemas.trading import (
 try:
     from the_alchemiser.shared.dto.consolidated_portfolio_dto import ConsolidatedPortfolioDTO
     from the_alchemiser.shared.dto.execution_report_dto import (
-        ExecutedOrderDTO,
-        ExecutionReportDTO,
+        ExecutedOrder,
+        ExecutionReport,
     )
     from the_alchemiser.shared.dto.indicator_request_dto import IndicatorRequestDTO
     from the_alchemiser.shared.dto.rebalance_plan_dto import (
@@ -101,7 +101,7 @@ class ErrorDTO(BaseModel):
 __all__ = [
     # Moved DTOs (now re-exported from schema locations)
     "ASTNodeDTO",
-    "AssetInfoDTO",
+    "AssetInfo",
     "AssetType",
     "ExecutionResult",
     "LambdaEventDTO",
@@ -110,12 +110,12 @@ __all__ = [
     "MarketDataDTO",
     "OrderRequestDTO",
     "PerformanceSummary",
-    "PortfolioMetricsDTO",
-    "PortfolioStateDTO",
-    "PositionDTO",
-    "StrategyAllocationDTO",
-    "StrategySignalDTO",
-    "TechnicalIndicatorDTO",
+    "PortfolioMetrics",
+    "PortfolioState",
+    "Position",
+    "StrategyAllocation",
+    "StrategySignal",
+    "TechnicalIndicator",
     "TradeLedgerEntry",
     "TradeLedgerQuery",
     "TraceDTO",
@@ -125,8 +125,8 @@ __all__ = [
     
     # DTOs not yet fully consolidated (temporary)
     "ConsolidatedPortfolioDTO",
-    "ExecutedOrderDTO", 
-    "ExecutionReportDTO",
+    "ExecutedOrder", 
+    "ExecutionReport",
     "ExecutionSummaryDTO",
     "IndicatorRequestDTO",
     "OrderResultSummaryDTO",

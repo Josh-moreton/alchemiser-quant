@@ -155,10 +155,4 @@ class PortfolioState(BaseModel):
     rebalance_needed: bool = Field(..., description="Whether rebalancing is needed")
 
 
-# Backward compatibility aliases - will be removed in future version
-AllocationSummaryDTO = AllocationSummary
-StrategyPnLSummaryDTO = StrategyPnLSummary
-StrategySummaryDTO = StrategySummary
-TradingSummaryDTO = TradingSummary
-ExecutionSummaryDTO = ExecutionSummary
-PortfolioStateDTO = PortfolioState
+

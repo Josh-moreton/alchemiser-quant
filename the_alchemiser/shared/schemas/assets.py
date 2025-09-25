@@ -11,7 +11,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-class AssetInfoDTO(BaseModel):
+class AssetInfo(BaseModel):
     """DTO for asset information including trading characteristics.
 
     This DTO provides standardized asset metadata with strict typing

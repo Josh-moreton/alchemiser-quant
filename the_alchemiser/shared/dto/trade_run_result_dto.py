@@ -16,7 +16,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class OrderResultSummaryDTO(BaseModel):
+class OrderResultSummary(BaseModel):
     """Summary of a single order execution for CLI display."""
 
     model_config = ConfigDict(
@@ -37,7 +37,7 @@ class OrderResultSummaryDTO(BaseModel):
     timestamp: datetime = Field(..., description="Order execution timestamp")
 
 
-class ExecutionSummaryDTO(BaseModel):
+class ExecutionSummary(BaseModel):
     """Summary of trading execution for CLI display."""
 
     model_config = ConfigDict(
@@ -54,7 +54,7 @@ class ExecutionSummaryDTO(BaseModel):
     execution_duration_seconds: float = Field(..., ge=0, description="Execution time in seconds")
 
 
-class TradeRunResultDTO(BaseModel):
+class TradeRunResult(BaseModel):
     """Complete result of a trade execution run.
 
     This DTO replaces the boolean return from main.py and provides
@@ -72,10 +72,10 @@ class TradeRunResultDTO(BaseModel):
     success: bool = Field(..., description="Overall execution success flag")
 
     # Execution summary
-    execution_summary: ExecutionSummaryDTO = Field(..., description="Execution metrics")
+    execution_summary: ExecutionSummary = Field(..., description="Execution metrics")
 
     # Order details (redacted by default)
-    orders: list[OrderResultSummaryDTO] = Field(
+    orders: list[OrderResultSummary] = Field(
         default_factory=list, description="Individual order results"
     )
 
