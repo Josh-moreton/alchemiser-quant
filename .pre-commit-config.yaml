@@ -53,3 +53,13 @@ repos:
         files: ^the_alchemiser/.*\.py$
         pass_filenames: false  # Run on entire directory like make command
         stages: [pre-commit]
+
+      # Import linting - matches `make lint-imports`
+      - id: lint-imports
+        name: Import Lint (matches make lint-imports)
+        entry: poetry run lint-imports
+        language: system
+        types: [python]
+        files: ^the_alchemiser/.*\.py$
+        pass_filenames: false  # Run on entire directory like make command
+        stages: [pre-commit]
