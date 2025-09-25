@@ -167,7 +167,6 @@ def generate_simple_plan_hash(plan_content: dict[str, Any]) -> str:
         return hash_obj.hexdigest()[:16]
     except Exception as e:
         logger.error(f"Failed to generate simple plan hash: {e}")
-        # Return timestamp-based fallback
-        import time
-        fallback_data = f"{time.time()}_{len(str(plan_content))}"
+        # Return deterministic fallback based on input length
+        fallback_data = f"fallback_{len(str(plan_content))}"
         return hashlib.sha256(fallback_data.encode()).hexdigest()[:16]
