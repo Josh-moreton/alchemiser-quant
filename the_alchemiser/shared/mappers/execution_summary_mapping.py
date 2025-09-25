@@ -15,7 +15,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.shared.schemas.execution_summary import (
+from the_alchemiser.shared.schemas.execution.execution_summary import (
     AllocationSummary,
     ExecutionSummary,
     StrategyPnLSummary,
@@ -77,7 +77,9 @@ def dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummary:
         if isinstance(strategy_data, dict):
             # Ensure strategy_name is in the data
             strategy_data_with_name = {**strategy_data, "strategy_name": strategy_name}
-            strategy_summary[strategy_name] = dict_to_strategy_summary_dto(strategy_data_with_name)
+            strategy_summary[strategy_name] = dict_to_strategy_summary_dto(
+                strategy_data_with_name
+            )
 
     # Handle trading summary
     trading_summary_data = data.get("trading_summary", {})

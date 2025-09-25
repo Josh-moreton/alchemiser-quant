@@ -20,9 +20,13 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from the_alchemiser.shared.schemas.execution_summary import ExecutionSummary
+from the_alchemiser.shared.schemas.execution.execution_summary import ExecutionSummary
 from the_alchemiser.shared.schemas.portfolio.state import PortfolioSnapshot
-from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, StrategySignal
+from the_alchemiser.shared.value_objects.core_types import (
+    AccountInfo,
+    OrderDetails,
+    StrategySignal,
+)
 
 
 class MultiStrategyExecutionResult(BaseModel):

@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
+from the_alchemiser.shared.schemas.portfolio.consolidated_portfolio import (
     ConsolidatedPortfolio,
 )
 from the_alchemiser.shared.events import EventBus, SignalGenerated
@@ -60,8 +60,8 @@ class SignalOrchestrator:
         strategy_signals = self._convert_signals_to_display_format(signals)
 
         # Create consolidated portfolio from signals
-        consolidated_portfolio_dict, contributing_strategies = self._build_consolidated_portfolio(
-            signals
+        consolidated_portfolio_dict, contributing_strategies = (
+            self._build_consolidated_portfolio(signals)
         )
 
         # Create ConsolidatedPortfolio
@@ -73,7 +73,9 @@ class SignalOrchestrator:
 
         return strategy_signals, consolidated_portfolio
 
-    def _convert_signals_to_display_format(self, signals: list[StrategySignal]) -> dict[str, Any]:
+    def _convert_signals_to_display_format(
+        self, signals: list[StrategySignal]
+    ) -> dict[str, Any]:
         """Convert DSL signals to display format."""
         strategy_signals = {}
 
@@ -81,7 +83,9 @@ class SignalOrchestrator:
             # For DSL engine, we group all signals under "DSL" strategy type
             if len(signals) > 1:
                 # Multiple signals - present a concise primary symbol; keep full list separately
-                symbols = [signal.symbol.value for signal in signals if signal.action == "BUY"]
+                symbols = [
+                    signal.symbol.value for signal in signals if signal.action == "BUY"
+                ]
                 primary_signal = signals[0]  # Use first signal for other attributes
                 primary_symbol = primary_signal.symbol.value
                 strategy_signals["DSL"] = {
@@ -194,7 +198,11 @@ class SignalOrchestrator:
         """Extract strategy name from strategy type."""
         if isinstance(strategy_type, str):
             return strategy_type
-        return strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
+        return (
+            strategy_type.value
+            if hasattr(strategy_type, "value")
+            else str(strategy_type)
+        )
 
     def _log_all_strategies_affected(
         self, failed_strategies: list[str], fallback_strategies: list[str]
@@ -306,7 +314,9 @@ class SignalOrchestrator:
 
             for strategy_type, signal_data in strategy_signals.items():
                 strategy_name = (
-                    strategy_type.value if hasattr(strategy_type, "value") else str(strategy_type)
+                    strategy_type.value
+                    if hasattr(strategy_type, "value")
+                    else str(strategy_type)
                 )
                 # Use short symbol for DTO (max length 10). If multi, pick first from list.
                 raw_symbol = signal_data.get("symbol", "UNKNOWN")
@@ -386,7 +396,9 @@ class SignalOrchestrator:
             # Single position strategies
             return 1 if signal.get("action") == "BUY" else 0
         # Count from consolidated portfolio if possible
-        strategy_symbols = self._get_symbols_for_strategy(strategy_name, strategy_signals)
+        strategy_symbols = self._get_symbols_for_strategy(
+            strategy_name, strategy_signals
+        )
         return len([s for s in strategy_symbols if s in consolidated_portfolio])
 
     def _find_signal_for_strategy(
@@ -421,7 +433,9 @@ class SignalOrchestrator:
             symbols_list = signal.get("symbols")
             if isinstance(symbols_list, list):
                 return len([s for s in symbols_list if s in consolidated_portfolio])
-            return self._count_nuclear_portfolio_symbols(symbol_text, consolidated_portfolio)
+            return self._count_nuclear_portfolio_symbols(
+                symbol_text, consolidated_portfolio
+            )
         return 0
 
     def _count_nuclear_portfolio_symbols(

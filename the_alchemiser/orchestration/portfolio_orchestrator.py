@@ -20,10 +20,10 @@ if TYPE_CHECKING:
 
 from the_alchemiser.portfolio_v2 import PortfolioServiceV2
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
+from the_alchemiser.shared.schemas.portfolio.consolidated_portfolio import (
     ConsolidatedPortfolio,
 )
-from the_alchemiser.shared.dto.portfolio_state_dto import (
+from the_alchemiser.shared.schemas.portfolio.legacy_state import (
     PortfolioMetrics,
     PortfolioSnapshot,
 )
@@ -134,9 +134,9 @@ def _calculate_event_allocation_data(
     }
 
     # Calculate current allocations from positions
-    total_portfolio_value = account_dict.get("portfolio_value", 0.0) or account_dict.get(
-        "equity", 0.0
-    )
+    total_portfolio_value = account_dict.get(
+        "portfolio_value", 0.0
+    ) or account_dict.get("equity", 0.0)
     current_allocations_decimal = {}
     differences_decimal = {}
 
@@ -148,10 +148,14 @@ def _calculate_event_allocation_data(
 
         # Calculate difference
         target_allocation = target_allocations_decimal.get(symbol, Decimal("0"))
-        differences_decimal[symbol] = target_allocation - Decimal(str(current_allocation))
+        differences_decimal[symbol] = target_allocation - Decimal(
+            str(current_allocation)
+        )
 
     # Determine if rebalancing is required (significant differences)
-    rebalancing_required = any(abs(diff) > Decimal("0.05") for diff in differences_decimal.values())
+    rebalancing_required = any(
+        abs(diff) > Decimal("0.05") for diff in differences_decimal.values()
+    )
 
     return (
         target_allocations_decimal,
@@ -174,7 +178,9 @@ def _extract_account_info_comprehensive(
 
     """
     if isinstance(account_raw, dict):
-        portfolio_value_any = account_raw.get("portfolio_value") or account_raw.get("equity")
+        portfolio_value_any = account_raw.get("portfolio_value") or account_raw.get(
+            "equity"
+        )
         equity_any = account_raw.get("equity") or account_raw.get("portfolio_value")
         cash_any = account_raw.get("cash", 0)
         buying_power_any = account_raw.get("buying_power", 0)
@@ -236,10 +242,16 @@ def _build_open_orders_list(orders_list: list[Any]) -> list[dict[str, Any]]:
         {
             "id": getattr(order, "id", "unknown"),
             "symbol": getattr(order, "symbol", "unknown"),
-            "type": str(getattr(order, "order_type", "unknown")).replace("OrderType.", ""),
+            "type": str(getattr(order, "order_type", "unknown")).replace(
+                "OrderType.", ""
+            ),
             "qty": float(getattr(order, "qty", 0)),
-            "limit_price": (float(getattr(order, "limit_price", 0)) if order.limit_price else None),
-            "status": str(getattr(order, "status", "unknown")).replace("OrderStatus.", ""),
+            "limit_price": (
+                float(getattr(order, "limit_price", 0)) if order.limit_price else None
+            ),
+            "status": str(getattr(order, "status", "unknown")).replace(
+                "OrderStatus.", ""
+            ),
             "created_at": str(getattr(order, "created_at", "unknown")),
         }
         for order in orders_list
@@ -275,7 +287,9 @@ class PortfolioOrchestrator:
             )
 
             # Get current portfolio snapshot via state reader
-            portfolio_snapshot = portfolio_service._state_reader.build_portfolio_snapshot()
+            portfolio_snapshot = (
+                portfolio_service._state_reader.build_portfolio_snapshot()
+            )
 
             if not portfolio_snapshot:
                 self.logger.warning("Could not retrieve portfolio snapshot")
@@ -311,7 +325,7 @@ class PortfolioOrchestrator:
         """
         try:
             # Use portfolio_v2 for rebalancing plan calculation
-            from the_alchemiser.shared.dto.strategy_allocation_dto import (
+            from the_alchemiser.shared.schemas.strategy.allocation import (
                 StrategyAllocation,
             )
 
@@ -524,7 +538,9 @@ class PortfolioOrchestrator:
                     "account_equity": account_dict.get("equity"),
                     "used_effective_base": account_dict.get("portfolio_value")
                     or account_dict.get("equity"),
-                    "target_weights_sum": sum(consolidated_portfolio.to_dict_allocation().values()),
+                    "target_weights_sum": sum(
+                        consolidated_portfolio.to_dict_allocation().values()
+                    ),
                     "dto_zeroed": zeroed,
                 },
             )
@@ -593,7 +609,9 @@ class PortfolioOrchestrator:
             self.logger.error(f"Failed to retrieve comprehensive account data: {e}")
             return None
 
-    def _process_account_info(self, alpaca_manager: AlpacaManager) -> dict[str, Any] | None:
+    def _process_account_info(
+        self, alpaca_manager: AlpacaManager
+    ) -> dict[str, Any] | None:
         """Process and normalize account information.
 
         Args:
@@ -619,7 +637,9 @@ class PortfolioOrchestrator:
         except (ValueError, TypeError):
             portfolio_value_float = 0.0
 
-        self.logger.info(f"Retrieved account info: Portfolio value ${portfolio_value_float:,.2f}")
+        self.logger.info(
+            f"Retrieved account info: Portfolio value ${portfolio_value_float:,.2f}"
+        )
 
         return account_info
 
@@ -644,7 +664,9 @@ class PortfolioOrchestrator:
 
         return current_positions
 
-    def _process_open_orders(self, alpaca_manager: AlpacaManager) -> list[dict[str, Any]]:
+    def _process_open_orders(
+        self, alpaca_manager: AlpacaManager
+    ) -> list[dict[str, Any]]:
         """Process open orders from the broker.
 
         Args:
@@ -743,11 +765,15 @@ class PortfolioOrchestrator:
             )
 
             self.event_bus.publish(event)
-            self.logger.debug(f"Emitted AllocationComparisonCompleted event {event.event_id}")
+            self.logger.debug(
+                f"Emitted AllocationComparisonCompleted event {event.event_id}"
+            )
 
         except Exception as e:
             # Don't let event emission failure break the traditional workflow
-            self.logger.warning(f"Failed to emit AllocationComparisonCompleted event: {e}")
+            self.logger.warning(
+                f"Failed to emit AllocationComparisonCompleted event: {e}"
+            )
 
     def execute_portfolio_workflow(
         self, target_allocations: dict[str, float]
@@ -767,12 +793,13 @@ class PortfolioOrchestrator:
             from datetime import UTC, datetime
             from decimal import Decimal
 
-            from the_alchemiser.shared.dto.consolidated_portfolio_dto import (
+            from the_alchemiser.shared.schemas.portfolio.consolidated_portfolio import (
                 ConsolidatedPortfolio,
             )
 
             target_allocations_decimal = {
-                symbol: Decimal(str(weight)) for symbol, weight in target_allocations.items()
+                symbol: Decimal(str(weight))
+                for symbol, weight in target_allocations.items()
             }
 
             consolidated_portfolio = ConsolidatedPortfolio(
@@ -794,7 +821,9 @@ class PortfolioOrchestrator:
                 return None
 
             # Analyze allocation comparison
-            allocation_analysis = self.analyze_allocation_comparison(consolidated_portfolio)
+            allocation_analysis = self.analyze_allocation_comparison(
+                consolidated_portfolio
+            )
             if not allocation_analysis:
                 return None
 
