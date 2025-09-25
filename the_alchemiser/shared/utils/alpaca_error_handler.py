@@ -50,7 +50,7 @@ logger = get_logger(__name__)
 
 class AlpacaErrorHandler:
     """Utility for handling Alpaca API errors with retry logic.
-    
+
     This class provides static methods for error detection, sanitization,
     and standardized error result creation across all Alpaca services.
     """
@@ -58,10 +58,10 @@ class AlpacaErrorHandler:
     @staticmethod
     def is_transient_error(error: Exception) -> tuple[bool, str]:
         """Determine if error is transient and should be retried.
-        
+
         Args:
             error: Exception to check
-            
+
         Returns:
             Tuple of (is_transient, reason_description)
 
@@ -85,10 +85,10 @@ class AlpacaErrorHandler:
     @staticmethod
     def sanitize_error_message(error: Exception) -> str:
         """Sanitize error message for logging and display.
-        
+
         Args:
             error: Exception to sanitize
-            
+
         Returns:
             Clean error message string
 
@@ -105,47 +105,47 @@ class AlpacaErrorHandler:
     @staticmethod
     def should_retry(error: Exception, attempt: int, max_retries: int) -> bool:
         """Determine if operation should be retried.
-        
+
         Args:
             error: Exception that occurred
             attempt: Current attempt number (1-based)
             max_retries: Maximum number of retries allowed
-            
+
         Returns:
             True if should retry, False otherwise
 
         """
         if attempt >= max_retries:
             return False
-        
+
         transient, _ = AlpacaErrorHandler.is_transient_error(error)
         return transient
 
     @staticmethod
     def create_error_result(
-        error: Exception, 
+        error: Exception,
         context: str = "Operation",
         order_id: str = "unknown",
         **kwargs: Any,  # noqa: ANN401
     ) -> OrderExecutionResult:
         """Create standardized error result objects.
-        
+
         Args:
             error: Exception that occurred
             context: Context description for the error
             order_id: Order ID if applicable
             **kwargs: Additional parameters (unused but for interface compatibility)
-            
+
         Returns:
             OrderExecutionResult with error details
 
         """
         from datetime import UTC, datetime
-        
+
         status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"] = (
             "rejected"
         )
-        
+
         return OrderExecutionResult(
             success=False,
             order_id=order_id,
@@ -160,12 +160,12 @@ class AlpacaErrorHandler:
     @staticmethod
     def format_final_error_message(error: Exception, symbol: str, summary: str) -> str:
         """Format final error message based on exception type.
-        
+
         Args:
             error: Original exception
             symbol: Stock symbol for context
             summary: Sanitized error summary
-            
+
         Returns:
             Formatted error message string
 
@@ -183,19 +183,19 @@ def alpaca_retry_context(
     operation_name: str = "Alpaca operation",
 ) -> Generator[None, None, None]:
     """Context manager for Alpaca operations with retry logic.
-    
+
     Args:
         max_retries: Maximum number of retry attempts
         backoff_factor: Exponential backoff multiplier
         base_delay: Base delay in seconds for first retry
         operation_name: Name of operation for logging
-        
+
     Raises:
         RuntimeError: If all retries are exhausted
-        
+
     Yields:
         None
-        
+
     Example:
         with alpaca_retry_context(max_retries=3, operation_name="Get market data"):
             # Your Alpaca API call here
@@ -203,7 +203,7 @@ def alpaca_retry_context(
 
     """
     last_error: Exception | None = None
-    
+
     for attempt in range(1, max_retries + 1):
         try:
             yield
@@ -211,24 +211,24 @@ def alpaca_retry_context(
         except (RetryException, HTTPError, RequestException, Exception) as e:
             last_error = e
             transient, reason = AlpacaErrorHandler.is_transient_error(e)
-            
+
             if not transient or attempt == max_retries:
                 # Non-transient error or final attempt
                 summary = AlpacaErrorHandler.sanitize_error_message(e)
                 error_msg = f"{operation_name} failed after {attempt} attempts: {summary}"
                 logger.error(error_msg)
                 raise RuntimeError(error_msg) from e
-                
+
             # Calculate delay with exponential backoff and jitter
             jitter = 1.0 + 0.2 * (randbelow(1000) / 1000.0)
             sleep_duration = base_delay * (backoff_factor ** (attempt - 1)) * jitter
-            
+
             logger.warning(
                 f"{operation_name} transient error ({reason}); "
                 f"retry {attempt}/{max_retries} in {sleep_duration:.2f}s"
             )
             time.sleep(sleep_duration)
-    
+
     # This should never be reached due to the loop structure, but just in case
     if last_error:
         raise RuntimeError(f"{operation_name} failed after all retries") from last_error
