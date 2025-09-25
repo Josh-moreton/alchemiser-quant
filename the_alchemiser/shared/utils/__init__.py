@@ -19,11 +19,15 @@ from ..types.exceptions import (
     ValidationError,
 )
 
+# Alpaca error handling utilities
+from .alpaca_error_handler import AlpacaErrorHandler, alpaca_retry_context
+
 # Error reporting utilities
 from .error_reporter import ErrorReporter, get_error_reporter, report_error_globally
 
 __all__ = [
     "AlchemiserError",
+    "AlpacaErrorHandler",
     "ConfigurationError",
     "DataProviderError",
     "ErrorReporter",
@@ -32,6 +36,7 @@ __all__ = [
     "StrategyExecutionError",
     "TradingClientError",
     "ValidationError",
+    "alpaca_retry_context",
     "get_error_reporter",
     "report_error_globally",
 ]

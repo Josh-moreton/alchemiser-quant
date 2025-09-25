@@ -19,9 +19,13 @@ from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionResultDTO,
     OrderResultDTO,
 )
-from the_alchemiser.execution_v2.utils.execution_validator import ExecutionValidator
+from the_alchemiser.execution_v2.utils.execution_validator import (
+    ExecutionValidator,
+    OrderValidationResult,
+)
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.dto.execution_dto import ExecutionResult
+from the_alchemiser.shared.dto.execution_report_dto import ExecutedOrderDTO
 from the_alchemiser.shared.dto.rebalance_plan_dto import (
     RebalancePlanDTO,
     RebalancePlanItemDTO,
@@ -186,107 +190,163 @@ class Executor:
             ExecutionResult with order details
 
         """
-        # Preflight validation for non-fractionable assets
-        validation_result = self.validator.validate_order(
+        validation_result = self._validate_market_order(symbol, quantity, side)
+
+        if not validation_result.is_valid:
+            return self._build_validation_failure_result(symbol, side, quantity, validation_result)
+
+        final_quantity = validation_result.adjusted_quantity or quantity
+
+        self._log_validation_warnings(validation_result)
+
+        try:
+            if side.lower() == "buy":
+                self._ensure_buying_power(symbol, final_quantity)
+
+            broker_result = self._place_market_order_with_broker(symbol, side, final_quantity)
+            return self._build_market_order_execution_result(
+                symbol, side, final_quantity, broker_result
+            )
+        except Exception as exc:
+            return self._handle_market_order_exception(symbol, side, final_quantity, exc)
+
+    def _validate_market_order(
+        self,
+        symbol: str,
+        quantity: Decimal,
+        side: str,
+    ) -> OrderValidationResult:
+        """Run preflight validation for the market order."""
+        return self.validator.validate_order(
             symbol=symbol,
             quantity=quantity,
             side=side,
             auto_adjust=True,
         )
 
-        if not validation_result.is_valid:
-            error_msg = validation_result.error_message or f"Validation failed for {symbol}"
-            logger.error(f"❌ Preflight validation failed for {symbol}: {error_msg}")
+    def _build_validation_failure_result(
+        self,
+        symbol: str,
+        side: str,
+        quantity: Decimal,
+        validation_result: OrderValidationResult,
+    ) -> ExecutionResult:
+        """Construct execution result for validation failure."""
+        error_msg = validation_result.error_message or f"Validation failed for {symbol}"
+        logger.error(f"❌ Preflight validation failed for {symbol}: {error_msg}")
+        return ExecutionResult(
+            symbol=symbol,
+            side=side,
+            quantity=quantity,
+            status="rejected",
+            success=False,
+            error=error_msg,
+            execution_strategy="validation_failed",
+        )
+
+    def _log_validation_warnings(self, validation_result: OrderValidationResult) -> None:
+        """Log any warnings produced during validation."""
+        for warning in validation_result.warnings:
+            logger.warning(f"⚠️ Order validation: {warning}")
+
+    def _ensure_buying_power(self, symbol: str, quantity: Decimal) -> None:
+        """Ensure sufficient buying power before placing a buy order."""
+        (
+            is_sufficient,
+            current_bp,
+            estimated_cost,
+        ) = self.buying_power_service.check_sufficient_buying_power(
+            symbol,
+            quantity,
+            buffer_pct=5.0,
+        )
+
+        if not is_sufficient and estimated_cost:
+            logger.warning(
+                f"⚠️ Insufficient buying power for {symbol}: "
+                f"need ~${estimated_cost}, have ${current_bp}"
+            )
+            if self.buying_power_service.force_account_refresh():
+                logger.info("💰 Account refreshed, proceeding with order attempt")
+            else:
+                logger.warning("⚠️ Account refresh failed, proceeding anyway")
+
+    def _place_market_order_with_broker(
+        self,
+        symbol: str,
+        side: str,
+        quantity: Decimal,
+    ) -> ExecutedOrderDTO:
+        """Submit the market order via the broker."""
+        return self.alpaca_manager.place_market_order(
+            symbol=symbol,
+            side=side.lower(),
+            qty=float(quantity),
+        )
+
+    def _build_market_order_execution_result(
+        self,
+        symbol: str,
+        side: str,
+        quantity: Decimal,
+        broker_result: ExecutedOrderDTO,
+    ) -> ExecutionResult:
+        """Convert broker response into ExecutionResult."""
+        status = broker_result.status.lower() if broker_result.status else "submitted"
+        success = broker_result.status not in ["REJECTED", "CANCELED"]
+        price = broker_result.price if broker_result.price is not None else None
+
+        return ExecutionResult(
+            order_id=broker_result.order_id,
+            symbol=symbol,
+            side=side,
+            quantity=quantity,
+            price=price,
+            status=status,
+            success=success,
+            execution_strategy="market_order",
+        )
+
+    def _handle_market_order_exception(
+        self,
+        symbol: str,
+        side: str,
+        quantity: Decimal,
+        exc: Exception,
+    ) -> ExecutionResult:
+        """Handle exceptions raised during market order submission."""
+        error_str = str(exc)
+
+        if "insufficient buying power" in error_str.lower():
+            logger.error(f"💳 Insufficient buying power for {symbol}: {exc}")
+            try:
+                account = self.alpaca_manager.get_account_dict()
+                if account:
+                    buying_power = account.get("buying_power", "unknown")
+                    logger.error(f"💳 Current account state - Buying power: ${buying_power}")
+            except Exception as diagnostic_error:
+                logger.debug(f"Diagnostic account retrieval failed: {diagnostic_error}")
+
             return ExecutionResult(
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
-                status="rejected",
+                status="insufficient_buying_power",
                 success=False,
-                error=error_msg,
-                execution_strategy="validation_failed",
+                error=f"Insufficient buying power: {exc}",
+                execution_strategy="buying_power_error",
             )
 
-        # Use adjusted quantity if validation made changes
-        final_quantity = validation_result.adjusted_quantity or quantity
-
-        # Log any warnings from validation
-        for warning in validation_result.warnings:
-            logger.warning(f"⚠️ Order validation: {warning}")
-
-        try:
-            # For BUY orders, check buying power availability before placing order
-            if side.lower() == "buy":
-                is_sufficient, current_bp, estimated_cost = (
-                    self.buying_power_service.check_sufficient_buying_power(
-                        symbol, final_quantity, buffer_pct=5.0
-                    )
-                )
-
-                if not is_sufficient and estimated_cost:
-                    logger.warning(
-                        f"⚠️ Insufficient buying power for {symbol}: "
-                        f"need ~${estimated_cost}, have ${current_bp}"
-                    )
-                    # Force account refresh and check again
-                    if self.buying_power_service.force_account_refresh():
-                        logger.info("💰 Account refreshed, proceeding with order attempt")
-                    else:
-                        logger.warning("⚠️ Account refresh failed, proceeding anyway")
-
-            result = self.alpaca_manager.place_market_order(
-                symbol=symbol,
-                side=side.lower(),
-                qty=float(final_quantity),
-            )
-
-            return ExecutionResult(
-                order_id=result.order_id,
-                symbol=symbol,
-                side=side,
-                quantity=final_quantity,
-                price=(result.price if result.price is not None else None),
-                status=result.status.lower() if result.status else "submitted",
-                success=result.status not in ["REJECTED", "CANCELED"],
-                execution_strategy="market_order",
-            )
-
-        except Exception as e:
-            error_str = str(e)
-
-            # Special handling for buying power errors
-            if "insufficient buying power" in error_str.lower():
-                logger.error(f"💳 Insufficient buying power for {symbol}: {e}")
-
-                # Try to get current account state for diagnostics
-                try:
-                    account = self.alpaca_manager.get_account_dict()
-                    if account:
-                        buying_power = account.get("buying_power", "unknown")
-                        logger.error(f"💳 Current account state - Buying power: ${buying_power}")
-                except Exception as diagnostic_error:
-                    logger.debug(f"Diagnostic account retrieval failed: {diagnostic_error}")
-
-                return ExecutionResult(
-                    symbol=symbol,
-                    side=side,
-                    quantity=final_quantity,
-                    status="insufficient_buying_power",
-                    success=False,
-                    error=f"Insufficient buying power: {e}",
-                    execution_strategy="buying_power_error",
-                )
-
-            logger.error(f"❌ Market order failed for {symbol}: {e}")
-            return ExecutionResult(
-                symbol=symbol,
-                side=side,
-                quantity=final_quantity,
-                status="failed",
-                success=False,
-                error=str(e),
-                execution_strategy="market_order_failed",
-            )
+        logger.error(f"❌ Market order failed for {symbol}: {exc}")
+        return ExecutionResult(
+            symbol=symbol,
+            side=side,
+            quantity=quantity,
+            status="failed",
+            success=False,
+            error=error_str,
+            execution_strategy="market_order_failed",
+        )
 
     async def execute_rebalance_plan(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
         """Execute a rebalance plan with settlement-aware sell-first, buy-second workflow.
