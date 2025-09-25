@@ -138,7 +138,7 @@ class QuoteProvider:
         # Check quote freshness
         if not validate_quote_freshness(quote.timestamp, self.config.quote_freshness_seconds):
             quote_age = (datetime.now(UTC) - quote.timestamp).total_seconds()
-            logger.warning(
+            logger.debug(
                 f"Streaming quote stale for {symbol} ({quote_age:.1f}s > {self.config.quote_freshness_seconds}s)"
             )
             return False
