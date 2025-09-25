@@ -861,65 +861,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         return self.get_positions_dict()
 
-    def _check_order_completion_status(self, order_id: str) -> str | None:
-        """Check if a single order has reached a final state.
 
-        Args:
-            order_id: The order ID to check
 
-        Returns:
-            Order status if completed, None if still pending or error occurred
 
-        """
-        try:
-            order = self._trading_client.get_order_by_id(order_id)
-            order_status = getattr(order, "status", "").upper()
 
-            # Check if order is in a final state
-            if order_status in ["FILLED", "CANCELED", "REJECTED", "EXPIRED"]:
-                return order_status
-            return None
-        except Exception as e:
-            logger.warning(f"Failed to check order {order_id} status: {e}")
-            return None
 
-    def _process_pending_orders(self, order_ids: list[str], completed_orders: list[str]) -> None:
-        """Process pending orders and update completed_orders list.
-
-        Args:
-            order_ids: All order IDs to monitor
-            completed_orders: List of completed order IDs (modified in place)
-
-        """
-        for order_id in order_ids:
-            if order_id not in completed_orders:
-                final_status = self._check_order_completion_status(order_id)
-                if final_status:
-                    completed_orders.append(order_id)
-                    logger.info(f"Order {order_id} completed with status: {final_status}")
-
-    def _should_continue_waiting(
-        self,
-        completed_orders: list[str],
-        order_ids: list[str],
-        start_time: float,
-        max_wait_seconds: int,
-    ) -> bool:
-        """Check if we should continue waiting for order completion.
-
-        Args:
-            completed_orders: List of completed order IDs
-            order_ids: All order IDs being monitored
-            start_time: When monitoring started
-            max_wait_seconds: Maximum wait time
-
-        Returns:
-            True if should continue waiting, False otherwise
-
-        """
-        return (
-            len(completed_orders) < len(order_ids) and (time.time() - start_time) < max_wait_seconds
-        )
 
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 30
@@ -937,53 +883,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         return self._get_trading_service().wait_for_order_completion(order_ids, max_wait_seconds)
 
     # ---- TradingStream helpers ----
-    def _ensure_trading_stream(self) -> None:
-        """Ensure TradingStream is running via WebSocketConnectionManager."""
-        if self._trading_service_active:
-            return
 
-        try:
-            # Import here to avoid circular dependency
-            from the_alchemiser.shared.services.websocket_manager import (
-                WebSocketConnectionManager,
-            )
 
-            # Get or create the shared WebSocket manager
-            if self._websocket_manager is None:
-                self._websocket_manager = WebSocketConnectionManager(
-                    self._api_key, self._secret_key, paper_trading=self._paper
-                )
 
-            # Request trading service from the manager
-            if self._websocket_manager.get_trading_service(self._on_order_update):
-                self._trading_service_active = True
-                logger.info("✅ TradingStream service activated via WebSocketConnectionManager")
-            else:
-                logger.error("❌ Failed to activate TradingStream service")
-
-        except Exception as exc:
-            logger.error(f"Failed to ensure TradingStream via WebSocketConnectionManager: {exc}")
-            self._trading_service_active = False
-
-    def _extract_event_and_order(
-        self, data: dict[str, Any] | object
-    ) -> tuple[str, dict[str, Any] | object | None]:
-        """Extract event type and order from data (SDK model or dict).
-
-        Args:
-            data: Stream data from TradingStream callback
-
-        Returns:
-            Tuple of (event_type, order) where order may be None
-
-        """
-        if hasattr(data, "event"):
-            event_type = str(getattr(data, "event", "")).lower()
-            order = getattr(data, "order", None)
-        else:
-            event_type = str(data.get("event", "")).lower() if isinstance(data, dict) else ""
-            order = data.get("order") if isinstance(data, dict) else None
-        return event_type, order
 
     def _extract_order_info(
         self, order: dict[str, Any] | object | None
@@ -1011,98 +913,13 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         return order_id if order_id else None, status if status else None, avg_price
 
-    def _convert_avg_price(self, order: dict[str, Any] | object) -> Decimal | None:
-        """Convert average price from order to Decimal.
 
-        Args:
-            order: Order object (SDK model or dict)
 
-        Returns:
-            Average price as Decimal or None if conversion fails
 
-        """
-        avg_raw = (
-            getattr(order, "filled_avg_price", None)
-            if not isinstance(order, dict)
-            else order.get("filled_avg_price")
-        )
 
-        if avg_raw is not None:
-            try:
-                return Decimal(str(avg_raw))
-            except Exception:
-                return None
-        return None
 
-    def _is_terminal_event(self, event_type: str, status: str | None) -> bool:
-        """Check if the event/status indicates a terminal order state.
 
-        Args:
-            event_type: The event type from the stream
-            status: The order status (may be None)
 
-        Returns:
-            True if this is a terminal event requiring event signaling
-
-        """
-        final_events = {"fill", "canceled", "rejected", "expired"}
-        final_statuses = {"filled", "canceled", "rejected", "expired"}
-
-        return (
-            event_type in final_events
-            or (status is not None and status in final_events)
-            or (status is not None and status in final_statuses)
-        )
-
-    async def _on_order_update(self, data: dict[str, Any] | object) -> None:
-        """Order update callback for TradingStream (async).
-
-        Handles both SDK models and dict payloads. Must be async for TradingStream.
-        """
-        try:
-            event_type, order = self._extract_event_and_order(data)
-            order_id, status, avg_price = self._extract_order_info(order)
-
-            if not order_id:
-                return
-
-            # Update order tracking
-            self._order_tracker.update_order_status(order_id, status or event_type or "", avg_price)
-
-            # Handle terminal events
-            if self._is_terminal_event(event_type, status):
-                self._order_tracker.signal_completion(order_id)
-        except Exception as exc:
-            logger.error(f"Error in TradingStream order update: {exc}")
-
-    def _wait_for_orders_via_ws(self, order_ids: list[str], timeout: float) -> list[str]:
-        """Use TradingStream updates to wait for orders to complete within timeout."""
-        self._ensure_trading_stream()
-
-        # Ensure events exist for ids
-        for oid in order_ids:
-            self._order_tracker.create_event(oid)
-
-        start = time.time()
-        completed: list[str] = []
-
-        # Check cached statuses first
-        for oid in order_ids:
-            status = self._order_tracker.get_status(oid) or ""
-            if status.lower() in {"filled", "canceled", "rejected", "expired"}:
-                completed.append(oid)
-
-        # Wait for the rest
-        for oid in order_ids:
-            if oid in completed:
-                continue
-            time_left = timeout - (time.time() - start)
-            if time_left <= 0:
-                break
-            if self._order_tracker.wait_for_completion(oid, time_left):
-                completed.append(oid)
-
-        return completed
 
     # Note: MarketDataPort implementation removed to avoid protocol compliance issues
     # AlpacaManager provides market data functionality through direct methods
