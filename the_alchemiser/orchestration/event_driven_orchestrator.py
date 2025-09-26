@@ -9,6 +9,7 @@ across the trading workflow. Focused on cross-cutting concerns rather than domai
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -237,20 +238,20 @@ class EventDrivenOrchestrator:
 
         """
         try:
-            if isinstance(event, StartupEvent):
-                self._handle_startup(event)
-            elif isinstance(event, WorkflowStarted):
-                self._handle_workflow_started(event)
-            elif isinstance(event, SignalGenerated):
-                self._handle_signal_generated(event)
-            elif isinstance(event, RebalancePlanned):
-                self._handle_rebalance_planned(event)
-            elif isinstance(event, TradeExecuted):
-                self._handle_trade_executed(event)
-            elif isinstance(event, WorkflowCompleted):
-                self._handle_workflow_completed(event)
-            elif isinstance(event, WorkflowFailed):
-                self._handle_workflow_failed(event)
+            # Event handler dispatch mapping to reduce cognitive complexity  
+            event_handlers: dict[type[BaseEvent], Callable[[BaseEvent], None]] = {
+                StartupEvent: self._handle_startup,
+                WorkflowStarted: self._handle_workflow_started,
+                SignalGenerated: self._handle_signal_generated,
+                RebalancePlanned: self._handle_rebalance_planned,
+                TradeExecuted: self._handle_trade_executed,
+                WorkflowCompleted: self._handle_workflow_completed,
+                WorkflowFailed: self._handle_workflow_failed,
+            }
+            
+            handler = event_handlers.get(type(event))
+            if handler:
+                handler(event)
             else:
                 self.logger.debug(
                     f"EventDrivenOrchestrator ignoring event type: {event.event_type}"
