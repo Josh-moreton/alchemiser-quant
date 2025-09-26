@@ -78,15 +78,15 @@ class SexprParser:
         self, text: str, position: int, tokens: list[tuple[str, str]]
     ) -> int:
         """Process a single character at the given position.
-        
+
         Args:
             text: The text being tokenized
             position: Current position in the text
             tokens: List of tokens to append to
-            
+
         Returns:
             The new position after processing the character
-            
+
         Raises:
             SexprParseError: If an unexpected character is encountered
 
