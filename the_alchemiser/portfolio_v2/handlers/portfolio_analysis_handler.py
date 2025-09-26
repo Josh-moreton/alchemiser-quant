@@ -419,7 +419,7 @@ class PortfolioAnalysisHandler:
 
     def _extract_trade_values(self, item: object) -> tuple[str, str, float]:
         """Extract action, symbol, and trade amount from a rebalance item.
-        
+
         Args:
             item: Rebalance plan item
 
@@ -445,7 +445,7 @@ class PortfolioAnalysisHandler:
         self, item: object, total_portfolio_value: Decimal, *, has_portfolio_value: bool
     ) -> tuple[float, float]:
         """Calculate target and current weight percentages for a rebalance item.
-        
+
         Args:
             item: Rebalance plan item
             total_portfolio_value: Total portfolio value
@@ -480,7 +480,7 @@ class PortfolioAnalysisHandler:
 
     def _extract_plan_totals(self, rebalance_plan: RebalancePlanDTO) -> tuple[float, Decimal, bool]:
         """Extract total trade value, portfolio value, and validity flag from rebalance plan.
-        
+
         Args:
             rebalance_plan: The rebalance plan DTO
 
@@ -511,8 +511,8 @@ class PortfolioAnalysisHandler:
                 return
 
             trade_count = len(rebalance_plan.items)
-            total_trade_value, total_portfolio_value, has_portfolio_value = self._extract_plan_totals(
-                rebalance_plan
+            total_trade_value, total_portfolio_value, has_portfolio_value = (
+                self._extract_plan_totals(rebalance_plan)
             )
 
             self.logger.info(
