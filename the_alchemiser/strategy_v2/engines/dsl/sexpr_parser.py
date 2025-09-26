@@ -70,20 +70,39 @@ class SexprParser:
         length = len(text)
 
         while position < length:
-            char = text[position]
-            if char == '"':
-                string_token, position = self._consume_string(text, position)
-                tokens.append((string_token, "STRING"))
-                continue
-
-            matched = self._match_patterns(text, position, tokens)
-            if matched:
-                _, position = matched
-                continue
-
-            raise SexprParseError(f"Unexpected character: {char}", position)
+            position = self._process_character_at_position(text, position, tokens)
 
         return tokens
+
+    def _process_character_at_position(
+        self, text: str, position: int, tokens: list[tuple[str, str]]
+    ) -> int:
+        """Process a single character at the given position.
+        
+        Args:
+            text: The text being tokenized
+            position: Current position in the text
+            tokens: List of tokens to append to
+            
+        Returns:
+            The new position after processing the character
+            
+        Raises:
+            SexprParseError: If an unexpected character is encountered
+
+        """
+        char = text[position]
+        if char == '"':
+            string_token, new_position = self._consume_string(text, position)
+            tokens.append((string_token, "STRING"))
+            return new_position
+
+        matched = self._match_patterns(text, position, tokens)
+        if matched:
+            _, new_position = matched
+            return new_position
+
+        raise SexprParseError(f"Unexpected character: {char}", position)
 
     def _consume_string(self, text: str, start_pos: int) -> tuple[str, int]:
         """Consume a string token handling escape characters."""
