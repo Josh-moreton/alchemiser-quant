@@ -60,6 +60,14 @@ class QuoteProvider:
         # Try streaming quote first if available
         streaming_quote = self._try_streaming_quote(symbol)
         if streaming_quote:
+            # Check if streaming quote looks suspicious - if so, validate with REST
+            if self._is_streaming_quote_suspicious(streaming_quote, symbol):
+                logger.warning(f"🚨 Suspicious streaming prices for {symbol}, validating with REST NBBO")
+                rest_result = self._validate_suspicious_quote_with_rest(streaming_quote, symbol)
+                if rest_result:
+                    return rest_result
+                # If REST validation fails, continue with streaming quote as fallback
+                logger.warning(f"⚠️ REST validation failed for {symbol}, using streaming quote despite suspicion")
             return streaming_quote, False
 
         # Fallback to REST API
@@ -151,6 +159,108 @@ class QuoteProvider:
             return False
 
         return True
+
+    def _is_streaming_quote_suspicious(self, quote: QuoteModel, symbol: str) -> bool:
+        """Check if streaming quote prices look suspicious and warrant REST validation.
+
+        Detects anomalies like:
+        - Negative prices
+        - Inverted spreads (ask < bid)  
+        - Unreasonably low prices (penny stock filter)
+        - Excessive spreads indicating stale data
+
+        Args:
+            quote: Quote to check for suspicious patterns
+            symbol: Stock symbol for logging
+
+        Returns:
+            True if quote looks suspicious and should be validated with REST
+
+        """
+        from the_alchemiser.shared.utils.validation_utils import detect_suspicious_quote_prices
+
+        is_suspicious, reasons = detect_suspicious_quote_prices(
+            quote.bid_price, 
+            quote.ask_price,
+            min_price=0.01,  # We don't trade penny stocks
+            max_spread_percent=10.0  # 10% spread is excessive for most stocks
+        )
+
+        if is_suspicious:
+            reasons_str = "; ".join(reasons)
+            logger.warning(
+                f"🚨 Suspicious streaming quote detected for {symbol}: {reasons_str} "
+                f"(bid={quote.bid_price}, ask={quote.ask_price})"
+            )
+
+        return is_suspicious
+
+    def _validate_suspicious_quote_with_rest(
+        self, streaming_quote: QuoteModel, symbol: str
+    ) -> tuple[QuoteModel, bool] | None:
+        """Validate suspicious streaming quote by fetching REST NBBO and recomputing if needed.
+
+        Args:
+            streaming_quote: The suspicious streaming quote
+            symbol: Stock symbol
+
+        Returns:
+            (corrected_quote, True) if REST validation provides better data, None if REST fails
+
+        """
+        logger.info(f"📊 Fetching REST NBBO to validate suspicious streaming prices for {symbol}")
+        
+        rest_result = self._try_rest_fallback_quote(symbol)
+        if not rest_result:
+            logger.error(f"❌ REST NBBO fetch failed for {symbol} during suspicious quote validation")
+            return None
+
+        rest_quote, _ = rest_result
+        
+        # Check if REST quote is reasonable compared to streaming
+        rest_suspicious, rest_reasons = self._check_quote_suspicious_patterns(rest_quote)
+        
+        if rest_suspicious:
+            logger.warning(
+                f"⚠️ REST quote also suspicious for {symbol}: {'; '.join(rest_reasons)} - "
+                f"using streaming quote as lesser evil"
+            )
+            return None
+            
+        # REST quote looks reasonable - compare with streaming to decide
+        streaming_mid = (streaming_quote.bid_price + streaming_quote.ask_price) / 2
+        rest_mid = (rest_quote.bid_price + rest_quote.ask_price) / 2
+        
+        # If REST mid-price is significantly different, prefer REST
+        if streaming_mid <= 0 or abs(rest_mid - streaming_mid) / rest_mid > 0.1:  # 10% difference threshold
+            logger.info(
+                f"✅ Using REST quote for {symbol}: mid=${rest_mid:.2f} vs streaming=${streaming_mid:.2f} "
+                f"(REST provides more reasonable pricing)"
+            )
+            return rest_quote, True
+            
+        # If both are similar and REST isn't suspicious, prefer REST for safety
+        logger.info(f"✅ Using REST quote for {symbol} as validation passed (mid=${rest_mid:.2f})")
+        return rest_quote, True
+
+    def _check_quote_suspicious_patterns(self, quote: QuoteModel) -> tuple[bool, list[str]]:
+        """Check quote for suspicious patterns without logging.
+
+        Args:
+            quote: Quote to check
+
+        Returns:
+            Tuple of (is_suspicious, list_of_reasons)
+
+        """
+        from the_alchemiser.shared.utils.validation_utils import detect_suspicious_quote_prices
+
+        return detect_suspicious_quote_prices(
+            quote.bid_price,
+            quote.ask_price,
+            min_price=0.01,
+            max_spread_percent=10.0
+        )
 
     def _try_rest_fallback_quote(self, symbol: str) -> tuple[QuoteModel, bool] | None:
         """Try to get quote using REST API fallback.
