@@ -182,11 +182,18 @@ class TradePerformanceService:
         return Decimal("0")
 
     def _get_total_realized_pnl(self, summaries: list[PerformanceSummary]) -> Decimal:
-        """Get total realized P&L across all strategies and symbols."""
+        """
+        Get total realized P&L across all strategies and symbols.
+
+        Only includes strategy-level summaries (where `symbol is None`) to avoid
+        double counting. If both strategy-level and symbol-level summaries are present,
+        summing all would count the same P&L multiple times. By filtering for
+        `symbol is None`, we ensure each strategy's total is only counted once.
+        """
         return sum(
             (
                 s.realized_pnl for s in summaries if s.symbol is None
-            ),  # Only strategy totals to avoid double counting
+            ),  # Only include strategy-level summaries (symbol is None) to avoid double counting P&L from both strategy and symbol levels
             Decimal("0"),
         )
 
