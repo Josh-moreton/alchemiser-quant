@@ -183,9 +183,7 @@ class PortfolioBuilder:
         for symbol in sorted(target_portfolio.keys()):
             target_weight = float(target_portfolio.get(symbol, 0.0))
             current_weight = (
-                (current_values.get(symbol, 0.0) / total_value)
-                if total_value > 0
-                else 0.0
+                (current_values.get(symbol, 0.0) / total_value) if total_value > 0 else 0.0
             )
             diff = target_weight - current_weight
             if abs(diff) < 0.01:
@@ -249,9 +247,7 @@ class PortfolioBuilder:
 
             # Use helper methods for formatting
             action_color, action_emoji = PortfolioBuilder._get_order_action_info(side)
-            status_color, status_display = PortfolioBuilder._get_order_status_info(
-                status
-            )
+            status_color, status_display = PortfolioBuilder._get_order_status_info(status)
             qty_display = PortfolioBuilder._format_quantity_display(qty)
 
             table_html += f"""

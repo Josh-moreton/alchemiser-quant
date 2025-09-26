@@ -88,9 +88,7 @@ class TradingSystem:
         """Initialize event-driven orchestration system."""
         try:
             if self.container is None:
-                self.logger.warning(
-                    "Cannot initialize event orchestration: DI container not ready"
-                )
+                self.logger.warning("Cannot initialize event orchestration: DI container not ready")
                 return
 
             # Initialize event-driven orchestrator
@@ -115,9 +113,7 @@ class TradingSystem:
         """
         try:
             if self.container is None:
-                self.logger.warning(
-                    "Cannot emit StartupEvent: DI container not initialized"
-                )
+                self.logger.warning("Cannot emit StartupEvent: DI container not initialized")
                 return
 
             # Get event bus from container
@@ -139,9 +135,7 @@ class TradingSystem:
 
             # Emit the event
             event_bus.publish(event)
-            self.logger.debug(
-                f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}"
-            )
+            self.logger.debug(f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}")
 
         except Exception as e:
             # Don't let startup event emission failure break the system
@@ -180,9 +174,7 @@ class TradingSystem:
             use_event_driven = self.event_driven_orchestrator is not None
 
             if use_event_driven:
-                self.logger.info(
-                    "🚀 Using event-driven orchestration for trading workflow"
-                )
+                self.logger.info("🚀 Using event-driven orchestration for trading workflow")
                 trading_result = self._execute_trading_event_driven(
                     correlation_id,
                     started_at,
@@ -190,9 +182,7 @@ class TradingSystem:
                     export_tracking_json=export_tracking_json,
                 )
             else:
-                self.logger.info(
-                    "🔄 Using traditional orchestration (event-driven not available)"
-                )
+                self.logger.info("🔄 Using traditional orchestration (event-driven not available)")
                 trading_result = self._execute_trading_traditional(
                     correlation_id,
                     started_at,
@@ -243,17 +233,13 @@ class TradingSystem:
                 return None
 
             # Start the event-driven workflow
-            workflow_correlation_id = (
-                self.event_driven_orchestrator.start_trading_workflow(
-                    correlation_id=correlation_id
-                )
+            workflow_correlation_id = self.event_driven_orchestrator.start_trading_workflow(
+                correlation_id=correlation_id
             )
 
             # Wait for workflow completion
-            workflow_result = (
-                self.event_driven_orchestrator.wait_for_workflow_completion(
-                    workflow_correlation_id, timeout_seconds=300
-                )
+            workflow_result = self.event_driven_orchestrator.wait_for_workflow_completion(
+                workflow_correlation_id, timeout_seconds=300
             )
 
             if not workflow_result.get("success"):
@@ -280,9 +266,7 @@ class TradingSystem:
             paper_trading_mode = self.settings.alpaca.paper_trading
 
             if show_tracking:
-                self._display_post_execution_tracking(
-                    paper_trading=paper_trading_mode
-                )
+                self._display_post_execution_tracking(paper_trading=paper_trading_mode)
 
             if export_tracking_json:
                 self._export_tracking_summary(
@@ -332,9 +316,7 @@ class TradingSystem:
 
             # Ensure container is available
             if self.container is None:
-                self.logger.error(
-                    "DI container not available for traditional orchestrator"
-                )
+                self.logger.error("DI container not available for traditional orchestrator")
                 return None
 
             # Create trading orchestrator directly
@@ -362,9 +344,7 @@ class TradingSystem:
 
             # Display tracking if requested
             if show_tracking:
-                self._display_post_execution_tracking(
-                    paper_trading=not orchestrator.live_trading
-                )
+                self._display_post_execution_tracking(paper_trading=not orchestrator.live_trading)
 
             # Export tracking summary if requested
             if export_tracking_json:
@@ -406,9 +386,7 @@ class TradingSystem:
         if allocations:
             self._log_target_allocations(allocations)
 
-    def _collect_signal_details(
-        self, trading_result: Mapping[str, object]
-    ) -> list[str]:
+    def _collect_signal_details(self, trading_result: Mapping[str, object]) -> list[str]:
         """Collect formatted signal details from the trading result."""
         signals = trading_result.get("strategy_signals")
         if not isinstance(signals, Mapping):
@@ -435,11 +413,7 @@ class TradingSystem:
             and isinstance(symbols_value, Iterable)
             and not isinstance(symbols_value, (str, bytes))
         ):
-            symbols = [
-                str(symbol).strip()
-                for symbol in symbols_value
-                if str(symbol).strip()
-            ]
+            symbols = [str(symbol).strip() for symbol in symbols_value if str(symbol).strip()]
             if symbols:
                 joined_symbols = ", ".join(symbols)
                 return f"{name}: {action} {joined_symbols}"
@@ -495,9 +469,7 @@ class TradingSystem:
         raw_items = getattr(plan, "items", None)
         if raw_items is None:
             items: list[object] = []
-        elif isinstance(raw_items, Iterable) and not isinstance(
-            raw_items, (str, bytes)
-        ):
+        elif isinstance(raw_items, Iterable) and not isinstance(raw_items, (str, bytes)):
             items = list(raw_items)
         else:
             items = []
@@ -506,9 +478,7 @@ class TradingSystem:
             self.logger.info("⚖️ Final rebalance plan: no trades required")
             return True
 
-        total_value = self._format_currency(
-            getattr(plan, "total_trade_value", 0), absolute=True
-        )
+        total_value = self._format_currency(getattr(plan, "total_trade_value", 0), absolute=True)
         self.logger.info(
             "⚖️ Final rebalance plan: %s trades | total value $%s",
             len(items),
@@ -531,9 +501,7 @@ class TradingSystem:
         action = str(action_raw).upper() or "UNKNOWN"
         symbol = getattr(item, "symbol", "Unknown")
 
-        trade_amount = self._format_currency(
-            getattr(item, "trade_amount", 0), absolute=True
-        )
+        trade_amount = self._format_currency(getattr(item, "trade_amount", 0), absolute=True)
         target_weight = self._format_percentage(getattr(item, "target_weight", 0))
         current_weight = self._format_percentage(getattr(item, "current_weight", 0))
 
@@ -615,9 +583,7 @@ class TradingSystem:
             mode_str = "paper trading" if paper_trading else "live trading"
             print(f"\n📊 Strategy Performance Tracking ({mode_str}):")
 
-            module = importlib.import_module(
-                "the_alchemiser.shared.utils.strategy_utils"
-            )
+            module = importlib.import_module("the_alchemiser.shared.utils.strategy_utils")
             func = getattr(module, "display_strategy_performance_tracking", None)
 
             if callable(func):
@@ -648,9 +614,7 @@ class TradingSystem:
                 "status": trading_result.get("status", "unknown"),
                 "execution_summary": trading_result.get("execution_summary", {}),
                 "rebalance_plan": trading_result.get("rebalance_plan"),
-                "stale_orders_canceled": trading_result.get(
-                    "stale_orders_canceled", []
-                ),
+                "stale_orders_canceled": trading_result.get("stale_orders_canceled", []),
             }
 
             export_file = Path(export_path)
@@ -700,15 +664,9 @@ class TradingSystem:
 
                 send_error_notification_if_needed()
             except Exception as notification_error:
-                self.logger.warning(
-                    f"Failed to send error notification: {notification_error}"
-                )
+                self.logger.warning(f"Failed to send error notification: {notification_error}")
 
-            return create_failure_result(
-                f"System error: {e}", started_at, correlation_id, warnings
-            )
+            return create_failure_result(f"System error: {e}", started_at, correlation_id, warnings)
         # Generic error handling
         self.logger.error(f"Unexpected trading execution error: {e}")
-        return create_failure_result(
-            f"Unexpected error: {e}", started_at, correlation_id, warnings
-        )
+        return create_failure_result(f"Unexpected error: {e}", started_at, correlation_id, warnings)
