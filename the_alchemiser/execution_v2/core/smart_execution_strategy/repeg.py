@@ -323,6 +323,36 @@ class RepegManager:
 
         """
         try:
+            # First, get current order status to check for partial fills
+            logger.debug(f"🔍 Checking current status of order {order_id} before re-peg")
+            order_result = await asyncio.to_thread(
+                self.alpaca_manager.get_order_execution_result, order_id
+            )
+
+            # Update filled quantity tracking
+            filled_qty = (
+                order_result.filled_qty if hasattr(order_result, "filled_qty") else Decimal("0")
+            )
+            self.order_tracker.update_filled_quantity(order_id, filled_qty)
+
+            # Calculate remaining quantity
+            remaining_qty = self.order_tracker.get_remaining_quantity(order_id)
+
+            # Log current status for debugging
+            logger.info(
+                f"📊 Order {order_id} status before re-peg: "
+                f"original={request.quantity}, filled={filled_qty}, remaining={remaining_qty}"
+            )
+
+            # If remaining quantity is too small, consider order effectively complete
+            min_qty_threshold = Decimal("0.01")  # Minimum meaningful quantity
+            if remaining_qty <= min_qty_threshold:
+                logger.info(
+                    f"✅ Order {order_id} has minimal remaining quantity ({remaining_qty}), "
+                    f"considering complete"
+                )
+                return None  # Remove from tracking
+
             # Cancel the existing order
             logger.info(f"❌ Canceling order {order_id} for re-pegging")
             # Use asyncio.to_thread to make blocking I/O async
@@ -379,7 +409,8 @@ class RepegManager:
 
             logger.debug(
                 f"📈 Re-pegging {request.symbol} {request.side} from "
-                f"${original_anchor} to ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order})"
+                f"${original_anchor} to ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order}) "
+                f"with remaining quantity {remaining_qty} (original: {request.quantity})"
             )
 
             # Ensure price is properly quantized to avoid sub-penny precision errors
@@ -393,15 +424,58 @@ class RepegManager:
                 )
                 return False
 
-            # Use asyncio.to_thread to make blocking I/O async
-            executed_order = await asyncio.to_thread(
-                self.alpaca_manager.place_limit_order,
-                symbol=request.symbol,
-                side=request.side.lower(),
-                quantity=float(request.quantity),
-                limit_price=float(quantized_price),
-                time_in_force="day",
-            )
+            # Use remaining quantity instead of original quantity for re-peg
+            try:
+                # Use asyncio.to_thread to make blocking I/O async
+                executed_order = await asyncio.to_thread(
+                    self.alpaca_manager.place_limit_order,
+                    symbol=request.symbol,
+                    side=request.side.lower(),
+                    quantity=float(remaining_qty),  # Use remaining quantity instead of original
+                    limit_price=float(quantized_price),
+                    time_in_force="day",
+                )
+            except Exception as e:
+                error_str = str(e)
+                # Check if error is due to insufficient quantity
+                if "insufficient qty available" in error_str.lower():
+                    logger.warning(
+                        f"⚠️ Insufficient quantity available for {request.symbol}. "
+                        f"Requested: {remaining_qty}, Error: {error_str}"
+                    )
+                    # Try to extract available quantity from error message if possible
+                    # This is a defensive measure for the specific Alpaca error format
+                    import re
+
+                    available_match = re.search(r"available: ([\d.]+)", error_str)
+                    if available_match:
+                        try:
+                            available_qty = Decimal(available_match.group(1))
+                            if available_qty > min_qty_threshold:
+                                logger.info(
+                                    f"🔄 Retrying re-peg with available quantity: {available_qty}"
+                                )
+                                executed_order = await asyncio.to_thread(
+                                    self.alpaca_manager.place_limit_order,
+                                    symbol=request.symbol,
+                                    side=request.side.lower(),
+                                    quantity=float(available_qty),
+                                    limit_price=float(quantized_price),
+                                    time_in_force="day",
+                                )
+                            else:
+                                logger.info(
+                                    f"✅ Available quantity {available_qty} too small, "
+                                    f"considering order complete"
+                                )
+                                return None  # Remove from tracking
+                        except (ValueError, Exception) as retry_e:
+                            logger.error(f"❌ Retry with available quantity failed: {retry_e}")
+                            raise e
+                    else:
+                        raise e
+                else:
+                    raise e
 
             # Only proceed if placement succeeded and order_id looks valid (UUID)
             if getattr(executed_order, "success", False) and executed_order.order_id:
@@ -422,7 +496,8 @@ class RepegManager:
 
                     logger.info(
                         f"✅ Re-peg successful: new order {executed_order.order_id} "
-                        f"at ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order})"
+                        f"at ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order}) "
+                        f"quantity: {remaining_qty}"
                     )
 
                     metadata_dict: LiquidityMetadata = {

@@ -17,6 +17,7 @@ from the_alchemiser.execution_v2.core.smart_execution_strategy import (
 )
 from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionResultDTO,
+    ExecutionStatus,
     OrderResultDTO,
 )
 from the_alchemiser.execution_v2.utils.execution_validator import (
@@ -459,9 +460,15 @@ class Executor:
         # Clean up subscriptions after execution
         self._cleanup_subscriptions(all_symbols)
 
+        # Classify execution status
+        success, status = ExecutionResultDTO.classify_execution_status(
+            orders_placed, orders_succeeded
+        )
+
         # Create execution result
         execution_result = ExecutionResultDTO(
-            success=orders_succeeded == orders_placed and orders_placed > 0,
+            success=success,
+            status=status,
             plan_id=plan.plan_id,
             correlation_id=plan.correlation_id,
             orders=orders,
@@ -472,10 +479,26 @@ class Executor:
             metadata={"stale_orders_cancelled": stale_result["cancelled_count"]},
         )
 
-        logger.info(
-            f"✅ Rebalance plan {plan.plan_id} completed: "
-            f"{orders_succeeded}/{orders_placed} orders succeeded"
+        # Enhanced logging with status classification
+        status_emoji = (
+            "✅"
+            if status == ExecutionStatus.SUCCESS
+            else "⚠️"
+            if status == ExecutionStatus.PARTIAL_SUCCESS
+            else "❌"
         )
+        logger.info(
+            f"{status_emoji} Rebalance plan {plan.plan_id} completed: "
+            f"{orders_succeeded}/{orders_placed} orders succeeded (status: {status.value})"
+        )
+
+        # Additional logging for partial success to aid in debugging
+        if status == ExecutionStatus.PARTIAL_SUCCESS:
+            failed_orders = [order for order in orders if not order.success]
+            failed_symbols = [order.symbol for order in failed_orders]
+            logger.warning(
+                f"⚠️ Partial execution: {len(failed_orders)} orders failed for symbols: {failed_symbols}"
+            )
 
         return execution_result
 
