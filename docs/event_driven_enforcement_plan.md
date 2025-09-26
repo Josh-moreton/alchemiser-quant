@@ -248,19 +248,41 @@ print(summary["timers"]["event_handler_latency_ms"])
 - ✅ Metrics collection validates event flow and handler performance.
 - ✅ OpenTelemetry integration stubs prepared for future tracing.
 
-## Architecture Benefits Realized
+## Enhanced Event-Driven Enforcement 🔒
 
-### Loose Coupling ✅
-Modules now communicate exclusively through events, eliminating direct dependencies and enabling independent development and deployment.
+### Import Linter Enforcement
+The PR adds enhanced import linter contracts that identify and prevent violations of event-driven architecture principles:
 
-### Observability ✅  
-Comprehensive event tracking, metrics collection, and structured logging provide full visibility into system behavior.
+```bash
+# Test event-driven enforcement
+lint-imports --config pyproject.toml
 
-### Testability ✅
-Event-driven architecture enables comprehensive integration testing with mock handlers and replay scenarios.
+# Results show violations:
+# - trading_orchestrator.py → ExecutionResult (direct model import)
+# - signal_orchestrator.py → DslStrategyEngine (direct engine import)  
+# - portfolio_orchestrator.py → PortfolioServiceV2 (direct service import)
+```
 
-### Scalability ✅
-Event bus architecture provides foundation for future distributed event processing and external message brokers.
+### Event-Driven Contracts Added
+
+**Direct Import Enforcement**: Prevents orchestrators from directly importing business logic:
+- ❌ `ExecutionResult` models - should use `TradeExecuted` events
+- ❌ `DslStrategyEngine` - should use `WorkflowStarted` → `SignalGenerated` flow
+- ❌ `PortfolioServiceV2` - should use `SignalGenerated` → `RebalancePlanned` flow
+
+**Deep Import Enforcement**: Blocks transitive business logic imports while allowing bootstrap registration functions.
+
+### Architecture Validation Status
+
+- ✅ **EventDrivenOrchestrator**: Fully compliant, uses only events
+- ⚠️ **Legacy Orchestrators**: Have violations but are deprecated in favor of event-driven approach
+- ✅ **Business Modules**: Properly isolated with event-only communication
+- ✅ **Import Boundaries**: Enforced and documented with violation reports
+
+The enhanced enforcement serves as:
+1. **Documentation** of architectural principles
+2. **Detection** of event-driven violations  
+3. **Guidance** for refactoring legacy code
 
 ## Future Enhancements
 

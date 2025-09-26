@@ -217,3 +217,37 @@ source_modules = [
 forbidden_modules = [
     "the_alchemiser.shared.dto"
 ]
+
+# Event-driven enforcement - orchestration should only communicate through events
+# This contract identifies the most critical direct business logic imports that violate event-driven principles
+[[tool.importlinter.contracts]]
+name = "Event-driven orchestration enforcement - direct imports"
+type = "forbidden" 
+source_modules = [
+    "the_alchemiser.orchestration.trading_orchestrator",
+    "the_alchemiser.orchestration.signal_orchestrator", 
+    "the_alchemiser.orchestration.portfolio_orchestrator"
+]
+forbidden_modules = [
+    # Direct business logic imports - these should use events instead
+    "the_alchemiser.strategy_v2.engines.dsl.strategy_engine",
+    "the_alchemiser.portfolio_v2",  # Direct service imports
+    "the_alchemiser.execution_v2.models.execution_result"
+]
+
+# Registration function imports are allowed for bootstrap but not deep business logic
+[[tool.importlinter.contracts]]
+name = "Event-driven orchestration enforcement - deep imports"
+type = "forbidden"
+source_modules = [
+    "the_alchemiser.orchestration"
+]
+forbidden_modules = [
+    # Block deep business logic but allow top-level registration imports
+    "the_alchemiser.strategy_v2.engines.dsl",
+    "the_alchemiser.strategy_v2.core.strategy",
+    "the_alchemiser.portfolio_v2.core.portfolio_service",
+    "the_alchemiser.portfolio_v2.adapters.alpaca_data_adapter", 
+    "the_alchemiser.execution_v2.core.execution_manager",
+    "the_alchemiser.execution_v2.adapters.alpaca_execution_adapter"
+]
