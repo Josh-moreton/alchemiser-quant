@@ -51,9 +51,7 @@ def generate_signal_hash(
         hash_obj = hashlib.sha256(json_data.encode("utf-8"))
         signal_hash = hash_obj.hexdigest()[:16]  # Use first 16 chars for readability
 
-        logger.debug(
-            f"Generated signal hash: {signal_hash} from {len(json_data)} bytes"
-        )
+        logger.debug(f"Generated signal hash: {signal_hash} from {len(json_data)} bytes")
         return signal_hash
 
     except Exception as e:
@@ -89,9 +87,7 @@ def generate_market_snapshot_id(signals: list[StrategySignal]) -> str:
                     "symbol": signal.symbol.value,
                     "action": signal.action,
                     "allocation": (
-                        float(signal.target_allocation)
-                        if signal.target_allocation
-                        else 0.0
+                        float(signal.target_allocation) if signal.target_allocation else 0.0
                     ),
                 }
             )
@@ -108,9 +104,7 @@ def generate_market_snapshot_id(signals: list[StrategySignal]) -> str:
         timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         snapshot_id = f"market_{timestamp}_{content_hash}"
 
-        logger.debug(
-            f"Generated market snapshot ID: {snapshot_id} from {len(signals)} signals"
-        )
+        logger.debug(f"Generated market snapshot ID: {snapshot_id} from {len(signals)} signals")
         return snapshot_id
 
     except Exception as e:
