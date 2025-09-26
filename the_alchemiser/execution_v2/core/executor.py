@@ -6,8 +6,9 @@ Core executor for order placement and smart execution.
 from __future__ import annotations
 
 import logging
-from decimal import Decimal
-from typing import TYPE_CHECKING
+from decimal import ROUND_DOWN, Decimal
+from datetime import UTC, datetime  
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from the_alchemiser.execution_v2.core.market_execution import MarketExecution
 from the_alchemiser.execution_v2.core.rebalance_workflow import RebalanceWorkflow
@@ -17,11 +18,12 @@ from the_alchemiser.execution_v2.core.smart_execution_strategy import (
     SmartOrderResult,
 )
 from the_alchemiser.execution_v2.core.subscription_service import SubscriptionService
-from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
-from the_alchemiser.execution_v2.utils.execution_validator import ExecutionValidator
+from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO, OrderResultDTO
+from the_alchemiser.execution_v2.utils.execution_validator import ExecutionValidator, OrderValidationResult
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.schemas.execution_result import ExecutionResult
-from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanDTO
+from the_alchemiser.shared.schemas.execution_report import ExecutedOrderDTO
+from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanDTO, RebalancePlanItemDTO
 from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 from the_alchemiser.shared.services.websocket_manager import WebSocketConnectionManager
@@ -32,6 +34,14 @@ if TYPE_CHECKING:
     )
 
 logger = logging.getLogger(__name__)
+
+
+class ExecutionStats(TypedDict):
+    """Statistics for execution phase results."""
+
+    placed: int
+    succeeded: int
+    trade_value: Decimal
 
 
 class Executor:

@@ -113,8 +113,8 @@ class RebalanceWorkflow:
                 sell_items, plan.correlation_id
             )
             orders.extend(sell_orders)
-            orders_placed += sell_stats["placed"]
-            orders_succeeded += sell_stats["succeeded"]
+            orders_placed += int(sell_stats["placed"])
+            orders_succeeded += int(sell_stats["succeeded"])
             total_trade_value += sell_stats["trade_value"]
 
             # Collect successful sell order IDs for settlement monitoring
@@ -132,8 +132,8 @@ class RebalanceWorkflow:
             )
 
             orders.extend(buy_orders)
-            orders_placed += buy_stats["placed"]
-            orders_succeeded += buy_stats["succeeded"]
+            orders_placed += int(buy_stats["placed"])
+            orders_succeeded += int(buy_stats["succeeded"])
             total_trade_value += buy_stats["trade_value"]
 
         elif buy_items:
@@ -142,8 +142,8 @@ class RebalanceWorkflow:
 
             buy_orders, buy_stats = await self._execute_buy_phase(buy_items, plan.correlation_id)
             orders.extend(buy_orders)
-            orders_placed += buy_stats["placed"]
-            orders_succeeded += buy_stats["succeeded"]
+            orders_placed += int(buy_stats["placed"])
+            orders_succeeded += int(buy_stats["succeeded"])
             total_trade_value += buy_stats["trade_value"]
 
         # Log HOLD items
@@ -265,7 +265,7 @@ class RebalanceWorkflow:
 
         logger.info(
             f"💰 Settlement complete: ${settlement_result.total_buying_power_released} "
-            f"buying power released from {len(settlement_result.settled_orders)} orders"
+            f"buying power released from {len(settlement_result.settled_order_ids)} orders" 
         )
 
         # Now execute buy orders
@@ -331,6 +331,6 @@ class RebalanceWorkflow:
 
         return {
             "placed": placed,
-            "succeeded": succeeded,
+            "succeeded": succeeded, 
             "trade_value": trade_value,
         }

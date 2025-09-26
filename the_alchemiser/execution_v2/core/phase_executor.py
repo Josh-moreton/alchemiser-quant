@@ -93,7 +93,7 @@ class PhaseExecutor:
                     )
                 )
 
-        stats = {
+        stats: dict[str, int | Decimal] = {
             "placed": placed_count,
             "succeeded": succeeded_count,
             "trade_value": total_trade_value,
@@ -195,7 +195,7 @@ class PhaseExecutor:
         # Try real-time pricing first if available
         if self.pricing_service:
             try:
-                quote = self.pricing_service.get_latest_quote(symbol)
+                quote = self.pricing_service.get_real_time_quote(symbol)
                 if quote and hasattr(quote, "mid_price") and quote.mid_price:
                     return Decimal(str(quote.mid_price))
                 if quote and hasattr(quote, "bid_price") and quote.bid_price:
@@ -203,13 +203,13 @@ class PhaseExecutor:
             except Exception as exc:
                 logger.debug(f"Real-time pricing failed for {symbol}: {exc}")
 
-        # Fallback to Alpaca's latest price
+        # Fallback to Alpaca's latest quote
         try:
-            latest_trade = self.alpaca_manager.get_latest_trade(symbol)
-            if latest_trade and hasattr(latest_trade, "price"):
-                return Decimal(str(latest_trade.price))
+            latest_quote = self.alpaca_manager.get_latest_quote(symbol)
+            if latest_quote and hasattr(latest_quote, "bid_price"):
+                return Decimal(str(latest_quote.bid_price))
         except Exception as exc:
-            logger.debug(f"Latest trade lookup failed for {symbol}: {exc}")
+            logger.debug(f"Latest quote lookup failed for {symbol}: {exc}")
 
         # Final fallback to position average cost
         try:

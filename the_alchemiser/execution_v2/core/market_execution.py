@@ -119,7 +119,12 @@ class MarketExecution:
 
     def _place_market_order_with_broker(self, symbol: str, side: str, quantity: Decimal) -> dict[str, Any]:
         """Place the actual market order through the broker."""
-        return self.alpaca_manager.place_market_order(symbol, side, quantity)
+        result = self.alpaca_manager.place_market_order(symbol, side, float(quantity))
+        # Convert result to dict format
+        if hasattr(result, '__dict__'):
+            return result.__dict__
+        else:
+            return {"order_id": str(result) if result else None}
 
     def _build_market_order_execution_result(
         self, symbol: str, side: str, quantity: Decimal, broker_result: dict[str, Any]

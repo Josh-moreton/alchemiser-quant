@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.execution_v2.models.execution_result import OrderResultDTO
@@ -206,14 +207,14 @@ class RepegMonitor:
         # Create updated order with new information
         return OrderResultDTO(
             symbol=original_order.symbol,
-            side=original_order.side,
-            quantity=original_order.quantity,
+            action=original_order.action,
+            trade_amount=original_order.trade_amount,
+            shares=original_order.shares,
             price=original_order.price,
             order_id=new_order_id,
             success=original_order.success,
             error_message=original_order.error_message,
-            trade_amount=original_order.trade_amount,
-            execution_strategy=execution_strategy,
+            timestamp=datetime.now(UTC),
         )
 
     def _log_repeg_status(self, phase_type: str, repeg_result: Any) -> None:
