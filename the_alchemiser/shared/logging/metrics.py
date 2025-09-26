@@ -166,7 +166,7 @@ class MetricsCollector:
             Dictionary containing all metrics
 
         """
-        summary = {
+        summary: dict[str, Any] = {
             "collection_start": self.start_time.isoformat(),
             "counters": dict(_metrics_store["counters"]),
             "gauges": dict(_metrics_store["gauges"]),

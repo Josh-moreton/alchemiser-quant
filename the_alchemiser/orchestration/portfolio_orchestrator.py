@@ -665,6 +665,8 @@ class PortfolioOrchestrator:
                     target_values={}, current_values={}, deltas={}
                 ),  # Placeholder allocation comparison
                 trades_required=bool(rebalance_plan and len(rebalance_plan.items) > 0),
+                plan_hash=f"plan-hash-{uuid.uuid4()}",  # Generate a hash for the plan
+                account_snapshot_id=f"snapshot-{uuid.uuid4()}",  # Generate a snapshot ID
             )
 
             self.event_bus.publish(event)

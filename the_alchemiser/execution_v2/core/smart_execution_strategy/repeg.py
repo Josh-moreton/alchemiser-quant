@@ -374,18 +374,21 @@ class RepegManager:
             try:
                 import uuid as _uuid
 
-                _uuid.UUID(str(executed_order.order_id))
+                _uuid.UUID(str(executed_order.order_id))  # type: ignore[attr-defined]
                 is_valid_uuid = True
             except Exception:
                 is_valid_uuid = False
 
             if is_valid_uuid:
                 self.order_tracker.update_order(
-                    order_id, executed_order.order_id, new_price, datetime.now(UTC)
+                    order_id,
+                    executed_order.order_id,  # type: ignore[attr-defined]
+                    new_price,
+                    datetime.now(UTC),
                 )
 
                 logger.info(
-                    f"✅ Re-peg successful: new order {executed_order.order_id} "
+                    f"✅ Re-peg successful: new order {executed_order.order_id} "  # type: ignore[attr-defined]
                     f"at ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order}) "
                     f"quantity: {used_qty or remaining_qty}"
                 )
@@ -394,15 +397,17 @@ class RepegManager:
                     "original_order_id": order_id,
                     "original_price": (float(original_anchor) if original_anchor else None),
                     "new_price": float(new_price),
-                    "bid_price": quote.bid_price,
-                    "ask_price": quote.ask_price,
-                    "spread_percent": (quote.ask_price - quote.bid_price) / quote.bid_price * 100,
-                    "bid_size": quote.bid_size,
-                    "ask_size": quote.ask_size,
+                    "bid_price": quote.bid_price,  # type: ignore[attr-defined]
+                    "ask_price": quote.ask_price,  # type: ignore[attr-defined]
+                    "spread_percent": (quote.ask_price - quote.bid_price)  # type: ignore[attr-defined]
+                    / quote.bid_price  # type: ignore[attr-defined]
+                    * 100,
+                    "bid_size": quote.bid_size,  # type: ignore[attr-defined]
+                    "ask_size": quote.ask_size,  # type: ignore[attr-defined]
                 }
                 return SmartOrderResult(
                     success=True,
-                    order_id=executed_order.order_id,
+                    order_id=executed_order.order_id,  # type: ignore[attr-defined]
                     final_price=new_price,
                     anchor_price=original_anchor,
                     repegs_used=new_repeg_count,

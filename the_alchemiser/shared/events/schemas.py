@@ -114,9 +114,7 @@ class TradeExecuted(BaseEvent):
 
     # New idempotency and schema fields
     schema_version: str = Field(default="1.0", description="Event schema version")
-    execution_plan_hash: str = Field(
-        ..., description="Hash of execution plan for idempotency"
-    )
+    execution_plan_hash: str = Field(..., description="Hash of execution plan for idempotency")
 
     # Enhanced metadata with fill summaries
     fill_summaries: dict[str, Any] = Field(

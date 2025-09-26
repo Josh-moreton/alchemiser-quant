@@ -368,9 +368,9 @@ class TradingExecutionHandler:
             # Calculate workflow duration using workflow start timestamp from execution_result if available
             if (
                 hasattr(execution_result, "workflow_start_timestamp")
-                and execution_result.workflow_start_timestamp  # type: ignore[attr-defined]
+                and execution_result.workflow_start_timestamp
             ):
-                workflow_start = execution_result.workflow_start_timestamp  # type: ignore[attr-defined]
+                workflow_start = execution_result.workflow_start_timestamp
             else:
                 # Fallback: use execution_timestamp if workflow_start_timestamp is not available
                 workflow_start = execution_result.execution_timestamp
@@ -436,7 +436,9 @@ class TradingExecutionHandler:
                 failure_step="trade_execution",
                 error_details={
                     "original_event_type": original_event.event_type,
-                    "plan_id": getattr(original_event.rebalance_plan, "plan_id", "unknown"),
+                    "plan_id": getattr(
+                        getattr(original_event, "rebalance_plan", None), "plan_id", "unknown"
+                    ),
                 },
             )
 

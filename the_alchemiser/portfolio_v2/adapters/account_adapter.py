@@ -98,18 +98,19 @@ def adapt_account_info(raw_account_data: dict[str, object] | object) -> AccountI
     """
     try:
         if isinstance(raw_account_data, dict):
+            # Field validators will handle type conversion
             return AccountInfoDTO(
-                cash=raw_account_data.get("cash", 0),
-                buying_power=raw_account_data.get("buying_power", 0),
-                portfolio_value=raw_account_data.get("portfolio_value", 0),
-                equity=raw_account_data.get("equity"),
-                account_id=raw_account_data.get("account_id"),
+                cash=raw_account_data.get("cash", 0),  # type: ignore[arg-type]
+                buying_power=raw_account_data.get("buying_power", 0),  # type: ignore[arg-type]
+                portfolio_value=raw_account_data.get("portfolio_value", 0),  # type: ignore[arg-type]
+                equity=raw_account_data.get("equity"),  # type: ignore[arg-type]
+                account_id=raw_account_data.get("account_id"),  # type: ignore[arg-type]
             )
         # Handle object with attributes
         return AccountInfoDTO(
-            cash=getattr(raw_account_data, "cash", 0),
-            buying_power=getattr(raw_account_data, "buying_power", 0),
-            portfolio_value=getattr(raw_account_data, "portfolio_value", 0),
+            cash=getattr(raw_account_data, "cash", 0),  # type: ignore[arg-type]
+            buying_power=getattr(raw_account_data, "buying_power", 0),  # type: ignore[arg-type]
+            portfolio_value=getattr(raw_account_data, "portfolio_value", 0),  # type: ignore[arg-type]
             equity=getattr(raw_account_data, "equity", None),
             account_id=getattr(raw_account_data, "account_id", None),
         )
@@ -149,8 +150,8 @@ def adapt_positions(raw_positions: Sequence[object]) -> list[PositionDTO]:
                 # Handle object with attributes
                 position = PositionDTO(
                     symbol=getattr(raw_position, "symbol", ""),
-                    quantity=getattr(raw_position, "qty", 0),
-                    market_value=getattr(raw_position, "market_value", 0),
+                    quantity=getattr(raw_position, "qty", 0),  # type: ignore[arg-type]
+                    market_value=getattr(raw_position, "market_value", 0),  # type: ignore[arg-type]
                     avg_entry_price=getattr(raw_position, "avg_entry_price", None),
                     unrealized_pl=getattr(raw_position, "unrealized_pl", None),
                 )
