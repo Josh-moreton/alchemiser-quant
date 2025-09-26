@@ -479,14 +479,14 @@ class TradingSystemErrorHandler:
 
     def _get_category_summary(self, category: str, summary_key: str) -> dict[str, Any] | None:
         """Get error summary for a specific category.
-        
+
         Args:
             category: The error category constant to filter by
             summary_key: The key name for the summary dictionary
-            
+
         Returns:
             Category summary dict with count and errors, or None if no errors
-            
+
         """
         category_errors = [e for e in self.errors if e.category == category]
         if category_errors:
