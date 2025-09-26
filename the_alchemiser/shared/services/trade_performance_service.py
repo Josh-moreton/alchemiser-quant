@@ -317,48 +317,18 @@ class TradePerformanceService:
             # Get open lots for position details
             lots = self.trade_ledger.get_open_lots(strategy=None, symbol=symbol)
 
-            # Build attribution report
-            strategy_breakdown = {}
-            total_realized = Decimal("0")
-            total_unrealized = Decimal("0")
-            total_open_quantity = Decimal("0")
-
-            for summary in summaries:
-                if summary.symbol == symbol:
-                    strategy_breakdown[summary.strategy_name] = {
-                        "realized_pnl": summary.realized_pnl,
-                        "unrealized_pnl": summary.unrealized_pnl,
-                        "open_quantity": summary.open_quantity,
-                        "average_cost_basis": summary.average_cost_basis,
-                        "total_fees": summary.total_fees,
-                        "realized_trades": summary.realized_trades,
-                    }
-                    total_realized += summary.realized_pnl
-                    if summary.unrealized_pnl:
-                        total_unrealized += summary.unrealized_pnl
-                    total_open_quantity += summary.open_quantity
+            # Build strategy breakdown and totals
+            strategy_breakdown, totals = self._build_strategy_breakdown(summaries, symbol)
 
             # Group lots by strategy
-            lots_by_strategy: dict[str, list[dict[str, Any]]] = {}
-            for lot in lots:
-                if lot.symbol == symbol:
-                    if lot.strategy_name not in lots_by_strategy:
-                        lots_by_strategy[lot.strategy_name] = []
-                    lots_by_strategy[lot.strategy_name].append(
-                        {
-                            "lot_id": lot.lot_id,
-                            "quantity": lot.remaining_quantity,
-                            "cost_basis": lot.cost_basis,
-                            "opened_timestamp": lot.opened_timestamp.isoformat(),
-                        }
-                    )
+            lots_by_strategy = self._group_lots_by_strategy(lots, symbol)
 
             return {
                 "symbol": symbol,
                 "current_price": current_prices.get(symbol) if current_prices else None,
-                "total_realized_pnl": total_realized,
-                "total_unrealized_pnl": total_unrealized if total_unrealized else None,
-                "total_open_quantity": total_open_quantity,
+                "total_realized_pnl": totals["realized"],
+                "total_unrealized_pnl": totals["unrealized"] if totals["unrealized"] else None,
+                "total_open_quantity": totals["quantity"],
                 "strategies": strategy_breakdown,
                 "open_lots_by_strategy": lots_by_strategy,
             }
@@ -366,6 +336,57 @@ class TradePerformanceService:
         except Exception as e:
             logger.error(f"Failed to get attribution report for {symbol}: {e}")
             raise
+
+    def _build_strategy_breakdown(
+        self, summaries: list[PerformanceSummary], symbol: str
+    ) -> tuple[dict[str, dict[str, Any]], dict[str, Decimal]]:
+        """Build strategy breakdown and calculate totals from performance summaries."""
+        strategy_breakdown = {}
+        total_realized = Decimal("0")
+        total_unrealized = Decimal("0")
+        total_open_quantity = Decimal("0")
+
+        for summary in summaries:
+            if summary.symbol == symbol:
+                strategy_breakdown[summary.strategy_name] = {
+                    "realized_pnl": summary.realized_pnl,
+                    "unrealized_pnl": summary.unrealized_pnl,
+                    "open_quantity": summary.open_quantity,
+                    "average_cost_basis": summary.average_cost_basis,
+                    "total_fees": summary.total_fees,
+                    "realized_trades": summary.realized_trades,
+                }
+                total_realized += summary.realized_pnl
+                if summary.unrealized_pnl:
+                    total_unrealized += summary.unrealized_pnl
+                total_open_quantity += summary.open_quantity
+
+        return strategy_breakdown, {
+            "realized": total_realized,
+            "unrealized": total_unrealized,
+            "quantity": total_open_quantity,
+        }
+
+    def _group_lots_by_strategy(
+        self, lots: list[Lot], symbol: str
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Group open lots by strategy for a specific symbol."""
+        lots_by_strategy: dict[str, list[dict[str, Any]]] = {}
+
+        for lot in lots:
+            if lot.symbol == symbol:
+                if lot.strategy_name not in lots_by_strategy:
+                    lots_by_strategy[lot.strategy_name] = []
+                lots_by_strategy[lot.strategy_name].append(
+                    {
+                        "lot_id": lot.lot_id,
+                        "quantity": lot.remaining_quantity,
+                        "cost_basis": lot.cost_basis,
+                        "opened_timestamp": lot.opened_timestamp.isoformat(),
+                    }
+                )
+
+        return lots_by_strategy
 
     def verify_attribution_consistency(self) -> dict[str, Any]:
         """Verify that attribution calculations are consistent and balanced.
@@ -382,38 +403,9 @@ class TradePerformanceService:
             # Get all performance summaries
             all_summaries = self.trade_ledger.calculate_performance()
 
-            # Check for basic consistency
-            issues = []
-
-            # Group entries by symbol
-            entries_by_symbol: dict[str, list[Any]] = {}
-            for entry in all_entries:
-                if entry.symbol not in entries_by_symbol:
-                    entries_by_symbol[entry.symbol] = []
-                entries_by_symbol[entry.symbol].append(entry)
-
-            # For each symbol, verify quantities balance
-            for symbol, entries in entries_by_symbol.items():
-                buy_quantity = sum(
-                    (e.quantity for e in entries if e.side.value == "BUY"), Decimal("0")
-                )
-                sell_quantity = sum(
-                    (e.quantity for e in entries if e.side.value == "SELL"),
-                    Decimal("0"),
-                )
-                net_quantity = buy_quantity - sell_quantity
-
-                # Get total open quantity from summaries
-                symbol_summaries = [s for s in all_summaries if s.symbol == symbol]
-                total_open_from_summaries = sum(
-                    (s.open_quantity for s in symbol_summaries), Decimal("0")
-                )
-
-                if abs(net_quantity - total_open_from_summaries) > Decimal("0.001"):
-                    issues.append(
-                        f"Symbol {symbol}: net quantity mismatch - "
-                        f"calculated={net_quantity}, summaries={total_open_from_summaries}"
-                    )
+            # Group entries by symbol and verify consistency
+            entries_by_symbol = self._group_entries_by_symbol(all_entries)
+            issues = self._verify_quantity_balance(entries_by_symbol, all_summaries)
 
             return {
                 "verification_passed": len(issues) == 0,
@@ -426,3 +418,40 @@ class TradePerformanceService:
         except Exception as e:
             logger.error(f"Failed to verify attribution consistency: {e}")
             raise
+
+    def _group_entries_by_symbol(self, all_entries: list[Any]) -> dict[str, list[Any]]:
+        """Group trade entries by symbol."""
+        entries_by_symbol: dict[str, list[Any]] = {}
+        for entry in all_entries:
+            if entry.symbol not in entries_by_symbol:
+                entries_by_symbol[entry.symbol] = []
+            entries_by_symbol[entry.symbol].append(entry)
+        return entries_by_symbol
+
+    def _verify_quantity_balance(
+        self, entries_by_symbol: dict[str, list[Any]], all_summaries: list[PerformanceSummary]
+    ) -> list[str]:
+        """Verify quantity balance for each symbol."""
+        issues = []
+
+        for symbol, entries in entries_by_symbol.items():
+            buy_quantity = sum((e.quantity for e in entries if e.side.value == "BUY"), Decimal("0"))
+            sell_quantity = sum(
+                (e.quantity for e in entries if e.side.value == "SELL"),
+                Decimal("0"),
+            )
+            net_quantity = buy_quantity - sell_quantity
+
+            # Get total open quantity from summaries
+            symbol_summaries = [s for s in all_summaries if s.symbol == symbol]
+            total_open_from_summaries = sum(
+                (s.open_quantity for s in symbol_summaries), Decimal("0")
+            )
+
+            if abs(net_quantity - total_open_from_summaries) > Decimal("0.001"):
+                issues.append(
+                    f"Symbol {symbol}: net quantity mismatch - "
+                    f"calculated={net_quantity}, summaries={total_open_from_summaries}"
+                )
+
+        return issues
