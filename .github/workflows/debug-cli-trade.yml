@@ -17,7 +17,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install Poetry
         run: |
@@ -38,12 +38,16 @@ jobs:
           EMAIL__FROM_EMAIL: ${{ vars.EMAIL__FROM_EMAIL }}
           EMAIL__TO_EMAIL: ${{ vars.EMAIL__TO_EMAIL }}
           EMAIL__PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          STRATEGY__DSL_ALLOCATIONS: ${{ vars.STRATEGY__DSL_ALLOCATIONS }}
+          STRATEGY__DSL_FILES: ${{ vars.STRATEGY__DSL_FILES }}
+          LOGGING__CONSOLE_LEVEL: DEBUG
+          LOGGING__LEVEL: DEBUG
         run: |
           set +e
           python -m the_alchemiser > trading_output.log 2>&1
           exit_code=$?
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
-          
+
           # Detect error patterns even if exit code is 0
           if grep -Eiq '(ERROR|CRITICAL|Traceback|Exception)' trading_output.log; then
             echo "error_detected=true" >> $GITHUB_OUTPUT
@@ -52,7 +56,7 @@ jobs:
           else
             echo "error_detected=false" >> $GITHUB_OUTPUT
           fi
-          
+
           echo "=== Trading System Output ==="
           cat trading_output.log
           echo "=== Exit Code: $exit_code ==="
@@ -95,7 +99,7 @@ jobs:
 
           ## Debugging Information
 
-          This issue was automatically created because the trading system command 
+          This issue was automatically created because the trading system command
           \`python -m the_alchemiser\` failed with exit code ${{ steps.run_trading.outputs.exit_code }} or error patterns were detected in the output.
 
           ### Actions

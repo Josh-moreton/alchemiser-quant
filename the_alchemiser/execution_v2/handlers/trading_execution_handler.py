@@ -119,10 +119,14 @@ class TradingExecutionHandler:
             rebalance_plan = RebalancePlanDTO.model_validate(rebalance_plan_data)
 
             # Generate execution plan hash for idempotency
-            execution_plan_hash = generate_execution_plan_hash(rebalance_plan, event.correlation_id)
+            execution_plan_hash = generate_execution_plan_hash(
+                rebalance_plan, event.correlation_id
+            )
 
             # Check if this execution has already been attempted
-            if self._idempotency_store.has_been_executed(event.correlation_id, execution_plan_hash):
+            if self._idempotency_store.has_been_executed(
+                event.correlation_id, execution_plan_hash
+            ):
                 self.logger.info(
                     "⏭️ Execution already attempted - skipping duplicate",
                     extra={
@@ -169,10 +173,14 @@ class TradingExecutionHandler:
                 )
 
                 # Emit successful trade executed event
-                self._emit_trade_executed_event(execution_result, execution_plan_hash, success=True)
+                self._emit_trade_executed_event(
+                    execution_result, execution_plan_hash, success=True
+                )
 
                 # Emit workflow completed event
-                self._emit_workflow_completed_event(event.correlation_id, execution_result)
+                self._emit_workflow_completed_event(
+                    event.correlation_id, execution_result
+                )
 
                 return
 
@@ -248,7 +256,9 @@ class TradingExecutionHandler:
 
             # Emit WorkflowCompleted event if successful
             if execution_success:
-                self._emit_workflow_completed_event(event.correlation_id, execution_result)
+                self._emit_workflow_completed_event(
+                    event.correlation_id, execution_result
+                )
             else:
                 # Emit failure with detailed status information
                 failure_reason = self._build_failure_reason(execution_result)
@@ -297,7 +307,8 @@ class TradingExecutionHandler:
                 "settlement_type": "immediate",  # Assuming immediate settlement
                 "total_orders": execution_result.orders_placed,
                 "successful_orders": execution_result.orders_succeeded,
-                "failed_orders": execution_result.orders_placed - execution_result.orders_succeeded,
+                "failed_orders": execution_result.orders_placed
+                - execution_result.orders_succeeded,
                 "total_settled_value": str(execution_result.total_trade_value),
             }
 
@@ -375,7 +386,10 @@ class TradingExecutionHandler:
                 # Fallback: use execution_timestamp if workflow_start_timestamp is not available
                 workflow_start = execution_result.execution_timestamp
             workflow_end = datetime.now(UTC)
-            workflow_duration_ms = int((workflow_end - workflow_start).total_seconds() * 1000)
+            workflow_duration_ms = int(
+                (workflow_end - workflow_start).total_seconds() * 1000
+            )
+
             event = WorkflowCompleted(
                 correlation_id=correlation_id,
                 causation_id=correlation_id,
@@ -415,7 +429,9 @@ class TradingExecutionHandler:
                 },
             )
 
-    def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
+    def _emit_workflow_failure(
+        self, original_event: BaseEvent, error_message: str
+    ) -> None:
         """Emit WorkflowFailed event when trade execution fails.
 
         Args:
@@ -437,7 +453,9 @@ class TradingExecutionHandler:
                 error_details={
                     "original_event_type": original_event.event_type,
                     "plan_id": getattr(
-                        getattr(original_event, "rebalance_plan", None), "plan_id", "unknown"
+                        getattr(original_event, "rebalance_plan", None),
+                        "plan_id",
+                        "unknown",
                     ),
                 },
             )
@@ -475,7 +493,9 @@ class TradingExecutionHandler:
 
         """
         if execution_result.status == ExecutionStatus.PARTIAL_SUCCESS:
-            failed_orders = [order for order in execution_result.orders if not order.success]
+            failed_orders = [
+                order for order in execution_result.orders if not order.success
+            ]
             failed_symbols = [order.symbol for order in failed_orders]
             return (
                 f"Trade execution partially failed: {execution_result.orders_succeeded}/"

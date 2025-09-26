@@ -480,13 +480,12 @@ class Executor:
         )
 
         # Enhanced logging with status classification
-        status_emoji = (
-            "✅"
-            if status == ExecutionStatus.SUCCESS
-            else "⚠️"
-            if status == ExecutionStatus.PARTIAL_SUCCESS
-            else "❌"
-        )
+        if status == ExecutionStatus.SUCCESS:
+            status_emoji = "✅"
+        elif status == ExecutionStatus.PARTIAL_SUCCESS:
+            status_emoji = "⚠️"
+        else:
+            status_emoji = "❌"
         logger.info(
             f"{status_emoji} Rebalance plan {plan.plan_id} completed: "
             f"{orders_succeeded}/{orders_placed} orders succeeded (status: {status.value})"
