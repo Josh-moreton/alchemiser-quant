@@ -22,7 +22,7 @@ from the_alchemiser.shared.types.exceptions import (
 )
 
 
-class NotificationManager(Protocol):
+class NotificationManager(Protocol):  # pragma: no cover - structural typing helper
     """Protocol for notification managers."""
 
     def send_critical_alert(self, message: str, context: dict[str, object]) -> None:
