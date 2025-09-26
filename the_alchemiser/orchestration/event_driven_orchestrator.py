@@ -238,7 +238,7 @@ class EventDrivenOrchestrator:
 
         """
         try:
-            # Event handler dispatch mapping to reduce cognitive complexity  
+            # Event handler dispatch mapping to reduce cognitive complexity
             event_handlers: dict[type[BaseEvent], Callable[[BaseEvent], None]] = {
                 StartupEvent: self._handle_startup,
                 WorkflowStarted: self._handle_workflow_started,
@@ -248,7 +248,7 @@ class EventDrivenOrchestrator:
                 WorkflowCompleted: self._handle_workflow_completed,
                 WorkflowFailed: self._handle_workflow_failed,
             }
-            
+
             handler = event_handlers.get(type(event))
             if handler:
                 handler(event)
