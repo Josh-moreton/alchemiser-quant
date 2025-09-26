@@ -176,9 +176,7 @@ class PortfolioAnalysisHandler:
             # Get current account and position data using DTO adapters
             account_data = self._get_account_data_with_adapters()
             if not account_data:
-                raise ValueError(
-                    "Could not retrieve account data for portfolio analysis"
-                )
+                raise ValueError("Could not retrieve account data for portfolio analysis")
 
             # Generate account snapshot ID for correlation
             account_snapshot_id = generate_account_snapshot_id(
@@ -186,9 +184,7 @@ class PortfolioAnalysisHandler:
             )
 
             # Analyze allocation comparison
-            allocation_comparison = self._analyze_allocation_comparison(
-                consolidated_portfolio
-            )
+            allocation_comparison = self._analyze_allocation_comparison(consolidated_portfolio)
             if not allocation_comparison:
                 raise ValueError("Failed to generate allocation comparison")
 
@@ -383,9 +379,7 @@ class PortfolioAnalysisHandler:
             orders_list = [
                 {
                     "id": str(order.id) if hasattr(order, "id") else "unknown",
-                    "symbol": (
-                        str(order.symbol) if hasattr(order, "symbol") else "unknown"
-                    ),
+                    "symbol": (str(order.symbol) if hasattr(order, "symbol") else "unknown"),
                     "side": str(order.side) if hasattr(order, "side") else "unknown",
                     "qty": _to_float_safe(getattr(order, "qty", 0)),
                 }
@@ -502,9 +496,7 @@ class PortfolioAnalysisHandler:
             portfolio_service = PortfolioServiceV2(alpaca_manager)
 
             # Generate correlation_id for this analysis
-            correlation_id = (
-                f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
-            )
+            correlation_id = f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
 
             # Create StrategyAllocationDTO from allocation comparison
             from the_alchemiser.shared.schemas.strategy_allocation import (
@@ -645,24 +637,18 @@ class PortfolioAnalysisHandler:
             return 0.0, 0.0
 
         try:
-            target_weight = float(
-                item.target_value / total_portfolio_value * Decimal("100")
-            )
+            target_weight = float(item.target_value / total_portfolio_value * Decimal("100"))
         except (TypeError, ValueError, ArithmeticError):
             target_weight = 0.0
 
         try:
-            current_weight = float(
-                item.current_value / total_portfolio_value * Decimal("100")
-            )
+            current_weight = float(item.current_value / total_portfolio_value * Decimal("100"))
         except (TypeError, ValueError, ArithmeticError):
             current_weight = 0.0
 
         return target_weight, current_weight
 
-    def _extract_plan_totals(
-        self, rebalance_plan: RebalancePlanDTO
-    ) -> tuple[float, Decimal, bool]:
+    def _extract_plan_totals(self, rebalance_plan: RebalancePlanDTO) -> tuple[float, Decimal, bool]:
         """Extract total trade value, portfolio value, and validity flag from rebalance plan.
 
         Args:
@@ -687,9 +673,7 @@ class PortfolioAnalysisHandler:
         has_portfolio_value = total_portfolio_value > Decimal("0")
         return total_trade_value, total_portfolio_value, has_portfolio_value
 
-    def _log_final_rebalance_plan_summary(
-        self, rebalance_plan: RebalancePlanDTO
-    ) -> None:
+    def _log_final_rebalance_plan_summary(self, rebalance_plan: RebalancePlanDTO) -> None:
         """Log final rebalance plan trades for visibility."""
         try:
             if not rebalance_plan.items:
@@ -725,9 +709,7 @@ class PortfolioAnalysisHandler:
         except Exception as exc:  # pragma: no cover - defensive logging
             self.logger.warning("Failed to log final rebalance plan summary: %s", exc)
 
-    def _emit_workflow_failure(
-        self, original_event: BaseEvent, error_message: str
-    ) -> None:
+    def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
         """Emit WorkflowFailed event when portfolio analysis fails.
 
         Args:

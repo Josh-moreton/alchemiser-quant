@@ -92,7 +92,7 @@ class AlpacaExecutionAdapter:
                         order_results.append(order_result)
                         orders_placed += 1
                         orders_succeeded += 1
-                        
+
                         log_with_context(
                             logger,
                             logging.INFO,
@@ -104,18 +104,20 @@ class AlpacaExecutionAdapter:
                             trade_amount=str(item.trade_amount),
                         )
                         continue
-                    
+
                     # Execute individual order through AlpacaManager
                     executed_order = self._execute_single_order(item)
-                    
+
                     # Convert to OrderResultDTO
                     order_result = self._convert_executed_order_to_dto(executed_order, item)
                     order_results.append(order_result)
-                    
+
                     orders_placed += 1
                     if order_result.success:
                         orders_succeeded += 1
-                        total_trade_value += abs(order_result.trade_amount)  # Use abs for total volume
+                        total_trade_value += abs(
+                            order_result.trade_amount
+                        )  # Use abs for total volume
 
                     log_with_context(
                         logger,
@@ -157,7 +159,7 @@ class AlpacaExecutionAdapter:
 
             # Create execution result
             success = orders_succeeded == orders_placed and orders_placed > 0
-            
+
             execution_result = ExecutionResultDTO(
                 success=success,
                 plan_id=rebalance_plan.plan_id,
@@ -210,10 +212,10 @@ class AlpacaExecutionAdapter:
         """
         # Get trading service to place orders using the existing patterns
         trading_service = self._alpaca_manager._get_trading_service()
-        
+
         # Convert action to side
         side = "buy" if rebalance_item.action.upper() == "BUY" else "sell"
-        
+
         # Place market order using notional (dollar) amount
         return trading_service.place_market_order(
             symbol=rebalance_item.symbol,
@@ -222,7 +224,9 @@ class AlpacaExecutionAdapter:
             notional=abs(float(rebalance_item.trade_amount)),  # Use absolute value for notional
         )
 
-    def _convert_executed_order_to_dto(self, executed_order: ExecutedOrderDTO, original_item: RebalancePlanItemDTO) -> OrderResultDTO:
+    def _convert_executed_order_to_dto(
+        self, executed_order: ExecutedOrderDTO, original_item: RebalancePlanItemDTO
+    ) -> OrderResultDTO:
         """Convert ExecutedOrderDTO to OrderResultDTO.
 
         Args:
@@ -235,15 +239,15 @@ class AlpacaExecutionAdapter:
         """
         # Map ExecutedOrder fields to OrderResult fields
         success = executed_order.status in {"FILLED", "PARTIAL"}
-        
+
         return OrderResultDTO(
             symbol=executed_order.symbol,
             action=executed_order.action,
             trade_amount=executed_order.total_value,  # Map total_value to trade_amount
-            shares=executed_order.filled_quantity,   # Map filled_quantity to shares
+            shares=executed_order.filled_quantity,  # Map filled_quantity to shares
             price=executed_order.price,
             order_id=executed_order.order_id,
-            success=success,                          # Derive success from status
+            success=success,  # Derive success from status
             error_message=executed_order.error_message,
             timestamp=executed_order.execution_timestamp,  # Map execution_timestamp to timestamp
         )

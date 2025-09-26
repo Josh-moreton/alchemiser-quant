@@ -10,7 +10,6 @@ Designed to be extensible to external message brokers (Kafka, RabbitMQ) if neede
 from __future__ import annotations
 
 import logging
-import time
 from collections import defaultdict
 from typing import Any
 
@@ -20,7 +19,7 @@ from .base import BaseEvent
 from .handlers import EventHandler
 
 # Global reference to current event bus for handler access
-_current_event_bus: 'EventBus | None' = None
+_current_event_bus: EventBus | None = None
 
 
 class EventBus:
@@ -34,7 +33,7 @@ class EventBus:
         """Initialize the event bus."""
         global _current_event_bus
         _current_event_bus = self
-        
+
         self.logger = get_logger(__name__)
         self._handlers: dict[str, list[EventHandler]] = defaultdict(list)
         self._global_handlers: list[EventHandler] = []
@@ -249,9 +248,10 @@ class EventBus:
 
     def enable_metrics(self, enabled: bool = True) -> None:
         """Enable or disable metrics collection.
-        
+
         Args:
             enabled: Whether to enable metrics collection
+
         """
         self._metrics_enabled = enabled
         self.logger.debug(f"Metrics {'enabled' if enabled else 'disabled'} for event bus")

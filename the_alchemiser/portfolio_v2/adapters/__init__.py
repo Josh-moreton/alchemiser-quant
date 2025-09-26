@@ -16,7 +16,7 @@ from .account_adapter import (
 
 __all__ = [
     "AccountInfoDTO",
-    "PositionDTO", 
+    "PositionDTO",
     "adapt_account_info",
     "adapt_positions",
     "generate_account_snapshot_id",

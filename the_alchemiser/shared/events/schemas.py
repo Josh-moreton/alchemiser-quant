@@ -111,13 +111,13 @@ class TradeExecuted(BaseEvent):
     success: bool = Field(..., description="Whether execution was successful")
     orders_placed: int = Field(..., description="Number of orders placed")
     orders_succeeded: int = Field(..., description="Number of orders that succeeded")
-    
+
     # New idempotency and schema fields
     schema_version: str = Field(default="1.0", description="Event schema version")
     execution_plan_hash: str | None = Field(
         default=None, description="Hash of execution plan for idempotency"
     )
-    
+
     # Enhanced metadata with fill summaries
     fill_summaries: dict[str, Any] = Field(
         default_factory=dict, description="Order fill summary data"

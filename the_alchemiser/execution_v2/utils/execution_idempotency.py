@@ -56,9 +56,9 @@ class ExecutionIdempotencyStore:
         try:
             attempts = self._load_attempts()
             key = self._make_key(correlation_id, execution_plan_hash)
-            
+
             has_executed = key in attempts
-            
+
             log_with_context(
                 logger,
                 logging.DEBUG,
@@ -69,9 +69,9 @@ class ExecutionIdempotencyStore:
                 execution_plan_hash=execution_plan_hash,
                 result=has_executed,
             )
-            
+
             return has_executed
-            
+
         except Exception as e:
             log_with_context(
                 logger,
@@ -85,8 +85,8 @@ class ExecutionIdempotencyStore:
             return False
 
     def record_execution_attempt(
-        self, 
-        correlation_id: str, 
+        self,
+        correlation_id: str,
         execution_plan_hash: str,
         *,
         success: bool,
@@ -104,7 +104,7 @@ class ExecutionIdempotencyStore:
         try:
             attempts = self._load_attempts()
             key = self._make_key(correlation_id, execution_plan_hash)
-            
+
             attempt_record = {
                 "correlation_id": correlation_id,
                 "execution_plan_hash": execution_plan_hash,
@@ -112,10 +112,10 @@ class ExecutionIdempotencyStore:
                 "timestamp": str(self._get_current_timestamp()),
                 "metadata": metadata or {},
             }
-            
+
             attempts[key] = attempt_record
             self._save_attempts(attempts)
-            
+
             log_with_context(
                 logger,
                 logging.INFO,
@@ -126,7 +126,7 @@ class ExecutionIdempotencyStore:
                 execution_plan_hash=execution_plan_hash,
                 success=success,
             )
-            
+
         except Exception as e:
             log_with_context(
                 logger,
@@ -159,6 +159,7 @@ class ExecutionIdempotencyStore:
     def _get_current_timestamp(self) -> str:
         """Get current timestamp as string."""
         from datetime import UTC, datetime
+
         return datetime.now(UTC).isoformat()
 
 
@@ -181,18 +182,20 @@ def generate_execution_plan_hash(rebalance_plan: RebalancePlanDTO, correlation_i
             {
                 "symbol": item.symbol,
                 "action": item.action,
-                "trade_amount": str(item.trade_amount),  # Convert Decimal to string for deterministic hashing
+                "trade_amount": str(
+                    item.trade_amount
+                ),  # Convert Decimal to string for deterministic hashing
                 "target_weight": str(item.target_weight),
                 "current_weight": str(item.current_weight),
             }
             for item in sorted(rebalance_plan.items, key=lambda x: (x.symbol, x.action))
         ],
     }
-    
+
     # Generate hash
     plan_json = json.dumps(plan_data, sort_keys=True, separators=(",", ":"))
     plan_hash = hashlib.sha256(plan_json.encode("utf-8")).hexdigest()
-    
+
     log_with_context(
         logger,
         logging.DEBUG,
@@ -203,5 +206,5 @@ def generate_execution_plan_hash(rebalance_plan: RebalancePlanDTO, correlation_i
         correlation_id=correlation_id,
         hash=plan_hash,
     )
-    
+
     return plan_hash
