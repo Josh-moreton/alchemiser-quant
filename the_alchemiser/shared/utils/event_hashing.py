@@ -13,7 +13,7 @@ import hashlib
 import json
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types import StrategySignal
@@ -94,7 +94,7 @@ def generate_market_snapshot_id(signals: list[StrategySignal]) -> str:
 
             # Sort by symbol for consistency
             # Ensure the sort key is typed as str for mypy (symbol always string here)
-            snapshot_data.sort(key=lambda x: x["symbol"])
+            snapshot_data.sort(key=lambda x: cast(str, x["symbol"]))
 
         # Create snapshot ID with timestamp and content hash
         content_hash = hashlib.sha256(
@@ -172,3 +172,71 @@ def _normalize_portfolio_for_hash(portfolio_data: object) -> object:
         return [_normalize_portfolio_for_hash(item) for item in portfolio_data]
 
     return portfolio_data
+
+
+def generate_execution_plan_hash_from_data(
+    execution_data: dict[str, Any], correlation_id: str | None = None
+) -> str:
+    """Generate a deterministic hash for an execution plan from execution data.
+
+    This utility is used by orchestrators that do not have direct access to the
+    RebalancePlanDTO but still need to emit TradeExecuted events that include
+    an execution_plan_hash for idempotency and traceability.
+
+    The function normalizes the execution data (plan_id, orders, values) into a
+    stable JSON representation and returns a SHA-256 hex digest.
+
+    Args:
+        execution_data: Dictionary containing execution details as produced by
+            TradingOrchestrator._build_execution_data (plan_id, orders, etc.)
+        correlation_id: Optional correlation id to include in the hash for
+            additional disambiguation across workflows.
+
+    Returns:
+        Hex string hash of the normalized execution data.
+
+    """
+    try:
+        # Extract and normalize orders if present
+        raw_orders = execution_data.get("orders", [])
+        norm_orders: list[dict[str, Any]] = []
+        for order in raw_orders if isinstance(raw_orders, list) else []:
+            if not isinstance(order, dict):
+                continue
+            norm_orders.append(
+                {
+                    "symbol": str(order.get("symbol", "")),
+                    "action": str(order.get("action", "")),
+                    # Quantities and money values normalized to strings for determinism
+                    "shares": str(order.get("shares", "0")),
+                    "price": str(order.get("price", "0")),
+                    "trade_amount": str(order.get("trade_amount", "0")),
+                    "success": bool(order.get("success", False)),
+                    "order_id": str(order.get("order_id", "")),
+                }
+            )
+
+        # Sort orders deterministically
+        norm_orders.sort(key=lambda o: (o["symbol"], o["action"], o["order_id"]))
+
+        # Build the normalized payload
+        normalized = {
+            "plan_id": str(execution_data.get("plan_id", "")),
+            "orders_placed": int(execution_data.get("orders_placed", 0)),
+            "orders_succeeded": int(execution_data.get("orders_succeeded", 0)),
+            "total_trade_value": str(execution_data.get("total_trade_value", "0")),
+            "orders": norm_orders,
+        }
+        if correlation_id:
+            normalized["correlation_id"] = str(correlation_id)
+
+        # Deterministic JSON and SHA-256
+        json_data = json.dumps(normalized, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(json_data.encode("utf-8")).hexdigest()
+
+    except Exception as e:
+        logger.error(f"Failed to generate execution plan hash from data: {e}")
+        # Fallback to timestamp-based hash to avoid blocking event emission
+        fallback = hashlib.sha256(str(datetime.now(UTC)).encode()).hexdigest()
+        logger.warning(f"Using fallback execution plan hash: {fallback[:16]}")
+        return fallback

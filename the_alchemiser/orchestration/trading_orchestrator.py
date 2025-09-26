@@ -53,6 +53,9 @@ from the_alchemiser.shared.types.exceptions import (
     NotificationError,
     TradingClientError,
 )
+from the_alchemiser.shared.utils.event_hashing import (
+    generate_execution_plan_hash_from_data,
+)
 
 # Constants for repeated literals
 
@@ -1335,7 +1338,11 @@ class TradingOrchestrator:
             # Build execution data
             execution_data = self._build_execution_data(execution_result)
 
-            # Create and emit the event
+            # Create and emit the event, include execution_plan_hash for idempotency
+            execution_plan_hash = generate_execution_plan_hash_from_data(
+                {**execution_data, "plan_id": execution_result.plan_id}, correlation_id
+            )
+
             event = TradeExecuted(
                 correlation_id=correlation_id,
                 causation_id=causation_id,
@@ -1347,6 +1354,7 @@ class TradingOrchestrator:
                 success=success,
                 orders_placed=execution_data.get("orders_placed", 0),
                 orders_succeeded=execution_data.get("orders_succeeded", 0),
+                execution_plan_hash=execution_plan_hash,
                 metadata=(
                     {
                         "error_message": error_message,
