@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.types.market_data import QuoteModel
 
 from .models import (
     ExecutionConfig,
@@ -26,6 +27,10 @@ from .quotes import QuoteProvider
 from .tracking import OrderTracker
 
 logger = logging.getLogger(__name__)
+
+
+class _RemoveFromTracking(Exception):
+    """Internal control-flow to signal that order should be removed from tracking."""
 
 
 class RepegManager:
@@ -323,85 +328,23 @@ class RepegManager:
 
         """
         try:
-            # First, get current order status to check for partial fills
-            logger.debug(f"🔍 Checking current status of order {order_id} before re-peg")
-            order_result = await asyncio.to_thread(
-                self.alpaca_manager.get_order_execution_result, order_id
-            )
+            remaining_qty = await self._get_remaining_after_status_update(order_id, request)
 
-            # Update filled quantity tracking
-            filled_qty = (
-                order_result.filled_qty if hasattr(order_result, "filled_qty") else Decimal("0")
-            )
-            self.order_tracker.update_filled_quantity(order_id, filled_qty)
-
-            # Calculate remaining quantity
-            remaining_qty = self.order_tracker.get_remaining_quantity(order_id)
-
-            # Log current status for debugging
-            logger.info(
-                f"📊 Order {order_id} status before re-peg: "
-                f"original={request.quantity}, filled={filled_qty}, remaining={remaining_qty}"
-            )
-
-            # If remaining quantity is too small, consider order effectively complete
-            min_qty_threshold = Decimal("0.01")  # Minimum meaningful quantity
-            if remaining_qty <= min_qty_threshold:
-                logger.info(
-                    f"✅ Order {order_id} has minimal remaining quantity ({remaining_qty}), "
-                    f"considering complete"
-                )
-                return None  # Remove from tracking
-
-            # Cancel the existing order
-            logger.info(f"❌ Canceling order {order_id} for re-pegging")
-            # Use asyncio.to_thread to make blocking I/O async
-            cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
-
-            if not cancel_success:
-                logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
-                return False
-
-            # Wait for actual cancellation to complete and buying power to be released
-            logger.debug(f"⏳ Waiting for order {order_id} cancellation to complete...")
-            cancellation_confirmed = await asyncio.to_thread(
-                self._wait_for_order_cancellation, order_id, timeout_seconds=10.0
-            )
-
-            if not cancellation_confirmed:
-                logger.warning(
-                    f"⚠️ Order {order_id} cancellation did not complete within timeout, skipping re-peg"
-                )
-                return False
-
-            logger.debug(f"✅ Order {order_id} cancellation confirmed, buying power released")
-
-            # Get current market data
-            validated = self.quote_provider.get_quote_with_validation(request.symbol)
-            if not validated:
-                logger.warning(f"⚠️ No valid quote for {request.symbol}, skipping re-peg")
-                return False
-
-            quote, _ = validated
-
-            # Calculate more aggressive price for re-peg
-            original_anchor = self.order_tracker.get_anchor_price(order_id)
-            price_history = self.order_tracker.get_price_history(order_id)
-            new_price = self.pricing_calculator.calculate_repeg_price(
-                quote, request.side, original_anchor, price_history
-            )
-
-            if not new_price:
-                logger.warning(f"⚠️ Cannot calculate re-peg price for {request.symbol}")
-                return False
-
-            # Additional validation to ensure price is positive and reasonable
-            if new_price <= Decimal("0.01"):
-                logger.error(
-                    f"⚠️ Invalid re-peg price ${new_price} for {request.symbol} {request.side}, "
-                    f"price must be > $0.01. Skipping re-peg."
-                )
+            if remaining_qty is None:
                 return None
+
+            # Ensure cancellation completes before re-peg
+            if not await self._cancel_for_repeg(order_id):
+                return False
+
+            # Determine valid re-peg price and required context
+            try:
+                new_price, original_anchor, quote = self._calculate_repeg_price(order_id, request)
+            except _RemoveFromTracking:
+                return None
+
+            if new_price is None:
+                return False
 
             # Update tracking BEFORE placing new order to ensure count persistence
             old_repeg_count = self.order_tracker.get_repeg_count(order_id)
@@ -416,7 +359,6 @@ class RepegManager:
             # Ensure price is properly quantized to avoid sub-penny precision errors
             quantized_price = new_price.quantize(Decimal("0.01"))
 
-            # Final validation before placing order
             if quantized_price <= 0:
                 logger.error(
                     f"⚠️ Quantized re-peg price ${quantized_price} is invalid for {request.symbol}. "
@@ -424,72 +366,19 @@ class RepegManager:
                 )
                 return False
 
-            # Use remaining quantity instead of original quantity for re-peg
+            # Place order (with retry on insufficient qty)
             try:
-                # Use asyncio.to_thread to make blocking I/O async
-                executed_order = await asyncio.to_thread(
-                    self.alpaca_manager.place_limit_order,
-                    symbol=request.symbol,
-                    side=request.side.lower(),
-                    quantity=float(remaining_qty),  # Use remaining quantity instead of original
-                    limit_price=float(quantized_price),
-                    time_in_force="day",
+                executed_order = await self._place_limit_with_insufficient_retry(
+                    request, remaining_qty, quantized_price
                 )
-            except Exception as e:
-                error_str = str(e)
-                # Check if error is due to insufficient quantity
-                if "insufficient qty available" in error_str.lower():
-                    logger.warning(
-                        f"⚠️ Insufficient quantity available for {request.symbol}. "
-                        f"Requested: {remaining_qty}, Error: {error_str}"
-                    )
-                    # Try to extract available quantity from error message if possible
-                    # This is a defensive measure for the specific Alpaca error format
-                    import re
-
-                    available_match = re.search(r"available: ([\d.]+)", error_str)
-                    if available_match:
-                        try:
-                            available_qty = Decimal(available_match.group(1))
-                            if available_qty > min_qty_threshold:
-                                logger.info(
-                                    f"🔄 Retrying re-peg with available quantity: {available_qty}"
-                                )
-                                executed_order = await asyncio.to_thread(
-                                    self.alpaca_manager.place_limit_order,
-                                    symbol=request.symbol,
-                                    side=request.side.lower(),
-                                    quantity=float(available_qty),
-                                    limit_price=float(quantized_price),
-                                    time_in_force="day",
-                                )
-                            else:
-                                logger.info(
-                                    f"✅ Available quantity {available_qty} too small, "
-                                    f"considering order complete"
-                                )
-                                return None  # Remove from tracking
-                        except (ValueError, Exception) as retry_e:
-                            logger.error(f"❌ Retry with available quantity failed: {retry_e}")
-                            raise e
-                    else:
-                        raise e
-                else:
-                    raise e
+            except _RemoveFromTracking:
+                return None
 
             # Only proceed if placement succeeded and order_id looks valid (UUID)
-            if getattr(executed_order, "success", False) and executed_order.order_id:
-                is_valid_uuid = False
-                try:
-                    import uuid as _uuid
-
-                    _uuid.UUID(str(executed_order.order_id))
-                    is_valid_uuid = True
-                except Exception:
-                    is_valid_uuid = False
-
-                if is_valid_uuid:
-                    # Update tracking with new order ID and preserve count
+            if getattr(executed_order, "success", False) and getattr(
+                executed_order, "order_id", None
+            ):
+                if self._is_valid_uuid_str(str(executed_order.order_id)):
                     self.order_tracker.update_order(
                         order_id, executed_order.order_id, new_price, datetime.now(UTC)
                     )
@@ -500,17 +389,19 @@ class RepegManager:
                         f"quantity: {remaining_qty}"
                     )
 
+                    # Use cast to satisfy type checkers; quote is non-None when new_price exists
+                    from typing import cast as _cast
+
+                    q = _cast(QuoteModel, quote)
                     metadata_dict: LiquidityMetadata = {
                         "original_order_id": order_id,
                         "original_price": (float(original_anchor) if original_anchor else None),
                         "new_price": float(new_price),
-                        "bid_price": quote.bid_price,
-                        "ask_price": quote.ask_price,
-                        "spread_percent": (quote.ask_price - quote.bid_price)
-                        / quote.bid_price
-                        * 100,
-                        "bid_size": quote.bid_size,
-                        "ask_size": quote.ask_size,
+                        "bid_price": q.bid_price,
+                        "ask_price": q.ask_price,
+                        "spread_percent": (q.ask_price - q.bid_price) / q.bid_price * 100,
+                        "bid_size": q.bid_size,
+                        "ask_size": q.ask_size,
                     }
                     return SmartOrderResult(
                         success=True,
@@ -532,7 +423,6 @@ class RepegManager:
                     repegs_used=new_repeg_count,
                 )
 
-            # If we get here, placement did not succeed or no order_id
             logger.error(f"❌ Re-peg failed for {request.symbol}: no valid order ID returned")
             return SmartOrderResult(
                 success=False,
@@ -548,6 +438,159 @@ class RepegManager:
                 error_message=str(e),
                 execution_strategy="smart_repeg_error",
             )
+
+    async def _get_remaining_after_status_update(
+        self, order_id: str, request: SmartOrderRequest
+    ) -> Decimal | None:
+        """Fetch current order status, update filled quantity, and compute remaining.
+
+        Returns None when remaining is below the minimal threshold, meaning the
+        order can be considered complete and removed from tracking.
+        """
+        logger.debug(f"🔍 Checking current status of order {order_id} before re-peg")
+        order_result = await asyncio.to_thread(
+            self.alpaca_manager.get_order_execution_result, order_id
+        )
+
+        filled_qty = (
+            order_result.filled_qty if hasattr(order_result, "filled_qty") else Decimal("0")
+        )
+        self.order_tracker.update_filled_quantity(order_id, filled_qty)
+
+        remaining_qty = self.order_tracker.get_remaining_quantity(order_id)
+
+        logger.info(
+            f"📊 Order {order_id} status before re-peg: "
+            f"original={request.quantity}, filled={filled_qty}, remaining={remaining_qty}"
+        )
+
+        min_qty_threshold = Decimal("0.01")
+        if remaining_qty <= min_qty_threshold:
+            logger.info(
+                f"✅ Order {order_id} has minimal remaining quantity ({remaining_qty}), considering complete"
+            )
+            return None
+
+        return remaining_qty
+
+    async def _cancel_for_repeg(self, order_id: str) -> bool:
+        """Cancel the existing order and wait until cancellation is confirmed.
+
+        Returns True only when cancellation completes; otherwise False.
+        """
+        logger.info(f"❌ Canceling order {order_id} for re-pegging")
+        cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
+        if not cancel_success:
+            logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
+            return False
+
+        logger.debug(f"⏳ Waiting for order {order_id} cancellation to complete...")
+        cancellation_confirmed = await asyncio.to_thread(
+            self._wait_for_order_cancellation, order_id, timeout_seconds=10.0
+        )
+        if not cancellation_confirmed:
+            logger.warning(
+                f"⚠️ Order {order_id} cancellation did not complete within timeout, skipping re-peg"
+            )
+            return False
+
+        logger.debug(f"✅ Order {order_id} cancellation confirmed, buying power released")
+        return True
+
+    def _calculate_repeg_price(
+        self, order_id: str, request: SmartOrderRequest
+    ) -> tuple[Decimal | None, Decimal | None, QuoteModel | None]:
+        """Calculate a valid re-peg price and return context.
+
+        Returns (new_price, original_anchor, quote).
+        - If quote is missing or price cannot be calculated, returns (None, original_anchor, quote_placeholder)
+        - If price is invalid (<= $0.01), raises _RemoveFromTracking to signal removal
+        """
+        validated = self.quote_provider.get_quote_with_validation(request.symbol)
+        if not validated:
+            logger.warning(f"⚠️ No valid quote for {request.symbol}, skipping re-peg")
+            return None, self.order_tracker.get_anchor_price(order_id), None
+
+        quote, _ = validated
+        original_anchor = self.order_tracker.get_anchor_price(order_id)
+        price_history = self.order_tracker.get_price_history(order_id)
+        new_price = self.pricing_calculator.calculate_repeg_price(
+            quote, request.side, original_anchor, price_history
+        )
+
+        if not new_price:
+            logger.warning(f"⚠️ Cannot calculate re-peg price for {request.symbol}")
+            return None, original_anchor, quote
+
+        if new_price <= Decimal("0.01"):
+            logger.error(
+                f"⚠️ Invalid re-peg price ${new_price} for {request.symbol} {request.side}, price must be > $0.01. Skipping re-peg."
+            )
+            raise _RemoveFromTracking()
+
+        return new_price, original_anchor, quote
+
+    async def _place_limit_with_insufficient_retry(
+        self, request: SmartOrderRequest, quantity: Decimal, limit_price: Decimal
+    ) -> object:
+        """Place a limit order, retrying with available qty when broker reports insufficiency.
+
+        Raises _RemoveFromTracking if the available quantity reported is below the minimal threshold.
+        """
+        try:
+            return await asyncio.to_thread(
+                self.alpaca_manager.place_limit_order,
+                symbol=request.symbol,
+                side=request.side.lower(),
+                quantity=float(quantity),
+                limit_price=float(limit_price),
+                time_in_force="day",
+            )
+        except Exception as e:  # Specific SDK error types can be handled here if exposed
+            error_str = str(e)
+            if "insufficient qty available" in error_str.lower():
+                logger.warning(
+                    f"⚠️ Insufficient quantity available for {request.symbol}. Requested: {quantity}, Error: {error_str}"
+                )
+                import re
+
+                available_match = re.search(r"available: ([\d.]+)", error_str)
+                if available_match:
+                    try:
+                        available_qty = Decimal(available_match.group(1))
+                        min_qty_threshold = Decimal("0.01")
+                        if available_qty > min_qty_threshold:
+                            logger.info(
+                                f"🔄 Retrying re-peg with available quantity: {available_qty}"
+                            )
+                            return await asyncio.to_thread(
+                                self.alpaca_manager.place_limit_order,
+                                symbol=request.symbol,
+                                side=request.side.lower(),
+                                quantity=float(available_qty),
+                                limit_price=float(limit_price),
+                                time_in_force="day",
+                            )
+                        logger.info(
+                            f"✅ Available quantity {available_qty} too small, considering order complete"
+                        )
+                        raise _RemoveFromTracking()
+                    except _RemoveFromTracking:
+                        raise
+                    except Exception as retry_e:  # ValueError or SDK errors
+                        logger.error(f"❌ Retry with available quantity failed: {retry_e}")
+                        raise e
+            raise e
+
+    def _is_valid_uuid_str(self, value: str) -> bool:
+        """Check if provided string is a valid UUID format."""
+        try:
+            import uuid as _uuid
+
+            _uuid.UUID(value)
+            return True
+        except Exception:
+            return False
 
     def _wait_for_order_cancellation(self, order_id: str, timeout_seconds: float = 10.0) -> bool:
         """Wait for an order to be actually cancelled and buying power released.
