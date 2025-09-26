@@ -13,7 +13,7 @@ import hashlib
 import json
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, cast
+from typing import Any
 
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types import StrategySignal
