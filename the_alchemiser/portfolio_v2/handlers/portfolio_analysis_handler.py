@@ -522,7 +522,7 @@ class PortfolioAnalysisHandler:
                     item, total_portfolio_value, has_portfolio_value=has_portfolio_value
                 )
 
-                self.logger.info(
+                self.logger.debug(
                     "  • %s %s | $%.2f | target %.2f%% vs current %.2f%%",
                     action,
                     symbol,

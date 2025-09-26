@@ -116,7 +116,7 @@ class RepegManager:
 
             # Check if we've reached max re-pegs — escalate to market
             if self._should_escalate_order(current_repeg_count):
-                logger.info(
+                logger.warning(
                     f"⚠️ Order {order_id} reached max re-pegs "
                     f"({current_repeg_count}/{self.config.max_repegs_per_order}), escalating to market order"
                 )
@@ -126,7 +126,7 @@ class RepegManager:
             placement_time = self.order_tracker.get_placement_time(order_id)
             if placement_time:
                 time_elapsed = (current_time - placement_time).total_seconds()
-                logger.info(
+                logger.debug(
                     f"🔄 Order {order_id} hasn't filled after {time_elapsed:.1f}s, "
                     f"attempting re-peg (attempt {current_repeg_count + 1}/{self.config.max_repegs_per_order})"
                 )
@@ -151,7 +151,7 @@ class RepegManager:
         order_status = self.alpaca_manager._check_order_completion_status(order_id)
 
         if order_status and is_order_completed(order_status):
-            logger.info(f"📊 Order {order_id} completed with status: {order_status}")
+            logger.debug(f"📊 Order {order_id} completed with status: {order_status}")
             return True
 
         return False
@@ -213,7 +213,7 @@ class RepegManager:
 
         """
         try:
-            logger.info(
+            logger.debug(
                 f"🛑 Escalating order {order_id} to market: canceling existing limit order "
                 f"(after {self.order_tracker.get_repeg_count(order_id)} re-pegs)"
             )
@@ -407,7 +407,7 @@ class RepegManager:
             old_repeg_count = self.order_tracker.get_repeg_count(order_id)
             new_repeg_count = old_repeg_count + 1
 
-            logger.info(
+            logger.debug(
                 f"📈 Re-pegging {request.symbol} {request.side} from "
                 f"${original_anchor} to ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order}) "
                 f"with remaining quantity {remaining_qty} (original: {request.quantity})"
