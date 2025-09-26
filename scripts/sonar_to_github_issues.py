@@ -358,14 +358,14 @@ def ensure_label(
         r = github_request("GET", get_api)
         if r.status_code == 200:
             return
-    except requests.HTTPError as err:  # label may not exist
+    except requests.exceptions.HTTPError as err:  # label may not exist
         resp = getattr(err, "response", None)
         if not resp or resp.status_code != 404:
             raise
 
     # Create if not exists (ignore conflicts)
     create_api = f"https://api.github.com/repos/{owner}/{repo}/labels"
-    with contextlib.suppress(requests.HTTPError):
+    with contextlib.suppress(requests.exceptions.HTTPError):
         github_request(
             "POST",
             create_api,
