@@ -882,8 +882,10 @@ def retry_with_backoff(
                         _handle_final_retry_attempt(e, max_retries, func.__name__)
                         raise
 
-                    delay = _calculate_retry_delay(attempt, base_delay, backoff_factor, max_delay, jitter=jitter)
-                    
+                    delay = _calculate_retry_delay(
+                        attempt, base_delay, backoff_factor, max_delay, jitter=jitter
+                    )
+
                     logging.warning(
                         f"Attempt {attempt + 1}/{max_retries + 1} failed for {func.__name__}: {e}. "
                         f"Retrying in {delay:.2f}s..."
