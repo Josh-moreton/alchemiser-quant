@@ -477,12 +477,11 @@ class TradingSystemErrorHandler:
         """Check if any trading-related errors occurred."""
         return any(error.category == ErrorCategory.TRADING for error in self.errors)
 
-    def _get_category_summary(self, category: str, summary_key: str) -> dict[str, Any] | None:
+    def _get_category_summary(self, category: str) -> dict[str, Any] | None:
         """Get error summary for a specific category.
 
         Args:
             category: The error category constant to filter by
-            summary_key: The key name for the summary dictionary
 
         Returns:
             Category summary dict with count and errors, or None if no errors
@@ -510,11 +509,11 @@ class TradingSystemErrorHandler:
         ]
 
         # Initialize summary with all categories as None
-        summary: dict[str, Any] = {key: None for _, key in category_mappings}
+        summary: dict[str, Any] = dict.fromkeys([key for _, key in category_mappings])
 
         # Process each category using the helper function
         for category, summary_key in category_mappings:
-            summary[summary_key] = self._get_category_summary(category, summary_key)
+            summary[summary_key] = self._get_category_summary(category)
 
         return summary
 
