@@ -108,7 +108,9 @@ class DslStrategyEngine:
                 return self._create_fallback_signals(timestamp)
 
             consolidated = self._normalize_allocations(consolidated)
-            signals = self._convert_to_signals(consolidated, timestamp, correlation_id)
+            signals = self._convert_to_signals(
+                consolidated, timestamp, correlation_id, file_results, dsl_files
+            )
 
             self.logger.info(
                 f"Generated {len(signals)} DSL consolidated signals",
@@ -184,7 +186,12 @@ class DslStrategyEngine:
         return consolidated
 
     def _convert_to_signals(
-        self, consolidated: dict[str, float], timestamp: datetime, correlation_id: str
+        self, 
+        consolidated: dict[str, float], 
+        timestamp: datetime, 
+        correlation_id: str,
+        file_results: list[tuple[dict[str, float] | None, str, float, float]] | None = None,
+        dsl_files: list[str] | None = None,
     ) -> list[StrategySignal]:
         """Convert consolidated weights to StrategySignal objects.
 
@@ -192,22 +199,44 @@ class DslStrategyEngine:
             consolidated: Dictionary mapping symbols to weights
             timestamp: Timestamp for signal generation
             correlation_id: Correlation ID for tracing
+            file_results: Optional file evaluation results for attribution
+            dsl_files: Optional list of DSL files for attribution
 
         Returns:
             List of StrategySignal objects for positive weights
 
         """
         signals: list[StrategySignal] = []
+        
+        # Extract strategy names from CLJ filenames (remove .clj extension and path)
+        strategy_names = []
+        if dsl_files:
+            for filename in dsl_files:
+                # Extract basename and remove .clj extension
+                strategy_name = filename.replace(".clj", "").split("/")[-1]
+                strategy_names.append(strategy_name)
+        
+        # Use first strategy name or fallback to "DSL" if no files provided
+        primary_strategy = strategy_names[0] if strategy_names else "DSL"
+        
         for symbol, weight in consolidated.items():
             if weight > 0:
+                # For multiple strategies, show which ones contributed
+                if len(strategy_names) > 1:
+                    strategy_display = f"{primary_strategy} (+{len(strategy_names)-1} others)"
+                    reasoning = f"Multi-strategy allocation from {', '.join(strategy_names)}: {weight:.1%}"
+                else:
+                    strategy_display = primary_strategy
+                    reasoning = f"{primary_strategy} allocation: {weight:.1%}"
+                
                 signals.append(
                     StrategySignal(
                         symbol=symbol,
                         action="BUY",
                         target_allocation=weight,
-                        reasoning=f"DSL consolidated allocation: {weight:.1%}",
+                        reasoning=reasoning,
                         timestamp=timestamp,
-                        strategy="DSL",
+                        strategy=strategy_display,
                         data_source="dsl_engine:multi",
                         correlation_id=correlation_id,
                     )
@@ -224,12 +253,15 @@ class DslStrategyEngine:
             List containing a single CASH signal
 
         """
+        # Extract strategy name from CLJ filename (remove .clj extension and path)
+        strategy_name = self.strategy_file.replace(".clj", "").split("/")[-1]
+        
         fallback_signal = StrategySignal(
             symbol="CASH",
             action="BUY",
-            reasoning="DSL evaluation failed, fallback to cash position",
+            reasoning=f"{strategy_name} evaluation failed, fallback to cash position",
             timestamp=timestamp,
-            strategy="DSL",
+            strategy=strategy_name,
             data_source="dsl_fallback",
             fallback=True,
             dsl_file=self.strategy_file,
