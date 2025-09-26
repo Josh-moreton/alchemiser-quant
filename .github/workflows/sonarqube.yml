@@ -58,4 +58,4 @@ jobs:
             --project-key "Josh-moreton_alchemiser-quant" \
             --severity "CRITICAL,MAJOR,MINOR" \
             --types "BUG,VULNERABILITY,CODE_SMELL" \
-            --label sonarqube --label tech-debt --label automated
+            --no-labels

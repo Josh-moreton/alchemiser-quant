@@ -17,7 +17,6 @@ Environment variables:
 from __future__ import annotations
 
 import argparse
-import contextlib
 import logging
 import os
 import shutil
@@ -97,6 +96,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max", type=int, default=2000, help="Max issues to fetch")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
+        "--no-labels",
+        action="store_true",
+        help="Do not create or attach labels to GitHub issues",
+    )
+    parser.add_argument(
         "--group-by",
         choices=["file", "issue"],
         default="file",
@@ -115,10 +119,11 @@ def sonar_paginated(
     while fetched < limit:
         p = dict(params)
         p.update({"p": page, "ps": page_size})
-        if token:
-            resp = SESSION.get(url, params=p, auth=(token, ""))
-        else:
-            resp = SESSION.get(url, params=p)
+        resp = (
+            SESSION.get(url, params=p, auth=(token, ""))
+            if token
+            else SESSION.get(url, params=p)
+        )
         resp.raise_for_status()
         data = resp.json()
         issues = data.get("issues", [])
@@ -352,25 +357,29 @@ def get_github_repo(owner_repo_env: str | None = None) -> tuple[str, str] | None
 def ensure_label(
     owner: str, repo: str, name: str, color: str, description: str = ""
 ) -> None:
-    """Ensure a label exists in the repository; create if missing."""
-    get_api = f"https://api.github.com/repos/{owner}/{repo}/labels/{name}"
-    try:
-        r = github_request("GET", get_api)
-        if r.status_code == 200:
-            return
-    except requests.exceptions.HTTPError as err:  # label may not exist
-        resp = getattr(err, "response", None)
-        if not resp or resp.status_code != 404:
-            raise
+    """Ensure a label exists in the repository; create if missing.
 
-    # Create if not exists (ignore conflicts)
+    Strategy: attempt to create; if it already exists, ignore 409/422.
+    If we lack permission or repo is archived, log and continue without failing the run.
+    """
     create_api = f"https://api.github.com/repos/{owner}/{repo}/labels"
-    with contextlib.suppress(requests.exceptions.HTTPError):
+    try:
         github_request(
             "POST",
             create_api,
             json={"name": name, "color": color, "description": description},
         )
+    except requests.exceptions.HTTPError as err:
+        resp = getattr(err, "response", None)
+        status = getattr(resp, "status_code", None)
+        # Already exists or conflict → fine
+        if status in (409, 422):
+            return
+        # Permission or not found → warn and continue; labels are optional for issue creation
+        logging.warning(
+            "Label creation for '%s' skipped due to HTTP %s", name, status or "unknown"
+        )
+        return
 
 
 def find_existing_issue(owner: str, repo: str, sonar_key: str) -> int | None:
@@ -420,7 +429,9 @@ def create_or_update_issue(
         return
 
     url = f"https://api.github.com/repos/{owner}/{repo}/issues"
-    data = {"title": title, "body": body, "labels": labels}
+    data = {"title": title, "body": body}
+    if labels:
+        data["labels"] = labels
     if assignee:
         data["assignees"] = [assignee]
     github_request("POST", url, json=data)
@@ -452,7 +463,9 @@ def create_or_update_file_issue(
         return
 
     url = f"https://api.github.com/repos/{owner}/{repo}/issues"
-    data = {"title": title, "body": body, "labels": labels}
+    data = {"title": title, "body": body}
+    if labels:
+        data["labels"] = labels
     if assignee:
         data["assignees"] = [assignee]
     github_request("POST", url, json=data)
@@ -480,19 +493,22 @@ def main() -> int:
                 except Exception as exc:
                     logging.debug("Failed reading SONAR_TOKEN_FILE: %s", exc)
 
-    # Ensure common labels (skip write in dry-run)
-    default_labels = ["sonarqube"]
-    all_labels = list(dict.fromkeys(default_labels + (args.label or [])))
-    label_palette = {
-        "sonarqube": ("0e8a16", "Imported from SonarQube"),
-        "bug": ("d73a4a", "Bug"),
-        "tech-debt": ("9e6a03", "Technical debt from static analysis"),
-        "automated": ("1f88d1", "Created by automation pipeline"),
-    }
-    if not args.dry_run:
-        for lab in all_labels:
-            color, desc = label_palette.get(lab, ("ededed", ""))
-            ensure_label(owner, repo, lab, color, desc)
+    # Labels: optionally disabled entirely
+    if args.no_labels:
+        all_labels: list[str] = []
+    else:
+        default_labels = ["sonarqube"]
+        all_labels = list(dict.fromkeys(default_labels + (args.label or [])))
+        label_palette = {
+            "sonarqube": ("0e8a16", "Imported from SonarQube"),
+            "bug": ("d73a4a", "Bug"),
+            "tech-debt": ("9e6a03", "Technical debt from static analysis"),
+            "automated": ("1f88d1", "Created by automation pipeline"),
+        }
+        if not args.dry_run:
+            for lab in all_labels:
+                color, desc = label_palette.get(lab, ("ededed", ""))
+                ensure_label(owner, repo, lab, color, desc)
 
     params: dict[str, str] = {"componentKeys": args.project_key, "statuses": args.state}
     if sonar_org:
@@ -510,12 +526,10 @@ def main() -> int:
         for raw in sonar_paginated(url, params, args.max, token=sonar_token):
             si = map_issue(raw, sonar_host)
             labels = list(all_labels)
-            # Map Sonar type/severity to GitHub labels
-            if si.type == "BUG":
-                labels.append("bug")
-            else:
-                labels.append("tech-debt")
-            labels = list(dict.fromkeys(labels))
+            if labels:
+                # Map Sonar type/severity to GitHub labels
+                labels.append("bug" if si.type == "BUG" else "tech-debt")
+                labels = list(dict.fromkeys(labels))
             create_or_update_issue(
                 owner, repo, si, labels, assignee, dry_run=args.dry_run
             )
@@ -528,11 +542,12 @@ def main() -> int:
             by_component.setdefault(si.component, []).append(si)
         for component, group in by_component.items():
             labels = list(all_labels)
-            if any(si.type == "BUG" for si in group):
-                labels.append("bug")
-            else:
-                labels.append("tech-debt")
-            labels = list(dict.fromkeys(labels))
+            if labels:
+                if any(si.type == "BUG" for si in group):
+                    labels.append("bug")
+                else:
+                    labels.append("tech-debt")
+                labels = list(dict.fromkeys(labels))
             create_or_update_file_issue(
                 owner,
                 repo,
