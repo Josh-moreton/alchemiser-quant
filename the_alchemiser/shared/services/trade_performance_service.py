@@ -165,8 +165,8 @@ class TradePerformanceService:
                 return summary.realized_pnl
         return Decimal("0")
 
-    def _get_symbol_realized_pnl(self, summaries: list[PerformanceSummary], symbol: str) -> Decimal:
-        """Get realized P&L for a specific symbol across all strategies."""
+    def _get_symbol_total_realized_pnl(self, summaries: list[PerformanceSummary], symbol: str) -> Decimal:
+        """Get total realized P&L for a specific symbol across all strategies."""
         return sum(
             (s.realized_pnl for s in summaries if s.symbol == symbol),
             Decimal("0"),
