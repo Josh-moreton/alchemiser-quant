@@ -7,9 +7,18 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class ExecutionStatus(str, Enum):
+    """Execution status classification."""
+
+    SUCCESS = "success"  # All orders succeeded
+    PARTIAL_SUCCESS = "partial_success"  # Some orders succeeded, some failed
+    FAILURE = "failure"  # All orders failed or no orders placed
 
 
 class OrderResult(BaseModel):
@@ -42,6 +51,7 @@ class ExecutionResult(BaseModel):
     )
 
     success: bool = Field(..., description="Overall execution success")
+    status: ExecutionStatus = Field(..., description="Detailed execution status classification")
     plan_id: str = Field(..., description="Rebalance plan ID")
     correlation_id: str = Field(..., description="Correlation ID for traceability")
     orders: list[OrderResult] = Field(default_factory=list, description="Individual order results")
@@ -52,6 +62,33 @@ class ExecutionResult(BaseModel):
     metadata: dict[str, Any] | None = Field(
         default=None, description="Additional execution metadata only"
     )  # Arbitrary JSON-serializable metadata for serialization only; type safety is not required, so Any is justified.
+
+    @classmethod
+    def classify_execution_status(
+        cls, orders_placed: int, orders_succeeded: int
+    ) -> tuple[bool, ExecutionStatus]:
+        """Classify execution status based on order results.
+
+        Args:
+            orders_placed: Total number of orders placed
+            orders_succeeded: Number of orders that succeeded
+
+        Returns:
+            Tuple of (success_flag, status_classification)
+
+        """
+        if orders_placed == 0:
+            return False, ExecutionStatus.FAILURE
+        if orders_succeeded == orders_placed:
+            return True, ExecutionStatus.SUCCESS
+        if orders_succeeded > 0:
+            return False, ExecutionStatus.PARTIAL_SUCCESS  # Some succeeded, some failed
+        return False, ExecutionStatus.FAILURE
+
+    @property
+    def is_partial_success(self) -> bool:
+        """Check if execution was a partial success."""
+        return self.status == ExecutionStatus.PARTIAL_SUCCESS
 
     @property
     def success_rate(self) -> float:
