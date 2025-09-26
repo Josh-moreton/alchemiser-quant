@@ -46,9 +46,9 @@ class ApplicationContainer(containers.DeclarativeContainer):
         import importlib
 
         execution_config_module = importlib.import_module("the_alchemiser.execution_v2.config")
-        ExecutionProviders = execution_config_module.ExecutionProviders
+        execution_providers = execution_config_module.ExecutionProviders
 
-        execution_container = ExecutionProviders()
+        execution_container = execution_providers()
         execution_container.infrastructure.alpaca_manager.override(
             container.infrastructure.alpaca_manager
         )
