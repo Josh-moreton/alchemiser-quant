@@ -72,3 +72,6 @@ tests/snapshots/*
 
 # Temporary investigation files
 /tmp/
+test_fix_validation.py
+test_execution_classification.py
+FIX_VALIDATION_SUMMARY.md
