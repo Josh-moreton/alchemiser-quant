@@ -14,6 +14,8 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.schemas.broker import OrderExecutionResult
+from the_alchemiser.shared.types.market_data import QuoteModel
 
 from .models import (
     ExecutionConfig,
@@ -323,147 +325,20 @@ class RepegManager:
 
         """
         try:
-            # Cancel the existing order
-            logger.info(f"❌ Canceling order {order_id} for re-pegging")
-            # Use asyncio.to_thread to make blocking I/O async
-            cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
-
-            if not cancel_success:
-                logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
+            # Cancel existing order and wait for confirmation
+            if not await self._cancel_and_wait_for_order(order_id):
                 return False
 
-            # Wait for actual cancellation to complete and buying power to be released
-            logger.debug(f"⏳ Waiting for order {order_id} cancellation to complete...")
-            cancellation_confirmed = await asyncio.to_thread(
-                self._wait_for_order_cancellation, order_id, timeout_seconds=10.0
-            )
-
-            if not cancellation_confirmed:
-                logger.warning(
-                    f"⚠️ Order {order_id} cancellation did not complete within timeout, skipping re-peg"
-                )
+            # Get quote and calculate new price
+            price_data = await self._calculate_repeg_price(order_id, request)
+            if not price_data:
                 return False
 
-            logger.debug(f"✅ Order {order_id} cancellation confirmed, buying power released")
+            quote, new_price, quantized_price = price_data
 
-            # Get current market data
-            validated = self.quote_provider.get_quote_with_validation(request.symbol)
-            if not validated:
-                logger.warning(f"⚠️ No valid quote for {request.symbol}, skipping re-peg")
-                return False
-
-            quote, _ = validated
-
-            # Calculate more aggressive price for re-peg
-            original_anchor = self.order_tracker.get_anchor_price(order_id)
-            price_history = self.order_tracker.get_price_history(order_id)
-            new_price = self.pricing_calculator.calculate_repeg_price(
-                quote, request.side, original_anchor, price_history
-            )
-
-            if not new_price:
-                logger.warning(f"⚠️ Cannot calculate re-peg price for {request.symbol}")
-                return False
-
-            # Additional validation to ensure price is positive and reasonable
-            if new_price <= Decimal("0.01"):
-                logger.error(
-                    f"⚠️ Invalid re-peg price ${new_price} for {request.symbol} {request.side}, "
-                    f"price must be > $0.01. Skipping re-peg."
-                )
-                return None
-
-            # Update tracking BEFORE placing new order to ensure count persistence
-            old_repeg_count = self.order_tracker.get_repeg_count(order_id)
-            new_repeg_count = old_repeg_count + 1
-
-            logger.info(
-                f"📈 Re-pegging {request.symbol} {request.side} from "
-                f"${original_anchor} to ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order})"
-            )
-
-            # Ensure price is properly quantized to avoid sub-penny precision errors
-            quantized_price = new_price.quantize(Decimal("0.01"))
-
-            # Final validation before placing order
-            if quantized_price <= 0:
-                logger.error(
-                    f"⚠️ Quantized re-peg price ${quantized_price} is invalid for {request.symbol}. "
-                    f"This should not happen after validation - skipping re-peg."
-                )
-                return False
-
-            # Use asyncio.to_thread to make blocking I/O async
-            executed_order = await asyncio.to_thread(
-                self.alpaca_manager.place_limit_order,
-                symbol=request.symbol,
-                side=request.side.lower(),
-                quantity=float(request.quantity),
-                limit_price=float(quantized_price),
-                time_in_force="day",
-            )
-
-            # Only proceed if placement succeeded and order_id looks valid (UUID)
-            if getattr(executed_order, "success", False) and executed_order.order_id:
-                is_valid_uuid = False
-                try:
-                    import uuid as _uuid
-
-                    _uuid.UUID(str(executed_order.order_id))
-                    is_valid_uuid = True
-                except Exception:
-                    is_valid_uuid = False
-
-                if is_valid_uuid:
-                    # Update tracking with new order ID and preserve count
-                    self.order_tracker.update_order(
-                        order_id, executed_order.order_id, new_price, datetime.now(UTC)
-                    )
-
-                    logger.info(
-                        f"✅ Re-peg successful: new order {executed_order.order_id} "
-                        f"at ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order})"
-                    )
-
-                    metadata_dict: LiquidityMetadata = {
-                        "original_order_id": order_id,
-                        "original_price": (float(original_anchor) if original_anchor else None),
-                        "new_price": float(new_price),
-                        "bid_price": quote.bid_price,
-                        "ask_price": quote.ask_price,
-                        "spread_percent": (quote.ask_price - quote.bid_price)
-                        / quote.bid_price
-                        * 100,
-                        "bid_size": quote.bid_size,
-                        "ask_size": quote.ask_size,
-                    }
-                    return SmartOrderResult(
-                        success=True,
-                        order_id=executed_order.order_id,
-                        final_price=new_price,
-                        anchor_price=original_anchor,
-                        repegs_used=new_repeg_count,
-                        execution_strategy=f"smart_repeg_{new_repeg_count}",
-                        placement_timestamp=datetime.now(UTC),
-                        metadata=metadata_dict,
-                    )
-                logger.warning(
-                    "⚠️ Re-peg placement returned non-UUID order_id; skipping tracking update"
-                )
-                return SmartOrderResult(
-                    success=False,
-                    error_message="Re-peg returned invalid order ID",
-                    execution_strategy="smart_repeg_failed",
-                    repegs_used=new_repeg_count,
-                )
-
-            # If we get here, placement did not succeed or no order_id
-            logger.error(f"❌ Re-peg failed for {request.symbol}: no valid order ID returned")
-            return SmartOrderResult(
-                success=False,
-                error_message="Re-peg order placement failed",
-                execution_strategy="smart_repeg_failed",
-                repegs_used=new_repeg_count,
+            # Place new order and handle result
+            return await self._place_repeg_order(
+                order_id, request, quote, new_price, quantized_price
             )
 
         except Exception as e:
@@ -473,6 +348,229 @@ class RepegManager:
                 error_message=str(e),
                 execution_strategy="smart_repeg_error",
             )
+
+    async def _cancel_and_wait_for_order(self, order_id: str) -> bool:
+        """Cancel order and wait for confirmation.
+
+        Args:
+            order_id: Order ID to cancel
+
+        Returns:
+            True if cancellation successful, False otherwise
+
+        """
+        logger.info(f"❌ Canceling order {order_id} for re-pegging")
+        cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
+
+        if not cancel_success:
+            logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
+            return False
+
+        logger.debug(f"⏳ Waiting for order {order_id} cancellation to complete...")
+        cancellation_confirmed = await asyncio.to_thread(
+            self._wait_for_order_cancellation, order_id, timeout_seconds=10.0
+        )
+
+        if not cancellation_confirmed:
+            logger.warning(
+                f"⚠️ Order {order_id} cancellation did not complete within timeout, skipping re-peg"
+            )
+            return False
+
+        logger.debug(f"✅ Order {order_id} cancellation confirmed, buying power released")
+        return True
+
+    async def _calculate_repeg_price(
+        self, order_id: str, request: SmartOrderRequest
+    ) -> tuple[QuoteModel, Decimal, Decimal] | None:
+        """Calculate and validate new repeg price.
+
+        Args:
+            order_id: Order ID for tracking data
+            request: Original order request
+
+        Returns:
+            Tuple of (quote, new_price, quantized_price) or None if invalid
+
+        """
+        # Get current market data
+        validated = self.quote_provider.get_quote_with_validation(request.symbol)
+        if not validated:
+            logger.warning(f"⚠️ No valid quote for {request.symbol}, skipping re-peg")
+            return None
+
+        quote, _ = validated
+
+        # Calculate more aggressive price for re-peg
+        original_anchor = self.order_tracker.get_anchor_price(order_id)
+        price_history = self.order_tracker.get_price_history(order_id)
+        new_price = self.pricing_calculator.calculate_repeg_price(
+            quote, request.side, original_anchor, price_history
+        )
+
+        if not new_price:
+            logger.warning(f"⚠️ Cannot calculate re-peg price for {request.symbol}")
+            return None
+
+        # Validate price is positive and reasonable
+        if new_price <= Decimal("0.01"):
+            logger.error(
+                f"⚠️ Invalid re-peg price ${new_price} for {request.symbol} {request.side}, "
+                f"price must be > $0.01. Skipping re-peg."
+            )
+            return None
+
+        # Ensure price is properly quantized
+        quantized_price = new_price.quantize(Decimal("0.01"))
+        if quantized_price <= 0:
+            logger.error(
+                f"⚠️ Quantized re-peg price ${quantized_price} is invalid for {request.symbol}. "
+                f"This should not happen after validation - skipping re-peg."
+            )
+            return None
+
+        return quote, new_price, quantized_price
+
+    async def _place_repeg_order(
+        self,
+        order_id: str,
+        request: SmartOrderRequest,
+        quote: QuoteModel,
+        new_price: Decimal,
+        quantized_price: Decimal,
+    ) -> SmartOrderResult:
+        """Place repeg order and handle result.
+
+        Args:
+            order_id: Original order ID
+            request: Original order request
+            quote: Market quote data
+            new_price: Calculated new price
+            quantized_price: Quantized price for order
+
+        Returns:
+            SmartOrderResult with operation outcome
+
+        """
+        # Update tracking before placing order
+        old_repeg_count = self.order_tracker.get_repeg_count(order_id)
+        new_repeg_count = old_repeg_count + 1
+        original_anchor = self.order_tracker.get_anchor_price(order_id)
+
+        logger.info(
+            f"📈 Re-pegging {request.symbol} {request.side} from "
+            f"${original_anchor} to ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order})"
+        )
+
+        # Place the order
+        executed_order = await asyncio.to_thread(
+            self.alpaca_manager.place_limit_order,
+            symbol=request.symbol,
+            side=request.side.lower(),
+            quantity=float(request.quantity),
+            limit_price=float(quantized_price),
+            time_in_force="day",
+        )
+
+        return self._handle_repeg_order_result(
+            executed_order, order_id, request, quote, new_price, original_anchor, new_repeg_count
+        )
+
+    def _handle_repeg_order_result(
+        self,
+        executed_order: OrderExecutionResult,
+        order_id: str,
+        request: SmartOrderRequest,
+        quote: QuoteModel,
+        new_price: Decimal,
+        original_anchor: Decimal | None,
+        new_repeg_count: int,
+    ) -> SmartOrderResult:
+        """Handle the result of repeg order placement.
+
+        Args:
+            executed_order: Result from order placement
+            order_id: Original order ID
+            request: Original order request
+            quote: Market quote data
+            new_price: New price used
+            original_anchor: Original anchor price
+            new_repeg_count: New repeg count
+
+        Returns:
+            SmartOrderResult with operation outcome
+
+        """
+        if not (executed_order.success and executed_order.order_id):
+            logger.error(f"❌ Re-peg failed for {request.symbol}: no valid order ID returned")
+            return SmartOrderResult(
+                success=False,
+                error_message="Re-peg order placement failed",
+                execution_strategy="smart_repeg_failed",
+                repegs_used=new_repeg_count,
+            )
+
+        # Validate UUID
+        if not self._is_valid_uuid(executed_order.order_id):
+            logger.warning(
+                "⚠️ Re-peg placement returned non-UUID order_id; skipping tracking update"
+            )
+            return SmartOrderResult(
+                success=False,
+                error_message="Re-peg returned invalid order ID",
+                execution_strategy="smart_repeg_failed",
+                repegs_used=new_repeg_count,
+            )
+
+        # Success - update tracking and create result
+        self.order_tracker.update_order(
+            order_id, executed_order.order_id, new_price, datetime.now(UTC)
+        )
+
+        logger.info(
+            f"✅ Re-peg successful: new order {executed_order.order_id} "
+            f"at ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order})"
+        )
+
+        metadata_dict: LiquidityMetadata = {
+            "original_order_id": order_id,
+            "original_price": (float(original_anchor) if original_anchor else None),
+            "new_price": float(new_price),
+            "bid_price": quote.bid_price,
+            "ask_price": quote.ask_price,
+            "spread_percent": (quote.ask_price - quote.bid_price) / quote.bid_price * 100,
+            "bid_size": quote.bid_size,
+            "ask_size": quote.ask_size,
+        }
+
+        return SmartOrderResult(
+            success=True,
+            order_id=executed_order.order_id,
+            final_price=new_price,
+            anchor_price=original_anchor,
+            repegs_used=new_repeg_count,
+            execution_strategy=f"smart_repeg_{new_repeg_count}",
+            placement_timestamp=datetime.now(UTC),
+            metadata=metadata_dict,
+        )
+
+    def _is_valid_uuid(self, order_id: str) -> bool:
+        """Check if order ID is a valid UUID.
+
+        Args:
+            order_id: Order ID to validate
+
+        Returns:
+            True if valid UUID, False otherwise
+
+        """
+        try:
+            import uuid as _uuid
+
+            _uuid.UUID(str(order_id))
+            return True
+        except Exception:
+            return False
 
     def _wait_for_order_cancellation(self, order_id: str, timeout_seconds: float = 10.0) -> bool:
         """Wait for an order to be actually cancelled and buying power released.
