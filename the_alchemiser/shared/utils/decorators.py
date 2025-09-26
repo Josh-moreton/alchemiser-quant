@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Callable
-from typing import TypeVar
 
 from the_alchemiser.shared.types.exceptions import (
     ConfigurationError,
@@ -21,15 +20,13 @@ from the_alchemiser.shared.types.exceptions import (
     TradingClientError,
 )
 
-F = TypeVar("F", bound=Callable[..., object])
-
 # Type alias for flexible default return values in decorators
 DefaultReturn = (
     str | int | float | bool | dict[str, object] | list[object] | None
 )  # Generic function type for decorators
 
 
-def translate_service_errors(
+def translate_service_errors[F: Callable[..., object]](
     error_types: dict[type[Exception], type[Exception]] | None = None,
     default_return: DefaultReturn = None,
 ) -> Callable[[F], F]:
@@ -82,7 +79,7 @@ def translate_service_errors(
     return decorator
 
 
-def translate_market_data_errors(
+def translate_market_data_errors[F: Callable[..., object]](
     default_return: DefaultReturn = None,
 ) -> Callable[[F], F]:  # Flexible default return for any function type
     """Translate market data service error translation."""
@@ -97,7 +94,7 @@ def translate_market_data_errors(
     )
 
 
-def translate_trading_errors(
+def translate_trading_errors[F: Callable[..., object]](
     default_return: DefaultReturn = None,
 ) -> Callable[[F], F]:  # Flexible default return for any function type
     """Translate trading service error translation."""
@@ -112,7 +109,7 @@ def translate_trading_errors(
     )
 
 
-def translate_streaming_errors(
+def translate_streaming_errors[F: Callable[..., object]](
     default_return: DefaultReturn = None,
 ) -> Callable[[F], F]:  # Flexible default return for any function type
     """Translate streaming service error translation."""
@@ -126,7 +123,7 @@ def translate_streaming_errors(
     )
 
 
-def translate_config_errors(
+def translate_config_errors[F: Callable[..., object]](
     default_return: DefaultReturn = None,
 ) -> Callable[[F], F]:  # Flexible default return for any function type
     """Translate configuration error translation."""
