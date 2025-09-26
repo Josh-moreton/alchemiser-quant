@@ -29,15 +29,10 @@ jobs:
               uses: warchant/setup-sonar-scanner@v7
 
             - name: Run SonarCloud Scan
-              env:
-                  SONAR_HOST_URL: https://sonarcloud.io
-                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-                  SONAR_ORGANIZATION: josh-moreton
               run: |
                   sonar-scanner \
-                    -Dsonar.login=${SONAR_TOKEN} \
-                    -Dsonar.host.url=${SONAR_HOST_URL} \
-                    -Dsonar.organization=${SONAR_ORGANIZATION}
+                    -Dsonar.host.url=https://sonarcloud.io \
+                    -Dsonar.organization=josh-moreton
 
             - name: Set up Python for sync
               if: ${{ success() }}
@@ -55,7 +50,6 @@ jobs:
               if: ${{ success() }}
               env:
                   SONAR_HOST_URL: https://sonarcloud.io
-                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
                   SONAR_ORGANIZATION: josh-moreton
                   GITHUB_TOKEN: ${{ github.token }}
                   GITHUB_REPOSITORY: ${{ github.repository }}
