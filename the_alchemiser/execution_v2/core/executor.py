@@ -6,31 +6,22 @@ Core executor for order placement and smart execution.
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
-from decimal import ROUND_DOWN, Decimal
-from typing import TYPE_CHECKING, Any, TypedDict
+from decimal import Decimal
+from typing import TYPE_CHECKING
 
+from the_alchemiser.execution_v2.core.market_execution import MarketExecution
+from the_alchemiser.execution_v2.core.rebalance_workflow import RebalanceWorkflow
 from the_alchemiser.execution_v2.core.smart_execution_strategy import (
     SmartExecutionStrategy,
     SmartOrderRequest,
     SmartOrderResult,
 )
-from the_alchemiser.execution_v2.models.execution_result import (
-    ExecutionResultDTO,
-    ExecutionStatus,
-    OrderResultDTO,
-)
-from the_alchemiser.execution_v2.utils.execution_validator import (
-    ExecutionValidator,
-    OrderValidationResult,
-)
+from the_alchemiser.execution_v2.core.subscription_service import SubscriptionService
+from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
+from the_alchemiser.execution_v2.utils.execution_validator import ExecutionValidator
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.schemas.execution_report import ExecutedOrderDTO
 from the_alchemiser.shared.schemas.execution_result import ExecutionResult
-from the_alchemiser.shared.schemas.rebalance_plan import (
-    RebalancePlanDTO,
-    RebalancePlanItemDTO,
-)
+from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanDTO
 from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 from the_alchemiser.shared.services.websocket_manager import WebSocketConnectionManager
@@ -43,16 +34,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ExecutionStats(TypedDict):
-    """Statistics for execution phase results."""
-
-    placed: int
-    succeeded: int
-    trade_value: Decimal
-
-
 class Executor:
-    """Core executor for order placement."""
+    """Core executor for order placement - refactored to use modular collaborators."""
 
     def __init__(
         self,
@@ -73,13 +56,10 @@ class Executor:
         self.enable_smart_execution = enable_smart_execution
         self.execution_config = execution_config
 
-        # Initialize execution validator for preflight checks
-        self.validator = ExecutionValidator(alpaca_manager)
-
-        # Initialize buying power service for verification
-        self.buying_power_service = BuyingPowerService(alpaca_manager)
-
-        # Initialize pricing service for smart execution
+        # Initialize core collaborators
+        self.market_execution = MarketExecution(alpaca_manager)
+        
+        # Initialize WebSocket and pricing services for smart execution
         self.pricing_service: RealTimePricingService | None = None
         self.smart_strategy: SmartExecutionStrategy | None = None
         self.websocket_manager = None
@@ -98,22 +78,36 @@ class Executor:
 
                 # Get shared pricing service
                 self.pricing_service = self.websocket_manager.get_pricing_service()
-                logger.info("✅ Using shared real-time pricing service")
 
-                # Create smart execution strategy with shared service
+                # Initialize smart execution strategy
                 self.smart_strategy = SmartExecutionStrategy(
                     alpaca_manager=alpaca_manager,
                     pricing_service=self.pricing_service,
                     config=execution_config,
                 )
-                logger.info("✅ Smart execution strategy initialized with shared WebSocket")
 
-            except Exception as e:
-                logger.error(f"❌ Error initializing smart execution: {e}", exc_info=True)
+                logger.info("✅ Smart execution initialization complete")
+            except Exception as exc:
+                logger.warning(f"⚠️ Smart execution initialization failed: {exc}")
                 self.enable_smart_execution = False
-                self.pricing_service = None
-                self.smart_strategy = None
-                self.websocket_manager = None
+
+        # Initialize workflow orchestrator with all dependencies
+        self.rebalance_workflow = RebalanceWorkflow(
+            alpaca_manager=alpaca_manager,
+            pricing_service=self.pricing_service,
+            smart_strategy=self.smart_strategy,
+            execution_config=execution_config,
+        )
+        
+        # Initialize subscription service
+        self.subscription_service = SubscriptionService(
+            pricing_service=self.pricing_service,
+            enable_subscriptions=enable_smart_execution,
+        )
+
+        # Keep backward compatibility attributes
+        self.validator = self.market_execution.validator
+        self.buying_power_service = self.market_execution.buying_power_service
 
     def __del__(self) -> None:
         """Clean up WebSocket connection when executor is destroyed."""
@@ -177,7 +171,7 @@ class Executor:
 
         # Fallback to regular market order
         logger.info(f"📈 Using standard market order for {symbol}")
-        return self._execute_market_order(symbol, side, Decimal(str(quantity)))
+        return self.market_execution.execute_market_order(symbol, side, Decimal(str(quantity)))
 
     def _execute_market_order(self, symbol: str, side: str, quantity: Decimal) -> ExecutionResult:
         """Execute a standard market order with preflight validation.
@@ -352,11 +346,7 @@ class Executor:
     async def execute_rebalance_plan(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
         """Execute a rebalance plan with settlement-aware sell-first, buy-second workflow.
 
-        Enhanced execution flow:
-        1. Extract and bulk-subscribe to all symbols upfront
-        2. Execute SELL orders in parallel where possible
-        3. Monitor settlement and buying power release
-        4. Execute BUY orders once sufficient buying power is available
+        Delegates to RebalanceWorkflow for orchestration while maintaining backward compatibility.
 
         Args:
             plan: RebalancePlanDTO containing the rebalance plan
@@ -365,142 +355,18 @@ class Executor:
             ExecutionResultDTO with execution results
 
         """
-        logger.info(
-            f"🚀 Executing rebalance plan {plan.plan_id} with {len(plan.items)} items "
-            "(enhanced settlement-aware)"
-        )
-
-        # Check for stale orders to free up buying power
-        logger.debug("About to check for stale orders...")
-
-        # Cancel any stale orders to free up buying power
-        stale_timeout_minutes = 30  # Default timeout
-        if self.execution_config:
-            stale_timeout_minutes = self.execution_config.stale_order_timeout_minutes
-            logger.debug(f"Using execution_config timeout: {stale_timeout_minutes}")
-        else:
-            logger.debug("No execution_config found, using default timeout")
-
-        logger.info(f"🧹 Checking for stale orders (older than {stale_timeout_minutes} minutes)...")
-        stale_result = self.alpaca_manager.cancel_stale_orders(stale_timeout_minutes)
-        logger.debug(f"Stale order result: {stale_result}")
-
-        if stale_result["cancelled_count"] > 0:
-            logger.info(f"🗑️ Cancelled {stale_result['cancelled_count']} stale orders")
-        if stale_result["errors"]:
-            logger.warning(f"⚠️ Errors during stale order cancellation: {stale_result['errors']}")
-
-        # Extract all symbols upfront for bulk subscription
-        all_symbols = self._extract_all_symbols(plan)
-
-        # Bulk subscribe to all symbols for efficient pricing
-        self._bulk_subscribe_symbols(all_symbols)
-
-        # Separate orders by type
-        sell_items = [item for item in plan.items if item.action == "SELL"]
-        buy_items = [item for item in plan.items if item.action == "BUY"]
-        hold_items = [item for item in plan.items if item.action == "HOLD"]
-
-        logger.info(
-            f"📊 Execution plan: {len(sell_items)} SELLs, {len(buy_items)} BUYs, "
-            f"{len(hold_items)} HOLDs"
-        )
-
-        orders: list[OrderResultDTO] = []
-        orders_placed = 0
-        orders_succeeded = 0
-        total_trade_value = Decimal("0")
-
-        # Phase 1: Execute SELL orders and monitor settlement
-        sell_order_ids: list[str] = []
-        if sell_items:
-            logger.info("🔄 Phase 1: Executing SELL orders with settlement monitoring...")
-
-            sell_orders, sell_stats = await self._execute_sell_phase(
-                sell_items, plan.correlation_id
-            )
-            orders.extend(sell_orders)
-            orders_placed += sell_stats["placed"]
-            orders_succeeded += sell_stats["succeeded"]
-            total_trade_value += sell_stats["trade_value"]
-
-            # Collect successful sell order IDs for settlement monitoring
-            sell_order_ids = [
-                order.order_id for order in sell_orders if order.success and order.order_id
-            ]
-
-        # Phase 2: Monitor settlement and execute BUY orders
-        if buy_items and sell_order_ids:
-            logger.info("🔄 Phase 2: Monitoring settlement and executing BUY orders...")
-
-            # Wait for settlement and then execute buys
-            buy_orders, buy_stats = await self._execute_buy_phase_with_settlement_monitoring(
-                buy_items, sell_order_ids, plan.correlation_id, plan.plan_id
-            )
-
-            orders.extend(buy_orders)
-            orders_placed += buy_stats["placed"]
-            orders_succeeded += buy_stats["succeeded"]
-            total_trade_value += buy_stats["trade_value"]
-
-        elif buy_items:
-            # No sells to wait for, execute buys immediately
-            logger.info("🔄 Phase 2: Executing BUY orders (no settlement monitoring needed)...")
-
-            buy_orders, buy_stats = await self._execute_buy_phase(buy_items, plan.correlation_id)
-            orders.extend(buy_orders)
-            orders_placed += buy_stats["placed"]
-            orders_succeeded += buy_stats["succeeded"]
-            total_trade_value += buy_stats["trade_value"]
-
-        # Log HOLD items
-        for item in hold_items:
-            logger.info(f"⏸️ Holding {item.symbol} - no action required")
-
-        # Clean up subscriptions after execution
-        self._cleanup_subscriptions(all_symbols)
-
-        # Classify execution status
-        success, status = ExecutionResultDTO.classify_execution_status(
-            orders_placed, orders_succeeded
-        )
-
-        # Create execution result
-        execution_result = ExecutionResultDTO(
-            success=success,
-            status=status,
-            plan_id=plan.plan_id,
-            correlation_id=plan.correlation_id,
-            orders=orders,
-            orders_placed=orders_placed,
-            orders_succeeded=orders_succeeded,
-            total_trade_value=total_trade_value,
-            execution_timestamp=datetime.now(UTC),
-            metadata={"stale_orders_cancelled": stale_result["cancelled_count"]},
-        )
-
-        # Enhanced logging with status classification
-        status_emoji = (
-            "✅"
-            if status == ExecutionStatus.SUCCESS
-            else "⚠️"
-            if status == ExecutionStatus.PARTIAL_SUCCESS
-            else "❌"
-        )
-        logger.info(
-            f"{status_emoji} Rebalance plan {plan.plan_id} completed: "
-            f"{orders_succeeded}/{orders_placed} orders succeeded (status: {status.value})"
-        )
-
-        # Additional logging for partial success to aid in debugging
-        if status == ExecutionStatus.PARTIAL_SUCCESS:
-            failed_orders = [order for order in orders if not order.success]
-            failed_symbols = [order.symbol for order in failed_orders]
-            logger.warning(
-                f"⚠️ Partial execution: {len(failed_orders)} orders failed for symbols: {failed_symbols}"
-            )
-
-        return execution_result
+        # Extract symbols and setup subscriptions
+        all_symbols = self.subscription_service.extract_all_symbols(plan)
+        subscription_result = self.subscription_service.bulk_subscribe_symbols(all_symbols)
+        
+        try:
+            # Delegate to workflow orchestrator
+            result = await self.rebalance_workflow.execute_rebalance_plan(plan)
+            
+            return result
+        finally:
+            # Clean up subscriptions
+            self.subscription_service.cleanup_subscriptions(all_symbols)
 
     def _extract_all_symbols(self, plan: RebalancePlanDTO) -> list[str]:
         """Extract all symbols from the rebalance plan.

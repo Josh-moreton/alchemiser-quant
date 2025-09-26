@@ -6,9 +6,13 @@ Execution tracking and logging utilities for execution_v2.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanDTO
+
+if TYPE_CHECKING:
+    from the_alchemiser.execution_v2.models.execution_result import OrderResultDTO
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +52,25 @@ class ExecutionTracker:
         """Check execution health and alert on issues."""
         failure_rate = 1.0 - result.success_rate
 
-        if failure_rate > 0.5:  # >50% failure rate
-            logger.critical(f"🚨 HIGH FAILURE RATE: {failure_rate:.1%}")
-        elif failure_rate > 0.2:  # >20% failure rate
-            logger.warning(f"⚠️ Elevated failure rate: {failure_rate:.1%}")
-        elif result.success:
-            logger.info(f"✅ Healthy execution: {result.success_rate:.1%} success rate")
+        if failure_rate > 0.5:  # More than 50% failure rate
+            logger.warning(f"🚨 High execution failure rate: {failure_rate:.1%}")
+        elif failure_rate > 0.2:  # More than 20% failure rate
+            logger.warning(f"⚠️ Elevated execution failure rate: {failure_rate:.1%}")
+
+    @staticmethod
+    def collect_unique_error_messages(orders: list[OrderResultDTO]) -> list[str]:
+        """Collect unique error messages from failed orders.
+        
+        Args:
+            orders: List of OrderResultDTO objects
+            
+        Returns:
+            List of unique error messages
+            
+        """
+        error_messages = set()
+        for order in orders:
+            if not order.success and hasattr(order, 'error_message') and order.error_message:
+                error_messages.add(order.error_message)
+        
+        return sorted(error_messages)
