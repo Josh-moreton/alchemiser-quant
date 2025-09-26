@@ -166,9 +166,18 @@ class SettlementMonitor:
             f"(correlation: {settlement_correlation_id})"
         )
 
-        # Use the buying power service for verification with retry logic
-        is_available, actual_buying_power = self.buying_power_service.verify_buying_power_available(
-            expected_buying_power, max_retries=5, initial_wait=1.0
+        # Calculate retry parameters based on max_wait_seconds
+        # Use exponential backoff: 1s, 2s, 4s, 8s, 16s... 
+        # Estimate total time and adjust retries accordingly
+        max_retries = min(max(1, max_wait_seconds // 2), 8)  # Between 1-8 retries
+        initial_wait = min(1.0, max_wait_seconds / 10.0)  # Start with 10% of max wait
+
+        # Use asyncio.to_thread to make the synchronous call properly async
+        is_available, actual_buying_power = await asyncio.to_thread(
+            self.buying_power_service.verify_buying_power_available,
+            expected_buying_power,
+            max_retries=max_retries,
+            initial_wait=initial_wait,
         )
 
         if is_available:
