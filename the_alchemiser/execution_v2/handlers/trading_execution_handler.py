@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
-from the_alchemiser.shared.constants import DECIMAL_ZERO
+from the_alchemiser.shared.constants import DECIMAL_ZERO, EXECUTION_HANDLERS_MODULE
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
@@ -197,7 +197,7 @@ class TradingExecutionHandler:
                 causation_id=execution_result.correlation_id,  # This is the continuation of the workflow
                 event_id=f"trade-executed-{uuid.uuid4()}",
                 timestamp=datetime.now(UTC),
-                source_module="execution_v2.handlers",
+                source_module=EXECUTION_HANDLERS_MODULE,
                 source_component="TradingExecutionHandler",
                 execution_data={
                     "plan_id": execution_result.plan_id,
@@ -255,7 +255,7 @@ class TradingExecutionHandler:
                 causation_id=execution_result.plan_id,
                 event_id=f"workflow-completed-{uuid.uuid4()}",
                 timestamp=workflow_end,
-                source_module="execution_v2.handlers",
+                source_module=EXECUTION_HANDLERS_MODULE,
                 source_component="TradingExecutionHandler",
                 workflow_type="trading",
                 workflow_duration_ms=workflow_duration_ms,
@@ -291,7 +291,7 @@ class TradingExecutionHandler:
                 causation_id=original_event.event_id,
                 event_id=f"workflow-failed-{uuid.uuid4()}",
                 timestamp=datetime.now(UTC),
-                source_module="execution_v2.handlers",
+                source_module=EXECUTION_HANDLERS_MODULE,
                 source_component="TradingExecutionHandler",
                 workflow_type="trading_execution",
                 failure_reason=error_message,

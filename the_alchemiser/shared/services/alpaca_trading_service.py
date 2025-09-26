@@ -9,6 +9,7 @@ placement, execution monitoring, and smart execution logic.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from datetime import UTC, datetime
@@ -706,6 +707,9 @@ class AlpacaTradingService:
             data: Order update data from TradingStream
 
         """
+        # Yield control to event loop for proper async behavior
+        await asyncio.sleep(0)
+
         try:
             # Extract event and order information
             event_type, order_id, status = self._extract_trading_update_info(data)
