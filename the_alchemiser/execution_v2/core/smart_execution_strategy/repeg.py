@@ -547,41 +547,67 @@ class RepegManager:
                 limit_price=float(limit_price),
                 time_in_force="day",
             )
-        except Exception as e:  # Specific SDK error types can be handled here if exposed
-            error_str = str(e)
-            if "insufficient qty available" in error_str.lower():
-                logger.warning(
-                    f"⚠️ Insufficient quantity available for {request.symbol}. Requested: {quantity}, Error: {error_str}"
-                )
-                import re
-
-                available_match = re.search(r"available: ([\d.]+)", error_str)
-                if available_match:
-                    try:
-                        available_qty = Decimal(available_match.group(1))
-                        min_qty_threshold = Decimal("0.01")
-                        if available_qty > min_qty_threshold:
-                            logger.info(
-                                f"🔄 Retrying re-peg with available quantity: {available_qty}"
-                            )
-                            return await asyncio.to_thread(
-                                self.alpaca_manager.place_limit_order,
-                                symbol=request.symbol,
-                                side=request.side.lower(),
-                                quantity=float(available_qty),
-                                limit_price=float(limit_price),
-                                time_in_force="day",
-                            )
-                        logger.info(
-                            f"✅ Available quantity {available_qty} too small, considering order complete"
-                        )
-                        raise _RemoveFromTracking()
-                    except _RemoveFromTracking:
-                        raise
-                    except Exception as retry_e:  # ValueError or SDK errors
-                        logger.error(f"❌ Retry with available quantity failed: {retry_e}")
-                        raise e
+        except Exception as e:
+            if self._is_insufficient_quantity_error(str(e)):
+                return await self._handle_insufficient_quantity_retry(request, quantity, limit_price, str(e))
             raise e
+
+    def _is_insufficient_quantity_error(self, error_str: str) -> bool:
+        """Check if error indicates insufficient quantity available."""
+        return "insufficient qty available" in error_str.lower()
+
+    def _extract_available_quantity(self, error_str: str) -> Decimal | None:
+        """Extract available quantity from broker error message."""
+        import re
+        
+        available_match = re.search(r"available: ([\d.]+)", error_str)
+        if available_match:
+            try:
+                return Decimal(available_match.group(1))
+            except Exception:
+                return None
+        return None
+
+    async def _handle_insufficient_quantity_retry(
+        self, request: SmartOrderRequest, requested_quantity: Decimal, limit_price: Decimal, error_str: str
+    ) -> OrderExecutionResult:
+        """Handle retry with available quantity when broker reports insufficiency."""
+        logger.warning(
+            f"⚠️ Insufficient quantity available for {request.symbol}. Requested: {requested_quantity}, Error: {error_str}"
+        )
+        
+        available_qty = self._extract_available_quantity(error_str)
+        if available_qty is None:
+            raise Exception(error_str)
+        
+        return await self._retry_with_available_quantity(request, available_qty, limit_price, error_str)
+
+    async def _retry_with_available_quantity(
+        self, request: SmartOrderRequest, available_qty: Decimal, limit_price: Decimal, original_error: str
+    ) -> OrderExecutionResult:
+        """Retry order placement with the available quantity."""
+        min_qty_threshold = Decimal("0.01")
+        
+        if available_qty <= min_qty_threshold:
+            logger.info(
+                f"✅ Available quantity {available_qty} too small, considering order complete"
+            )
+            raise _RemoveFromTracking()
+        
+        logger.info(f"🔄 Retrying re-peg with available quantity: {available_qty}")
+        
+        try:
+            return await asyncio.to_thread(
+                self.alpaca_manager.place_limit_order,
+                symbol=request.symbol,
+                side=request.side.lower(),
+                quantity=float(available_qty),
+                limit_price=float(limit_price),
+                time_in_force="day",
+            )
+        except Exception as retry_e:
+            logger.error(f"❌ Retry with available quantity failed: {retry_e}")
+            raise Exception(original_error)
 
     def _is_valid_uuid_str(self, value: str) -> bool:
         """Check if provided string is a valid UUID format."""
