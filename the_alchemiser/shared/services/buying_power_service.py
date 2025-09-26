@@ -59,7 +59,7 @@ class BuyingPowerService:
                 result = self._check_buying_power_attempt(expected_amount, attempt)
                 if result is not None:
                     return result
-                
+
                 self._wait_before_retry(attempt, max_retries, initial_wait)
 
             except Exception as e:
@@ -77,11 +77,11 @@ class BuyingPowerService:
         self, expected_amount: Decimal, attempt: int
     ) -> tuple[bool, Decimal] | None:
         """Check buying power for a single attempt.
-        
+
         Args:
             expected_amount: Required buying power amount
             attempt: Current attempt number (0-based)
-            
+
         Returns:
             Tuple of (success, buying_power) if definitive result, None to continue retrying
 
@@ -98,9 +98,7 @@ class BuyingPowerService:
         )
 
         if actual_buying_power >= expected_amount:
-            logger.info(
-                f"✅ Buying power verified: ${actual_buying_power} >= ${expected_amount}"
-            )
+            logger.info(f"✅ Buying power verified: ${actual_buying_power} >= ${expected_amount}")
             return True, actual_buying_power
 
         # Log the shortfall and continue retrying
@@ -113,7 +111,7 @@ class BuyingPowerService:
 
     def _wait_before_retry(self, attempt: int, max_retries: int, initial_wait: int | float) -> None:
         """Wait before retrying with exponential backoff.
-        
+
         Args:
             attempt: Current attempt number (0-based)
             max_retries: Maximum number of retries
@@ -127,16 +125,14 @@ class BuyingPowerService:
 
     def _get_final_buying_power(self) -> Decimal:
         """Get the final buying power after all retry attempts failed.
-        
+
         Returns:
             Final buying power amount, or 0 if retrieval fails
 
         """
         try:
             final_buying_power_raw = self.broker_manager.get_buying_power()
-            return (
-                Decimal(str(final_buying_power_raw)) if final_buying_power_raw else Decimal("0")
-            )
+            return Decimal(str(final_buying_power_raw)) if final_buying_power_raw else Decimal("0")
         except Exception:
             return Decimal("0")
 
