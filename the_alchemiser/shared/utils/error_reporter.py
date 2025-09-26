@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 
 from the_alchemiser.shared.types.exceptions import (
     InsufficientFundsError,
@@ -20,9 +20,6 @@ from the_alchemiser.shared.types.exceptions import (
     OrderExecutionError,
     SecurityError,
 )
-
-if TYPE_CHECKING:
-    pass
 
 
 class NotificationManager(Protocol):
