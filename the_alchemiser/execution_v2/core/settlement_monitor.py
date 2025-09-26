@@ -152,6 +152,10 @@ class SettlementMonitor:
         This addresses the timing issue where Alpaca's account buying_power field
         hasn't been updated yet even though sell orders have settled.
 
+        Note:
+            This retry/backoff handles post-settlement account synchronization only.
+            It is not related to price repegging logic.
+
         Args:
             expected_buying_power: Expected minimum buying power after settlement
             settlement_correlation_id: Correlation ID for tracking
@@ -166,9 +170,30 @@ class SettlementMonitor:
             f"(correlation: {settlement_correlation_id})"
         )
 
-        # Use the buying power service for verification with retry logic
-        is_available, actual_buying_power = self.buying_power_service.verify_buying_power_available(
-            expected_buying_power, max_retries=5, initial_wait=1.0
+        # Calculate retry parameters based on max_wait_seconds with explicit
+        # exponential backoff (1s, 2s, 4s, 8s, ...). Bound the cumulative wait
+        # time to max_wait_seconds and cap retries to a small number to avoid
+        # overly long waits during execution.
+        INITIAL_BACKOFF_SECONDS = 1.0
+        MAX_RETRIES = 8
+        # Compute the maximum retries such that the sum of waits does not exceed max_wait_seconds.
+        total = 0
+        retries = 0
+        while retries < MAX_RETRIES:
+            next_wait = INITIAL_BACKOFF_SECONDS * (2**retries)
+            if total + next_wait > max_wait_seconds:
+                break
+            total += next_wait
+            retries += 1
+        max_retries = max(1, retries)
+        initial_wait = INITIAL_BACKOFF_SECONDS
+
+        # Use asyncio.to_thread to make the synchronous call properly async
+        is_available, actual_buying_power = await asyncio.to_thread(
+            self.buying_power_service.verify_buying_power_available,
+            expected_buying_power,
+            max_retries=max_retries,
+            initial_wait=initial_wait,
         )
 
         if is_available:
