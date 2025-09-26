@@ -182,12 +182,13 @@ class TradingExecutionHandler:
             execution_result = self._execution_adapter.execute_orders(rebalance_plan)
 
             # Update correlation_id in result to match event
-            execution_result = ExecutionResultDTO(
-                **execution_result.model_dump(),
-                correlation_id=event.correlation_id,
-                metadata={
-                    **(execution_result.metadata or {}),
-                    "execution_plan_hash": execution_plan_hash,
+            execution_result = execution_result.model_copy(
+                update={
+                    "correlation_id": event.correlation_id,
+                    "metadata": {
+                        **(execution_result.metadata or {}),
+                        "execution_plan_hash": execution_plan_hash,
+                    }
                 }
             )
 
