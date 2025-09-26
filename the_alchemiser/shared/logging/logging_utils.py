@@ -817,9 +817,11 @@ def _determine_development_log_file(settings: object | None) -> str | None:
     if env_path and env_path.strip():
         return env_path
 
-    if settings and hasattr(settings, "logging") and settings.logging.local_log_file:
-        path = str(settings.logging.local_log_file).strip()
-        return path or None
+    if settings and hasattr(settings, "logging"):
+        local_log_file = getattr(settings.logging, "local_log_file", None)
+        if local_log_file:
+            path = str(local_log_file).strip()
+            return path or None
 
     return None
 
