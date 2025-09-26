@@ -71,6 +71,15 @@ class LiquidityAnalyzer:
         """
         logger.debug(f"Analyzing liquidity for {quote.symbol}: order_size={order_size}")
 
+        # Early validation of quote prices to prevent downstream negative price calculations
+        if quote.bid_price < 0 or quote.ask_price < 0:
+            logger.warning(
+                f"Negative prices detected in quote for {quote.symbol}: "
+                f"bid={quote.bid_price}, ask={quote.ask_price}. This should have been caught earlier."
+            )
+            # Don't fail here - let the existing validation handle it downstream
+            # but log the issue for debugging
+
         # Calculate volume metrics
         total_bid_volume = quote.bid_size
         total_ask_volume = quote.ask_size

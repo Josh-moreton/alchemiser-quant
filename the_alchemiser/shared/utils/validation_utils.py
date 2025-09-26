@@ -174,3 +174,45 @@ def validate_spread_reasonable(
 
     spread = (ask_price - bid_price) / ask_price
     return spread <= (max_spread_percent / 100.0)
+
+
+def detect_suspicious_quote_prices(
+    bid_price: float, ask_price: float, min_price: float = 0.01, max_spread_percent: float = 10.0
+) -> tuple[bool, list[str]]:
+    """Detect if quote prices look suspicious and should trigger REST validation.
+
+    Args:
+        bid_price: Bid price to check
+        ask_price: Ask price to check  
+        min_price: Minimum reasonable price (default $0.01)
+        max_spread_percent: Maximum reasonable spread percentage (default 10%)
+
+    Returns:
+        Tuple of (is_suspicious, list_of_reasons)
+
+    """
+    reasons: list[str] = []
+    
+    # Check for negative prices
+    if bid_price < 0:
+        reasons.append(f"negative bid price: {bid_price}")
+    if ask_price < 0:
+        reasons.append(f"negative ask price: {ask_price}")
+        
+    # Check for unreasonably low prices (penny stocks filter)
+    if 0 < bid_price < min_price:
+        reasons.append(f"bid price too low: {bid_price} < {min_price}")
+    if 0 < ask_price < min_price:
+        reasons.append(f"ask price too low: {ask_price} < {min_price}")
+        
+    # Check for inverted spread (ask < bid when both positive)
+    if bid_price > 0 and ask_price > 0 and ask_price < bid_price:
+        reasons.append(f"inverted spread: ask {ask_price} < bid {bid_price}")
+        
+    # Check for excessive spread (may indicate stale/bad data)
+    if bid_price > 0 and ask_price > 0:
+        spread_percent = ((ask_price - bid_price) / ask_price) * 100
+        if spread_percent > max_spread_percent:
+            reasons.append(f"excessive spread: {spread_percent:.2f}% > {max_spread_percent}%")
+    
+    return len(reasons) > 0, reasons
