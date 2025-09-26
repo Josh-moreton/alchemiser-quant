@@ -821,6 +821,28 @@ def send_error_notification_if_needed() -> ErrorNotificationData | None:
 # Enhanced Error Handling Utilities for Production Resilience
 
 
+def _calculate_jitter_factor(attempt: int) -> float:
+    """Calculate jitter factor for retry delay."""
+    return 0.5 + (hash(str(attempt) + str(int(time.time() * 1000))) % 500) / 1000
+
+
+def _calculate_retry_delay(
+    attempt: int, base_delay: float, backoff_factor: float, max_delay: float, *, jitter: bool
+) -> float:
+    """Calculate retry delay with exponential backoff and optional jitter."""
+    delay = min(base_delay * (backoff_factor**attempt), max_delay)
+    if jitter:
+        delay *= _calculate_jitter_factor(attempt)
+    return delay
+
+
+def _handle_final_retry_attempt(exception: Exception, max_retries: int, func_name: str) -> None:
+    """Handle the final retry attempt by adding context and logging."""
+    if hasattr(exception, "retry_count"):
+        exception.retry_count = max_retries
+    logging.error(f"Function {func_name} failed after {max_retries} retries: {exception}")
+
+
 def retry_with_backoff(
     exceptions: tuple[type[Exception], ...] = (Exception,),
     max_retries: int = 3,
@@ -857,23 +879,11 @@ def retry_with_backoff(
                     last_exception = e
 
                     if attempt == max_retries:
-                        # Add retry context to exception if possible
-                        if hasattr(e, "retry_count"):
-                            e.retry_count = attempt
-                        logging.error(
-                            f"Function {func.__name__} failed after {max_retries} retries: {e}"
-                        )
+                        _handle_final_retry_attempt(e, max_retries, func.__name__)
                         raise
 
-                    # Calculate delay with exponential backoff
-                    delay = min(base_delay * (backoff_factor**attempt), max_delay)
-                    if jitter:
-                        # Add deterministic jitter based on attempt and timestamp
-                        jitter_factor = (
-                            0.5 + (hash(str(attempt) + str(int(time.time() * 1000))) % 500) / 1000
-                        )
-                        delay *= jitter_factor
-
+                    delay = _calculate_retry_delay(attempt, base_delay, backoff_factor, max_delay, jitter=jitter)
+                    
                     logging.warning(
                         f"Attempt {attempt + 1}/{max_retries + 1} failed for {func.__name__}: {e}. "
                         f"Retrying in {delay:.2f}s..."
