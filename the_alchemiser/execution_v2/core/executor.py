@@ -370,20 +370,20 @@ class Executor:
             "(enhanced settlement-aware)"
         )
 
-        # DEBUG: Add explicit debug logging
-        logger.info("🔧 DEBUG: About to check for stale orders...")
+        # Check for stale orders to free up buying power
+        logger.debug("About to check for stale orders...")
 
         # Cancel any stale orders to free up buying power
         stale_timeout_minutes = 30  # Default timeout
         if self.execution_config:
             stale_timeout_minutes = self.execution_config.stale_order_timeout_minutes
-            logger.info(f"🔧 DEBUG: Using execution_config timeout: {stale_timeout_minutes}")
+            logger.debug(f"Using execution_config timeout: {stale_timeout_minutes}")
         else:
-            logger.info("🔧 DEBUG: No execution_config found, using default timeout")
+            logger.debug("No execution_config found, using default timeout")
 
         logger.info(f"🧹 Checking for stale orders (older than {stale_timeout_minutes} minutes)...")
         stale_result = self.alpaca_manager.cancel_stale_orders(stale_timeout_minutes)
-        logger.info(f"🔧 DEBUG: Stale order result: {stale_result}")
+        logger.debug(f"Stale order result: {stale_result}")
 
         if stale_result["cancelled_count"] > 0:
             logger.info(f"🗑️ Cancelled {stale_result['cancelled_count']} stale orders")
@@ -514,7 +514,7 @@ class Executor:
         """
         symbols = {item.symbol for item in plan.items if item.action in ["BUY", "SELL"]}
         sorted_symbols = sorted(symbols)
-        logger.info(f"📋 Extracted {len(sorted_symbols)} unique symbols for execution")
+        logger.debug(f"📋 Extracted {len(sorted_symbols)} unique symbols for execution")
         return sorted_symbols
 
     def _bulk_subscribe_symbols(self, symbols: list[str]) -> dict[str, bool]:
@@ -771,8 +771,8 @@ class Executor:
 
     def _log_monitoring_config(self, phase_type: str, config: dict[str, int]) -> None:
         """Log the monitoring configuration parameters."""
-        logger.info(
-            f"📊 {phase_type} re-peg monitoring: max_repegs={config['max_repegs']}, "
+        logger.debug(
+            f"{phase_type} re-peg monitoring: max_repegs={config['max_repegs']}, "
             f"fill_wait_seconds={config['fill_wait_seconds']}, max_total_wait={config['max_total_wait']}s"
         )
 
@@ -863,9 +863,9 @@ class Executor:
             f"(repegs: {repegs}, escalations: {escalations}) at {elapsed_total:.1f}s"
         )
 
-        # Log escalations prominently
+        # Log escalations prominently as warnings
         if escalations > 0:
-            logger.info(f"🚨 {phase_type} phase: {escalations} orders ESCALATED TO MARKET")
+            logger.warning(f"🚨 {phase_type} phase: {escalations} orders ESCALATED TO MARKET")
 
         replacement_map = self._build_replacement_map_from_repeg_results(phase_type, repeg_results)
         if replacement_map:
@@ -1188,13 +1188,14 @@ class Executor:
         strategy = getattr(repeg_result, "execution_strategy", "")
         order_id = getattr(repeg_result, "order_id", "")
         repegs_used = getattr(repeg_result, "repegs_used", 0)
+        symbol = getattr(repeg_result, "symbol", "")
 
         if "escalation" in strategy:
-            logger.info(
-                f"🚨 {phase_type} ESCALATED_TO_MARKET: {order_id} (after {repegs_used} re-pegs)"
+            logger.warning(
+                f"🚨 {phase_type} ESCALATED_TO_MARKET: {symbol} {order_id} (after {repegs_used} re-pegs)"
             )
         else:
-            logger.info(f"✅ {phase_type} REPEG {repegs_used}/5: {order_id}")
+            logger.debug(f"✅ {phase_type} REPEG {repegs_used}/5: {symbol} {order_id}")
 
     def _extract_order_ids(self, repeg_result: Any) -> tuple[str, str]:  # noqa: ANN401
         """Extract original and new order IDs from repeg result.
