@@ -509,7 +509,7 @@ class TradingSystemErrorHandler:
         ]
 
         # Initialize summary with all categories as None
-        summary: dict[str, Any] = dict.fromkeys([key for _, key in category_mappings])
+        summary: dict[str, Any] = dict.fromkeys(key for _, key in category_mappings)
 
         # Process each category using the helper function
         for category, summary_key in category_mappings:
