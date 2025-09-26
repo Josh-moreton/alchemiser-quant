@@ -24,6 +24,7 @@ NO_TRADES_REQUIRED = "📋 No trades required (portfolio balanced)"
 # Module identifiers
 CLI_DEPLOY_COMPONENT = "cli.deploy"
 DSL_ENGINE_MODULE = "strategy_v2.engines.dsl"
+EXECUTION_HANDLERS_MODULE = "execution_v2.handlers"
 
 # Event schema descriptions
 EVENT_SCHEMA_VERSION_DESCRIPTION = "Event schema version"
@@ -66,6 +67,7 @@ __all__ = [
     "DSL_ENGINE_MODULE",
     "EVENT_SCHEMA_VERSION_DESCRIPTION",
     "EVENT_TYPE_DESCRIPTION",
+    "EXECUTION_HANDLERS_MODULE",
     "MIN_TRADE_AMOUNT_USD",
     "NO_TRADES_REQUIRED",
     "ORDER_SIDES",

@@ -31,7 +31,10 @@ from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 from the_alchemiser.shared.schemas.consolidated_portfolio import (
     ConsolidatedPortfolioDTO,
 )
-from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanDTO
+from the_alchemiser.shared.schemas.rebalance_plan import (
+    RebalancePlanDTO,
+    RebalancePlanItem,
+)
 
 
 def _to_float_safe(value: object) -> float:
@@ -386,6 +389,8 @@ class PortfolioAnalysisHandler:
                     total_trade_value=Decimal("0"),
                     metadata={"scenario": "no_trades_needed"},
                 )
+            self._log_final_rebalance_plan_summary(rebalance_plan)
+
             event = RebalancePlanned(
                 correlation_id=correlation_id,
                 causation_id=correlation_id,  # This event is caused by the signal generation
@@ -414,6 +419,120 @@ class PortfolioAnalysisHandler:
         except Exception as e:
             self.logger.error(f"Failed to emit RebalancePlanned event: {e}")
             raise
+
+    def _extract_trade_values(self, item: RebalancePlanItem) -> tuple[str, str, float]:
+        """Extract action, symbol, and trade amount from a rebalance item.
+
+        Args:
+            item: Rebalance plan item
+
+        Returns:
+            Tuple of (action, symbol, trade_amount)
+
+        """
+        # With a typed DTO we can access fields directly; keep defensive conversion
+        action = item.action.upper()
+        symbol = item.symbol
+        try:
+            trade_amount = abs(float(item.trade_amount))
+        except (TypeError, ValueError):
+            trade_amount = 0.0
+
+        return action, symbol, trade_amount
+
+    def _calculate_weight_percentages(
+        self,
+        item: RebalancePlanItem,
+        total_portfolio_value: Decimal,
+        *,
+        has_portfolio_value: bool,
+    ) -> tuple[float, float]:
+        """Calculate target and current weight percentages for a rebalance item.
+
+        Args:
+            item: Rebalance plan item
+            total_portfolio_value: Total portfolio value
+            has_portfolio_value: Whether portfolio has valid value
+
+        Returns:
+            Tuple of (target_weight, current_weight) as percentages
+
+        """
+        if not has_portfolio_value:
+            return 0.0, 0.0
+
+        try:
+            target_weight = float(item.target_value / total_portfolio_value * Decimal("100"))
+        except (TypeError, ValueError, ArithmeticError):
+            target_weight = 0.0
+
+        try:
+            current_weight = float(item.current_value / total_portfolio_value * Decimal("100"))
+        except (TypeError, ValueError, ArithmeticError):
+            current_weight = 0.0
+
+        return target_weight, current_weight
+
+    def _extract_plan_totals(self, rebalance_plan: RebalancePlanDTO) -> tuple[float, Decimal, bool]:
+        """Extract total trade value, portfolio value, and validity flag from rebalance plan.
+
+        Args:
+            rebalance_plan: The rebalance plan DTO
+
+        Returns:
+            Tuple of (total_trade_value, total_portfolio_value, has_portfolio_value)
+
+        """
+        try:
+            total_trade_value = float(rebalance_plan.total_trade_value)
+        except (TypeError, ValueError):
+            total_trade_value = 0.0
+
+        try:
+            total_portfolio_value = rebalance_plan.total_portfolio_value
+            if not isinstance(total_portfolio_value, Decimal):
+                total_portfolio_value = Decimal(str(total_portfolio_value))
+        except (TypeError, ValueError, ArithmeticError):
+            total_portfolio_value = Decimal("0")
+
+        has_portfolio_value = total_portfolio_value > Decimal("0")
+        return total_trade_value, total_portfolio_value, has_portfolio_value
+
+    def _log_final_rebalance_plan_summary(self, rebalance_plan: RebalancePlanDTO) -> None:
+        """Log final rebalance plan trades for visibility."""
+        try:
+            if not rebalance_plan.items:
+                self.logger.info("⚖️ Final rebalance plan: no trades required")
+                return
+
+            trade_count = len(rebalance_plan.items)
+            total_trade_value, total_portfolio_value, has_portfolio_value = (
+                self._extract_plan_totals(rebalance_plan)
+            )
+
+            self.logger.info(
+                "⚖️ Final rebalance plan: %s trades | total value $%.2f",
+                trade_count,
+                total_trade_value,
+            )
+
+            for item in rebalance_plan.items:
+                action, symbol, trade_amount = self._extract_trade_values(item)
+                target_weight, current_weight = self._calculate_weight_percentages(
+                    item, total_portfolio_value, has_portfolio_value=has_portfolio_value
+                )
+
+                self.logger.info(
+                    "  • %s %s | $%.2f | target %.2f%% vs current %.2f%%",
+                    action,
+                    symbol,
+                    trade_amount,
+                    target_weight,
+                    current_weight,
+                )
+
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self.logger.warning("Failed to log final rebalance plan summary: %s", exc)
 
     def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
         """Emit WorkflowFailed event when portfolio analysis fails.
