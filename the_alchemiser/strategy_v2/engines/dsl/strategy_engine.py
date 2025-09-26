@@ -212,8 +212,8 @@ class DslStrategyEngine:
         strategy_names = []
         if dsl_files:
             for filename in dsl_files:
-                # Extract basename and remove .clj extension
-                strategy_name = filename.replace(".clj", "").split("/")[-1]
+                # Extract basename and remove extension robustly
+                strategy_name = os.path.splitext(os.path.basename(filename))[0]
                 strategy_names.append(strategy_name)
         
         # Use first strategy name or fallback to "DSL" if no files provided
