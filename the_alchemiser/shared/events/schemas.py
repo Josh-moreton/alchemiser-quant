@@ -71,7 +71,8 @@ class SignalGenerated(BaseEvent):
 class RebalancePlanned(BaseEvent):
     """Event emitted when portfolio rebalancing plan is created.
 
-    Contains the rebalancing plan for execution consumption.
+    Contains the rebalancing plan for execution consumption with enhanced
+    metadata for idempotency and deterministic replay support.
     """
 
     # Override event_type with default
@@ -85,6 +86,13 @@ class RebalancePlanned(BaseEvent):
     trades_required: bool = Field(..., description="Whether trades are required")
     metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional rebalance metadata"
+    )
+
+    # Event-driven enhancement fields for idempotency and traceability
+    schema_version: str = Field(default="1.0", description="Event schema version for compatibility")
+    plan_hash: str = Field(..., description="Deterministic hash of rebalance plan for idempotency")
+    account_snapshot_id: str = Field(
+        ..., description="Account state snapshot identifier for correlation"
     )
 
 
