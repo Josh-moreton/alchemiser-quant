@@ -1202,10 +1202,10 @@ class RealTimePricingService:
                 
         return symbols_to_add
 
-    def _find_symbols_to_replace(
+    def _find_symbols_to_replace_bulk(
         self, symbols_to_add: list[str], priority: float
     ) -> list[str]:
-        """Find lowest priority symbols that can be replaced.
+        """Find lowest priority symbols that can be replaced for bulk operations.
         
         Args:
             symbols_to_add: New symbols that need subscription slots
@@ -1307,7 +1307,7 @@ class RealTimePricingService:
                 return results
 
             # Handle subscription limits by replacing lower priority symbols
-            symbols_to_replace = self._find_symbols_to_replace(symbols_to_add, priority)
+            symbols_to_replace = self._find_symbols_to_replace_bulk(symbols_to_add, priority)
             if symbols_to_replace:
                 self._remove_replaced_symbols(symbols_to_replace)
 
