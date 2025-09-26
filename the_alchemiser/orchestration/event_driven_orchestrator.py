@@ -110,7 +110,7 @@ class EventDrivenOrchestrator:
             handlers["portfolio_analysis"] = PortfolioAnalysisHandler(self.container)
             handlers["trading_execution"] = TradingExecutionHandler(self.container)
 
-            self.logger.info("Initialized domain event handlers")
+            self.logger.debug("Initialized domain event handlers")
 
         except Exception as e:
             self.logger.error(f"Failed to initialize domain handlers: {e}")
@@ -231,7 +231,7 @@ class EventDrivenOrchestrator:
                     if handler.can_handle(evt):
                         self.event_bus.subscribe(evt, handler)
 
-                self.logger.info(f"Registered domain handler: {handler_name}")
+                self.logger.debug(f"Registered domain handler: {handler_name}")
 
         # Subscribe to all event types for cross-cutting concerns (monitoring, notifications)
         for evt in (

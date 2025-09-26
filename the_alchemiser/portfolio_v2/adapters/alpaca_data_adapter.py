@@ -51,7 +51,7 @@ class AlpacaDataAdapter:
         """
         log_with_context(
             logger,
-            logging.INFO,
+            logging.DEBUG,
             "Fetching current positions",
             module=MODULE_NAME,
             action="get_positions",
@@ -77,7 +77,7 @@ class AlpacaDataAdapter:
 
             log_with_context(
                 logger,
-                logging.INFO,
+                logging.DEBUG,
                 f"Retrieved {len(positions)} positions",
                 module=MODULE_NAME,
                 action="get_positions",
@@ -116,7 +116,7 @@ class AlpacaDataAdapter:
 
         log_with_context(
             logger,
-            logging.INFO,
+            logging.DEBUG,
             f"Fetching current prices for {len(symbols)} symbols",
             module=MODULE_NAME,
             action="get_current_prices",
@@ -140,7 +140,7 @@ class AlpacaDataAdapter:
 
             log_with_context(
                 logger,
-                logging.INFO,
+                logging.DEBUG,
                 f"Retrieved prices for {len(prices)} symbols",
                 module=MODULE_NAME,
                 action="get_current_prices",
@@ -172,7 +172,7 @@ class AlpacaDataAdapter:
         """
         log_with_context(
             logger,
-            logging.INFO,
+            logging.DEBUG,
             "Fetching account cash balance",
             module=MODULE_NAME,
             action="get_account_cash",
@@ -190,7 +190,7 @@ class AlpacaDataAdapter:
 
             log_with_context(
                 logger,
-                logging.INFO,
+                logging.DEBUG,
                 f"Retrieved cash balance: ${cash}",
                 module=MODULE_NAME,
                 action="get_account_cash",

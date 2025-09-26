@@ -154,7 +154,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             self._data_client = StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
 
-            logger.info(f"AlpacaManager initialized - Paper: {paper}")
+            logger.debug(f"AlpacaManager initialized - Paper: {paper}")
 
         except Exception as e:
             logger.error(f"Failed to initialize Alpaca clients: {e}")

@@ -58,7 +58,7 @@ class PortfolioStateReader:
         """
         log_with_context(
             logger,
-            logging.INFO,
+            logging.DEBUG,
             "Building portfolio snapshot",
             module=MODULE_NAME,
             action="build_snapshot",
@@ -111,7 +111,7 @@ class PortfolioStateReader:
 
             log_with_context(
                 logger,
-                logging.INFO,
+                logging.DEBUG,
                 "Portfolio snapshot built successfully",
                 module=MODULE_NAME,
                 action="build_snapshot",
