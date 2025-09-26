@@ -11,20 +11,13 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from the_alchemiser.orchestration.event_driven_orchestrator import (
         EventDrivenOrchestrator,
     )
 
-from the_alchemiser.orchestration.display_utils import (
-    display_post_execution_tracking,
-    display_rebalance_plan,
-    display_signals_summary,
-    display_stale_order_info,
-    export_tracking_summary,
-)
 from the_alchemiser.shared.config.config import Settings, load_settings
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
@@ -91,7 +84,9 @@ class TradingSystem:
         """Initialize event-driven orchestration system."""
         try:
             if self.container is None:
-                self.logger.warning("Cannot initialize event orchestration: DI container not ready")
+                self.logger.warning(
+                    "Cannot initialize event orchestration: DI container not ready"
+                )
                 return
 
             # Initialize event-driven orchestrator
@@ -116,7 +111,9 @@ class TradingSystem:
         """
         try:
             if self.container is None:
-                self.logger.warning("Cannot emit StartupEvent: DI container not initialized")
+                self.logger.warning(
+                    "Cannot emit StartupEvent: DI container not initialized"
+                )
                 return
 
             # Get event bus from container
@@ -138,7 +135,9 @@ class TradingSystem:
 
             # Emit the event
             event_bus.publish(event)
-            self.logger.debug(f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}")
+            self.logger.debug(
+                f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}"
+            )
 
         except Exception as e:
             # Don't let startup event emission failure break the system
@@ -177,7 +176,9 @@ class TradingSystem:
             use_event_driven = self.event_driven_orchestrator is not None
 
             if use_event_driven:
-                self.logger.info("🚀 Using event-driven orchestration for trading workflow")
+                self.logger.info(
+                    "🚀 Using event-driven orchestration for trading workflow"
+                )
                 trading_result = self._execute_trading_event_driven(
                     correlation_id,
                     started_at,
@@ -185,7 +186,9 @@ class TradingSystem:
                     export_tracking_json=export_tracking_json,
                 )
             else:
-                self.logger.info("🔄 Using traditional orchestration (event-driven not available)")
+                self.logger.info(
+                    "🔄 Using traditional orchestration (event-driven not available)"
+                )
                 trading_result = self._execute_trading_traditional(
                     correlation_id,
                     started_at,
@@ -236,13 +239,17 @@ class TradingSystem:
                 return None
 
             # Start the event-driven workflow
-            workflow_correlation_id = self.event_driven_orchestrator.start_trading_workflow(
-                correlation_id=correlation_id
+            workflow_correlation_id = (
+                self.event_driven_orchestrator.start_trading_workflow(
+                    correlation_id=correlation_id
+                )
             )
 
             # Wait for workflow completion
-            workflow_result = self.event_driven_orchestrator.wait_for_workflow_completion(
-                workflow_correlation_id, timeout_seconds=300
+            workflow_result = (
+                self.event_driven_orchestrator.wait_for_workflow_completion(
+                    workflow_correlation_id, timeout_seconds=300
+                )
             )
 
             if not workflow_result.get("success"):
@@ -307,7 +314,9 @@ class TradingSystem:
 
             # Ensure container is available
             if self.container is None:
-                self.logger.error("DI container not available for traditional orchestrator")
+                self.logger.error(
+                    "DI container not available for traditional orchestrator"
+                )
                 return None
 
             # Create trading orchestrator directly
@@ -327,19 +336,21 @@ class TradingSystem:
                 return None
 
             # Show brief signals summary and the rebalance plan details
-            display_signals_summary(trading_result)
-            display_rebalance_plan(trading_result)
+            self._log_traditional_signals_summary(trading_result)
+            self._log_traditional_rebalance_plan(trading_result)
 
             # Show stale order cancellation info
-            display_stale_order_info(trading_result)
+            self._log_traditional_stale_orders(trading_result)
 
             # Display tracking if requested
             if show_tracking:
-                display_post_execution_tracking(paper_trading=not orchestrator.live_trading)
+                self._display_post_execution_tracking(
+                    paper_trading=not orchestrator.live_trading
+                )
 
             # Export tracking summary if requested
             if export_tracking_json:
-                export_tracking_summary(
+                self._export_tracking_summary(
                     trading_result,
                     export_tracking_json,
                     paper_trading=not orchestrator.live_trading,
@@ -362,6 +373,203 @@ class TradingSystem:
         except Exception as e:
             self.logger.error(f"Traditional trading execution failed: {e}")
             return None
+
+    def _log_traditional_signals_summary(self, trading_result: dict[str, Any]) -> None:
+        """Log strategy signals summary for traditional orchestrator output."""
+        signals = trading_result.get("strategy_signals")
+        if not isinstance(signals, dict) or not signals:
+            return
+
+        self.logger.info("📡 Final Strategy Signals (traditional path):")
+
+        for raw_name, data in signals.items():
+            if not isinstance(data, dict):
+                continue
+
+            name = str(raw_name)
+            action = str(data.get("action", "")).upper() or "UNKNOWN"
+
+            if data.get("is_multi_symbol") and isinstance(data.get("symbols"), list):
+                symbols = ", ".join(str(symbol) for symbol in data["symbols"])
+                detail = (
+                    f"{name}: {action} {symbols}" if symbols else f"{name}: {action}"
+                )
+            else:
+                symbol = data.get("symbol")
+                detail = (
+                    f"{name}: {action} {symbol}"
+                    if isinstance(symbol, str) and symbol.strip()
+                    else f"{name}: {action}"
+                )
+
+            self.logger.info("  • %s", detail)
+
+        consolidated = trading_result.get("consolidated_portfolio")
+        allocations: dict[str, Any] = {}
+
+        if isinstance(consolidated, dict):
+            if "target_allocations" in consolidated and isinstance(
+                consolidated["target_allocations"], dict
+            ):
+                allocations = consolidated["target_allocations"]
+            else:
+                allocations = consolidated
+
+        if allocations:
+            self.logger.info("🎯 Target Portfolio Allocations:")
+            for symbol, allocation in allocations.items():
+                try:
+                    percent = float(allocation) * 100
+                except (TypeError, ValueError):
+                    percent = 0.0
+                self.logger.info("  • %s: %.2f%%", symbol, percent)
+
+    def _log_traditional_rebalance_plan(self, trading_result: dict[str, Any]) -> None:
+        """Log rebalance plan summary for traditional orchestrator output."""
+        plan = trading_result.get("rebalance_plan")
+        if plan is None:
+            return
+
+        # Handle DTO objects with item list
+        if hasattr(plan, "items"):
+            items = list(getattr(plan, "items", []) or [])
+            if not items:
+                self.logger.info("⚖️ Final rebalance plan: no trades required")
+                return
+
+            try:
+                total_trade_value = float(getattr(plan, "total_trade_value", 0))
+            except (TypeError, ValueError):
+                total_trade_value = 0.0
+
+            self.logger.info(
+                "⚖️ Final rebalance plan: %s trades | total value $%.2f",
+                len(items),
+                total_trade_value,
+            )
+
+            for item in items:
+                try:
+                    action = item.action.upper()
+                except AttributeError:
+                    action = "UNKNOWN"
+
+                symbol = getattr(item, "symbol", "Unknown")
+
+                try:
+                    trade_amount = abs(float(getattr(item, "trade_amount", 0)))
+                except (TypeError, ValueError, AttributeError):
+                    trade_amount = 0.0
+
+                try:
+                    target_weight = float(getattr(item, "target_weight", 0)) * 100
+                except (TypeError, ValueError, AttributeError):
+                    target_weight = 0.0
+
+                try:
+                    current_weight = float(getattr(item, "current_weight", 0)) * 100
+                except (TypeError, ValueError, AttributeError):
+                    current_weight = 0.0
+
+                self.logger.info(
+                    "  • %s %s | $%.2f | target %.2f%% vs current %.2f%%",
+                    action,
+                    symbol,
+                    trade_amount,
+                    target_weight,
+                    current_weight,
+                )
+
+            return
+
+        # Handle legacy dict structure with trade list
+        if isinstance(plan, dict):
+            trades = plan.get("trades")
+            if not isinstance(trades, list) or not trades:
+                return
+
+            self.logger.info("⚖️ Final rebalance plan: %s trades", len(trades))
+            for trade in trades:
+                if not isinstance(trade, dict):
+                    continue
+
+                symbol = trade.get("symbol", "Unknown")
+                action = str(trade.get("side", "")).upper() or "UNKNOWN"
+                qty = trade.get("qty", 0)
+                self.logger.info("  • %s %s shares of %s", action, qty, symbol)
+
+    def _log_traditional_stale_orders(self, trading_result: dict[str, Any]) -> None:
+        """Log stale order cancellations for traditional orchestrator output."""
+        stale_orders = trading_result.get("stale_orders_canceled")
+        if not isinstance(stale_orders, list) or not stale_orders:
+            return
+
+        self.logger.info("🗑️ Canceled %s stale orders:", len(stale_orders))
+        for order in stale_orders:
+            if not isinstance(order, dict):
+                continue
+
+            symbol = order.get("symbol", "Unknown")
+            side = str(order.get("side", "")).upper() or "UNKNOWN"
+            qty = order.get("qty", 0)
+            self.logger.info("  • %s %s shares of %s", side, qty, symbol)
+
+    def _display_post_execution_tracking(self, *, paper_trading: bool) -> None:
+        """Display optional post-execution tracking information."""
+        try:
+            import importlib
+
+            mode_str = "paper trading" if paper_trading else "live trading"
+            print(f"\n📊 Strategy Performance Tracking ({mode_str}):")
+
+            module = importlib.import_module(
+                "the_alchemiser.shared.utils.strategy_utils"
+            )
+            func = getattr(module, "display_strategy_performance_tracking", None)
+
+            if callable(func):
+                func()
+            else:
+                self.logger.warning("Strategy tracking utilities not available")
+
+        except ImportError:
+            self.logger.warning("Strategy tracking utilities not available")
+        except Exception as exc:
+            self.logger.warning(f"Failed to display post-execution tracking: {exc}")
+
+    def _export_tracking_summary(
+        self,
+        trading_result: dict[str, Any],
+        export_path: str,
+        *,
+        paper_trading: bool,
+    ) -> None:
+        """Export trading summary and tracking data to JSON."""
+        try:
+            import json
+            from pathlib import Path
+
+            summary = {
+                "timestamp": datetime.now(UTC).isoformat(),
+                "mode": "paper_trading" if paper_trading else "live_trading",
+                "status": trading_result.get("status", "unknown"),
+                "execution_summary": trading_result.get("execution_summary", {}),
+                "rebalance_plan": trading_result.get("rebalance_plan"),
+                "stale_orders_canceled": trading_result.get(
+                    "stale_orders_canceled", []
+                ),
+            }
+
+            export_file = Path(export_path)
+            export_file.parent.mkdir(parents=True, exist_ok=True)
+
+            with export_file.open("w", encoding="utf-8") as file_pointer:
+                json.dump(summary, file_pointer, indent=2, default=str)
+
+            self.logger.info("💾 Trading summary exported to: %s", export_path)
+
+        except Exception as exc:
+            self.logger.error(f"Failed to export tracking summary: {exc}")
 
     def _handle_trading_execution_error(
         self, e: Exception, *, show_tracking: bool, export_tracking_json: str | None
@@ -399,9 +607,15 @@ class TradingSystem:
 
                 send_error_notification_if_needed()
             except Exception as notification_error:
-                self.logger.warning(f"Failed to send error notification: {notification_error}")
+                self.logger.warning(
+                    f"Failed to send error notification: {notification_error}"
+                )
 
-            return create_failure_result(f"System error: {e}", started_at, correlation_id, warnings)
+            return create_failure_result(
+                f"System error: {e}", started_at, correlation_id, warnings
+            )
         # Generic error handling
         self.logger.error(f"Unexpected trading execution error: {e}")
-        return create_failure_result(f"Unexpected error: {e}", started_at, correlation_id, warnings)
+        return create_failure_result(
+            f"Unexpected error: {e}", started_at, correlation_id, warnings
+        )
