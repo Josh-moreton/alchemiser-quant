@@ -94,7 +94,7 @@ def generate_market_snapshot_id(signals: list[StrategySignal]) -> str:
 
             # Sort by symbol for consistency
             # Ensure the sort key is typed as str for mypy (symbol always string here)
-            snapshot_data.sort(key=lambda x: cast(str, x["symbol"]))
+            snapshot_data.sort(key=lambda x: x["symbol"])
 
         # Create snapshot ID with timestamp and content hash
         content_hash = hashlib.sha256(
