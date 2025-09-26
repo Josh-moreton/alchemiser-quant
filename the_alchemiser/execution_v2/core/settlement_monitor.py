@@ -167,7 +167,7 @@ class SettlementMonitor:
         )
 
         # Calculate retry parameters based on max_wait_seconds
-        # Use exponential backoff: 1s, 2s, 4s, 8s, 16s... 
+        # Use exponential backoff: 1s, 2s, 4s, 8s, 16s...
         # Estimate total time and adjust retries accordingly
         INITIAL_BACKOFF_SECONDS = 1.0
         MAX_RETRIES = 8
@@ -175,7 +175,7 @@ class SettlementMonitor:
         total = 0
         retries = 0
         while retries < MAX_RETRIES:
-            next_wait = INITIAL_BACKOFF_SECONDS * (2 ** retries)
+            next_wait = INITIAL_BACKOFF_SECONDS * (2**retries)
             if total + next_wait > max_wait_seconds:
                 break
             total += next_wait
