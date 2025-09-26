@@ -9,9 +9,9 @@ across the trading workflow. Focused on cross-cutting concerns rather than domai
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable as TypingCallable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -56,6 +56,22 @@ class EventDrivenOrchestrator:
 
         # Initialize domain handlers
         self.domain_handlers = self._initialize_domain_handlers()
+
+        # Cache event dispatch mapping to avoid per-call construction
+        # Use cast to align specific handler signatures with BaseEvent for dispatching
+        self._event_handlers: dict[type[BaseEvent], TypingCallable[[BaseEvent], None]] = {
+            StartupEvent: cast(TypingCallable[[BaseEvent], None], self._handle_startup),
+            WorkflowStarted: cast(TypingCallable[[BaseEvent], None], self._handle_workflow_started),
+            SignalGenerated: cast(TypingCallable[[BaseEvent], None], self._handle_signal_generated),
+            RebalancePlanned: cast(
+                TypingCallable[[BaseEvent], None], self._handle_rebalance_planned
+            ),
+            TradeExecuted: cast(TypingCallable[[BaseEvent], None], self._handle_trade_executed),
+            WorkflowCompleted: cast(
+                TypingCallable[[BaseEvent], None], self._handle_workflow_completed
+            ),
+            WorkflowFailed: cast(TypingCallable[[BaseEvent], None], self._handle_workflow_failed),
+        }
 
         # Register event handlers (both cross-cutting and domain)
         self._register_handlers()
@@ -206,25 +222,28 @@ class EventDrivenOrchestrator:
         for handler_name, handler in self.domain_handlers.items():
             if hasattr(handler, "can_handle") and hasattr(handler, "handle_event"):
                 # Register handler for events it can handle
-                if handler.can_handle("StartupEvent"):
-                    self.event_bus.subscribe("StartupEvent", handler)
-                if handler.can_handle("WorkflowStarted"):
-                    self.event_bus.subscribe("WorkflowStarted", handler)
-                if handler.can_handle("SignalGenerated"):
-                    self.event_bus.subscribe("SignalGenerated", handler)
-                if handler.can_handle("RebalancePlanned"):
-                    self.event_bus.subscribe("RebalancePlanned", handler)
+                for evt in (
+                    "StartupEvent",
+                    "WorkflowStarted",
+                    "SignalGenerated",
+                    "RebalancePlanned",
+                ):
+                    if handler.can_handle(evt):
+                        self.event_bus.subscribe(evt, handler)
 
                 self.logger.info(f"Registered domain handler: {handler_name}")
 
         # Subscribe to all event types for cross-cutting concerns (monitoring, notifications)
-        self.event_bus.subscribe("StartupEvent", self)
-        self.event_bus.subscribe("WorkflowStarted", self)
-        self.event_bus.subscribe("SignalGenerated", self)
-        self.event_bus.subscribe("RebalancePlanned", self)
-        self.event_bus.subscribe("TradeExecuted", self)
-        self.event_bus.subscribe("WorkflowCompleted", self)
-        self.event_bus.subscribe("WorkflowFailed", self)
+        for evt in (
+            "StartupEvent",
+            "WorkflowStarted",
+            "SignalGenerated",
+            "RebalancePlanned",
+            "TradeExecuted",
+            "WorkflowCompleted",
+            "WorkflowFailed",
+        ):
+            self.event_bus.subscribe(evt, self)
 
         self.logger.info(
             "Registered event-driven orchestration handlers for primary coordination and cross-cutting concerns"
@@ -238,18 +257,8 @@ class EventDrivenOrchestrator:
 
         """
         try:
-            # Event handler dispatch mapping to reduce cognitive complexity
-            event_handlers: dict[type[BaseEvent], Callable[[BaseEvent], None]] = {
-                StartupEvent: self._handle_startup,
-                WorkflowStarted: self._handle_workflow_started,
-                SignalGenerated: self._handle_signal_generated,
-                RebalancePlanned: self._handle_rebalance_planned,
-                TradeExecuted: self._handle_trade_executed,
-                WorkflowCompleted: self._handle_workflow_completed,
-                WorkflowFailed: self._handle_workflow_failed,
-            }
-
-            handler = event_handlers.get(type(event))
+            # Use cached dispatch map to avoid per-call dictionary creation
+            handler = self._event_handlers.get(type(event))
             if handler:
                 handler(event)
             else:

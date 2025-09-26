@@ -34,9 +34,7 @@ def _parse_rsi_parameters(args: list[ASTNodeDTO], context: DslContext) -> int:
     window = 14  # Default window
     if len(args) > 1:
         params_node = args[1]
-        params = context.evaluate_node(
-            params_node, context.correlation_id, context.trace
-        )
+        params = context.evaluate_node(params_node, context.correlation_id, context.trace)
         if isinstance(params, dict):
             try:
                 window = int(params.get("window", window))
@@ -66,9 +64,7 @@ def _extract_rsi_value(indicator: TechnicalIndicator, window: int) -> float:
         try:
             return float(indicator.metadata["value"])
         except (ValueError, TypeError) as exc:
-            raise DslEvaluationError(
-                f"Failed to coerce RSI metadata value: {exc}"
-            ) from exc
+            raise DslEvaluationError(f"Failed to coerce RSI metadata value: {exc}") from exc
 
     # Final fallback to default window value or neutral RSI 50.0
     if indicator.rsi_14 is not None:
@@ -142,9 +138,7 @@ def moving_average_price(args: list[ASTNodeDTO], context: DslContext) -> float:
         raise DslEvaluationError("moving-average-price requires symbol and parameters")
 
     symbol_node = args[0]
-    symbol_val = context.evaluate_node(
-        symbol_node, context.correlation_id, context.trace
-    )
+    symbol_val = context.evaluate_node(symbol_node, context.correlation_id, context.trace)
 
     if not isinstance(symbol_val, str):
         raise DslEvaluationError(f"Symbol must be string, got {type(symbol_val)}")
@@ -183,9 +177,7 @@ def moving_average_price(args: list[ASTNodeDTO], context: DslContext) -> float:
         except Exception as exc:
             print(f"DEBUG: Failed to coerce MA metadata value: {exc}")
 
-    raise DslEvaluationError(
-        f"Moving average for {symbol_val} window={window} not available"
-    )
+    raise DslEvaluationError(f"Moving average for {symbol_val} window={window} not available")
 
 
 def moving_average_return(args: list[ASTNodeDTO], context: DslContext) -> float:
@@ -194,9 +186,7 @@ def moving_average_return(args: list[ASTNodeDTO], context: DslContext) -> float:
         raise DslEvaluationError("moving-average-return requires symbol and parameters")
 
     symbol_node = args[0]
-    symbol_val = context.evaluate_node(
-        symbol_node, context.correlation_id, context.trace
-    )
+    symbol_val = context.evaluate_node(symbol_node, context.correlation_id, context.trace)
 
     if not isinstance(symbol_val, str):
         raise DslEvaluationError(f"Symbol must be string, got {type(symbol_val)}")
@@ -253,9 +243,7 @@ def cumulative_return(args: list[ASTNodeDTO], context: DslContext) -> float:
         raise DslEvaluationError("cumulative-return requires symbol and parameters")
 
     symbol_node = args[0]
-    symbol_val = context.evaluate_node(
-        symbol_node, context.correlation_id, context.trace
-    )
+    symbol_val = context.evaluate_node(symbol_node, context.correlation_id, context.trace)
 
     if not isinstance(symbol_val, str):
         raise DslEvaluationError(f"Symbol must be string, got {type(symbol_val)}")
@@ -287,24 +275,16 @@ def cumulative_return(args: list[ASTNodeDTO], context: DslContext) -> float:
         except Exception as exc:
             print(f"DEBUG: Failed to coerce cumulative return metadata value: {exc}")
 
-    raise DslEvaluationError(
-        f"Cumulative return for {symbol_val} window={window} not available"
-    )
+    raise DslEvaluationError(f"Cumulative return for {symbol_val} window={window} not available")
 
 
-def exponential_moving_average_price(
-    args: list[ASTNodeDTO], context: DslContext
-) -> float:
+def exponential_moving_average_price(args: list[ASTNodeDTO], context: DslContext) -> float:
     """Evaluate exponential-moving-average-price via IndicatorService."""
     if len(args) < 2:
-        raise DslEvaluationError(
-            "exponential-moving-average-price requires symbol and parameters"
-        )
+        raise DslEvaluationError("exponential-moving-average-price requires symbol and parameters")
 
     symbol_node = args[0]
-    symbol_val = context.evaluate_node(
-        symbol_node, context.correlation_id, context.trace
-    )
+    symbol_val = context.evaluate_node(symbol_node, context.correlation_id, context.trace)
 
     if not isinstance(symbol_val, str):
         raise DslEvaluationError(f"Symbol must be string, got {type(symbol_val)}")
@@ -347,9 +327,7 @@ def stdev_return(args: list[ASTNodeDTO], context: DslContext) -> float:
         raise DslEvaluationError("stdev-return requires symbol and parameters")
 
     symbol_node = args[0]
-    symbol_val = context.evaluate_node(
-        symbol_node, context.correlation_id, context.trace
-    )
+    symbol_val = context.evaluate_node(symbol_node, context.correlation_id, context.trace)
 
     if not isinstance(symbol_val, str):
         raise DslEvaluationError(f"Symbol must be string, got {type(symbol_val)}")
@@ -381,9 +359,7 @@ def stdev_return(args: list[ASTNodeDTO], context: DslContext) -> float:
         except Exception as exc:
             print(f"DEBUG: Failed to coerce stdev_return metadata value: {exc}")
 
-    raise DslEvaluationError(
-        f"Stdev return for {symbol_val} window={window} not available"
-    )
+    raise DslEvaluationError(f"Stdev return for {symbol_val} window={window} not available")
 
 
 def max_drawdown(args: list[ASTNodeDTO], context: DslContext) -> float:
@@ -392,9 +368,7 @@ def max_drawdown(args: list[ASTNodeDTO], context: DslContext) -> float:
         raise DslEvaluationError("max-drawdown requires symbol and parameters")
 
     symbol_node = args[0]
-    symbol_val = context.evaluate_node(
-        symbol_node, context.correlation_id, context.trace
-    )
+    symbol_val = context.evaluate_node(symbol_node, context.correlation_id, context.trace)
 
     if not isinstance(symbol_val, str):
         raise DslEvaluationError(f"Symbol must be string, got {type(symbol_val)}")
@@ -423,9 +397,7 @@ def max_drawdown(args: list[ASTNodeDTO], context: DslContext) -> float:
         except Exception as exc:
             print(f"DEBUG: Failed to coerce MDD metadata value: {exc}")
 
-    raise DslEvaluationError(
-        f"Max drawdown for {symbol_val} window={window} not available"
-    )
+    raise DslEvaluationError(f"Max drawdown for {symbol_val} window={window} not available")
 
 
 # Note: For brevity, I'm including the most common indicators
@@ -439,9 +411,7 @@ def register_indicator_operators(dispatcher: DslDispatcher) -> None:
     dispatcher.register("moving-average-price", moving_average_price)
     dispatcher.register("moving-average-return", moving_average_return)
     dispatcher.register("cumulative-return", cumulative_return)
-    dispatcher.register(
-        "exponential-moving-average-price", exponential_moving_average_price
-    )
+    dispatcher.register("exponential-moving-average-price", exponential_moving_average_price)
     dispatcher.register("stdev-return", stdev_return)
     dispatcher.register("max-drawdown", max_drawdown)
     dispatcher.register("ma", moving_average)
