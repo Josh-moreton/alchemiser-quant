@@ -386,6 +386,8 @@ class PortfolioAnalysisHandler:
                     total_trade_value=Decimal("0"),
                     metadata={"scenario": "no_trades_needed"},
                 )
+            self._log_final_rebalance_plan_summary(rebalance_plan)
+
             event = RebalancePlanned(
                 correlation_id=correlation_id,
                 causation_id=correlation_id,  # This event is caused by the signal generation
@@ -414,6 +416,82 @@ class PortfolioAnalysisHandler:
         except Exception as e:
             self.logger.error(f"Failed to emit RebalancePlanned event: {e}")
             raise
+
+    def _log_final_rebalance_plan_summary(self, rebalance_plan: RebalancePlanDTO) -> None:
+        """Log final rebalance plan trades for visibility."""
+        try:
+            if not rebalance_plan.items:
+                self.logger.info("⚖️ Final rebalance plan: no trades required")
+                return
+
+            trade_count = len(rebalance_plan.items)
+
+            try:
+                total_trade_value = float(rebalance_plan.total_trade_value)
+            except (TypeError, ValueError):
+                total_trade_value = 0.0
+
+            try:
+                total_portfolio_value = rebalance_plan.total_portfolio_value
+                if not isinstance(total_portfolio_value, Decimal):
+                    total_portfolio_value = Decimal(str(total_portfolio_value))
+            except (TypeError, ValueError, ArithmeticError):
+                total_portfolio_value = Decimal("0")
+
+            has_portfolio_value = total_portfolio_value > Decimal("0")
+
+            self.logger.info(
+                "⚖️ Final rebalance plan: %s trades | total value $%.2f",
+                trade_count,
+                total_trade_value,
+            )
+
+            for item in rebalance_plan.items:
+                try:
+                    action = item.action.upper()
+                except AttributeError:
+                    action = "UNKNOWN"
+
+                symbol = getattr(item, "symbol", "Unknown")
+
+                try:
+                    trade_amount = abs(float(item.trade_amount))
+                except (TypeError, ValueError, AttributeError):
+                    trade_amount = 0.0
+
+                if has_portfolio_value:
+                    try:
+                        target_weight = (
+                            float(item.target_value / total_portfolio_value * Decimal("100"))
+                            if item.target_value is not None
+                            else 0.0
+                        )
+                    except (TypeError, ValueError, ArithmeticError, AttributeError):
+                        target_weight = 0.0
+
+                    try:
+                        current_weight = (
+                            float(item.current_value / total_portfolio_value * Decimal("100"))
+                            if item.current_value is not None
+                            else 0.0
+                        )
+                    except (TypeError, ValueError, ArithmeticError, AttributeError):
+                        current_weight = 0.0
+                else:
+                    target_weight = 0.0
+                    current_weight = 0.0
+
+                self.logger.info(
+                    "  • %s %s | $%.2f | target %.2f%% vs current %.2f%%",
+                    action,
+                    symbol,
+                    trade_amount,
+                    target_weight,
+                    current_weight,
+                )
+
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self.logger.warning("Failed to log final rebalance plan summary: %s", exc)
 
     def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
         """Emit WorkflowFailed event when portfolio analysis fails.

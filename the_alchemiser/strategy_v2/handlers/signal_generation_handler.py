@@ -260,6 +260,8 @@ class SignalGenerationHandler:
 
         """
         try:
+            self._log_final_signal_summary(strategy_signals, consolidated_portfolio)
+
             event = SignalGenerated(
                 correlation_id=correlation_id,
                 causation_id=correlation_id,  # This event is caused by the startup/workflow event
@@ -315,3 +317,48 @@ class SignalGenerationHandler:
 
         except Exception as e:
             self.logger.error(f"Failed to emit WorkflowFailed event: {e}")
+
+    def _log_final_signal_summary(
+        self,
+        strategy_signals: dict[str, Any],
+        consolidated_portfolio: ConsolidatedPortfolioDTO,
+    ) -> None:
+        """Log final consolidated signal and portfolio summary."""
+        try:
+            if strategy_signals:
+                self.logger.info("📡 Final Strategy Signals:")
+                for raw_name, data in strategy_signals.items():
+                    if not isinstance(data, dict):
+                        continue
+
+                    name = str(raw_name)
+                    action = str(data.get("action", "")).upper() or "UNKNOWN"
+
+                    if data.get("is_multi_symbol") and isinstance(data.get("symbols"), list):
+                        symbols = ", ".join(str(symbol) for symbol in data["symbols"])
+                        detail = f"{name}: {action} {symbols}" if symbols else f"{name}: {action}"
+                    else:
+                        symbol = data.get("symbol")
+                        detail = (
+                            f"{name}: {action} {symbol}"
+                            if isinstance(symbol, str) and symbol.strip()
+                            else f"{name}: {action}"
+                        )
+
+                    self.logger.info("  • %s", detail)
+
+            allocations = {}
+            if consolidated_portfolio is not None:
+                allocations = consolidated_portfolio.target_allocations
+
+            if allocations:
+                self.logger.info("🎯 Target Portfolio Allocations:")
+                for symbol, allocation in allocations.items():
+                    try:
+                        percent = float(allocation) * 100
+                    except (TypeError, ValueError):
+                        percent = 0.0
+                    self.logger.info("  • %s: %.2f%%", symbol, percent)
+
+        except Exception as exc:  # pragma: no cover - logging safeguard
+            self.logger.warning("Failed to log final signal summary: %s", exc)
