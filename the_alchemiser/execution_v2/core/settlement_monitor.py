@@ -152,6 +152,10 @@ class SettlementMonitor:
         This addresses the timing issue where Alpaca's account buying_power field
         hasn't been updated yet even though sell orders have settled.
 
+        Note:
+            This retry/backoff handles post-settlement account synchronization only.
+            It is not related to price repegging logic.
+
         Args:
             expected_buying_power: Expected minimum buying power after settlement
             settlement_correlation_id: Correlation ID for tracking
@@ -166,12 +170,13 @@ class SettlementMonitor:
             f"(correlation: {settlement_correlation_id})"
         )
 
-        # Calculate retry parameters based on max_wait_seconds
-        # Use exponential backoff: 1s, 2s, 4s, 8s, 16s...
-        # Estimate total time and adjust retries accordingly
+        # Calculate retry parameters based on max_wait_seconds with explicit
+        # exponential backoff (1s, 2s, 4s, 8s, ...). Bound the cumulative wait
+        # time to max_wait_seconds and cap retries to a small number to avoid
+        # overly long waits during execution.
         INITIAL_BACKOFF_SECONDS = 1.0
         MAX_RETRIES = 8
-        # Calculate the maximum number of retries such that the sum of the exponential backoff intervals does not exceed max_wait_seconds
+        # Compute the maximum retries such that the sum of waits does not exceed max_wait_seconds.
         total = 0
         retries = 0
         while retries < MAX_RETRIES:

@@ -44,27 +44,32 @@ def _parse_rsi_parameters(args: list[ASTNodeDTO], context: DslContext) -> int:
 
 
 def _extract_rsi_value(indicator: TechnicalIndicator, window: int) -> float:
-    """Extract RSI value from indicator based on window size."""
-    # Extract RSI value based on window
-    window_to_attr = {
+    """Extract RSI value from indicator based on window size.
+
+    Guarantees a float return by handling Optional values explicitly.
+    """
+    mapping: dict[int, float | None] = {
         10: indicator.rsi_10,
         14: indicator.rsi_14,
         20: indicator.rsi_20,
         21: indicator.rsi_21,
     }
 
-    if window in window_to_attr and window_to_attr[window] is not None:
-        return window_to_attr[window]
+    val = mapping.get(window)
+    if val is not None:
+        return float(val)
 
-    # For arbitrary windows, use metadata value
+    # For arbitrary windows, use metadata value if present
     if indicator.metadata and "value" in indicator.metadata:
         try:
             return float(indicator.metadata["value"])
-        except Exception as exc:
-            print(f"DEBUG: Failed to coerce RSI metadata value: {exc}")
+        except (ValueError, TypeError) as exc:
+            raise DslEvaluationError(f"Failed to coerce RSI metadata value: {exc}") from exc
 
-    # Final fallback
-    return indicator.rsi_14 or 50.0
+    # Final fallback to default window value or neutral RSI 50.0
+    if indicator.rsi_14 is not None:
+        return float(indicator.rsi_14)
+    return 50.0
 
 
 def rsi(args: list[ASTNodeDTO], context: DslContext) -> float:
