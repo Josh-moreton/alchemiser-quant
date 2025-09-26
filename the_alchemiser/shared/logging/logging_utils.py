@@ -278,6 +278,75 @@ def log_with_context(logger: logging.Logger, level: int | None, message: str, **
         logger.log(level, message, extra=extra)
 
 
+def _create_formatter(*, structured_format: bool) -> logging.Formatter:
+    """Create appropriate formatter based on format setting."""
+    if structured_format:
+        return StructuredFormatter()
+    log_format = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+    return logging.Formatter(log_format)
+
+
+def _create_console_handler(
+    formatter: logging.Formatter, console_level: int | None, log_level: int
+) -> logging.Handler:
+    """Create console handler with appropriate level."""
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    console_handler.setLevel(console_level if console_level is not None else log_level)
+    return console_handler
+
+
+def _create_file_handler_if_needed(
+    log_file: str | None,
+    formatter: logging.Formatter,
+    log_level: int,
+    *,
+    enable_file_rotation: bool,
+    max_file_size_mb: int,
+) -> logging.Handler | None:
+    """Create file handler if log_file is specified."""
+    if not log_file:
+        return None
+
+    if log_file.startswith(_S3_PROTOCOL_PREFIX):
+        logging.warning("S3 logging not available - using local file fallback")
+        return _create_s3_fallback_handler(log_file, formatter, log_level)
+
+    return _create_local_file_handler(
+        log_file,
+        formatter,
+        log_level,
+        enable_file_rotation=enable_file_rotation,
+        max_file_size_mb=max_file_size_mb,
+    )
+
+
+def _suppress_third_party_loggers() -> None:
+    """Suppress noisy third-party loggers to WARNING level."""
+    noisy_loggers = [
+        "botocore",
+        "urllib3",
+        "alpaca",
+        "boto3",
+        "s3transfer",
+        "websocket",
+        "matplotlib",
+        "requests",
+        "urllib3.connectionpool",
+        "werkzeug",
+        "asyncio",
+    ]
+    for logger_name in noisy_loggers:
+        logging.getLogger(logger_name).setLevel(logging.WARNING)
+
+
+def _should_add_console_handler(
+    *, respect_existing_handlers: bool, root_logger: logging.Logger
+) -> bool:
+    """Determine if console handler should be added."""
+    return not respect_existing_handlers or not root_logger.hasHandlers()
+
+
 def setup_logging(
     log_level: int = logging.INFO,
     log_file: str | None = None,
@@ -352,39 +421,25 @@ def setup_logging(
     if not respect_existing_handlers and root_logger.hasHandlers():
         root_logger.handlers.clear()
 
-    # Choose formatter based on structured_format setting
-    formatter: logging.Formatter
-    if structured_format:
-        formatter = StructuredFormatter()
-    else:
-        # Standard format for human-readable logs
-        log_format = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
-        formatter = logging.Formatter(log_format)
-
+    formatter = _create_formatter(structured_format=structured_format)
     handlers: list[logging.Handler] = []
 
-    # Console handler - only add if we don't have existing handlers or are not respecting them
-    if not respect_existing_handlers or not root_logger.hasHandlers():
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(formatter)
-        console_handler.setLevel(console_level if console_level is not None else log_level)
+    # Add console handler if needed
+    if _should_add_console_handler(
+        respect_existing_handlers=respect_existing_handlers, root_logger=root_logger
+    ):
+        console_handler = _create_console_handler(formatter, console_level, log_level)
         handlers.append(console_handler)
 
-    # File handler if specified
-    if log_file:
-        if log_file.startswith(_S3_PROTOCOL_PREFIX):
-            # S3 logging fallback implementation
-            logging.warning("S3 logging not available - using local file fallback")
-            file_handler = _create_s3_fallback_handler(log_file, formatter, log_level)
-        else:
-            # Local file logging
-            file_handler = _create_local_file_handler(
-                log_file,
-                formatter,
-                log_level,
-                enable_file_rotation=enable_file_rotation,
-                max_file_size_mb=max_file_size_mb,
-            )
+    # Add file handler if specified
+    file_handler = _create_file_handler_if_needed(
+        log_file,
+        formatter,
+        log_level,
+        enable_file_rotation=enable_file_rotation,
+        max_file_size_mb=max_file_size_mb,
+    )
+    if file_handler:
         handlers.append(file_handler)
 
     # Configure root logger
@@ -392,23 +447,8 @@ def setup_logging(
     for handler in handlers:
         root_logger.addHandler(handler)
 
-    # Suppress noisy third-party loggers
     if suppress_third_party:
-        noisy_loggers = [
-            "botocore",
-            "urllib3",
-            "alpaca",
-            "boto3",
-            "s3transfer",
-            "websocket",
-            "matplotlib",
-            "requests",
-            "urllib3.connectionpool",
-            "werkzeug",
-            "asyncio",
-        ]
-        for logger_name in noisy_loggers:
-            logging.getLogger(logger_name).setLevel(logging.WARNING)
+        _suppress_third_party_loggers()
 
     # Log initialization message
     logger = get_logger(__name__)
@@ -721,80 +761,129 @@ def resolve_log_level(*, is_production: bool) -> int:
     return logging.INFO if is_production else logging.WARNING
 
 
-def configure_application_logging() -> None:
-    """Configure application logging with reduced complexity."""
-    # Check for Lambda environment via runtime-specific environment variables
-    is_production = any(
+def _load_application_settings() -> object | None:
+    """Load application settings with error handling."""
+    try:
+        from the_alchemiser.shared.config.config import load_settings
+
+        return load_settings()
+    except (AttributeError, ImportError, TypeError):
+        return None
+
+
+def _determine_production_log_file(settings: object | None) -> str | None:
+    """Determine log file for production environment."""
+    if not settings:
+        return None
+    if (
+        hasattr(settings, "logging")
+        and getattr(settings.logging, "enable_s3_logging", False)
+        and getattr(settings.logging, "s3_log_uri", None)
+    ):
+        return str(getattr(settings.logging, "s3_log_uri", None))
+    return None
+
+
+def _determine_production_console_level(settings: object | None) -> int | None:
+    """Determine console level for production environment."""
+    console_level = _parse_log_level(os.getenv("LOGGING__CONSOLE_LEVEL"))
+    if console_level is not None:
+        return console_level
+
+    if not settings or not hasattr(settings, "logging"):
+        return None
+
+    settings_console_value = getattr(settings.logging, "console_level", None)
+    if settings_console_value is not None:
+        return _parse_log_level(str(settings_console_value))
+
+    return None
+
+
+def _configure_production_logging(resolved_level: int, settings: object | None) -> None:
+    """Configure logging for production environment."""
+    log_file = _determine_production_log_file(settings)
+    console_level = _determine_production_console_level(settings)
+
+    configure_production_logging(
+        log_level=resolved_level,
+        log_file=log_file,
+        console_level=console_level,
+    )
+
+
+def _determine_development_console_level(default_level: int, settings: object | None) -> int:
+    """Determine console level for development environment."""
+    env_console = _parse_log_level(os.getenv("LOGGING__CONSOLE_LEVEL"))
+    if env_console is not None:
+        return env_console
+
+    if settings and hasattr(settings, "logging"):
+        configured_console = _parse_log_level(str(settings.logging.console_level))
+        if configured_console is not None:
+            return configured_console
+
+    return default_level
+
+
+def _determine_development_log_file(settings: object | None) -> str | None:
+    """Determine log file for development environment."""
+    env_path = os.getenv("LOGGING__LOCAL_LOG_FILE")
+    if env_path and env_path.strip():
+        return env_path
+
+    if settings and hasattr(settings, "logging"):
+        local_log_file = getattr(settings.logging, "local_log_file", None)
+        if local_log_file:
+            path = str(local_log_file).strip()
+            return path or None
+
+    return None
+
+
+def _configure_development_logging(resolved_level: int, settings: object | None) -> None:
+    """Configure logging for development environment."""
+    setup_logging(
+        log_level=resolved_level,
+        log_file=_determine_development_log_file(settings),
+        console_level=_determine_development_console_level(resolved_level, settings),
+        suppress_third_party=True,
+        structured_format=False,
+        respect_existing_handlers=True,
+    )
+
+
+def _is_lambda_production_environment() -> bool:
+    """Check if running in Lambda production environment."""
+    return any(
         [
             os.getenv("AWS_EXECUTION_ENV"),
             os.getenv("AWS_LAMBDA_RUNTIME_API"),
             os.getenv("LAMBDA_RUNTIME_DIR"),
         ]
     )
+
+
+def _should_skip_logging_setup(root_logger: logging.Logger, *, is_production: bool) -> bool:
+    """Determine if logging setup should be skipped."""
+    return root_logger.hasHandlers() and not is_production
+
+
+def configure_application_logging() -> None:
+    """Configure application logging with reduced complexity."""
+    is_production = _is_lambda_production_environment()
     root_logger = logging.getLogger()
-    if root_logger.hasHandlers() and not is_production:
+
+    if _should_skip_logging_setup(root_logger, is_production=is_production):
         return
 
     resolved_level = resolve_log_level(is_production=is_production)
-
-    settings = None
-    try:
-        from the_alchemiser.shared.config.config import load_settings
-
-        settings = load_settings()
-    except (AttributeError, ImportError, TypeError):
-        settings = None
+    settings = _load_application_settings()
 
     if is_production:
-        log_file = None
-        if settings and settings.logging.enable_s3_logging and settings.logging.s3_log_uri:
-            log_file = settings.logging.s3_log_uri
-        console_level = _parse_log_level(os.getenv("LOGGING__CONSOLE_LEVEL"))
-        if console_level is None and settings:
-            settings_console_value = getattr(settings.logging, "console_level", None)
-            if settings_console_value is not None:
-                parsed_settings_level = _parse_log_level(str(settings_console_value))
-                if parsed_settings_level is not None:
-                    console_level = parsed_settings_level
-
-        configure_production_logging(
-            log_level=resolved_level,
-            log_file=log_file,
-            console_level=console_level,
-        )
-        return
-
-    def _determine_console_level(default_level: int) -> int:
-        env_console = _parse_log_level(os.getenv("LOGGING__CONSOLE_LEVEL"))
-        if env_console is not None:
-            return env_console
-
-        if settings:
-            configured_console = _parse_log_level(settings.logging.console_level)
-            if configured_console is not None:
-                return configured_console
-
-        return default_level
-
-    def _determine_log_file() -> str | None:
-        env_path = os.getenv("LOGGING__LOCAL_LOG_FILE")
-        if env_path and env_path.strip():
-            return env_path
-
-        if settings and settings.logging.local_log_file:
-            path = settings.logging.local_log_file.strip()
-            return path or None
-
-        return None
-
-    setup_logging(
-        log_level=resolved_level,
-        log_file=_determine_log_file(),
-        console_level=_determine_console_level(resolved_level),
-        suppress_third_party=True,
-        structured_format=False,
-        respect_existing_handlers=True,
-    )
+        _configure_production_logging(resolved_level, settings)
+    else:
+        _configure_development_logging(resolved_level, settings)
 
 
 def configure_quiet_logging() -> dict[str, int]:

@@ -56,7 +56,7 @@ class ServiceFactory:
         execution_manager_module = importlib.import_module(
             "the_alchemiser.execution_v2.core.execution_manager"
         )
-        ExecutionManager = execution_manager_module.ExecutionManager
+        execution_manager = execution_manager_module.ExecutionManager
 
         api_key = api_key or "default_key"
         secret_key = secret_key or "default_secret"
@@ -64,7 +64,7 @@ class ServiceFactory:
         enable_trade_ledger = enable_trade_ledger if enable_trade_ledger is not None else False
         return cast(
             ExecutionManagerType,
-            ExecutionManager.create_with_config(
+            execution_manager.create_with_config(
                 api_key,
                 secret_key,
                 paper=paper,

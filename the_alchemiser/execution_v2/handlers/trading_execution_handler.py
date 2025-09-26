@@ -18,12 +18,15 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.execution_v2.adapters.alpaca_execution_adapter import AlpacaExecutionAdapter
-from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
+from the_alchemiser.execution_v2.models.execution_result import (
+    ExecutionResultDTO,
+    ExecutionStatus,
+)
 from the_alchemiser.execution_v2.utils.execution_idempotency import (
     ExecutionIdempotencyStore,
     generate_execution_plan_hash,
 )
-from the_alchemiser.shared.constants import DECIMAL_ZERO
+from the_alchemiser.shared.constants import DECIMAL_ZERO, EXECUTION_HANDLERS_MODULE
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
@@ -141,6 +144,7 @@ class TradingExecutionHandler:
                 # Create empty execution result
                 execution_result = ExecutionResultDTO(
                     success=True,
+                    status=ExecutionStatus.SUCCESS,
                     plan_id=rebalance_plan_data.plan_id,
                     correlation_id=event.correlation_id,
                     orders=[],
@@ -163,7 +167,9 @@ class TradingExecutionHandler:
                 self._emit_trade_executed_event(execution_result, execution_plan_hash, success=True)
 
                 # Emit workflow completed event
-                self._emit_workflow_completed_event(event.correlation_id, execution_result)
+                self._emit_workflow_completed_event(
+                    event.correlation_id, execution_result
+                )
 
                 return
 
@@ -207,7 +213,7 @@ class TradingExecutionHandler:
             # Log execution results
             self.logger.info(
                 f"✅ Trade execution completed: {execution_result.orders_succeeded}/"
-                f"{execution_result.orders_placed} orders succeeded",
+                f"{execution_result.orders_placed} orders succeeded (status: {execution_result.status.value})",
                 extra={
                     "correlation_id": event.correlation_id,
                     "execution_plan_hash": execution_plan_hash,
@@ -216,25 +222,36 @@ class TradingExecutionHandler:
                 }
             )
 
-            # Determine if execution was successful
-            execution_success = execution_result.success and (
-                execution_result.orders_placed == 0
-                or execution_result.orders_succeeded == execution_result.orders_placed
-            )
+            # Determine workflow success based on execution status
+            # For now, treat partial success as workflow failure (can be configurable in future)
+            treat_partial_as_failure = True  # TODO: Make this configurable
+
+            if execution_result.status == ExecutionStatus.SUCCESS:
+                execution_success = True
+            elif execution_result.status == ExecutionStatus.PARTIAL_SUCCESS:
+                execution_success = not treat_partial_as_failure
+                if treat_partial_as_failure:
+                    self.logger.warning(
+                        f"⚠️ Partial execution treated as workflow failure: "
+                        f"{execution_result.orders_succeeded}/{execution_result.orders_placed} orders succeeded"
+                    )
+            else:  # ExecutionStatus.FAILURE
+                execution_success = False
 
             # Emit TradeExecuted event with enriched metadata
-            self._emit_trade_executed_event(execution_result, execution_plan_hash, success=execution_success)
+            self._emit_trade_executed_event(
+                execution_result, execution_plan_hash, success=execution_success
+            )
 
             # Emit WorkflowCompleted event if successful
             if execution_success:
-                self._emit_workflow_completed_event(event.correlation_id, execution_result)
-            else:
-                # Emit failure if execution wasn't fully successful
-                self._emit_workflow_failure(
-                    event,
-                    f"Trade execution partially failed: {execution_result.orders_succeeded}/"
-                    f"{execution_result.orders_placed} orders succeeded",
+                self._emit_workflow_completed_event(
+                    event.correlation_id, execution_result
                 )
+            else:
+                # Emit failure with detailed status information
+                failure_reason = self._build_failure_reason(execution_result)
+                self._emit_workflow_failure(event, failure_reason)
 
         except Exception as e:
             self.logger.error(
@@ -288,7 +305,7 @@ class TradingExecutionHandler:
                 causation_id=execution_result.correlation_id,  # This is the continuation of the workflow
                 event_id=f"trade-executed-{uuid.uuid4()}",
                 timestamp=datetime.now(UTC),
-                source_module="execution_v2.handlers",
+                source_module=EXECUTION_HANDLERS_MODULE,
                 source_component="TradingExecutionHandler",
                 execution_data={
                     "plan_id": execution_result.plan_id,
@@ -347,15 +364,28 @@ class TradingExecutionHandler:
 
         """
         try:
+            # Calculate workflow duration using workflow start timestamp from execution_result if available
+            if (
+                hasattr(execution_result, "workflow_start_timestamp")
+                and execution_result.workflow_start_timestamp  # type: ignore[attr-defined]
+            ):
+                workflow_start = execution_result.workflow_start_timestamp  # type: ignore[attr-defined]
+            else:
+                # Fallback: use execution_timestamp if workflow_start_timestamp is not available
+                workflow_start = execution_result.execution_timestamp
+            workflow_end = datetime.now(UTC)
+            workflow_duration_ms = int(
+                (workflow_end - workflow_start).total_seconds() * 1000
+            )
             event = WorkflowCompleted(
                 correlation_id=correlation_id,
                 causation_id=correlation_id,
                 event_id=f"workflow-completed-{uuid.uuid4()}",
-                timestamp=datetime.now(UTC),
-                source_module="execution_v2.handlers",
+                timestamp=workflow_end,
+                source_module=EXECUTION_HANDLERS_MODULE,
                 source_component="TradingExecutionHandler",
                 workflow_type="trade_execution",
-                workflow_duration_ms=0,  # Could be enhanced with actual timing
+                workflow_duration_ms=workflow_duration_ms,
                 success=True,
                 summary={
                     "orders_placed": execution_result.orders_placed,
@@ -386,8 +416,10 @@ class TradingExecutionHandler:
                 }
             )
 
-    def _emit_workflow_failure(self, original_event: RebalancePlanned, error_message: str) -> None:
-        """Emit WorkflowFailed event.
+    def _emit_workflow_failure(
+        self, original_event: BaseEvent, error_message: str
+    ) -> None:
+        """Emit WorkflowFailed event when trade execution fails.
 
         Args:
             original_event: The original event that triggered the workflow
@@ -400,7 +432,7 @@ class TradingExecutionHandler:
                 causation_id=original_event.event_id,
                 event_id=f"workflow-failed-{uuid.uuid4()}",
                 timestamp=datetime.now(UTC),
-                source_module="execution_v2.handlers",
+                source_module=EXECUTION_HANDLERS_MODULE,
                 source_component="TradingExecutionHandler",
                 workflow_type="trade_execution",
                 failure_reason=error_message,
@@ -432,3 +464,29 @@ class TradingExecutionHandler:
                     "module": "execution_v2.handlers",
                 }
             )
+
+    def _build_failure_reason(self, execution_result: ExecutionResultDTO) -> str:
+        """Build detailed failure reason based on execution status.
+
+        Args:
+            execution_result: The execution result
+
+        Returns:
+            Detailed failure reason string
+
+        """
+        if execution_result.status == ExecutionStatus.PARTIAL_SUCCESS:
+            failed_orders = [
+                order for order in execution_result.orders if not order.success
+            ]
+            failed_symbols = [order.symbol for order in failed_orders]
+            return (
+                f"Trade execution partially failed: {execution_result.orders_succeeded}/"
+                f"{execution_result.orders_placed} orders succeeded. "
+                f"Failed symbols: {', '.join(failed_symbols)}"
+            )
+        if execution_result.status == ExecutionStatus.FAILURE:
+            if execution_result.orders_placed == 0:
+                return "Trade execution failed: No orders were placed"
+            return f"Trade execution failed: 0/{execution_result.orders_placed} orders succeeded"
+        return f"Trade execution failed with status: {execution_result.status.value}"

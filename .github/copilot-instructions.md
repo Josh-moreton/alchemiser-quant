@@ -2,7 +2,7 @@
 
 ## Core guardrails
 - Treat floats carefully: never use `==`/`!=`; use `Decimal` for money and `math.isclose` for ratios.
-- Every new module file starts with `"""Business Unit: … | Status: current"""` to document ownership.
+- Every new module file starts with `"""Business Unit: … | Status: current."""` to document ownership.
 - Enforce strict typing (`mypy --config-file=pyproject.toml`); avoid `Any` in domain logic and keep DTOs frozen.
 - Event handlers must be idempotent, propagate `correlation_id`/`causation_id`, and tolerate replays.
 
@@ -14,7 +14,7 @@
 
 ## Event-driven workflow
 - Strategy emits `SignalGenerated` after pulling market data via adapters; payload must include `schema_version`, correlation IDs, and DTO dumps.
-- Portfolio consumes `SignalGenerated`, derives `RebalancePlanDTO`, and publishes `RebalancePlanned` with allocation deltas and plan metadata.
+- Portfolio consumes `SignalGenerated`, derives `RebalancePlan`, and publishes `RebalancePlanned` with allocation deltas and plan metadata.
 - Execution consumes `RebalancePlanned`, executes via Alpaca adapters, and publishes `TradeExecuted` plus `WorkflowCompleted`/`WorkflowFailed`.
 - Orchestrators (`orchestration/event_driven_orchestrator.py`) wire handlers through the `EventBus`; prefer registry/event wiring over direct imports.
 
@@ -25,8 +25,8 @@
 
 ## Developer workflows
 - Install: `poetry install` (or `make dev` for optional groups).
-- Format & lint: `poetry run ruff format the_alchemiser/` then `poetry run ruff check --fix the_alchemiser/`.
-- Type-check: `poetry run mypy the_alchemiser/ --config-file=pyproject.toml`.
+- Format & lint & type-check: `make format && make type-check`.
+- Type-check: `make type-check`.
 - Import boundaries: `poetry run importlinter --config pyproject.toml`.
 - Run trading locally: `poetry run python -m the_alchemiser` (paper vs live controlled by config).
 - Deploy via AWS Lambda: `make deploy` → `scripts/deploy.sh`.
