@@ -1,0 +1,59 @@
+name: 'SonarCloud Issues to GitHub'
+description: 'Fetch SonarCloud issues and create/update GitHub Issues (aggregated per file)'
+author: 'alchemiser-quant'
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install deps
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests
+
+    - name: Run sync
+      shell: bash
+      env:
+        SONAR_HOST_URL: ${{ inputs.sonar_host_url }}
+        SONAR_TOKEN: ${{ inputs.sonar_token }}
+        SONAR_ORGANIZATION: ${{ inputs.sonar_organization }}
+        GITHUB_TOKEN: ${{ github.token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        COPILOT_ASSIGNEE: ${{ inputs.copilot_assignee }}
+      run: |
+        python scripts/sonar_to_github_issues.py \
+          --project-key "${{ inputs.project_key }}" \
+          --severity "${{ inputs.severity }}" \
+          --types "${{ inputs.types }}" \
+          --label sonarqube --label tech-debt --label automated
+
+inputs:
+  project_key:
+    description: 'SonarCloud project key'
+    required: true
+  sonar_organization:
+    description: 'SonarCloud organization key'
+    required: true
+  sonar_token:
+    description: 'SonarCloud token (secret)'
+    required: true
+  sonar_host_url:
+    description: 'Sonar host URL (default: https://sonarcloud.io)'
+    required: false
+    default: 'https://sonarcloud.io'
+  severity:
+    description: 'Comma-separated severities (e.g., CRITICAL,MAJOR,MINOR)'
+    required: false
+    default: 'CRITICAL,MAJOR,MINOR'
+  types:
+    description: 'Comma-separated types (e.g., BUG,VULNERABILITY,CODE_SMELL)'
+    required: false
+    default: 'BUG,VULNERABILITY,CODE_SMELL'
+  copilot_assignee:
+    description: 'Optional GitHub username to assign (e.g., github-copilot)'
+    required: false
+    default: ''
