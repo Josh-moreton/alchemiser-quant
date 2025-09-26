@@ -105,7 +105,9 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def sonar_paginated(url: str, params: dict[str, str], limit: int, token: str | None = None) -> Iterable[dict]:
+def sonar_paginated(
+    url: str, params: dict[str, str], limit: int, token: str | None = None
+) -> Iterable[dict]:
     """Yield SonarQube issues via paginated API until limit is reached."""
     page = 1
     page_size = 500
@@ -322,7 +324,9 @@ def get_github_repo(owner_repo_env: str | None = None) -> tuple[str, str] | None
             pass
     # gh CLI
     if shutil.which("gh"):
-        code, out, _ = _run_command(["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"])
+        code, out, _ = _run_command(
+            ["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"]
+        )
         if code == 0 and out and "/" in out:
             owner, repo = out.split("/", 1)
             return owner, repo
