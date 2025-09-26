@@ -1179,17 +1179,18 @@ class RealTimePricingService:
         self, symbols: list[str], priority: float, results: dict[str, bool]
     ) -> list[str]:
         """Update priority for existing symbols and return new symbols to add.
-        
+
         Args:
             symbols: List of symbols to process
             priority: Priority score to assign
             results: Results dictionary to update
-            
+
         Returns:
             List of symbols that need to be added (not already subscribed)
+
         """
         symbols_to_add: list[str] = []
-        
+
         for symbol in symbols:
             if symbol in self._subscribed_symbols:
                 # Update priority for existing subscription
@@ -1199,26 +1200,27 @@ class RealTimePricingService:
                 results[symbol] = True
             else:
                 symbols_to_add.append(symbol)
-                
+
         return symbols_to_add
 
     def _find_symbols_to_replace_bulk(
         self, symbols_to_add: list[str], priority: float
     ) -> list[str]:
         """Find lowest priority symbols that can be replaced for bulk operations.
-        
+
         Args:
             symbols_to_add: New symbols that need subscription slots
             priority: Priority of new symbols
-            
+
         Returns:
             List of existing symbols to replace
+
         """
         available_slots = max(0, self._max_symbols - len(self._subscribed_symbols))
-        
+
         if len(symbols_to_add) <= available_slots:
             return []
-            
+
         symbols_to_replace: list[str] = []
         needed_slots = len(symbols_to_add) - available_slots
 
@@ -1233,14 +1235,15 @@ class RealTimePricingService:
                 break
             if self._subscription_priority.get(symbol, 0) < priority:
                 symbols_to_replace.append(symbol)
-                
+
         return symbols_to_replace
 
     def _remove_replaced_symbols(self, symbols_to_replace: list[str]) -> None:
         """Remove symbols that are being replaced by higher priority ones.
-        
+
         Args:
             symbols_to_replace: List of symbols to remove
+
         """
         for symbol_to_remove in symbols_to_replace:
             self._subscribed_symbols.discard(symbol_to_remove)
@@ -1252,14 +1255,15 @@ class RealTimePricingService:
         self, symbols_to_add: list[str], priority: float, results: dict[str, bool]
     ) -> bool:
         """Add new symbols up to available capacity.
-        
+
         Args:
             symbols_to_add: Symbols to add
             priority: Priority score for new symbols
             results: Results dictionary to update
-            
+
         Returns:
             True if any symbols were added (requiring stream restart)
+
         """
         max_to_add = min(len(symbols_to_add), self._max_symbols - len(self._subscribed_symbols))
         needs_restart = False
@@ -1274,7 +1278,7 @@ class RealTimePricingService:
             else:
                 results[symbol] = False
                 logging.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
-                
+
         return needs_restart
 
     def bulk_subscribe_symbols(
