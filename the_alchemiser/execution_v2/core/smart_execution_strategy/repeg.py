@@ -118,7 +118,7 @@ class RepegManager:
 
             # Check if we've reached max re-pegs — escalate to market
             if self._should_escalate_order(current_repeg_count):
-                logger.info(
+                logger.warning(
                     f"⚠️ Order {order_id} reached max re-pegs "
                     f"({current_repeg_count}/{self.config.max_repegs_per_order}), escalating to market order"
                 )
@@ -128,7 +128,7 @@ class RepegManager:
             placement_time = self.order_tracker.get_placement_time(order_id)
             if placement_time:
                 time_elapsed = (current_time - placement_time).total_seconds()
-                logger.info(
+                logger.debug(
                     f"🔄 Order {order_id} hasn't filled after {time_elapsed:.1f}s, "
                     f"attempting re-peg (attempt {current_repeg_count + 1}/{self.config.max_repegs_per_order})"
                 )
@@ -153,7 +153,7 @@ class RepegManager:
         order_status = self.alpaca_manager._check_order_completion_status(order_id)
 
         if order_status and is_order_completed(order_status):
-            logger.info(f"📊 Order {order_id} completed with status: {order_status}")
+            logger.debug(f"📊 Order {order_id} completed with status: {order_status}")
             return True
 
         return False
@@ -215,7 +215,7 @@ class RepegManager:
 
         """
         try:
-            logger.info(
+            logger.debug(
                 f"🛑 Escalating order {order_id} to market: canceling existing limit order "
                 f"(after {self.order_tracker.get_repeg_count(order_id)} re-pegs)"
             )
@@ -325,42 +325,40 @@ class RepegManager:
 
         """
         try:
-            # Cancel existing order and wait for confirmation
-            if not await self._cancel_and_wait_for_order(order_id):
-                return False
-
-            # Get quote and calculate new price
-            price_data = await self._calculate_repeg_price(order_id, request)
-            if not price_data:
-                return False
-
-            quote, new_price, quantized_price = price_data
-
-            # Place new order and handle result
-            return await self._place_repeg_order(
-                order_id, request, quote, new_price, quantized_price
+            # First, get current order status to check for partial fills
+            logger.debug(f"🔍 Checking current status of order {order_id} before re-peg")
+            order_result = await asyncio.to_thread(
+                self.alpaca_manager.get_order_execution_result, order_id
             )
 
-        except Exception as e:
-            logger.error(f"❌ Error during re-peg attempt for {order_id}: {e}")
-            return SmartOrderResult(
-                success=False,
-                error_message=str(e),
-                execution_strategy="smart_repeg_error",
+            # Update filled quantity tracking
+            filled_qty = (
+                order_result.filled_qty if hasattr(order_result, "filled_qty") else Decimal("0")
+            )
+            self.order_tracker.update_filled_quantity(order_id, filled_qty)
+
+            # Calculate remaining quantity
+            remaining_qty = self.order_tracker.get_remaining_quantity(order_id)
+
+            # Log current status for debugging
+            logger.info(
+                f"📊 Order {order_id} status before re-peg: "
+                f"original={request.quantity}, filled={filled_qty}, remaining={remaining_qty}"
             )
 
-    async def _cancel_and_wait_for_order(self, order_id: str) -> bool:
-        """Cancel order and wait for confirmation.
+            # If remaining quantity is too small, consider order effectively complete
+            min_qty_threshold = Decimal("0.01")  # Minimum meaningful quantity
+            if remaining_qty <= min_qty_threshold:
+                logger.info(
+                    f"✅ Order {order_id} has minimal remaining quantity ({remaining_qty}), "
+                    f"considering complete"
+                )
+                return None  # Remove from tracking
 
-        Args:
-            order_id: Order ID to cancel
-
-        Returns:
-            True if cancellation successful, False otherwise
-
-        """
-        logger.info(f"❌ Canceling order {order_id} for re-pegging")
-        cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
+            # Cancel the existing order
+            logger.info(f"❌ Canceling order {order_id} for re-pegging")
+            # Use asyncio.to_thread to make blocking I/O async
+            cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
 
         if not cancel_success:
             logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
@@ -457,20 +455,75 @@ class RepegManager:
         new_repeg_count = old_repeg_count + 1
         original_anchor = self.order_tracker.get_anchor_price(order_id)
 
-        logger.info(
-            f"📈 Re-pegging {request.symbol} {request.side} from "
-            f"${original_anchor} to ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order})"
-        )
+            logger.debug(
+                f"📈 Re-pegging {request.symbol} {request.side} from "
+                f"${original_anchor} to ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order}) "
+                f"with remaining quantity {remaining_qty} (original: {request.quantity})"
+            )
 
-        # Place the order
-        executed_order = await asyncio.to_thread(
-            self.alpaca_manager.place_limit_order,
-            symbol=request.symbol,
-            side=request.side.lower(),
-            quantity=float(request.quantity),
-            limit_price=float(quantized_price),
-            time_in_force="day",
-        )
+            # Ensure price is properly quantized to avoid sub-penny precision errors
+            quantized_price = new_price.quantize(Decimal("0.01"))
+
+            # Final validation before placing order
+            if quantized_price <= 0:
+                logger.error(
+                    f"⚠️ Quantized re-peg price ${quantized_price} is invalid for {request.symbol}. "
+                    f"This should not happen after validation - skipping re-peg."
+                )
+                return False
+
+            # Use remaining quantity instead of original quantity for re-peg
+            try:
+                # Use asyncio.to_thread to make blocking I/O async
+                executed_order = await asyncio.to_thread(
+                    self.alpaca_manager.place_limit_order,
+                    symbol=request.symbol,
+                    side=request.side.lower(),
+                    quantity=float(remaining_qty),  # Use remaining quantity instead of original
+                    limit_price=float(quantized_price),
+                    time_in_force="day",
+                )
+            except Exception as e:
+                error_str = str(e)
+                # Check if error is due to insufficient quantity
+                if "insufficient qty available" in error_str.lower():
+                    logger.warning(
+                        f"⚠️ Insufficient quantity available for {request.symbol}. "
+                        f"Requested: {remaining_qty}, Error: {error_str}"
+                    )
+                    # Try to extract available quantity from error message if possible
+                    # This is a defensive measure for the specific Alpaca error format
+                    import re
+
+                    available_match = re.search(r"available: ([\d.]+)", error_str)
+                    if available_match:
+                        try:
+                            available_qty = Decimal(available_match.group(1))
+                            if available_qty > min_qty_threshold:
+                                logger.info(
+                                    f"🔄 Retrying re-peg with available quantity: {available_qty}"
+                                )
+                                executed_order = await asyncio.to_thread(
+                                    self.alpaca_manager.place_limit_order,
+                                    symbol=request.symbol,
+                                    side=request.side.lower(),
+                                    quantity=float(available_qty),
+                                    limit_price=float(quantized_price),
+                                    time_in_force="day",
+                                )
+                            else:
+                                logger.info(
+                                    f"✅ Available quantity {available_qty} too small, "
+                                    f"considering order complete"
+                                )
+                                return None  # Remove from tracking
+                        except (ValueError, Exception) as retry_e:
+                            logger.error(f"❌ Retry with available quantity failed: {retry_e}")
+                            raise e
+                    else:
+                        raise e
+                else:
+                    raise e
 
         return self._handle_repeg_order_result(
             executed_order, order_id, request, quote, new_price, original_anchor, new_repeg_count
@@ -527,10 +580,11 @@ class RepegManager:
             order_id, executed_order.order_id, new_price, datetime.now(UTC)
         )
 
-        logger.info(
-            f"✅ Re-peg successful: new order {executed_order.order_id} "
-            f"at ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order})"
-        )
+                    logger.info(
+                        f"✅ Re-peg successful: new order {executed_order.order_id} "
+                        f"at ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order}) "
+                        f"quantity: {remaining_qty}"
+                    )
 
         metadata_dict: LiquidityMetadata = {
             "original_order_id": order_id,

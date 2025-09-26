@@ -79,8 +79,9 @@ class DslStrategyEngine:
                 parallelism, max_workers, len(dsl_files)
             )
 
-            self.logger.info(
-                f"Generating DSL signals from {len(dsl_files)} files",
+            self.logger.info(f"Generating DSL signals from {len(dsl_files)} files")
+            self.logger.debug(
+                f"DSL evaluation details: parallelism={parallelism}, max_workers={effective_max_workers}",
                 extra={
                     "correlation_id": correlation_id,
                     "timestamp": timestamp.isoformat(),
@@ -280,7 +281,7 @@ class DslStrategyEngine:
 
         # Format and log DSL evaluation results
         formatted_allocation = self._format_dsl_allocation(filename, allocation.target_weights)
-        self.logger.info(formatted_allocation)
+        self.logger.debug(formatted_allocation)
 
         return per_file_weights, trace.trace_id, file_weight, file_sum
 

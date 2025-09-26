@@ -29,6 +29,8 @@ class OrderTracker:
         self._order_anchor_prices: dict[str, Decimal] = {}
         # Track price history to prevent re-pegging at same prices
         self._price_history: dict[str, list[Decimal]] = {}
+        # Track filled quantities for partial fill handling
+        self._filled_quantities: dict[str, Decimal] = {}
 
     def add_order(
         self,
@@ -52,6 +54,8 @@ class OrderTracker:
         self._order_anchor_prices[order_id] = anchor_price
         # Initialize price history with the initial anchor price
         self._price_history[order_id] = [anchor_price]
+        # Initialize filled quantity tracking
+        self._filled_quantities[order_id] = Decimal("0")
 
         logger.debug(f"📊 Added order {order_id} to tracking (anchor: ${anchor_price})")
 
@@ -76,6 +80,8 @@ class OrderTracker:
         old_repeg_count = self._repeg_counts.get(old_order_id, 0)
         # Preserve price history to prevent re-pegging at same prices
         price_history = self._price_history.get(old_order_id, [])
+        # Preserve filled quantity for cumulative tracking across repegs
+        filled_quantity = self._filled_quantities.get(old_order_id, Decimal("0"))
 
         if request:
             # Remove old tracking
@@ -88,10 +94,13 @@ class OrderTracker:
             self._order_anchor_prices[new_order_id] = new_anchor_price
             # Transfer and extend price history
             self._price_history[new_order_id] = [*price_history, new_anchor_price]
+            # Transfer filled quantity tracking
+            self._filled_quantities[new_order_id] = filled_quantity
 
             logger.debug(
                 f"📊 Updated order tracking: {old_order_id} -> {new_order_id} "
-                f"(repeg count: {old_repeg_count + 1}, new anchor: ${new_anchor_price})"
+                f"(repeg count: {old_repeg_count + 1}, new anchor: ${new_anchor_price}, "
+                f"cumulative filled: {filled_quantity})"
             )
 
     def remove_order(self, order_id: str) -> None:
@@ -106,6 +115,7 @@ class OrderTracker:
         self._order_placement_times.pop(order_id, None)
         self._order_anchor_prices.pop(order_id, None)
         self._price_history.pop(order_id, None)
+        self._filled_quantities.pop(order_id, None)
 
         logger.debug(f"📊 Removed order {order_id} from tracking")
 
@@ -169,6 +179,55 @@ class OrderTracker:
         """
         return self._price_history.get(order_id, [])
 
+    def get_filled_quantity(self, order_id: str) -> Decimal:
+        """Get the filled quantity for an order.
+
+        Args:
+            order_id: Order ID to check
+
+        Returns:
+            Filled quantity (Decimal("0") if not found)
+
+        """
+        return self._filled_quantities.get(order_id, Decimal("0"))
+
+    def update_filled_quantity(self, order_id: str, filled_quantity: Decimal) -> None:
+        """Update the filled quantity for an order.
+
+        Args:
+            order_id: Order ID to update
+            filled_quantity: New filled quantity
+
+        """
+        if order_id in self._active_orders:
+            old_filled = self._filled_quantities.get(order_id, Decimal("0"))
+            self._filled_quantities[order_id] = filled_quantity
+
+            if filled_quantity != old_filled:
+                logger.info(
+                    f"📊 Updated filled quantity for {order_id}: {old_filled} -> {filled_quantity}"
+                )
+
+    def get_remaining_quantity(self, order_id: str) -> Decimal:
+        """Get the remaining quantity for an order (original - filled).
+
+        Args:
+            order_id: Order ID to check
+
+        Returns:
+            Remaining quantity to be filled (Decimal("0") if order not found)
+
+        """
+        request = self._active_orders.get(order_id)
+        if not request:
+            return Decimal("0")
+
+        filled = self._filled_quantities.get(order_id, Decimal("0"))
+        remaining = request.quantity - filled
+
+        # Ensure remaining is non-negative
+        return max(remaining, Decimal("0"))
+
     def get_active_orders(self) -> dict[str, SmartOrderRequest]:
         """Get all active orders being tracked.
 
@@ -193,5 +252,7 @@ class OrderTracker:
         self._repeg_counts.clear()
         self._order_placement_times.clear()
         self._order_anchor_prices.clear()
+        self._price_history.clear()
+        self._filled_quantities.clear()
 
         logger.info("📊 Cleared all order tracking data")

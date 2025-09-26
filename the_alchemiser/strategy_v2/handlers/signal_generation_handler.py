@@ -243,7 +243,9 @@ class SignalGenerationHandler:
                     )
                     return False
 
-        self.logger.info(f"✅ Signal validation passed for {len(strategy_signals)} strategies")
+        self.logger.info(
+            f"✅ Generated and validated signals for {len(strategy_signals)} strategies"
+        )
         return True
 
     def _emit_signal_generated_event(
