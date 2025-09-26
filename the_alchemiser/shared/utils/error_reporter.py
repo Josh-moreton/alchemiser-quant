@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 
 from the_alchemiser.shared.types.exceptions import (
     InsufficientFundsError,
@@ -21,11 +21,8 @@ from the_alchemiser.shared.types.exceptions import (
     SecurityError,
 )
 
-if TYPE_CHECKING:
-    pass
 
-
-class NotificationManager(Protocol):
+class NotificationManager(Protocol):  # pragma: no cover - structural typing helper
     """Protocol for notification managers."""
 
     def send_critical_alert(self, message: str, context: dict[str, object]) -> None:

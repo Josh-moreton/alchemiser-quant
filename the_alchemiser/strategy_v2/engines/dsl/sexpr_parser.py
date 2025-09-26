@@ -69,44 +69,66 @@ class SexprParser:
         position = 0
         length = len(text)
 
-        def _consume_string(start_pos: int) -> tuple[str, int]:
-            """Consume a string token handling escape characters."""
-            i = start_pos + 1
-            while i < length:
-                if text[i] == "\\":
-                    i += 2  # skip escaped character
-                    continue
-                if text[i] == '"':
-                    return text[start_pos : i + 1], i + 1
-                i += 1
-            raise SexprParseError("Unterminated string literal", start_pos)
-
-        def _match_patterns(pos: int) -> tuple[str, int] | None:
-            """Try to match any compiled pattern at current position."""
-            for pattern, token_type in self.compiled_patterns:
-                match = pattern.match(text, pos)
-                if match:
-                    value = match.group()
-                    if token_type not in ("WHITESPACE", "COMMENT", "COMMA"):
-                        tokens.append((value, token_type))
-                    return value, match.end()
-            return None
-
         while position < length:
-            char = text[position]
-            if char == '"':
-                string_token, position = _consume_string(position)
-                tokens.append((string_token, "STRING"))
-                continue
-
-            matched = _match_patterns(position)
-            if matched:
-                _, position = matched
-                continue
-
-            raise SexprParseError(f"Unexpected character: {char}", position)
+            position = self._process_character_at_position(text, position, tokens)
 
         return tokens
+
+    def _process_character_at_position(
+        self, text: str, position: int, tokens: list[tuple[str, str]]
+    ) -> int:
+        """Process a single character at the given position.
+
+        Args:
+            text: The text being tokenized
+            position: Current position in the text
+            tokens: List of tokens to append to
+
+        Returns:
+            The new position after processing the character
+
+        Raises:
+            SexprParseError: If an unexpected character is encountered
+
+        """
+        char = text[position]
+        if char == '"':
+            string_token, new_position = self._consume_string(text, position)
+            tokens.append((string_token, "STRING"))
+            return new_position
+
+        matched = self._match_patterns(text, position, tokens)
+        if matched:
+            _, new_position = matched
+            return new_position
+
+        raise SexprParseError(f"Unexpected character: {char}", position)
+
+    def _consume_string(self, text: str, start_pos: int) -> tuple[str, int]:
+        """Consume a string token handling escape characters."""
+        i = start_pos + 1
+        length = len(text)
+        while i < length:
+            if text[i] == "\\":
+                i += 2  # skip escaped character
+                continue
+            if text[i] == '"':
+                return text[start_pos : i + 1], i + 1
+            i += 1
+        raise SexprParseError("Unterminated string literal", start_pos)
+
+    def _match_patterns(
+        self, text: str, pos: int, tokens: list[tuple[str, str]]
+    ) -> tuple[str, int] | None:
+        """Try to match any compiled pattern at current position."""
+        for pattern, token_type in self.compiled_patterns:
+            match = pattern.match(text, pos)
+            if match:
+                value = match.group()
+                if token_type not in ("WHITESPACE", "COMMENT", "COMMA"):
+                    tokens.append((value, token_type))
+                return value, match.end()
+        return None
 
     def parse(self, text: str) -> ASTNodeDTO:
         """Parse S-expression text into AST.

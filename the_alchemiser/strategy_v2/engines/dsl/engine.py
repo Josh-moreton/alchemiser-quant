@@ -12,7 +12,6 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.constants import DSL_ENGINE_MODULE
 from the_alchemiser.shared.events.base import BaseEvent
@@ -31,9 +30,6 @@ from the_alchemiser.shared.types.market_data_port import MarketDataPort
 
 from .dsl_evaluator import DslEvaluator, IndicatorService
 from .sexpr_parser import SexprParseError, SexprParser
-
-if TYPE_CHECKING:
-    pass
 
 
 class DslEngine(EventHandler):
