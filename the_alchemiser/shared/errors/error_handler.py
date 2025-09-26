@@ -477,68 +477,44 @@ class TradingSystemErrorHandler:
         """Check if any trading-related errors occurred."""
         return any(error.category == ErrorCategory.TRADING for error in self.errors)
 
+    def _get_category_summary(self, category: str, summary_key: str) -> dict[str, Any] | None:
+        """Get error summary for a specific category.
+
+        Args:
+            category: The error category constant to filter by
+            summary_key: The key name for the summary dictionary
+
+        Returns:
+            Category summary dict with count and errors, or None if no errors
+
+        """
+        category_errors = [e for e in self.errors if e.category == category]
+        if category_errors:
+            return {
+                "count": len(category_errors),
+                "errors": [e.to_dict() for e in category_errors],
+            }
+        return None
+
     def get_error_summary(self) -> dict[str, Any]:
         """Get a summary of all errors by category."""
+        # Define category mappings to reduce repetition
+        category_mappings = [
+            (ErrorCategory.CRITICAL, "critical"),
+            (ErrorCategory.TRADING, "trading"),
+            (ErrorCategory.DATA, "data"),
+            (ErrorCategory.STRATEGY, "strategy"),
+            (ErrorCategory.CONFIGURATION, "configuration"),
+            (ErrorCategory.NOTIFICATION, "notification"),
+            (ErrorCategory.WARNING, "warning"),
+        ]
+
         # Initialize summary with all categories as None
-        summary: dict[str, Any] = {
-            "critical": None,
-            "trading": None,
-            "data": None,
-            "strategy": None,
-            "configuration": None,
-            "notification": None,
-            "warning": None,
-        }
+        summary: dict[str, Any] = {key: None for _, key in category_mappings}
 
-        # Handle each category explicitly
-        critical_errors = [e for e in self.errors if e.category == ErrorCategory.CRITICAL]
-        if critical_errors:
-            summary["critical"] = {
-                "count": len(critical_errors),
-                "errors": [e.to_dict() for e in critical_errors],
-            }
-
-        trading_errors = [e for e in self.errors if e.category == ErrorCategory.TRADING]
-        if trading_errors:
-            summary["trading"] = {
-                "count": len(trading_errors),
-                "errors": [e.to_dict() for e in trading_errors],
-            }
-
-        data_errors = [e for e in self.errors if e.category == ErrorCategory.DATA]
-        if data_errors:
-            summary["data"] = {
-                "count": len(data_errors),
-                "errors": [e.to_dict() for e in data_errors],
-            }
-
-        strategy_errors = [e for e in self.errors if e.category == ErrorCategory.STRATEGY]
-        if strategy_errors:
-            summary["strategy"] = {
-                "count": len(strategy_errors),
-                "errors": [e.to_dict() for e in strategy_errors],
-            }
-
-        config_errors = [e for e in self.errors if e.category == ErrorCategory.CONFIGURATION]
-        if config_errors:
-            summary["configuration"] = {
-                "count": len(config_errors),
-                "errors": [e.to_dict() for e in config_errors],
-            }
-
-        notification_errors = [e for e in self.errors if e.category == ErrorCategory.NOTIFICATION]
-        if notification_errors:
-            summary["notification"] = {
-                "count": len(notification_errors),
-                "errors": [e.to_dict() for e in notification_errors],
-            }
-
-        warning_errors = [e for e in self.errors if e.category == ErrorCategory.WARNING]
-        if warning_errors:
-            summary["warning"] = {
-                "count": len(warning_errors),
-                "errors": [e.to_dict() for e in warning_errors],
-            }
+        # Process each category using the helper function
+        for category, summary_key in category_mappings:
+            summary[summary_key] = self._get_category_summary(category, summary_key)
 
         return summary
 
