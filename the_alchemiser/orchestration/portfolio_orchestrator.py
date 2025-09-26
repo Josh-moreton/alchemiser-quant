@@ -30,10 +30,6 @@ from the_alchemiser.shared.schemas.common import AllocationComparison
 from the_alchemiser.shared.schemas.consolidated_portfolio import (
     ConsolidatedPortfolio,
 )
-from the_alchemiser.shared.schemas.portfolio_state import (
-    PortfolioMetrics,
-    PortfolioState,
-)
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 
 
@@ -347,29 +343,7 @@ class PortfolioOrchestrator:
 
             # DUAL-PATH: Emit RebalancePlanned event for event-driven consumers
             try:
-                # Create a minimal portfolio state DTO for event emission
-                minimal_metrics = PortfolioMetrics(
-                    total_value=Decimal(str(rebalance_plan.total_trade_value)),
-                    cash_value=Decimal("0"),
-                    equity_value=Decimal(str(rebalance_plan.total_trade_value)),
-                    buying_power=Decimal("0"),
-                    day_pnl=Decimal("0"),
-                    day_pnl_percent=Decimal("0"),
-                    total_pnl=Decimal("0"),
-                    total_pnl_percent=Decimal("0"),
-                )
-
-                portfolio_state = PortfolioState(
-                    correlation_id=str(uuid.uuid4()),
-                    causation_id=f"portfolio-rebalancing-{datetime.now(UTC).isoformat()}",
-                    timestamp=datetime.now(UTC),
-                    portfolio_id="main_portfolio",
-                    account_id=None,
-                    positions=[],  # Would be populated from portfolio service
-                    metrics=minimal_metrics,
-                )
-
-                self._emit_rebalance_planned_event(rebalance_plan, portfolio_state)
+                self._emit_rebalance_planned_event(rebalance_plan)
             except Exception as e:
                 # Don't let event emission break the traditional workflow
                 self.logger.warning(f"Failed to emit rebalance events: {e}")
@@ -665,16 +639,13 @@ class PortfolioOrchestrator:
 
         return open_orders
 
-    def _emit_rebalance_planned_event(
-        self, rebalance_plan: RebalancePlan, portfolio_state: PortfolioState
-    ) -> None:
+    def _emit_rebalance_planned_event(self, rebalance_plan: RebalancePlan) -> None:
         """Emit RebalancePlanned event for event-driven architecture.
 
         Converts traditional rebalancing plan data to event format for new event-driven consumers.
 
         Args:
             rebalance_plan: The rebalancing plan DTO
-            portfolio_state: Current portfolio state DTO
 
         """
         try:
