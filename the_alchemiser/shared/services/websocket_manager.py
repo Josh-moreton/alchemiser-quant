@@ -78,7 +78,7 @@ class WebSocketConnectionManager:
         self._trading_lock = threading.Lock()
         self._initialized: bool = True
 
-        logger.info(
+        logger.debug(
             f"📡 WebSocket connection manager initialized ({'paper' if paper_trading else 'live'})"
         )
 

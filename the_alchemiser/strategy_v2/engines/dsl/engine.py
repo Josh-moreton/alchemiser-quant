@@ -117,7 +117,7 @@ class DslEngine(EventHandler):
             correlation_id = str(uuid.uuid4())
 
         try:
-            self.logger.info(
+            self.logger.debug(
                 "Starting DSL strategy evaluation",
                 extra={
                     "correlation_id": correlation_id,
@@ -132,7 +132,7 @@ class DslEngine(EventHandler):
             # Evaluate AST
             allocation, trace = self.evaluator.evaluate(ast, correlation_id)
 
-            self.logger.info(
+            self.logger.debug(
                 "DSL strategy evaluation completed successfully",
                 extra={
                     "correlation_id": correlation_id,

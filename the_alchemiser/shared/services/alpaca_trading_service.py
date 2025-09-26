@@ -78,7 +78,7 @@ class AlpacaTradingService:
         # WebSocket trading stream state
         self._trading_service_active = False
 
-        logger.info(f"🏪 AlpacaTradingService initialized ({'paper' if paper_trading else 'live'})")
+        logger.debug(f"🏪 AlpacaTradingService initialized ({'paper' if paper_trading else 'live'})")
 
     def __del__(self) -> None:
         """Cleanup WebSocket resources when service is garbage collected."""
