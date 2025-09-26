@@ -15,6 +15,7 @@ from decimal import Decimal
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.schemas.broker import OrderExecutionResult
+from the_alchemiser.shared.types.exceptions import OrderExecutionError
 from the_alchemiser.shared.types.market_data import QuoteModel
 
 from .models import (
@@ -578,7 +579,13 @@ class RepegManager:
         
         available_qty = self._extract_available_quantity(error_str)
         if available_qty is None:
-            raise Exception(error_str)
+            raise OrderExecutionError(
+                f"Failed to extract available quantity from broker error: {error_str}",
+                symbol=request.symbol,
+                order_type="limit",
+                quantity=float(requested_quantity),
+                price=float(limit_price),
+            )
         
         return await self._retry_with_available_quantity(request, available_qty, limit_price, error_str)
 
@@ -607,7 +614,13 @@ class RepegManager:
             )
         except Exception as retry_e:
             logger.error(f"❌ Retry with available quantity failed: {retry_e}")
-            raise Exception(original_error)
+            raise OrderExecutionError(
+                f"Retry with available quantity failed after insufficient quantity error: {original_error}",
+                symbol=request.symbol,
+                order_type="limit",
+                quantity=float(available_qty),
+                price=float(limit_price),
+            )
 
     def _is_valid_uuid_str(self, value: str) -> bool:
         """Check if provided string is a valid UUID format."""
