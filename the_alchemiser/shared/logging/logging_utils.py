@@ -270,7 +270,7 @@ def log_with_context(logger: logging.Logger, level: int, message: str, **context
     logger.log(level, message, extra=extra)
 
 
-def _create_formatter(structured_format: bool) -> logging.Formatter:
+def _create_formatter(*, structured_format: bool) -> logging.Formatter:
     """Create appropriate formatter based on format setting."""
     if structured_format:
         return StructuredFormatter()
@@ -292,6 +292,7 @@ def _create_file_handler_if_needed(
     log_file: str | None,
     formatter: logging.Formatter,
     log_level: int,
+    *,
     enable_file_rotation: bool,
     max_file_size_mb: int,
 ) -> logging.Handler | None:
@@ -332,7 +333,7 @@ def _suppress_third_party_loggers() -> None:
 
 
 def _should_add_console_handler(
-    respect_existing_handlers: bool, root_logger: logging.Logger
+    *, respect_existing_handlers: bool, root_logger: logging.Logger
 ) -> bool:
     """Determine if console handler should be added."""
     return not respect_existing_handlers or not root_logger.hasHandlers()
@@ -412,17 +413,23 @@ def setup_logging(
     if not respect_existing_handlers and root_logger.hasHandlers():
         root_logger.handlers.clear()
 
-    formatter = _create_formatter(structured_format)
+    formatter = _create_formatter(structured_format=structured_format)
     handlers: list[logging.Handler] = []
 
     # Add console handler if needed
-    if _should_add_console_handler(respect_existing_handlers, root_logger):
+    if _should_add_console_handler(
+        respect_existing_handlers=respect_existing_handlers, root_logger=root_logger
+    ):
         console_handler = _create_console_handler(formatter, console_level, log_level)
         handlers.append(console_handler)
 
     # Add file handler if specified
     file_handler = _create_file_handler_if_needed(
-        log_file, formatter, log_level, enable_file_rotation, max_file_size_mb
+        log_file,
+        formatter,
+        log_level,
+        enable_file_rotation=enable_file_rotation,
+        max_file_size_mb=max_file_size_mb,
     )
     if file_handler:
         handlers.append(file_handler)
@@ -849,7 +856,7 @@ def _is_lambda_production_environment() -> bool:
     )
 
 
-def _should_skip_logging_setup(root_logger: logging.Logger, is_production: bool) -> bool:
+def _should_skip_logging_setup(root_logger: logging.Logger, *, is_production: bool) -> bool:
     """Determine if logging setup should be skipped."""
     return root_logger.hasHandlers() and not is_production
 
@@ -859,7 +866,7 @@ def configure_application_logging() -> None:
     is_production = _is_lambda_production_environment()
     root_logger = logging.getLogger()
 
-    if _should_skip_logging_setup(root_logger, is_production):
+    if _should_skip_logging_setup(root_logger, is_production=is_production):
         return
 
     resolved_level = resolve_log_level(is_production=is_production)
