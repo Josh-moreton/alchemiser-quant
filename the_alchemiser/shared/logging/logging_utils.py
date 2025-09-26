@@ -762,10 +762,10 @@ def _determine_production_log_file(settings: object | None) -> str | None:
         return None
     if (
         hasattr(settings, "logging")
-        and settings.logging.enable_s3_logging
-        and settings.logging.s3_log_uri
+        and getattr(settings.logging, "enable_s3_logging", False)
+        and getattr(settings.logging, "s3_log_uri", None)
     ):
-        return str(settings.logging.s3_log_uri)
+        return str(getattr(settings.logging, "s3_log_uri", None))
     return None
 
 
