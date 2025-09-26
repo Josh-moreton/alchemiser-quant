@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -325,40 +326,66 @@ class SignalGenerationHandler:
     ) -> None:
         """Log final consolidated signal and portfolio summary."""
         try:
-            if strategy_signals:
-                self.logger.info("📡 Final Strategy Signals:")
-                for raw_name, data in strategy_signals.items():
-                    if not isinstance(data, dict):
-                        continue
-
-                    name = str(raw_name)
-                    action = str(data.get("action", "")).upper() or "UNKNOWN"
-
-                    if data.get("is_multi_symbol") and isinstance(data.get("symbols"), list):
-                        symbols = ", ".join(str(symbol) for symbol in data["symbols"])
-                        detail = f"{name}: {action} {symbols}" if symbols else f"{name}: {action}"
-                    else:
-                        symbol = data.get("symbol")
-                        detail = (
-                            f"{name}: {action} {symbol}"
-                            if isinstance(symbol, str) and symbol.strip()
-                            else f"{name}: {action}"
-                        )
-
-                    self.logger.info("  • %s", detail)
-
-            allocations = {}
-            if consolidated_portfolio is not None:
-                allocations = consolidated_portfolio.target_allocations
-
-            if allocations:
-                self.logger.info("🎯 Target Portfolio Allocations:")
-                for symbol, allocation in allocations.items():
-                    try:
-                        percent = float(allocation) * 100
-                    except (TypeError, ValueError):
-                        percent = 0.0
-                    self.logger.info("  • %s: %.2f%%", symbol, percent)
-
+            self._log_strategy_signals(strategy_signals)
+            self._log_portfolio_allocations(consolidated_portfolio)
         except Exception as exc:  # pragma: no cover - logging safeguard
             self.logger.warning("Failed to log final signal summary: %s", exc)
+
+    def _log_strategy_signals(self, strategy_signals: dict[str, Any]) -> None:
+        """Log strategy signals with formatted details."""
+        if not strategy_signals:
+            return
+
+        self.logger.info("📡 Final Strategy Signals:")
+        for raw_name, data in strategy_signals.items():
+            if not isinstance(data, dict):
+                continue
+
+            detail = self._format_signal_detail(raw_name, data)
+            self.logger.info("  • %s", detail)
+
+    def _format_signal_detail(self, raw_name: str, data: dict[str, Any]) -> str:
+        """Format individual signal detail for logging."""
+        name = str(raw_name)
+        action = str(data.get("action", "")).upper() or "UNKNOWN"
+
+        if self._is_multi_symbol_signal(data):
+            return self._format_multi_symbol_detail(name, action, data)
+        return self._format_single_symbol_detail(name, action, data)
+
+    def _is_multi_symbol_signal(self, data: dict[str, Any]) -> bool:
+        """Check if signal data represents a multi-symbol signal."""
+        return bool(data.get("is_multi_symbol")) and isinstance(data.get("symbols"), list)
+
+    def _format_multi_symbol_detail(self, name: str, action: str, data: dict[str, Any]) -> str:
+        """Format multi-symbol signal detail."""
+        symbols = ", ".join(str(symbol) for symbol in data["symbols"])
+        return f"{name}: {action} {symbols}" if symbols else f"{name}: {action}"
+
+    def _format_single_symbol_detail(self, name: str, action: str, data: dict[str, Any]) -> str:
+        """Format single symbol signal detail."""
+        symbol = data.get("symbol")
+        if isinstance(symbol, str) and symbol.strip():
+            return f"{name}: {action} {symbol}"
+        return f"{name}: {action}"
+
+    def _log_portfolio_allocations(self, consolidated_portfolio: ConsolidatedPortfolioDTO) -> None:
+        """Log target portfolio allocations."""
+        if consolidated_portfolio is None:
+            return
+
+        allocations = consolidated_portfolio.target_allocations
+        if not allocations:
+            return
+
+        self.logger.info("🎯 Target Portfolio Allocations:")
+        for symbol, allocation in allocations.items():
+            percent = self._safe_convert_to_percentage(allocation)
+            self.logger.info("  • %s: %.2f%%", symbol, percent)
+
+    def _safe_convert_to_percentage(self, allocation: float | int | str | Decimal) -> float:
+        """Safely convert allocation to percentage."""
+        try:
+            return float(allocation) * 100
+        except (TypeError, ValueError):
+            return 0.0
