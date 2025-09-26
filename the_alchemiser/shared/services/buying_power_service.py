@@ -56,62 +56,89 @@ class BuyingPowerService:
 
         for attempt in range(max_retries):
             try:
-                # Force fresh account data retrieval
-                buying_power = self.broker_manager.get_buying_power()
-                if buying_power is None:
-                    logger.warning(f"Could not retrieve buying power on attempt {attempt + 1}")
-                    if attempt < max_retries - 1:
-                        wait_time = initial_wait * (2**attempt)
-                        logger.info(f"⏳ Waiting {wait_time:.1f}s before retry...")
-                        time.sleep(wait_time)
-                    continue
-
-                actual_buying_power = Decimal(str(buying_power))
-
-                logger.info(
-                    f"💰 Attempt {attempt + 1}: Actual buying power ${actual_buying_power}, "
-                    f"needed ${expected_amount}"
-                )
-
-                if actual_buying_power >= expected_amount:
-                    logger.info(
-                        f"✅ Buying power verified: ${actual_buying_power} >= ${expected_amount}"
-                    )
-                    return True, actual_buying_power
-
-                # Log the shortfall
-                shortfall = expected_amount - actual_buying_power
-                logger.warning(
-                    f"⚠️ Buying power shortfall: ${shortfall} "
-                    f"(have ${actual_buying_power}, need ${expected_amount})"
-                )
-
-                # Wait before next attempt (exponential backoff)
-                if attempt < max_retries - 1:
-                    wait_time = initial_wait * (2**attempt)
-                    logger.info(f"⏳ Waiting {wait_time:.1f}s for account state to update...")
-                    time.sleep(wait_time)
+                result = self._check_buying_power_attempt(expected_amount, attempt)
+                if result is not None:
+                    return result
+                
+                self._wait_before_retry(attempt, max_retries, initial_wait)
 
             except Exception as e:
                 logger.error(f"Error verifying buying power on attempt {attempt + 1}: {e}")
-                if attempt < max_retries - 1:
-                    wait_time = initial_wait * (2**attempt)
-                    time.sleep(wait_time)
+                self._wait_before_retry(attempt, max_retries, initial_wait)
 
-        # Final check - get the last known buying power
-        try:
-            final_buying_power_raw = self.broker_manager.get_buying_power()
-            final_buying_power = (
-                Decimal(str(final_buying_power_raw)) if final_buying_power_raw else Decimal("0")
-            )
-        except Exception:
-            final_buying_power = Decimal("0")
-
+        final_buying_power = self._get_final_buying_power()
         logger.error(
             f"❌ Buying power verification failed after {max_retries} attempts. "
             f"Final buying power: ${final_buying_power}, needed: ${expected_amount}"
         )
         return False, final_buying_power
+
+    def _check_buying_power_attempt(
+        self, expected_amount: Decimal, attempt: int
+    ) -> tuple[bool, Decimal] | None:
+        """Check buying power for a single attempt.
+        
+        Args:
+            expected_amount: Required buying power amount
+            attempt: Current attempt number (0-based)
+            
+        Returns:
+            Tuple of (success, buying_power) if definitive result, None to continue retrying
+
+        """
+        buying_power = self.broker_manager.get_buying_power()
+        if buying_power is None:
+            logger.warning(f"Could not retrieve buying power on attempt {attempt + 1}")
+            return None
+
+        actual_buying_power = Decimal(str(buying_power))
+        logger.info(
+            f"💰 Attempt {attempt + 1}: Actual buying power ${actual_buying_power}, "
+            f"needed ${expected_amount}"
+        )
+
+        if actual_buying_power >= expected_amount:
+            logger.info(
+                f"✅ Buying power verified: ${actual_buying_power} >= ${expected_amount}"
+            )
+            return True, actual_buying_power
+
+        # Log the shortfall and continue retrying
+        shortfall = expected_amount - actual_buying_power
+        logger.warning(
+            f"⚠️ Buying power shortfall: ${shortfall} "
+            f"(have ${actual_buying_power}, need ${expected_amount})"
+        )
+        return None
+
+    def _wait_before_retry(self, attempt: int, max_retries: int, initial_wait: int | float) -> None:
+        """Wait before retrying with exponential backoff.
+        
+        Args:
+            attempt: Current attempt number (0-based)
+            max_retries: Maximum number of retries
+            initial_wait: Initial wait time in seconds
+
+        """
+        if attempt < max_retries - 1:
+            wait_time = initial_wait * (2**attempt)
+            logger.info(f"⏳ Waiting {wait_time:.1f}s for account state to update...")
+            time.sleep(wait_time)
+
+    def _get_final_buying_power(self) -> Decimal:
+        """Get the final buying power after all retry attempts failed.
+        
+        Returns:
+            Final buying power amount, or 0 if retrieval fails
+
+        """
+        try:
+            final_buying_power_raw = self.broker_manager.get_buying_power()
+            return (
+                Decimal(str(final_buying_power_raw)) if final_buying_power_raw else Decimal("0")
+            )
+        except Exception:
+            return Decimal("0")
 
     def force_account_refresh(self) -> bool:
         """Force a fresh account data retrieval from the broker.
