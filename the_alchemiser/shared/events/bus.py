@@ -153,7 +153,9 @@ class EventBus:
         for handler in handlers_to_notify:
             try:
                 # Check if handler can handle this event type
-                if hasattr(handler, "can_handle") and not handler.can_handle(event_type):
+                if hasattr(handler, "can_handle") and not handler.can_handle(
+                    event_type
+                ):
                     continue
 
                 handler_name = type(handler).__name__
@@ -239,7 +241,8 @@ class EventBus:
             "total_events_published": self._event_count,
             "event_types_registered": list(self._handlers.keys()),
             "handlers_by_type": {
-                event_type: len(handlers) for event_type, handlers in self._handlers.items()
+                event_type: len(handlers)
+                for event_type, handlers in self._handlers.items()
             },
             "global_handlers": len(self._global_handlers),
             "total_handlers": self.get_handler_count(),
@@ -254,4 +257,6 @@ class EventBus:
 
         """
         self._metrics_enabled = enabled
-        self.logger.debug(f"Metrics {'enabled' if enabled else 'disabled'} for event bus")
+        self.logger.debug(
+            f"Metrics {'enabled' if enabled else 'disabled'} for event bus"
+        )

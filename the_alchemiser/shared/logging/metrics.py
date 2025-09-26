@@ -53,7 +53,9 @@ class MetricsCollector:
             f"Counter incremented: {metric_key} +{value} (total: {_metrics_store['counters'][metric_key]})"
         )
 
-    def set_gauge(self, name: str, value: float, labels: dict[str, str] | None = None) -> None:
+    def set_gauge(
+        self, name: str, value: float, labels: dict[str, str] | None = None
+    ) -> None:
         """Set a gauge metric value.
 
         Args:
@@ -226,7 +228,9 @@ def increment_event_counter(event_type: str, status: str = "published") -> None:
     )
 
 
-def record_event_handler_latency(event_type: str, handler_name: str, latency_ms: float) -> None:
+def record_event_handler_latency(
+    event_type: str, handler_name: str, latency_ms: float
+) -> None:
     """Record event handler latency.
 
     Args:
@@ -257,7 +261,9 @@ def set_workflow_gauge(workflow_type: str, status: str, count: int) -> None:
 
 
 @contextmanager
-def measure_event_handling(event_type: str, handler_name: str) -> Generator[None, None, None]:
+def measure_event_handling(
+    event_type: str, handler_name: str
+) -> Generator[None, None, None]:
     """Context manager to measure event handling duration.
 
     Args:
@@ -299,7 +305,9 @@ def log_metrics_summary() -> None:
     if summary["timers"]:
         logger.info("Timers:")
         for key, stats in summary["timers"].items():
-            logger.info(f"  {key}: {stats['count']} calls, avg={stats['avg_seconds']:.3f}s")
+            logger.info(
+                f"  {key}: {stats['count']} calls, avg={stats['avg_seconds']:.3f}s"
+            )
 
     logger.info("=== END METRICS SUMMARY ===")
 
@@ -335,7 +343,9 @@ class OpenTelemetryStubs:
             attributes: Event attributes
 
         """
-        logger.debug(f"OpenTelemetry event added to span: {event_name} {attributes or {}}")
+        logger.debug(
+            f"OpenTelemetry event added to span: {event_name} {attributes or {}}"
+        )
         if hasattr(span, "add_event"):
             span.add_event(event_name, attributes or {})
 
