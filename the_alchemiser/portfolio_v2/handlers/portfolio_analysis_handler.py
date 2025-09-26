@@ -347,10 +347,26 @@ class PortfolioAnalysisHandler:
             )
 
             # Generate rebalance plan using portfolio service
-            return portfolio_service.create_rebalance_plan_dto(
+            rebalance_plan = portfolio_service.create_rebalance_plan_dto(
                 strategy=strategy_allocation,
                 correlation_id=correlation_id,
             )
+            
+            # Add strategy attribution to metadata if plan was created
+            if rebalance_plan and rebalance_plan.metadata is None:
+                # Create new metadata dict with strategy attribution
+                plan_dict = rebalance_plan.model_dump()
+                plan_dict["metadata"] = {"strategy_name": "DSL"}
+                # Recreate the plan with updated metadata
+                rebalance_plan = RebalancePlanDTO.model_validate(plan_dict)
+            elif rebalance_plan and rebalance_plan.metadata:
+                # Update existing metadata with strategy attribution
+                plan_dict = rebalance_plan.model_dump()
+                plan_dict["metadata"]["strategy_name"] = "DSL"
+                # Recreate the plan with updated metadata  
+                rebalance_plan = RebalancePlanDTO.model_validate(plan_dict)
+                
+            return rebalance_plan
 
         except Exception as e:
             self.logger.error(f"Failed to create rebalance plan: {e}")
@@ -387,7 +403,10 @@ class PortfolioAnalysisHandler:
                     items=[],
                     total_portfolio_value=Decimal(str(account_info.get("portfolio_value", 0))),
                     total_trade_value=Decimal("0"),
-                    metadata={"scenario": "no_trades_needed"},
+                    metadata={
+                        "scenario": "no_trades_needed",
+                        "strategy_name": "DSL",  # Default strategy for current implementation
+                    },
                 )
             self._log_final_rebalance_plan_summary(rebalance_plan)
 
