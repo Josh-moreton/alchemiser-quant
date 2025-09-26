@@ -60,7 +60,7 @@ class EmailConfig:
             if not to_email:
                 to_email = from_email
 
-            logging.info(
+            logging.debug(
                 f"Email config loaded: SMTP={smtp_server}:{smtp_port}, from={from_email}, to={to_email}"
             )
 
