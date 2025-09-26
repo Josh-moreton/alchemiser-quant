@@ -9,6 +9,8 @@ reduce the number of direct Alpaca imports scattered throughout the codebase.
 
 from __future__ import annotations
 
+from typing import Any
+
 # Import Alpaca types for proper typing
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.live import StockDataStream
@@ -50,7 +52,9 @@ def create_timeframe(amount: int, unit: str) -> TimeFrame:
 
 
 # Alpaca client factory functions
-def create_trading_client(api_key: str, secret_key: str, *, paper: bool = True) -> TradingClient:
+def create_trading_client(
+    api_key: str, secret_key: str, *, paper: bool = True
+) -> TradingClient:
     """Create an Alpaca TradingClient."""
     return TradingClient(api_key=api_key, secret_key=secret_key, paper=paper)
 
@@ -60,13 +64,20 @@ def create_data_client(api_key: str, secret_key: str) -> StockHistoricalDataClie
     return StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
 
 
-def create_trading_stream(api_key: str, secret_key: str, *, paper: bool = True) -> TradingStream:
+def create_trading_stream(
+    api_key: str, secret_key: str, *, paper: bool = True
+) -> TradingStream:
     """Create an Alpaca TradingStream."""
     return TradingStream(api_key=api_key, secret_key=secret_key, paper=paper)
 
 
-def create_stock_data_stream(api_key: str, secret_key: str, feed: str = "iex") -> StockDataStream:
-    """Create an Alpaca StockDataStream."""
+def create_stock_data_stream(
+    api_key: str,
+    secret_key: str,
+    feed: str = "iex",
+    websocket_params: dict[str, Any] | None = None,
+) -> StockDataStream:
+    """Create an Alpaca StockDataStream with resilient websocket defaults."""
     from alpaca.data.enums import DataFeed
 
     # Map string feed to DataFeed enum
@@ -76,7 +87,22 @@ def create_stock_data_stream(api_key: str, secret_key: str, feed: str = "iex") -
     }
 
     data_feed = feed_mapping.get(feed.lower(), DataFeed.IEX)
-    return StockDataStream(api_key=api_key, secret_key=secret_key, feed=data_feed)
+    default_ws_params = {
+        "open_timeout": 30,
+        "close_timeout": 10,
+        "ping_interval": 20,
+        "ping_timeout": 20,
+    }
+
+    if websocket_params:
+        default_ws_params.update(websocket_params)
+
+    return StockDataStream(
+        api_key=api_key,
+        secret_key=secret_key,
+        feed=data_feed,
+        websocket_params=default_ws_params,
+    )
 
 
 # Alpaca model imports (for type hints and instance checks)

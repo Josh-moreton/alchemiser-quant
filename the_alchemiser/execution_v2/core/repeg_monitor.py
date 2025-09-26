@@ -62,9 +62,7 @@ class RepegMonitor:
 
         """
         if not self.smart_strategy:
-            logger.info(
-                f"📊 {phase_type} phase: Smart strategy disabled; skipping re-peg loop"
-            )
+            logger.info(f"📊 {phase_type} phase: Smart strategy disabled; skipping re-peg loop")
             return orders
 
         config = self._get_repeg_monitoring_config()
@@ -85,9 +83,7 @@ class RepegMonitor:
 
         try:
             if self.execution_config is not None:
-                config["max_repegs"] = getattr(
-                    self.execution_config, "max_repegs_per_order", 5
-                )
+                config["max_repegs"] = getattr(self.execution_config, "max_repegs_per_order", 5)
                 config["fill_wait_seconds"] = int(
                     getattr(self.execution_config, "fill_wait_seconds", 15)
                 )
@@ -95,9 +91,7 @@ class RepegMonitor:
                     1, min(config["fill_wait_seconds"] // 5, 5)
                 )  # Check 5x per fill_wait period
                 placement_timeout = int(
-                    getattr(
-                        self.execution_config, "order_placement_timeout_seconds", 30
-                    )
+                    getattr(self.execution_config, "order_placement_timeout_seconds", 30)
                 )
                 # Fix: Use fill_wait_seconds for total time calculation, not wait_between_checks
                 config["max_total_wait"] = int(
@@ -148,9 +142,7 @@ class RepegMonitor:
         while iteration < max_iterations:
             elapsed = time.time() - start_time
             if elapsed > config["max_total_wait"]:
-                logger.warning(
-                    f"⏰ {phase_type} monitoring timeout after {elapsed:.1f}s"
-                )
+                logger.warning(f"⏰ {phase_type} monitoring timeout after {elapsed:.1f}s")
                 break
 
             try:
@@ -176,9 +168,7 @@ class RepegMonitor:
 
                             # Update tracking
                             if updated_order.order_id:
-                                order_id_to_index[updated_order.order_id] = (
-                                    original_index
-                                )
+                                order_id_to_index[updated_order.order_id] = original_index
 
                             self._log_repeg_status(phase_type, repeg_result)
 
@@ -233,9 +223,7 @@ class RepegMonitor:
             timestamp=datetime.now(UTC),
         )
 
-    def _log_repeg_status(
-        self, phase_type: str, repeg_result: SmartOrderResult
-    ) -> None:
+    def _log_repeg_status(self, phase_type: str, repeg_result: SmartOrderResult) -> None:
         """Log repeg status with appropriate message for escalation or standard repeg."""
         strategy = getattr(repeg_result, "execution_strategy", "")
         order_id = getattr(repeg_result, "order_id", "")

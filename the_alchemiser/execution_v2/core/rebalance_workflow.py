@@ -68,9 +68,7 @@ class RebalanceWorkflow:
         self.repeg_monitor = RepegMonitor(smart_strategy, execution_config)
         self.settlement_monitor = SettlementMonitor(alpaca_manager)
 
-    async def execute_rebalance_plan(
-        self, plan: RebalancePlanDTO
-    ) -> ExecutionResultDTO:
+    async def execute_rebalance_plan(self, plan: RebalancePlanDTO) -> ExecutionResultDTO:
         """Execute a rebalance plan with settlement-aware sell-first, buy-second workflow.
 
         Enhanced execution flow:
@@ -111,9 +109,7 @@ class RebalanceWorkflow:
         # Phase 1: Execute SELL orders and monitor settlement
         sell_order_ids: list[str] = []
         if sell_items:
-            logger.info(
-                "🔄 Phase 1: Executing SELL orders with settlement monitoring..."
-            )
+            logger.info("🔄 Phase 1: Executing SELL orders with settlement monitoring...")
 
             sell_orders, sell_stats = await self._execute_sell_phase(
                 sell_items, plan.correlation_id
@@ -125,9 +121,7 @@ class RebalanceWorkflow:
 
             # Collect successful sell order IDs for settlement monitoring
             sell_order_ids = [
-                order.order_id
-                for order in sell_orders
-                if order.success and order.order_id
+                order.order_id for order in sell_orders if order.success and order.order_id
             ]
 
         # Phase 2: Monitor settlement and execute BUY orders
@@ -135,10 +129,8 @@ class RebalanceWorkflow:
             logger.info("🔄 Phase 2: Monitoring settlement and executing BUY orders...")
 
             # Wait for settlement and then execute buys
-            buy_orders, buy_stats = (
-                await self._execute_buy_phase_with_settlement_monitoring(
-                    buy_items, sell_order_ids, plan.correlation_id, plan.plan_id
-                )
+            buy_orders, buy_stats = await self._execute_buy_phase_with_settlement_monitoring(
+                buy_items, sell_order_ids, plan.correlation_id, plan.plan_id
             )
 
             orders.extend(buy_orders)
@@ -148,13 +140,9 @@ class RebalanceWorkflow:
 
         elif buy_items:
             # No sells to wait for, execute buys immediately
-            logger.info(
-                "🔄 Phase 2: Executing BUY orders (no settlement monitoring needed)..."
-            )
+            logger.info("🔄 Phase 2: Executing BUY orders (no settlement monitoring needed)...")
 
-            buy_orders, buy_stats = await self._execute_buy_phase(
-                buy_items, plan.correlation_id
-            )
+            buy_orders, buy_stats = await self._execute_buy_phase(buy_items, plan.correlation_id)
             orders.extend(buy_orders)
             orders_placed += int(buy_stats["placed"])
             orders_succeeded += int(buy_stats["succeeded"])
@@ -214,9 +202,7 @@ class RebalanceWorkflow:
         else:
             logger.debug("No execution_config found, using default timeout")
 
-        logger.info(
-            f"🧹 Checking for stale orders (older than {stale_timeout_minutes} minutes)..."
-        )
+        logger.info(f"🧹 Checking for stale orders (older than {stale_timeout_minutes} minutes)...")
         stale_result = await asyncio.to_thread(
             self.alpaca_manager.cancel_stale_orders, stale_timeout_minutes
         )
@@ -225,9 +211,7 @@ class RebalanceWorkflow:
         if stale_result["cancelled_count"] > 0:
             logger.info(f"🗑️ Cancelled {stale_result['cancelled_count']} stale orders")
         if stale_result["errors"]:
-            logger.warning(
-                f"⚠️ Errors during stale order cancellation: {stale_result['errors']}"
-            )
+            logger.warning(f"⚠️ Errors during stale order cancellation: {stale_result['errors']}")
 
     async def _execute_sell_phase(
         self, sell_items: list[RebalancePlanItemDTO], correlation_id: str
@@ -278,10 +262,8 @@ class RebalanceWorkflow:
     ) -> tuple[list[OrderResultDTO], dict[str, int | Decimal]]:
         """Execute BUY phase with settlement monitoring."""
         # Monitor sell orders for settlement
-        settlement_result = (
-            await self.settlement_monitor.monitor_sell_orders_settlement(
-                sell_order_ids, correlation_id, plan_id
-            )
+        settlement_result = await self.settlement_monitor.monitor_sell_orders_settlement(
+            sell_order_ids, correlation_id, plan_id
         )
 
         logger.info(
@@ -304,17 +286,11 @@ class RebalanceWorkflow:
                 return orders
 
             max_wait = self._derive_max_wait_seconds()
-            final_status_map = await self._get_final_status_map(
-                order_ids, max_wait, phase_type
-            )
-            updated_orders = self._rebuild_orders_with_final_status(
-                orders, final_status_map
-            )
+            final_status_map = await self._get_final_status_map(order_ids, max_wait, phase_type)
+            updated_orders = self._rebuild_orders_with_final_status(orders, final_status_map)
 
             succeeded = sum(1 for o in updated_orders if o.success)
-            logger.info(
-                f"📊 {phase_type} phase completion: {succeeded}/{len(orders)} FILLED"
-            )
+            logger.info(f"📊 {phase_type} phase completion: {succeeded}/{len(orders)} FILLED")
             return updated_orders
         except Exception as e:
             logger.error(f"Error finalizing {phase_type} phase orders: {e}")
@@ -323,18 +299,14 @@ class RebalanceWorkflow:
     def _derive_max_wait_seconds(self) -> int:
         """Derive maximum wait time for order completion."""
         if self.execution_config:
-            return getattr(
-                self.execution_config, "order_completion_timeout_seconds", 60
-            )
+            return getattr(self.execution_config, "order_completion_timeout_seconds", 60)
         return 60
 
     async def _get_final_status_map(
         self, order_ids: list[str], max_wait: int, phase_type: str
     ) -> dict[str, tuple[str, Decimal | None]]:
         """Poll broker and return final status map for each order ID."""
-        valid_order_ids, invalid_order_ids = self._validate_order_ids(
-            order_ids, phase_type
-        )
+        valid_order_ids, invalid_order_ids = self._validate_order_ids(order_ids, phase_type)
 
         final_status_map: dict[str, tuple[str, Decimal | None]] = {}
         for oid in invalid_order_ids:
@@ -444,15 +416,11 @@ class RebalanceWorkflow:
 
         return valid, invalid
 
-    def _calculate_phase_stats(
-        self, orders: list[OrderResultDTO]
-    ) -> dict[str, int | Decimal]:
+    def _calculate_phase_stats(self, orders: list[OrderResultDTO]) -> dict[str, int | Decimal]:
         """Calculate statistics for a completed phase."""
         placed = sum(1 for o in orders if o.order_id)
         succeeded = sum(1 for o in orders if o.success)
-        trade_value = sum(
-            abs(o.trade_amount) for o in orders if o.trade_amount and o.success
-        )
+        trade_value = sum(abs(o.trade_amount) for o in orders if o.trade_amount and o.success)
 
         return {
             "placed": placed,

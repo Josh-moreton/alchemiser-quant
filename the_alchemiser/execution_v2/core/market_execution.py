@@ -39,9 +39,7 @@ class MarketExecution:
         self.validator = ExecutionValidator(alpaca_manager)
         self.buying_power_service = BuyingPowerService(alpaca_manager)
 
-    def execute_market_order(
-        self, symbol: str, side: str, quantity: Decimal
-    ) -> ExecutionResult:
+    def execute_market_order(self, symbol: str, side: str, quantity: Decimal) -> ExecutionResult:
         """Execute a standard market order with preflight validation.
 
         Args:
@@ -56,9 +54,7 @@ class MarketExecution:
         validation_result = self._validate_market_order(symbol, quantity, side)
 
         if not validation_result.is_valid:
-            return self._build_validation_failure_result(
-                symbol, side, quantity, validation_result
-            )
+            return self._build_validation_failure_result(symbol, side, quantity, validation_result)
 
         final_quantity = validation_result.adjusted_quantity or quantity
 
@@ -68,16 +64,12 @@ class MarketExecution:
             if side.lower() == "buy":
                 self._ensure_buying_power(symbol, final_quantity)
 
-            broker_result = self._place_market_order_with_broker(
-                symbol, side, final_quantity
-            )
+            broker_result = self._place_market_order_with_broker(symbol, side, final_quantity)
             return self._build_market_order_execution_result(
                 symbol, side, final_quantity, broker_result
             )
         except Exception as exc:
-            return self._handle_market_order_exception(
-                symbol, side, final_quantity, exc
-            )
+            return self._handle_market_order_exception(symbol, side, final_quantity, exc)
 
     def _validate_market_order(
         self,
@@ -113,9 +105,7 @@ class MarketExecution:
             execution_strategy="validation_failed",
         )
 
-    def _log_validation_warnings(
-        self, validation_result: OrderValidationResult
-    ) -> None:
+    def _log_validation_warnings(self, validation_result: OrderValidationResult) -> None:
         """Log any warnings produced during validation."""
         for warning in validation_result.warnings:
             logger.warning(f"⚠️ Order validation: {warning}")
@@ -151,10 +141,8 @@ class MarketExecution:
             current_bp,
         )
 
-        verified, refreshed_bp = (
-            self.buying_power_service.verify_buying_power_available(
-                expected_amount=estimated_cost
-            )
+        verified, refreshed_bp = self.buying_power_service.verify_buying_power_available(
+            expected_amount=estimated_cost
         )
 
         if verified:
@@ -197,9 +185,7 @@ class MarketExecution:
                 logger.warning(f"Invalid price from broker for {symbol}: {price}")
                 price = None
 
-        logger.info(
-            f"✅ Market order placed: {side.upper()} {quantity} {symbol} (ID: {order_id})"
-        )
+        logger.info(f"✅ Market order placed: {side.upper()} {quantity} {symbol} (ID: {order_id})")
 
         return ExecutionResult(
             order_id=order_id,
@@ -228,9 +214,7 @@ class MarketExecution:
                 account = self.alpaca_manager.get_account_dict()
                 if account:
                     buying_power = account.get("buying_power", "unknown")
-                    logger.error(
-                        f"💳 Current account state - Buying power: ${buying_power}"
-                    )
+                    logger.error(f"💳 Current account state - Buying power: ${buying_power}")
             except Exception as diagnostic_error:
                 logger.debug(f"Diagnostic account retrieval failed: {diagnostic_error}")
 

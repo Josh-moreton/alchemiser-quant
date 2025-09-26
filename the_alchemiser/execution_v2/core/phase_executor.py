@@ -123,9 +123,7 @@ class PhaseExecutor:
             # Determine quantity (shares) to trade
             if item.action == "SELL" and item.target_weight == Decimal("0.0"):
                 # For liquidation (0% target), use actual position quantity
-                raw_shares = await asyncio.to_thread(
-                    self._get_position_quantity, item.symbol
-                )
+                raw_shares = await asyncio.to_thread(self._get_position_quantity, item.symbol)
                 shares = await asyncio.to_thread(
                     self._adjust_quantity_for_fractionability, item.symbol, raw_shares
                 )
@@ -134,13 +132,9 @@ class PhaseExecutor:
                 )
             else:
                 # Estimate shares from trade amount using best available price
-                price = await asyncio.to_thread(
-                    self._get_price_for_estimation, item.symbol
-                )
+                price = await asyncio.to_thread(self._get_price_for_estimation, item.symbol)
                 if price is None or price <= Decimal("0"):
-                    logger.warning(
-                        f"⚠️ No valid price for {item.symbol}, skipping order"
-                    )
+                    logger.warning(f"⚠️ No valid price for {item.symbol}, skipping order")
                     return OrderResultDTO(
                         symbol=item.symbol,
                         action=item.action,
@@ -162,9 +156,7 @@ class PhaseExecutor:
                 )
 
             if shares <= Decimal("0"):
-                logger.warning(
-                    f"⚠️ Zero quantity after adjustment for {item.symbol}, skipping"
-                )
+                logger.warning(f"⚠️ Zero quantity after adjustment for {item.symbol}, skipping")
                 return OrderResultDTO(
                     symbol=item.symbol,
                     action=item.action,
@@ -237,9 +229,7 @@ class PhaseExecutor:
         logger.warning(f"⚠️ No price available for {symbol}")
         return None
 
-    def _adjust_quantity_for_fractionability(
-        self, symbol: str, raw_quantity: Decimal
-    ) -> Decimal:
+    def _adjust_quantity_for_fractionability(self, symbol: str, raw_quantity: Decimal) -> Decimal:
         """Adjust quantity based on asset fractionability (moved from ExecutionValidator)."""
         if raw_quantity <= Decimal("0"):
             return Decimal("0")
@@ -252,10 +242,7 @@ class PhaseExecutor:
             auto_adjust=True,
         )
 
-        if (
-            not validation.is_valid
-            and validation.error_code == "ZERO_QUANTITY_AFTER_ROUNDING"
-        ):
+        if not validation.is_valid and validation.error_code == "ZERO_QUANTITY_AFTER_ROUNDING":
             return Decimal("0")
 
         adjusted = (
@@ -280,9 +267,7 @@ class PhaseExecutor:
                 return Decimal("0")
 
             # Use qty_available to account for shares tied up in orders
-            qty = getattr(position, "qty_available", None) or getattr(
-                position, "qty", 0
-            )
+            qty = getattr(position, "qty_available", None) or getattr(position, "qty", 0)
             return Decimal(str(qty))
         except Exception as e:
             logger.warning(f"Error getting position for {symbol}: {e}")
