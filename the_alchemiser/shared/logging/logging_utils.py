@@ -256,18 +256,26 @@ def generate_request_id() -> str:
     return str(uuid.uuid4())
 
 
-def log_with_context(logger: logging.Logger, level: int, message: str, **context: object) -> None:
+def log_with_context(logger: logging.Logger, level: int | None, message: str, **context: object) -> None:
     """Log a message with additional context fields.
 
     Args:
         logger: Logger instance
-        level: Logging level (e.g., logging.INFO)
+        level: Logging level (e.g., logging.INFO) or logger method
         message: Log message
         **context: Additional context fields to include
 
     """
     extra: dict[str, object] = {"extra_fields": context}
-    logger.log(level, message, extra=extra)
+    
+    # Handle case where level is a logger method (e.g., logger.info)
+    if callable(level):
+        level(message, extra=extra)
+    else:
+        # level should be an integer logging level
+        if level is None:
+            level = logging.INFO
+        logger.log(level, message, extra=extra)
 
 
 def setup_logging(

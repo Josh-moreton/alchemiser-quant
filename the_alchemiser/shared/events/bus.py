@@ -9,27 +9,37 @@ Designed to be extensible to external message brokers (Kafka, RabbitMQ) if neede
 
 from __future__ import annotations
 
+import logging
+import time
 from collections import defaultdict
 from typing import Any
 
-from ..logging.logging_utils import get_logger
+from ..logging.logging_utils import get_logger, log_with_context
+from ..logging.metrics import increment_event_counter, measure_event_handling
 from .base import BaseEvent
 from .handlers import EventHandler
+
+# Global reference to current event bus for handler access
+_current_event_bus: 'EventBus | None' = None
 
 
 class EventBus:
     """In-memory event bus for pub/sub messaging.
 
     Provides event publishing and subscription capabilities with handler registration
-    and event routing based on event types.
+    and event routing based on event types. Includes metrics collection and observability.
     """
 
     def __init__(self) -> None:
         """Initialize the event bus."""
+        global _current_event_bus
+        _current_event_bus = self
+        
         self.logger = get_logger(__name__)
         self._handlers: dict[str, list[EventHandler]] = defaultdict(list)
         self._global_handlers: list[EventHandler] = []
         self._event_count = 0
+        self._metrics_enabled = True
 
     def subscribe(self, event_type: str, handler: EventHandler) -> None:
         """Subscribe a handler to a specific event type.
@@ -111,9 +121,21 @@ class EventBus:
         self._event_count += 1
         event_type = event.event_type
 
-        self.logger.debug(
-            f"Publishing event {event.event_id} of type {event_type} from {event.source_module}"
+        # Log event publication with correlation metadata
+        log_with_context(
+            self.logger,
+            logging.INFO,
+            f"Publishing event {event.event_id} of type {event_type}",
+            event_id=event.event_id,
+            event_type=event_type,
+            correlation_id=event.correlation_id,
+            causation_id=event.causation_id,
+            source_module=event.source_module,
         )
+
+        # Increment metrics
+        if self._metrics_enabled:
+            increment_event_counter(event_type, "published")
 
         # Collect all handlers for this event type
         handlers_to_notify = []
@@ -135,7 +157,15 @@ class EventBus:
                 if hasattr(handler, "can_handle") and not handler.can_handle(event_type):
                     continue
 
-                handler.handle_event(event)
+                handler_name = type(handler).__name__
+
+                # Measure handler performance
+                if self._metrics_enabled:
+                    with measure_event_handling(event_type, handler_name):
+                        handler.handle_event(event)
+                else:
+                    handler.handle_event(event)
+
                 successful_deliveries += 1
 
             except Exception as e:
@@ -148,12 +178,19 @@ class EventBus:
                         "event_type": event_type,
                         "handler": type(handler).__name__,
                         "correlation_id": event.correlation_id,
+                        "causation_id": event.causation_id,
                     },
                 )
 
-        self.logger.debug(
+        log_with_context(
+            self.logger,
+            logging.DEBUG,
             f"Event {event.event_id} delivered to {successful_deliveries} handlers, "
-            f"{failed_deliveries} failures"
+            f"{failed_deliveries} failures",
+            event_id=event.event_id,
+            correlation_id=event.correlation_id,
+            successful_deliveries=successful_deliveries,
+            failed_deliveries=failed_deliveries,
         )
 
     def get_handler_count(self, event_type: str | None = None) -> int:
@@ -207,4 +244,14 @@ class EventBus:
             },
             "global_handlers": len(self._global_handlers),
             "total_handlers": self.get_handler_count(),
+            "metrics_enabled": self._metrics_enabled,
         }
+
+    def enable_metrics(self, enabled: bool = True) -> None:
+        """Enable or disable metrics collection.
+        
+        Args:
+            enabled: Whether to enable metrics collection
+        """
+        self._metrics_enabled = enabled
+        self.logger.debug(f"Metrics {'enabled' if enabled else 'disabled'} for event bus")
