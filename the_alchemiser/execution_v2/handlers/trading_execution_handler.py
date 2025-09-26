@@ -17,7 +17,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.execution_v2.adapters.alpaca_execution_adapter import AlpacaExecutionAdapter
+from the_alchemiser.execution_v2.adapters.alpaca_execution_adapter import (
+    AlpacaExecutionAdapter,
+)
 from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionResultDTO,
     ExecutionStatus,
@@ -108,7 +110,7 @@ class TradingExecutionHandler:
                 "correlation_id": event.correlation_id,
                 "causation_id": event.causation_id,
                 "module": "execution_v2.handlers",
-            }
+            },
         )
 
         try:
@@ -117,17 +119,21 @@ class TradingExecutionHandler:
             rebalance_plan = RebalancePlanDTO.model_validate(rebalance_plan_data)
 
             # Generate execution plan hash for idempotency
-            execution_plan_hash = generate_execution_plan_hash(rebalance_plan, event.correlation_id)
+            execution_plan_hash = generate_execution_plan_hash(
+                rebalance_plan, event.correlation_id
+            )
 
             # Check if this execution has already been attempted
-            if self._idempotency_store.has_been_executed(event.correlation_id, execution_plan_hash):
+            if self._idempotency_store.has_been_executed(
+                event.correlation_id, execution_plan_hash
+            ):
                 self.logger.info(
                     "⏭️ Execution already attempted - skipping duplicate",
                     extra={
                         "correlation_id": event.correlation_id,
                         "execution_plan_hash": execution_plan_hash,
                         "module": "execution_v2.handlers",
-                    }
+                    },
                 )
                 return
 
@@ -138,7 +144,7 @@ class TradingExecutionHandler:
                     extra={
                         "correlation_id": event.correlation_id,
                         "module": "execution_v2.handlers",
-                    }
+                    },
                 )
 
                 # Create empty execution result
@@ -152,7 +158,10 @@ class TradingExecutionHandler:
                     orders_succeeded=0,
                     total_trade_value=DECIMAL_ZERO,
                     execution_timestamp=datetime.now(UTC),
-                    metadata={"scenario": "no_trades_needed", "execution_plan_hash": execution_plan_hash},
+                    metadata={
+                        "scenario": "no_trades_needed",
+                        "execution_plan_hash": execution_plan_hash,
+                    },
                 )
 
                 # Record the attempt
@@ -164,7 +173,9 @@ class TradingExecutionHandler:
                 )
 
                 # Emit successful trade executed event
-                self._emit_trade_executed_event(execution_result, execution_plan_hash, success=True)
+                self._emit_trade_executed_event(
+                    execution_result, execution_plan_hash, success=True
+                )
 
                 # Emit workflow completed event
                 self._emit_workflow_completed_event(
@@ -181,7 +192,7 @@ class TradingExecutionHandler:
                     "plan_id": rebalance_plan.plan_id,
                     "order_count": len(rebalance_plan.items),
                     "module": "execution_v2.handlers",
-                }
+                },
             )
 
             # Execute through DTO adapter
@@ -194,7 +205,7 @@ class TradingExecutionHandler:
                     "metadata": {
                         **(execution_result.metadata or {}),
                         "execution_plan_hash": execution_plan_hash,
-                    }
+                    },
                 }
             )
 
@@ -219,7 +230,7 @@ class TradingExecutionHandler:
                     "execution_plan_hash": execution_plan_hash,
                     "success": execution_result.success,
                     "module": "execution_v2.handlers",
-                }
+                },
             )
 
             # Determine workflow success based on execution status
@@ -260,16 +271,16 @@ class TradingExecutionHandler:
                     "correlation_id": event.correlation_id,
                     "error": str(e),
                     "module": "execution_v2.handlers",
-                }
+                },
             )
             self._emit_workflow_failure(event, str(e))
 
     def _emit_trade_executed_event(
-        self, 
-        execution_result: ExecutionResultDTO, 
+        self,
+        execution_result: ExecutionResultDTO,
         execution_plan_hash: str,
-        *, 
-        success: bool
+        *,
+        success: bool,
     ) -> None:
         """Emit enriched TradeExecuted event with settlement metadata.
 
@@ -296,7 +307,8 @@ class TradingExecutionHandler:
                 "settlement_type": "immediate",  # Assuming immediate settlement
                 "total_orders": execution_result.orders_placed,
                 "successful_orders": execution_result.orders_succeeded,
-                "failed_orders": execution_result.orders_placed - execution_result.orders_succeeded,
+                "failed_orders": execution_result.orders_placed
+                - execution_result.orders_succeeded,
                 "total_settled_value": str(execution_result.total_trade_value),
             }
 
@@ -340,7 +352,7 @@ class TradingExecutionHandler:
                     "event_id": event.event_id,
                     "execution_plan_hash": execution_plan_hash,
                     "module": "execution_v2.handlers",
-                }
+                },
             )
 
         except Exception as e:
@@ -350,7 +362,7 @@ class TradingExecutionHandler:
                     "correlation_id": execution_result.correlation_id,
                     "error": str(e),
                     "module": "execution_v2.handlers",
-                }
+                },
             )
 
     def _emit_workflow_completed_event(
@@ -403,7 +415,7 @@ class TradingExecutionHandler:
                     "correlation_id": correlation_id,
                     "event_id": event.event_id,
                     "module": "execution_v2.handlers",
-                }
+                },
             )
 
         except Exception as e:
@@ -413,7 +425,7 @@ class TradingExecutionHandler:
                     "correlation_id": correlation_id,
                     "error": str(e),
                     "module": "execution_v2.handlers",
-                }
+                },
             )
 
     def _emit_workflow_failure(
@@ -439,7 +451,9 @@ class TradingExecutionHandler:
                 failure_step="trade_execution",
                 error_details={
                     "original_event_type": original_event.event_type,
-                    "plan_id": getattr(original_event.rebalance_plan, "plan_id", "unknown"),
+                    "plan_id": getattr(
+                        original_event.rebalance_plan, "plan_id", "unknown"
+                    ),
                 },
             )
 
@@ -452,7 +466,7 @@ class TradingExecutionHandler:
                     "event_id": event.event_id,
                     "error": error_message,
                     "module": "execution_v2.handlers",
-                }
+                },
             )
 
         except Exception as e:
@@ -462,7 +476,7 @@ class TradingExecutionHandler:
                     "correlation_id": original_event.correlation_id,
                     "error": str(e),
                     "module": "execution_v2.handlers",
-                }
+                },
             )
 
     def _build_failure_reason(self, execution_result: ExecutionResultDTO) -> str:

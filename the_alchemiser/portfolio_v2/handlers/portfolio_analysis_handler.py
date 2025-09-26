@@ -105,7 +105,7 @@ class PortfolioAnalysisHandler:
 
         # Get event bus from container
         self.event_bus: EventBus = container.services.event_bus()
-        
+
         # Get idempotency store for plan deduplication
         self.idempotency_store = get_portfolio_idempotency_store()
 
@@ -164,7 +164,7 @@ class PortfolioAnalysisHandler:
                 "causation_id": event.causation_id,
                 "event_id": event.event_id,
                 "module": "portfolio_v2",
-            }
+            },
         )
 
         try:
@@ -176,7 +176,9 @@ class PortfolioAnalysisHandler:
             # Get current account and position data using DTO adapters
             account_data = self._get_account_data_with_adapters()
             if not account_data:
-                raise ValueError("Could not retrieve account data for portfolio analysis")
+                raise ValueError(
+                    "Could not retrieve account data for portfolio analysis"
+                )
 
             # Generate account snapshot ID for correlation
             account_snapshot_id = generate_account_snapshot_id(
@@ -184,11 +186,13 @@ class PortfolioAnalysisHandler:
             )
 
             # Analyze allocation comparison
-            allocation_comparison = self._analyze_allocation_comparison(consolidated_portfolio)
+            allocation_comparison = self._analyze_allocation_comparison(
+                consolidated_portfolio
+            )
             if not allocation_comparison:
                 raise ValueError("Failed to generate allocation comparison")
 
-            # Create rebalance plan from allocation comparison  
+            # Create rebalance plan from allocation comparison
             rebalance_plan = self._create_rebalance_plan_from_allocation_dto(
                 allocation_comparison, account_data["account_info"]
             )
@@ -206,7 +210,7 @@ class PortfolioAnalysisHandler:
                         "correlation_id": event.correlation_id,
                         "plan_hash": plan_hash,
                         "module": "portfolio_v2",
-                    }
+                    },
                 )
                 return
 
@@ -220,7 +224,7 @@ class PortfolioAnalysisHandler:
                     "event_id": event.event_id,
                     "schema_version": event.schema_version,
                     "signal_hash": event.signal_hash,
-                }
+                },
             )
 
             # Emit RebalancePlanned event with enhanced metadata
@@ -240,7 +244,7 @@ class PortfolioAnalysisHandler:
                     "plan_hash": plan_hash,
                     "trades_required": len(rebalance_plan.items) > 0,
                     "module": "portfolio_v2",
-                }
+                },
             )
 
         except Exception as e:
@@ -250,7 +254,7 @@ class PortfolioAnalysisHandler:
                     "correlation_id": event.correlation_id,
                     "causation_id": event.causation_id,
                     "module": "portfolio_v2",
-                }
+                },
             )
             self._emit_workflow_failure(event, str(e))
 
@@ -292,7 +296,7 @@ class PortfolioAnalysisHandler:
             return None
 
     def _create_rebalance_plan_from_allocation_dto(
-        self, 
+        self,
         allocation_comparison: AllocationComparisonDTO,
         account_info: AccountInfoDTO,
     ) -> RebalancePlanDTO:
@@ -307,7 +311,9 @@ class PortfolioAnalysisHandler:
 
         """
         try:
-            from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocationDTO
+            from the_alchemiser.shared.schemas.strategy_allocation import (
+                StrategyAllocationDTO,
+            )
 
             # Extract target weights from allocation comparison
             target_weights = allocation_comparison.target_values
@@ -377,7 +383,9 @@ class PortfolioAnalysisHandler:
             orders_list = [
                 {
                     "id": str(order.id) if hasattr(order, "id") else "unknown",
-                    "symbol": (str(order.symbol) if hasattr(order, "symbol") else "unknown"),
+                    "symbol": (
+                        str(order.symbol) if hasattr(order, "symbol") else "unknown"
+                    ),
                     "side": str(order.side) if hasattr(order, "side") else "unknown",
                     "qty": _to_float_safe(getattr(order, "qty", 0)),
                 }
@@ -494,7 +502,9 @@ class PortfolioAnalysisHandler:
             portfolio_service = PortfolioServiceV2(alpaca_manager)
 
             # Generate correlation_id for this analysis
-            correlation_id = f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+            correlation_id = (
+                f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+            )
 
             # Create StrategyAllocationDTO from allocation comparison
             from the_alchemiser.shared.schemas.strategy_allocation import (
@@ -579,7 +589,7 @@ class PortfolioAnalysisHandler:
                     "account_snapshot_id": account_snapshot_id,
                     "trades_count": trades_count,
                     "module": "portfolio_v2",
-                }
+                },
             )
 
         except Exception as e:
@@ -589,7 +599,7 @@ class PortfolioAnalysisHandler:
                     "correlation_id": correlation_id,
                     "plan_hash": plan_hash,
                     "module": "portfolio_v2",
-                }
+                },
             )
             raise
 
@@ -635,18 +645,24 @@ class PortfolioAnalysisHandler:
             return 0.0, 0.0
 
         try:
-            target_weight = float(item.target_value / total_portfolio_value * Decimal("100"))
+            target_weight = float(
+                item.target_value / total_portfolio_value * Decimal("100")
+            )
         except (TypeError, ValueError, ArithmeticError):
             target_weight = 0.0
 
         try:
-            current_weight = float(item.current_value / total_portfolio_value * Decimal("100"))
+            current_weight = float(
+                item.current_value / total_portfolio_value * Decimal("100")
+            )
         except (TypeError, ValueError, ArithmeticError):
             current_weight = 0.0
 
         return target_weight, current_weight
 
-    def _extract_plan_totals(self, rebalance_plan: RebalancePlanDTO) -> tuple[float, Decimal, bool]:
+    def _extract_plan_totals(
+        self, rebalance_plan: RebalancePlanDTO
+    ) -> tuple[float, Decimal, bool]:
         """Extract total trade value, portfolio value, and validity flag from rebalance plan.
 
         Args:
@@ -671,7 +687,9 @@ class PortfolioAnalysisHandler:
         has_portfolio_value = total_portfolio_value > Decimal("0")
         return total_trade_value, total_portfolio_value, has_portfolio_value
 
-    def _log_final_rebalance_plan_summary(self, rebalance_plan: RebalancePlanDTO) -> None:
+    def _log_final_rebalance_plan_summary(
+        self, rebalance_plan: RebalancePlanDTO
+    ) -> None:
         """Log final rebalance plan trades for visibility."""
         try:
             if not rebalance_plan.items:
@@ -707,7 +725,9 @@ class PortfolioAnalysisHandler:
         except Exception as exc:  # pragma: no cover - defensive logging
             self.logger.warning("Failed to log final rebalance plan summary: %s", exc)
 
-    def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
+    def _emit_workflow_failure(
+        self, original_event: BaseEvent, error_message: str
+    ) -> None:
         """Emit WorkflowFailed event when portfolio analysis fails.
 
         Args:
@@ -740,7 +760,7 @@ class PortfolioAnalysisHandler:
                     "causation_id": original_event.event_id,
                     "workflow_type": "portfolio_analysis",
                     "module": "portfolio_v2",
-                }
+                },
             )
 
         except Exception as e:
@@ -749,5 +769,5 @@ class PortfolioAnalysisHandler:
                 extra={
                     "correlation_id": original_event.correlation_id,
                     "module": "portfolio_v2",
-                }
+                },
             )
