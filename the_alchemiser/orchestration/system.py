@@ -10,7 +10,9 @@ dependency injection, and delegates trading execution to appropriate orchestrato
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -56,6 +58,8 @@ class MinimalOrchestrator:
 
 class TradingSystem:
     """Main trading system orchestrator for initialization and execution delegation."""
+
+    BULLET_LOG_TEMPLATE = "  • %s"
 
     def __init__(self, settings: Settings | None = None) -> None:
         """Initialize trading system with optional settings.
@@ -273,6 +277,20 @@ class TradingSystem:
                 paper_trading=self.settings.alpaca.paper_trading
             )
 
+            paper_trading_mode = self.settings.alpaca.paper_trading
+
+            if show_tracking:
+                self._display_post_execution_tracking(
+                    paper_trading=paper_trading_mode
+                )
+
+            if export_tracking_json:
+                self._export_tracking_summary(
+                    trading_result,
+                    export_tracking_json,
+                    paper_trading=paper_trading_mode,
+                )
+
             return create_success_result(
                 trading_result=trading_result,
                 orchestrator=minimal_orchestrator,
@@ -376,53 +394,86 @@ class TradingSystem:
 
     def _log_traditional_signals_summary(self, trading_result: dict[str, Any]) -> None:
         """Log strategy signals summary for traditional orchestrator output."""
-        signals = trading_result.get("strategy_signals")
-        if not isinstance(signals, dict) or not signals:
+        signal_details = self._collect_signal_details(trading_result)
+        if not signal_details:
             return
 
         self.logger.info("📡 Final Strategy Signals (traditional path):")
+        for detail in signal_details:
+            self.logger.info(self.BULLET_LOG_TEMPLATE, detail)
 
-        for raw_name, data in signals.items():
-            if not isinstance(data, dict):
-                continue
-
-            name = str(raw_name)
-            action = str(data.get("action", "")).upper() or "UNKNOWN"
-
-            if data.get("is_multi_symbol") and isinstance(data.get("symbols"), list):
-                symbols = ", ".join(str(symbol) for symbol in data["symbols"])
-                detail = (
-                    f"{name}: {action} {symbols}" if symbols else f"{name}: {action}"
-                )
-            else:
-                symbol = data.get("symbol")
-                detail = (
-                    f"{name}: {action} {symbol}"
-                    if isinstance(symbol, str) and symbol.strip()
-                    else f"{name}: {action}"
-                )
-
-            self.logger.info("  • %s", detail)
-
-        consolidated = trading_result.get("consolidated_portfolio")
-        allocations: dict[str, Any] = {}
-
-        if isinstance(consolidated, dict):
-            if "target_allocations" in consolidated and isinstance(
-                consolidated["target_allocations"], dict
-            ):
-                allocations = consolidated["target_allocations"]
-            else:
-                allocations = consolidated
-
+        allocations = self._collect_target_allocations(trading_result)
         if allocations:
-            self.logger.info("🎯 Target Portfolio Allocations:")
-            for symbol, allocation in allocations.items():
-                try:
-                    percent = float(allocation) * 100
-                except (TypeError, ValueError):
-                    percent = 0.0
-                self.logger.info("  • %s: %.2f%%", symbol, percent)
+            self._log_target_allocations(allocations)
+
+    def _collect_signal_details(
+        self, trading_result: Mapping[str, object]
+    ) -> list[str]:
+        """Collect formatted signal details from the trading result."""
+        signals = trading_result.get("strategy_signals")
+        if not isinstance(signals, Mapping):
+            return []
+
+        details: list[str] = []
+        for raw_name, raw_data in signals.items():
+            detail = self._format_signal_detail(str(raw_name), raw_data)
+            if detail is not None:
+                details.append(detail)
+        return details
+
+    def _format_signal_detail(self, name: str, raw_data: object) -> str | None:
+        """Format a single signal entry for logging."""
+        if not isinstance(raw_data, Mapping):
+            return None
+
+        action_raw = raw_data.get("action", "")
+        action = str(action_raw).upper() or "UNKNOWN"
+
+        symbols_value = raw_data.get("symbols")
+        if (
+            raw_data.get("is_multi_symbol")
+            and isinstance(symbols_value, Iterable)
+            and not isinstance(symbols_value, (str, bytes))
+        ):
+            symbols = [
+                str(symbol).strip()
+                for symbol in symbols_value
+                if str(symbol).strip()
+            ]
+            if symbols:
+                joined_symbols = ", ".join(symbols)
+                return f"{name}: {action} {joined_symbols}"
+            return f"{name}: {action}"
+
+        symbol = raw_data.get("symbol")
+        if isinstance(symbol, str) and symbol.strip():
+            return f"{name}: {action} {symbol.strip()}"
+        return f"{name}: {action}"
+
+    def _collect_target_allocations(
+        self, trading_result: Mapping[str, object]
+    ) -> Mapping[str, object] | None:
+        """Extract target allocations from trading result if present."""
+        consolidated = trading_result.get("consolidated_portfolio")
+        if not isinstance(consolidated, Mapping):
+            return None
+
+        allocations = consolidated.get("target_allocations")
+        if isinstance(allocations, Mapping):
+            return allocations
+
+        return consolidated
+
+    def _log_target_allocations(self, allocations: Mapping[str, object]) -> None:
+        """Log portfolio target allocations."""
+        if not allocations:
+            return
+
+        self.logger.info("🎯 Target Portfolio Allocations:")
+        for symbol, allocation in allocations.items():
+            symbol_str = str(symbol)
+            percent = self._format_percentage(allocation)
+            self.logger.info("  • %s: %s%%", symbol_str, percent)
 
     def _log_traditional_rebalance_plan(self, trading_result: dict[str, Any]) -> None:
         """Log rebalance plan summary for traditional orchestrator output."""
@@ -430,73 +481,115 @@ class TradingSystem:
         if plan is None:
             return
 
-        # Handle DTO objects with item list
-        if hasattr(plan, "items"):
-            items = list(getattr(plan, "items", []) or [])
-            if not items:
-                self.logger.info("⚖️ Final rebalance plan: no trades required")
-                return
-
-            try:
-                total_trade_value = float(getattr(plan, "total_trade_value", 0))
-            except (TypeError, ValueError):
-                total_trade_value = 0.0
-
-            self.logger.info(
-                "⚖️ Final rebalance plan: %s trades | total value $%.2f",
-                len(items),
-                total_trade_value,
-            )
-
-            for item in items:
-                try:
-                    action = item.action.upper()
-                except AttributeError:
-                    action = "UNKNOWN"
-
-                symbol = getattr(item, "symbol", "Unknown")
-
-                try:
-                    trade_amount = abs(float(getattr(item, "trade_amount", 0)))
-                except (TypeError, ValueError, AttributeError):
-                    trade_amount = 0.0
-
-                try:
-                    target_weight = float(getattr(item, "target_weight", 0)) * 100
-                except (TypeError, ValueError, AttributeError):
-                    target_weight = 0.0
-
-                try:
-                    current_weight = float(getattr(item, "current_weight", 0)) * 100
-                except (TypeError, ValueError, AttributeError):
-                    current_weight = 0.0
-
-                self.logger.info(
-                    "  • %s %s | $%.2f | target %.2f%% vs current %.2f%%",
-                    action,
-                    symbol,
-                    trade_amount,
-                    target_weight,
-                    current_weight,
-                )
-
+        if self._log_rebalance_plan_items(plan):
             return
 
-        # Handle legacy dict structure with trade list
-        if isinstance(plan, dict):
-            trades = plan.get("trades")
-            if not isinstance(trades, list) or not trades:
-                return
+        if isinstance(plan, Mapping):
+            self._log_legacy_rebalance_plan(plan)
 
-            self.logger.info("⚖️ Final rebalance plan: %s trades", len(trades))
-            for trade in trades:
-                if not isinstance(trade, dict):
-                    continue
+    def _log_rebalance_plan_items(self, plan: object) -> bool:
+        """Log rebalance plan information when represented as a DTO."""
+        if not hasattr(plan, "items"):
+            return False
 
-                symbol = trade.get("symbol", "Unknown")
-                action = str(trade.get("side", "")).upper() or "UNKNOWN"
-                qty = trade.get("qty", 0)
-                self.logger.info("  • %s %s shares of %s", action, qty, symbol)
+        raw_items = getattr(plan, "items", None)
+        if raw_items is None:
+            items: list[object] = []
+        elif isinstance(raw_items, Iterable) and not isinstance(
+            raw_items, (str, bytes)
+        ):
+            items = list(raw_items)
+        else:
+            items = []
+
+        if not items:
+            self.logger.info("⚖️ Final rebalance plan: no trades required")
+            return True
+
+        total_value = self._format_currency(
+            getattr(plan, "total_trade_value", 0), absolute=True
+        )
+        self.logger.info(
+            "⚖️ Final rebalance plan: %s trades | total value $%s",
+            len(items),
+            total_value,
+        )
+
+        for item in items:
+            detail = self._format_rebalance_item(item)
+            if detail:
+                self.logger.info(self.BULLET_LOG_TEMPLATE, detail)
+
+        return True
+
+    def _format_rebalance_item(self, item: object) -> str | None:
+        """Format a single rebalance item entry for logging."""
+        if item is None:
+            return None
+
+        action_raw = getattr(item, "action", "")
+        action = str(action_raw).upper() or "UNKNOWN"
+        symbol = getattr(item, "symbol", "Unknown")
+
+        trade_amount = self._format_currency(
+            getattr(item, "trade_amount", 0), absolute=True
+        )
+        target_weight = self._format_percentage(getattr(item, "target_weight", 0))
+        current_weight = self._format_percentage(getattr(item, "current_weight", 0))
+
+        return (
+            f"{action} {symbol} | ${trade_amount} | "
+            f"target {target_weight}% vs current {current_weight}%"
+        )
+
+    def _log_legacy_rebalance_plan(self, plan: Mapping[str, object]) -> None:
+        """Log rebalance plan details when using legacy dictionary structure."""
+        trades = plan.get("trades")
+        if not isinstance(trades, Iterable) or isinstance(trades, (str, bytes)):
+            return
+
+        trades_list = list(trades)
+        if not trades_list:
+            return
+
+        self.logger.info("⚖️ Final rebalance plan: %s trades", len(trades_list))
+        for trade in trades_list:
+            detail = self._format_legacy_trade(trade)
+            if detail:
+                self.logger.info(self.BULLET_LOG_TEMPLATE, detail)
+
+    def _format_legacy_trade(self, trade: object) -> str | None:
+        """Format a single legacy trade entry for logging."""
+        if not isinstance(trade, Mapping):
+            return None
+
+        symbol = trade.get("symbol", "Unknown")
+        action = str(trade.get("side", "")).upper() or "UNKNOWN"
+        qty = trade.get("qty", 0)
+
+        return f"{action} {qty} shares of {symbol}"
+
+    def _format_percentage(self, value: object) -> str:
+        """Convert a ratio into a percentage string with two decimal places."""
+        percent = self._decimal_from_value(value) * Decimal("100")
+        return f"{percent:.2f}"
+
+    def _format_currency(self, value: object, *, absolute: bool = False) -> str:
+        """Format a monetary value to two decimal places."""
+        amount = self._decimal_from_value(value)
+        if absolute:
+            amount = abs(amount)
+        return f"{amount:.2f}"
+
+    def _decimal_from_value(self, value: object) -> Decimal:
+        """Safely convert arbitrary values into Decimal."""
+        if isinstance(value, Decimal):
+            return value
+
+        try:
+            return Decimal(str(value))
+        except (InvalidOperation, TypeError, ValueError):
+            return Decimal("0")
 
     def _log_traditional_stale_orders(self, trading_result: dict[str, Any]) -> None:
         """Log stale order cancellations for traditional orchestrator output."""
