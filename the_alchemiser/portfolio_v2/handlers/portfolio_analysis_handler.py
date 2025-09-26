@@ -31,7 +31,10 @@ from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 from the_alchemiser.shared.schemas.consolidated_portfolio import (
     ConsolidatedPortfolioDTO,
 )
-from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanDTO
+from the_alchemiser.shared.schemas.rebalance_plan import (
+    RebalancePlanDTO,
+    RebalancePlanItem,
+)
 
 
 def _to_float_safe(value: object) -> float:
@@ -152,10 +155,14 @@ class PortfolioAnalysisHandler:
             # Get current account and position data
             account_data = self._get_comprehensive_account_data()
             if not account_data or not account_data.get("account_info"):
-                raise ValueError("Could not retrieve account data for portfolio analysis")
+                raise ValueError(
+                    "Could not retrieve account data for portfolio analysis"
+                )
 
             # Analyze allocation comparison
-            allocation_comparison = self._analyze_allocation_comparison(consolidated_portfolio)
+            allocation_comparison = self._analyze_allocation_comparison(
+                consolidated_portfolio
+            )
             if not allocation_comparison:
                 raise ValueError("Failed to generate allocation comparison")
 
@@ -206,7 +213,9 @@ class PortfolioAnalysisHandler:
             orders_list = [
                 {
                     "id": str(order.id) if hasattr(order, "id") else "unknown",
-                    "symbol": (str(order.symbol) if hasattr(order, "symbol") else "unknown"),
+                    "symbol": (
+                        str(order.symbol) if hasattr(order, "symbol") else "unknown"
+                    ),
                     "side": str(order.side) if hasattr(order, "side") else "unknown",
                     "qty": _to_float_safe(getattr(order, "qty", 0)),
                 }
@@ -323,7 +332,9 @@ class PortfolioAnalysisHandler:
             portfolio_service = PortfolioServiceV2(alpaca_manager)
 
             # Generate correlation_id for this analysis
-            correlation_id = f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+            correlation_id = (
+                f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+            )
 
             # Create StrategyAllocationDTO from allocation comparison
             from the_alchemiser.shared.schemas.strategy_allocation import (
@@ -382,7 +393,9 @@ class PortfolioAnalysisHandler:
                     causation_id=correlation_id,
                     timestamp=datetime.now(UTC),
                     items=[],
-                    total_portfolio_value=Decimal(str(account_info.get("portfolio_value", 0))),
+                    total_portfolio_value=Decimal(
+                        str(account_info.get("portfolio_value", 0))
+                    ),
                     total_trade_value=Decimal("0"),
                     metadata={"scenario": "no_trades_needed"},
                 )
@@ -411,13 +424,15 @@ class PortfolioAnalysisHandler:
             self.event_bus.publish(event)
 
             trades_count = len(rebalance_plan.items) if rebalance_plan else 0
-            self.logger.info(f"📡 Emitted RebalancePlanned event with {trades_count} trades")
+            self.logger.info(
+                f"📡 Emitted RebalancePlanned event with {trades_count} trades"
+            )
 
         except Exception as e:
             self.logger.error(f"Failed to emit RebalancePlanned event: {e}")
             raise
 
-    def _extract_trade_values(self, item: object) -> tuple[str, str, float]:
+    def _extract_trade_values(self, item: RebalancePlanItem) -> tuple[str, str, float]:
         """Extract action, symbol, and trade amount from a rebalance item.
 
         Args:
@@ -427,22 +442,22 @@ class PortfolioAnalysisHandler:
             Tuple of (action, symbol, trade_amount)
 
         """
+        # With a typed DTO we can access fields directly; keep defensive conversion
+        action = item.action.upper()
+        symbol = item.symbol
         try:
-            action = item.action.upper()  # type: ignore[attr-defined]
-        except AttributeError:
-            action = "UNKNOWN"
-
-        symbol = getattr(item, "symbol", "Unknown")
-
-        try:
-            trade_amount = abs(float(item.trade_amount))  # type: ignore[attr-defined]
-        except (TypeError, ValueError, AttributeError):
+            trade_amount = abs(float(item.trade_amount))
+        except (TypeError, ValueError):
             trade_amount = 0.0
 
         return action, symbol, trade_amount
 
     def _calculate_weight_percentages(
-        self, item: object, total_portfolio_value: Decimal, *, has_portfolio_value: bool
+        self,
+        item: RebalancePlanItem,
+        total_portfolio_value: Decimal,
+        *,
+        has_portfolio_value: bool,
     ) -> tuple[float, float]:
         """Calculate target and current weight percentages for a rebalance item.
 
@@ -459,26 +474,24 @@ class PortfolioAnalysisHandler:
             return 0.0, 0.0
 
         try:
-            target_weight = (
-                float(item.target_value / total_portfolio_value * Decimal("100"))  # type: ignore[attr-defined]
-                if item.target_value is not None  # type: ignore[attr-defined]
-                else 0.0
+            target_weight = float(
+                item.target_value / total_portfolio_value * Decimal("100")
             )
-        except (TypeError, ValueError, ArithmeticError, AttributeError):
+        except (TypeError, ValueError, ArithmeticError):
             target_weight = 0.0
 
         try:
-            current_weight = (
-                float(item.current_value / total_portfolio_value * Decimal("100"))  # type: ignore[attr-defined]
-                if item.current_value is not None  # type: ignore[attr-defined]
-                else 0.0
+            current_weight = float(
+                item.current_value / total_portfolio_value * Decimal("100")
             )
-        except (TypeError, ValueError, ArithmeticError, AttributeError):
+        except (TypeError, ValueError, ArithmeticError):
             current_weight = 0.0
 
         return target_weight, current_weight
 
-    def _extract_plan_totals(self, rebalance_plan: RebalancePlanDTO) -> tuple[float, Decimal, bool]:
+    def _extract_plan_totals(
+        self, rebalance_plan: RebalancePlanDTO
+    ) -> tuple[float, Decimal, bool]:
         """Extract total trade value, portfolio value, and validity flag from rebalance plan.
 
         Args:
@@ -503,7 +516,9 @@ class PortfolioAnalysisHandler:
         has_portfolio_value = total_portfolio_value > Decimal("0")
         return total_trade_value, total_portfolio_value, has_portfolio_value
 
-    def _log_final_rebalance_plan_summary(self, rebalance_plan: RebalancePlanDTO) -> None:
+    def _log_final_rebalance_plan_summary(
+        self, rebalance_plan: RebalancePlanDTO
+    ) -> None:
         """Log final rebalance plan trades for visibility."""
         try:
             if not rebalance_plan.items:
@@ -539,7 +554,9 @@ class PortfolioAnalysisHandler:
         except Exception as exc:  # pragma: no cover - defensive logging
             self.logger.warning("Failed to log final rebalance plan summary: %s", exc)
 
-    def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
+    def _emit_workflow_failure(
+        self, original_event: BaseEvent, error_message: str
+    ) -> None:
         """Emit WorkflowFailed event when portfolio analysis fails.
 
         Args:
