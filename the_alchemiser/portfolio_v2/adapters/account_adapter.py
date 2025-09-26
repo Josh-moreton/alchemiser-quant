@@ -60,9 +60,7 @@ class PositionDTO(BaseModel):
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
     quantity: Decimal = Field(..., description="Position quantity (shares)")
     market_value: Decimal = Field(..., description="Current market value")
-    avg_entry_price: Decimal | None = Field(
-        default=None, ge=0, description="Average entry price"
-    )
+    avg_entry_price: Decimal | None = Field(default=None, ge=0, description="Average entry price")
     unrealized_pl: Decimal | None = Field(default=None, description="Unrealized P&L")
 
     @field_validator("symbol")
@@ -71,9 +69,7 @@ class PositionDTO(BaseModel):
         """Normalize symbol to uppercase."""
         return v.strip().upper()
 
-    @field_validator(
-        "quantity", "market_value", "avg_entry_price", "unrealized_pl", mode="before"
-    )
+    @field_validator("quantity", "market_value", "avg_entry_price", "unrealized_pl", mode="before")
     @classmethod
     def convert_to_decimal(cls, v: object) -> Decimal | None:
         """Convert numeric values to Decimal."""
@@ -166,9 +162,7 @@ def adapt_positions(raw_positions: Sequence[object]) -> list[PositionDTO]:
     return positions
 
 
-def generate_account_snapshot_id(
-    account_info: AccountInfoDTO, positions: list[PositionDTO]
-) -> str:
+def generate_account_snapshot_id(account_info: AccountInfoDTO, positions: list[PositionDTO]) -> str:
     """Generate deterministic account snapshot ID.
 
     Args:
