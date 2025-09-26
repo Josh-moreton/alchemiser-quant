@@ -39,7 +39,9 @@ class MarketExecution:
         self.validator = ExecutionValidator(alpaca_manager)
         self.buying_power_service = BuyingPowerService(alpaca_manager)
 
-    def execute_market_order(self, symbol: str, side: str, quantity: Decimal) -> ExecutionResult:
+    def execute_market_order(
+        self, symbol: str, side: str, quantity: Decimal
+    ) -> ExecutionResult:
         """Execute a standard market order with preflight validation.
 
         Args:
@@ -54,7 +56,9 @@ class MarketExecution:
         validation_result = self._validate_market_order(symbol, quantity, side)
 
         if not validation_result.is_valid:
-            return self._build_validation_failure_result(symbol, side, quantity, validation_result)
+            return self._build_validation_failure_result(
+                symbol, side, quantity, validation_result
+            )
 
         final_quantity = validation_result.adjusted_quantity or quantity
 
@@ -64,12 +68,16 @@ class MarketExecution:
             if side.lower() == "buy":
                 self._ensure_buying_power(symbol, final_quantity)
 
-            broker_result = self._place_market_order_with_broker(symbol, side, final_quantity)
+            broker_result = self._place_market_order_with_broker(
+                symbol, side, final_quantity
+            )
             return self._build_market_order_execution_result(
                 symbol, side, final_quantity, broker_result
             )
         except Exception as exc:
-            return self._handle_market_order_exception(symbol, side, final_quantity, exc)
+            return self._handle_market_order_exception(
+                symbol, side, final_quantity, exc
+            )
 
     def _validate_market_order(
         self,
@@ -105,26 +113,72 @@ class MarketExecution:
             execution_strategy="validation_failed",
         )
 
-    def _log_validation_warnings(self, validation_result: OrderValidationResult) -> None:
+    def _log_validation_warnings(
+        self, validation_result: OrderValidationResult
+    ) -> None:
         """Log any warnings produced during validation."""
         for warning in validation_result.warnings:
             logger.warning(f"⚠️ Order validation: {warning}")
 
     def _ensure_buying_power(self, symbol: str, quantity: Decimal) -> None:
         """Verify buying power for purchase orders."""
-        # For now, use a simple approach - this can be enhanced later
-        # The original implementation estimated cost and checked buying power
-        # We'll delegate to the buying power service's available methods
-        pass  # TODO: Implement proper buying power verification
+        buffer_pct = 5.0
+        sufficient, current_bp, estimated_cost = (
+            self.buying_power_service.check_sufficient_buying_power(
+                symbol, quantity, buffer_pct=buffer_pct
+            )
+        )
 
-    def _place_market_order_with_broker(self, symbol: str, side: str, quantity: Decimal) -> dict[str, Any]:
+        if sufficient:
+            logger.debug(
+                "💰 Buying power sufficient for %s: required≈$%s, available $%s",
+                symbol,
+                estimated_cost,
+                current_bp,
+            )
+            return
+
+        if estimated_cost is None:
+            logger.warning(
+                "⚠️ Unable to estimate order cost for %s; proceeding without preflight buying power validation",
+                symbol,
+            )
+            return
+
+        logger.info(
+            "💳 Insufficient buying power on first check (needed $%s, have $%s). Retrying with verification...",
+            estimated_cost,
+            current_bp,
+        )
+
+        verified, refreshed_bp = (
+            self.buying_power_service.verify_buying_power_available(
+                expected_amount=estimated_cost
+            )
+        )
+
+        if verified:
+            logger.info(
+                "✅ Buying power became available for %s (needed $%s, now $%s)",
+                symbol,
+                estimated_cost,
+                refreshed_bp,
+            )
+            return
+
+        raise RuntimeError(
+            f"Insufficient buying power after retries: needed ${estimated_cost}, available ${refreshed_bp}"
+        )
+
+    def _place_market_order_with_broker(
+        self, symbol: str, side: str, quantity: Decimal
+    ) -> dict[str, Any]:
         """Place the actual market order through the broker."""
         result = self.alpaca_manager.place_market_order(symbol, side, float(quantity))
         # Convert result to dict format
-        if hasattr(result, '__dict__'):
+        if hasattr(result, "__dict__"):
             return result.__dict__
-        else:
-            return {"order_id": str(result) if result else None}
+        return {"order_id": str(result) if result else None}
 
     def _build_market_order_execution_result(
         self, symbol: str, side: str, quantity: Decimal, broker_result: dict[str, Any]
@@ -143,7 +197,9 @@ class MarketExecution:
                 logger.warning(f"Invalid price from broker for {symbol}: {price}")
                 price = None
 
-        logger.info(f"✅ Market order placed: {side.upper()} {quantity} {symbol} (ID: {order_id})")
+        logger.info(
+            f"✅ Market order placed: {side.upper()} {quantity} {symbol} (ID: {order_id})"
+        )
 
         return ExecutionResult(
             order_id=order_id,
@@ -172,7 +228,9 @@ class MarketExecution:
                 account = self.alpaca_manager.get_account_dict()
                 if account:
                     buying_power = account.get("buying_power", "unknown")
-                    logger.error(f"💳 Current account state - Buying power: ${buying_power}")
+                    logger.error(
+                        f"💳 Current account state - Buying power: ${buying_power}"
+                    )
             except Exception as diagnostic_error:
                 logger.debug(f"Diagnostic account retrieval failed: {diagnostic_error}")
 

@@ -18,7 +18,7 @@ from the_alchemiser.execution_v2.core.subscription_service import SubscriptionSe
 
 __all__ = [
     "ExecutionManager",
-    "ExecutionTracker", 
+    "ExecutionTracker",
     "Executor",
     "MarketExecution",
     "PhaseExecutor",

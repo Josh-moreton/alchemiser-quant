@@ -12,7 +12,7 @@ import asyncio
 import logging
 import time
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from the_alchemiser.execution_v2.models.execution_result import OrderResultDTO
 
@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from the_alchemiser.execution_v2.core.smart_execution_strategy import (
         ExecutionConfig,
         SmartExecutionStrategy,
+        SmartOrderResult,
     )
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,10 @@ class RepegMonitor:
         self.execution_config = execution_config
 
     async def monitor_and_repeg_phase_orders(
-        self, phase_type: str, orders: list[OrderResultDTO], correlation_id: str | None = None
+        self,
+        phase_type: str,
+        orders: list[OrderResultDTO],
+        correlation_id: str | None = None,
     ) -> list[OrderResultDTO]:
         """Monitor and re-peg orders from a specific execution phase.
 
@@ -58,7 +62,9 @@ class RepegMonitor:
 
         """
         if not self.smart_strategy:
-            logger.info(f"📊 {phase_type} phase: Smart strategy disabled; skipping re-peg loop")
+            logger.info(
+                f"📊 {phase_type} phase: Smart strategy disabled; skipping re-peg loop"
+            )
             return orders
 
         config = self._get_repeg_monitoring_config()
@@ -79,7 +85,9 @@ class RepegMonitor:
 
         try:
             if self.execution_config is not None:
-                config["max_repegs"] = getattr(self.execution_config, "max_repegs_per_order", 5)
+                config["max_repegs"] = getattr(
+                    self.execution_config, "max_repegs_per_order", 5
+                )
                 config["fill_wait_seconds"] = int(
                     getattr(self.execution_config, "fill_wait_seconds", 15)
                 )
@@ -87,7 +95,9 @@ class RepegMonitor:
                     1, min(config["fill_wait_seconds"] // 5, 5)
                 )  # Check 5x per fill_wait period
                 placement_timeout = int(
-                    getattr(self.execution_config, "order_placement_timeout_seconds", 30)
+                    getattr(
+                        self.execution_config, "order_placement_timeout_seconds", 30
+                    )
                 )
                 # Fix: Use fill_wait_seconds for total time calculation, not wait_between_checks
                 config["max_total_wait"] = int(
@@ -125,7 +135,9 @@ class RepegMonitor:
             logger.info(f"📊 {phase_type} phase: No orders to monitor for re-pegging")
             return orders
 
-        logger.info(f"🔄 {phase_type} monitoring: tracking {len(monitorable_orders)} orders for re-peg")
+        logger.info(
+            f"🔄 {phase_type} monitoring: tracking {len(monitorable_orders)} orders for re-peg"
+        )
 
         # Create a mapping from original order ID to order index
         order_id_to_index = {o.order_id: i for i, o in enumerate(orders) if o.order_id}
@@ -136,7 +148,9 @@ class RepegMonitor:
         while iteration < max_iterations:
             elapsed = time.time() - start_time
             if elapsed > config["max_total_wait"]:
-                logger.warning(f"⏰ {phase_type} monitoring timeout after {elapsed:.1f}s")
+                logger.warning(
+                    f"⏰ {phase_type} monitoring timeout after {elapsed:.1f}s"
+                )
                 break
 
             try:
@@ -159,11 +173,13 @@ class RepegMonitor:
                                 orders[original_index], repeg_result
                             )
                             orders[original_index] = updated_order
-                            
+
                             # Update tracking
                             if updated_order.order_id:
-                                order_id_to_index[updated_order.order_id] = original_index
-                                
+                                order_id_to_index[updated_order.order_id] = (
+                                    original_index
+                                )
+
                             self._log_repeg_status(phase_type, repeg_result)
 
                 # Wait before next iteration
@@ -182,12 +198,13 @@ class RepegMonitor:
         phase_type: str,
         config: dict[str, int],
         correlation_id: str | None = None,
-    ) -> Any | None:
+    ) -> SmartOrderResult | None:
         """Check and potentially re-peg a single order."""
         if not self.smart_strategy or not order.order_id:
             return None
 
         try:
+            await asyncio.sleep(0)
             # This would delegate to the smart strategy's repeg logic
             # For now, we return None to indicate no re-peg needed
             # In a full implementation, this would call smart_strategy.check_and_repeg_order()
@@ -197,13 +214,12 @@ class RepegMonitor:
             return None
 
     def _create_updated_order_from_repeg(
-        self, original_order: OrderResultDTO, repeg_result: Any
+        self, original_order: OrderResultDTO, repeg_result: SmartOrderResult
     ) -> OrderResultDTO:
         """Create updated order DTO from repeg result."""
         # Extract new order ID and other details from repeg result
         new_order_id = getattr(repeg_result, "order_id", original_order.order_id)
-        execution_strategy = getattr(repeg_result, "execution_strategy", "repeg")
-        
+
         # Create updated order with new information
         return OrderResultDTO(
             symbol=original_order.symbol,
@@ -217,7 +233,9 @@ class RepegMonitor:
             timestamp=datetime.now(UTC),
         )
 
-    def _log_repeg_status(self, phase_type: str, repeg_result: Any) -> None:
+    def _log_repeg_status(
+        self, phase_type: str, repeg_result: SmartOrderResult
+    ) -> None:
         """Log repeg status with appropriate message for escalation or standard repeg."""
         strategy = getattr(repeg_result, "execution_strategy", "")
         order_id = getattr(repeg_result, "order_id", "")

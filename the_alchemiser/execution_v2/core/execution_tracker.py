@@ -60,17 +60,17 @@ class ExecutionTracker:
     @staticmethod
     def collect_unique_error_messages(orders: list[OrderResultDTO]) -> list[str]:
         """Collect unique error messages from failed orders.
-        
+
         Args:
             orders: List of OrderResultDTO objects
-            
+
         Returns:
             List of unique error messages
-            
+
         """
         error_messages = set()
         for order in orders:
-            if not order.success and hasattr(order, 'error_message') and order.error_message:
+            if not order.success and hasattr(order, "error_message") and order.error_message:
                 error_messages.add(order.error_message)
-        
+
         return sorted(error_messages)
