@@ -246,7 +246,7 @@ class EventBus:
             "metrics_enabled": self._metrics_enabled,
         }
 
-    def enable_metrics(self, enabled: bool = True) -> None:
+    def enable_metrics(self, *, enabled: bool = True) -> None:
         """Enable or disable metrics collection.
 
         Args:

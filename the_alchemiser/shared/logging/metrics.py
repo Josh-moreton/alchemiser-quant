@@ -30,7 +30,7 @@ logger = get_logger(__name__)
 class MetricsCollector:
     """Collects and manages metrics for the trading system."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize metrics collector."""
         self.start_time = datetime.now(UTC)
         self.event_start_times: dict[str, float] = {}
@@ -309,7 +309,7 @@ class OpenTelemetryStubs:
     """Stubs for OpenTelemetry integration."""
 
     @staticmethod
-    def create_span(name: str, attributes: dict[str, Any] | None = None) -> Any:
+    def create_span(name: str, attributes: dict[str, Any] | None = None) -> MockSpan:
         """Create a tracing span (stub implementation).
 
         Args:
@@ -325,7 +325,7 @@ class OpenTelemetryStubs:
 
     @staticmethod
     def add_event_to_span(
-        span: Any, event_name: str, attributes: dict[str, Any] | None = None
+        span: MockSpan, event_name: str, attributes: dict[str, Any] | None = None
     ) -> None:
         """Add event to span (stub implementation).
 
@@ -343,7 +343,7 @@ class OpenTelemetryStubs:
 class MockSpan:
     """Mock span for OpenTelemetry stub."""
 
-    def __init__(self, name: str, attributes: dict[str, Any]):
+    def __init__(self, name: str, attributes: dict[str, Any]) -> None:
         """Initialize mock span.
 
         Args:
@@ -365,11 +365,16 @@ class MockSpan:
         """
         self.events.append({"name": event_name, "attributes": attributes})
 
-    def __enter__(self):
+    def __enter__(self) -> MockSpan:
         """Enter context manager."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object | None,
+    ) -> None:
         """Exit context manager."""
 
 

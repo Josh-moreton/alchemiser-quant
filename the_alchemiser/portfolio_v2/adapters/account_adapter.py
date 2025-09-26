@@ -9,8 +9,8 @@ into strongly-typed DTOs, eliminating raw dict usage in portfolio logic.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from decimal import Decimal
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -36,7 +36,7 @@ class AccountInfoDTO(BaseModel):
 
     @field_validator("cash", "buying_power", "portfolio_value", "equity", mode="before")
     @classmethod
-    def convert_to_decimal(cls, v: Any) -> Decimal | None:
+    def convert_to_decimal(cls, v: object) -> Decimal | None:
         """Convert numeric values to Decimal."""
         if v is None:
             return None
@@ -71,7 +71,7 @@ class PositionDTO(BaseModel):
 
     @field_validator("quantity", "market_value", "avg_entry_price", "unrealized_pl", mode="before")
     @classmethod
-    def convert_to_decimal(cls, v: Any) -> Decimal | None:
+    def convert_to_decimal(cls, v: object) -> Decimal | None:
         """Convert numeric values to Decimal."""
         if v is None:
             return None
@@ -83,7 +83,7 @@ class PositionDTO(BaseModel):
             return Decimal("0")
 
 
-def adapt_account_info(raw_account_data: dict[str, Any] | object) -> AccountInfoDTO:
+def adapt_account_info(raw_account_data: dict[str, object] | object) -> AccountInfoDTO:
     """Adapt raw account data to AccountInfoDTO.
 
     Args:
@@ -123,7 +123,7 @@ def adapt_account_info(raw_account_data: dict[str, Any] | object) -> AccountInfo
         )
 
 
-def adapt_positions(raw_positions: list[Any]) -> list[PositionDTO]:
+def adapt_positions(raw_positions: Sequence[object]) -> list[PositionDTO]:
     """Adapt raw position data to list of PositionDTOs.
 
     Args:
