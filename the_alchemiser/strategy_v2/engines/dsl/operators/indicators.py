@@ -22,10 +22,49 @@ import uuid
 
 from the_alchemiser.shared.schemas.ast_node import ASTNodeDTO
 from the_alchemiser.shared.schemas.indicator_request import IndicatorRequestDTO
+from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicator
 
 from ..context import DslContext
 from ..dispatcher import DslDispatcher
 from ..types import DslEvaluationError
+
+
+def _parse_rsi_parameters(args: list[ASTNodeDTO], context: DslContext) -> int:
+    """Parse RSI parameters from DSL arguments."""
+    window = 14  # Default window
+    if len(args) > 1:
+        params_node = args[1]
+        params = context.evaluate_node(params_node, context.correlation_id, context.trace)
+        if isinstance(params, dict):
+            try:
+                window = int(params.get("window", window))
+            except (ValueError, TypeError):
+                window = 14
+    return window
+
+
+def _extract_rsi_value(indicator: TechnicalIndicator, window: int) -> float:
+    """Extract RSI value from indicator based on window size."""
+    # Extract RSI value based on window
+    window_to_attr = {
+        10: indicator.rsi_10,
+        14: indicator.rsi_14,
+        20: indicator.rsi_20,
+        21: indicator.rsi_21,
+    }
+
+    if window in window_to_attr and window_to_attr[window] is not None:
+        return window_to_attr[window]
+
+    # For arbitrary windows, use metadata value
+    if indicator.metadata and "value" in indicator.metadata:
+        try:
+            return float(indicator.metadata["value"])
+        except Exception as exc:
+            print(f"DEBUG: Failed to coerce RSI metadata value: {exc}")
+
+    # Final fallback
+    return indicator.rsi_14 or 50.0
 
 
 def rsi(args: list[ASTNodeDTO], context: DslContext) -> float:
@@ -39,16 +78,7 @@ def rsi(args: list[ASTNodeDTO], context: DslContext) -> float:
     if not isinstance(symbol, str):
         raise DslEvaluationError(f"RSI symbol must be string, got {type(symbol)}")
 
-    # Parse parameters
-    window = 14  # Default window
-    if len(args) > 1:
-        params_node = args[1]
-        params = context.evaluate_node(params_node, context.correlation_id, context.trace)
-        if isinstance(params, dict):
-            try:
-                window = int(params.get("window", window))
-            except (ValueError, TypeError):
-                window = 14
+    window = _parse_rsi_parameters(args, context)
 
     # Request indicator from service
     request = IndicatorRequestDTO.rsi_request(
@@ -68,25 +98,7 @@ def rsi(args: list[ASTNodeDTO], context: DslContext) -> float:
         correlation_id=context.correlation_id,
     )
 
-    # Extract RSI value based on window
-    if window == 10:
-        return indicator.rsi_10 or 50.0
-    if window == 14:
-        return indicator.rsi_14 or 50.0
-    if window == 20:
-        return indicator.rsi_20 or 50.0
-    if window == 21:
-        return indicator.rsi_21 or 50.0
-
-    # For arbitrary windows, use metadata value
-    if indicator.metadata and "value" in indicator.metadata:
-        try:
-            return float(indicator.metadata["value"])
-        except Exception as exc:
-            print(f"DEBUG: Failed to coerce RSI metadata value: {exc}")
-
-    # Final fallback
-    return indicator.rsi_14 or 50.0
+    return _extract_rsi_value(indicator, window)
 
 
 def current_price(args: list[ASTNodeDTO], context: DslContext) -> float:
