@@ -178,9 +178,7 @@ class RepegManager:
         if not placement_time:
             return False
 
-        if should_consider_repeg(
-            placement_time, current_time, self.config.fill_wait_seconds
-        ):
+        if should_consider_repeg(placement_time, current_time, self.config.fill_wait_seconds):
             return True
 
         # Log debug info for orders still waiting
@@ -204,9 +202,7 @@ class RepegManager:
         """
         from .utils import should_escalate_order
 
-        return should_escalate_order(
-            current_repeg_count, self.config.max_repegs_per_order
-        )
+        return should_escalate_order(current_repeg_count, self.config.max_repegs_per_order)
 
     async def _escalate_to_market(
         self, order_id: str, request: SmartOrderRequest
@@ -227,9 +223,7 @@ class RepegManager:
                 f"(after {self.order_tracker.get_repeg_count(order_id)} re-pegs)"
             )
             # Use asyncio.to_thread to make blocking I/O async
-            cancel_success = await asyncio.to_thread(
-                self.alpaca_manager.cancel_order, order_id
-            )
+            cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
             if not cancel_success:
                 logger.warning(
                     f"⚠️ Failed to cancel order {order_id}; attempting market order anyway"
@@ -278,9 +272,7 @@ class RepegManager:
                         float(original_anchor) if original_anchor is not None else None
                     ),
                     "new_price": (
-                        float(executed_order.price)
-                        if executed_order.price is not None
-                        else 0.0
+                        float(executed_order.price) if executed_order.price is not None else 0.0
                     ),
                 }
                 logger.info(
@@ -291,9 +283,7 @@ class RepegManager:
                     success=True,
                     order_id=executed_order.order_id,
                     final_price=(
-                        executed_order.price
-                        if executed_order.price is not None
-                        else None
+                        executed_order.price if executed_order.price is not None else None
                     ),
                     anchor_price=original_anchor,
                     repegs_used=self.config.max_repegs_per_order,
@@ -338,9 +328,7 @@ class RepegManager:
 
         """
         try:
-            remaining_qty = await self._get_remaining_after_status_update(
-                order_id, request
-            )
+            remaining_qty = await self._get_remaining_after_status_update(order_id, request)
 
             if remaining_qty is None:
                 return None
@@ -351,9 +339,7 @@ class RepegManager:
 
             # Determine valid re-peg price and required context
             try:
-                new_price, original_anchor, quote = self._calculate_repeg_price(
-                    order_id, request
-                )
+                new_price, original_anchor, quote = self._calculate_repeg_price(order_id, request)
             except _RemoveFromTracking:
                 return None
 
@@ -409,15 +395,11 @@ class RepegManager:
                     q = _cast(QuoteModel, quote)
                     metadata_dict: LiquidityMetadata = {
                         "original_order_id": order_id,
-                        "original_price": (
-                            float(original_anchor) if original_anchor else None
-                        ),
+                        "original_price": (float(original_anchor) if original_anchor else None),
                         "new_price": float(new_price),
                         "bid_price": q.bid_price,
                         "ask_price": q.ask_price,
-                        "spread_percent": (q.ask_price - q.bid_price)
-                        / q.bid_price
-                        * 100,
+                        "spread_percent": (q.ask_price - q.bid_price) / q.bid_price * 100,
                         "bid_size": q.bid_size,
                         "ask_size": q.ask_size,
                     }
@@ -441,9 +423,7 @@ class RepegManager:
                     repegs_used=new_repeg_count,
                 )
 
-            logger.error(
-                f"❌ Re-peg failed for {request.symbol}: no valid order ID returned"
-            )
+            logger.error(f"❌ Re-peg failed for {request.symbol}: no valid order ID returned")
             return SmartOrderResult(
                 success=False,
                 error_message="Re-peg order placement failed",
@@ -473,9 +453,7 @@ class RepegManager:
         )
 
         filled_qty = (
-            order_result.filled_qty
-            if hasattr(order_result, "filled_qty")
-            else Decimal("0")
+            order_result.filled_qty if hasattr(order_result, "filled_qty") else Decimal("0")
         )
         self.order_tracker.update_filled_quantity(order_id, filled_qty)
 
@@ -501,9 +479,7 @@ class RepegManager:
         Returns True only when cancellation completes; otherwise False.
         """
         logger.info(f"❌ Canceling order {order_id} for re-pegging")
-        cancel_success = await asyncio.to_thread(
-            self.alpaca_manager.cancel_order, order_id
-        )
+        cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
         if not cancel_success:
             logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
             return False
@@ -518,9 +494,7 @@ class RepegManager:
             )
             return False
 
-        logger.debug(
-            f"✅ Order {order_id} cancellation confirmed, buying power released"
-        )
+        logger.debug(f"✅ Order {order_id} cancellation confirmed, buying power released")
         return True
 
     def _calculate_repeg_price(
@@ -572,9 +546,7 @@ class RepegManager:
                 limit_price=float(limit_price),
                 time_in_force="day",
             )
-        except (
-            Exception
-        ) as e:  # Specific SDK error types can be handled here if exposed
+        except Exception as e:  # Specific SDK error types can be handled here if exposed
             error_str = str(e)
             if "insufficient qty available" in error_str.lower():
                 logger.warning(
@@ -606,9 +578,7 @@ class RepegManager:
                     except _RemoveFromTracking:
                         raise
                     except Exception as retry_e:  # ValueError or SDK errors
-                        logger.error(
-                            f"❌ Retry with available quantity failed: {retry_e}"
-                        )
+                        logger.error(f"❌ Retry with available quantity failed: {retry_e}")
                         raise e
             raise e
 
@@ -622,9 +592,7 @@ class RepegManager:
         except Exception:
             return False
 
-    def _wait_for_order_cancellation(
-        self, order_id: str, timeout_seconds: float = 10.0
-    ) -> bool:
+    def _wait_for_order_cancellation(self, order_id: str, timeout_seconds: float = 10.0) -> bool:
         """Wait for an order to be actually cancelled and buying power released.
 
         This prevents the race condition where we try to place a replacement order
@@ -645,9 +613,7 @@ class RepegManager:
 
         while time.time() - start_time < timeout_seconds:
             try:
-                order_status = self.alpaca_manager._check_order_completion_status(
-                    order_id
-                )
+                order_status = self.alpaca_manager._check_order_completion_status(order_id)
 
                 if order_status and order_status.upper() in [
                     "CANCELED",
@@ -664,9 +630,7 @@ class RepegManager:
                 time.sleep(check_interval)
 
             except Exception as e:
-                logger.warning(
-                    f"Error checking cancellation status for {order_id}: {e}"
-                )
+                logger.warning(f"Error checking cancellation status for {order_id}: {e}")
                 # Continue trying until timeout
                 time.sleep(check_interval)
 
