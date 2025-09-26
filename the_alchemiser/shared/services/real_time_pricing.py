@@ -1175,6 +1175,108 @@ class RealTimePricingService:
             logging.info(f"🔄 Restarting stream to add subscription for {symbol}")
             self._restart_stream_for_new_subscription()
 
+    def _update_existing_symbols_priority(
+        self, symbols: list[str], priority: float, results: dict[str, bool]
+    ) -> list[str]:
+        """Update priority for existing symbols and return new symbols to add.
+        
+        Args:
+            symbols: List of symbols to process
+            priority: Priority score to assign
+            results: Results dictionary to update
+            
+        Returns:
+            List of symbols that need to be added (not already subscribed)
+        """
+        symbols_to_add: list[str] = []
+        
+        for symbol in symbols:
+            if symbol in self._subscribed_symbols:
+                # Update priority for existing subscription
+                self._subscription_priority[symbol] = max(
+                    self._subscription_priority.get(symbol, 0), priority
+                )
+                results[symbol] = True
+            else:
+                symbols_to_add.append(symbol)
+                
+        return symbols_to_add
+
+    def _find_symbols_to_replace(
+        self, symbols_to_add: list[str], priority: float
+    ) -> list[str]:
+        """Find lowest priority symbols that can be replaced.
+        
+        Args:
+            symbols_to_add: New symbols that need subscription slots
+            priority: Priority of new symbols
+            
+        Returns:
+            List of existing symbols to replace
+        """
+        available_slots = max(0, self._max_symbols - len(self._subscribed_symbols))
+        
+        if len(symbols_to_add) <= available_slots:
+            return []
+            
+        symbols_to_replace: list[str] = []
+        needed_slots = len(symbols_to_add) - available_slots
+
+        # Find lowest priority symbols to replace
+        existing_symbols = sorted(
+            self._subscribed_symbols,
+            key=lambda s: self._subscription_priority.get(s, 0),
+        )
+
+        for symbol in existing_symbols:
+            if len(symbols_to_replace) >= needed_slots:
+                break
+            if self._subscription_priority.get(symbol, 0) < priority:
+                symbols_to_replace.append(symbol)
+                
+        return symbols_to_replace
+
+    def _remove_replaced_symbols(self, symbols_to_replace: list[str]) -> None:
+        """Remove symbols that are being replaced by higher priority ones.
+        
+        Args:
+            symbols_to_replace: List of symbols to remove
+        """
+        for symbol_to_remove in symbols_to_replace:
+            self._subscribed_symbols.discard(symbol_to_remove)
+            self._subscription_priority.pop(symbol_to_remove, None)
+            logging.info(f"📊 Replaced {symbol_to_remove} for higher priority symbols")
+            self._stats["subscription_limit_hits"] += 1
+
+    def _add_new_symbols(
+        self, symbols_to_add: list[str], priority: float, results: dict[str, bool]
+    ) -> bool:
+        """Add new symbols up to available capacity.
+        
+        Args:
+            symbols_to_add: Symbols to add
+            priority: Priority score for new symbols
+            results: Results dictionary to update
+            
+        Returns:
+            True if any symbols were added (requiring stream restart)
+        """
+        max_to_add = min(len(symbols_to_add), self._max_symbols - len(self._subscribed_symbols))
+        needs_restart = False
+
+        for i, symbol in enumerate(symbols_to_add):
+            if i < max_to_add:
+                self._subscribed_symbols.add(symbol)
+                self._subscription_priority[symbol] = priority
+                results[symbol] = True
+                self._stats["total_subscriptions"] += 1
+                needs_restart = True
+            else:
+                results[symbol] = False
+                logging.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
+                
+        return needs_restart
+
     def bulk_subscribe_symbols(
         self, symbols: list[str], priority: float | None = None
     ) -> dict[str, bool]:
@@ -1195,64 +1297,22 @@ class RealTimePricingService:
             priority = time.time()
 
         results: dict[str, bool] = {}
-        symbols_to_add: list[str] = []
         needs_restart = False
 
         with self._subscription_lock:
-            # Process all symbols and determine which need to be added
-            for symbol in symbols:
-                if symbol in self._subscribed_symbols:
-                    # Update priority for existing subscription
-                    self._subscription_priority[symbol] = max(
-                        self._subscription_priority.get(symbol, 0), priority
-                    )
-                    results[symbol] = True
-                else:
-                    symbols_to_add.append(symbol)
+            # Process existing symbols and get list of new ones to add
+            symbols_to_add = self._update_existing_symbols_priority(symbols, priority, results)
 
             if not symbols_to_add:
                 return results
 
-            # Handle subscription limits for new symbols
-            available_slots = max(0, self._max_symbols - len(self._subscribed_symbols))
+            # Handle subscription limits by replacing lower priority symbols
+            symbols_to_replace = self._find_symbols_to_replace(symbols_to_add, priority)
+            if symbols_to_replace:
+                self._remove_replaced_symbols(symbols_to_replace)
 
-            if len(symbols_to_add) > available_slots:
-                # Need to replace some existing subscriptions
-                symbols_to_replace: list[str] = []
-                needed_slots = len(symbols_to_add) - available_slots
-
-                # Find lowest priority symbols to replace
-                existing_symbols = sorted(
-                    self._subscribed_symbols,
-                    key=lambda s: self._subscription_priority.get(s, 0),
-                )
-
-                for symbol in existing_symbols:
-                    if len(symbols_to_replace) >= needed_slots:
-                        break
-                    if self._subscription_priority.get(symbol, 0) < priority:
-                        symbols_to_replace.append(symbol)
-
-                # Remove symbols to be replaced
-                for symbol_to_remove in symbols_to_replace:
-                    self._subscribed_symbols.discard(symbol_to_remove)
-                    self._subscription_priority.pop(symbol_to_remove, None)
-                    logging.info(f"📊 Replaced {symbol_to_remove} for higher priority symbols")
-                    self._stats["subscription_limit_hits"] += 1
-
-            # Add new symbols (up to available capacity)
-            max_to_add = min(len(symbols_to_add), self._max_symbols - len(self._subscribed_symbols))
-
-            for i, symbol in enumerate(symbols_to_add):
-                if i < max_to_add:
-                    self._subscribed_symbols.add(symbol)
-                    self._subscription_priority[symbol] = priority
-                    results[symbol] = True
-                    self._stats["total_subscriptions"] += 1
-                    needs_restart = True
-                else:
-                    results[symbol] = False
-                    logging.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
+            # Add new symbols up to capacity
+            needs_restart = self._add_new_symbols(symbols_to_add, priority, results)
 
             if needs_restart:
                 logging.info(
