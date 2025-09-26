@@ -23,7 +23,7 @@ from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.strategy_value_objects import (
     StrategySignal,
 )
-from the_alchemiser.strategy_v2.engines.dsl.engine import DslEngine, DslEngineError
+from the_alchemiser.strategy_v2.engines.dsl.engine import DslEngine
 
 
 class DslStrategyEngine:
@@ -119,7 +119,7 @@ class DslStrategyEngine:
 
             return signals
 
-        except (DslEngineError, Exception) as e:
+        except Exception as e:
             self.logger.error(f"DSL strategy error: {e}")
             return self._create_fallback_signals(timestamp)
 
