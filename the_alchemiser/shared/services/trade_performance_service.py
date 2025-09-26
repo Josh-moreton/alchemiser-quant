@@ -142,37 +142,53 @@ class TradePerformanceService:
                 current_prices=None,
             )
 
-            # Find the total summary (the one without a specific symbol if filtering by strategy)
             if strategy_name and not symbol:
-                # Looking for strategy total
-                for summary in summaries:
-                    if summary.strategy_name == strategy_name and summary.symbol is None:
-                        return summary.realized_pnl
-            elif symbol and not strategy_name:
-                # Sum across all strategies for this symbol
-                return sum(
-                    (s.realized_pnl for s in summaries if s.symbol == symbol),
-                    Decimal("0"),
-                )
-            elif strategy_name and symbol:
-                # Specific strategy-symbol combination
-                for summary in summaries:
-                    if summary.strategy_name == strategy_name and summary.symbol == symbol:
-                        return summary.realized_pnl
-            else:
-                # Total across everything
-                return sum(
-                    (
-                        s.realized_pnl for s in summaries if s.symbol is None
-                    ),  # Only strategy totals to avoid double counting
-                    Decimal("0"),
-                )
-
-            return Decimal("0")
+                return self._get_strategy_realized_pnl(summaries, strategy_name)
+            if symbol and not strategy_name:
+                return self._get_symbol_realized_pnl(summaries, symbol)
+            if strategy_name and symbol:
+                return self._get_specific_strategy_symbol_realized_pnl(summaries, strategy_name, symbol)
+            return self._get_total_realized_pnl(summaries)
 
         except Exception as e:
             logger.error(f"Failed to get realized P&L: {e}")
             raise
+
+    def _get_strategy_realized_pnl(
+        self, summaries: list[PerformanceSummary], strategy_name: str
+    ) -> Decimal:
+        """Get realized P&L for a specific strategy total."""
+        for summary in summaries:
+            if summary.strategy_name == strategy_name and summary.symbol is None:
+                return summary.realized_pnl
+        return Decimal("0")
+
+    def _get_symbol_realized_pnl(
+        self, summaries: list[PerformanceSummary], symbol: str
+    ) -> Decimal:
+        """Get realized P&L for a specific symbol across all strategies."""
+        return sum(
+            (s.realized_pnl for s in summaries if s.symbol == symbol),
+            Decimal("0"),
+        )
+
+    def _get_specific_strategy_symbol_realized_pnl(
+        self, summaries: list[PerformanceSummary], strategy_name: str, symbol: str
+    ) -> Decimal:
+        """Get realized P&L for a specific strategy-symbol combination."""
+        for summary in summaries:
+            if summary.strategy_name == strategy_name and summary.symbol == symbol:
+                return summary.realized_pnl
+        return Decimal("0")
+
+    def _get_total_realized_pnl(self, summaries: list[PerformanceSummary]) -> Decimal:
+        """Get total realized P&L across all strategies and symbols."""
+        return sum(
+            (
+                s.realized_pnl for s in summaries if s.symbol is None
+            ),  # Only strategy totals to avoid double counting
+            Decimal("0"),
+        )
 
     def get_unrealized_pnl(
         self,
