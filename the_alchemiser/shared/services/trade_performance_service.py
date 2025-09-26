@@ -372,7 +372,7 @@ class TradePerformanceService:
     ) -> dict[str, list[dict[str, Any]]]:
         """Group open lots by strategy for a specific symbol."""
         lots_by_strategy: dict[str, list[dict[str, Any]]] = {}
-        
+
         for lot in lots:
             if lot.symbol == symbol:
                 if lot.strategy_name not in lots_by_strategy:
@@ -385,7 +385,7 @@ class TradePerformanceService:
                         "opened_timestamp": lot.opened_timestamp.isoformat(),
                     }
                 )
-        
+
         return lots_by_strategy
 
     def verify_attribution_consistency(self) -> dict[str, Any]:
@@ -433,11 +433,9 @@ class TradePerformanceService:
     ) -> list[str]:
         """Verify quantity balance for each symbol."""
         issues = []
-        
+
         for symbol, entries in entries_by_symbol.items():
-            buy_quantity = sum(
-                (e.quantity for e in entries if e.side.value == "BUY"), Decimal("0")
-            )
+            buy_quantity = sum((e.quantity for e in entries if e.side.value == "BUY"), Decimal("0"))
             sell_quantity = sum(
                 (e.quantity for e in entries if e.side.value == "SELL"),
                 Decimal("0"),
@@ -455,5 +453,5 @@ class TradePerformanceService:
                     f"Symbol {symbol}: net quantity mismatch - "
                     f"calculated={net_quantity}, summaries={total_open_from_summaries}"
                 )
-        
+
         return issues
