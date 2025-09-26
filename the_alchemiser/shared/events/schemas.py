@@ -100,19 +100,39 @@ class TradeExecuted(BaseEvent):
     """Event emitted when trades are executed.
 
     Contains the execution results and updated portfolio state.
+    Also serves as settlement event with alias 'execution.order.settled.v1'.
     """
 
-    # Override event_type with default
+    # Override event_type with default, supporting alias for settlement
     event_type: str = Field(default="TradeExecuted", description=EVENT_TYPE_DESCRIPTION)
 
-    # Trade execution fields
+    # Enhanced execution fields with metadata
     execution_data: dict[str, Any] = Field(..., description="Trade execution data")
     success: bool = Field(..., description="Whether execution was successful")
     orders_placed: int = Field(..., description="Number of orders placed")
     orders_succeeded: int = Field(..., description="Number of orders that succeeded")
+    
+    # New idempotency and schema fields
+    schema_version: str = Field(default="1.0", description="Event schema version")
+    execution_plan_hash: str | None = Field(
+        default=None, description="Hash of execution plan for idempotency"
+    )
+    
+    # Enhanced metadata with fill summaries
+    fill_summaries: dict[str, Any] = Field(
+        default_factory=dict, description="Order fill summary data"
+    )
+    settlement_details: dict[str, Any] = Field(
+        default_factory=dict, description="Settlement-specific details"
+    )
     metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional execution metadata"
     )
+
+    @property
+    def settlement_event_type(self) -> str:
+        """Return the settlement event type alias."""
+        return "execution.order.settled.v1"
 
 
 class TradeExecutionStarted(BaseEvent):
