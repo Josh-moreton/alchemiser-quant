@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.execution_v2.models.execution_result import ExecutionResult
+from the_alchemiser.execution_v2.models.execution_result import ExecutionResult, ExecutionStatus
 from the_alchemiser.orchestration.portfolio_orchestrator import PortfolioOrchestrator
 from the_alchemiser.orchestration.signal_orchestrator import SignalOrchestrator
 from the_alchemiser.shared.config.config import Settings
@@ -329,6 +329,7 @@ class TradingOrchestrator:
             try:
                 failed_result = ExecutionResult(
                     success=False,
+                    status=ExecutionStatus.FAILURE,
                     plan_id=f"failed-{uuid.uuid4()}",
                     correlation_id=event.correlation_id,
                     orders=[],
@@ -476,6 +477,7 @@ class TradingOrchestrator:
                 # Create empty execution result
                 execution_result = ExecutionResult(
                     success=True,
+                    status=ExecutionStatus.SUCCESS,
                     plan_id=f"no-trade-{uuid.uuid4()}",
                     correlation_id=correlation_id,
                     orders=[],

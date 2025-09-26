@@ -12,7 +12,10 @@ import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO, OrderResultDTO
+from the_alchemiser.execution_v2.models.execution_result import (
+    ExecutionResultDTO,
+    OrderResultDTO,
+)
 from the_alchemiser.shared.constants import DECIMAL_ZERO
 from the_alchemiser.shared.logging.logging_utils import log_with_context
 from the_alchemiser.shared.schemas.execution_report import ExecutedOrderDTO
@@ -158,10 +161,13 @@ class AlpacaExecutionAdapter:
                     )
 
             # Create execution result
-            success = orders_succeeded == orders_placed and orders_placed > 0
+            success, status = ExecutionResultDTO.classify_execution_status(
+                orders_placed, orders_succeeded
+            )
 
             execution_result = ExecutionResultDTO(
                 success=success,
+                status=status,
                 plan_id=rebalance_plan.plan_id,
                 correlation_id=rebalance_plan.correlation_id,
                 orders=order_results,

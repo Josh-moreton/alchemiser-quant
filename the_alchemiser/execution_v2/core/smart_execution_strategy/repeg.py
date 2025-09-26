@@ -173,9 +173,7 @@ class RepegManager:
         if not placement_time:
             return False
 
-        if should_consider_repeg(
-            placement_time, current_time, self.config.fill_wait_seconds
-        ):
+        if should_consider_repeg(placement_time, current_time, self.config.fill_wait_seconds):
             return True
 
         # Log debug info for orders still waiting
@@ -199,9 +197,7 @@ class RepegManager:
         """
         from .utils import should_escalate_order
 
-        return should_escalate_order(
-            current_repeg_count, self.config.max_repegs_per_order
-        )
+        return should_escalate_order(current_repeg_count, self.config.max_repegs_per_order)
 
     async def _escalate_to_market(
         self, order_id: str, request: SmartOrderRequest
@@ -222,9 +218,7 @@ class RepegManager:
                 f"(after {self.order_tracker.get_repeg_count(order_id)} re-pegs)"
             )
             # Use asyncio.to_thread to make blocking I/O async
-            cancel_success = await asyncio.to_thread(
-                self.alpaca_manager.cancel_order, order_id
-            )
+            cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
             if not cancel_success:
                 logger.warning(
                     f"⚠️ Failed to cancel order {order_id}; attempting market order anyway"
@@ -273,9 +267,7 @@ class RepegManager:
                         float(original_anchor) if original_anchor is not None else None
                     ),
                     "new_price": (
-                        float(executed_order.price)
-                        if executed_order.price is not None
-                        else 0.0
+                        float(executed_order.price) if executed_order.price is not None else 0.0
                     ),
                 }
                 logger.info(
@@ -286,9 +278,7 @@ class RepegManager:
                     success=True,
                     order_id=executed_order.order_id,
                     final_price=(
-                        executed_order.price
-                        if executed_order.price is not None
-                        else None
+                        executed_order.price if executed_order.price is not None else None
                     ),
                     anchor_price=original_anchor,
                     repegs_used=self.config.max_repegs_per_order,
@@ -366,16 +356,12 @@ class RepegManager:
                 )
                 return False
 
-            success, executed_order, used_qty = (
-                await self._place_repeg_order_with_retry(
-                    request, remaining_qty, quantized_price, min_qty_threshold
-                )
+            success, executed_order, used_qty = await self._place_repeg_order_with_retry(
+                request, remaining_qty, quantized_price, min_qty_threshold
             )
 
             if not success or executed_order is None:
-                logger.error(
-                    f"❌ Re-peg failed for {request.symbol}: no valid order ID returned"
-                )
+                logger.error(f"❌ Re-peg failed for {request.symbol}: no valid order ID returned")
                 return SmartOrderResult(
                     success=False,
                     error_message="Re-peg order placement failed",
@@ -387,39 +373,40 @@ class RepegManager:
             try:
                 import uuid as _uuid
 
-                _uuid.UUID(str(executed_order.order_id))
+                _uuid.UUID(str(executed_order.order_id))  # type: ignore[attr-defined]
                 is_valid_uuid = True
             except Exception:
                 is_valid_uuid = False
 
             if is_valid_uuid:
                 self.order_tracker.update_order(
-                    order_id, executed_order.order_id, new_price, datetime.now(UTC)
+                    order_id,
+                    executed_order.order_id,  # type: ignore[attr-defined]
+                    new_price,
+                    datetime.now(UTC),
                 )
 
                 logger.info(
-                    f"✅ Re-peg successful: new order {executed_order.order_id} "
+                    f"✅ Re-peg successful: new order {executed_order.order_id} "  # type: ignore[attr-defined]
                     f"at ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order}) "
                     f"quantity: {used_qty or remaining_qty}"
                 )
 
                 metadata_dict: LiquidityMetadata = {
                     "original_order_id": order_id,
-                    "original_price": (
-                        float(original_anchor) if original_anchor else None
-                    ),
+                    "original_price": (float(original_anchor) if original_anchor else None),
                     "new_price": float(new_price),
-                    "bid_price": quote.bid_price,
-                    "ask_price": quote.ask_price,
-                    "spread_percent": (quote.ask_price - quote.bid_price)
-                    / quote.bid_price
+                    "bid_price": quote.bid_price,  # type: ignore[attr-defined]
+                    "ask_price": quote.ask_price,  # type: ignore[attr-defined]
+                    "spread_percent": (quote.ask_price - quote.bid_price)  # type: ignore[attr-defined]
+                    / quote.bid_price  # type: ignore[attr-defined]
                     * 100,
-                    "bid_size": quote.bid_size,
-                    "ask_size": quote.ask_size,
+                    "bid_size": quote.bid_size,  # type: ignore[attr-defined]
+                    "ask_size": quote.ask_size,  # type: ignore[attr-defined]
                 }
                 return SmartOrderResult(
                     success=True,
-                    order_id=executed_order.order_id,
+                    order_id=executed_order.order_id,  # type: ignore[attr-defined]
                     final_price=new_price,
                     anchor_price=original_anchor,
                     repegs_used=new_repeg_count,
@@ -459,9 +446,7 @@ class RepegManager:
         )
 
         filled_qty = (
-            order_result.filled_qty
-            if hasattr(order_result, "filled_qty")
-            else Decimal("0")
+            order_result.filled_qty if hasattr(order_result, "filled_qty") else Decimal("0")
         )
         self.order_tracker.update_filled_quantity(order_id, filled_qty)
 
@@ -482,9 +467,7 @@ class RepegManager:
     async def _cancel_existing_order(self, order_id: str) -> bool:
         """Cancel the existing order and wait for confirmation."""
         logger.info(f"❌ Canceling order {order_id} for re-pegging")
-        cancel_success = await asyncio.to_thread(
-            self.alpaca_manager.cancel_order, order_id
-        )
+        cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
         if not cancel_success:
             logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
             return False
@@ -498,9 +481,7 @@ class RepegManager:
                 f"⚠️ Order {order_id} cancellation did not complete within timeout, skipping re-peg"
             )
             return False
-        logger.debug(
-            f"✅ Order {order_id} cancellation confirmed, buying power released"
-        )
+        logger.debug(f"✅ Order {order_id} cancellation confirmed, buying power released")
         return True
 
     def _compute_new_price(
@@ -585,9 +566,7 @@ class RepegManager:
             )
             return True, executed_order, available_qty
 
-    def _wait_for_order_cancellation(
-        self, order_id: str, timeout_seconds: float = 10.0
-    ) -> bool:
+    def _wait_for_order_cancellation(self, order_id: str, timeout_seconds: float = 10.0) -> bool:
         """Wait for an order to be actually cancelled and buying power released.
 
         This prevents the race condition where we try to place a replacement order
@@ -608,9 +587,7 @@ class RepegManager:
 
         while time.time() - start_time < timeout_seconds:
             try:
-                order_status = self.alpaca_manager._check_order_completion_status(
-                    order_id
-                )
+                order_status = self.alpaca_manager._check_order_completion_status(order_id)
 
                 if order_status and order_status.upper() in [
                     "CANCELED",
@@ -627,9 +604,7 @@ class RepegManager:
                 time.sleep(check_interval)
 
             except Exception as e:
-                logger.warning(
-                    f"Error checking cancellation status for {order_id}: {e}"
-                )
+                logger.warning(f"Error checking cancellation status for {order_id}: {e}")
                 # Continue trying until timeout
                 time.sleep(check_interval)
 

@@ -150,7 +150,7 @@ def _normalize_portfolio_for_hash(portfolio_data: object) -> object:
     if isinstance(portfolio_data, (int, float)):
         return round(float(portfolio_data), 6)
 
-    if isinstance(portfolio_data, dict):  # type: ignore[redundant-expr]
+    if isinstance(portfolio_data, dict):
         # Detect direct allocation dict (symbol -> weight)
         if all(
             isinstance(k, str) and isinstance(v, (int, float, Decimal))
@@ -168,7 +168,7 @@ def _normalize_portfolio_for_hash(portfolio_data: object) -> object:
             stable_data[key] = _normalize_portfolio_for_hash(value)
         return stable_data
 
-    if isinstance(portfolio_data, list):  # type: ignore[redundant-expr]
+    if isinstance(portfolio_data, list):
         return [_normalize_portfolio_for_hash(item) for item in portfolio_data]
 
     return portfolio_data
