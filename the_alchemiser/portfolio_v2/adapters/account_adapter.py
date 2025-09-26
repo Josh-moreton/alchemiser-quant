@@ -192,17 +192,17 @@ def generate_account_snapshot_id(account_info: AccountInfoDTO, positions: list[P
             ], key=lambda x: x["symbol"])
         }
         
-        # Generate content hash
+        # Generate content hash only (no timestamp for deterministic behavior)
         import json
         content = json.dumps(snapshot_data, sort_keys=True, separators=(",", ":"))
-        content_hash = hashlib.sha256(content.encode()).hexdigest()[:8]
+        content_hash = hashlib.sha256(content.encode()).hexdigest()[:16]
         
-        # Include timestamp for uniqueness
-        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
-        return f"account_{timestamp}_{content_hash}"
+        # Return deterministic snapshot ID based only on content
+        return f"account_snapshot_{content_hash}"
         
     except Exception as e:
         logger.error(f"Failed to generate account snapshot ID: {e}")
-        # Return timestamp-based fallback
-        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
-        return f"account_fallback_{timestamp}"
+        # Return content-based fallback hash
+        fallback_data = f"{account_info.portfolio_value}_{len(positions)}"
+        fallback_hash = hashlib.sha256(fallback_data.encode()).hexdigest()[:16]
+        return f"account_fallback_{fallback_hash}"

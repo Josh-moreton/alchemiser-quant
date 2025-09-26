@@ -77,13 +77,13 @@ class TestPortfolioV2Integration:
         assert positions_dto[0].symbol == "AAPL"
         assert positions_dto[1].symbol == "GOOGL"
         
-        assert snapshot_id.startswith("account_")
+        assert snapshot_id.startswith("account_snapshot_")
         assert len(snapshot_id) > 20  # Should include timestamp and hash
         
         # Test deterministic snapshot ID generation
         snapshot_id2 = generate_account_snapshot_id(account_dto, positions_dto)
-        # Content hash should be same (last 8 chars)
-        assert snapshot_id.split("_")[-1] == snapshot_id2.split("_")[-1]
+        # Should be completely identical
+        assert snapshot_id == snapshot_id2
 
     def test_plan_hash_generation_deterministic(self):
         """Test that plan hash generation is deterministic."""
@@ -381,7 +381,5 @@ class TestPortfolioV2Integration:
         assert results[0]["account_dto"] == results[1]["account_dto"]
         assert results[0]["positions_dto"] == results[1]["positions_dto"]
         
-        # Snapshot IDs should have same content hash (last part)
-        hash1 = results[0]["snapshot_id"].split("_")[-1]
-        hash2 = results[1]["snapshot_id"].split("_")[-1]
-        assert hash1 == hash2  # Content hash should be deterministic
+        # Snapshot IDs should be completely identical (deterministic)
+        assert results[0]["snapshot_id"] == results[1]["snapshot_id"]

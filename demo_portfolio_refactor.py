@@ -67,12 +67,9 @@ def main():
     snapshot_id_1 = generate_account_snapshot_id(account_dto, positions_dto)
     snapshot_id_2 = generate_account_snapshot_id(account_dto, positions_dto)
     
-    content_hash_1 = snapshot_id_1.split("_")[-1]
-    content_hash_2 = snapshot_id_2.split("_")[-1]
-    
     print(f"✅ Snapshot ID 1: {snapshot_id_1}")
     print(f"✅ Snapshot ID 2: {snapshot_id_2}")
-    print(f"✅ Content hashes match: {content_hash_1 == content_hash_2} (deterministic!)")
+    print(f"✅ IDs identical: {snapshot_id_1 == snapshot_id_2} (fully deterministic!)")
     
     # 3. Demonstrate Plan Hash Generation
     print("\n3. Deterministic Plan Hash Generation")

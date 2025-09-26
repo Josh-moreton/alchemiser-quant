@@ -276,16 +276,16 @@ class TestGenerateAccountSnapshotId:
             ),
         ]
         
-        # Generate multiple times - should have same content hash
+        # Generate multiple times - should be identical (fully deterministic)
         id1 = generate_account_snapshot_id(account_info, positions)
         id2 = generate_account_snapshot_id(account_info, positions)
         
-        # Should start with "account_"
-        assert id1.startswith("account_")
-        assert id2.startswith("account_")
+        # Should start with "account_snapshot_"
+        assert id1.startswith("account_snapshot_")
+        assert id2.startswith("account_snapshot_")
         
-        # Content hash (last 8 chars) should be the same
-        assert id1.split("_")[-1] == id2.split("_")[-1]
+        # Should be completely identical
+        assert id1 == id2
 
     def test_generate_account_snapshot_id_different_for_different_data(self):
         """Test that different data produces different content hashes."""
@@ -306,8 +306,8 @@ class TestGenerateAccountSnapshotId:
         id1 = generate_account_snapshot_id(account_info1, positions)
         id2 = generate_account_snapshot_id(account_info2, positions)
         
-        # Content hashes should be different
-        assert id1.split("_")[-1] != id2.split("_")[-1]
+        # Should be completely different
+        assert id1 != id2
 
     def test_generate_account_snapshot_id_positions_sorted(self):
         """Test that positions are sorted by symbol for consistent hashing."""
@@ -331,8 +331,8 @@ class TestGenerateAccountSnapshotId:
         id1 = generate_account_snapshot_id(account_info, positions1)
         id2 = generate_account_snapshot_id(account_info, positions2)
         
-        # Should have same content hash despite different input order
-        assert id1.split("_")[-1] == id2.split("_")[-1]
+        # Should be identical despite different input order
+        assert id1 == id2
 
     def test_generate_account_snapshot_id_error_handling(self):
         """Test error handling returns fallback ID."""
@@ -347,5 +347,5 @@ class TestGenerateAccountSnapshotId:
         # by mocking a failure scenario would be complex, so we just verify normal operation
         snapshot_id = generate_account_snapshot_id(account_info, [])
         
-        assert snapshot_id.startswith("account_")
-        assert len(snapshot_id) > 15  # Should include timestamp and hash
+        assert snapshot_id.startswith("account_snapshot_")
+        assert len(snapshot_id) > 15  # Should include hash

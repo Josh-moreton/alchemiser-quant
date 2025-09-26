@@ -41,7 +41,7 @@ from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
 from the_alchemiser.shared.schemas.consolidated_portfolio import (
     ConsolidatedPortfolioDTO,
 )
-from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanDTO
+from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanDTO, RebalancePlanItem
 from the_alchemiser.shared.utils.plan_hashing import generate_plan_hash
 
 
@@ -308,9 +308,9 @@ class PortfolioAnalysisHandler:
             from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocationDTO
 
             # Extract target weights from allocation comparison
-            target_weights = allocation_comparison.target_allocations
+            target_weights = allocation_comparison.target_values
             portfolio_value = account_info.portfolio_value
-            correlation_id = allocation_comparison.correlation_id
+            correlation_id = "portfolio_analysis_" + str(uuid.uuid4())[:8]
 
             # Create strategy allocation DTO
             strategy_allocation = StrategyAllocationDTO(
@@ -320,7 +320,8 @@ class PortfolioAnalysisHandler:
             )
 
             # Generate rebalance plan using portfolio service
-            portfolio_service = PortfolioServiceV2(self.container)
+            alpaca_manager = self.container.infrastructure.alpaca_manager()
+            portfolio_service = PortfolioServiceV2(alpaca_manager)
             return portfolio_service.create_rebalance_plan_dto(
                 strategy=strategy_allocation,
                 correlation_id=correlation_id,
@@ -328,13 +329,24 @@ class PortfolioAnalysisHandler:
 
         except Exception as e:
             self.logger.error(f"Failed to create rebalance plan: {e}")
-            # Return minimal no-trade plan on failure
+            # Return minimal no-trade plan on failure with dummy item to satisfy constraints
+            dummy_item = RebalancePlanItem(
+                symbol="CASH",
+                current_weight=Decimal("1.0"),
+                target_weight=Decimal("1.0"),
+                weight_diff=Decimal("0.0"),
+                target_value=account_info.portfolio_value,
+                current_value=account_info.portfolio_value,
+                trade_amount=Decimal("0"),
+                action="HOLD",
+                priority=1,
+            )
             return RebalancePlanDTO(
                 plan_id=f"fallback-{uuid.uuid4()}",
-                correlation_id=allocation_comparison.correlation_id,
-                causation_id=allocation_comparison.correlation_id,
+                correlation_id=correlation_id,
+                causation_id=correlation_id,
                 timestamp=datetime.now(UTC),
-                items=[],
+                items=[dummy_item],
                 total_portfolio_value=account_info.portfolio_value,
                 total_trade_value=Decimal("0"),
                 metadata={"scenario": "fallback_no_trades"},
