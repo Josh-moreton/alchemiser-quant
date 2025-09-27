@@ -50,20 +50,30 @@ def register_strategy_handlers(container: ApplicationContainer) -> None:
     event_bus.subscribe("WorkflowStarted", signal_handler)
 
 
-# Legacy imports for migration compatibility - these will be removed
-from .core.orchestrator import SingleStrategyOrchestrator
-from .core.registry import get_strategy, list_strategies, register_strategy
-from .models.context import StrategyContext
+def __getattr__(name: str) -> object:
+    if name == "SingleStrategyOrchestrator":
+        from .core.orchestrator import SingleStrategyOrchestrator as _SingleStrategyOrchestrator
+
+        return _SingleStrategyOrchestrator
+    if name in {"get_strategy", "list_strategies", "register_strategy"}:
+        from .core import registry as _registry
+
+        return getattr(_registry, name)
+    if name == "StrategyContext":
+        from .models.context import StrategyContext as _StrategyContext
+
+        return _StrategyContext
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 # Public API exports (transitioning to event-driven only)
 __all__ = [
-    "register_strategy_handlers",  # Primary event-driven API
-    # Legacy exports (being phased out)
     "SingleStrategyOrchestrator",
     "StrategyContext",
     "get_strategy",
     "list_strategies",
     "register_strategy",
+    "register_strategy_handlers",
 ]
 
 # Version for compatibility tracking

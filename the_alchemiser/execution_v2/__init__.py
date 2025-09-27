@@ -48,13 +48,25 @@ def register_execution_handlers(container: ApplicationContainer) -> None:
     event_bus.subscribe("RebalancePlanned", execution_handler)
 
 
-# Legacy imports for migration compatibility - these will be removed
-from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
-from the_alchemiser.execution_v2.models.execution_result import ExecutionResult
+def __getattr__(name: str) -> object:
+    """Lazy attribute access for legacy exports.
+
+    Avoids importing heavy legacy modules at import time while preserving the
+    public API during the migration period.
+    """
+    if name == "ExecutionManager":
+        from .core.execution_manager import ExecutionManager as _ExecutionManager
+
+        return _ExecutionManager
+    if name == "ExecutionResult":
+        from .models.execution_result import ExecutionResult as _ExecutionResult
+
+        return _ExecutionResult
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
-    "register_execution_handlers",  # Primary event-driven API
-    # Legacy exports (being phased out)
     "ExecutionManager",
     "ExecutionResult",
+    "register_execution_handlers",
 ]

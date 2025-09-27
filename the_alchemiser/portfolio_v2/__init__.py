@@ -53,13 +53,20 @@ def register_portfolio_handlers(container: ApplicationContainer) -> None:
     event_bus.subscribe("SignalGenerated", portfolio_handler)
 
 
-# Legacy imports for migration compatibility - these will be removed
-from .core.planner import RebalancePlanCalculator
-from .core.portfolio_service import PortfolioServiceV2
+def __getattr__(name: str) -> object:
+    if name == "PortfolioServiceV2":
+        from .core.portfolio_service import PortfolioServiceV2 as _PortfolioServiceV2
+
+        return _PortfolioServiceV2
+    if name == "RebalancePlanCalculator":
+        from .core.planner import RebalancePlanCalculator as _RebalancePlanCalculator
+
+        return _RebalancePlanCalculator
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
-    "register_portfolio_handlers",  # Primary event-driven API
-    # Legacy exports (being phased out)
     "PortfolioServiceV2",
     "RebalancePlanCalculator",
+    "register_portfolio_handlers",
 ]

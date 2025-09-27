@@ -18,7 +18,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.portfolio_v2 import PortfolioServiceV2
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
@@ -35,6 +34,7 @@ from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
     RebalancePlanItem,
 )
+from ..core.portfolio_service import PortfolioServiceV2
 
 
 def _to_float_safe(value: object) -> float:
