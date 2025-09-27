@@ -88,8 +88,12 @@ class MonthlySummaryService:
         notes = []
         if portfolio_pnl["first_value"] is None and portfolio_pnl["last_value"] is None:
             notes.append("No account value snapshots found for this month")
-        elif portfolio_pnl["first_value"] is None or portfolio_pnl["last_value"] is None:
-            notes.append("Only one account value snapshot found - percentage change not calculated")
+        elif (
+            portfolio_pnl["first_value"] is None or portfolio_pnl["last_value"] is None
+        ):
+            notes.append(
+                "Only one account value snapshot found - percentage change not calculated"
+            )
 
         if not strategy_rows:
             notes.append("No strategy trading activity found for this month")
