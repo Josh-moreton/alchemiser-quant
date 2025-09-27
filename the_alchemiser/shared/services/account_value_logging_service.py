@@ -14,6 +14,7 @@ import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from ..constants import ACCOUNT_VALUE_LOGGING_DISABLED
 from ..persistence.account_value_logger_factory import (
     create_account_value_logger,
     is_account_value_logging_enabled,
@@ -54,7 +55,7 @@ class AccountValueLoggingService:
 
         """
         if not self._enabled:
-            logger.debug("Account value logging is disabled")
+            logger.debug(ACCOUNT_VALUE_LOGGING_DISABLED)
             return False
 
         try:
@@ -85,7 +86,7 @@ class AccountValueLoggingService:
 
         """
         if not self._enabled:
-            logger.debug("Account value logging is disabled")
+            logger.debug(ACCOUNT_VALUE_LOGGING_DISABLED)
             return []
 
         try:
@@ -114,7 +115,7 @@ class AccountValueLoggingService:
 
         """
         if not self._enabled:
-            logger.debug("Account value logging is disabled")
+            logger.debug(ACCOUNT_VALUE_LOGGING_DISABLED)
             return None
 
         try:
