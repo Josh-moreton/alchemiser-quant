@@ -2,7 +2,14 @@
 
 The Trade Ledger System provides persistent tracking of all trade executions with strategy attribution for accurate performance analysis when multiple strategies trade the same ticker.
 
+The system also includes an Account Value Logger for simplified daily portfolio value tracking.
+
 ## Overview
+
+The system consists of two main components:
+
+1. **Trade Ledger**: Detailed trade execution tracking with full attribution and performance analysis
+2. **Account Value Logger**: Simplified daily portfolio value tracking for visualization and basic performance monitoring
 
 The system consists of several key components:
 
@@ -12,6 +19,48 @@ The system consists of several key components:
 - **Programmatic API**: Query and analyze trades via Python API
 
 ## Data Model
+
+### TradeLedgerEntry
+
+The atomic unit of trade recording, capturing each fill with complete traceability:
+
+```python
+entry = TradeLedgerEntry(
+    ledger_id="ledger_20240115_001",  # Unique identifier
+    account_id="ABCD1234",            # Account identifier
+    strategy_name="nuclear_v2",       # Strategy attribution
+    symbol="AAPL",                    # Ticker symbol
+    quantity=Decimal("100"),          # Shares traded
+    price=Decimal("150.25"),          # Price per share
+    fees=Decimal("1.00"),            # Trading fees
+    side=TradeSide.BUY,              # Buy or sell
+    asset_type=AssetType.STOCK,      # Asset type
+    timestamp=datetime.now(UTC),      # Trade execution time
+    order_id="order_789",            # Originating order ID
+    fill_id="fill_456",              # Fill identifier
+    correlation_id="corr_123",       # Event correlation
+    causation_id="cause_456",        # Event causation
+    venue="ALPACA",             # Execution venue
+    schema_version=1,           # Schema version for migrations
+    source="execution_v2.core"  # Source module
+)
+```
+
+### AccountValueEntry
+
+Simplified daily portfolio value tracking entry:
+
+```python
+entry = AccountValueEntry(
+    entry_id="value_20240115_001",    # Unique identifier
+    account_id="ABCD1234",            # Account identifier
+    portfolio_value=Decimal("10000.00"),  # Total portfolio value
+    cash=Decimal("2000.00"),          # Cash balance
+    equity=Decimal("8000.00"),        # Equity (positions + cash)
+    timestamp=datetime.now(UTC),      # Entry timestamp
+    source="account_value_logger"     # Source system
+)
+```
 
 ### TradeLedgerEntry
 
@@ -55,14 +104,17 @@ Uses JSONL files with an index for efficient querying:
 ./data/trade_ledger/
 ├── ledger.jsonl    # Append-only trade entries
 └── index.json      # Index mapping (order_id, fill_id) -> ledger_id
+
+./data/account_values/
+└── account_values.jsonl  # Daily account values (one per date)
 ```
 
 On AWS Lambda, the local filesystem is read-only except for `/tmp`. The Local backend will automatically write to a safe, writable path when running in Lambda:
 
-- Default path on Lambda: `/tmp/alchemiser/trade_ledger`
-- Override with env var: set `TRADE_LEDGER_BASE_PATH` to a writable directory
+- Default path on Lambda: `/tmp/alchemiser/trade_ledger` and `/tmp/alchemiser/account_values`
+- Override with env vars: `TRADE_LEDGER_BASE_PATH` and `ACCOUNT_VALUE_LOGGER_BASE_PATH`
 
-Locally, the default remains `./data/trade_ledger`.
+Locally, the defaults remain `./data/trade_ledger` and `./data/account_values`.
 
 ### S3 Backend (Live Trading)
 
@@ -138,6 +190,30 @@ summaries = service.get_strategy_performance("nuclear")
 
 # Get attribution report for a symbol
 report = service.get_attribution_report("AAPL")
+```
+
+### Account Value Logger
+
+```python
+from the_alchemiser.shared.services.account_value_logging_service import AccountValueLoggingService
+from the_alchemiser.shared.types.account import AccountModel
+
+# Create service (automatically detects if logging is enabled)
+service = AccountValueLoggingService()
+
+# Log current account value
+account = AccountModel(...)  # Get from account service
+success = service.log_current_account_value(account)
+
+# Get value history for plotting
+history = service.get_account_value_history("account_id")
+for entry in history:
+    print(f"{entry.timestamp}: ${entry.portfolio_value}")
+
+# Get latest logged value
+latest = service.get_latest_account_value("account_id")
+if latest:
+    print(f"Latest value: ${latest.portfolio_value}")
 ```
 
 ## Programmatic API
