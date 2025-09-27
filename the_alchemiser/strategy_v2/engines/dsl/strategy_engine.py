@@ -33,7 +33,9 @@ class DslStrategyEngine:
     orchestration system by implementing the StrategyEngine protocol.
     """
 
-    def __init__(self, market_data_port: MarketDataPort, strategy_file: str | None = None) -> None:
+    def __init__(
+        self, market_data_port: MarketDataPort, strategy_file: str | None = None
+    ) -> None:
         """Initialize DSL strategy engine.
 
         Args:
@@ -62,7 +64,9 @@ class DslStrategyEngine:
             market_data_service=self.market_data_port,
         )
 
-        self.logger.info(f"DSL Strategy Engine initialized with file: {self.strategy_file}")
+        self.logger.info(
+            f"DSL Strategy Engine initialized with file: {self.strategy_file}"
+        )
 
     def generate_signals(
         self,
@@ -158,7 +162,9 @@ class DslStrategyEngine:
             max_workers = int(env_max_workers)
 
         effective_max_workers = (
-            max_workers if max_workers is not None else min(num_files, os.cpu_count() or 4)
+            max_workers
+            if max_workers is not None
+            else min(num_files, os.cpu_count() or 4)
         )
         return parallelism, effective_max_workers
 
@@ -178,7 +184,9 @@ class DslStrategyEngine:
 
         """
         consolidated: dict[str, float] = {}
-        for _f, (per_file_weights, _trace_id, _, _) in zip(dsl_files, file_results, strict=True):
+        for _f, (per_file_weights, _trace_id, _, _) in zip(
+            dsl_files, file_results, strict=True
+        ):
             if per_file_weights is None:  # Evaluation failed
                 continue
             for symbol, weight in per_file_weights.items():
@@ -190,7 +198,6 @@ class DslStrategyEngine:
         consolidated: dict[str, float],
         timestamp: datetime,
         correlation_id: str,
-        file_results: (list[tuple[dict[str, float] | None, str, float, float]] | None) = None,
         dsl_files: list[str] | None = None,
     ) -> list[StrategySignal]:
         """Convert consolidated weights to StrategySignal objects.
@@ -199,8 +206,6 @@ class DslStrategyEngine:
             consolidated: Dictionary mapping symbols to weights
             timestamp: Timestamp for signal generation
             correlation_id: Correlation ID for tracing
-            file_results: Optional per-file evaluation results (weights, trace_id, file_weight, file_sum);
-                used for attribution and debugging but not required for signal construction
             dsl_files: Optional list of DSL files for attribution
 
         Returns:
@@ -224,10 +229,10 @@ class DslStrategyEngine:
             if weight > 0:
                 # For multiple strategies, show which ones contributed
                 if len(strategy_names) > 1:
-                    strategy_display = f"{primary_strategy} (+{len(strategy_names) - 1} others)"
-                    reasoning = (
-                        f"Multi-strategy allocation from {', '.join(strategy_names)}: {weight:.1%}"
+                    strategy_display = (
+                        f"{primary_strategy} (+{len(strategy_names) - 1} others)"
                     )
+                    reasoning = f"Multi-strategy allocation from {', '.join(strategy_names)}: {weight:.1%}"
                 else:
                     strategy_display = primary_strategy
                     reasoning = f"{primary_strategy} allocation: {weight:.1%}"
@@ -315,7 +320,9 @@ class DslStrategyEngine:
             per_file_weights[symbol] = file_weight * w
 
         # Format and log DSL evaluation results
-        formatted_allocation = self._format_dsl_allocation(filename, allocation.target_weights)
+        formatted_allocation = self._format_dsl_allocation(
+            filename, allocation.target_weights
+        )
         self.logger.debug(formatted_allocation)
 
         return per_file_weights, trace.trace_id, file_weight, file_sum
@@ -368,7 +375,9 @@ class DslStrategyEngine:
             List of evaluation results for each file (preserves input order)
 
         """
-        executor_class = ThreadPoolExecutor if parallelism == "threads" else ProcessPoolExecutor
+        executor_class = (
+            ThreadPoolExecutor if parallelism == "threads" else ProcessPoolExecutor
+        )
 
         with executor_class(max_workers=max_workers) as executor:
             # Use executor.map to preserve deterministic ordering
@@ -400,7 +409,9 @@ class DslStrategyEngine:
 
         """
         try:
-            return self._evaluate_file(filename, correlation_id, normalized_file_weights)
+            return self._evaluate_file(
+                filename, correlation_id, normalized_file_weights
+            )
         except Exception as e:  # pragma: no cover - safety net
             self.logger.error(
                 f"DSL evaluation failed for {filename}: {e}",
@@ -415,7 +426,9 @@ class DslStrategyEngine:
         total = sum(weights.values()) or 1.0
         return {sym: w / total for sym, w in weights.items()}
 
-    def _format_dsl_allocation(self, filename: str, target_weights: dict[str, Decimal]) -> str:
+    def _format_dsl_allocation(
+        self, filename: str, target_weights: dict[str, Decimal]
+    ) -> str:
         """Format DSL allocation results for human-readable logging.
 
         Args:
