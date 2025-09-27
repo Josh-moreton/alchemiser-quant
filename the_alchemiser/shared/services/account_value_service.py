@@ -15,6 +15,7 @@ import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from ..constants import ACCOUNT_VALUE_LOGGING_DISABLED
 from ..persistence.trade_ledger_factory import (
     get_default_trade_ledger,
     is_account_value_logging_enabled,
@@ -56,7 +57,7 @@ class AccountValueService:
 
         """
         if not self._enabled:
-            logger.debug("Account value logging is disabled")
+            logger.debug(ACCOUNT_VALUE_LOGGING_DISABLED)
             return False
 
         try:
@@ -91,7 +92,7 @@ class AccountValueService:
 
         """
         if not self._enabled:
-            logger.debug("Account value logging is disabled")
+            logger.debug(ACCOUNT_VALUE_LOGGING_DISABLED)
             return []
 
         try:
@@ -124,7 +125,7 @@ class AccountValueService:
 
         """
         if not self._enabled:
-            logger.debug("Account value logging is disabled")
+            logger.debug(ACCOUNT_VALUE_LOGGING_DISABLED)
             return None
 
         try:

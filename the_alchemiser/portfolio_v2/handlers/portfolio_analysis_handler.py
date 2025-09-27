@@ -198,32 +198,16 @@ class PortfolioAnalysisHandler:
             List of strategy names extracted from signals
 
         """
-        strategy_names = []
-
         try:
-            # Extract from signals_data if available
             signals_data = event.signals_data
-            if isinstance(signals_data, dict) and "signals" in signals_data:
-                signals = signals_data["signals"]
-                if isinstance(signals, list):
-                    for signal in signals:
-                        if isinstance(signal, dict) and "strategy" in signal:
-                            strategy_name = signal["strategy"]
-                            if strategy_name not in strategy_names:
-                                strategy_names.append(strategy_name)
+            strategy_names = self._extract_from_signals(signals_data)
 
-            # Fallback to strategy_allocations if signals don't have strategy info
-            if (
-                not strategy_names
-                and isinstance(signals_data, dict)
-                and "strategy_allocations" in signals_data
-            ):
-                strategy_allocations = signals_data["strategy_allocations"]
-                if isinstance(strategy_allocations, dict):
-                    strategy_names.extend(strategy_allocations.keys())
+            if not strategy_names:
+                strategy_names = self._extract_from_strategy_allocations(signals_data)
 
         except Exception as e:
             self.logger.warning(f"Failed to extract strategy names from event: {e}")
+            strategy_names = []
 
         # Fallback to default if no strategy names found
         if not strategy_names:
@@ -231,6 +215,52 @@ class PortfolioAnalysisHandler:
 
         self.logger.debug(f"Extracted strategy names: {strategy_names}")
         return strategy_names
+
+    def _extract_from_signals(self, signals_data: dict[str, Any] | None) -> list[str]:
+        """Extract strategy names from signals data.
+
+        Args:
+            signals_data: Signals data from the event
+
+        Returns:
+            List of strategy names from signals
+
+        """
+        strategy_names: list[str] = []
+
+        if not isinstance(signals_data, dict) or "signals" not in signals_data:
+            return strategy_names
+
+        signals = signals_data["signals"]
+        if not isinstance(signals, list):
+            return strategy_names
+
+        for signal in signals:
+            if isinstance(signal, dict) and "strategy" in signal:
+                strategy_name = signal["strategy"]
+                if strategy_name not in strategy_names:
+                    strategy_names.append(strategy_name)
+
+        return strategy_names
+
+    def _extract_from_strategy_allocations(self, signals_data: dict[str, Any] | None) -> list[str]:
+        """Extract strategy names from strategy allocations as fallback.
+
+        Args:
+            signals_data: Signals data from the event
+
+        Returns:
+            List of strategy names from allocations
+
+        """
+        if not isinstance(signals_data, dict) or "strategy_allocations" not in signals_data:
+            return []
+
+        strategy_allocations = signals_data["strategy_allocations"]
+        if not isinstance(strategy_allocations, dict):
+            return []
+
+        return list(strategy_allocations.keys())
 
     def _get_comprehensive_account_data(self) -> dict[str, Any] | None:
         """Get comprehensive account data including positions and orders.
