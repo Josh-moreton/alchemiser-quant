@@ -29,11 +29,7 @@ class ExecutionSummaryLike(Protocol):  # pragma: no cover - structural typing he
 
 
 ExecutionLike = (
-    ExecutionResult
-    | MultiStrategyExecutionResult
-    | Mapping[str, Any]
-    | ExecutionSummaryLike
-    | Any
+    ExecutionResult | MultiStrategyExecutionResult | Mapping[str, Any] | ExecutionSummaryLike | Any
 )
 
 

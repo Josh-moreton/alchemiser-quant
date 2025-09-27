@@ -162,7 +162,9 @@ class Executor:
                     return OrderResult(
                         symbol=symbol,
                         action=side.upper(),
-                        trade_amount=abs(Decimal(str(quantity)) * (result.final_price or Decimal("0"))),
+                        trade_amount=abs(
+                            Decimal(str(quantity)) * (result.final_price or Decimal("0"))
+                        ),
                         shares=Decimal(str(quantity)),
                         price=(result.final_price if result.final_price else None),
                         order_id=result.order_id,
@@ -295,7 +297,6 @@ class Executor:
         broker_result: ExecutedOrder,
     ) -> OrderResult:
         """Convert broker response into OrderResult."""
-        status = broker_result.status.lower() if broker_result.status else "submitted"
         success = broker_result.status not in ["REJECTED", "CANCELED"]
         price = broker_result.price if broker_result.price is not None else None
 
@@ -468,9 +469,7 @@ class Executor:
         self._cleanup_subscriptions(all_symbols)
 
         # Classify execution status
-        success, status = ExecutionResult.classify_execution_status(
-            orders_placed, orders_succeeded
-        )
+        success, status = ExecutionResult.classify_execution_status(orders_placed, orders_succeeded)
 
         # Create execution result
         execution_result = ExecutionResult(

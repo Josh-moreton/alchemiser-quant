@@ -252,9 +252,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Get position for a specific symbol."""
         return self._account_service.get_position(symbol)
 
-    def place_order(
-        self, order_request: LimitOrderRequest | MarketOrderRequest
-    ) -> ExecutedOrder:
+    def place_order(self, order_request: LimitOrderRequest | MarketOrderRequest) -> ExecutedOrder:
         """Place an order and return execution details."""
         return self._get_trading_service().place_order(order_request)
 

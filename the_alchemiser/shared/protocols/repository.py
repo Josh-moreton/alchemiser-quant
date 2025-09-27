@@ -88,9 +88,7 @@ class TradingRepository(Protocol):
         """
         ...
 
-    def place_order(
-        self, order_request: LimitOrderRequest | MarketOrderRequest
-    ) -> ExecutedOrder:
+    def place_order(self, order_request: LimitOrderRequest | MarketOrderRequest) -> ExecutedOrder:
         """Place an order.
 
         Args:

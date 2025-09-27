@@ -207,9 +207,7 @@ class DecisionEvaluated(BaseEvent):
     schema_version: int = Field(default=1, ge=1, description=EVENT_SCHEMA_VERSION_DESCRIPTION)
 
     # Decision fields
-    decision_expression: ASTNode = Field(
-        ..., description="Decision expression that was evaluated"
-    )
+    decision_expression: ASTNode = Field(..., description="Decision expression that was evaluated")
     condition_result: bool = Field(..., description="Result of condition evaluation")
     branch_taken: str = Field(..., min_length=1, description="Branch taken (then/else)")
     branch_result: PortfolioFragment | None = Field(

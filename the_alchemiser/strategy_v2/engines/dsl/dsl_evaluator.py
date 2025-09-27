@@ -255,9 +255,7 @@ class DslEvaluator:
         """
         return [self._evaluate_node(child, correlation_id, trace) for child in node.children]
 
-    def _evaluate_list_node(
-        self, node: ASTNode, correlation_id: str, trace: Trace
-    ) -> DSLValue:
+    def _evaluate_list_node(self, node: ASTNode, correlation_id: str, trace: Trace) -> DSLValue:
         """Evaluate a list node.
 
         Args:

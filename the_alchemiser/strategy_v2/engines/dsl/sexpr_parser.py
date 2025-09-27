@@ -155,9 +155,7 @@ class SexprParser:
 
         return ast
 
-    def _parse_expression(
-        self, tokens: list[tuple[str, str]], index: int
-    ) -> tuple[ASTNode, int]:
+    def _parse_expression(self, tokens: list[tuple[str, str]], index: int) -> tuple[ASTNode, int]:
         """Parse a single expression.
 
         Args:

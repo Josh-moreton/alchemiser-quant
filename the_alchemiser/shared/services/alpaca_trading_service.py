@@ -104,9 +104,7 @@ class AlpacaTradingService:
         """Check if this is paper trading."""
         return self._paper_trading
 
-    def place_order(
-        self, order_request: LimitOrderRequest | MarketOrderRequest
-    ) -> ExecutedOrder:
+    def place_order(self, order_request: LimitOrderRequest | MarketOrderRequest) -> ExecutedOrder:
         """Place an order and return execution details."""
         try:
             self._ensure_trading_stream()

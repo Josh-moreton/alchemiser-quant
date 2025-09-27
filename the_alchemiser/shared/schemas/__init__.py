@@ -14,23 +14,20 @@ from .accounts import (
     RiskMetricsResult,
     TradeEligibilityResult,
 )
-from .asset_info import AssetInfo, AssetInfo
-from .ast_node import ASTNode, ASTNode
+from .asset_info import AssetInfo
+from .ast_node import ASTNode
 from .base import Result
 from .broker import OrderExecutionResult, WebSocketResult, WebSocketStatus
 from .common import (
-    AllocationComparison,
     AllocationComparison,
     Configuration,
     ConfigurationDTO,
     Error,
     ErrorDTO,
     MultiStrategyExecutionResult,
-    MultiStrategyExecutionResult,
-    MultiStrategySummary,
     MultiStrategySummary,
 )
-from .consolidated_portfolio import ConsolidatedPortfolio, ConsolidatedPortfolio
+from .consolidated_portfolio import ConsolidatedPortfolio
 from .errors import (
     ErrorContextData,
     ErrorDetailInfo,
@@ -40,14 +37,13 @@ from .errors import (
 )
 from .execution_report import (
     ExecutedOrder,
-    ExecutedOrder,
     ExecutionReport,
     ExecutionReportDTO,
 )
-from .execution_result import ExecutionResult, ExecutionResult
-from .indicator_request import IndicatorRequest, IndicatorRequest
-from .lambda_event import LambdaEvent, LambdaEvent
-from .market_bar import MarketBar, MarketBar
+from .execution_result import ExecutionResult
+from .indicator_request import IndicatorRequest
+from .lambda_event import LambdaEvent
+from .market_bar import MarketBar
 from .market_data import (
     MarketStatusResult,
     MultiSymbolQuotesResult,
@@ -63,28 +59,22 @@ from .order_request import (
 )
 from .portfolio_state import (
     PortfolioMetrics,
-    PortfolioMetrics,
-    PortfolioState,
     PortfolioState,
     Position,
     PositionDTO,
 )
 from .rebalance_plan import (
     RebalancePlan,
-    RebalancePlan,
-    RebalancePlanItem,
     RebalancePlanItem,
 )
 from .strategy_allocation import (
-    StrategyAllocation,
     StrategyAllocation,
 )
 from .strategy_signal import StrategySignal, StrategySignalDTO
 from .technical_indicator import (
     TechnicalIndicator,
-    TechnicalIndicator,
 )
-from .trace import Trace, Trace, TraceEntry, TraceEntryDTO
+from .trace import Trace, TraceEntry, TraceEntryDTO
 from .trade_ledger import (
     AssetType,
     Lot,
@@ -96,10 +86,8 @@ from .trade_ledger import (
 from .trade_result_factory import create_failure_result, create_success_result
 from .trade_run_result import (
     ExecutionSummary,
-    ExecutionSummary,
     OrderResultSummary,
     OrderResultSummaryDTO,
-    TradeRunResult,
     TradeRunResult,
 )
 

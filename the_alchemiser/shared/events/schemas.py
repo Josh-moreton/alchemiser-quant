@@ -129,12 +129,8 @@ class PortfolioStateChanged(BaseEvent):
     event_type: str = Field(default="PortfolioStateChanged", description=EVENT_TYPE_DESCRIPTION)
 
     # Portfolio state change fields
-    portfolio_state_before: PortfolioState = Field(
-        ..., description="Portfolio state before change"
-    )
-    portfolio_state_after: PortfolioState = Field(
-        ..., description="Portfolio state after change"
-    )
+    portfolio_state_before: PortfolioState = Field(..., description="Portfolio state before change")
+    portfolio_state_after: PortfolioState = Field(..., description="Portfolio state after change")
     change_type: str = Field(..., description="Type of change (rebalance, trade, etc.)")
     change_summary: dict[str, Any] = Field(
         default_factory=dict, description="Summary of changes made"

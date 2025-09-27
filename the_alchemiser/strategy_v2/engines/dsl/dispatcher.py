@@ -28,9 +28,7 @@ class DslDispatcher:
         """Initialize empty dispatcher."""
         self.symbol_table: dict[str, Callable[[list[ASTNode], DslContext], DSLValue]] = {}
 
-    def register(
-        self, symbol: str, func: Callable[[list[ASTNode], DslContext], DSLValue]
-    ) -> None:
+    def register(self, symbol: str, func: Callable[[list[ASTNode], DslContext], DSLValue]) -> None:
         """Register a function for a DSL symbol.
 
         Args:

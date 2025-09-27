@@ -61,9 +61,7 @@ class ExecutionManager:
             enable_smart_execution=enable_smart_execution,
         )
 
-    def _record_execution_in_ledger(
-        self, result: ExecutionResult, plan: RebalancePlan
-    ) -> None:
+    def _record_execution_in_ledger(self, result: ExecutionResult, plan: RebalancePlan) -> None:
         """Record execution results in the trade ledger.
 
         Args:
