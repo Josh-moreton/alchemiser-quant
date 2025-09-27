@@ -204,24 +204,45 @@ class AlpacaAccountService:
 
     def get_portfolio_history(
         self,
-        _start_date: str | None = None,
-        _end_date: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
         timeframe: str = "1Day",
+        period: str | None = None,
     ) -> dict[str, Any] | None:
         """Get portfolio performance history.
 
         Args:
-            _start_date: Start date (ISO format), defaults to 1 month ago - currently unused
-            _end_date: End date (ISO format), defaults to today - currently unused
-            timeframe: Timeframe for data points
+            start_date: Start date (ISO format YYYY-MM-DD)
+            end_date: End date (ISO format YYYY-MM-DD)
+            timeframe: Timeframe for data points (1Min, 5Min, 15Min, 1Hour, 1Day)
+            period: Period string (1W, 1M, 3M, 1A) - alternative to start/end dates
 
         Returns:
             Portfolio history data, or None if failed.
 
         """
         try:
-            # Fetch without kwargs to satisfy type stubs
-            history = self._trading_client.get_portfolio_history()
+            from alpaca.trading.requests import GetPortfolioHistoryRequest
+            from datetime import datetime
+
+            # Build request parameters
+            request_params = {"timeframe": timeframe}
+            
+            if period:
+                request_params["period"] = period
+            else:
+                if start_date:
+                    request_params["start"] = datetime.fromisoformat(start_date)
+                if end_date:
+                    request_params["end"] = datetime.fromisoformat(end_date)
+
+            # Create request object
+            if request_params:
+                request = GetPortfolioHistoryRequest(**request_params)
+                history = self._trading_client.get_portfolio_history(request)
+            else:
+                history = self._trading_client.get_portfolio_history()
+            
             # Convert to dictionary
             return {
                 "timestamp": getattr(history, "timestamp", []),

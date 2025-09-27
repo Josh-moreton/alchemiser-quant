@@ -611,12 +611,13 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def get_portfolio_history(
         self,
-        _start_date: str | None = None,
-        _end_date: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
         timeframe: str = "1Day",
+        period: str | None = None,
     ) -> dict[str, Any] | None:
         """Get portfolio performance history."""
-        return self._account_service.get_portfolio_history(_start_date, _end_date, timeframe)
+        return self._account_service.get_portfolio_history(start_date, end_date, timeframe, period)
 
     def get_activities(
         self,
