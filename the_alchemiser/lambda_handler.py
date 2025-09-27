@@ -80,7 +80,12 @@ def _handle_monthly_summary(
     event: LambdaEventDTO | dict[str, Any] | None, request_id: str
 ) -> dict[str, Any]:
     """Handle the monthly summary email path and build a Lambda-style response."""
-    ev = LambdaEventDTO(**(event or {}))
+    # Ensure we pass a mapping into the DTO constructor for mypy correctness
+    if isinstance(event, LambdaEventDTO):
+        event_mapping: dict[str, Any] = event.model_dump()
+    else:
+        event_mapping = event or {}
+    ev = LambdaEventDTO(**event_mapping)
 
     # Determine target month
     from datetime import UTC, datetime

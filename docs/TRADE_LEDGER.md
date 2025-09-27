@@ -46,6 +46,7 @@ All DTOs are strict and frozen Pydantic models; timestamps are timezone-aware; s
 Location: `the_alchemiser/shared/protocols/trade_ledger.py`
 
 Core methods:
+
 - upsert(entry), upsert_many(entries): idempotent append with index; respect `DISABLE_FULL_TRADE_LOGGING`.
 - query(filters): retrieve entries matching filters and ordering/pagination.
 - get_open_lots(strategy, symbol): compute open lots (FIFO-based).
@@ -104,6 +105,7 @@ Location: `the_alchemiser/shared/services/account_value_service.py`
 - Config toggle: `is_account_value_logging_enabled()`; if disabled, methods are no-ops.
 
 Usage:
+
 - Enables portfolio-level P&L (e.g., monthly summary) even when full trade logging is disabled.
 
 ---
@@ -125,6 +127,7 @@ Usage:
 - `account_values.jsonl`: one JSON object per line representing an `AccountValueEntry` (datetime ISO8601, Decimals as strings).
 
 Example ledger line (pretty-printed):
+
 ```json
 {
   "ledger_id": "...",
@@ -151,6 +154,7 @@ Example ledger line (pretty-printed):
 ```
 
 Example account value line:
+
 ```json
 {
   "entry_id": "...",

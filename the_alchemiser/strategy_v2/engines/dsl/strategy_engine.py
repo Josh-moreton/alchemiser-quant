@@ -108,7 +108,9 @@ class DslStrategyEngine:
                 return self._create_fallback_signals(timestamp)
 
             consolidated = self._normalize_allocations(consolidated)
-            signals = self._convert_to_signals(consolidated, timestamp, correlation_id, dsl_files)
+            signals = self._convert_to_signals(
+                consolidated, timestamp, correlation_id, dsl_files=dsl_files
+            )
 
             self.logger.info(
                 f"Generated {len(signals)} DSL consolidated signals",
