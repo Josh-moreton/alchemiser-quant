@@ -14,6 +14,11 @@ help:
 	@echo "Trading Commands:"
 	@echo "  run-trade       Execute trading via python -m the_alchemiser"
 	@echo ""
+	@echo "P&L Analysis Commands:"
+	@echo "  run-pnl-weekly  Show weekly P&L report"
+	@echo "  run-pnl-monthly Show monthly P&L report"
+	@echo "  run-pnl-detailed Show detailed monthly P&L report"
+	@echo ""
 	@echo "Testing Commands:"
 	@echo "  test            Run all tests"
 	@echo "  test-unit       Run unit tests only"
@@ -75,7 +80,18 @@ run-trade:
 	@echo "💰 Running trading (mode determined by stage)..."
 	python -m the_alchemiser
 
-# Removed run-trade-live - trading mode now determined by deployment stage
+# P&L Analysis Commands
+run-pnl-weekly:
+	@echo "📊 Running weekly P&L analysis..."
+	python -m the_alchemiser pnl --weekly
+
+run-pnl-monthly:
+	@echo "📊 Running monthly P&L analysis..."
+	python -m the_alchemiser pnl --monthly
+
+run-pnl-detailed:
+	@echo "📊 Running detailed monthly P&L analysis..."
+	python -m the_alchemiser pnl --monthly --detailed
 
 # Status command removed - use programmatic access via TradingSystem class
 

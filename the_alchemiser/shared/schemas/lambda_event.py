@@ -34,7 +34,7 @@ class LambdaEvent(BaseModel):
 
     # Monthly summary invocation fields (optional)
     action: str | None = Field(
-        default=None, description="Action to perform (e.g., 'monthly_summary')"
+        default=None, description="Action to perform (e.g., 'monthly_summary', 'pnl_analysis')"
     )
     month: str | None = Field(
         default=None,
@@ -43,6 +43,22 @@ class LambdaEvent(BaseModel):
     account_id: str | None = Field(
         default=None, description="Explicit account ID override for summary"
     )
+    
+    # P&L analysis fields (optional)
+    pnl_type: str | None = Field(
+        default=None, description="P&L analysis type ('weekly' or 'monthly')"
+    )
+    pnl_periods: int | None = Field(
+        default=None, description="Number of periods back to analyze"
+    )
+    pnl_period: str | None = Field(
+        default=None, description="Alpaca period format (1W, 1M, 3M, 1A)"
+    )
+    pnl_detailed: bool | None = Field(
+        default=None, description="Include detailed daily breakdown"
+    )
+    
+    # Common optional fields
     to: str | None = Field(default=None, description="Override recipient email address for summary")
     subject: str | None = Field(default=None, description="Override email subject for summary")
     dry_run: bool | None = Field(
