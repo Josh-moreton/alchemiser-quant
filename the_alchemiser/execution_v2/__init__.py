@@ -24,24 +24,26 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
+
 # Event-driven public API
 def register_execution_handlers(container: ApplicationContainer) -> None:
     """Register execution event handlers with the orchestration system.
-    
+
     This is the primary integration point for the execution module in
     the event-driven architecture.
-    
+
     Args:
         container: Application container for dependency injection
+
     """
     from .handlers import TradingExecutionHandler
-    
+
     # Get event bus from container
     event_bus = container.services.event_bus()
-    
+
     # Initialize and register handlers
     execution_handler = TradingExecutionHandler(container)
-    
+
     # Register handlers for their respective events using event type strings
     event_bus.subscribe("RebalancePlanned", execution_handler)
 

@@ -99,9 +99,9 @@ class EventDrivenOrchestrator:
         """
         try:
             # Register handlers from each business module
-            from the_alchemiser.strategy_v2 import register_strategy_handlers
-            from the_alchemiser.portfolio_v2 import register_portfolio_handlers
             from the_alchemiser.execution_v2 import register_execution_handlers
+            from the_alchemiser.portfolio_v2 import register_portfolio_handlers
+            from the_alchemiser.strategy_v2 import register_strategy_handlers
 
             register_strategy_handlers(self.container)
             register_portfolio_handlers(self.container)
@@ -217,7 +217,7 @@ class EventDrivenOrchestrator:
         # Subscribe to all event types for cross-cutting concerns (monitoring, notifications)
         for event_type in (
             "StartupEvent",
-            "WorkflowStarted", 
+            "WorkflowStarted",
             "SignalGenerated",
             "RebalancePlanned",
             "TradeExecuted",

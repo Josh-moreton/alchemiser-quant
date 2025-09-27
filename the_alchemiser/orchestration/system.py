@@ -10,9 +10,7 @@ dependency injection, and delegates trading execution to appropriate orchestrato
 from __future__ import annotations
 
 import uuid
-from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
-from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -278,8 +276,6 @@ class TradingSystem:
         except Exception as e:
             self.logger.error(f"Event-driven trading execution failed: {e}")
             return None
-
-
 
     def _display_post_execution_tracking(self, *, paper_trading: bool) -> None:
         """Display optional post-execution tracking information."""

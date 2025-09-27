@@ -25,24 +25,26 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
+
 # Event-driven public API
 def register_strategy_handlers(container: ApplicationContainer) -> None:
     """Register strategy event handlers with the orchestration system.
-    
+
     This is the primary integration point for the strategy module in
     the event-driven architecture.
-    
+
     Args:
         container: Application container for dependency injection
+
     """
     from .handlers import SignalGenerationHandler
-    
+
     # Get event bus from container
     event_bus = container.services.event_bus()
-    
+
     # Initialize and register handlers
     signal_handler = SignalGenerationHandler(container)
-    
+
     # Register handlers for their respective events using event type strings
     event_bus.subscribe("StartupEvent", signal_handler)
     event_bus.subscribe("WorkflowStarted", signal_handler)
@@ -58,7 +60,7 @@ __all__ = [
     "register_strategy_handlers",  # Primary event-driven API
     # Legacy exports (being phased out)
     "SingleStrategyOrchestrator",
-    "StrategyContext", 
+    "StrategyContext",
     "get_strategy",
     "list_strategies",
     "register_strategy",
