@@ -545,7 +545,7 @@ class LocalTradeLedger(BaseTradeLedger):
 
                         if self._matches_account_value_filters(entry, filters):
                             matching_entries.append(entry)
-                    except (json.JSONDecodeError, ValueError) as e:
+                    except json.JSONDecodeError as e:
                         logger.warning(f"Skipping invalid account value entry: {e}")
                         continue
 
@@ -608,7 +608,7 @@ class LocalTradeLedger(BaseTradeLedger):
 
                     if entry.get_date_key() == date_key:
                         matching_entries.append(entry)
-                except (json.JSONDecodeError, ValueError):
+                except json.JSONDecodeError:
                     continue
 
         return matching_entries
@@ -644,7 +644,7 @@ class LocalTradeLedger(BaseTradeLedger):
                         all_entries.append(new_entry)
                     else:
                         all_entries.append(entry)
-                except (json.JSONDecodeError, ValueError):
+                except json.JSONDecodeError:
                     continue
 
         # Rewrite file with updated entries
