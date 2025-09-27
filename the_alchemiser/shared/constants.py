@@ -21,6 +21,9 @@ UTC_TIMEZONE_SUFFIX = "+00:00"
 REBALANCE_PLAN_GENERATED = "📋 Rebalance plan generated:"
 NO_TRADES_REQUIRED = "📋 No trades required (portfolio balanced)"
 
+# Logging messages
+ACCOUNT_VALUE_LOGGING_DISABLED = "Account value logging is disabled"
+
 # Module identifiers
 CLI_DEPLOY_COMPONENT = "cli.deploy"
 DSL_ENGINE_MODULE = "strategy_v2.engines.dsl"
@@ -57,6 +60,7 @@ DEFAULT_AWS_REGION = "eu-west-2"
 
 # Public API
 __all__ = [
+    "ACCOUNT_VALUE_LOGGING_DISABLED",
     "ALERT_SEVERITIES",
     "APPLICATION_NAME",
     "CLI_DEPLOY_COMPONENT",
