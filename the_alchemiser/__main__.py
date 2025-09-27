@@ -20,7 +20,7 @@ def run() -> None:
     # This is the simplest interface for local development/testing
     result = main(["trade"])
 
-    # Handle both TradeRunResultDTO and boolean return types
+    # Handle both TradeRunResult and boolean return types
     success = getattr(result, "success", False) if hasattr(result, "success") else bool(result)
 
     sys.exit(0 if success else 1)

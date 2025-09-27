@@ -6,7 +6,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from the_alchemiser.shared.notifications.templates.monthly import MonthlySummaryEmailBuilder
-from the_alchemiser.shared.schemas.reporting import MonthlySummaryDTO
+from the_alchemiser.shared.schemas.reporting import MonthlySummary
 
 
 class TestMonthlySummaryEmail:

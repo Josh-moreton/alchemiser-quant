@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.schemas.market_bar import MarketBarDTO
+from the_alchemiser.shared.schemas.market_bar import MarketBar
 from the_alchemiser.shared.services.market_data_service import MarketDataService
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class MarketDataProvider(Protocol):
 
     def get_bars(
         self, symbols: list[str], timeframe: str, lookback_days: int
-    ) -> dict[str, list[MarketBarDTO]]:
+    ) -> dict[str, list[MarketBar]]:
         """Get historical bars for multiple symbols."""
         ...
 
@@ -63,7 +63,7 @@ class StrategyMarketDataAdapter:
         timeframe: str,
         lookback_days: int,
         end_date: datetime | None = None,
-    ) -> dict[str, list[MarketBarDTO]]:
+    ) -> dict[str, list[MarketBar]]:
         """Get historical bars for multiple symbols.
 
         Args:
@@ -92,7 +92,7 @@ class StrategyMarketDataAdapter:
         start_str = start_date.strftime("%Y-%m-%d")
         end_str = end_date.strftime("%Y-%m-%d")
 
-        result: dict[str, list[MarketBarDTO]] = {}
+        result: dict[str, list[MarketBar]] = {}
 
         # Fetch data for each symbol
         # Note: Could be optimized for batch requests if Alpaca SDK supports it
@@ -105,11 +105,11 @@ class StrategyMarketDataAdapter:
                     timeframe=timeframe,
                 )
 
-                # Convert legacy bar dictionaries to MarketBarDTO objects
+                # Convert legacy bar dictionaries to MarketBar objects
                 typed_bars = []
                 for bar_dict in bars:
                     try:
-                        bar_dto = MarketBarDTO.from_alpaca_bar(bar_dict, symbol, timeframe)
+                        bar_dto = MarketBar.from_alpaca_bar(bar_dict, symbol, timeframe)
                         typed_bars.append(bar_dto)
                     except ValueError as e:
                         self._logger.warning(

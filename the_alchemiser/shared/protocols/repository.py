@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 if TYPE_CHECKING:
     from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
 
-    from the_alchemiser.shared.schemas.execution_report import ExecutedOrderDTO
+    from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
 
 
 class AccountRepository(Protocol):
@@ -90,14 +90,14 @@ class TradingRepository(Protocol):
 
     def place_order(
         self, order_request: LimitOrderRequest | MarketOrderRequest
-    ) -> ExecutedOrderDTO:
+    ) -> ExecutedOrder:
         """Place an order.
 
         Args:
             order_request: Order request object (Alpaca LimitOrderRequest or MarketOrderRequest)
 
         Returns:
-            ExecutedOrderDTO with execution details and status.
+            ExecutedOrder with execution details and status.
 
         """
         ...
@@ -110,7 +110,7 @@ class TradingRepository(Protocol):
         notional: float | None = None,
         *,
         is_complete_exit: bool = False,
-    ) -> ExecutedOrderDTO:
+    ) -> ExecutedOrder:
         """Place a market order.
 
         Args:
@@ -121,7 +121,7 @@ class TradingRepository(Protocol):
             is_complete_exit: If True and side is 'sell', use actual available quantity
 
         Returns:
-            ExecutedOrderDTO with execution details and status.
+            ExecutedOrder with execution details and status.
 
         """
         ...

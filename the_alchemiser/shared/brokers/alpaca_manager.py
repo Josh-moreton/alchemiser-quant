@@ -36,12 +36,12 @@ from the_alchemiser.shared.protocols.repository import (
     MarketDataRepository,
     TradingRepository,
 )
-from the_alchemiser.shared.schemas.asset_info import AssetInfoDTO
+from the_alchemiser.shared.schemas.asset_info import AssetInfo
 from the_alchemiser.shared.schemas.broker import (
     OrderExecutionResult,
     WebSocketResult,
 )
-from the_alchemiser.shared.schemas.execution_report import ExecutedOrderDTO
+from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
 from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountService
 from the_alchemiser.shared.services.alpaca_trading_service import AlpacaTradingService
 from the_alchemiser.shared.services.asset_metadata_service import AssetMetadataService
@@ -254,7 +254,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def place_order(
         self, order_request: LimitOrderRequest | MarketOrderRequest
-    ) -> ExecutedOrderDTO:
+    ) -> ExecutedOrder:
         """Place an order and return execution details."""
         return self._get_trading_service().place_order(order_request)
 
@@ -319,9 +319,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         side: str,
         qty: float | None,
         error_message: str,
-    ) -> ExecutedOrderDTO:
-        """Create error ExecutedOrderDTO for failed orders."""
-        return ExecutedOrderDTO(
+    ) -> ExecutedOrder:
+        """Create error ExecutedOrder for failed orders."""
+        return ExecutedOrder(
             order_id=order_id,
             symbol=symbol.upper() if symbol else "UNKNOWN",
             action=side.upper() if side and side.upper() in ["BUY", "SELL"] else "BUY",
@@ -342,7 +342,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         notional: float | None = None,
         *,
         is_complete_exit: bool = False,
-    ) -> ExecutedOrderDTO:
+    ) -> ExecutedOrder:
         """Place a market order with validation and execution result return."""
         try:
             # Validation
@@ -580,7 +580,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         return self._get_trading_service().liquidate_position(symbol)
 
-    def get_asset_info(self, symbol: str) -> AssetInfoDTO | None:
+    def get_asset_info(self, symbol: str) -> AssetInfo | None:
         """Get asset information with caching."""
         return self._asset_metadata_service.get_asset_info(symbol)
 

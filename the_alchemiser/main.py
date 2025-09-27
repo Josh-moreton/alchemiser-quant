@@ -25,7 +25,7 @@ from the_alchemiser.shared.logging.logging_utils import (
 from the_alchemiser.shared.types.exceptions import ConfigurationError
 
 if TYPE_CHECKING:
-    from the_alchemiser.shared.schemas.trade_run_result import TradeRunResultDTO
+    from the_alchemiser.shared.schemas.trade_run_result import TradeRunResult
 
 
 class _ArgumentParsing:
@@ -110,7 +110,7 @@ def _handle_error_with_notification(
     _send_error_notification()
 
 
-def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
+def main(argv: list[str] | None = None) -> TradeRunResult | bool:
     """Serve as main entry point for The Alchemiser Trading System.
 
     Args:
@@ -118,7 +118,7 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
               with legacy calls, but primarily for programmatic usage
 
     Returns:
-        TradeRunResultDTO for trade execution, or bool for other operations
+        TradeRunResult for trade execution, or bool for other operations
 
     """
     # Setup logging and request tracking
@@ -168,7 +168,7 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
 
 if __name__ == "__main__":
     result = main()
-    # Handle both TradeRunResultDTO and boolean return types
+    # Handle both TradeRunResult and boolean return types
     if hasattr(result, "success"):
         sys.exit(0 if getattr(result, "success", False) else 1)
     sys.exit(0 if result else 1)

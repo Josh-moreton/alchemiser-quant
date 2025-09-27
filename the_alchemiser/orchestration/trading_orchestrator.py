@@ -50,7 +50,7 @@ from the_alchemiser.shared.schemas.portfolio_state import (
 )
 from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
-    RebalancePlanItemDTO,
+    RebalancePlanItem,
 )
 from the_alchemiser.shared.types.exceptions import (
     NotificationError,
@@ -891,7 +891,7 @@ class TradingOrchestrator:
         target_values: dict[str, Decimal],
         current_values: dict[str, Decimal],
         portfolio_value_decimal: Decimal,
-    ) -> tuple[list[RebalancePlanItemDTO], Decimal]:
+    ) -> tuple[list[RebalancePlanItem], Decimal]:
         """Create plan items for symbols with significant deltas."""
         plan_items = []
         total_trade_value = DECIMAL_ZERO
@@ -918,7 +918,7 @@ class TradingOrchestrator:
         target_values: dict[str, Decimal],
         current_values: dict[str, Decimal],
         portfolio_value_decimal: Decimal,
-    ) -> RebalancePlanItemDTO:
+    ) -> RebalancePlanItem:
         """Create a single rebalance plan item."""
         # Determine trade action
         action = "BUY" if delta > 0 else "SELL"
@@ -932,7 +932,7 @@ class TradingOrchestrator:
             target_val, current_val, portfolio_value_decimal
         )
 
-        return RebalancePlanItemDTO(
+        return RebalancePlanItem(
             symbol=symbol,
             current_weight=current_weight,
             target_weight=target_weight,
@@ -962,7 +962,7 @@ class TradingOrchestrator:
 
     def _build_rebalance_plan_dto(
         self,
-        plan_items: list[RebalancePlanItemDTO],
+        plan_items: list[RebalancePlanItem],
         total_trade_value: Decimal,
         portfolio_value_decimal: Decimal,
     ) -> RebalancePlan:

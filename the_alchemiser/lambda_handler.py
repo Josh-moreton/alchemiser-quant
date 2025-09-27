@@ -31,7 +31,7 @@ from the_alchemiser.shared.logging.logging_utils import (
 )
 from the_alchemiser.shared.notifications.client import EmailClient
 from the_alchemiser.shared.notifications.templates.email_facade import EmailTemplates
-from the_alchemiser.shared.schemas import LambdaEventDTO
+from the_alchemiser.shared.schemas import LambdaEvent
 from the_alchemiser.shared.services.monthly_summary_service import MonthlySummaryService
 from the_alchemiser.shared.types.exceptions import (
     DataProviderError,
@@ -81,15 +81,15 @@ def _build_response_message(trading_mode: str, *, result: bool) -> str:
 
 
 def _handle_monthly_summary(
-    event: LambdaEventDTO | dict[str, Any] | None, request_id: str
+    event: LambdaEvent | dict[str, Any] | None, request_id: str
 ) -> dict[str, Any]:
     """Handle the monthly summary email path and build a Lambda-style response."""
     # Ensure we pass a mapping into the DTO constructor for mypy correctness
-    if isinstance(event, LambdaEventDTO):
+    if isinstance(event, LambdaEvent):
         event_mapping: dict[str, Any] = event.model_dump()
     else:
         event_mapping = event or {}
-    ev = LambdaEventDTO(**event_mapping)
+    ev = LambdaEvent(**event_mapping)
 
     # Determine target month
     from datetime import UTC, datetime
@@ -142,7 +142,7 @@ def _handle_monthly_summary(
 
 def _handle_error(
     error: Exception,
-    event: LambdaEventDTO | None,
+    event: LambdaEvent | None,
     request_id: str,
     context_suffix: str = "",
     command_args: list[str] | None = None,
@@ -198,7 +198,7 @@ def _handle_error(
 
 def _handle_trading_error(
     error: Exception,
-    event: LambdaEventDTO | None,
+    event: LambdaEvent | None,
     request_id: str,
     command_args: list[str] | None = None,
 ) -> None:
@@ -216,7 +216,7 @@ def _handle_trading_error(
 
 def _handle_critical_error(
     error: Exception,
-    event: LambdaEventDTO | None,
+    event: LambdaEvent | None,
     request_id: str,
     command_args: list[str] | None = None,
 ) -> None:
@@ -234,7 +234,7 @@ def _handle_critical_error(
     )
 
 
-def parse_event_mode(event: LambdaEventDTO | dict[str, Any]) -> list[str] | None:
+def parse_event_mode(event: LambdaEvent | dict[str, Any]) -> list[str] | None:
     """Parse the Lambda event.
 
     Supports two paths:
@@ -249,11 +249,11 @@ def parse_event_mode(event: LambdaEventDTO | dict[str, Any]) -> list[str] | None
 
     """
     # Validate event shape
-    event_obj = LambdaEventDTO(**event) if isinstance(event, dict) else event
+    event_obj = LambdaEvent(**event) if isinstance(event, dict) else event
 
     # Monthly summary action takes precedence
     if (
-        isinstance(event_obj, LambdaEventDTO)
+        isinstance(event_obj, LambdaEvent)
         and getattr(event_obj, "action", None) == "monthly_summary"
     ):
         logger.info("Parsed event to action: monthly_summary")
@@ -264,7 +264,7 @@ def parse_event_mode(event: LambdaEventDTO | dict[str, Any]) -> list[str] | None
 
 
 def lambda_handler(
-    event: LambdaEventDTO | None = None, context: object | None = None
+    event: LambdaEvent | None = None, context: object | None = None
 ) -> dict[str, Any]:
     """AWS Lambda function handler for The Alchemiser trading system.
 

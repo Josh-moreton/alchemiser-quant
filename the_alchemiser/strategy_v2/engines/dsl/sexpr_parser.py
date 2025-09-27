@@ -3,7 +3,7 @@
 
 S-expression parser for DSL engine.
 
-Parses Clojure-style S-expressions from .clj files into ASTNodeDTO structures
+Parses Clojure-style S-expressions from .clj files into ASTNode structures
 for evaluation by the DSL engine.
 """
 
@@ -13,7 +13,7 @@ import re
 from decimal import Decimal
 from pathlib import Path
 
-from the_alchemiser.shared.schemas.ast_node import ASTNodeDTO
+from the_alchemiser.shared.schemas.ast_node import ASTNode
 
 
 class SexprParseError(Exception):
@@ -34,7 +34,7 @@ class SexprParseError(Exception):
 class SexprParser:
     """Parser for Clojure-style S-expressions.
 
-    Converts S-expression text into ASTNodeDTO tree structures for DSL evaluation.
+    Converts S-expression text into ASTNode tree structures for DSL evaluation.
     """
 
     def __init__(self) -> None:
@@ -130,14 +130,14 @@ class SexprParser:
                 return value, match.end()
         return None
 
-    def parse(self, text: str) -> ASTNodeDTO:
+    def parse(self, text: str) -> ASTNode:
         """Parse S-expression text into AST.
 
         Args:
             text: S-expression text to parse
 
         Returns:
-            ASTNodeDTO representing the parsed AST
+            ASTNode representing the parsed AST
 
         Raises:
             SexprParseError: If parsing fails
@@ -157,7 +157,7 @@ class SexprParser:
 
     def _parse_expression(
         self, tokens: list[tuple[str, str]], index: int
-    ) -> tuple[ASTNodeDTO, int]:
+    ) -> tuple[ASTNode, int]:
         """Parse a single expression.
 
         Args:
@@ -165,7 +165,7 @@ class SexprParser:
             index: Current token index
 
         Returns:
-            Tuple of (ASTNodeDTO, next_index)
+            Tuple of (ASTNode, next_index)
 
         Raises:
             SexprParseError: If parsing fails
@@ -186,7 +186,7 @@ class SexprParser:
 
     def _parse_list(
         self, tokens: list[tuple[str, str]], index: int, end_token: str
-    ) -> tuple[ASTNodeDTO, int]:
+    ) -> tuple[ASTNode, int]:
         """Parse a list expression.
 
         Args:
@@ -195,27 +195,27 @@ class SexprParser:
             end_token: Expected end token type
 
         Returns:
-            Tuple of (ASTNodeDTO, next_index)
+            Tuple of (ASTNode, next_index)
 
         Raises:
             SexprParseError: If parsing fails
 
         """
-        children: list[ASTNodeDTO] = []
+        children: list[ASTNode] = []
         current_index = index
 
         while current_index < len(tokens):
             _token_value, tok_type = tokens[current_index]
 
             if tok_type == end_token:
-                return ASTNodeDTO.list_node(children), current_index + 1
+                return ASTNode.list_node(children), current_index + 1
 
             child, current_index = self._parse_expression(tokens, current_index)
             children.append(child)
 
         raise SexprParseError(f"Missing closing {end_token}")
 
-    def _parse_map(self, tokens: list[tuple[str, str]], index: int) -> tuple[ASTNodeDTO, int]:
+    def _parse_map(self, tokens: list[tuple[str, str]], index: int) -> tuple[ASTNode, int]:
         """Parse a map expression.
 
         Args:
@@ -223,13 +223,13 @@ class SexprParser:
             index: Current token index
 
         Returns:
-            Tuple of (ASTNodeDTO, next_index)
+            Tuple of (ASTNode, next_index)
 
         Raises:
             SexprParseError: If parsing fails
 
         """
-        children: list[ASTNodeDTO] = []
+        children: list[ASTNode] = []
         current_index = index
 
         while current_index < len(tokens):
@@ -238,7 +238,7 @@ class SexprParser:
             if tok_type == "RBRACE":
                 # Convert map to list node with metadata indicating it's a map
                 return (
-                    ASTNodeDTO.list_node(children, metadata={"node_subtype": "map"}),
+                    ASTNode.list_node(children, metadata={"node_subtype": "map"}),
                     current_index + 1,
                 )
 
@@ -254,7 +254,7 @@ class SexprParser:
 
         raise SexprParseError("Missing closing }")
 
-    def _parse_atom(self, token_value: str, tok_type: str) -> ASTNodeDTO:
+    def _parse_atom(self, token_value: str, tok_type: str) -> ASTNode:
         """Parse an atomic value.
 
         Args:
@@ -262,11 +262,11 @@ class SexprParser:
             tok_type: Token type
 
         Returns:
-            ASTNodeDTO representing the atom
+            ASTNode representing the atom
 
         """
         if tok_type == "SYMBOL":
-            return ASTNodeDTO.symbol(token_value)
+            return ASTNode.symbol(token_value)
         if tok_type == "STRING":
             # Remove quotes and unescape common sequences
             raw = token_value[1:-1]
@@ -278,22 +278,22 @@ class SexprParser:
                 .replace(r"\\r", "\r")
                 .replace(r"\\\\", "\\")
             )
-            return ASTNodeDTO.atom(string_value)
+            return ASTNode.atom(string_value)
         if tok_type == "FLOAT" or tok_type == "INTEGER":
-            return ASTNodeDTO.atom(Decimal(token_value))
+            return ASTNode.atom(Decimal(token_value))
         if tok_type == "KEYWORD":
             # Keywords are symbols with : prefix
-            return ASTNodeDTO.symbol(token_value)
+            return ASTNode.symbol(token_value)
         raise SexprParseError(f"Unknown token type: {tok_type}")
 
-    def parse_file(self, file_path: str) -> ASTNodeDTO:
+    def parse_file(self, file_path: str) -> ASTNode:
         """Parse S-expression from file.
 
         Args:
             file_path: Path to .clj file
 
         Returns:
-            ASTNodeDTO representing the parsed AST
+            ASTNode representing the parsed AST
 
         Raises:
             SexprParseError: If parsing fails
