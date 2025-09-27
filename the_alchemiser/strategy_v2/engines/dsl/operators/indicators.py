@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import uuid
 
-from the_alchemiser.shared.schemas.ast_node import ASTNodeDTO
-from the_alchemiser.shared.schemas.indicator_request import IndicatorRequestDTO
+from the_alchemiser.shared.schemas.ast_node import ASTNode
+from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest
 from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicator
 
 from ..context import DslContext
@@ -29,7 +29,7 @@ from ..dispatcher import DslDispatcher
 from ..types import DslEvaluationError
 
 
-def _parse_rsi_parameters(args: list[ASTNodeDTO], context: DslContext) -> int:
+def _parse_rsi_parameters(args: list[ASTNode], context: DslContext) -> int:
     """Parse RSI parameters from DSL arguments."""
     window = 14  # Default window
     if len(args) > 1:
@@ -72,7 +72,7 @@ def _extract_rsi_value(indicator: TechnicalIndicator, window: int) -> float:
     return 50.0
 
 
-def rsi(args: list[ASTNodeDTO], context: DslContext) -> float:
+def rsi(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate rsi - RSI indicator."""
     if not args:
         raise DslEvaluationError("rsi requires at least 1 argument")
@@ -86,7 +86,7 @@ def rsi(args: list[ASTNodeDTO], context: DslContext) -> float:
     window = _parse_rsi_parameters(args, context)
 
     # Request indicator from service
-    request = IndicatorRequestDTO.rsi_request(
+    request = IndicatorRequest.rsi_request(
         request_id=str(uuid.uuid4()),
         correlation_id=context.correlation_id,
         symbol=symbol,
@@ -106,7 +106,7 @@ def rsi(args: list[ASTNodeDTO], context: DslContext) -> float:
     return _extract_rsi_value(indicator, window)
 
 
-def current_price(args: list[ASTNodeDTO], context: DslContext) -> float:
+def current_price(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate current-price - get current price of symbol (requires market data)."""
     if not args:
         raise DslEvaluationError("current-price requires symbol argument")
@@ -118,7 +118,7 @@ def current_price(args: list[ASTNodeDTO], context: DslContext) -> float:
         raise DslEvaluationError(f"Symbol must be string, got {type(symbol)}")
 
     # Get indicator to access current price
-    request = IndicatorRequestDTO(
+    request = IndicatorRequest(
         request_id=str(uuid.uuid4()),
         correlation_id=context.correlation_id,
         symbol=symbol,
@@ -132,7 +132,7 @@ def current_price(args: list[ASTNodeDTO], context: DslContext) -> float:
     return float(indicator.current_price)
 
 
-def moving_average_price(args: list[ASTNodeDTO], context: DslContext) -> float:
+def moving_average_price(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate moving-average-price using TechnicalIndicators via IndicatorService."""
     if len(args) < 2:
         raise DslEvaluationError("moving-average-price requires symbol and parameters")
@@ -154,7 +154,7 @@ def moving_average_price(args: list[ASTNodeDTO], context: DslContext) -> float:
         window = int(context.as_decimal(window))
 
     # Request MA indicator
-    request = IndicatorRequestDTO(
+    request = IndicatorRequest(
         request_id=str(uuid.uuid4()),
         correlation_id=context.correlation_id,
         symbol=symbol_val,
@@ -180,7 +180,7 @@ def moving_average_price(args: list[ASTNodeDTO], context: DslContext) -> float:
     raise DslEvaluationError(f"Moving average for {symbol_val} window={window} not available")
 
 
-def moving_average_return(args: list[ASTNodeDTO], context: DslContext) -> float:
+def moving_average_return(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate moving-average-return via IndicatorService."""
     if len(args) < 2:
         raise DslEvaluationError("moving-average-return requires symbol and parameters")
@@ -200,7 +200,7 @@ def moving_average_return(args: list[ASTNodeDTO], context: DslContext) -> float:
     if not isinstance(window, (int, float)):
         window = int(context.as_decimal(window))
 
-    request = IndicatorRequestDTO(
+    request = IndicatorRequest(
         request_id=str(uuid.uuid4()),
         correlation_id=context.correlation_id,
         symbol=symbol_val,
@@ -223,21 +223,21 @@ def moving_average_return(args: list[ASTNodeDTO], context: DslContext) -> float:
     )
 
 
-def moving_average(args: list[ASTNodeDTO], context: DslContext) -> float:
+def moving_average(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate ma - disabled mock; not implemented."""
     raise DslEvaluationError(
         "ma is not implemented in DSL evaluator; use moving-average-* indicators via data layer"
     )
 
 
-def volatility(args: list[ASTNodeDTO], context: DslContext) -> float:
+def volatility(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate volatility - disabled mock; not implemented."""
     raise DslEvaluationError(
         "volatility is not implemented in DSL evaluator; compute via data layer"
     )
 
 
-def cumulative_return(args: list[ASTNodeDTO], context: DslContext) -> float:
+def cumulative_return(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate cumulative-return via IndicatorService."""
     if len(args) < 2:
         raise DslEvaluationError("cumulative-return requires symbol and parameters")
@@ -257,7 +257,7 @@ def cumulative_return(args: list[ASTNodeDTO], context: DslContext) -> float:
     if not isinstance(window, (int, float)):
         window = int(context.as_decimal(window))
 
-    request = IndicatorRequestDTO(
+    request = IndicatorRequest(
         request_id=str(uuid.uuid4()),
         correlation_id=context.correlation_id,
         symbol=symbol_val,
@@ -278,7 +278,7 @@ def cumulative_return(args: list[ASTNodeDTO], context: DslContext) -> float:
     raise DslEvaluationError(f"Cumulative return for {symbol_val} window={window} not available")
 
 
-def exponential_moving_average_price(args: list[ASTNodeDTO], context: DslContext) -> float:
+def exponential_moving_average_price(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate exponential-moving-average-price via IndicatorService."""
     if len(args) < 2:
         raise DslEvaluationError("exponential-moving-average-price requires symbol and parameters")
@@ -298,7 +298,7 @@ def exponential_moving_average_price(args: list[ASTNodeDTO], context: DslContext
     if not isinstance(window, (int, float)):
         window = int(context.as_decimal(window))
 
-    request = IndicatorRequestDTO(
+    request = IndicatorRequest(
         request_id=str(uuid.uuid4()),
         correlation_id=context.correlation_id,
         symbol=symbol_val,
@@ -321,7 +321,7 @@ def exponential_moving_average_price(args: list[ASTNodeDTO], context: DslContext
     raise DslEvaluationError(f"EMA for {symbol_val} window={window} not available")
 
 
-def stdev_return(args: list[ASTNodeDTO], context: DslContext) -> float:
+def stdev_return(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate stdev-return via IndicatorService."""
     if len(args) < 2:
         raise DslEvaluationError("stdev-return requires symbol and parameters")
@@ -341,7 +341,7 @@ def stdev_return(args: list[ASTNodeDTO], context: DslContext) -> float:
     if not isinstance(window, (int, float)):
         window = int(context.as_decimal(window))
 
-    request = IndicatorRequestDTO(
+    request = IndicatorRequest(
         request_id=str(uuid.uuid4()),
         correlation_id=context.correlation_id,
         symbol=symbol_val,
@@ -362,7 +362,7 @@ def stdev_return(args: list[ASTNodeDTO], context: DslContext) -> float:
     raise DslEvaluationError(f"Stdev return for {symbol_val} window={window} not available")
 
 
-def max_drawdown(args: list[ASTNodeDTO], context: DslContext) -> float:
+def max_drawdown(args: list[ASTNode], context: DslContext) -> float:
     """Evaluate max-drawdown via IndicatorService."""
     if len(args) < 2:
         raise DslEvaluationError("max-drawdown requires symbol and parameters")
@@ -382,7 +382,7 @@ def max_drawdown(args: list[ASTNodeDTO], context: DslContext) -> float:
     if not isinstance(window, (int, float)):
         window = int(context.as_decimal(window))
 
-    request = IndicatorRequestDTO(
+    request = IndicatorRequest(
         request_id=str(uuid.uuid4()),
         correlation_id=context.correlation_id,
         symbol=symbol_val,

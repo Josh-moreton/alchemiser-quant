@@ -3,7 +3,7 @@
 
 AST node data transfer objects for DSL engine.
 
-Provides typed DTOs for Abstract Syntax Tree nodes used by the DSL engine
+Provides typed schemas for Abstract Syntax Tree nodes used by the DSL engine
 to represent parsed S-expressions with proper validation and type safety.
 """
 

@@ -315,7 +315,7 @@ class PortfolioOrchestrator:
             target_weights = target_allocations.target_allocations
 
             # Create strategy allocation DTO
-            allocation_dto = StrategyAllocation(
+            allocation = StrategyAllocation(
                 target_weights=target_weights,
                 correlation_id=target_allocations.correlation_id,
                 as_of=target_allocations.timestamp,
@@ -328,8 +328,8 @@ class PortfolioOrchestrator:
             )
 
             # Generate rebalancing plan using the service
-            rebalance_plan = portfolio_service.create_rebalance_plan_dto(
-                allocation_dto, target_allocations.correlation_id
+            rebalance_plan = portfolio_service.create_rebalance_plan(
+                allocation, target_allocations.correlation_id
             )
 
             if not rebalance_plan:
@@ -397,15 +397,15 @@ class PortfolioOrchestrator:
             )
 
             # Create AllocationComparison from the calculation result
-            allocation_comparison_dto = AllocationComparison(
+            allocation_comparison = AllocationComparison(
                 target_values=allocation_comparison_data["target_values"],
                 current_values=allocation_comparison_data["current_values"],
                 deltas=allocation_comparison_data["deltas"],
             )
 
             # Log DTO summary for debugging
-            self._log_allocation_dto_summary(
-                allocation_comparison_dto, account_dict, consolidated_portfolio
+            self._log_allocation_summary(
+                allocation_comparison, account_dict, consolidated_portfolio
             )
 
             self.logger.info("Generated allocation comparison analysis")
@@ -415,7 +415,7 @@ class PortfolioOrchestrator:
                 consolidated_portfolio, account_dict, positions_dict
             )
 
-            return allocation_comparison_dto
+            return allocation_comparison
 
         except Exception as e:
             self.logger.error(f"Allocation comparison analysis failed: {e}")
@@ -468,16 +468,16 @@ class PortfolioOrchestrator:
             positions_dict,
         )
 
-    def _log_allocation_dto_summary(
+    def _log_allocation_summary(
         self,
-        allocation_comparison_dto: AllocationComparison,
+        allocation_comparison: AllocationComparison,
         account_dict: dict[str, float],
         consolidated_portfolio: ConsolidatedPortfolio,
     ) -> None:
         """Log summary of allocation comparison DTO for debugging.
 
         Args:
-            allocation_comparison_dto: The allocation comparison result
+            allocation_comparison: The allocation comparison result
             account_dict: Normalized account information
             consolidated_portfolio: Original portfolio allocation DTO
 
@@ -485,8 +485,8 @@ class PortfolioOrchestrator:
         try:
             from decimal import Decimal as _D
 
-            tgt_sum = sum(allocation_comparison_dto.target_values.values(), _D("0"))
-            cur_sum = sum(allocation_comparison_dto.current_values.values(), _D("0"))
+            tgt_sum = sum(allocation_comparison.target_values.values(), _D("0"))
+            cur_sum = sum(allocation_comparison.current_values.values(), _D("0"))
             zeroed = tgt_sum <= _D("0")
             self.logger.debug(
                 "AllocationComparison: built DTO",

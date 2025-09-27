@@ -28,7 +28,7 @@ from the_alchemiser.shared.events import (
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.consolidated_portfolio import (
-    ConsolidatedPortfolioDTO,
+    ConsolidatedPortfolio,
 )
 from the_alchemiser.shared.types import StrategySignal
 from the_alchemiser.shared.types.exceptions import DataProviderError
@@ -130,11 +130,11 @@ class SignalGenerationHandler:
             self.logger.error(f"Signal generation failed: {e}")
             self._emit_workflow_failure(event, str(e))
 
-    def _generate_signals(self) -> tuple[dict[str, Any], ConsolidatedPortfolioDTO]:
+    def _generate_signals(self) -> tuple[dict[str, Any], ConsolidatedPortfolio]:
         """Generate strategy signals and consolidated portfolio allocation.
 
         Returns:
-            Tuple of (strategy_signals dict, ConsolidatedPortfolioDTO)
+            Tuple of (strategy_signals dict, ConsolidatedPortfolio)
 
         """
         # Use DSL strategy engine directly for signal generation
@@ -152,8 +152,8 @@ class SignalGenerationHandler:
             signals
         )
 
-        # Create ConsolidatedPortfolioDTO
-        consolidated_portfolio = ConsolidatedPortfolioDTO.from_dict_allocation(
+        # Create ConsolidatedPortfolio
+        consolidated_portfolio = ConsolidatedPortfolio.from_dict_allocation(
             allocation_dict=consolidated_portfolio_dict,
             correlation_id=f"signal_handler_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
             source_strategies=contributing_strategies,
@@ -251,7 +251,7 @@ class SignalGenerationHandler:
     def _emit_signal_generated_event(
         self,
         strategy_signals: dict[str, Any],
-        consolidated_portfolio: ConsolidatedPortfolioDTO,
+        consolidated_portfolio: ConsolidatedPortfolio,
         correlation_id: str,
     ) -> None:
         """Emit SignalGenerated event.
@@ -324,7 +324,7 @@ class SignalGenerationHandler:
     def _log_final_signal_summary(
         self,
         strategy_signals: dict[str, Any],
-        consolidated_portfolio: ConsolidatedPortfolioDTO,
+        consolidated_portfolio: ConsolidatedPortfolio,
     ) -> None:
         """Log final consolidated signal and portfolio summary."""
         try:
@@ -371,7 +371,7 @@ class SignalGenerationHandler:
             return f"{name}: {action} {symbol}"
         return f"{name}: {action}"
 
-    def _log_portfolio_allocations(self, consolidated_portfolio: ConsolidatedPortfolioDTO) -> None:
+    def _log_portfolio_allocations(self, consolidated_portfolio: ConsolidatedPortfolio) -> None:
         """Log target portfolio allocations."""
         if consolidated_portfolio is None:
             return
