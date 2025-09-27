@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 from the_alchemiser.execution_v2.models.execution_result import (
-    ExecutionResultDTO,
+    ExecutionResult,
     ExecutionStatus,
 )
 from the_alchemiser.shared.constants import DECIMAL_ZERO, EXECUTION_HANDLERS_MODULE
@@ -30,7 +30,7 @@ from the_alchemiser.shared.events import (
     WorkflowFailed,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanDTO
+from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 
 
 class TradingExecutionHandler:
@@ -104,7 +104,7 @@ class TradingExecutionHandler:
         self.logger.info("🔄 Starting trade execution from RebalancePlanned event")
 
         try:
-            # Reconstruct RebalancePlanDTO from event data
+            # Reconstruct RebalancePlan from event data
             rebalance_plan_data = event.rebalance_plan
 
             # Handle no-trade scenario
@@ -112,7 +112,7 @@ class TradingExecutionHandler:
                 self.logger.info("📊 No significant trades needed - portfolio already balanced")
 
                 # Create empty execution result
-                execution_result = ExecutionResultDTO(
+                execution_result = ExecutionResult(
                     success=True,
                     status=ExecutionStatus.SUCCESS,
                     plan_id=rebalance_plan_data.plan_id,
@@ -134,7 +134,7 @@ class TradingExecutionHandler:
                 return
 
             # Reconstruct the rebalance plan for execution
-            rebalance_plan = RebalancePlanDTO.model_validate(rebalance_plan_data)
+            rebalance_plan = RebalancePlan.model_validate(rebalance_plan_data)
 
             # Execute the rebalance plan
             self.logger.info(f"🚀 Executing trades: {len(rebalance_plan.items)} items")
@@ -196,7 +196,7 @@ class TradingExecutionHandler:
             self._emit_workflow_failure(event, str(e))
 
     def _emit_trade_executed_event(
-        self, execution_result: ExecutionResultDTO, *, success: bool
+        self, execution_result: ExecutionResult, *, success: bool
     ) -> None:
         """Emit TradeExecuted event.
 
@@ -242,7 +242,7 @@ class TradingExecutionHandler:
             raise
 
     def _emit_workflow_completed_event(
-        self, correlation_id: str, execution_result: ExecutionResultDTO
+        self, correlation_id: str, execution_result: ExecutionResult
     ) -> None:
         """Emit WorkflowCompleted event when trading workflow finishes successfully.
 
@@ -322,7 +322,7 @@ class TradingExecutionHandler:
         except Exception as e:
             self.logger.error(f"Failed to emit WorkflowFailed event: {e}")
 
-    def _build_failure_reason(self, execution_result: ExecutionResultDTO) -> str:
+    def _build_failure_reason(self, execution_result: ExecutionResult) -> str:
         """Build detailed failure reason based on execution status.
 
         Args:

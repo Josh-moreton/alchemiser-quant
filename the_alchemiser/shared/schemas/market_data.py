@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Business Unit: utilities; Status: current.
 
-Market Data DTOs for The Alchemiser Trading System.
+Market Data schemas for The Alchemiser Trading System.
 
-This module contains DTOs for market data operations, price queries,
+This module contains schemas for market data operations, price queries,
 spread analysis, and market status information.
 
 Key Features:
@@ -24,7 +24,7 @@ from the_alchemiser.shared.schemas.base import Result
 
 
 class PriceResult(Result):
-    """DTO for latest price information."""
+    """schema for latest price information."""
 
     model_config = ConfigDict(
         strict=True,
@@ -38,7 +38,7 @@ class PriceResult(Result):
 
 
 class PriceHistoryResult(Result):
-    """DTO for price history data."""
+    """schema for price history data."""
 
     model_config = ConfigDict(
         strict=True,
@@ -54,7 +54,7 @@ class PriceHistoryResult(Result):
 
 
 class SpreadAnalysisResult(Result):
-    """DTO for bid-ask spread analysis."""
+    """schema for bid-ask spread analysis."""
 
     model_config = ConfigDict(
         strict=True,
@@ -68,7 +68,7 @@ class SpreadAnalysisResult(Result):
 
 
 class MarketStatusResult(Result):
-    """DTO for market status information."""
+    """schema for market status information."""
 
     model_config = ConfigDict(
         strict=True,
@@ -81,7 +81,7 @@ class MarketStatusResult(Result):
 
 
 class MultiSymbolQuotesResult(Result):
-    """DTO for multi-symbol quote data."""
+    """schema for multi-symbol quote data."""
 
     model_config = ConfigDict(
         strict=True,

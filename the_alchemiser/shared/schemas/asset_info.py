@@ -2,7 +2,7 @@
 
 Asset Information DTO.
 
-Defines the AssetInfoDTO for standardized asset metadata representation
+Defines the AssetInfo for standardized asset metadata representation
 including fractionability support as required for non-fractionable asset handling.
 """
 

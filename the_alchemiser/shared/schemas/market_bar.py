@@ -114,14 +114,14 @@ class MarketBar(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> MarketBarDTO:
+    def from_dict(cls, data: dict[str, Any]) -> MarketBar:
         """Create DTO from dictionary.
 
         Args:
             data: Dictionary containing bar data
 
         Returns:
-            MarketBarDTO instance
+            MarketBar instance
 
         Raises:
             ValueError: If data is invalid or missing required fields
@@ -159,8 +159,8 @@ class MarketBar(BaseModel):
         return cls(**data)
 
     @classmethod
-    def from_alpaca_bar(cls, bar_dict: dict[str, Any], symbol: str, timeframe: str) -> MarketBarDTO:
-        """Create MarketBarDTO from Alpaca SDK bar data.
+    def from_alpaca_bar(cls, bar_dict: dict[str, Any], symbol: str, timeframe: str) -> MarketBar:
+        """Create MarketBar from Alpaca SDK bar data.
 
         Args:
             bar_dict: Alpaca bar dictionary containing OHLCV data
@@ -168,7 +168,7 @@ class MarketBar(BaseModel):
             timeframe: Bar timeframe
 
         Returns:
-            MarketBarDTO instance
+            MarketBar instance
 
         Raises:
             ValueError: If required fields are missing or invalid

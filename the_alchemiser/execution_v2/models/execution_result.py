@@ -1,6 +1,6 @@
 """Business Unit: execution | Status: current.
 
-Execution result DTOs for execution_v2 module.
+Execution result schemas for execution_v2 module.
 """
 
 from __future__ import annotations

@@ -1,60 +1,322 @@
 # The Alchemiser
 
-Institutional-grade, event-driven portfolio automation that blends multiple quantitative strategies into a single, resilient execution engine. Designed for clients who value disciplined processes, transparent risk, and operational reliability.
+A multi-strategy quantitative trading system built on event-driven architecture. Combines multiple quantitative strategies (Nuclear, TECL momentum, KLM ensemble) into a single, resilient execution engine with strict module boundaries and end-to-end traceability.
 
-## What You Get
+## System Architecture
 
-- Consistent process, not guesswork: rules-based, multi-strategy portfolio management.
-- Event-driven resilience: idempotent, traceable workflows built for real markets.
-- Account-safe by design: paper/live separation and strict risk controls.
-- Full transparency: structured logs, notifications, and clear status reporting.
+The Alchemiser is organized into five key business modules communicating exclusively through events:
 
-## Key Capabilities
+```mermaid
+graph TB
+    subgraph "Business Modules"
+        S[Strategy v2<br/>Signal Generation]
+        P[Portfolio v2<br/>Rebalance Planning]  
+        E[Execution v2<br/>Order Management]
+        O[Orchestration<br/>Workflow Coordination]
+        SH[Shared<br/>Events, DTOs, Services]
+    end
+    
+    subgraph "External Systems"
+        A[Alpaca API<br/>Market Data & Trading]
+        AWS[AWS Lambda<br/>Cloud Deployment]
+        L[Logs & Metrics<br/>Observability]
+    end
+    
+    S --> SH
+    P --> SH
+    E --> SH
+    O --> SH
+    SH --> A
+    O --> AWS
+    SH --> L
+    
+    classDef module fill:#e1f5fe
+    classDef shared fill:#f3e5f5
+    classDef external fill:#fff3e0
+    
+    class S,P,E,O module
+    class SH shared
+    class A,AWS,L external
+```
 
-- Multi-strategy allocation: Nuclear, TECL momentum, and KLM ensemble.
-- Automated rebalancing and execution with slippage controls.
-- Live account monitoring: balances, positions, exposure, and risk flags.
-- Cloud-native operation (AWS) with secure secrets management.
-- Paper trading support for evaluation and sign-off.
+### Module Boundaries
 
-## How It Works
+- **Strategy v2**: Generates trading signals from market data
+- **Portfolio v2**: Converts signals into rebalance plans  
+- **Execution v2**: Executes trades via Alpaca broker
+- **Orchestration**: Coordinates workflows through event handlers
+- **Shared**: Common DTOs, events, adapters, and utilities
 
-1) Strategies generate signals based on market data.
-2) Portfolio planning converts signals into a risk-aware rebalance plan.
-3) Execution places orders with safeguards (slippage, sizing, circuit breakers).
-4) Event-driven orchestration ties the workflow together with end-to-end traceability.
+**Critical Constraint**: Business modules only import from `shared/`. No cross-module dependencies allowed.
 
-## Safety & Governance
+## Event-Driven Workflow
 
-- Environment isolation: paper trading locally; live trading when deployed to AWS.
-- Idempotent processing: safe under retries and message reordering.
-- Auditability: correlation IDs on every workflow; concise, structured logs.
-- No secrets in code: credentials managed via AWS Secrets Manager or local .env for paper.
+The system operates through a pure event-driven architecture with idempotent, traceable workflows:
 
-## Deployment Options
+```mermaid
+sequenceDiagram
+    participant O as Orchestration
+    participant S as Strategy v2
+    participant P as Portfolio v2  
+    participant E as Execution v2
+    participant Bus as Event Bus
+    participant A as Alpaca API
 
-- Managed cloud (AWS Lambda): reliable, cost-efficient, and monitored.
-- Local paper-trading: evaluate behavior, outputs, and notifications without risk.
+    Note over O,A: Complete Trading Workflow
 
-## Typical Outcomes
+    O->>Bus: WorkflowStarted
+    Bus->>S: WorkflowStarted
+    
+    S->>A: Fetch market data
+    A-->>S: Price/volume data
+    S->>S: Calculate signals (Nuclear, TECL, KLM)
+    S->>Bus: SignalGenerated
+    
+    Bus->>P: SignalGenerated
+    P->>A: Get current positions/cash
+    A-->>P: Account snapshot
+    P->>P: Calculate rebalance plan
+    P->>Bus: RebalancePlanned
+    
+    Bus->>E: RebalancePlanned
+    E->>A: Place orders
+    A-->>E: Order confirmations
+    E->>Bus: TradeExecuted
+    
+    Bus->>O: TradeExecuted
+    O->>Bus: WorkflowCompleted
+    
+    Note over O,A: All events include correlation_id for traceability
+```
 
-- Clear, rules-based trade logs and status updates.
-- Timely rebalances and disciplined exposure management.
-- Reduced manual overhead with consistent execution quality.
+## Event Types and Schemas
 
-## Frequently Asked Questions
+All events extend `BaseEvent` with correlation tracking and metadata:
 
-- What assets can it trade? Today: equities and ETFs via Alpaca. Extensible design.
-- How do you control risk? Position sizing, allocation caps, and slippage limits.
-- Can we review decisions? Yes—events, logs, and plans are traceable end-to-end.
-- How do we trial it? Start in paper trading, then promote to live once approved.
+### Core Workflow Events
 
-## Next Steps
+| Event | Publisher | Consumer | Schema |
+|-------|-----------|----------|---------|
+| `WorkflowStarted` | Orchestration | Strategy v2 | `workflow_type`, `requested_by`, `configuration` |
+| `SignalGenerated` | Strategy v2 | Portfolio v2 | `signals_data`, `consolidated_portfolio`, `signal_count` |
+| `RebalancePlanned` | Portfolio v2 | Execution v2 | `rebalance_plan`, `allocation_comparison`, `trades_required` |
+| `TradeExecuted` | Execution v2 | Orchestration | `execution_data`, `orders_placed`, `orders_succeeded` |
+| `WorkflowCompleted` | Orchestration | System | `workflow_type`, `success`, `summary` |
 
-- Explore a paper-trading run-through and example outputs.
-- Review allocation policy and custom constraints for your mandate.
-- Schedule a technical enablement for your environment (AWS or preferred).
+### Additional Events
 
-—
+- `StartupEvent`: System initialization trigger
+- `WorkflowFailed`: Error handling and recovery  
+- `ExecutionPhaseCompleted`: Multi-phase trade coordination
+- `PortfolioStateChanged`: Position/balance updates
 
-Version: 2.0.0 | License: MIT | Author: Josh Moreton
+All events include:
+- `correlation_id`: End-to-end workflow tracking
+- `causation_id`: Parent event reference  
+- `event_id`: Unique event identifier
+- `timestamp`: Event creation time
+- `source_module`/`source_component`: Event origin
+
+## Business Module Details
+
+### Strategy v2 (`strategy_v2/`)
+
+**Purpose**: Generate trading signals from market data using multiple quantitative strategies.
+
+**Inputs**: Market data via shared Alpaca adapters
+**Outputs**: `SignalGenerated` events with strategy allocations
+
+**Key Components**:
+- `engines/`: Strategy implementations (Nuclear, TECL, KLM)
+- `indicators/`: Technical indicator calculations  
+- `handlers/`: Event handlers for signal generation
+- `adapters/`: Market data access layer
+
+**Boundaries**: No portfolio sizing or execution concerns. Pure signal generation only.
+
+### Portfolio v2 (`portfolio_v2/`)
+
+**Purpose**: Convert strategy signals into executable rebalance plans.
+
+**Inputs**: `SignalGenerated` events  
+**Outputs**: `RebalancePlanned` events with trade specifications
+
+**Key Components**:
+- `core/planner.py`: Rebalance plan calculator
+- `core/state_reader.py`: Portfolio snapshot builder
+- `adapters/`: Account data access
+- `handlers/`: Event handlers for portfolio analysis
+
+**Boundaries**: No order placement or execution logic. Focuses on BUY/SELL/HOLD decisions with trade amounts.
+
+### Execution v2 (`execution_v2/`)
+
+**Purpose**: Execute trades through broker API with proper safeguards.
+
+**Inputs**: `RebalancePlanned` events
+**Outputs**: `TradeExecuted` events with execution results
+
+**Key Components**:
+- `core/execution_manager.py`: Order placement coordination
+- `handlers/`: Event handlers for trade execution  
+- `models/`: Execution result DTOs
+
+**Boundaries**: No recalculation of plans. Pure order execution with slippage controls.
+
+### Orchestration (`orchestration/`)
+
+**Purpose**: Coordinate complete workflows and handle cross-cutting concerns.
+
+**Key Components**:
+- `event_driven_orchestrator.py`: Primary workflow coordinator
+- `system.py`: System bootstrap and configuration
+
+**Responsibilities**: Workflow state tracking, error handling, notifications, and recovery.
+
+### Shared (`shared/`)
+
+**Purpose**: Common services, DTOs, and protocols used across modules.
+
+**Key Components**:
+- `events/`: Event bus, schemas, and handlers
+- `schemas/`: DTOs for data exchange
+- `adapters/`: External service integrations (Alpaca)
+- `config/`: Dependency injection container
+- `logging/`: Structured logging utilities
+
+## Developer Workflow
+
+### Setup
+
+```bash
+# Install with Poetry (recommended)
+poetry install --with dev
+
+# Or with pip
+pip install -e .
+```
+
+### Development Commands
+
+```bash
+# Run trading locally (paper mode)
+poetry run python -m the_alchemiser
+
+# Format and lint
+make format
+make lint
+make type-check
+
+# Check module boundaries
+make import-check
+
+# Full validation suite
+make migration-check
+```
+
+### Testing
+
+```bash
+# Run full test suite
+pytest
+
+# Test specific modules
+pytest tests/strategy_v2/
+pytest tests/portfolio_v2/
+pytest tests/execution_v2/
+```
+
+## Configuration
+
+### Environment Variables
+
+```bash
+# Required for live trading
+ALPACA_API_KEY=your_api_key
+ALPACA_SECRET_KEY=your_secret_key
+ALPACA_BASE_URL=https://api.alpaca.markets  # or https://paper-api.alpaca.markets
+
+# Optional
+LOG_LEVEL=INFO
+PAPER_TRADING=true  # Default for local runs
+```
+
+### AWS Deployment
+
+```bash
+# Deploy to Lambda
+make deploy
+
+# Uses AWS Secrets Manager for credentials
+# Configure secrets: alchemiser/alpaca/api-key, alchemiser/alpaca/secret-key
+```
+
+## Observability
+
+### Structured Logging
+
+All events and operations include structured metadata:
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "level": "INFO", 
+  "correlation_id": "wf-123e4567-e89b-12d3",
+  "event_type": "SignalGenerated",
+  "module": "strategy_v2",
+  "component": "SignalGenerationHandler",
+  "message": "Generated signals for 5 strategies"
+}
+```
+
+### Key Metrics
+
+- `event_published_total`: Events published by type
+- `event_handler_latency_ms`: Handler processing time
+- `workflow_duration_ms`: End-to-end workflow timing
+- `orders_placed_total`: Trade execution metrics
+- `orders_succeeded_total`: Successful order fills
+
+## Error Handling
+
+### Idempotency
+
+All event handlers are idempotent and safe under:
+- Message replay
+- Network retries  
+- System restarts
+
+Each event includes deterministic hashes for deduplication.
+
+### Failure Recovery
+
+- `WorkflowFailed` events trigger recovery processes
+- Correlation IDs enable precise error tracking
+- Failed workflows can be replayed from any point
+
+## Strategies Implemented
+
+### Nuclear Strategy
+High-conviction momentum strategy targeting leveraged ETFs with strict risk controls.
+
+### TECL Strategy  
+Technology sector momentum with dynamic position sizing based on volatility.
+
+### KLM Ensemble
+Multi-timeframe ensemble combining trend following with mean reversion signals.
+
+## Architecture Principles
+
+1. **Event-Driven Communication**: All inter-module communication via events
+2. **Strict Boundaries**: No cross-module imports outside `shared/`
+3. **DTO-First**: Type-safe data contracts with Pydantic validation
+4. **Idempotent Operations**: Safe under retries and message reordering
+5. **Correlation Tracking**: End-to-end traceability via correlation IDs
+6. **Immutable State**: No shared mutable state between modules
+
+---
+
+**Version**: 2.0.0  
+**License**: MIT  
+**Author**: Josh Moreton  
+**Repository**: [Josh-moreton/alchemiser-quant](https://github.com/Josh-moreton/alchemiser-quant)

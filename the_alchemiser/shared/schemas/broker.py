@@ -85,8 +85,3 @@ class OrderExecutionResult(Result):
         if v is not None and v <= 0:
             raise ValueError("Average fill price must be greater than 0")
         return v
-
-
-# Backward compatibility aliases
-WebSocketResultDTO = WebSocketResult
-OrderExecutionResultDTO = OrderExecutionResult

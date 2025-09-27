@@ -15,7 +15,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..utils.dto_conversion import (
+from ..utils.data_conversion import (
     convert_datetime_fields_from_dict,
     convert_decimal_fields_from_dict,
     convert_nested_rebalance_item_data,
@@ -174,14 +174,14 @@ class RebalancePlan(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> RebalancePlanDTO:
+    def from_dict(cls, data: dict[str, Any]) -> RebalancePlan:
         """Create DTO from dictionary.
 
         Args:
             data: Dictionary containing DTO data
 
         Returns:
-            RebalancePlanDTO instance
+            RebalancePlan instance
 
         Raises:
             ValueError: If data is invalid or missing required fields

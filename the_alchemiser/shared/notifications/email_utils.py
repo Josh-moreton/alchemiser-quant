@@ -25,7 +25,7 @@ This file maintains backward compatibility for existing imports.
 
 from __future__ import annotations
 
-# Import DTOs for type-safe email rendering
+# Import schemas for type-safe email rendering
 # Import all functions from the new modular structure
 from .client import EmailClient, send_email_notification
 from .config import get_email_config, is_neutral_mode_enabled

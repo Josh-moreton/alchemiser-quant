@@ -11,11 +11,11 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from the_alchemiser.shared.schemas.indicator_request import PortfolioFragmentDTO
+from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
 
 # Values that may result from evaluating a DSL node
 type DSLValue = (
-    PortfolioFragmentDTO
+    PortfolioFragment
     | dict[str, float | int | Decimal | str]
     | list["DSLValue"]
     | str

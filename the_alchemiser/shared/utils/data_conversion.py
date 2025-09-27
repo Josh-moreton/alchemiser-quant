@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Business Unit: shared | Status: current.
 
-Centralized DTO conversion utilities for reducing complexity in DTO methods.
+Centralized data conversion utilities for reducing complexity in schema methods.
 
 Provides reusable helper functions for converting between string and typed values
-in DTO serialization/deserialization, eliminating code duplication and reducing
-cyclomatic complexity of individual DTO methods.
+in schema serialization/deserialization, eliminating code duplication and reducing
+cyclomatic complexity of individual schema methods.
 """
 
 from __future__ import annotations
@@ -133,7 +133,7 @@ def convert_decimal_fields_to_dict(
 
 
 def convert_nested_order_data(order_data: dict[str, Any]) -> dict[str, Any]:
-    """Convert order data fields for ExecutedOrderDTO.
+    """Convert order data fields for ExecutedOrder.
 
     Args:
         order_data: Dictionary containing order data
@@ -163,7 +163,7 @@ def convert_nested_order_data(order_data: dict[str, Any]) -> dict[str, Any]:
 
 
 def convert_nested_rebalance_item_data(item_data: dict[str, Any]) -> dict[str, Any]:
-    """Convert rebalance item data fields for RebalancePlanItemDTO.
+    """Convert rebalance item data fields for RebalancePlanItem.
 
     Args:
         item_data: Dictionary containing rebalance item data

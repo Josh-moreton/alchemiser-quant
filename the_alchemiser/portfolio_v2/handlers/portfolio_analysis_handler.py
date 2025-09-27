@@ -18,7 +18,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
-from the_alchemiser.portfolio_v2 import PortfolioServiceV2
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
@@ -27,14 +26,15 @@ from the_alchemiser.shared.events import (
     WorkflowFailed,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.schemas.common import AllocationComparisonDTO
+from the_alchemiser.shared.schemas.common import AllocationComparison
 from the_alchemiser.shared.schemas.consolidated_portfolio import (
-    ConsolidatedPortfolioDTO,
+    ConsolidatedPortfolio,
 )
 from the_alchemiser.shared.schemas.rebalance_plan import (
-    RebalancePlanDTO,
+    RebalancePlan,
     RebalancePlanItem,
 )
+from ..core.portfolio_service import PortfolioServiceV2
 
 
 def _to_float_safe(value: object) -> float:
@@ -150,18 +150,22 @@ class PortfolioAnalysisHandler:
             # Extract strategy names from the signals data
             strategy_names = self._extract_strategy_names_from_event(event)
 
-            # Reconstruct ConsolidatedPortfolioDTO from event data
-            consolidated_portfolio = ConsolidatedPortfolioDTO.model_validate(
+            # Reconstruct ConsolidatedPortfolio from event data
+            consolidated_portfolio = ConsolidatedPortfolio.model_validate(
                 event.consolidated_portfolio
             )
 
             # Get current account and position data
             account_data = self._get_comprehensive_account_data()
             if not account_data or not account_data.get("account_info"):
-                raise ValueError("Could not retrieve account data for portfolio analysis")
+                raise ValueError(
+                    "Could not retrieve account data for portfolio analysis"
+                )
 
             # Analyze allocation comparison
-            allocation_comparison = self._analyze_allocation_comparison(consolidated_portfolio)
+            allocation_comparison = self._analyze_allocation_comparison(
+                consolidated_portfolio
+            )
             if not allocation_comparison:
                 raise ValueError("Failed to generate allocation comparison")
 
@@ -243,7 +247,9 @@ class PortfolioAnalysisHandler:
 
         return strategy_names
 
-    def _extract_from_strategy_allocations(self, signals_data: dict[str, Any] | None) -> list[str]:
+    def _extract_from_strategy_allocations(
+        self, signals_data: dict[str, Any] | None
+    ) -> list[str]:
         """Extract strategy names from strategy allocations as fallback.
 
         Args:
@@ -253,7 +259,10 @@ class PortfolioAnalysisHandler:
             List of strategy names from allocations
 
         """
-        if not isinstance(signals_data, dict) or "strategy_allocations" not in signals_data:
+        if (
+            not isinstance(signals_data, dict)
+            or "strategy_allocations" not in signals_data
+        ):
             return []
 
         strategy_allocations = signals_data["strategy_allocations"]
@@ -287,7 +296,9 @@ class PortfolioAnalysisHandler:
             orders_list = [
                 {
                     "id": str(order.id) if hasattr(order, "id") else "unknown",
-                    "symbol": (str(order.symbol) if hasattr(order, "symbol") else "unknown"),
+                    "symbol": (
+                        str(order.symbol) if hasattr(order, "symbol") else "unknown"
+                    ),
                     "side": str(order.side) if hasattr(order, "side") else "unknown",
                     "qty": _to_float_safe(getattr(order, "qty", 0)),
                 }
@@ -305,15 +316,15 @@ class PortfolioAnalysisHandler:
             return None
 
     def _analyze_allocation_comparison(
-        self, consolidated_portfolio: ConsolidatedPortfolioDTO
-    ) -> AllocationComparisonDTO | None:
+        self, consolidated_portfolio: ConsolidatedPortfolio
+    ) -> AllocationComparison | None:
         """Analyze target vs current allocations.
 
         Args:
             consolidated_portfolio: Consolidated portfolio allocation DTO
 
         Returns:
-            AllocationComparisonDTO or None if analysis failed
+            AllocationComparison or None if analysis failed
 
         """
         try:
@@ -336,8 +347,8 @@ class PortfolioAnalysisHandler:
                 consolidated_portfolio, account_dict, positions_dict
             )
 
-            # Create and return AllocationComparisonDTO
-            return AllocationComparisonDTO(**allocation_comparison_data)
+            # Create and return AllocationComparison
+            return AllocationComparison(**allocation_comparison_data)
 
         except Exception as e:
             self.logger.error(f"Allocation comparison analysis failed: {e}")
@@ -345,7 +356,7 @@ class PortfolioAnalysisHandler:
 
     def _build_allocation_comparison_data(
         self,
-        consolidated_portfolio: ConsolidatedPortfolioDTO,
+        consolidated_portfolio: ConsolidatedPortfolio,
         account_dict: dict[str, float],
         positions_dict: dict[str, float],
     ) -> dict[str, Any]:
@@ -364,7 +375,7 @@ class PortfolioAnalysisHandler:
         # Get all symbols from both target and current allocations
         all_symbols = set(target_allocations.keys()) | set(current_allocations.keys())
 
-        # Convert to Decimal values for AllocationComparisonDTO
+        # Convert to Decimal values for AllocationComparison
         target_values = {}
         current_values = {}
         deltas = {}
@@ -385,10 +396,10 @@ class PortfolioAnalysisHandler:
 
     def _create_rebalance_plan_from_allocation(
         self,
-        allocation_comparison: AllocationComparisonDTO,
+        allocation_comparison: AllocationComparison,
         account_info: dict[str, Any],
         strategy_names: list[str] | None = None,
-    ) -> RebalancePlanDTO | None:
+    ) -> RebalancePlan | None:
         """Create rebalance plan from allocation comparison.
 
         Args:
@@ -397,7 +408,7 @@ class PortfolioAnalysisHandler:
             strategy_names: List of strategy names that generated the signals
 
         Returns:
-            RebalancePlanDTO or None if no rebalancing needed
+            RebalancePlan or None if no rebalancing needed
 
         """
         try:
@@ -406,11 +417,13 @@ class PortfolioAnalysisHandler:
             portfolio_service = PortfolioServiceV2(alpaca_manager)
 
             # Generate correlation_id for this analysis
-            correlation_id = f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+            correlation_id = (
+                f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+            )
 
-            # Create StrategyAllocationDTO from allocation comparison
+            # Create StrategyAllocation from allocation comparison
             from the_alchemiser.shared.schemas.strategy_allocation import (
-                StrategyAllocationDTO,
+                StrategyAllocation,
             )
 
             portfolio_value = Decimal(str(account_info.get("portfolio_value", 0)))
@@ -420,14 +433,14 @@ class PortfolioAnalysisHandler:
             for symbol, value in allocation_comparison.target_values.items():
                 target_weights[symbol] = value
 
-            strategy_allocation = StrategyAllocationDTO(
+            strategy_allocation = StrategyAllocation(
                 target_weights=target_weights,
                 portfolio_value=portfolio_value,
                 correlation_id=correlation_id,
             )
 
             # Generate rebalance plan using portfolio service
-            rebalance_plan = portfolio_service.create_rebalance_plan_dto(
+            rebalance_plan = portfolio_service.create_rebalance_plan(
                 strategy=strategy_allocation,
                 correlation_id=correlation_id,
             )
@@ -441,13 +454,13 @@ class PortfolioAnalysisHandler:
                 plan_dict = rebalance_plan.model_dump()
                 plan_dict["metadata"] = {"strategy_name": strategy_name}
                 # Recreate the plan with updated metadata
-                rebalance_plan = RebalancePlanDTO.model_validate(plan_dict)
+                rebalance_plan = RebalancePlan.model_validate(plan_dict)
             elif rebalance_plan and rebalance_plan.metadata:
                 # Update existing metadata with strategy attribution
                 plan_dict = rebalance_plan.model_dump()
                 plan_dict["metadata"]["strategy_name"] = strategy_name
                 # Recreate the plan with updated metadata
-                rebalance_plan = RebalancePlanDTO.model_validate(plan_dict)
+                rebalance_plan = RebalancePlan.model_validate(plan_dict)
 
             return rebalance_plan
 
@@ -476,8 +489,8 @@ class PortfolioAnalysisHandler:
 
     def _emit_rebalance_planned_event(
         self,
-        rebalance_plan: RebalancePlanDTO | None,
-        allocation_comparison: AllocationComparisonDTO,
+        rebalance_plan: RebalancePlan | None,
+        allocation_comparison: AllocationComparison,
         correlation_id: str,
         account_info: dict[str, Any],
         strategy_names: list[str] | None = None,
@@ -496,19 +509,21 @@ class PortfolioAnalysisHandler:
             # Create a plan even if None - represent as no-trade plan
             if rebalance_plan is None:
                 from the_alchemiser.shared.schemas.rebalance_plan import (
-                    RebalancePlanDTO,
+                    RebalancePlan,
                 )
 
                 # Format strategy names for metadata
                 strategy_name = self._format_strategy_names(strategy_names or ["DSL"])
 
-                rebalance_plan = RebalancePlanDTO(
+                rebalance_plan = RebalancePlan(
                     plan_id=f"no-trade-{uuid.uuid4()}",
                     correlation_id=correlation_id,
                     causation_id=correlation_id,
                     timestamp=datetime.now(UTC),
                     items=[],
-                    total_portfolio_value=Decimal(str(account_info.get("portfolio_value", 0))),
+                    total_portfolio_value=Decimal(
+                        str(account_info.get("portfolio_value", 0))
+                    ),
                     total_trade_value=Decimal("0"),
                     metadata={
                         "scenario": "no_trades_needed",
@@ -540,7 +555,9 @@ class PortfolioAnalysisHandler:
             self.event_bus.publish(event)
 
             trades_count = len(rebalance_plan.items) if rebalance_plan else 0
-            self.logger.info(f"📡 Emitted RebalancePlanned event with {trades_count} trades")
+            self.logger.info(
+                f"📡 Emitted RebalancePlanned event with {trades_count} trades"
+            )
 
         except Exception as e:
             self.logger.error(f"Failed to emit RebalancePlanned event: {e}")
@@ -588,18 +605,24 @@ class PortfolioAnalysisHandler:
             return 0.0, 0.0
 
         try:
-            target_weight = float(item.target_value / total_portfolio_value * Decimal("100"))
+            target_weight = float(
+                item.target_value / total_portfolio_value * Decimal("100")
+            )
         except (TypeError, ValueError, ArithmeticError):
             target_weight = 0.0
 
         try:
-            current_weight = float(item.current_value / total_portfolio_value * Decimal("100"))
+            current_weight = float(
+                item.current_value / total_portfolio_value * Decimal("100")
+            )
         except (TypeError, ValueError, ArithmeticError):
             current_weight = 0.0
 
         return target_weight, current_weight
 
-    def _extract_plan_totals(self, rebalance_plan: RebalancePlanDTO) -> tuple[float, Decimal, bool]:
+    def _extract_plan_totals(
+        self, rebalance_plan: RebalancePlan
+    ) -> tuple[float, Decimal, bool]:
         """Extract total trade value, portfolio value, and validity flag from rebalance plan.
 
         Args:
@@ -624,7 +647,7 @@ class PortfolioAnalysisHandler:
         has_portfolio_value = total_portfolio_value > Decimal("0")
         return total_trade_value, total_portfolio_value, has_portfolio_value
 
-    def _log_final_rebalance_plan_summary(self, rebalance_plan: RebalancePlanDTO) -> None:
+    def _log_final_rebalance_plan_summary(self, rebalance_plan: RebalancePlan) -> None:
         """Log final rebalance plan trades for visibility."""
         try:
             if not rebalance_plan.items:
@@ -660,7 +683,9 @@ class PortfolioAnalysisHandler:
         except Exception as exc:  # pragma: no cover - defensive logging
             self.logger.warning("Failed to log final rebalance plan summary: %s", exc)
 
-    def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
+    def _emit_workflow_failure(
+        self, original_event: BaseEvent, error_message: str
+    ) -> None:
         """Emit WorkflowFailed event when portfolio analysis fails.
 
         Args:

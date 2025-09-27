@@ -3,7 +3,7 @@
 
 Trade ledger data transfer objects for persistent trade tracking.
 
-This module provides DTOs for the trade ledger system that tracks all executions
+This module provides schemas for the trade ledger system that tracks all executions
 per strategy for accurate performance attribution when multiple strategies
 trade the same ticker.
 """

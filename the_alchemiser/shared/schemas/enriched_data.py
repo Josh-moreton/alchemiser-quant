@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Business Unit: shared | Status: current.
 
-Order listing DTOs for The Alchemiser Trading System.
+Order listing schemas for The Alchemiser Trading System.
 
-This module contains DTOs for order listing operations, including
+This module contains schemas for order listing operations, including
 open orders retrieval and order history.
 """
 

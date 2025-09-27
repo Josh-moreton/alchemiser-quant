@@ -5,7 +5,7 @@ Strategy orchestrator for running engines and producing allocation DTOs.
 
 Provides the main orchestration logic for strategy execution with proper
 DTO mapping and error handling. Handles the complexity of running moved
-strategy engines and converting their outputs to StrategyAllocationDTO.
+strategy engines and converting their outputs to StrategyAllocation.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocationDTO
+from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 
 from ..adapters.market_data_adapter import StrategyMarketDataAdapter
 from ..models.context import StrategyContext
@@ -27,7 +27,7 @@ ORCHESTRATOR_COMPONENT = "strategy_v2.core.orchestrator"
 
 
 class SingleStrategyOrchestrator:
-    """Orchestrates strategy execution and DTO conversion.
+    """Orchestrates strategy execution and schema conversion.
 
     Coordinates between market data adapters, strategy engines, and output
     DTO generation with proper error handling and weight normalization.
@@ -43,8 +43,8 @@ class SingleStrategyOrchestrator:
         self._market_data = market_data_adapter
         self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
-    def run(self, strategy_id: str, context: StrategyContext) -> StrategyAllocationDTO:
-        """Run strategy and return allocation DTO.
+    def run(self, strategy_id: str, context: StrategyContext) -> StrategyAllocation:
+        """Run strategy and return allocation schema.
 
         Args:
             strategy_id: Strategy identifier (e.g., 'nuclear', 'klm', 'tecl')
@@ -83,7 +83,7 @@ class SingleStrategyOrchestrator:
             normalized_weights = self._normalize_weights(target_weights)
 
             # Create allocation DTO
-            allocation = StrategyAllocationDTO(
+            allocation = StrategyAllocation(
                 target_weights=normalized_weights,
                 correlation_id=correlation_id,
                 as_of=context.as_of or datetime.now(UTC),

@@ -31,7 +31,7 @@ from the_alchemiser.shared.schemas.broker import (
     WebSocketResult,
     WebSocketStatus,
 )
-from the_alchemiser.shared.schemas.execution_report import ExecutedOrderDTO
+from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
 from the_alchemiser.shared.utils.alpaca_error_handler import AlpacaErrorHandler
 from the_alchemiser.shared.utils.order_tracker import OrderTracker
 
@@ -104,18 +104,16 @@ class AlpacaTradingService:
         """Check if this is paper trading."""
         return self._paper_trading
 
-    def place_order(
-        self, order_request: LimitOrderRequest | MarketOrderRequest
-    ) -> ExecutedOrderDTO:
+    def place_order(self, order_request: LimitOrderRequest | MarketOrderRequest) -> ExecutedOrder:
         """Place an order and return execution details."""
         try:
             self._ensure_trading_stream()
             order = self._trading_client.submit_order(order_request)
             self._track_submitted_order(order)
-            return self._create_success_order_dto(order, order_request)
+            return self._create_success_order_result(order, order_request)
         except Exception as e:
             logger.error(f"Failed to place order: {e}")
-            return self._create_failed_order_dto(order_request, e)
+            return self._create_failed_order_result(order_request, e)
 
     def place_market_order(
         self,
@@ -125,7 +123,7 @@ class AlpacaTradingService:
         notional: float | None = None,
         *,
         is_complete_exit: bool = False,
-    ) -> ExecutedOrderDTO:
+    ) -> ExecutedOrder:
         """Place a market order with validation and execution result return.
 
         Args:
@@ -136,7 +134,7 @@ class AlpacaTradingService:
             is_complete_exit: If True and side is 'sell', use available quantity
 
         Returns:
-            ExecutedOrderDTO with execution details
+            ExecutedOrder with execution details
 
         """
         try:
@@ -171,10 +169,10 @@ class AlpacaTradingService:
 
         except ValueError as e:
             logger.error(f"Invalid order parameters: {e}")
-            return self._create_error_dto("INVALID", symbol, side, qty, str(e))
+            return self._create_error_result("INVALID", symbol, side, qty, str(e))
         except Exception as e:
             logger.error(f"Failed to place market order for {symbol}: {e}")
-            return self._create_error_dto("FAILED", symbol, side, qty, str(e))
+            return self._create_error_result("FAILED", symbol, side, qty, str(e))
 
     def place_limit_order(
         self,
@@ -282,7 +280,7 @@ class AlpacaTradingService:
             return []
 
     def get_order_execution_result(self, order_id: str) -> OrderExecutionResult:
-        """Fetch latest order state and map to execution result DTO.
+        """Fetch latest order state and map to execution result schema.
 
         Args:
             order_id: The unique Alpaca order ID
@@ -310,7 +308,7 @@ class AlpacaTradingService:
 
         """
         try:
-            # Use the place_market_order method which returns ExecutedOrderDTO
+            # Use the place_market_order method which returns ExecutedOrder
             result = self.place_market_order(symbol, "sell", qty=qty)
 
             # Check if the order was successful and return order_id
@@ -393,12 +391,12 @@ class AlpacaTradingService:
 
     # --- DTO Creation Methods ---
 
-    def _create_success_order_dto(
+    def _create_success_order_result(
         self,
         order: Order | dict[str, Any],
         order_request: LimitOrderRequest | MarketOrderRequest,
-    ) -> ExecutedOrderDTO:
-        """Create ExecutedOrderDTO from successful order placement."""
+    ) -> ExecutedOrder:
+        """Create ExecutedOrder from successful order placement."""
         # Extract basic order attributes
         order_data = self._extract_order_attributes(order)
 
@@ -412,7 +410,7 @@ class AlpacaTradingService:
             order_data["filled_qty_decimal"], order_data["order_qty_decimal"], price
         )
 
-        return ExecutedOrderDTO(
+        return ExecutedOrder(
             order_id=order_data["order_id"],
             symbol=order_data["symbol"],
             action=order_data["action_value"],
@@ -424,14 +422,14 @@ class AlpacaTradingService:
             execution_timestamp=datetime.now(UTC),
         )
 
-    def _create_failed_order_dto(
+    def _create_failed_order_result(
         self, order_request: LimitOrderRequest | MarketOrderRequest, error: Exception
-    ) -> ExecutedOrderDTO:
-        """Create ExecutedOrderDTO for failed order placement."""
+    ) -> ExecutedOrder:
+        """Create ExecutedOrder for failed order placement."""
         symbol = getattr(order_request, "symbol", "UNKNOWN")
         action = self._extract_action_from_request(order_request)
 
-        return ExecutedOrderDTO(
+        return ExecutedOrder(
             order_id="FAILED",  # Must be non-empty
             symbol=symbol,
             action=action,
@@ -444,11 +442,11 @@ class AlpacaTradingService:
             error_message=str(error),
         )
 
-    def _create_error_dto(
+    def _create_error_result(
         self, order_id: str, symbol: str, side: str, qty: float | None, error: str
-    ) -> ExecutedOrderDTO:
-        """Create error ExecutedOrderDTO for validation failures."""
-        return ExecutedOrderDTO(
+    ) -> ExecutedOrder:
+        """Create error ExecutedOrder for validation failures."""
+        return ExecutedOrder(
             order_id=order_id,
             symbol=symbol,
             action=side.upper(),
@@ -569,7 +567,7 @@ class AlpacaTradingService:
     def _calculate_total_value(
         self, filled_qty_decimal: Decimal, order_qty_decimal: Decimal, price: Decimal
     ) -> Decimal:
-        """Calculate total value ensuring positive result for DTO validation."""
+        """Calculate total value ensuring positive result for schema validation."""
         if filled_qty_decimal > 0:
             return filled_qty_decimal * price
         return order_qty_decimal * price
