@@ -73,7 +73,11 @@ def _build_response_message(trading_mode: str, *, result: bool) -> str:
 
     """
     mode_str = trading_mode.title()
-    return f"{mode_str} trading completed successfully" if result else f"{mode_str} trading failed"
+    return (
+        f"{mode_str} trading completed successfully"
+        if result
+        else f"{mode_str} trading failed"
+    )
 
 
 def _handle_monthly_summary(
@@ -98,7 +102,9 @@ def _handle_monthly_summary(
         year, month = _parse_month(ev.month)
     else:
         now = datetime.now(UTC)
-        year, month = (now.year - 1, 12) if now.month == 1 else (now.year, now.month - 1)
+        year, month = (
+            (now.year - 1, 12) if now.month == 1 else (now.year, now.month - 1)
+        )
 
     service = MonthlySummaryService()
     summary = service.compute_monthly_summary(year, month, ev.account_id)
@@ -223,7 +229,9 @@ def _handle_critical_error(
         command_args: Parsed command arguments (optional)
 
     """
-    _handle_error(error, event, request_id, " - unexpected error", command_args, is_critical=True)
+    _handle_error(
+        error, event, request_id, " - unexpected error", command_args, is_critical=True
+    )
 
 
 def parse_event_mode(event: LambdaEventDTO | dict[str, Any]) -> list[str] | None:
@@ -332,7 +340,9 @@ def lambda_handler(
 
     try:
         # Log the incoming event for debugging
-        logger.info(f"Lambda invoked with event: {json.dumps(event) if event else 'None'}")
+        logger.info(
+            f"Lambda invoked with event: {json.dumps(event) if event else 'None'}"
+        )
 
         # Parse event to determine command arguments or monthly summary action
         command_args_or_none = parse_event_mode(event or {})
