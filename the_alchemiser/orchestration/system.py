@@ -174,7 +174,7 @@ class TradingSystem:
             use_event_driven = self.event_driven_orchestrator is not None
 
             if use_event_driven:
-                self.logger.info("🚀 Using event-driven orchestration for trading workflow")
+                self.logger.debug("🚀 Using event-driven orchestration for trading workflow")
                 trading_result = self._execute_trading_event_driven(
                     correlation_id,
                     started_at,
