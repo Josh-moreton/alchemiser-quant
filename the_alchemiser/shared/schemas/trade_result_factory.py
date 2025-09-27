@@ -3,7 +3,7 @@
 
 Trade result factory utilities for creating DTOs.
 
-Provides utility functions for creating TradeRunResultDTO instances from
+Provides utility functions for creating TradeRunResult instances from
 various trading execution scenarios and outcomes.
 """
 
@@ -36,7 +36,7 @@ def create_failure_result(
         warnings: List of warning messages
 
     Returns:
-        TradeRunResultDTO representing a failed execution
+        TradeRunResult representing a failed execution
 
     """
     from datetime import UTC, datetime
@@ -85,7 +85,7 @@ def create_success_result(
         success: Whether the execution was successful
 
     Returns:
-        TradeRunResultDTO representing a successful execution
+        TradeRunResult representing a successful execution
 
     """
     orders_executed = trading_result.get("orders_executed", [])
@@ -195,7 +195,7 @@ def _calculate_execution_summary(
         completed_at: Execution completion time
 
     Returns:
-        ExecutionSummaryDTO with calculated metrics
+        ExecutionSummary with calculated metrics
 
     """
     orders_total = len(order_dtos)

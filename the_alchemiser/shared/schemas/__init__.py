@@ -14,23 +14,23 @@ from .accounts import (
     RiskMetricsResult,
     TradeEligibilityResult,
 )
-from .asset_info import AssetInfo, AssetInfoDTO
-from .ast_node import ASTNode, ASTNodeDTO
+from .asset_info import AssetInfo, AssetInfo
+from .ast_node import ASTNode, ASTNode
 from .base import Result
 from .broker import OrderExecutionResult, WebSocketResult, WebSocketStatus
 from .common import (
     AllocationComparison,
-    AllocationComparisonDTO,
+    AllocationComparison,
     Configuration,
     ConfigurationDTO,
     Error,
     ErrorDTO,
     MultiStrategyExecutionResult,
-    MultiStrategyExecutionResultDTO,
+    MultiStrategyExecutionResult,
     MultiStrategySummary,
-    MultiStrategySummaryDTO,
+    MultiStrategySummary,
 )
-from .consolidated_portfolio import ConsolidatedPortfolio, ConsolidatedPortfolioDTO
+from .consolidated_portfolio import ConsolidatedPortfolio, ConsolidatedPortfolio
 from .errors import (
     ErrorContextData,
     ErrorDetailInfo,
@@ -40,14 +40,14 @@ from .errors import (
 )
 from .execution_report import (
     ExecutedOrder,
-    ExecutedOrderDTO,
+    ExecutedOrder,
     ExecutionReport,
     ExecutionReportDTO,
 )
-from .execution_result import ExecutionResult, ExecutionResultDTO
-from .indicator_request import IndicatorRequest, IndicatorRequestDTO
-from .lambda_event import LambdaEvent, LambdaEventDTO
-from .market_bar import MarketBar, MarketBarDTO
+from .execution_result import ExecutionResult, ExecutionResult
+from .indicator_request import IndicatorRequest, IndicatorRequest
+from .lambda_event import LambdaEvent, LambdaEvent
+from .market_bar import MarketBar, MarketBar
 from .market_data import (
     MarketStatusResult,
     MultiSymbolQuotesResult,
@@ -63,28 +63,28 @@ from .order_request import (
 )
 from .portfolio_state import (
     PortfolioMetrics,
-    PortfolioMetricsDTO,
+    PortfolioMetrics,
     PortfolioState,
-    PortfolioStateDTO,
+    PortfolioState,
     Position,
     PositionDTO,
 )
 from .rebalance_plan import (
     RebalancePlan,
-    RebalancePlanDTO,
+    RebalancePlan,
     RebalancePlanItem,
-    RebalancePlanItemDTO,
+    RebalancePlanItem,
 )
 from .strategy_allocation import (
     StrategyAllocation,
-    StrategyAllocationDTO,
+    StrategyAllocation,
 )
 from .strategy_signal import StrategySignal, StrategySignalDTO
 from .technical_indicator import (
     TechnicalIndicator,
-    TechnicalIndicatorDTO,
+    TechnicalIndicator,
 )
-from .trace import Trace, TraceDTO, TraceEntry, TraceEntryDTO
+from .trace import Trace, Trace, TraceEntry, TraceEntryDTO
 from .trade_ledger import (
     AssetType,
     Lot,
@@ -96,33 +96,33 @@ from .trade_ledger import (
 from .trade_result_factory import create_failure_result, create_success_result
 from .trade_run_result import (
     ExecutionSummary,
-    ExecutionSummaryDTO,
+    ExecutionSummary,
     OrderResultSummary,
     OrderResultSummaryDTO,
     TradeRunResult,
-    TradeRunResultDTO,
+    TradeRunResult,
 )
 
 __all__ = [
     # DSL schemas
     "ASTNode",
-    "ASTNodeDTO",
+    "ASTNode",
     # Account-related schemas
     "AccountMetrics",
     "AccountSummary",
     # Common schemas
     "AllocationComparison",
-    "AllocationComparisonDTO",
+    "AllocationComparison",
     # Asset and broker schemas
     "AssetInfo",
-    "AssetInfoDTO",
+    "AssetInfo",
     "AssetType",
     "BuyingPowerResult",
     "Configuration",
     "ConfigurationDTO",
     # Portfolio schemas
     "ConsolidatedPortfolio",
-    "ConsolidatedPortfolioDTO",
+    "ConsolidatedPortfolio",
     "EnrichedAccountSummaryView",
     "Error",
     # Error schemas
@@ -134,31 +134,31 @@ __all__ = [
     "ErrorSummaryData",
     # Execution schemas
     "ExecutedOrder",
-    "ExecutedOrderDTO",
+    "ExecutedOrder",
     "ExecutionReport",
     "ExecutionReportDTO",
     "ExecutionResult",
-    "ExecutionResultDTO",
+    "ExecutionResult",
     "ExecutionSummary",
-    "ExecutionSummaryDTO",
+    "ExecutionSummary",
     # Strategy schemas
     "IndicatorRequest",
-    "IndicatorRequestDTO",
+    "IndicatorRequest",
     # Event and infrastructure schemas
     "LambdaEvent",
-    "LambdaEventDTO",
+    "LambdaEvent",
     # Trading schemas
     "Lot",
     # Market data schemas
     "MarketBar",
-    "MarketBarDTO",
+    "MarketBar",
     "MarketData",
     "MarketDataDTO",
     "MarketStatusResult",
     "MultiStrategyExecutionResult",
-    "MultiStrategyExecutionResultDTO",
+    "MultiStrategyExecutionResult",
     "MultiStrategySummary",
-    "MultiStrategySummaryDTO",
+    "MultiStrategySummary",
     "MultiSymbolQuotesResult",
     "OrderExecutionResult",
     # Order and trade schemas
@@ -169,36 +169,36 @@ __all__ = [
     "PerformanceSummary",
     "PortfolioAllocationResult",
     "PortfolioMetrics",
-    "PortfolioMetricsDTO",
+    "PortfolioMetrics",
     "PortfolioState",
-    "PortfolioStateDTO",
+    "PortfolioState",
     "Position",
     "PositionDTO",
     "PriceHistoryResult",
     "PriceResult",
     "RebalancePlan",
-    "RebalancePlanDTO",
+    "RebalancePlan",
     "RebalancePlanItem",
-    "RebalancePlanItemDTO",
+    "RebalancePlanItem",
     # Base schemas
     "Result",
     "RiskMetricsResult",
     "SpreadAnalysisResult",
     "StrategyAllocation",
-    "StrategyAllocationDTO",
+    "StrategyAllocation",
     "StrategySignal",
     "StrategySignalDTO",
     "TechnicalIndicator",
-    "TechnicalIndicatorDTO",
+    "TechnicalIndicator",
     "Trace",
-    "TraceDTO",
+    "Trace",
     "TraceEntry",
     "TraceEntryDTO",
     "TradeEligibilityResult",
     "TradeLedgerEntry",
     "TradeLedgerQuery",
     "TradeRunResult",
-    "TradeRunResultDTO",
+    "TradeRunResult",
     "TradeSide",
     "WebSocketResult",
     "WebSocketStatus",

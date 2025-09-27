@@ -89,4 +89,4 @@ class OrderExecutionResult(Result):
 
 # Backward compatibility aliases
 WebSocketResultDTO = WebSocketResult
-OrderExecutionResultDTO = OrderExecutionResult
+OrderExecutionResult = OrderExecutionResult

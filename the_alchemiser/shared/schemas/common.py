@@ -100,9 +100,9 @@ class MultiStrategySummary(BaseModel):
 
 
 # TODO: Remove in Phase 3 - Temporary backward compatibility aliases
-MultiStrategyExecutionResultDTO = MultiStrategyExecutionResult
+MultiStrategyExecutionResult = MultiStrategyExecutionResult
 AllocationComparisonDTO = AllocationComparison
-MultiStrategySummaryDTO = MultiStrategySummary
+MultiStrategySummary = MultiStrategySummary
 
 
 class Configuration(BaseModel):

@@ -18,9 +18,9 @@ from typing import Any
 from pydantic import Field
 
 from ..constants import EVENT_TYPE_DESCRIPTION
-from ..schemas.common import AllocationComparisonDTO
-from ..schemas.portfolio_state import PortfolioStateDTO
-from ..schemas.rebalance_plan import RebalancePlanDTO
+from ..schemas.common import AllocationComparison
+from ..schemas.portfolio_state import PortfolioState
+from ..schemas.rebalance_plan import RebalancePlan
 from .base import BaseEvent
 
 # Constants
@@ -70,8 +70,8 @@ class RebalancePlanned(BaseEvent):
     event_type: str = Field(default="RebalancePlanned", description=EVENT_TYPE_DESCRIPTION)
 
     # Rebalance-specific fields
-    rebalance_plan: RebalancePlanDTO = Field(..., description="Portfolio rebalancing plan")
-    allocation_comparison: AllocationComparisonDTO = Field(
+    rebalance_plan: RebalancePlan = Field(..., description="Portfolio rebalancing plan")
+    allocation_comparison: AllocationComparison = Field(
         ..., description="Allocation comparison data"
     )
     trades_required: bool = Field(..., description="Whether trades are required")
@@ -110,7 +110,7 @@ class TradeExecutionStarted(BaseEvent):
 
     # Execution startup fields
     execution_plan: dict[str, Any] = Field(..., description="Trading execution plan")
-    portfolio_state_before: PortfolioStateDTO | None = Field(
+    portfolio_state_before: PortfolioState | None = Field(
         default=None, description="Portfolio state before execution"
     )
     trade_mode: str = Field(..., description="Trading mode (live/paper)")
@@ -129,10 +129,10 @@ class PortfolioStateChanged(BaseEvent):
     event_type: str = Field(default="PortfolioStateChanged", description=EVENT_TYPE_DESCRIPTION)
 
     # Portfolio state change fields
-    portfolio_state_before: PortfolioStateDTO = Field(
+    portfolio_state_before: PortfolioState = Field(
         ..., description="Portfolio state before change"
     )
-    portfolio_state_after: PortfolioStateDTO = Field(
+    portfolio_state_after: PortfolioState = Field(
         ..., description="Portfolio state after change"
     )
     change_type: str = Field(..., description="Type of change (rebalance, trade, etc.)")

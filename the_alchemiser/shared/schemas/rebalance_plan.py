@@ -174,14 +174,14 @@ class RebalancePlan(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> RebalancePlanDTO:
+    def from_dict(cls, data: dict[str, Any]) -> RebalancePlan:
         """Create DTO from dictionary.
 
         Args:
             data: Dictionary containing DTO data
 
         Returns:
-            RebalancePlanDTO instance
+            RebalancePlan instance
 
         Raises:
             ValueError: If data is invalid or missing required fields
