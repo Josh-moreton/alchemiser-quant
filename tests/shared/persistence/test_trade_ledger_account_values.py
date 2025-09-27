@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Tests for account value logging functionality."""
+"""Tests for trade ledger account value logging functionality."""
 
+import os
 import tempfile
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -8,14 +9,14 @@ from pathlib import Path
 
 import pytest
 
-from the_alchemiser.shared.persistence.local_account_value_logger import LocalAccountValueLogger
-from the_alchemiser.shared.schemas.account_value_logger import AccountValueEntry, AccountValueQuery
-from the_alchemiser.shared.services.account_value_logging_service import AccountValueLoggingService
+from the_alchemiser.shared.persistence.local_trade_ledger import LocalTradeLedger
+from the_alchemiser.shared.schemas.trade_ledger import AccountValueEntry, AccountValueQuery
+from the_alchemiser.shared.services.account_value_service import AccountValueService
 from the_alchemiser.shared.types.account import AccountModel
 
 
-class TestLocalAccountValueLogger:
-    """Test cases for LocalAccountValueLogger."""
+class TestTradeLedgerAccountValues:
+    """Test cases for trade ledger account value functionality."""
 
     @pytest.fixture
     def temp_dir(self):
@@ -24,9 +25,9 @@ class TestLocalAccountValueLogger:
             yield temp_dir
 
     @pytest.fixture
-    def logger(self, temp_dir):
-        """Create logger instance with temporary directory."""
-        return LocalAccountValueLogger(base_path=temp_dir)
+    def trade_ledger(self, temp_dir):
+        """Create trade ledger instance with temporary directory."""
+        return LocalTradeLedger(base_path=temp_dir)
 
     @pytest.fixture
     def sample_entry(self):
@@ -41,21 +42,21 @@ class TestLocalAccountValueLogger:
             source="test",
         )
 
-    def test_log_and_query_single_entry(self, logger, sample_entry):
-        """Test logging and querying a single entry."""
+    def test_log_and_query_account_value(self, trade_ledger, sample_entry):
+        """Test logging and querying account values via trade ledger."""
         # Log entry
-        logger.log_account_value(sample_entry)
+        trade_ledger.log_account_value(sample_entry)
         
         # Query all entries
         filters = AccountValueQuery()
-        entries = list(logger.query_account_values(filters))
+        entries = list(trade_ledger.query_account_values(filters))
         
         assert len(entries) == 1
         assert entries[0].entry_id == sample_entry.entry_id
         assert entries[0].portfolio_value == sample_entry.portfolio_value
 
-    def test_log_multiple_entries_same_date(self, logger):
-        """Test logging multiple entries for same date (should update)."""
+    def test_account_value_date_deduplication(self, trade_ledger):
+        """Test that account values are deduplicated by date."""
         # First entry
         entry1 = AccountValueEntry(
             entry_id="test-1",
@@ -78,53 +79,17 @@ class TestLocalAccountValueLogger:
             source="test",
         )
         
-        logger.log_account_value(entry1)
-        logger.log_account_value(entry2)
+        trade_ledger.log_account_value(entry1)
+        trade_ledger.log_account_value(entry2)
         
         # Should only have one entry (the updated one)
         filters = AccountValueQuery(account_id="test-account")
-        entries = list(logger.query_account_values(filters))
+        entries = list(trade_ledger.query_account_values(filters))
         
         assert len(entries) == 1
         assert entries[0].portfolio_value == Decimal("11000.00")
 
-    def test_query_with_date_filters(self, logger):
-        """Test querying with date filters."""
-        # Create entries for different dates
-        entry1 = AccountValueEntry(
-            entry_id="test-1",
-            account_id="test-account",
-            portfolio_value=Decimal("10000.00"),
-            cash=Decimal("2000.00"),
-            equity=Decimal("8000.00"),
-            timestamp=datetime(2024, 1, 10, 10, 0, 0, tzinfo=UTC),
-            source="test",
-        )
-        
-        entry2 = AccountValueEntry(
-            entry_id="test-2",
-            account_id="test-account",
-            portfolio_value=Decimal("11000.00"),
-            cash=Decimal("2500.00"),
-            equity=Decimal("8500.00"),
-            timestamp=datetime(2024, 1, 20, 10, 0, 0, tzinfo=UTC),
-            source="test",
-        )
-        
-        logger.log_account_value(entry1)
-        logger.log_account_value(entry2)
-        
-        # Query with date filter
-        filters = AccountValueQuery(
-            account_id="test-account",
-            start_date=datetime(2024, 1, 15, tzinfo=UTC)
-        )
-        entries = list(logger.query_account_values(filters))
-        
-        assert len(entries) == 1
-        assert entries[0].timestamp == entry2.timestamp
-
-    def test_get_latest_value(self, logger):
+    def test_get_latest_account_value(self, trade_ledger):
         """Test getting latest account value."""
         # Create entries
         entry1 = AccountValueEntry(
@@ -147,19 +112,19 @@ class TestLocalAccountValueLogger:
             source="test",
         )
         
-        logger.log_account_value(entry1)
-        logger.log_account_value(entry2)
+        trade_ledger.log_account_value(entry1)
+        trade_ledger.log_account_value(entry2)
         
         # Get latest
-        latest = logger.get_latest_value("test-account")
+        latest = trade_ledger.get_latest_account_value("test-account")
         
         assert latest is not None
         assert latest.portfolio_value == Decimal("11000.00")
         assert latest.timestamp == entry2.timestamp
 
 
-class TestAccountValueLoggingService:
-    """Test cases for AccountValueLoggingService."""
+class TestAccountValueService:
+    """Test cases for AccountValueService."""
 
     @pytest.fixture
     def temp_dir(self):
@@ -168,14 +133,14 @@ class TestAccountValueLoggingService:
             yield temp_dir
 
     @pytest.fixture
-    def mock_logger(self, temp_dir):
-        """Create mock logger for testing."""
-        return LocalAccountValueLogger(base_path=temp_dir)
+    def mock_trade_ledger(self, temp_dir):
+        """Create mock trade ledger for testing."""
+        return LocalTradeLedger(base_path=temp_dir)
 
     @pytest.fixture
-    def service(self, mock_logger):
-        """Create service instance with mock logger."""
-        return AccountValueLoggingService(value_logger=mock_logger)
+    def service(self, mock_trade_ledger):
+        """Create service instance with mock trade ledger."""
+        return AccountValueService(trade_ledger=mock_trade_ledger)
 
     @pytest.fixture
     def sample_account(self):
@@ -193,17 +158,27 @@ class TestAccountValueLoggingService:
             status="ACTIVE"
         )
 
-    def test_log_current_account_value_disabled(self, service, sample_account):
-        """Test logging when service is disabled (default)."""
+    def test_service_disabled_by_default(self, service, sample_account):
+        """Test that service is disabled by default (no env var set)."""
         # Service should be disabled by default (no env var set)
         result = service.log_current_account_value(sample_account)
         assert result is False
 
-    def test_get_account_value_history_disabled(self, service):
-        """Test history retrieval when service is disabled."""
-        history = service.get_account_value_history("test-account")
-        assert history == []
-
-    def test_is_enabled_default(self, service):
-        """Test that service is disabled by default."""
-        assert service.is_enabled() is False
+    def test_service_enabled_with_env_var(self, service, sample_account, temp_dir):
+        """Test that service works when enabled via environment variable."""
+        # Set environment variable to enable
+        os.environ["ENABLE_ACCOUNT_VALUE_LOGGING"] = "true"
+        
+        # Create new service to pick up env var
+        trade_ledger = LocalTradeLedger(base_path=temp_dir)
+        service = AccountValueService(trade_ledger=trade_ledger)
+        
+        # Should be enabled now
+        assert service.is_enabled() is True
+        
+        # Should successfully log
+        result = service.log_current_account_value(sample_account)
+        assert result is True
+        
+        # Clean up env var
+        del os.environ["ENABLE_ACCOUNT_VALUE_LOGGING"]

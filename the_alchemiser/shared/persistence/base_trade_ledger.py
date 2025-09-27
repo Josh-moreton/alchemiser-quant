@@ -15,6 +15,8 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from ..schemas.trade_ledger import (
+    AccountValueEntry,
+    AccountValueQuery,
     Lot,
     PerformanceSummary,
     TradeLedgerEntry,
@@ -319,3 +321,36 @@ class BaseTradeLedger:
             total_sell_quantity=total_sell_quantity,
             total_fees=total_fees,
         )
+
+    def _matches_account_value_filters(
+        self, entry: AccountValueEntry, filters: AccountValueQuery
+    ) -> bool:
+        """Check if account value entry matches query filters.
+
+        Args:
+            entry: Account value entry to check
+            filters: Query filters
+
+        Returns:
+            True if entry matches all filters
+        """
+        if filters.account_id and entry.account_id != filters.account_id:
+            return False
+
+        if filters.start_date and entry.timestamp < filters.start_date:
+            return False
+
+        return not (filters.end_date and entry.timestamp > filters.end_date)
+
+    def _sort_account_value_entries_by_timestamp(
+        self, entries: list[AccountValueEntry]
+    ) -> list[AccountValueEntry]:
+        """Sort account value entries by timestamp in ascending order.
+        
+        Args:
+            entries: List of account value entries
+            
+        Returns:
+            Sorted list of entries
+        """
+        return sorted(entries, key=lambda e: e.timestamp)
