@@ -9,7 +9,10 @@ notifications, moved from domain/types.py as part of the Pydantic migration.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any, TypedDict
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from the_alchemiser.shared.value_objects.core_types import OrderDetails, StrategyPnLSummary
 
@@ -88,3 +91,39 @@ class PerformanceMetrics(TypedDict):
     max_drawdown: float
     calmar_ratio: float
     sortino_ratio: float
+
+
+# Monthly Summary Report Types
+class MonthlySummaryDTO(BaseModel):
+    """DTO for monthly portfolio and strategy performance summary."""
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+    )
+
+    # Month identification
+    month_label: str = Field(..., description="Human-readable month label (e.g., 'Aug 2025')")
+
+    # Portfolio P&L for the month
+    portfolio_first_value: Decimal | None = Field(
+        default=None, description="Portfolio value at start of month"
+    )
+    portfolio_last_value: Decimal | None = Field(
+        default=None, description="Portfolio value at end of month"
+    )
+    portfolio_pnl_abs: Decimal | None = Field(
+        default=None, description="Absolute P&L change for the month"
+    )
+    portfolio_pnl_pct: Decimal | None = Field(
+        default=None, description="Percentage P&L change for the month"
+    )
+
+    # Per-strategy realized P&L for the month
+    strategy_rows: list[dict[str, Any]] = Field(
+        default_factory=list, description="Strategy performance rows"
+    )
+
+    # Additional context and warnings
+    notes: list[str] = Field(default_factory=list, description="Additional notes or warnings")

@@ -347,3 +347,24 @@ class EmailTemplates:
             ),
             "The Alchemiser - Performance Report (Deprecated)",
         )
+
+    @staticmethod
+    def monthly_financial_summary(summary: object, mode: str = "PAPER") -> str:
+        """Generate monthly financial summary email.
+
+        Args:
+            summary: MonthlySummaryDTO with monthly performance data
+            mode: Trading mode for display (PAPER/LIVE)
+
+        Returns:
+            Complete HTML email content
+
+        """
+        from ...schemas.reporting import MonthlySummaryDTO
+        from .monthly import MonthlySummaryEmailBuilder
+
+        # Type check at runtime to ensure we have the right type
+        if not isinstance(summary, MonthlySummaryDTO):
+            raise TypeError(f"Expected MonthlySummaryDTO, got {type(summary)}")
+
+        return MonthlySummaryEmailBuilder.build(summary, mode)

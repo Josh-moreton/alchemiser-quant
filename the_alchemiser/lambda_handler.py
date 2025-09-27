@@ -29,7 +29,10 @@ from the_alchemiser.shared.logging.logging_utils import (
     log_error_with_context,
     set_request_id,
 )
+from the_alchemiser.shared.notifications.client import EmailClient
+from the_alchemiser.shared.notifications.templates.email_facade import EmailTemplates
 from the_alchemiser.shared.schemas import LambdaEventDTO
+from the_alchemiser.shared.services.monthly_summary_service import MonthlySummaryService
 from the_alchemiser.shared.types.exceptions import (
     DataProviderError,
     NotificationError,
@@ -70,7 +73,71 @@ def _build_response_message(trading_mode: str, *, result: bool) -> str:
 
     """
     mode_str = trading_mode.title()
-    return f"{mode_str} trading completed successfully" if result else f"{mode_str} trading failed"
+    return (
+        f"{mode_str} trading completed successfully"
+        if result
+        else f"{mode_str} trading failed"
+    )
+
+
+def _handle_monthly_summary(
+    event: LambdaEventDTO | dict[str, Any] | None, request_id: str
+) -> dict[str, Any]:
+    """Handle the monthly summary email path and build a Lambda-style response."""
+    # Ensure we pass a mapping into the DTO constructor for mypy correctness
+    if isinstance(event, LambdaEventDTO):
+        event_mapping: dict[str, Any] = event.model_dump()
+    else:
+        event_mapping = event or {}
+    ev = LambdaEventDTO(**event_mapping)
+
+    # Determine target month
+    from datetime import UTC, datetime
+
+    def _parse_month(month_str: str) -> tuple[int, int]:
+        y, m = month_str.split("-")
+        return int(y), int(m)
+
+    if ev.month:
+        year, month = _parse_month(ev.month)
+    else:
+        now = datetime.now(UTC)
+        year, month = (
+            (now.year - 1, 12) if now.month == 1 else (now.year, now.month - 1)
+        )
+
+    service = MonthlySummaryService()
+    summary = service.compute_monthly_summary(year, month, ev.account_id)
+
+    html_content = EmailTemplates.monthly_financial_summary(summary)
+    subject = ev.subject or f"The Alchemiser — Monthly Summary ({summary.month_label})"
+
+    if ev.dry_run:
+        logger.info("Monthly summary dry-run: skipping email send")
+        return {
+            "status": "success",
+            "mode": "monthly_summary",
+            "trading_mode": "n/a",
+            "message": f"Monthly summary computed for {summary.month_label} (dry-run)",
+            "request_id": request_id,
+        }
+
+    email_client = EmailClient()
+    sent = email_client.send_notification(
+        subject=subject, html_content=html_content, recipient_email=ev.to
+    )
+    message = (
+        f"Monthly summary email sent for {summary.month_label}"
+        if sent
+        else f"Failed to send monthly summary email for {summary.month_label}"
+    )
+    return {
+        "status": "success" if sent else "failed",
+        "mode": "monthly_summary",
+        "trading_mode": "n/a",
+        "message": message,
+        "request_id": request_id,
+    }
 
 
 def _handle_error(
@@ -162,26 +229,35 @@ def _handle_critical_error(
         command_args: Parsed command arguments (optional)
 
     """
-    _handle_error(error, event, request_id, " - unexpected error", command_args, is_critical=True)
+    _handle_error(
+        error, event, request_id, " - unexpected error", command_args, is_critical=True
+    )
 
 
-def parse_event_mode(
-    event: LambdaEventDTO | dict[str, Any],
-) -> list[str]:  # Lambda event can be flexible dict or TypedDict
-    """Parse the Lambda event. Trade-only system; always returns ['trade'].
+def parse_event_mode(event: LambdaEventDTO | dict[str, Any]) -> list[str] | None:
+    """Parse the Lambda event.
+
+    Supports two paths:
+    - Trading (default): returns ['trade']
+    - Monthly summary: returns None to signal non-trading path handled in lambda_handler
 
     Args:
-        event: AWS Lambda event data (ignored for mode selection)
+        event: AWS Lambda event data
 
     Returns:
-        List of command arguments for the main function: ['trade']
-
-    Note: Trading mode (live/paper) is determined by deployment environment.
+        List of command arguments for the main function: ['trade'] or None for monthly summary
 
     """
-    # Convert dict to DTO if provided, for potential future use/validation
-    if isinstance(event, dict) and event:
-        _ = LambdaEventDTO(**event)
+    # Validate event shape
+    event_obj = LambdaEventDTO(**event) if isinstance(event, dict) else event
+
+    # Monthly summary action takes precedence
+    if (
+        isinstance(event_obj, LambdaEventDTO)
+        and getattr(event_obj, "action", None) == "monthly_summary"
+    ):
+        logger.info("Parsed event to action: monthly_summary")
+        return None
 
     logger.info("Parsed event to command: trade")
     return ["trade"]
@@ -264,10 +340,19 @@ def lambda_handler(
 
     try:
         # Log the incoming event for debugging
-        logger.info(f"Lambda invoked with event: {json.dumps(event) if event else 'None'}")
+        logger.info(
+            f"Lambda invoked with event: {json.dumps(event) if event else 'None'}"
+        )
 
-        # Parse event to determine command arguments
-        command_args = parse_event_mode(event or {})
+        # Parse event to determine command arguments or monthly summary action
+        command_args_or_none = parse_event_mode(event or {})
+
+        # If monthly summary, handle here and return
+        if command_args_or_none is None:
+            return _handle_monthly_summary(event or {}, request_id)
+
+        # Otherwise proceed with trading path
+        command_args = command_args_or_none
 
         # Extract mode information for response (trade-only)
         mode = "trade"
