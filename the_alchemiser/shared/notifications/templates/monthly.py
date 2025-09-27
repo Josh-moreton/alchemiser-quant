@@ -15,7 +15,7 @@ from ...schemas.reporting import MonthlySummaryDTO
 from .base import BaseEmailTemplate
 
 
-class MonthlySummaryDTOEmailBuilder:
+class MonthlySummaryEmailBuilder:
     """Builder for monthly summary email templates."""
 
     @staticmethod
@@ -36,9 +36,9 @@ class MonthlySummaryDTOEmailBuilder:
         )
 
         # Build main content sections
-        portfolio_section = MonthlySummaryDTOEmailBuilder._build_portfolio_section(summary)
-        strategy_section = MonthlySummaryDTOEmailBuilder._build_strategy_section(summary)
-        footer_section = MonthlySummaryDTOEmailBuilder._build_methodology_footer(summary.month_label)
+        portfolio_section = MonthlySummaryEmailBuilder._build_portfolio_section(summary)
+        strategy_section = MonthlySummaryEmailBuilder._build_strategy_section(summary)
+        footer_section = MonthlySummaryEmailBuilder._build_methodology_footer(summary.month_label)
 
         # Combine all sections
         content = f"""

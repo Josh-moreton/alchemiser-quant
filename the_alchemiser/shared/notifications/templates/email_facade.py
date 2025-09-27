@@ -361,10 +361,10 @@ class EmailTemplates:
 
         """
         from ...schemas.reporting import MonthlySummaryDTO
-        from .monthly import MonthlySummaryDTOEmailBuilder
+        from .monthly import MonthlySummaryEmailBuilder
 
         # Type check at runtime to ensure we have the right type
         if not isinstance(summary, MonthlySummaryDTO):
             raise TypeError(f"Expected MonthlySummaryDTO, got {type(summary)}")
 
-        return MonthlySummaryDTOEmailBuilder.build(summary, mode)
+        return MonthlySummaryEmailBuilder.build(summary, mode)

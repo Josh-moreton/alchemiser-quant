@@ -24,7 +24,7 @@ from ..services.account_value_service import AccountValueService
 logger = logging.getLogger(__name__)
 
 
-class MonthlySummaryDTOService:
+class MonthlySummaryService:
     """Service for computing monthly portfolio and strategy performance summaries."""
 
     def __init__(

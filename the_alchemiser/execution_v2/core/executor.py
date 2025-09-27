@@ -128,7 +128,7 @@ class Executor:
         side: str,
         quantity: Decimal,
         correlation_id: str | None = None,
-    ) -> ExecutionResult:
+    ) -> OrderResult:
         """Execute an order with smart execution if enabled.
 
         Args:
@@ -159,15 +159,16 @@ class Executor:
                 if result.success:
                     # Success here means order was placed; fill will be checked later
                     logger.info(f"✅ Smart execution placed order for {symbol}")
-                    return ExecutionResult(
-                        order_id=result.order_id,
+                    return OrderResult(
                         symbol=symbol,
-                        side=side,
-                        quantity=Decimal(str(quantity)),
+                        action=side.upper(),
+                        trade_amount=abs(Decimal(str(quantity)) * (result.final_price or Decimal("0"))),
+                        shares=Decimal(str(quantity)),
                         price=(result.final_price if result.final_price else None),
-                        status="submitted",
+                        order_id=result.order_id,
                         success=True,
-                        execution_strategy=result.execution_strategy,
+                        error_message=None,
+                        timestamp=datetime.now(UTC),
                     )
                 logger.warning(f"⚠️ Smart execution failed for {symbol}: {result.error_message}")
 
@@ -178,7 +179,7 @@ class Executor:
         logger.info(f"📈 Using standard market order for {symbol}")
         return self._execute_market_order(symbol, side, Decimal(str(quantity)))
 
-    def _execute_market_order(self, symbol: str, side: str, quantity: Decimal) -> ExecutionResult:
+    def _execute_market_order(self, symbol: str, side: str, quantity: Decimal) -> OrderResult:
         """Execute a standard market order with preflight validation.
 
         Args:
@@ -230,18 +231,20 @@ class Executor:
         side: str,
         quantity: Decimal,
         validation_result: OrderValidationResult,
-    ) -> ExecutionResult:
+    ) -> OrderResult:
         """Construct execution result for validation failure."""
         error_msg = validation_result.error_message or f"Validation failed for {symbol}"
         logger.error(f"❌ Preflight validation failed for {symbol}: {error_msg}")
-        return ExecutionResult(
+        return OrderResult(
             symbol=symbol,
-            side=side,
-            quantity=quantity,
-            status="rejected",
+            action=side.upper(),
+            trade_amount=Decimal("0"),  # No trade executed
+            shares=quantity,
+            price=None,
+            order_id=None,
             success=False,
-            error=error_msg,
-            execution_strategy="validation_failed",
+            error_message=error_msg,
+            timestamp=datetime.now(UTC),
         )
 
     def _log_validation_warnings(self, validation_result: OrderValidationResult) -> None:
@@ -290,21 +293,22 @@ class Executor:
         side: str,
         quantity: Decimal,
         broker_result: ExecutedOrder,
-    ) -> ExecutionResult:
-        """Convert broker response into ExecutionResult."""
+    ) -> OrderResult:
+        """Convert broker response into OrderResult."""
         status = broker_result.status.lower() if broker_result.status else "submitted"
         success = broker_result.status not in ["REJECTED", "CANCELED"]
         price = broker_result.price if broker_result.price is not None else None
 
-        return ExecutionResult(
-            order_id=broker_result.order_id,
+        return OrderResult(
             symbol=symbol,
-            side=side,
-            quantity=quantity,
+            action=side.upper(),
+            trade_amount=abs(quantity * (price or Decimal("0"))),
+            shares=quantity,
             price=price,
-            status=status,
+            order_id=broker_result.order_id,
             success=success,
-            execution_strategy="market_order",
+            error_message=None if success else "Order was rejected or canceled",
+            timestamp=datetime.now(UTC),
         )
 
     def _handle_market_order_exception(
@@ -313,7 +317,7 @@ class Executor:
         side: str,
         quantity: Decimal,
         exc: Exception,
-    ) -> ExecutionResult:
+    ) -> OrderResult:
         """Handle exceptions raised during market order submission."""
         error_str = str(exc)
 
@@ -327,25 +331,29 @@ class Executor:
             except Exception as diagnostic_error:
                 logger.debug(f"Diagnostic account retrieval failed: {diagnostic_error}")
 
-            return ExecutionResult(
+            return OrderResult(
                 symbol=symbol,
-                side=side,
-                quantity=quantity,
-                status="insufficient_buying_power",
+                action=side.upper(),
+                trade_amount=Decimal("0"),  # No trade executed
+                shares=quantity,
+                price=None,
+                order_id=None,
                 success=False,
-                error=f"Insufficient buying power: {exc}",
-                execution_strategy="buying_power_error",
+                error_message=f"Insufficient buying power: {exc}",
+                timestamp=datetime.now(UTC),
             )
 
         logger.error(f"❌ Market order failed for {symbol}: {exc}")
-        return ExecutionResult(
+        return OrderResult(
             symbol=symbol,
-            side=side,
-            quantity=quantity,
-            status="failed",
+            action=side.upper(),
+            trade_amount=Decimal("0"),  # No trade executed
+            shares=quantity,
+            price=None,
+            order_id=None,
             success=False,
-            error=error_str,
-            execution_strategy="market_order_failed",
+            error_message=error_str,
+            timestamp=datetime.now(UTC),
         )
 
     async def execute_rebalance_plan(self, plan: RebalancePlan) -> ExecutionResult:
@@ -991,29 +999,16 @@ class Executor:
                 )
 
             # Use smart execution with async context
-            execution_result = await self.execute_order(
+            order_result = await self.execute_order(
                 symbol=item.symbol,
                 side=side,
                 quantity=shares,
                 correlation_id=f"rebalance-{item.symbol}",
             )
 
-            # Create order result
-            order_result = OrderResult(
-                symbol=item.symbol,
-                action=item.action,
-                trade_amount=abs(item.trade_amount),
-                shares=shares,
-                price=(Decimal(str(execution_result.price)) if execution_result.price else None),
-                order_id=execution_result.order_id,
-                success=execution_result.success,
-                error_message=getattr(execution_result, "error", None),
-                timestamp=datetime.now(UTC),
-            )
-
-            if execution_result.success:
+            if order_result.success:
                 logger.info(
-                    f"✅ {item.action} {item.symbol} order placed (ID: {execution_result.order_id})"
+                    f"✅ {item.action} {item.symbol} order placed (ID: {order_result.order_id})"
                 )
             else:
                 logger.error(f"❌ Failed to place {item.action} for {item.symbol}")
