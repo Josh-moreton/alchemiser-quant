@@ -186,9 +186,9 @@ class DslStrategyEngine:
         return consolidated
 
     def _convert_to_signals(
-        self, 
-        consolidated: dict[str, float], 
-        timestamp: datetime, 
+        self,
+        consolidated: dict[str, float],
+        timestamp: datetime,
         correlation_id: str,
         file_results: list[tuple[dict[str, float] | None, str, float, float]] | None = None,
         dsl_files: list[str] | None = None,
@@ -207,7 +207,7 @@ class DslStrategyEngine:
 
         """
         signals: list[StrategySignal] = []
-        
+
         # Extract strategy names from CLJ filenames (remove .clj extension and path)
         strategy_names = []
         if dsl_files:
@@ -215,20 +215,22 @@ class DslStrategyEngine:
                 # Extract basename and remove extension robustly
                 strategy_name = os.path.splitext(os.path.basename(filename))[0]
                 strategy_names.append(strategy_name)
-        
+
         # Use first strategy name or fallback to "DSL" if no files provided
         primary_strategy = strategy_names[0] if strategy_names else "DSL"
-        
+
         for symbol, weight in consolidated.items():
             if weight > 0:
                 # For multiple strategies, show which ones contributed
                 if len(strategy_names) > 1:
-                    strategy_display = f"{primary_strategy} (+{len(strategy_names)-1} others)"
-                    reasoning = f"Multi-strategy allocation from {', '.join(strategy_names)}: {weight:.1%}"
+                    strategy_display = f"{primary_strategy} (+{len(strategy_names) - 1} others)"
+                    reasoning = (
+                        f"Multi-strategy allocation from {', '.join(strategy_names)}: {weight:.1%}"
+                    )
                 else:
                     strategy_display = primary_strategy
                     reasoning = f"{primary_strategy} allocation: {weight:.1%}"
-                
+
                 signals.append(
                     StrategySignal(
                         symbol=symbol,
@@ -255,7 +257,7 @@ class DslStrategyEngine:
         """
         # Extract strategy name from CLJ filename (remove .clj extension and path)
         strategy_name = self.strategy_file.replace(".clj", "").split("/")[-1]
-        
+
         fallback_signal = StrategySignal(
             symbol="CASH",
             action="BUY",

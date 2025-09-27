@@ -189,12 +189,12 @@ class AccountValueQuery(BaseModel):
         strict=True,
         frozen=True,
         validate_assignment=True,
-        str_strip_whitespace=True,  
+        str_strip_whitespace=True,
     )
 
     # Filter criteria
     account_id: str | None = Field(default=None, description="Filter by account ID")
-    
+
     # Date range filtering
     start_date: datetime | None = Field(default=None, description="Start of date range (inclusive)")
     end_date: datetime | None = Field(default=None, description="End of date range (inclusive)")
@@ -347,7 +347,7 @@ class PerformanceSummary(BaseModel):
 
 class AccountValueEntry(BaseModel):
     """DTO for account value snapshots in trade ledger for simplified tracking.
-    
+
     This allows the trade ledger to support account value tracking with optional
     full trade logging disabled, providing a lightweight alternative for
     portfolio performance visualization.
@@ -363,16 +363,16 @@ class AccountValueEntry(BaseModel):
     # Identification
     entry_id: str = Field(..., min_length=1, description="Unique identifier for this entry")
     account_id: str = Field(..., min_length=1, description="Account identifier")
-    
-    # Value information  
+
+    # Value information
     portfolio_value: Decimal = Field(..., description="Total portfolio value")
     cash: Decimal = Field(..., description="Cash balance")
     equity: Decimal = Field(..., description="Equity (positions + cash)")
-    
+
     # Metadata
     timestamp: datetime = Field(..., description="Entry timestamp (timezone-aware)")
     source: str = Field(default="trade_ledger", description="Source system")
-    
+
     @field_validator("timestamp")
     @classmethod
     def validate_timestamp(cls, v: datetime) -> datetime:

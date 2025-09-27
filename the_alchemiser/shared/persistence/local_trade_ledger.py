@@ -148,7 +148,7 @@ class LocalTradeLedger(BaseTradeLedger):
 
     def upsert(self, entry: TradeLedgerEntry) -> None:
         """Insert or update a trade ledger entry (idempotent by unique key).
-        
+
         Note: If DISABLE_FULL_TRADE_LOGGING=true, this method will skip
         logging trades to support account-value-only mode.
 
@@ -162,6 +162,7 @@ class LocalTradeLedger(BaseTradeLedger):
         """
         # Check if full trade logging is disabled
         from .trade_ledger_factory import is_full_trade_logging_disabled
+
         if is_full_trade_logging_disabled():
             logger.debug("Full trade logging is disabled, skipping trade entry")
             return
@@ -199,7 +200,7 @@ class LocalTradeLedger(BaseTradeLedger):
 
     def upsert_many(self, entries: Iterable[TradeLedgerEntry]) -> None:
         """Insert or update multiple trade ledger entries (idempotent by unique key).
-        
+
         Note: If DISABLE_FULL_TRADE_LOGGING=true, this method will skip
         logging trades to support account-value-only mode.
 
@@ -213,6 +214,7 @@ class LocalTradeLedger(BaseTradeLedger):
         """
         # Check if full trade logging is disabled
         from .trade_ledger_factory import is_full_trade_logging_disabled
+
         if is_full_trade_logging_disabled():
             logger.debug("Full trade logging is disabled, skipping trade entries")
             return
@@ -493,12 +495,13 @@ class LocalTradeLedger(BaseTradeLedger):
         Raises:
             ValueError: If entry is invalid
             IOError: If persistence operation fails
+
         """
         try:
             # Check if entry for this date already exists
             date_key = entry.get_date_key()
             existing_entries = list(self._load_account_value_entries_for_date(date_key))
-            
+
             # If entry for this date exists, update it; otherwise append
             if existing_entries:
                 self._update_account_value_entry_for_date(date_key, entry)
@@ -522,10 +525,11 @@ class LocalTradeLedger(BaseTradeLedger):
 
         Raises:
             IOError: If query operation fails
+
         """
         try:
             matching_entries: list[AccountValueEntry] = []
-            
+
             if not self.account_values_file.exists():
                 return matching_entries
 
@@ -534,11 +538,11 @@ class LocalTradeLedger(BaseTradeLedger):
                     line = line.strip()
                     if not line:
                         continue
-                    
+
                     try:
                         data = json.loads(line)
                         entry = self._deserialize_account_value_entry(data)
-                        
+
                         if self._matches_account_value_filters(entry, filters):
                             matching_entries.append(entry)
                     except (json.JSONDecodeError, ValueError) as e:
@@ -562,14 +566,15 @@ class LocalTradeLedger(BaseTradeLedger):
 
         Raises:
             IOError: If query operation fails
+
         """
         try:
             filters = AccountValueQuery(account_id=account_id)
             entries = list(self.query_account_values(filters))
-            
+
             if not entries:
                 return None
-            
+
             # Entries are already sorted by timestamp
             return entries[-1]
 
@@ -579,12 +584,13 @@ class LocalTradeLedger(BaseTradeLedger):
 
     def _load_account_value_entries_for_date(self, date_key: str) -> Iterable[AccountValueEntry]:
         """Load account value entries for a specific date.
-        
+
         Args:
             date_key: Date key in YYYY-MM-DD format
-            
+
         Returns:
             Iterable of entries for that date
+
         """
         if not self.account_values_file.exists():
             return []
@@ -595,11 +601,11 @@ class LocalTradeLedger(BaseTradeLedger):
                 line = line.strip()
                 if not line:
                     continue
-                
+
                 try:
                     data = json.loads(line)
                     entry = self._deserialize_account_value_entry(data)
-                    
+
                     if entry.get_date_key() == date_key:
                         matching_entries.append(entry)
                 except (json.JSONDecodeError, ValueError):
@@ -611,10 +617,11 @@ class LocalTradeLedger(BaseTradeLedger):
         self, date_key: str, new_entry: AccountValueEntry
     ) -> None:
         """Update account value entry for a specific date by rewriting the file.
-        
+
         Args:
             date_key: Date key in YYYY-MM-DD format
             new_entry: New entry to replace existing entry for this date
+
         """
         if not self.account_values_file.exists():
             self._append_account_value_entry(new_entry)
@@ -627,11 +634,11 @@ class LocalTradeLedger(BaseTradeLedger):
                 line = line.strip()
                 if not line:
                     continue
-                
+
                 try:
                     data = json.loads(line)
                     entry = self._deserialize_account_value_entry(data)
-                    
+
                     # Replace entry if date matches, otherwise keep existing
                     if entry.get_date_key() == date_key:
                         all_entries.append(new_entry)
@@ -648,9 +655,10 @@ class LocalTradeLedger(BaseTradeLedger):
 
     def _append_account_value_entry(self, entry: AccountValueEntry) -> None:
         """Append account value entry to file.
-        
+
         Args:
             entry: Entry to append
+
         """
         serialized = self._serialize_account_value_entry(entry)
         with self.account_values_file.open("a", encoding="utf-8") as f:
@@ -664,6 +672,7 @@ class LocalTradeLedger(BaseTradeLedger):
 
         Returns:
             Serialized dictionary
+
         """
         data = entry.model_dump()
 
@@ -690,6 +699,7 @@ class LocalTradeLedger(BaseTradeLedger):
 
         Raises:
             ValueError: If data is invalid
+
         """
         # Convert string timestamp back to datetime
         if isinstance(data.get("timestamp"), str):

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from datetime import datetime
 from typing import Protocol
 
 from ..schemas.account_value_logger import AccountValueEntry, AccountValueQuery
@@ -24,53 +23,57 @@ class AccountValueLoggerProtocol(Protocol):
 
     def log_account_value(self, entry: AccountValueEntry) -> None:
         """Log a single account value entry.
-        
+
         Args:
             entry: Account value entry to log
-            
+
         Raises:
             ValueError: If entry is invalid
             IOError: If logging operation fails
+
         """
         ...
 
     def log_account_values(self, entries: Iterable[AccountValueEntry]) -> None:
         """Log multiple account value entries.
-        
+
         Args:
             entries: Iterable of account value entries to log
-            
+
         Raises:
             ValueError: If any entry is invalid
             IOError: If logging operation fails
+
         """
         ...
 
     def query_account_values(self, filters: AccountValueQuery) -> Iterable[AccountValueEntry]:
         """Query account value entries based on filters.
-        
+
         Args:
             filters: Query filters
-            
+
         Returns:
             Iterable of matching account value entries
-            
+
         Raises:
             IOError: If query operation fails
+
         """
         ...
 
     def get_latest_value(self, account_id: str) -> AccountValueEntry | None:
         """Get the latest account value entry for an account.
-        
+
         Args:
             account_id: Account identifier
-            
+
         Returns:
             Latest account value entry or None if not found
-            
+
         Raises:
             IOError: If query operation fails
+
         """
         ...
 
@@ -87,6 +90,7 @@ class BaseAccountValueLogger:
 
         Returns:
             True if entry matches all filters
+
         """
         if filters.account_id and entry.account_id != filters.account_id:
             return False
@@ -96,13 +100,16 @@ class BaseAccountValueLogger:
 
         return not (filters.end_date and entry.timestamp > filters.end_date)
 
-    def _sort_entries_by_timestamp(self, entries: list[AccountValueEntry]) -> list[AccountValueEntry]:
+    def _sort_entries_by_timestamp(
+        self, entries: list[AccountValueEntry]
+    ) -> list[AccountValueEntry]:
         """Sort entries by timestamp in ascending order.
-        
+
         Args:
             entries: List of account value entries
-            
+
         Returns:
             Sorted list of entries
+
         """
         return sorted(entries, key=lambda e: e.timestamp)

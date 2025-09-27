@@ -333,6 +333,7 @@ class BaseTradeLedger:
 
         Returns:
             True if entry matches all filters
+
         """
         if filters.account_id and entry.account_id != filters.account_id:
             return False
@@ -346,11 +347,12 @@ class BaseTradeLedger:
         self, entries: list[AccountValueEntry]
     ) -> list[AccountValueEntry]:
         """Sort account value entries by timestamp in ascending order.
-        
+
         Args:
             entries: List of account value entries
-            
+
         Returns:
             Sorted list of entries
+
         """
         return sorted(entries, key=lambda e: e.timestamp)

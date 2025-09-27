@@ -550,7 +550,9 @@ class RepegManager:
             )
         except Exception as e:
             if self._is_insufficient_quantity_error(str(e)):
-                return await self._handle_insufficient_quantity_retry(request, quantity, limit_price, str(e))
+                return await self._handle_insufficient_quantity_retry(
+                    request, quantity, limit_price, str(e)
+                )
             raise e
 
     def _is_insufficient_quantity_error(self, error_str: str) -> bool:
@@ -560,7 +562,7 @@ class RepegManager:
     def _extract_available_quantity(self, error_str: str) -> Decimal | None:
         """Extract available quantity from broker error message."""
         import re
-        
+
         available_match = re.search(r"available: ([\d.]+)", error_str)
         if available_match:
             try:
@@ -570,13 +572,17 @@ class RepegManager:
         return None
 
     async def _handle_insufficient_quantity_retry(
-        self, request: SmartOrderRequest, requested_quantity: Decimal, limit_price: Decimal, error_str: str
+        self,
+        request: SmartOrderRequest,
+        requested_quantity: Decimal,
+        limit_price: Decimal,
+        error_str: str,
     ) -> OrderExecutionResult:
         """Handle retry with available quantity when broker reports insufficiency."""
         logger.warning(
             f"⚠️ Insufficient quantity available for {request.symbol}. Requested: {requested_quantity}, Error: {error_str}"
         )
-        
+
         available_qty = self._extract_available_quantity(error_str)
         if available_qty is None:
             raise OrderExecutionError(
@@ -586,23 +592,29 @@ class RepegManager:
                 quantity=float(requested_quantity),
                 price=float(limit_price),
             )
-        
-        return await self._retry_with_available_quantity(request, available_qty, limit_price, error_str)
+
+        return await self._retry_with_available_quantity(
+            request, available_qty, limit_price, error_str
+        )
 
     async def _retry_with_available_quantity(
-        self, request: SmartOrderRequest, available_qty: Decimal, limit_price: Decimal, original_error: str
+        self,
+        request: SmartOrderRequest,
+        available_qty: Decimal,
+        limit_price: Decimal,
+        original_error: str,
     ) -> OrderExecutionResult:
         """Retry order placement with the available quantity."""
         min_qty_threshold = Decimal("0.01")
-        
+
         if available_qty <= min_qty_threshold:
             logger.info(
                 f"✅ Available quantity {available_qty} too small, considering order complete"
             )
             raise _RemoveFromTracking()
-        
+
         logger.info(f"🔄 Retrying re-peg with available quantity: {available_qty}")
-        
+
         try:
             return await asyncio.to_thread(
                 self.alpaca_manager.place_limit_order,

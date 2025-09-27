@@ -19,7 +19,7 @@ from ..utils.timezone_utils import ensure_timezone_aware
 
 class AccountValueEntry(BaseModel):
     """DTO for a single account value entry representing daily portfolio value.
-    
+
     This is a simplified version of trade ledger that just tracks account value
     over time for plotting and performance analysis.
     """
@@ -33,16 +33,16 @@ class AccountValueEntry(BaseModel):
     # Identification
     entry_id: str = Field(..., description="Unique identifier for this entry")
     account_id: str = Field(..., description="Account identifier")
-    
+
     # Value information
     portfolio_value: Decimal = Field(..., description="Total portfolio value")
     cash: Decimal = Field(..., description="Cash balance")
     equity: Decimal = Field(..., description="Equity (positions + cash)")
-    
+
     # Metadata
     timestamp: datetime = Field(..., description="Entry timestamp (timezone-aware)")
     source: str = Field(default="account_value_logger", description="Source system")
-    
+
     @field_validator("timestamp")
     @classmethod
     def validate_timestamp(cls, v: datetime) -> datetime:

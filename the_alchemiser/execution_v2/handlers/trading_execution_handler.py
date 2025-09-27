@@ -154,8 +154,8 @@ class TradingExecutionHandler:
                 enable_trade_ledger=self.container.config.execution().enable_trade_ledger,
             )
             execution_result = execution_manager.execute_rebalance_plan(rebalance_plan)
-            
-            # Note: ExecutionResult.metadata is read-only (frozen), so strategy attribution 
+
+            # Note: ExecutionResult.metadata is read-only (frozen), so strategy attribution
             # needs to be handled in the ExecutionManager itself via rebalance plan metadata
 
             # Log execution results

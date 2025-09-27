@@ -37,6 +37,7 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
 
         Args:
             base_path: Base directory for value log files (defaults to ./data/account_values)
+
         """
         # Prefer explicit override via environment, then Lambda /tmp, then local path
         env_base = os.getenv("ACCOUNT_VALUE_LOGGER_BASE_PATH")
@@ -64,12 +65,13 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
         Raises:
             ValueError: If entry is invalid
             IOError: If persistence operation fails
+
         """
         try:
             # Check if entry for this date already exists
             date_key = entry.get_date_key()
             existing_entries = list(self._load_entries_for_date(date_key))
-            
+
             # If entry for this date exists, update it; otherwise append
             if existing_entries:
                 self._update_entry_for_date(date_key, entry)
@@ -91,6 +93,7 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
         Raises:
             ValueError: If any entry is invalid
             IOError: If persistence operation fails
+
         """
         entries_list = list(entries)
         if not entries_list:
@@ -99,7 +102,7 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
         try:
             for entry in entries_list:
                 self.log_account_value(entry)
-            
+
             logger.info(f"Logged {len(entries_list)} account value entries")
 
         except Exception as e:
@@ -117,10 +120,11 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
 
         Raises:
             IOError: If query operation fails
+
         """
         try:
             matching_entries: list[AccountValueEntry] = []
-            
+
             if not self.values_file.exists():
                 return matching_entries
 
@@ -129,11 +133,11 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
                     line = line.strip()
                     if not line:
                         continue
-                    
+
                     try:
                         data = json.loads(line)
                         entry = self._deserialize_entry(data)
-                        
+
                         if self._matches_filters(entry, filters):
                             matching_entries.append(entry)
                     except (json.JSONDecodeError, ValueError) as e:
@@ -157,14 +161,15 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
 
         Raises:
             IOError: If query operation fails
+
         """
         try:
             filters = AccountValueQuery(account_id=account_id)
             entries = list(self.query_account_values(filters))
-            
+
             if not entries:
                 return None
-            
+
             # Entries are already sorted by timestamp
             return entries[-1]
 
@@ -174,12 +179,13 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
 
     def _load_entries_for_date(self, date_key: str) -> Iterable[AccountValueEntry]:
         """Load entries for a specific date.
-        
+
         Args:
             date_key: Date key in YYYY-MM-DD format
-            
+
         Returns:
             Iterable of entries for that date
+
         """
         if not self.values_file.exists():
             return []
@@ -190,11 +196,11 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
                 line = line.strip()
                 if not line:
                     continue
-                
+
                 try:
                     data = json.loads(line)
                     entry = self._deserialize_entry(data)
-                    
+
                     if entry.get_date_key() == date_key:
                         matching_entries.append(entry)
                 except (json.JSONDecodeError, ValueError):
@@ -204,10 +210,11 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
 
     def _update_entry_for_date(self, date_key: str, new_entry: AccountValueEntry) -> None:
         """Update entry for a specific date by rewriting the file.
-        
+
         Args:
             date_key: Date key in YYYY-MM-DD format
             new_entry: New entry to replace existing entry for this date
+
         """
         if not self.values_file.exists():
             self._append_entry(new_entry)
@@ -220,11 +227,11 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
                 line = line.strip()
                 if not line:
                     continue
-                
+
                 try:
                     data = json.loads(line)
                     entry = self._deserialize_entry(data)
-                    
+
                     # Replace entry if date matches, otherwise keep existing
                     if entry.get_date_key() == date_key:
                         all_entries.append(new_entry)
@@ -241,9 +248,10 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
 
     def _append_entry(self, entry: AccountValueEntry) -> None:
         """Append entry to file.
-        
+
         Args:
             entry: Entry to append
+
         """
         serialized = self._serialize_entry(entry)
         with self.values_file.open("a", encoding="utf-8") as f:
@@ -257,6 +265,7 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
 
         Returns:
             Serialized dictionary
+
         """
         data = entry.model_dump()
 
@@ -283,6 +292,7 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
 
         Raises:
             ValueError: If data is invalid
+
         """
         # Convert string timestamp back to datetime
         if isinstance(data.get("timestamp"), str):

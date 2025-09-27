@@ -88,9 +88,10 @@ def get_default_trade_ledger(account_id: str | None = None) -> TradeLedger:
 
 def is_account_value_logging_enabled() -> bool:
     """Check if account value logging is enabled.
-    
+
     Returns:
         True if account value logging is enabled via environment variable
+
     """
     enabled = os.getenv("ENABLE_ACCOUNT_VALUE_LOGGING", "false").lower()
     return enabled in ("true", "1", "yes", "on")
@@ -98,9 +99,10 @@ def is_account_value_logging_enabled() -> bool:
 
 def is_full_trade_logging_disabled() -> bool:
     """Check if full trade logging is disabled (account value only mode).
-    
+
     Returns:
         True if full trade logging is disabled, keeping only account values
+
     """
     disabled = os.getenv("DISABLE_FULL_TRADE_LOGGING", "false").lower()
     return disabled in ("true", "1", "yes", "on")

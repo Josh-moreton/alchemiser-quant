@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 class AccountValueService:
     """Service for account value logging using the enhanced trade ledger system.
-    
+
     This service provides a high-level interface for logging daily portfolio
     values with proper error handling and optional behavior based on configuration.
     It extends the existing trade ledger rather than creating a separate module.
@@ -36,22 +36,24 @@ class AccountValueService:
 
     def __init__(self, trade_ledger: TradeLedger | None = None) -> None:
         """Initialize the account value service.
-        
+
         Args:
             trade_ledger: Optional trade ledger instance. If not provided,
                          one will be created using the factory.
+
         """
         self._trade_ledger = trade_ledger or get_default_trade_ledger()
         self._enabled = is_account_value_logging_enabled()
 
     def log_current_account_value(self, account: AccountModel) -> bool:
         """Log the current account value using the trade ledger.
-        
+
         Args:
             account: Account model with current portfolio values
-            
+
         Returns:
             True if logging was successful, False otherwise
+
         """
         if not self._enabled:
             logger.debug("Account value logging is disabled")
@@ -59,37 +61,34 @@ class AccountValueService:
 
         try:
             entry = self._create_account_value_entry(account)
-            
+
             # Use the trade ledger's account value logging capability
-            if hasattr(self._trade_ledger, 'log_account_value'):
+            if hasattr(self._trade_ledger, "log_account_value"):
                 self._trade_ledger.log_account_value(entry)
                 logger.info(
                     f"Logged account value: ${entry.portfolio_value} for account {entry.account_id}"
                 )
                 return True
-            else:
-                logger.warning("Trade ledger does not support account value logging")
-                return False
+            logger.warning("Trade ledger does not support account value logging")
+            return False
 
         except Exception as e:
             logger.error(f"Failed to log account value: {e}")
             return False
 
     def get_account_value_history(
-        self, 
-        account_id: str, 
-        start_date: datetime | None = None,
-        end_date: datetime | None = None
+        self, account_id: str, start_date: datetime | None = None, end_date: datetime | None = None
     ) -> list[AccountValueEntry]:
         """Get account value history for an account using the trade ledger.
-        
+
         Args:
             account_id: Account identifier
             start_date: Optional start date filter
             end_date: Optional end date filter
-            
+
         Returns:
             List of account value entries sorted by timestamp
+
         """
         if not self._enabled:
             logger.debug("Account value logging is disabled")
@@ -97,19 +96,18 @@ class AccountValueService:
 
         try:
             filters = AccountValueQuery(
-                account_id=account_id,
-                start_date=start_date,
-                end_date=end_date
+                account_id=account_id, start_date=start_date, end_date=end_date
             )
-            
+
             # Use the trade ledger's account value querying capability
-            if hasattr(self._trade_ledger, 'query_account_values'):
-                entries: list[AccountValueEntry] = list(self._trade_ledger.query_account_values(filters))
+            if hasattr(self._trade_ledger, "query_account_values"):
+                entries: list[AccountValueEntry] = list(
+                    self._trade_ledger.query_account_values(filters)
+                )
                 logger.debug(f"Retrieved {len(entries)} account value entries")
                 return entries
-            else:
-                logger.warning("Trade ledger does not support account value querying")
-                return []
+            logger.warning("Trade ledger does not support account value querying")
+            return []
 
         except Exception as e:
             logger.error(f"Failed to retrieve account value history: {e}")
@@ -117,12 +115,13 @@ class AccountValueService:
 
     def get_latest_account_value(self, account_id: str) -> AccountValueEntry | None:
         """Get the latest logged account value for an account using the trade ledger.
-        
+
         Args:
             account_id: Account identifier
-            
+
         Returns:
             Latest account value entry or None if not found
+
         """
         if not self._enabled:
             logger.debug("Account value logging is disabled")
@@ -130,16 +129,17 @@ class AccountValueService:
 
         try:
             # Use the trade ledger's latest account value capability
-            if hasattr(self._trade_ledger, 'get_latest_account_value'):
-                entry: AccountValueEntry | None = self._trade_ledger.get_latest_account_value(account_id)
+            if hasattr(self._trade_ledger, "get_latest_account_value"):
+                entry: AccountValueEntry | None = self._trade_ledger.get_latest_account_value(
+                    account_id
+                )
                 if entry:
                     logger.debug(f"Retrieved latest account value: ${entry.portfolio_value}")
                 else:
                     logger.debug("No account value entries found")
                 return entry
-            else:
-                logger.warning("Trade ledger does not support latest account value lookup")
-                return None
+            logger.warning("Trade ledger does not support latest account value lookup")
+            return None
 
         except Exception as e:
             logger.error(f"Failed to retrieve latest account value: {e}")
@@ -147,24 +147,26 @@ class AccountValueService:
 
     def is_enabled(self) -> bool:
         """Check if account value logging is enabled.
-        
+
         Returns:
             True if logging is enabled
+
         """
         return self._enabled
 
     def _create_account_value_entry(self, account: AccountModel) -> AccountValueEntry:
         """Create an account value entry from an account model.
-        
+
         Args:
             account: Account model
-            
+
         Returns:
             Account value entry
+
         """
         entry_id = str(uuid.uuid4())
         timestamp = datetime.now(UTC).replace(microsecond=0)
-        
+
         return AccountValueEntry(
             entry_id=entry_id,
             account_id=account.account_id,
@@ -172,5 +174,5 @@ class AccountValueService:
             cash=Decimal(str(account.cash)),
             equity=Decimal(str(account.equity)),
             timestamp=timestamp,
-            source="account_value_service"
+            source="account_value_service",
         )
