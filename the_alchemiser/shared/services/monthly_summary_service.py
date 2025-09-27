@@ -219,7 +219,9 @@ class MonthlySummaryService:
             if not entries:
                 return []
 
-            # Calculate performance summaries
+            # Calculate performance summaries via ledger implementation
+            # Note: Protocol does not accept date range; implementations may compute from full ledger
+            # Tests stub this method directly for deterministic behavior.
             summaries = self._trade_ledger.calculate_performance(current_prices={})
 
             # Filter for strategy-level summaries (symbol=None) and sort by realized P&L
