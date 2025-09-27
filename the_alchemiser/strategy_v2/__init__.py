@@ -52,7 +52,9 @@ def register_strategy_handlers(container: ApplicationContainer) -> None:
 
 def __getattr__(name: str) -> object:
     if name == "SingleStrategyOrchestrator":
-        from .core.orchestrator import SingleStrategyOrchestrator as _SingleStrategyOrchestrator
+        from .core.orchestrator import (
+            SingleStrategyOrchestrator as _SingleStrategyOrchestrator,
+        )
 
         return _SingleStrategyOrchestrator
     if name in {"get_strategy", "list_strategies", "register_strategy"}:
