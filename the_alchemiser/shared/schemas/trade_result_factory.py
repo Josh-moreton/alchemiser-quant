@@ -129,7 +129,9 @@ def _convert_orders_to_results(
     return order_results
 
 
-def _create_single_order_result(order: dict[str, Any], completed_at: datetime) -> OrderResultSummary:
+def _create_single_order_result(
+    order: dict[str, Any], completed_at: datetime
+) -> OrderResultSummary:
     """Create a single OrderResultSummary from order data.
 
     Args:
