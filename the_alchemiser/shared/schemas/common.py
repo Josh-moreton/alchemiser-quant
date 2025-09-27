@@ -22,7 +22,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from the_alchemiser.shared.schemas.execution_summary import ExecutionSummary
 from the_alchemiser.shared.schemas.portfolio_state import PortfolioState
-from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, StrategySignal
+from the_alchemiser.shared.value_objects.core_types import (
+    AccountInfo,
+    OrderDetails,
+    StrategySignal,
+)
 
 
 class MultiStrategyExecutionResult(BaseModel):
@@ -97,12 +101,6 @@ class MultiStrategySummary(BaseModel):
 
     # Closed P&L subset for performance display
     closed_pnl_subset: dict[str, Any] | None = None
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility aliases
-MultiStrategyExecutionResult = MultiStrategyExecutionResult
-AllocationComparisonDTO = AllocationComparison
-MultiStrategySummary = MultiStrategySummary
 
 
 class Configuration(BaseModel):

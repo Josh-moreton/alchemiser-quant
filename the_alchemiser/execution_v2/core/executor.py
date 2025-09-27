@@ -708,7 +708,10 @@ class Executor:
         }
 
     async def _monitor_and_repeg_phase_orders(
-        self, phase_type: str, orders: list[OrderResult], correlation_id: str | None = None
+        self,
+        phase_type: str,
+        orders: list[OrderResult],
+        correlation_id: str | None = None,
     ) -> list[OrderResult]:
         """Monitor and re-peg orders from a specific execution phase.
 
@@ -919,7 +922,11 @@ class Executor:
         return time_since_last_action > fill_wait_seconds * 2
 
     def _log_monitoring_completion(
-        self, phase_type: str, start_time: float, attempts: int, correlation_id: str | None = None
+        self,
+        phase_type: str,
+        start_time: float,
+        attempts: int,
+        correlation_id: str | None = None,
     ) -> None:
         """Log completion of monitoring phase.
 
