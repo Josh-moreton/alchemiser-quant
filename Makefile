@@ -61,7 +61,13 @@ type-check:
 
 import-check:
 	@echo "🔍 Checking module dependency rules..."
-	poetry run importlinter --config pyproject.toml
+	# Detect available Import Linter entrypoint and run with pyproject.toml
+	@ENTRY=$$(poetry run python -c "import shutil; print(shutil.which('lint-imports') or '')"); \
+	if [ -n "$$ENTRY" ]; then \
+		poetry run lint-imports --config pyproject.toml; \
+	else \
+		poetry run python -m importlinter --config pyproject.toml; \
+	fi
 
 migration-check: lint type-check import-check
 	@echo "🚀 Running full migration validation suite..."
