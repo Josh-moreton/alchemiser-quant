@@ -12,9 +12,27 @@ The Alchemiser now includes built-in portfolio profit and loss analysis using th
 
 ## Usage
 
-### Command Line Script
+### Main Application Interface
 
-The standalone script provides the most flexible interface:
+The primary interface for local development uses the main application entry point:
+
+```bash
+# Show last week's P&L
+python -m the_alchemiser pnl --weekly
+
+# Show last month's P&L with daily breakdown
+python -m the_alchemiser pnl --monthly --detailed
+
+# Show P&L for last 3 weeks
+python -m the_alchemiser pnl --weekly --periods 3
+
+# Show P&L using Alpaca period format
+python -m the_alchemiser pnl --period 1M
+```
+
+### Standalone Script (Alternative)
+
+A standalone script is also available for cases where you need file output:
 
 ```bash
 # Show last week's P&L
@@ -23,19 +41,13 @@ python scripts/pnl_analysis.py --weekly
 # Show last month's P&L with daily breakdown
 python scripts/pnl_analysis.py --monthly --detailed
 
-# Show P&L for last 3 weeks
-python scripts/pnl_analysis.py --weekly --periods 3
-
-# Show P&L using Alpaca period format
-python scripts/pnl_analysis.py --period 1M
-
 # Save report to file
 python scripts/pnl_analysis.py --monthly --output /tmp/pnl_report.txt
 ```
 
 ### Makefile Commands
 
-Quick access via Make targets:
+Quick access via Make targets (uses main application interface):
 
 ```bash
 # Show weekly P&L
@@ -53,10 +65,11 @@ make run-pnl-detailed
 The P&L functionality is integrated into the main application:
 
 ```bash
-# Via python -m interface
+# Via python -m interface (recommended for local dev)
 python -m the_alchemiser pnl --weekly
+python -m the_alchemiser pnl --monthly --detailed
 
-# Via main function
+# Via main function (programmatic usage)
 python -c "from the_alchemiser.main import main; main(['pnl', '--monthly', '--detailed'])"
 ```
 

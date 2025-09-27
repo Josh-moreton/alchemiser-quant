@@ -83,15 +83,15 @@ run-trade:
 # P&L Analysis Commands
 run-pnl-weekly:
 	@echo "📊 Running weekly P&L analysis..."
-	python scripts/pnl_analysis.py --weekly
+	python -m the_alchemiser pnl --weekly
 
 run-pnl-monthly:
 	@echo "📊 Running monthly P&L analysis..."
-	python scripts/pnl_analysis.py --monthly
+	python -m the_alchemiser pnl --monthly
 
 run-pnl-detailed:
 	@echo "📊 Running detailed monthly P&L analysis..."
-	python scripts/pnl_analysis.py --monthly --detailed
+	python -m the_alchemiser pnl --monthly --detailed
 
 # Status command removed - use programmatic access via TradingSystem class
 
