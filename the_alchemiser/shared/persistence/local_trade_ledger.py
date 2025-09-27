@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Any
 
 from ..schemas.trade_ledger import (
+    AccountValueEntry,
+    AccountValueQuery,
     Lot,
     PerformanceSummary,
     TradeLedgerEntry,
@@ -61,6 +63,7 @@ class LocalTradeLedger(BaseTradeLedger):
         # File paths
         self.ledger_file = self.base_path / "ledger.jsonl"
         self.index_file = self.base_path / "index.json"
+        self.account_values_file = self.base_path / "account_values.jsonl"
 
         # In-memory index for performance (loaded on demand)
         self._index: dict[tuple[str, str], str] | None = None
@@ -146,6 +149,9 @@ class LocalTradeLedger(BaseTradeLedger):
     def upsert(self, entry: TradeLedgerEntry) -> None:
         """Insert or update a trade ledger entry (idempotent by unique key).
 
+        Note: If DISABLE_FULL_TRADE_LOGGING=true, this method will skip
+        logging trades to support account-value-only mode.
+
         Args:
             entry: Trade ledger entry to insert/update
 
@@ -154,6 +160,13 @@ class LocalTradeLedger(BaseTradeLedger):
             IOError: If persistence operation fails
 
         """
+        # Check if full trade logging is disabled
+        from .trade_ledger_factory import is_full_trade_logging_disabled
+
+        if is_full_trade_logging_disabled():
+            logger.debug("Full trade logging is disabled, skipping trade entry")
+            return
+
         try:
             index = self._load_index()
             unique_key = entry.get_unique_key()
@@ -188,6 +201,9 @@ class LocalTradeLedger(BaseTradeLedger):
     def upsert_many(self, entries: Iterable[TradeLedgerEntry]) -> None:
         """Insert or update multiple trade ledger entries (idempotent by unique key).
 
+        Note: If DISABLE_FULL_TRADE_LOGGING=true, this method will skip
+        logging trades to support account-value-only mode.
+
         Args:
             entries: Iterable of trade ledger entries to insert/update
 
@@ -196,6 +212,13 @@ class LocalTradeLedger(BaseTradeLedger):
             IOError: If persistence operation fails
 
         """
+        # Check if full trade logging is disabled
+        from .trade_ledger_factory import is_full_trade_logging_disabled
+
+        if is_full_trade_logging_disabled():
+            logger.debug("Full trade logging is disabled, skipping trade entries")
+            return
+
         entries_list = list(entries)
         if not entries_list:
             return
@@ -460,3 +483,232 @@ class LocalTradeLedger(BaseTradeLedger):
                 data[field] = Decimal(data[field])
 
         return TradeLedgerEntry(**data)
+
+    # Account Value Logging Methods
+
+    def log_account_value(self, entry: AccountValueEntry) -> None:
+        """Log a single account value entry (idempotent by date).
+
+        Args:
+            entry: Account value entry to log
+
+        Raises:
+            ValueError: If entry is invalid
+            IOError: If persistence operation fails
+
+        """
+        try:
+            # Check if entry for this date already exists
+            date_key = entry.get_date_key()
+            existing_entries = list(self._load_account_value_entries_for_date(date_key))
+
+            # If entry for this date exists, update it; otherwise append
+            if existing_entries:
+                self._update_account_value_entry_for_date(date_key, entry)
+                logger.debug(f"Updated account value entry for {date_key}")
+            else:
+                self._append_account_value_entry(entry)
+                logger.debug(f"Added new account value entry for {date_key}")
+
+        except Exception as e:
+            logger.error(f"Failed to log account value entry: {e}")
+            raise
+
+    def query_account_values(self, filters: AccountValueQuery) -> Iterable[AccountValueEntry]:
+        """Query account value entries based on filters.
+
+        Args:
+            filters: Query filters
+
+        Returns:
+            Iterable of matching account value entries
+
+        Raises:
+            IOError: If query operation fails
+
+        """
+        try:
+            matching_entries: list[AccountValueEntry] = []
+
+            if not self.account_values_file.exists():
+                return matching_entries
+
+            with self.account_values_file.open("r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+
+                    try:
+                        data = json.loads(line)
+                        entry = self._deserialize_account_value_entry(data)
+
+                        if self._matches_account_value_filters(entry, filters):
+                            matching_entries.append(entry)
+                    except (json.JSONDecodeError, ValueError) as e:
+                        logger.warning(f"Skipping invalid account value entry: {e}")
+                        continue
+
+            return self._sort_account_value_entries_by_timestamp(matching_entries)
+
+        except Exception as e:
+            logger.error(f"Failed to query account value entries: {e}")
+            raise
+
+    def get_latest_account_value(self, account_id: str) -> AccountValueEntry | None:
+        """Get the latest account value entry for an account.
+
+        Args:
+            account_id: Account identifier
+
+        Returns:
+            Latest account value entry or None if not found
+
+        Raises:
+            IOError: If query operation fails
+
+        """
+        try:
+            filters = AccountValueQuery(account_id=account_id)
+            entries = list(self.query_account_values(filters))
+
+            if not entries:
+                return None
+
+            # Entries are already sorted by timestamp
+            return entries[-1]
+
+        except Exception as e:
+            logger.error(f"Failed to get latest account value: {e}")
+            raise
+
+    def _load_account_value_entries_for_date(self, date_key: str) -> Iterable[AccountValueEntry]:
+        """Load account value entries for a specific date.
+
+        Args:
+            date_key: Date key in YYYY-MM-DD format
+
+        Returns:
+            Iterable of entries for that date
+
+        """
+        if not self.account_values_file.exists():
+            return []
+
+        matching_entries: list[AccountValueEntry] = []
+        with self.account_values_file.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+
+                try:
+                    data = json.loads(line)
+                    entry = self._deserialize_account_value_entry(data)
+
+                    if entry.get_date_key() == date_key:
+                        matching_entries.append(entry)
+                except (json.JSONDecodeError, ValueError):
+                    continue
+
+        return matching_entries
+
+    def _update_account_value_entry_for_date(
+        self, date_key: str, new_entry: AccountValueEntry
+    ) -> None:
+        """Update account value entry for a specific date by rewriting the file.
+
+        Args:
+            date_key: Date key in YYYY-MM-DD format
+            new_entry: New entry to replace existing entry for this date
+
+        """
+        if not self.account_values_file.exists():
+            self._append_account_value_entry(new_entry)
+            return
+
+        # Read all entries
+        all_entries: list[AccountValueEntry] = []
+        with self.account_values_file.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+
+                try:
+                    data = json.loads(line)
+                    entry = self._deserialize_account_value_entry(data)
+
+                    # Replace entry if date matches, otherwise keep existing
+                    if entry.get_date_key() == date_key:
+                        all_entries.append(new_entry)
+                    else:
+                        all_entries.append(entry)
+                except (json.JSONDecodeError, ValueError):
+                    continue
+
+        # Rewrite file with updated entries
+        with self.account_values_file.open("w", encoding="utf-8") as f:
+            for entry in all_entries:
+                serialized = self._serialize_account_value_entry(entry)
+                f.write(json.dumps(serialized) + "\n")
+
+    def _append_account_value_entry(self, entry: AccountValueEntry) -> None:
+        """Append account value entry to file.
+
+        Args:
+            entry: Entry to append
+
+        """
+        serialized = self._serialize_account_value_entry(entry)
+        with self.account_values_file.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(serialized) + "\n")
+
+    def _serialize_account_value_entry(self, entry: AccountValueEntry) -> dict[str, Any]:
+        """Serialize account value entry to dictionary.
+
+        Args:
+            entry: Account value entry to serialize
+
+        Returns:
+            Serialized dictionary
+
+        """
+        data = entry.model_dump()
+
+        # Convert datetime to ISO string
+        if isinstance(data["timestamp"], datetime):
+            data["timestamp"] = data["timestamp"].isoformat()
+
+        # Convert Decimal fields to strings
+        decimal_fields = ["portfolio_value", "cash", "equity"]
+        for field in decimal_fields:
+            if data.get(field) is not None:
+                data[field] = str(data[field])
+
+        return data
+
+    def _deserialize_account_value_entry(self, data: dict[str, Any]) -> AccountValueEntry:
+        """Deserialize dictionary to account value entry.
+
+        Args:
+            data: Serialized data
+
+        Returns:
+            Account value entry
+
+        Raises:
+            ValueError: If data is invalid
+
+        """
+        # Convert string timestamp back to datetime
+        if isinstance(data.get("timestamp"), str):
+            data["timestamp"] = datetime.fromisoformat(data["timestamp"])
+
+        # Convert string Decimal fields back to Decimal
+        decimal_fields = ["portfolio_value", "cash", "equity"]
+        for field in decimal_fields:
+            if data.get(field) is not None and isinstance(data[field], str):
+                data[field] = Decimal(data[field])
+
+        return AccountValueEntry(**data)
