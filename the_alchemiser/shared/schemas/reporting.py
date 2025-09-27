@@ -107,13 +107,23 @@ class MonthlySummaryDTO(BaseModel):
     month_label: str = Field(..., description="Human-readable month label (e.g., 'Aug 2025')")
 
     # Portfolio P&L for the month
-    portfolio_first_value: Decimal | None = Field(default=None, description="Portfolio value at start of month")
-    portfolio_last_value: Decimal | None = Field(default=None, description="Portfolio value at end of month")
-    portfolio_pnl_abs: Decimal | None = Field(default=None, description="Absolute P&L change for the month")
-    portfolio_pnl_pct: Decimal | None = Field(default=None, description="Percentage P&L change for the month")
+    portfolio_first_value: Decimal | None = Field(
+        default=None, description="Portfolio value at start of month"
+    )
+    portfolio_last_value: Decimal | None = Field(
+        default=None, description="Portfolio value at end of month"
+    )
+    portfolio_pnl_abs: Decimal | None = Field(
+        default=None, description="Absolute P&L change for the month"
+    )
+    portfolio_pnl_pct: Decimal | None = Field(
+        default=None, description="Percentage P&L change for the month"
+    )
 
     # Per-strategy realized P&L for the month
-    strategy_rows: list[dict[str, Any]] = Field(default_factory=list, description="Strategy performance rows")
+    strategy_rows: list[dict[str, Any]] = Field(
+        default_factory=list, description="Strategy performance rows"
+    )
 
     # Additional context and warnings
     notes: list[str] = Field(default_factory=list, description="Additional notes or warnings")

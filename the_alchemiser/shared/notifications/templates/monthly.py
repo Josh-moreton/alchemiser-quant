@@ -32,10 +32,7 @@ class MonthlySummaryEmailBuilder:
         """
         # Create header with status
         header = BaseEmailTemplate.get_combined_header_status(
-            f"Monthly Summary — {summary.month_label}",
-            "Completed",
-            "#3B82F6",
-            "📅"
+            f"Monthly Summary — {summary.month_label}", "Completed", "#3B82F6", "📅"
         )
 
         # Build main content sections
@@ -56,7 +53,9 @@ class MonthlySummaryEmailBuilder:
             {BaseEmailTemplate.get_footer()}
         """
 
-        return BaseEmailTemplate.wrap_content(content, f"The Alchemiser — Monthly Summary ({summary.month_label})")
+        return BaseEmailTemplate.wrap_content(
+            content, f"The Alchemiser — Monthly Summary ({summary.month_label})"
+        )
 
     @staticmethod
     def _build_portfolio_section(summary: MonthlySummaryDTO) -> str:
@@ -73,7 +72,7 @@ class MonthlySummaryEmailBuilder:
             # No data available
             content = BaseEmailTemplate.create_alert_box(
                 "No account value snapshots found for this month. Portfolio P&L cannot be calculated.",
-                "warning"
+                "warning",
             )
         elif summary.portfolio_first_value is None or summary.portfolio_last_value is None:
             # Only one snapshot
@@ -87,10 +86,12 @@ class MonthlySummaryEmailBuilder:
                         </p>
                     </div>
                 </div>
-                {BaseEmailTemplate.create_alert_box(
+                {
+                BaseEmailTemplate.create_alert_box(
                     "Only one account value snapshot found. Percentage change not calculated.",
-                    "info"
-                )}
+                    "info",
+                )
+            }
             """
         else:
             # Full P&L calculation
@@ -149,8 +150,7 @@ class MonthlySummaryEmailBuilder:
         """
         if not summary.strategy_rows:
             content = BaseEmailTemplate.create_alert_box(
-                "No strategy trading activity found for this month.",
-                "info"
+                "No strategy trading activity found for this month.", "info"
             )
         else:
             # Build strategy performance table
@@ -170,11 +170,13 @@ class MonthlySummaryEmailBuilder:
                 else:
                     pnl_display = '<span style="color: #6B7280;">$0.00</span>'
 
-                rows.append([
-                    strategy_name,
-                    pnl_display,
-                    str(realized_trades),
-                ])
+                rows.append(
+                    [
+                        strategy_name,
+                        pnl_display,
+                        str(realized_trades),
+                    ]
+                )
 
             content = BaseEmailTemplate.create_table(headers, rows, "strategy-performance")
 

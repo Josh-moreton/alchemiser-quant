@@ -40,7 +40,9 @@ class MonthlySummaryService:
 
         """
         self._trade_ledger = trade_ledger or get_default_trade_ledger()
-        self._account_value_service = account_value_service or AccountValueService(self._trade_ledger)
+        self._account_value_service = account_value_service or AccountValueService(
+            self._trade_ledger
+        )
 
     def compute_monthly_summary(
         self, year: int, month: int, account_id: str | None = None
@@ -191,7 +193,9 @@ class MonthlySummaryService:
                 "pct_change": None,
             }
 
-    def _compute_strategy_pnl(self, start_date: datetime, end_date: datetime) -> list[dict[str, Any]]:
+    def _compute_strategy_pnl(
+        self, start_date: datetime, end_date: datetime
+    ) -> list[dict[str, Any]]:
         """Compute realized P&L by strategy from trade ledger entries.
 
         Args:
@@ -226,11 +230,13 @@ class MonthlySummaryService:
             strategy_rows = []
             for summary in strategy_summaries:
                 if summary.realized_pnl != 0 or summary.realized_trades > 0:
-                    strategy_rows.append({
-                        "strategy_name": summary.strategy_name,
-                        "realized_pnl": summary.realized_pnl,
-                        "realized_trades": summary.realized_trades,
-                    })
+                    strategy_rows.append(
+                        {
+                            "strategy_name": summary.strategy_name,
+                            "realized_pnl": summary.realized_pnl,
+                            "realized_trades": summary.realized_trades,
+                        }
+                    )
 
             return strategy_rows
 
