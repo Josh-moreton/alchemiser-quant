@@ -113,7 +113,7 @@ class DslStrategyEngine:
 
             consolidated = self._normalize_allocations(consolidated)
             signals = self._convert_to_signals(
-                consolidated, timestamp, correlation_id, file_results, dsl_files
+                consolidated, timestamp, correlation_id, dsl_files
             )
 
             self.logger.info(
@@ -198,9 +198,6 @@ class DslStrategyEngine:
         consolidated: dict[str, float],
         timestamp: datetime,
         correlation_id: str,
-        file_results: (
-            list[tuple[dict[str, float] | None, str, float, float]] | None
-        ) = None,
         dsl_files: list[str] | None = None,
     ) -> list[StrategySignal]:
         """Convert consolidated weights to StrategySignal objects.
@@ -209,7 +206,6 @@ class DslStrategyEngine:
             consolidated: Dictionary mapping symbols to weights
             timestamp: Timestamp for signal generation
             correlation_id: Correlation ID for tracing
-            file_results: Optional file evaluation results for attribution
             dsl_files: Optional list of DSL files for attribution
 
         Returns:
