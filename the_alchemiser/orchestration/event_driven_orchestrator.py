@@ -54,8 +54,8 @@ class EventDrivenOrchestrator:
         # Get event bus from container
         self.event_bus: EventBus = container.services.event_bus()
 
-        # Initialize domain handlers
-        self.domain_handlers = self._initialize_domain_handlers()
+        # Register domain handlers using module registration functions
+        self._register_domain_handlers()
 
         # Cache event dispatch mapping to avoid per-call construction
         # Use cast to align specific handler signatures with BaseEvent for dispatching
@@ -91,31 +91,27 @@ class EventDrivenOrchestrator:
         # Collect workflow results for each correlation ID
         self.workflow_results: dict[str, dict[str, Any]] = {}
 
-    def _initialize_domain_handlers(self) -> dict[str, Any]:
-        """Initialize domain event handlers.
+    def _register_domain_handlers(self) -> None:
+        """Register domain event handlers using module registration functions.
 
-        Returns:
-            Dictionary of initialized domain handlers
-
+        This uses the event-driven API from each business module to register
+        their handlers with the event bus. This maintains proper module boundaries.
         """
-        handlers: dict[str, Any] = {}
-
         try:
-            # Import and initialize domain handlers
-            from the_alchemiser.execution_v2.handlers import TradingExecutionHandler
-            from the_alchemiser.portfolio_v2.handlers import PortfolioAnalysisHandler
-            from the_alchemiser.strategy_v2.handlers import SignalGenerationHandler
+            # Register handlers from each business module
+            from the_alchemiser.strategy_v2 import register_strategy_handlers
+            from the_alchemiser.portfolio_v2 import register_portfolio_handlers
+            from the_alchemiser.execution_v2 import register_execution_handlers
 
-            handlers["signal_generation"] = SignalGenerationHandler(self.container)
-            handlers["portfolio_analysis"] = PortfolioAnalysisHandler(self.container)
-            handlers["trading_execution"] = TradingExecutionHandler(self.container)
+            register_strategy_handlers(self.container)
+            register_portfolio_handlers(self.container)
+            register_execution_handlers(self.container)
 
-            self.logger.debug("Initialized domain event handlers")
+            self.logger.debug("Registered domain event handlers via module registration functions")
 
         except Exception as e:
-            self.logger.error(f"Failed to initialize domain handlers: {e}")
-
-        return handlers
+            self.logger.error(f"Failed to register domain handlers: {e}")
+            raise RuntimeError(f"Domain handler registration failed: {e}") from e
 
     def start_trading_workflow(self, *, correlation_id: str | None = None) -> str:
         """Start a complete trading workflow via event-driven coordination.
@@ -217,36 +213,21 @@ class EventDrivenOrchestrator:
         }
 
     def _register_handlers(self) -> None:
-        """Register event handlers for primary workflow coordination and cross-cutting concerns."""
-        # Register domain handlers for primary workflow coordination
-        for handler_name, handler in self.domain_handlers.items():
-            if hasattr(handler, "can_handle") and hasattr(handler, "handle_event"):
-                # Register handler for events it can handle
-                for evt in (
-                    "StartupEvent",
-                    "WorkflowStarted",
-                    "SignalGenerated",
-                    "RebalancePlanned",
-                ):
-                    if handler.can_handle(evt):
-                        self.event_bus.subscribe(evt, handler)
-
-                self.logger.debug(f"Registered domain handler: {handler_name}")
-
+        """Register orchestration event handlers for cross-cutting concerns."""
         # Subscribe to all event types for cross-cutting concerns (monitoring, notifications)
-        for evt in (
+        for event_type in (
             "StartupEvent",
-            "WorkflowStarted",
+            "WorkflowStarted", 
             "SignalGenerated",
             "RebalancePlanned",
             "TradeExecuted",
             "WorkflowCompleted",
             "WorkflowFailed",
         ):
-            self.event_bus.subscribe(evt, self)
+            self.event_bus.subscribe(event_type, self)
 
         self.logger.info(
-            "Registered event-driven orchestration handlers for primary coordination and cross-cutting concerns"
+            "Registered event-driven orchestration handlers for cross-cutting concerns"
         )
 
     def handle_event(self, event: BaseEvent) -> None:
