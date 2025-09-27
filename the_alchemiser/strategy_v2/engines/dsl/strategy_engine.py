@@ -197,6 +197,8 @@ class DslStrategyEngine:
             consolidated: Dictionary mapping symbols to weights
             timestamp: Timestamp for signal generation
             correlation_id: Correlation ID for tracing
+            file_results: Optional per-file evaluation results (weights, trace_id, file_weight, file_sum);
+                used for attribution and debugging but not required for signal construction
             dsl_files: Optional list of DSL files for attribution
 
         Returns:

@@ -27,9 +27,7 @@ class LambdaEvent(BaseModel):
 
     # Trading invocation fields
     mode: str | None = Field(default=None, description="Execution mode")
-    trading_mode: str | None = Field(
-        default=None, description="Trading mode (paper/live)"
-    )
+    trading_mode: str | None = Field(default=None, description="Trading mode (paper/live)")
     arguments: list[str] | None = Field(
         default=None, description="Additional command line arguments"
     )
@@ -45,12 +43,8 @@ class LambdaEvent(BaseModel):
     account_id: str | None = Field(
         default=None, description="Explicit account ID override for summary"
     )
-    to: str | None = Field(
-        default=None, description="Override recipient email address for summary"
-    )
-    subject: str | None = Field(
-        default=None, description="Override email subject for summary"
-    )
+    to: str | None = Field(default=None, description="Override recipient email address for summary")
+    subject: str | None = Field(default=None, description="Override email subject for summary")
     dry_run: bool | None = Field(
         default=None, description="When true, compute summary but do not send email"
     )
