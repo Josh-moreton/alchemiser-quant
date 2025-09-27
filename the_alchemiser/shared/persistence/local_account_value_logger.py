@@ -140,7 +140,7 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
 
                         if self._matches_filters(entry, filters):
                             matching_entries.append(entry)
-                    except (json.JSONDecodeError, ValueError) as e:
+                    except ValueError as e:
                         logger.warning(f"Skipping invalid entry: {e}")
                         continue
 
@@ -203,7 +203,7 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
 
                     if entry.get_date_key() == date_key:
                         matching_entries.append(entry)
-                except (json.JSONDecodeError, ValueError):
+                except ValueError:
                     continue
 
         return matching_entries
@@ -237,7 +237,7 @@ class LocalAccountValueLogger(BaseAccountValueLogger):
                         all_entries.append(new_entry)
                     else:
                         all_entries.append(entry)
-                except (json.JSONDecodeError, ValueError):
+                except ValueError:
                     continue
 
         # Rewrite file with updated entries
