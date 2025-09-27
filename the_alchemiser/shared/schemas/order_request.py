@@ -3,7 +3,7 @@
 
 Order request data transfer objects for inter-module communication.
 
-Provides typed DTOs for order requests with correlation tracking and
+Provides typed schemas for order requests with correlation tracking and
 serialization helpers for communication between portfolio and execution modules.
 """
 

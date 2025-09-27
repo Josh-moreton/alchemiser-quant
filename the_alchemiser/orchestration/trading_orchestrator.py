@@ -224,7 +224,7 @@ class TradingOrchestrator:
             }
 
             # Create a consolidated portfolio DTO from the signals
-            portfolio_dto = ConsolidatedPortfolio.from_dict_allocation(
+            consolidated_portfolio = ConsolidatedPortfolio.from_dict_allocation(
                 allocation_dict=allocation_dict_float,
                 correlation_id=event.correlation_id,
                 source_strategies=source_strategies,
@@ -232,7 +232,7 @@ class TradingOrchestrator:
 
             # Trigger allocation comparison which should emit RebalancePlanned
             allocation_comparison = self.portfolio_orchestrator.analyze_allocation_comparison(
-                portfolio_dto
+                consolidated_portfolio
             )
 
             if not allocation_comparison:
@@ -390,7 +390,7 @@ class TradingOrchestrator:
                 ConsolidatedPortfolio,
             )
 
-            consolidated_portfolio_dto = ConsolidatedPortfolio.from_dict_allocation(
+            consolidated_consolidated_portfolio = ConsolidatedPortfolio.from_dict_allocation(
                 allocation_dict=consolidated_portfolio_dict,
                 correlation_id=str(uuid.uuid4()),
                 source_strategies=[str(k) for k in strategy_signals],
@@ -425,7 +425,7 @@ class TradingOrchestrator:
 
             # Create allocation comparison
             allocation_comparison = self.portfolio_orchestrator.analyze_allocation_comparison(
-                consolidated_portfolio_dto
+                consolidated_consolidated_portfolio
             )
 
             if not allocation_comparison:
@@ -507,7 +507,7 @@ class TradingOrchestrator:
             # Return results for CLI
             return {
                 "strategy_signals": strategy_signals,
-                "consolidated_portfolio": consolidated_portfolio_dto.to_dict_allocation(),
+                "consolidated_portfolio": consolidated_consolidated_portfolio.to_dict_allocation(),
                 "account_info": account_info,
                 "current_positions": current_positions,
                 "allocation_comparison": allocation_comparison,
@@ -570,7 +570,7 @@ class TradingOrchestrator:
                 ConsolidatedPortfolio,
             )
 
-            consolidated_portfolio_dto = ConsolidatedPortfolio.from_dict_allocation(
+            consolidated_consolidated_portfolio = ConsolidatedPortfolio.from_dict_allocation(
                 allocation_dict=consolidated_portfolio_dict,
                 correlation_id=str(uuid.uuid4()),
                 source_strategies=[str(k) for k in strategy_signals],
@@ -603,7 +603,7 @@ class TradingOrchestrator:
                 try:
                     allocation_comparison = (
                         self.portfolio_orchestrator.analyze_allocation_comparison(
-                            consolidated_portfolio_dto
+                            consolidated_consolidated_portfolio
                         )
                     )
                     self.logger.info("✅ Portfolio analysis completed (for reference)")
@@ -615,7 +615,7 @@ class TradingOrchestrator:
             # Return results for CLI
             return {
                 "strategy_signals": strategy_signals,
-                "consolidated_portfolio": consolidated_portfolio_dto.to_dict_allocation(),
+                "consolidated_portfolio": consolidated_consolidated_portfolio.to_dict_allocation(),
                 "account_info": account_info,
                 "current_positions": current_positions,
                 "allocation_comparison": allocation_comparison,
@@ -861,7 +861,7 @@ class TradingOrchestrator:
                 return None
 
             # Create final rebalance plan
-            return self._build_rebalance_plan_dto(
+            return self._build_rebalance_plan(
                 plan_items, total_trade_value, portfolio_value_decimal
             )
 
@@ -960,7 +960,7 @@ class TradingOrchestrator:
 
         return target_weight, current_weight
 
-    def _build_rebalance_plan_dto(
+    def _build_rebalance_plan(
         self,
         plan_items: list[RebalancePlanItem],
         total_trade_value: Decimal,

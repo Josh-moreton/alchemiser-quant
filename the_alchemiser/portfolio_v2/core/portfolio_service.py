@@ -49,7 +49,7 @@ class PortfolioServiceV2:
         self._state_reader = PortfolioStateReader(self._data_adapter)
         self._planner = RebalancePlanCalculator()
 
-    def create_rebalance_plan_dto(
+    def create_rebalance_plan(
         self, strategy: StrategyAllocation, correlation_id: str
     ) -> RebalancePlan:
         """Create rebalance plan DTO from strategy allocation.

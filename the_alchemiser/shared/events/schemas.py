@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Business Unit: shared | Status: current.
 
-Event schema DTOs for event-driven architecture.
+Event schemas for event-driven architecture.
 
 Provides specific event classes for the system workflow:
 - StartupEvent: System initialization event

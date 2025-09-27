@@ -427,7 +427,7 @@ class PortfolioAnalysisHandler:
             )
 
             # Generate rebalance plan using portfolio service
-            rebalance_plan = portfolio_service.create_rebalance_plan_dto(
+            rebalance_plan = portfolio_service.create_rebalance_plan(
                 strategy=strategy_allocation,
                 correlation_id=correlation_id,
             )

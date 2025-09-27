@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Business Unit: shared | Status: current.
 
-Centralized DTO conversion utilities for reducing complexity in DTO methods.
+Centralized data conversion utilities for reducing complexity in schema methods.
 
 Provides reusable helper functions for converting between string and typed values
-in DTO serialization/deserialization, eliminating code duplication and reducing
-cyclomatic complexity of individual DTO methods.
+in schema serialization/deserialization, eliminating code duplication and reducing
+cyclomatic complexity of individual schema methods.
 """
 
 from __future__ import annotations

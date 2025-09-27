@@ -23,7 +23,7 @@ class StrategyEngine(Protocol):
     def __call__(
         self, context: datetime | MarketDataPort | dict[str, datetime | MarketDataPort]
     ) -> StrategyAllocation:
-        """Execute strategy and return allocation DTO."""
+        """Execute strategy and return allocation schema."""
         ...
 
 

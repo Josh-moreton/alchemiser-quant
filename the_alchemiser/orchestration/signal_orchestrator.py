@@ -300,7 +300,7 @@ class SignalOrchestrator:
         """
         try:
             # Convert strategy signals to DTO format
-            signal_dtos = []
+            signals = []
             correlation_id = str(uuid.uuid4())
             causation_id = f"signal-analysis-{datetime.now(UTC).isoformat()}"
 
@@ -316,14 +316,14 @@ class SignalOrchestrator:
                 # Enforce 10-char max for StrategySignal.symbol
                 sanitized_symbol = str(raw_symbol)[:10]
                 # StrategySignal doesn't define allocation_weight; use target_allocation
-                signal_dto = StrategySignal(
+                signal = StrategySignal(
                     symbol=sanitized_symbol,
                     action=signal_data.get("action", "HOLD"),
                     reasoning=signal_data.get("reasoning", "Signal generated"),
                     target_allocation=None,  # Portfolio module will derive allocation
                     timestamp=datetime.now(UTC),
                 )
-                signal_dtos.append(signal_dto)
+                signals.append(signal)
 
             # Convert strategy allocations to Decimal for event (DSL only)
             strategy_allocations: dict[str, Decimal] = {
@@ -344,11 +344,11 @@ class SignalOrchestrator:
                 source_module="orchestration",
                 source_component="SignalOrchestrator",
                 signals_data={
-                    "signals": [signal.model_dump() for signal in signal_dtos],
+                    "signals": [signal.model_dump() for signal in signals],
                     "strategy_allocations": strategy_allocations,
                 },
                 consolidated_portfolio=consolidated_decimal,
-                signal_count=len(signal_dtos),
+                signal_count=len(signals),
             )
 
             self.event_bus.publish(event)

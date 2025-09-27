@@ -33,7 +33,7 @@ from the_alchemiser.shared.schemas.execution_summary import (
 from the_alchemiser.shared.schemas.portfolio_state import PortfolioState
 
 
-def dict_to_allocation_summary_dto(data: dict[str, Any]) -> AllocationSummary:
+def dict_to_allocation_summary(data: dict[str, Any]) -> AllocationSummary:
     """Convert allocation summary dict to AllocationSummary."""
     return AllocationSummary(
         total_allocation=Decimal(str(data.get("total_allocation", 0.0))),
@@ -42,7 +42,7 @@ def dict_to_allocation_summary_dto(data: dict[str, Any]) -> AllocationSummary:
     )
 
 
-def dict_to_strategy_pnl_summary_dto(data: dict[str, Any]) -> StrategyPnLSummary:
+def dict_to_strategy_pnl_summary(data: dict[str, Any]) -> StrategyPnLSummary:
     """Convert strategy P&L summary dict to StrategyPnLSummary."""
     return StrategyPnLSummary(
         total_pnl=Decimal(str(data.get("total_pnl", 0.0))),
@@ -52,7 +52,7 @@ def dict_to_strategy_pnl_summary_dto(data: dict[str, Any]) -> StrategyPnLSummary
     )
 
 
-def dict_to_strategy_summary_dto(data: dict[str, Any]) -> StrategySummary:
+def dict_to_strategy_summary(data: dict[str, Any]) -> StrategySummary:
     """Convert individual strategy summary dict to StrategySummary."""
     return StrategySummary(
         strategy_name=data.get("strategy_name", "unknown"),
@@ -62,7 +62,7 @@ def dict_to_strategy_summary_dto(data: dict[str, Any]) -> StrategySummary:
     )
 
 
-def dict_to_trading_summary_dto(data: dict[str, Any]) -> TradingSummary:
+def dict_to_trading_summary(data: dict[str, Any]) -> TradingSummary:
     """Convert trading summary dict to TradingSummary."""
     return TradingSummary(
         total_orders=data.get("total_orders", 0),
@@ -72,11 +72,11 @@ def dict_to_trading_summary_dto(data: dict[str, Any]) -> TradingSummary:
     )
 
 
-def dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummary:
+def dict_to_execution_summary(data: dict[str, Any]) -> ExecutionSummary:
     """Convert execution summary dict to ExecutionSummary."""
     # Handle allocation summary
     allocations_data = data.get("allocations", {})
-    allocations = dict_to_allocation_summary_dto(allocations_data)
+    allocations = dict_to_allocation_summary(allocations_data)
 
     # Handle strategy summaries
     strategy_summary_data = data.get("strategy_summary", {})
@@ -85,15 +85,15 @@ def dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummary:
         if isinstance(strategy_data, dict):
             # Ensure strategy_name is in the data
             strategy_data_with_name = {**strategy_data, "strategy_name": strategy_name}
-            strategy_summary[strategy_name] = dict_to_strategy_summary_dto(strategy_data_with_name)
+            strategy_summary[strategy_name] = dict_to_strategy_summary(strategy_data_with_name)
 
     # Handle trading summary
     trading_summary_data = data.get("trading_summary", {})
-    trading_summary = dict_to_trading_summary_dto(trading_summary_data)
+    trading_summary = dict_to_trading_summary(trading_summary_data)
 
     # Handle P&L summary
     pnl_summary_data = data.get("pnl_summary", {})
-    pnl_summary = dict_to_strategy_pnl_summary_dto(pnl_summary_data)
+    pnl_summary = dict_to_strategy_pnl_summary(pnl_summary_data)
 
     # Extract account info (should already be proper AccountInfo types)
     account_info_before = data.get("account_info_before", {})
@@ -112,7 +112,7 @@ def dict_to_execution_summary_dto(data: dict[str, Any]) -> ExecutionSummary:
     )
 
 
-def dict_to_portfolio_state_dto(data: dict[str, Any]) -> PortfolioState:
+def dict_to_portfolio_state(data: dict[str, Any]) -> PortfolioState:
     """Convert portfolio state dict to PortfolioState.
 
     Maps from actual portfolio data structure (from build_portfolio_state_data)

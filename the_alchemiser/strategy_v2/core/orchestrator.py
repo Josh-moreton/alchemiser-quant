@@ -27,7 +27,7 @@ ORCHESTRATOR_COMPONENT = "strategy_v2.core.orchestrator"
 
 
 class SingleStrategyOrchestrator:
-    """Orchestrates strategy execution and DTO conversion.
+    """Orchestrates strategy execution and schema conversion.
 
     Coordinates between market data adapters, strategy engines, and output
     DTO generation with proper error handling and weight normalization.
@@ -44,7 +44,7 @@ class SingleStrategyOrchestrator:
         self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
     def run(self, strategy_id: str, context: StrategyContext) -> StrategyAllocation:
-        """Run strategy and return allocation DTO.
+        """Run strategy and return allocation schema.
 
         Args:
             strategy_id: Strategy identifier (e.g., 'nuclear', 'klm', 'tecl')

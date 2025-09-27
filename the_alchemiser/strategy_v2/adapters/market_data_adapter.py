@@ -109,8 +109,8 @@ class StrategyMarketDataAdapter:
                 typed_bars = []
                 for bar_dict in bars:
                     try:
-                        bar_dto = MarketBar.from_alpaca_bar(bar_dict, symbol, timeframe)
-                        typed_bars.append(bar_dto)
+                        market_bar = MarketBar.from_alpaca_bar(bar_dict, symbol, timeframe)
+                        typed_bars.append(market_bar)
                     except ValueError as e:
                         self._logger.warning(
                             f"Failed to convert bar data for {symbol}: {e}",

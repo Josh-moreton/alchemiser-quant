@@ -79,7 +79,7 @@ class AssetMetadataService:
             asset = self._trading_client.get_asset(symbol_upper)
 
             # Convert SDK object to DTO at adapter boundary
-            asset_dto = AssetInfo(
+            asset_info = AssetInfo(
                 symbol=getattr(asset, "symbol", symbol_upper),
                 name=getattr(asset, "name", None),
                 exchange=getattr(asset, "exchange", None),
@@ -92,15 +92,15 @@ class AssetMetadataService:
 
             # Cache the result
             with self._asset_cache_lock:
-                self._asset_cache[symbol_upper] = asset_dto
+                self._asset_cache[symbol_upper] = asset_info
                 self._asset_cache_timestamps[symbol_upper] = current_time
 
             logger.debug(
                 f"🏷️ Asset info retrieved for {symbol_upper}: "
-                f"fractionable={asset_dto.fractionable}, "
-                f"tradable={asset_dto.tradable}"
+                f"fractionable={asset_info.fractionable}, "
+                f"tradable={asset_info.tradable}"
             )
-            return asset_dto
+            return asset_info
 
         except Exception as e:
             logger.error(f"Failed to get asset info for {symbol_upper}: {e}")
