@@ -208,12 +208,12 @@ class DslStrategyEngine:
         """
         signals: list[StrategySignal] = []
 
-        # Extract strategy names from CLJ filenames (remove .clj extension and path)
+        # Extract strategy names from CLJ filenames (remove extension and path)
         strategy_names = []
         if dsl_files:
             for filename in dsl_files:
-                # Extract basename and remove extension robustly
-                strategy_name = os.path.splitext(os.path.basename(filename))[0]
+                # Use pathlib for robust cross-platform handling
+                strategy_name = Path(filename).stem
                 strategy_names.append(strategy_name)
 
         # Use first strategy name or fallback to "DSL" if no files provided
@@ -255,8 +255,8 @@ class DslStrategyEngine:
             List containing a single CASH signal
 
         """
-        # Extract strategy name from CLJ filename (remove .clj extension and path)
-        strategy_name = self.strategy_file.replace(".clj", "").split("/")[-1]
+        # Extract strategy name from CLJ filename (remove extension and path) using pathlib
+        strategy_name = Path(self.strategy_file).stem
 
         fallback_signal = StrategySignal(
             symbol="CASH",
