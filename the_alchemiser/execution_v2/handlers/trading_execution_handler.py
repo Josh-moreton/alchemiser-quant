@@ -155,6 +155,9 @@ class TradingExecutionHandler:
             )
             execution_result = execution_manager.execute_rebalance_plan(rebalance_plan)
 
+            # Note: ExecutionResult.metadata is read-only (frozen), so strategy attribution
+            # needs to be handled in the ExecutionManager itself via rebalance plan metadata
+
             # Log execution results
             self.logger.info(
                 f"✅ Trade execution completed: {execution_result.orders_succeeded}/"

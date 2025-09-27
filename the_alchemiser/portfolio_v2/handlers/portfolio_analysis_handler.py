@@ -147,6 +147,9 @@ class PortfolioAnalysisHandler:
         self.logger.info("🔄 Starting portfolio analysis from SignalGenerated event")
 
         try:
+            # Extract strategy names from the signals data
+            strategy_names = self._extract_strategy_names_from_event(event)
+
             # Reconstruct ConsolidatedPortfolioDTO from event data
             consolidated_portfolio = ConsolidatedPortfolioDTO.model_validate(
                 event.consolidated_portfolio
@@ -167,7 +170,7 @@ class PortfolioAnalysisHandler:
             if not isinstance(account_info, dict):
                 account_info = _normalize_account_info(account_info)
             rebalance_plan = self._create_rebalance_plan_from_allocation(
-                allocation_comparison, account_info
+                allocation_comparison, account_info, strategy_names
             )
 
             # Emit RebalancePlanned event (even if no trades needed)
@@ -176,6 +179,7 @@ class PortfolioAnalysisHandler:
                 allocation_comparison,
                 event.correlation_id,
                 account_info,
+                strategy_names,
             )
 
             self.logger.info("✅ Portfolio analysis completed successfully")
@@ -183,6 +187,50 @@ class PortfolioAnalysisHandler:
         except Exception as e:
             self.logger.error(f"Portfolio analysis failed: {e}")
             self._emit_workflow_failure(event, str(e))
+
+    def _extract_strategy_names_from_event(self, event: SignalGenerated) -> list[str]:
+        """Extract strategy names from SignalGenerated event.
+
+        Args:
+            event: The SignalGenerated event
+
+        Returns:
+            List of strategy names extracted from signals
+
+        """
+        strategy_names = []
+
+        try:
+            # Extract from signals_data if available
+            signals_data = event.signals_data
+            if isinstance(signals_data, dict) and "signals" in signals_data:
+                signals = signals_data["signals"]
+                if isinstance(signals, list):
+                    for signal in signals:
+                        if isinstance(signal, dict) and "strategy" in signal:
+                            strategy_name = signal["strategy"]
+                            if strategy_name not in strategy_names:
+                                strategy_names.append(strategy_name)
+
+            # Fallback to strategy_allocations if signals don't have strategy info
+            if (
+                not strategy_names
+                and isinstance(signals_data, dict)
+                and "strategy_allocations" in signals_data
+            ):
+                strategy_allocations = signals_data["strategy_allocations"]
+                if isinstance(strategy_allocations, dict):
+                    strategy_names.extend(strategy_allocations.keys())
+
+        except Exception as e:
+            self.logger.warning(f"Failed to extract strategy names from event: {e}")
+
+        # Fallback to default if no strategy names found
+        if not strategy_names:
+            strategy_names = ["unknown"]
+
+        self.logger.debug(f"Extracted strategy names: {strategy_names}")
+        return strategy_names
 
     def _get_comprehensive_account_data(self) -> dict[str, Any] | None:
         """Get comprehensive account data including positions and orders.
@@ -309,12 +357,14 @@ class PortfolioAnalysisHandler:
         self,
         allocation_comparison: AllocationComparisonDTO,
         account_info: dict[str, Any],
+        strategy_names: list[str] | None = None,
     ) -> RebalancePlanDTO | None:
         """Create rebalance plan from allocation comparison.
 
         Args:
             allocation_comparison: Allocation comparison data
             account_info: Account information
+            strategy_names: List of strategy names that generated the signals
 
         Returns:
             RebalancePlanDTO or None if no rebalancing needed
@@ -347,14 +397,52 @@ class PortfolioAnalysisHandler:
             )
 
             # Generate rebalance plan using portfolio service
-            return portfolio_service.create_rebalance_plan_dto(
+            rebalance_plan = portfolio_service.create_rebalance_plan_dto(
                 strategy=strategy_allocation,
                 correlation_id=correlation_id,
             )
 
+            # Add strategy attribution to metadata if plan was created
+            # Use the actual strategy names instead of hardcoded "DSL"
+            strategy_name = self._format_strategy_names(strategy_names or ["DSL"])
+
+            if rebalance_plan and rebalance_plan.metadata is None:
+                # Create new metadata dict with strategy attribution
+                plan_dict = rebalance_plan.model_dump()
+                plan_dict["metadata"] = {"strategy_name": strategy_name}
+                # Recreate the plan with updated metadata
+                rebalance_plan = RebalancePlanDTO.model_validate(plan_dict)
+            elif rebalance_plan and rebalance_plan.metadata:
+                # Update existing metadata with strategy attribution
+                plan_dict = rebalance_plan.model_dump()
+                plan_dict["metadata"]["strategy_name"] = strategy_name
+                # Recreate the plan with updated metadata
+                rebalance_plan = RebalancePlanDTO.model_validate(plan_dict)
+
+            return rebalance_plan
+
         except Exception as e:
             self.logger.error(f"Failed to create rebalance plan: {e}")
             return None
+
+    def _format_strategy_names(self, strategy_names: list[str]) -> str:
+        """Format strategy names for metadata.
+
+        Args:
+            strategy_names: List of strategy names
+
+        Returns:
+            Formatted string for strategy attribution
+
+        """
+        if not strategy_names:
+            return "DSL"
+
+        if len(strategy_names) == 1:
+            return strategy_names[0]
+
+        # For multiple strategies, use the first one as primary with count
+        return f"{strategy_names[0]} (+{len(strategy_names) - 1} others)"
 
     def _emit_rebalance_planned_event(
         self,
@@ -362,6 +450,7 @@ class PortfolioAnalysisHandler:
         allocation_comparison: AllocationComparisonDTO,
         correlation_id: str,
         account_info: dict[str, Any],
+        strategy_names: list[str] | None = None,
     ) -> None:
         """Emit RebalancePlanned event.
 
@@ -370,6 +459,7 @@ class PortfolioAnalysisHandler:
             allocation_comparison: Allocation comparison data
             correlation_id: Correlation ID from the triggering event
             account_info: Account information with portfolio value
+            strategy_names: List of strategy names that generated the signals
 
         """
         try:
@@ -379,6 +469,9 @@ class PortfolioAnalysisHandler:
                     RebalancePlanDTO,
                 )
 
+                # Format strategy names for metadata
+                strategy_name = self._format_strategy_names(strategy_names or ["DSL"])
+
                 rebalance_plan = RebalancePlanDTO(
                     plan_id=f"no-trade-{uuid.uuid4()}",
                     correlation_id=correlation_id,
@@ -387,7 +480,10 @@ class PortfolioAnalysisHandler:
                     items=[],
                     total_portfolio_value=Decimal(str(account_info.get("portfolio_value", 0))),
                     total_trade_value=Decimal("0"),
-                    metadata={"scenario": "no_trades_needed"},
+                    metadata={
+                        "scenario": "no_trades_needed",
+                        "strategy_name": strategy_name,
+                    },
                 )
             self._log_final_rebalance_plan_summary(rebalance_plan)
 

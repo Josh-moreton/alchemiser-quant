@@ -182,6 +182,39 @@ class TradeLedgerQuery(BaseModel):
         return ensure_timezone_aware(v)
 
 
+class AccountValueQuery(BaseModel):
+    """DTO for account value query filters."""
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    # Filter criteria
+    account_id: str | None = Field(default=None, description="Filter by account ID")
+
+    # Date range filtering
+    start_date: datetime | None = Field(default=None, description="Start of date range (inclusive)")
+    end_date: datetime | None = Field(default=None, description="End of date range (inclusive)")
+
+    # Pagination
+    limit: int | None = Field(default=None, ge=1, le=10000, description="Maximum results to return")
+    offset: int | None = Field(default=None, ge=0, description="Number of results to skip")
+
+    # Ordering
+    ascending: bool = Field(default=True, description="Sort order (True for ascending)")
+
+    @field_validator("start_date", "end_date")
+    @classmethod
+    def ensure_timezone_aware_dates(cls, v: datetime | None) -> datetime | None:
+        """Ensure date filters are timezone-aware."""
+        if v is None:
+            return None
+        return ensure_timezone_aware(v)
+
+
 class Lot(BaseModel):
     """DTO representing a lot (position slice) for attribution tracking."""
 
@@ -310,3 +343,42 @@ class PerformanceSummary(BaseModel):
     def net_quantity(self) -> Decimal:
         """Calculate net quantity (buys - sells)."""
         return self.total_buy_quantity - self.total_sell_quantity
+
+
+class AccountValueEntry(BaseModel):
+    """DTO for account value snapshots in trade ledger for simplified tracking.
+
+    This allows the trade ledger to support account value tracking with optional
+    full trade logging disabled, providing a lightweight alternative for
+    portfolio performance visualization.
+    """
+
+    model_config = ConfigDict(
+        strict=True,
+        frozen=True,
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    # Identification
+    entry_id: str = Field(..., min_length=1, description="Unique identifier for this entry")
+    account_id: str = Field(..., min_length=1, description="Account identifier")
+
+    # Value information
+    portfolio_value: Decimal = Field(..., description="Total portfolio value")
+    cash: Decimal = Field(..., description="Cash balance")
+    equity: Decimal = Field(..., description="Equity (positions + cash)")
+
+    # Metadata
+    timestamp: datetime = Field(..., description="Entry timestamp (timezone-aware)")
+    source: str = Field(default="trade_ledger", description="Source system")
+
+    @field_validator("timestamp")
+    @classmethod
+    def validate_timestamp(cls, v: datetime) -> datetime:
+        """Ensure timestamp is timezone-aware."""
+        return ensure_timezone_aware(v)
+
+    def get_date_key(self) -> str:
+        """Get date key for daily grouping (YYYY-MM-DD format)."""
+        return self.timestamp.strftime("%Y-%m-%d")
