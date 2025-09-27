@@ -267,7 +267,7 @@ class PnLService:
             lines.append(f"Ending Value: ${pnl_data.end_value:,.2f}")
         
         if pnl_data.total_pnl is not None:
-            pnl_sign = "📈" if pnl_data.total_pnl >= 0 else "📉"
+            pnl_sign = "📈" if pnl_data.total_pnl is not None and pnl_data.total_pnl >= 0 else "📉"
             lines.append(f"Total P&L: {pnl_sign} ${pnl_data.total_pnl:+,.2f}")
         
         if pnl_data.total_pnl_pct is not None:
