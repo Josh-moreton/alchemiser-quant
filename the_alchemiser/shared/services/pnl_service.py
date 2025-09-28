@@ -14,46 +14,20 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.brokers.alpaca_manager import (
+    AlpacaManager,
+    create_alpaca_manager,
+)
+from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+from the_alchemiser.shared.dto.pnl import PnLData
 
 logger = logging.getLogger(__name__)
 
+# Constants
+PERCENTAGE_MULTIPLIER = Decimal("100")
 
-class PnLData:
-    """Container for P&L analysis data."""
 
-    def __init__(
-        self,
-        period: str,
-        start_date: str,
-        end_date: str,
-        start_value: Decimal | None = None,
-        end_value: Decimal | None = None,
-        total_pnl: Decimal | None = None,
-        total_pnl_pct: Decimal | None = None,
-        daily_data: list[dict[str, Any]] | None = None,
-    ) -> None:
-        """Initialize PnLData.
-
-        Args:
-            period: Human-readable period description.
-            start_date: Period start date (ISO format YYYY-MM-DD).
-            end_date: Period end date (ISO format YYYY-MM-DD).
-            start_value: Starting equity value as Decimal.
-            end_value: Ending equity value as Decimal.
-            total_pnl: Absolute P&L over the period.
-            total_pnl_pct: Percentage P&L over the period.
-            daily_data: Optional list of day-level entries.
-
-        """
-        self.period = period
-        self.start_date = start_date
-        self.end_date = end_date
-        self.start_value = start_value
-        self.end_value = end_value
-        self.total_pnl = total_pnl
-        self.total_pnl_pct = total_pnl_pct
-        self.daily_data = daily_data or []
+## DTO moved to shared/dto/pnl.py per typing policy
 
 
 class PnLService:
@@ -67,11 +41,6 @@ class PnLService:
 
         """
         if alpaca_manager is None:
-            from the_alchemiser.shared.brokers.alpaca_manager import (
-                create_alpaca_manager,
-            )
-            from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
-
             api_key, secret_key, endpoint = get_alpaca_keys()
             if not api_key or not secret_key:
                 raise ValueError("Alpaca API keys not found in configuration")
@@ -147,7 +116,9 @@ class PnLService:
         else:
             end_year = year
             end_month = month + 1
-        end_date = (datetime(end_year, end_month, 1, tzinfo=UTC) - timedelta(days=1)).date()
+        end_date = (
+            datetime(end_year, end_month, 1, tzinfo=UTC) - timedelta(days=1)
+        ).date()
 
         return self._get_period_pnl(
             period=f"{months_back} month{'s' if months_back > 1 else ''}",
@@ -195,7 +166,9 @@ class PnLService:
             )
 
             if not history:
-                logger.error(f"Failed to get portfolio history for {start_date} to {end_date}")
+                logger.error(
+                    f"Failed to get portfolio history for {start_date} to {end_date}"
+                )
                 return PnLData(period=period, start_date=start_date, end_date=end_date)
 
             return self._process_history_data(history, period, start_date, end_date)
@@ -233,7 +206,9 @@ class PnLService:
                 logger.warning(f"No data found for period {period}")
                 return PnLData(period=period, start_date=start_date, end_date=end_date)
 
-            start_value, end_value, total_pnl, total_pnl_pct = self._calculate_totals(equity_values)
+            start_value, end_value, total_pnl, total_pnl_pct = self._calculate_totals(
+                equity_values
+            )
             daily_data = self._build_daily_data(
                 timestamps, equity_values, profit_loss, profit_loss_pct
             )
@@ -273,7 +248,7 @@ class PnLService:
         # equity_values is non-empty here, so start/end are always defined
         total_pnl = end_value - start_value
         if start_value > 0:
-            total_pnl_pct = (total_pnl / start_value) * Decimal("100")
+            total_pnl_pct = (total_pnl / start_value) * PERCENTAGE_MULTIPLIER
 
         return start_value, end_value, total_pnl, total_pnl_pct
 
@@ -313,7 +288,7 @@ class PnLService:
             else:
                 daily_pnl = curr_equity - prev_equity
                 if prev_equity != 0:
-                    daily_pct = (daily_pnl / prev_equity) * Decimal("100")
+                    daily_pct = (daily_pnl / prev_equity) * PERCENTAGE_MULTIPLIER
                 else:
                     daily_pct = Decimal("0")
 
