@@ -14,16 +14,17 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from the_alchemiser.shared.notifications.client import EmailClient
+from the_alchemiser.shared.notifications.templates.email_facade import EmailTemplates
+from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountService
+from the_alchemiser.shared.services.monthly_summary_service import MonthlySummaryService
+
 # Add the project root to the Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from the_alchemiser.shared.notifications.client import EmailClient
-from the_alchemiser.shared.notifications.templates.email_facade import EmailTemplates
-from the_alchemiser.shared.services.monthly_summary_service import MonthlySummaryService
 
-
-def setup_logging(verbose: bool) -> None:
+def setup_logging(*, verbose: bool) -> None:
     """Set up logging configuration.
 
     Args:
@@ -78,8 +79,7 @@ def get_previous_month() -> tuple[int, int]:
     now = datetime.now(UTC)
     if now.month == 1:
         return now.year - 1, 12
-    else:
-        return now.year, now.month - 1
+    return now.year, now.month - 1
 
 
 def infer_mode() -> str:
@@ -95,12 +95,11 @@ def infer_mode() -> str:
 
     if stage == "PROD" or mode == "LIVE":
         return "LIVE"
-    else:
-        return "PAPER"
+    return "PAPER"
 
 
 def main() -> int:
-    """Main CLI entry point.
+    """Run the monthly summary CLI entry point.
 
     Returns:
         Exit code (0 for success, 1 for error)
@@ -194,7 +193,30 @@ Examples:
 
         # Generate monthly summary
         logger.info("Computing monthly summary data...")
-        service = MonthlySummaryService()
+        # Attempt to create an Alpaca account service for richer portfolio P&L
+        alpaca_service: AlpacaAccountService | None = None
+        try:
+            from alpaca.trading.client import TradingClient
+
+            from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+
+            api_key, secret_key, endpoint = get_alpaca_keys()
+            if api_key and secret_key:
+                paper = endpoint != "https://api.alpaca.markets" if endpoint else True
+                client = TradingClient(
+                    api_key=api_key, secret_key=secret_key, paper=paper
+                )
+                alpaca_service = AlpacaAccountService(client)
+            else:
+                logger.info(
+                    "Alpaca credentials not found; portfolio P&L will be omitted"
+                )
+        except Exception as cred_exc:
+            logger.info(
+                f"Alpaca setup not available; proceeding without portfolio P&L: {cred_exc}"
+            )
+
+        service = MonthlySummaryService(alpaca_account_service=alpaca_service)
         summary = service.compute_monthly_summary(year, month, args.account_id)
 
         # Generate HTML content
@@ -211,7 +233,9 @@ Examples:
         # Handle dry-run mode
         if args.dry_run:
             print(f"✅ Dry run completed for {summary.month_label}")
-            print(f"Portfolio P&L: {summary.portfolio_pnl_abs} ({summary.portfolio_pnl_pct}%)")
+            print(
+                f"Portfolio P&L: {summary.portfolio_pnl_abs} ({summary.portfolio_pnl_pct}%)"
+            )
             print(f"Strategy count: {len(summary.strategy_rows)}")
             if summary.notes:
                 print(f"Notes: {', '.join(summary.notes)}")
@@ -219,7 +243,9 @@ Examples:
 
         # Send email
         logger.info("Sending email...")
-        subject = args.subject or f"The Alchemiser — Monthly Summary ({summary.month_label})"
+        subject = (
+            args.subject or f"The Alchemiser — Monthly Summary ({summary.month_label})"
+        )
 
         client = EmailClient()
         success = client.send_notification(
@@ -231,9 +257,8 @@ Examples:
         if success:
             logger.info("✅ Monthly summary email sent successfully")
             return 0
-        else:
-            logger.error("❌ Failed to send monthly summary email")
-            return 1
+        logger.error("❌ Failed to send monthly summary email")
+        return 1
 
     except Exception as e:
         logger.error(f"Error generating monthly summary: {e}")

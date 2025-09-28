@@ -229,15 +229,16 @@ def _handle_critical_error(
 def parse_event_mode(event: LambdaEvent | dict[str, Any]) -> list[str] | None:
     """Parse the Lambda event.
 
-    Supports two paths:
+    Supports three paths:
     - Trading (default): returns ['trade']
+    - P&L analysis: returns ['pnl', ...] with P&L-specific arguments
     - Monthly summary: returns None to signal non-trading path handled in lambda_handler
 
     Args:
         event: AWS Lambda event data
 
     Returns:
-        List of command arguments for the main function: ['trade'] or None for monthly summary
+        List of command arguments for the main function or None for monthly summary
 
     """
     # Validate event shape
@@ -250,6 +251,29 @@ def parse_event_mode(event: LambdaEvent | dict[str, Any]) -> list[str] | None:
     ):
         logger.info("Parsed event to action: monthly_summary")
         return None
+
+    # P&L analysis action
+    if isinstance(event_obj, LambdaEvent) and getattr(event_obj, "action", None) == "pnl_analysis":
+        logger.info("Parsed event to action: pnl_analysis")
+        command_args = ["pnl"]
+
+        # Add P&L-specific arguments
+        if getattr(event_obj, "pnl_type", None) == "weekly":
+            command_args.append("--weekly")
+        elif getattr(event_obj, "pnl_type", None) == "monthly":
+            command_args.append("--monthly")
+
+        if getattr(event_obj, "pnl_period", None):
+            command_args.extend(["--period", str(event_obj.pnl_period)])
+
+        pnl_periods_val = getattr(event_obj, "pnl_periods", None)
+        if isinstance(pnl_periods_val, int) and pnl_periods_val > 1:
+            command_args.extend(["--periods", str(event_obj.pnl_periods)])
+
+        if getattr(event_obj, "pnl_detailed", None):
+            command_args.append("--detailed")
+
+        return command_args
 
     logger.info("Parsed event to command: trade")
     return ["trade"]
