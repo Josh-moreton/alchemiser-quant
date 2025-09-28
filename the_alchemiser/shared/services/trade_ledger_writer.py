@@ -207,6 +207,14 @@ class TradeLedgerWriter:
             price=executed_order.price,
             fees=fees,
             timestamp=executed_order.execution_timestamp,
+            # Market context at execution time
+            bid_price_at_fill=executed_order.bid_at_fill,
+            ask_price_at_fill=executed_order.ask_at_fill,
+            spread_at_fill=(
+                (executed_order.ask_at_fill - executed_order.bid_at_fill)
+                if executed_order.bid_at_fill and executed_order.ask_at_fill
+                else None
+            ),
             # Broker references
             order_id=executed_order.order_id,
             client_order_id=None,  # Not available in ExecutedOrder

@@ -133,6 +133,8 @@ class ExecutionManager:
             commission=None,  # Not available in OrderResult
             fees=None,  # Not available in OrderResult
             error_message=order.error_message,
+            bid_at_fill=order.bid_at_fill,
+            ask_at_fill=order.ask_at_fill,
         )
 
     def execute_rebalance_plan(self, plan: RebalancePlan) -> ExecutionResult:

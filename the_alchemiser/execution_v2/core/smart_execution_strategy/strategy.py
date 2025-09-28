@@ -450,6 +450,8 @@ class SmartExecutionStrategy:
             execution_strategy=f"smart_liquidity_{analysis_metadata['strategy_recommendation']}",
             placement_timestamp=placement_time,
             metadata=metadata_dict,
+            bid_at_placement=Decimal(str(quote.bid_price)),
+            ask_at_placement=Decimal(str(quote.ask_price)),
         )
 
     async def _place_market_order_fallback(self, request: SmartOrderRequest) -> SmartOrderResult:

@@ -39,6 +39,10 @@ class OrderResult(BaseModel):
     success: bool = Field(..., description="Order success flag")
     error_message: str | None = Field(default=None, description="Error message if failed")
     timestamp: datetime = Field(..., description="Order execution timestamp")
+    
+    # Market context at execution time (for fill analysis)
+    bid_at_fill: Decimal | None = Field(default=None, description="Bid price at time of fill")
+    ask_at_fill: Decimal | None = Field(default=None, description="Ask price at time of fill")
 
 
 class ExecutionResult(BaseModel):

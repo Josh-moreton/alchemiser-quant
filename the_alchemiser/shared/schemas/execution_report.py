@@ -47,6 +47,10 @@ class ExecutedOrder(BaseModel):
     commission: Decimal | None = Field(default=None, ge=0, description="Commission paid")
     fees: Decimal | None = Field(default=None, ge=0, description="Additional fees")
     error_message: str | None = Field(default=None, description="Error message if failed")
+    
+    # Market context at execution time (for fill analysis)
+    bid_at_fill: Decimal | None = Field(default=None, gt=0, description="Bid price at time of fill")
+    ask_at_fill: Decimal | None = Field(default=None, gt=0, description="Ask price at time of fill")
 
     @field_validator("symbol")
     @classmethod

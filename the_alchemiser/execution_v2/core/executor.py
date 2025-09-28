@@ -167,6 +167,8 @@ class Executor:
                         success=True,
                         error_message=None,
                         timestamp=datetime.now(UTC),
+                        bid_at_fill=result.bid_at_placement,
+                        ask_at_fill=result.ask_at_placement,
                     )
                 logger.warning(f"⚠️ Smart execution failed for {symbol}: {result.error_message}")
 

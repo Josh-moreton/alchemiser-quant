@@ -71,6 +71,11 @@ class TradeLedgerEntry(BaseModel):
     fees: Decimal = Field(default=Decimal("0"), ge=0, description="Total fees for this fill")
     timestamp: datetime = Field(..., description="Execution timestamp (UTC)")
 
+    # Market context at execution time (for execution analysis)
+    bid_price_at_fill: Decimal | None = Field(default=None, gt=0, description="Bid price at time of fill")
+    ask_price_at_fill: Decimal | None = Field(default=None, gt=0, description="Ask price at time of fill")
+    spread_at_fill: Decimal | None = Field(default=None, ge=0, description="Bid-ask spread at time of fill")
+
     # Broker references for reconciliation
     order_id: str = Field(..., min_length=1, description="Broker order identifier")
     client_order_id: str | None = Field(default=None, description="Client-side order identifier")

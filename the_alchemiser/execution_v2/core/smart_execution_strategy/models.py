@@ -102,3 +102,7 @@ class SmartOrderResult:
     error_message: str | None = None
     placement_timestamp: datetime | None = None
     metadata: LiquidityMetadata | None = None
+    
+    # Market context for fill analysis
+    bid_at_placement: Decimal | None = None
+    ask_at_placement: Decimal | None = None
