@@ -58,6 +58,10 @@ mkdir -p dependencies
 if poetry help export > /dev/null 2>&1; then
     echo "📦 Updating dependencies layer requirements (production only)..."
     poetry export --only=main -f requirements.txt --without-hashes -o dependencies/requirements.txt
+    # Strip AWS-managed SDKs to rely on Lambda's built-in boto3/botocore and slim the layer
+    if [ -f "dependencies/requirements.txt" ]; then
+        sed -i.bak '/^boto3[<=>]/d;/^botocore[<=>]/d' dependencies/requirements.txt && rm -f dependencies/requirements.txt.bak || true
+    fi
     # Remove pydantic-core pin if present (allow resolver to pick compatible core)
     sed -i.bak '/^pydantic-core==/d' dependencies/requirements.txt && rm -f dependencies/requirements.txt.bak
 else

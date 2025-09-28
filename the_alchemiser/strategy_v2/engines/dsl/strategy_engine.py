@@ -57,8 +57,8 @@ class DslStrategyEngine:
             self.settings = Settings(strategy=Settings().strategy)
 
         # Initialize DSL engine with strategies directory as config path and real market data
-        project_root = Path(__file__).parent.parent.parent.parent.parent
-        strategies_path = project_root / "the_alchemiser" / "strategy_v2" / "strategies"
+        # Resolve strategies directory relative to this module to avoid depending on repo root
+        strategies_path = Path(__file__).parent.parent.parent / "strategies"
         self.dsl_engine = DslEngine(
             strategy_config_path=str(strategies_path),
             market_data_service=self.market_data_port,

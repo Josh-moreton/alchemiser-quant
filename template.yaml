@@ -93,11 +93,34 @@ Resources:
       FunctionName: !Sub "the-alchemiser-v2-lambda-${Stage}"
       PackageType: Zip
       Runtime: python3.12
-      CodeUri: .
-      Handler: the_alchemiser.lambda_handler.lambda_handler
+      CodeUri: the_alchemiser/
+      Handler: lambda_handler.lambda_handler
       Role: !GetAtt TradingSystemExecutionRole.Arn
       Layers:
         - !Ref DependenciesLayer
+    Metadata:
+      BuildMethod: python3.12
+      BuildProperties:
+        Exclude:
+          - .git/**
+          - .github/**
+          - .aws-sam/**
+          - .venv/**
+          - venv/**
+          - env/**
+          - tests/**
+          - docs/**
+          - logs/**
+          - data/**
+          - scripts/**
+          - dependencies/**
+          - CHANGELOG.md
+          - README.md
+          - logo.png
+          - poetry.lock
+          - pyproject.toml
+          - pytest.ini
+          - sonar-project.properties
 
   # Dead Letter Queue for failed trading executions
   TradingSystemDLQ:
