@@ -290,25 +290,48 @@ class PnLService:
         profit_loss: list[Any],
         profit_loss_pct: list[Any],
     ) -> list[dict[str, Any]]:
-        """Convert raw history arrays into per-day dictionaries."""
+        """Convert raw history arrays into per-day dictionaries.
+
+        Notes:
+        - Compute DAILY changes directly from the equity series to avoid ambiguity,
+          as some providers return profit_loss/profit_loss_pct cumulative to base value.
+        - Daily P&L = equity[i] - equity[i-1] (0 for first day)
+        - Daily %   = (Daily P&L / equity[i-1]) * 100 (0 for first day or if prior is 0)
+        - Keep keys as 'profit_loss' and 'profit_loss_pct' for backward-compatible formatting.
+
+        """
         daily: list[dict[str, Any]] = []
         eq_len = len(equity_values)
-        for i, ts in enumerate(timestamps):
-            if i >= eq_len:
-                break
+        ts_len = len(timestamps)
+        n = min(eq_len, ts_len)
+        if n == 0:
+            return daily
+
+        prev_equity: Decimal | None = None
+        for i in range(n):
+            ts = timestamps[i]
+            curr_equity = Decimal(str(equity_values[i]))
+            date_str = datetime.fromtimestamp(ts, tz=UTC).date().isoformat()
+
+            if prev_equity is None:
+                daily_pnl = Decimal("0")
+                daily_pct = Decimal("0")
+            else:
+                daily_pnl = curr_equity - prev_equity
+                if prev_equity != 0:
+                    daily_pct = (daily_pnl / prev_equity) * Decimal("100")
+                else:
+                    daily_pct = Decimal("0")
+
             entry: dict[str, Any] = {
-                "date": datetime.fromtimestamp(ts, tz=UTC).date().isoformat(),
-                "equity": Decimal(str(equity_values[i])),
+                "date": date_str,
+                "equity": curr_equity,
+                "profit_loss": daily_pnl,
+                "profit_loss_pct": daily_pct,
             }
-            if i < len(profit_loss):
-                entry["profit_loss"] = Decimal(str(profit_loss[i]))
-            else:
-                entry["profit_loss"] = None
-            if i < len(profit_loss_pct):
-                entry["profit_loss_pct"] = Decimal(str(profit_loss_pct[i]))
-            else:
-                entry["profit_loss_pct"] = None
             daily.append(entry)
+            prev_equity = curr_equity
+
         return daily
 
     def format_pnl_report(self, pnl_data: PnLData, *, detailed: bool = False) -> str:
