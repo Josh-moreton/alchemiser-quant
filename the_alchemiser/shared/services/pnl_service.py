@@ -147,9 +147,7 @@ class PnLService:
         else:
             end_year = year
             end_month = month + 1
-        end_date = (
-            datetime(end_year, end_month, 1, tzinfo=UTC) - timedelta(days=1)
-        ).date()
+        end_date = (datetime(end_year, end_month, 1, tzinfo=UTC) - timedelta(days=1)).date()
 
         return self._get_period_pnl(
             period=f"{months_back} month{'s' if months_back > 1 else ''}",
@@ -197,9 +195,7 @@ class PnLService:
             )
 
             if not history:
-                logger.error(
-                    f"Failed to get portfolio history for {start_date} to {end_date}"
-                )
+                logger.error(f"Failed to get portfolio history for {start_date} to {end_date}")
                 return PnLData(period=period, start_date=start_date, end_date=end_date)
 
             return self._process_history_data(history, period, start_date, end_date)
@@ -237,9 +233,7 @@ class PnLService:
                 logger.warning(f"No data found for period {period}")
                 return PnLData(period=period, start_date=start_date, end_date=end_date)
 
-            start_value, end_value, total_pnl, total_pnl_pct = self._calculate_totals(
-                equity_values
-            )
+            start_value, end_value, total_pnl, total_pnl_pct = self._calculate_totals(equity_values)
             daily_data = self._build_daily_data(
                 timestamps, equity_values, profit_loss, profit_loss_pct
             )

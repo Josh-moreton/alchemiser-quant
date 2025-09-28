@@ -21,11 +21,7 @@ def run() -> None:
     result = main(sys.argv[1:]) if len(sys.argv) > 1 else main(["trade"])
 
     # Handle both TradeRunResult and boolean return types
-    success = (
-        getattr(result, "success", False)
-        if hasattr(result, "success")
-        else bool(result)
-    )
+    success = getattr(result, "success", False) if hasattr(result, "success") else bool(result)
 
     sys.exit(0 if success else 1)
 
@@ -52,9 +48,7 @@ if __name__ == "__main__":
         print("Examples:")
         print("  python -m the_alchemiser                    # Run trading")
         print("  python -m the_alchemiser pnl --weekly      # Weekly P&L report")
-        print(
-            "  python -m the_alchemiser pnl --monthly --detailed  # Detailed monthly P&L"
-        )
+        print("  python -m the_alchemiser pnl --monthly --detailed  # Detailed monthly P&L")
         print("  python -m the_alchemiser pnl --period 3M   # 3-month P&L")
         sys.exit(0)
 
