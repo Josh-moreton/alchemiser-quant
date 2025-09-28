@@ -152,7 +152,6 @@ class TradingExecutionHandler:
             execution_manager = ExecutionManager(
                 alpaca_manager=self.container.infrastructure.alpaca_manager(),
                 execution_config=ExecutionConfig(),
-                enable_smart_execution=execution_settings.enable_smart_execution,
                 enable_trade_ledger=execution_settings.enable_trade_ledger,
             )
             execution_result = execution_manager.execute_rebalance_plan(rebalance_plan)

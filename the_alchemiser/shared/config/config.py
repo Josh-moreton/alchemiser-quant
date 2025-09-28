@@ -128,10 +128,6 @@ class ExecutionSettings(BaseModel):
     high_volume_etfs: list[str] = Field(
         default_factory=lambda: ["SPY", "QQQ", "TLT", "XLF", "XLK", "XLP", "XLY", "VOX"]
     )
-    # Phase 1: Canonical order executor feature flag (enabled by default for consolidation)
-    use_canonical_executor: bool = True
-    # Smart execution with liquidity-aware volume analysis (enabled by default)
-    enable_smart_execution: bool = True
     # Trade ledger recording for execution tracking and performance attribution
     enable_trade_ledger: bool = False
     # Control whether partial execution outcomes should be treated as workflow failures
