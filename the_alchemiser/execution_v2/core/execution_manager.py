@@ -15,6 +15,7 @@ from the_alchemiser.execution_v2.models.execution_result import (
     OrderResult,
 )
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.config.config_service import ConfigService
 from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 
@@ -212,7 +213,16 @@ class ExecutionManager:
             ExecutionManager instance with configured smart execution
 
         """
-        alpaca_manager = AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper)
+        # Get extended hours setting from config
+        config_service = ConfigService()
+        extended_hours_enabled = config_service.extended_hours_enabled
+        
+        alpaca_manager = AlpacaManager(
+            api_key=api_key, 
+            secret_key=secret_key, 
+            paper=paper,
+            extended_hours_enabled=extended_hours_enabled,
+        )
         return cls(
             alpaca_manager=alpaca_manager,
             execution_config=execution_config,

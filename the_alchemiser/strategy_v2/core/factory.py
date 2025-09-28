@@ -10,6 +10,7 @@ strategy orchestrators with market data adapters.
 from __future__ import annotations
 
 from ...shared.brokers.alpaca_manager import AlpacaManager
+from ...shared.config.config_service import ConfigService
 from ..adapters.market_data_adapter import StrategyMarketDataAdapter
 from .orchestrator import SingleStrategyOrchestrator
 
@@ -28,8 +29,17 @@ def create_orchestrator(
         Configured strategy orchestrator
 
     """
+    # Get extended hours setting from config
+    config_service = ConfigService()
+    extended_hours_enabled = config_service.extended_hours_enabled
+    
     # Create Alpaca manager
-    alpaca_manager = AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper)
+    alpaca_manager = AlpacaManager(
+        api_key=api_key, 
+        secret_key=secret_key, 
+        paper=paper,
+        extended_hours_enabled=extended_hours_enabled,
+    )
 
     # Create market data adapter
     market_data_adapter = StrategyMarketDataAdapter(alpaca_manager)

@@ -59,6 +59,7 @@ class AlpacaTradingService:
         websocket_manager: WebSocketConnectionManager,
         *,
         paper_trading: bool = True,
+        extended_hours_enabled: bool = False,
     ) -> None:
         """Initialize trading service.
 
@@ -66,11 +67,13 @@ class AlpacaTradingService:
             trading_client: Alpaca trading client
             websocket_manager: WebSocket manager for order updates
             paper_trading: Whether using paper trading mode
+            extended_hours_enabled: Whether extended hours trading is enabled
 
         """
         self._trading_client = trading_client
         self._websocket_manager = websocket_manager
         self._paper_trading = paper_trading
+        self._extended_hours_enabled = extended_hours_enabled
 
         # Order tracking for WebSocket updates (centralized utility)
         self._order_tracker = OrderTracker()
@@ -79,7 +82,8 @@ class AlpacaTradingService:
         self._trading_service_active = False
 
         logger.debug(
-            f"🏪 AlpacaTradingService initialized ({'paper' if paper_trading else 'live'})"
+            f"🏪 AlpacaTradingService initialized ({'paper' if paper_trading else 'live'}, "
+            f"extended_hours={'enabled' if extended_hours_enabled else 'disabled'})"
         )
 
     def __del__(self) -> None:
@@ -103,6 +107,11 @@ class AlpacaTradingService:
     def is_paper_trading(self) -> bool:
         """Check if this is paper trading."""
         return self._paper_trading
+
+    @property
+    def extended_hours_enabled(self) -> bool:
+        """Check if extended hours trading is enabled."""
+        return self._extended_hours_enabled
 
     def place_order(self, order_request: LimitOrderRequest | MarketOrderRequest) -> ExecutedOrder:
         """Place an order and return execution details."""
@@ -163,6 +172,7 @@ class AlpacaTradingService:
                 notional=notional,
                 side=OrderSide.BUY if side_normalized == "buy" else OrderSide.SELL,
                 time_in_force=TimeInForce.DAY,
+                extended_hours=self._extended_hours_enabled,
             )
 
             return self.place_order(order_request)
@@ -225,6 +235,7 @@ class AlpacaTradingService:
                 side=OrderSide.BUY if side == "buy" else OrderSide.SELL,
                 time_in_force=tif,
                 limit_price=limit_price,
+                extended_hours=self._extended_hours_enabled,
             )
 
             # Submit order

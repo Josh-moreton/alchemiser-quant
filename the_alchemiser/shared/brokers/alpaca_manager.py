@@ -112,9 +112,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         *,
         paper: bool = True,
         base_url: str | None = None,
+        extended_hours_enabled: bool = False,
     ) -> AlpacaManager:
         """Create or return existing instance for the given credentials."""
-        credentials_key = f"{api_key}:{secret_key}:{paper}:{base_url}"
+        credentials_key = f"{api_key}:{secret_key}:{paper}:{base_url}:{extended_hours_enabled}"
 
         with cls._lock:
             # Wait for any cleanup to complete
@@ -134,6 +135,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         *,
         paper: bool = True,
         base_url: str | None = None,
+        extended_hours_enabled: bool = False,
     ) -> None:
         """Initialize Alpaca clients (only once per credentials)."""
         # Skip initialization if already initialized (singleton pattern)
@@ -144,6 +146,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         self._secret_key = secret_key
         self._paper = paper
         self._base_url = base_url
+        self._extended_hours_enabled = extended_hours_enabled
 
         # Initialize clients
         try:
@@ -172,7 +175,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         # Initialize extracted services
         self._account_service = AlpacaAccountService(self._trading_client)
         self._trading_service = AlpacaTradingService(
-            self._trading_client, self._websocket_manager, paper_trading=self._paper
+            self._trading_client, 
+            self._websocket_manager, 
+            paper_trading=self._paper,
+            extended_hours_enabled=self._extended_hours_enabled,
         )
         self._asset_metadata_service = AssetMetadataService(self._trading_client)
 
@@ -732,11 +738,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
 # Factory function for easy creation
 def create_alpaca_manager(
-    api_key: str, secret_key: str, *, paper: bool = True, base_url: str | None = None
+    api_key: str, secret_key: str, *, paper: bool = True, base_url: str | None = None, extended_hours_enabled: bool = False
 ) -> AlpacaManager:
     """Create an AlpacaManager instance.
 
     This function provides a clean way to create AlpacaManager instances
     and can be easily extended with additional configuration options.
     """
-    return AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url)
+    return AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url, extended_hours_enabled=extended_hours_enabled)

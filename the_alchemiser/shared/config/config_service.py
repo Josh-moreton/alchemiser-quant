@@ -46,6 +46,11 @@ class ConfigService:
         """Get Alpaca live trading endpoint."""
         return self._config.alpaca.endpoint
 
+    @property
+    def extended_hours_enabled(self) -> bool:
+        """Check if extended hours trading is enabled."""
+        return self._config.alpaca.enable_extended_hours
+
     def get_endpoint(self, *, paper_trading: bool) -> str:
         """Get the appropriate endpoint for the trading mode.
 

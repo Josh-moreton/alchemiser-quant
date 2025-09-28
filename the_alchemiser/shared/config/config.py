@@ -35,6 +35,7 @@ class AlpacaSettings(BaseModel):
     )
     slippage_bps: int = 5
     enable_websocket_orders: bool = True
+    enable_extended_hours: bool = Field(default=False, alias="ALPACA_ENABLE_EXTENDED_HOURS")
     # Credentials - typically loaded from .env file or environment variables
     key: str | None = Field(default=None, alias="ALPACA_KEY")
     secret: str | None = Field(default=None, alias="ALPACA_SECRET")
