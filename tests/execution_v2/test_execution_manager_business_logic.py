@@ -32,6 +32,8 @@ def _make_order_result(
     price: Decimal | None = None,
     order_id: str | None = None,
     error_message: str | None = None,
+    bid_at_fill: Decimal | None = None,
+    ask_at_fill: Decimal | None = None,
 ):
     return OrderResult(
         symbol=symbol,
@@ -43,6 +45,8 @@ def _make_order_result(
         success=success,
         error_message=error_message,
         timestamp=datetime.now(UTC),
+        bid_at_fill=bid_at_fill,
+        ask_at_fill=ask_at_fill,
     )
 
 
@@ -536,3 +540,64 @@ class TestExecutionManagerBusinessLogic:
         mock_executor.execute_rebalance_plan.assert_awaited_once_with(
             sample_rebalance_plan
         )
+
+    def test_bid_ask_data_flow_through_execution_chain(
+        self, mock_alpaca_manager, execution_config, sample_rebalance_plan
+    ):
+        """Test that bid/ask data flows through the execution chain to trade ledger."""
+        # Expected bid/ask values from smart execution
+        expected_bid = Decimal("149.50")
+        expected_ask = Decimal("150.50")
+        
+        order_with_bid_ask = _make_order_result(
+            symbol="AAPL",
+            action="BUY",
+            shares=Decimal("10"),
+            trade_amount=Decimal("1500.00"),
+            success=True,
+            price=Decimal("150.00"),
+            order_id="order-123",
+            bid_at_fill=expected_bid,
+            ask_at_fill=expected_ask,
+        )
+        
+        mock_trade_ledger_writer = Mock()
+        
+        with patch(
+            "the_alchemiser.execution_v2.core.execution_manager.Executor"
+        ) as mock_executor_class:
+            mock_executor = Mock()
+            mock_executor.enable_smart_execution = True
+            mock_executor.execute_rebalance_plan = AsyncMock(
+                return_value=_make_execution_result(
+                    success=True,
+                    status=ExecutionStatus.SUCCESS,
+                    orders=[order_with_bid_ask],
+                    total_trade_value=Decimal("1500.00"),
+                )
+            )
+            mock_executor_class.return_value = mock_executor
+            
+            execution_manager = ExecutionManager(
+                alpaca_manager=mock_alpaca_manager,
+                execution_config=execution_config,
+                trade_ledger_writer=mock_trade_ledger_writer,
+            )
+            
+            result = execution_manager.execute_rebalance_plan(sample_rebalance_plan)
+            
+        # Should execute successfully
+        assert result.status is ExecutionStatus.SUCCESS
+        
+        # Should propagate bid/ask data to trade ledger
+        if mock_trade_ledger_writer.record_executions.called:
+            # Extract the ExecutedOrder that was passed to the trade ledger
+            call_args = mock_trade_ledger_writer.record_executions.call_args
+            executed_orders = call_args[0][0]  # First positional argument
+            
+            assert len(executed_orders) == 1
+            executed_order = executed_orders[0]
+            
+            # Verify bid/ask data is preserved
+            assert executed_order.bid_at_fill == expected_bid
+            assert executed_order.ask_at_fill == expected_ask
