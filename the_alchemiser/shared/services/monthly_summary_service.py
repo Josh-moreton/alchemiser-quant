@@ -58,7 +58,9 @@ class MonthlySummaryService:
 
             api_key, secret_key, endpoint = get_alpaca_keys()
             if not api_key or not secret_key:
-                logger.warning("Alpaca API keys not found - monthly summary will use fallback data")
+                logger.warning(
+                    "Alpaca API keys not found - monthly summary will use fallback data"
+                )
                 return None
 
             # Determine if this is paper trading based on endpoint (normalize variants)
@@ -74,7 +76,9 @@ class MonthlySummaryService:
 
             paper = _is_paper_from_endpoint(endpoint)
 
-            trading_client = TradingClient(api_key=api_key, secret_key=secret_key, paper=paper)
+            trading_client = TradingClient(
+                api_key=api_key, secret_key=secret_key, paper=paper
+            )
 
             return AlpacaAccountService(trading_client)
 
@@ -126,8 +130,12 @@ class MonthlySummaryService:
         notes = []
         if portfolio_pnl["first_value"] is None and portfolio_pnl["last_value"] is None:
             notes.append("No portfolio history found for this month from Alpaca API")
-        elif portfolio_pnl["first_value"] is None or portfolio_pnl["last_value"] is None:
-            notes.append("Limited portfolio history - percentage change may not be accurate")
+        elif (
+            portfolio_pnl["first_value"] is None or portfolio_pnl["last_value"] is None
+        ):
+            notes.append(
+                "Limited portfolio history - percentage change may not be accurate"
+            )
 
         if not strategy_rows:
             notes.append("No strategy trading activity found for this month")
@@ -178,7 +186,9 @@ class MonthlySummaryService:
         """
         try:
             if not self._alpaca_account_service:
-                logger.warning("No Alpaca account service available for portfolio history")
+                logger.warning(
+                    "No Alpaca account service available for portfolio history"
+                )
                 return {
                     "first_value": None,
                     "last_value": None,
@@ -226,7 +236,9 @@ class MonthlySummaryService:
                 pct_change = (abs_change / first_value) * Decimal("100")
 
             pct_str = f"{pct_change:+.2f}%" if pct_change else "N/A"
-            logger.info(f"Portfolio P&L for {year}-{month:02d}: ${abs_change:+,.2f} ({pct_str})")
+            logger.info(
+                f"Portfolio P&L for {year}-{month:02d}: ${abs_change:+,.2f} ({pct_str})"
+            )
 
             return {
                 "first_value": first_value,
@@ -270,7 +282,9 @@ class MonthlySummaryService:
                 # Force iteration if possible to surface issues early but don't depend on results
                 _ = list(entries_iter) if entries_iter is not None else []
             except Exception as exc:
-                logger.debug(f"Ignoring trade ledger query error for monthly summary window: {exc}")
+                logger.debug(
+                    f"Ignoring trade ledger query error for monthly summary window: {exc}"
+                )
 
             # Calculate performance summaries via ledger implementation
             # Note: Protocol does not accept date range; implementations may compute from full ledger
