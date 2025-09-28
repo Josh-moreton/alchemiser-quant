@@ -130,9 +130,3 @@ class TradeRunResult(BaseModel):
             "completed_at": self.completed_at.isoformat(),
             "correlation_id": self.correlation_id,
         }
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility aliases
-OrderResultSummaryDTO = OrderResultSummary
-ExecutionSummaryDTO = ExecutionSummary
-TradeRunResultDTO = TradeRunResult

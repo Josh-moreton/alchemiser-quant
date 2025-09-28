@@ -21,9 +21,7 @@ from .broker import OrderExecutionResult, WebSocketResult, WebSocketStatus
 from .common import (
     AllocationComparison,
     Configuration,
-    ConfigurationDTO,
     Error,
-    ErrorDTO,
     MultiStrategyExecutionResult,
     MultiStrategySummary,
 )
@@ -38,7 +36,6 @@ from .errors import (
 from .execution_report import (
     ExecutedOrder,
     ExecutionReport,
-    ExecutionReportDTO,
 )
 from .execution_result import ExecutionResult
 from .indicator_request import IndicatorRequest
@@ -53,15 +50,12 @@ from .market_data import (
 )
 from .order_request import (
     MarketData,
-    MarketDataDTO,
     OrderRequest,
-    OrderRequestDTO,
 )
 from .portfolio_state import (
     PortfolioMetrics,
     PortfolioState,
     Position,
-    PositionDTO,
 )
 from .rebalance_plan import (
     RebalancePlan,
@@ -70,11 +64,11 @@ from .rebalance_plan import (
 from .strategy_allocation import (
     StrategyAllocation,
 )
-from .strategy_signal import StrategySignal, StrategySignalDTO
+from .strategy_signal import StrategySignal
 from .technical_indicator import (
     TechnicalIndicator,
 )
-from .trace import Trace, TraceEntry, TraceEntryDTO
+from .trace import Trace, TraceEntry
 from .trade_ledger import (
     AssetType,
     Lot,
@@ -87,7 +81,6 @@ from .trade_result_factory import create_failure_result, create_success_result
 from .trade_run_result import (
     ExecutionSummary,
     OrderResultSummary,
-    OrderResultSummaryDTO,
     TradeRunResult,
 )
 
@@ -100,19 +93,16 @@ __all__ = [
     "AssetType",
     "BuyingPowerResult",
     "Configuration",
-    "ConfigurationDTO",
     "ConsolidatedPortfolio",
     "EnrichedAccountSummaryView",
     "Error",
     "ErrorContextData",
-    "ErrorDTO",
     "ErrorDetailInfo",
     "ErrorNotificationData",
     "ErrorReportSummary",
     "ErrorSummaryData",
     "ExecutedOrder",
     "ExecutionReport",
-    "ExecutionReportDTO",
     "ExecutionResult",
     "ExecutionSummary",
     "IndicatorRequest",
@@ -120,22 +110,18 @@ __all__ = [
     "Lot",
     "MarketBar",
     "MarketData",
-    "MarketDataDTO",
     "MarketStatusResult",
     "MultiStrategyExecutionResult",
     "MultiStrategySummary",
     "MultiSymbolQuotesResult",
     "OrderExecutionResult",
     "OrderRequest",
-    "OrderRequestDTO",
     "OrderResultSummary",
-    "OrderResultSummaryDTO",
     "PerformanceSummary",
     "PortfolioAllocationResult",
     "PortfolioMetrics",
     "PortfolioState",
     "Position",
-    "PositionDTO",
     "PriceHistoryResult",
     "PriceResult",
     "RebalancePlan",
@@ -145,11 +131,9 @@ __all__ = [
     "SpreadAnalysisResult",
     "StrategyAllocation",
     "StrategySignal",
-    "StrategySignalDTO",
     "TechnicalIndicator",
     "Trace",
     "TraceEntry",
-    "TraceEntryDTO",
     "TradeEligibilityResult",
     "TradeLedgerEntry",
     "TradeLedgerQuery",

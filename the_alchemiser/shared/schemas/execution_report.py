@@ -301,8 +301,3 @@ class ExecutionReport(BaseModel):
                 orders_data.append(order_data)  # Assume already a DTO
 
         return orders_data
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility aliases
-ExecutedOrderDTO = ExecutedOrder
-ExecutionReportDTO = ExecutionReport

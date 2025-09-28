@@ -62,9 +62,7 @@ class AlpacaAccountService:
             return None
         try:
             # For real TradeAccount objects, try __dict__ first
-            if hasattr(account_obj, "__dict__") and isinstance(
-                account_obj.__dict__, dict
-            ):
+            if hasattr(account_obj, "__dict__") and isinstance(account_obj.__dict__, dict):
                 data = account_obj.__dict__
                 # Check if this looks like a clean data dict (not full of mock internals)
                 if not any(key.startswith("_mock") for key in data):
@@ -100,11 +98,7 @@ class AlpacaAccountService:
         """Get current buying power."""
         try:
             account = self._get_account_object()
-            if (
-                account
-                and hasattr(account, "buying_power")
-                and account.buying_power is not None
-            ):
+            if account and hasattr(account, "buying_power") and account.buying_power is not None:
                 return float(account.buying_power)
             return None
         except Exception as e:
@@ -319,9 +313,7 @@ class AlpacaAccountService:
             logger.error(f"Failed to get activities: {e}")
             return []
 
-    def _extract_position_entry(
-        self, pos: Position | dict[str, Any]
-    ) -> tuple[str, float] | None:
+    def _extract_position_entry(self, pos: Position | dict[str, Any]) -> tuple[str, float] | None:
         """Extract symbol and quantity from a position object.
 
         Args:
@@ -350,9 +342,7 @@ class AlpacaAccountService:
             pos.get("symbol") if isinstance(pos, dict) else None
         )
 
-    def _extract_position_quantity(
-        self, pos: Position | dict[str, Any]
-    ) -> float | None:
+    def _extract_position_quantity(self, pos: Position | dict[str, Any]) -> float | None:
         """Extract quantity from position object, preferring qty_available."""
         # Use qty_available if available, fallback to qty for compatibility
         qty_available = (

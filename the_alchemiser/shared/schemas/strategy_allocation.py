@@ -163,7 +163,3 @@ class StrategyAllocation(BaseModel):
             return Decimal(portfolio_value)
         except (ValueError, TypeError) as e:
             raise ValueError(f"Invalid portfolio_value: {portfolio_value}") from e
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility alias
-StrategyAllocationDTO = StrategyAllocation

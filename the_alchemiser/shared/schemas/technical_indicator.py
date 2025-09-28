@@ -380,7 +380,3 @@ class TechnicalIndicator(BaseModel):
         """
         field_name = f"ma_{period}"
         return getattr(self, field_name, None)
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility alias
-TechnicalIndicatorDTO = TechnicalIndicator

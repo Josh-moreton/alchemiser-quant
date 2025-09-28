@@ -106,7 +106,3 @@ class ASTNode(BaseModel):
         if self.is_atom():
             return self.value
         return None
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility alias
-ASTNodeDTO = ASTNode

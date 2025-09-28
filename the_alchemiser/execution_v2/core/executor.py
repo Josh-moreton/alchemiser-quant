@@ -57,19 +57,15 @@ class Executor:
         self,
         alpaca_manager: AlpacaManager,
         execution_config: ExecutionConfig | None = None,
-        *,
-        enable_smart_execution: bool = True,
     ) -> None:
         """Initialize the executor.
 
         Args:
             alpaca_manager: Alpaca broker manager
             execution_config: Execution configuration
-            enable_smart_execution: Whether to enable smart execution
 
         """
         self.alpaca_manager = alpaca_manager
-        self.enable_smart_execution = enable_smart_execution
         self.execution_config = execution_config
 
         # Initialize execution validator for preflight checks
@@ -82,37 +78,37 @@ class Executor:
         self.pricing_service: RealTimePricingService | None = None
         self.smart_strategy: SmartExecutionStrategy | None = None
         self.websocket_manager = None
+        self.enable_smart_execution = True
 
         # Initialize smart execution if enabled
-        if enable_smart_execution:
-            try:
-                logger.info("🚀 Initializing smart execution with shared WebSocket connection...")
+        try:
+            logger.info("🚀 Initializing smart execution with shared WebSocket connection...")
 
-                # Use shared WebSocket connection manager to prevent connection limits
-                self.websocket_manager = WebSocketConnectionManager(
-                    api_key=alpaca_manager.api_key,
-                    secret_key=alpaca_manager.secret_key,
-                    paper_trading=alpaca_manager.is_paper_trading,
-                )
+            # Use shared WebSocket connection manager to prevent connection limits
+            self.websocket_manager = WebSocketConnectionManager(
+                api_key=alpaca_manager.api_key,
+                secret_key=alpaca_manager.secret_key,
+                paper_trading=alpaca_manager.is_paper_trading,
+            )
 
-                # Get shared pricing service
-                self.pricing_service = self.websocket_manager.get_pricing_service()
-                logger.info("✅ Using shared real-time pricing service")
+            # Get shared pricing service
+            self.pricing_service = self.websocket_manager.get_pricing_service()
+            logger.info("✅ Using shared real-time pricing service")
 
-                # Create smart execution strategy with shared service
-                self.smart_strategy = SmartExecutionStrategy(
-                    alpaca_manager=alpaca_manager,
-                    pricing_service=self.pricing_service,
-                    config=execution_config,
-                )
-                logger.info("✅ Smart execution strategy initialized with shared WebSocket")
+            # Create smart execution strategy with shared service
+            self.smart_strategy = SmartExecutionStrategy(
+                alpaca_manager=alpaca_manager,
+                pricing_service=self.pricing_service,
+                config=execution_config,
+            )
+            logger.info("✅ Smart execution strategy initialized with shared WebSocket")
 
-            except Exception as e:
-                logger.error(f"❌ Error initializing smart execution: {e}", exc_info=True)
-                self.enable_smart_execution = False
-                self.pricing_service = None
-                self.smart_strategy = None
-                self.websocket_manager = None
+        except Exception as e:
+            logger.error(f"❌ Error initializing smart execution: {e}", exc_info=True)
+            self.enable_smart_execution = False
+            self.pricing_service = None
+            self.smart_strategy = None
+            self.websocket_manager = None
 
     def __del__(self) -> None:
         """Clean up WebSocket connection when executor is destroyed."""

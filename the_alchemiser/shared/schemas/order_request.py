@@ -137,14 +137,14 @@ class OrderRequest(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> OrderRequestDTO:
+    def from_dict(cls, data: dict[str, Any]) -> OrderRequest:
         """Create DTO from dictionary.
 
         Args:
             data: Dictionary containing DTO data
 
         Returns:
-            OrderRequestDTO instance
+            OrderRequest instance
 
         Raises:
             ValueError: If data is invalid or missing required fields
@@ -312,8 +312,3 @@ class MarketData(BaseModel):
                     raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
 
         return cls(**data)
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility aliases
-OrderRequestDTO = OrderRequest
-MarketDataDTO = MarketData

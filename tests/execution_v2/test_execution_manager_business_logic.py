@@ -6,16 +6,81 @@ Tests the core business logic of trade execution coordination without external
 broker dependencies, focusing on execution flow, result processing, and error handling.
 """
 
+from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 import uuid
 
 import pytest
 
 from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
 from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
-from the_alchemiser.execution_v2.models.execution_result import ExecutionResult, OrderResult
-from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan, RebalancePlanItem
+from the_alchemiser.execution_v2.models.execution_result import (
+    ExecutionResult,
+    ExecutionStatus,
+    OrderResult,
+)
+
+
+def _make_order_result(
+    symbol: str,
+    *,
+    action: str,
+    shares: Decimal,
+    trade_amount: Decimal,
+    success: bool,
+    price: Decimal | None = None,
+    order_id: str | None = None,
+    error_message: str | None = None,
+):
+    return OrderResult(
+        symbol=symbol,
+        action=action,
+        trade_amount=trade_amount,
+        shares=shares,
+        price=price,
+        order_id=order_id,
+        success=success,
+        error_message=error_message,
+        timestamp=datetime.now(UTC),
+    )
+
+
+def _make_execution_result(
+    *,
+    success: bool,
+    status: ExecutionStatus,
+    orders: list[OrderResult],
+    plan_id: str | None = None,
+    correlation_id: str | None = None,
+    total_trade_value: Decimal | None = None,
+    metadata: dict | None = None,
+) -> ExecutionResult:
+    plan_identifier = plan_id or f"plan-{uuid.uuid4()}"
+    correlation_identifier = correlation_id or f"corr-{uuid.uuid4()}"
+    orders_placed = len(orders)
+    orders_succeeded = sum(1 for order in orders if order.success)
+    if total_trade_value is None:
+        total_trade_value = sum(order.trade_amount for order in orders)
+
+    return ExecutionResult(
+        success=success,
+        status=status,
+        plan_id=plan_identifier,
+        correlation_id=correlation_identifier,
+        orders=orders,
+        orders_placed=orders_placed,
+        orders_succeeded=orders_succeeded,
+        total_trade_value=total_trade_value,
+        execution_timestamp=datetime.now(UTC),
+        metadata=metadata or {},
+    )
+
+
+from the_alchemiser.shared.schemas.rebalance_plan import (
+    RebalancePlan,
+    RebalancePlanItem,
+)
 
 
 class TestExecutionManagerBusinessLogic:
@@ -32,21 +97,9 @@ class TestExecutionManagerBusinessLogic:
     def execution_config(self):
         """Sample execution configuration."""
         return ExecutionConfig(
-            max_order_value=Decimal("5000"),
-            min_order_value=Decimal("10"),
-            timeout_seconds=30,
-            allow_fractional_shares=True,
-            dry_run=False,
-        )
-
-    @pytest.fixture
-    def execution_manager(self, mock_alpaca_manager, execution_config):
-        """Create execution manager instance."""
-        return ExecutionManager(
-            alpaca_manager=mock_alpaca_manager,
-            execution_config=execution_config,
-            enable_smart_execution=True,
-            enable_trade_ledger=False,
+            max_spread_percent=Decimal("0.40"),
+            repeg_threshold_percent=Decimal("0.08"),
+            max_repegs_per_order=3,
         )
 
     @pytest.fixture
@@ -75,224 +128,411 @@ class TestExecutionManagerBusinessLogic:
             ],
         )
 
-    def test_execution_manager_initialization(self, mock_alpaca_manager, execution_config):
+    def test_execution_manager_initialization(
+        self, mock_alpaca_manager, execution_config
+    ):
         """Test execution manager initialization."""
-        manager = ExecutionManager(
-            alpaca_manager=mock_alpaca_manager,
-            execution_config=execution_config,
-            enable_smart_execution=True,
-            enable_trade_ledger=False,
-        )
-        
+        with patch(
+            "the_alchemiser.execution_v2.core.execution_manager.Executor"
+        ) as mock_executor_class:
+            mock_executor = Mock()
+            mock_executor.enable_smart_execution = True
+            mock_executor.execute_rebalance_plan = AsyncMock()
+            mock_executor_class.return_value = mock_executor
+
+            manager = ExecutionManager(
+                alpaca_manager=mock_alpaca_manager,
+                execution_config=execution_config,
+                enable_trade_ledger=False,
+            )
+
         assert manager.alpaca_manager is mock_alpaca_manager
         assert manager.enable_smart_execution is True
         assert manager.enable_trade_ledger is False
+        mock_executor_class.assert_called_once()
 
-    @patch('the_alchemiser.execution_v2.core.execution_manager.Executor')
-    def test_execute_rebalance_plan_success(self, mock_executor_class, execution_manager, sample_rebalance_plan):
+    def test_execute_rebalance_plan_success(
+        self, mock_alpaca_manager, execution_config, sample_rebalance_plan
+    ):
         """Test successful execution of rebalance plan."""
         # Mock successful execution result
-        mock_executor = Mock()
-        mock_executor.execute_rebalance_plan.return_value = ExecutionResult(
-            status="SUCCESS",
-            orders=[
-                OrderResult(symbol="AAPL", status="FILLED", quantity=Decimal("10")),
-                OrderResult(symbol="MSFT", status="FILLED", quantity=Decimal("-5")),
-            ],
-            total_value=Decimal("3750.00"),
-            execution_time_ms=1500,
-        )
-        mock_executor_class.return_value = mock_executor
-        
-        result = execution_manager.execute_rebalance_plan(sample_rebalance_plan)
-        
+        with patch(
+            "the_alchemiser.execution_v2.core.execution_manager.Executor"
+        ) as mock_executor_class:
+            mock_executor = Mock()
+            mock_executor.enable_smart_execution = True
+            success_orders = [
+                _make_order_result(
+                    symbol="AAPL",
+                    action="BUY",
+                    shares=Decimal("10"),
+                    trade_amount=Decimal("1500.00"),
+                    success=True,
+                    price=Decimal("150.00"),
+                    order_id="order-aapl",
+                ),
+                _make_order_result(
+                    symbol="MSFT",
+                    action="SELL",
+                    shares=Decimal("5"),
+                    trade_amount=Decimal("2250.00"),
+                    success=True,
+                    price=Decimal("450.00"),
+                    order_id="order-msft",
+                ),
+            ]
+            mock_executor.execute_rebalance_plan = AsyncMock(
+                return_value=_make_execution_result(
+                    success=True,
+                    status=ExecutionStatus.SUCCESS,
+                    orders=success_orders,
+                    total_trade_value=Decimal("3750.00"),
+                )
+            )
+            mock_executor_class.return_value = mock_executor
+
+            execution_manager = ExecutionManager(
+                alpaca_manager=mock_alpaca_manager,
+                execution_config=execution_config,
+            )
+
+            result = execution_manager.execute_rebalance_plan(sample_rebalance_plan)
+
         # Should return successful execution result
-        assert result.status == "SUCCESS"
+        assert result.status is ExecutionStatus.SUCCESS
         assert len(result.orders) == 2
-        assert result.total_value == Decimal("3750.00")
-        
+        assert result.total_trade_value == Decimal("3750.00")
+
         # Should have called executor with correct plan
-        mock_executor.execute_rebalance_plan.assert_called_once_with(sample_rebalance_plan)
-
-    @patch('the_alchemiser.execution_v2.core.execution_manager.Executor')
-    def test_execute_rebalance_plan_partial_success(self, mock_executor_class, execution_manager, sample_rebalance_plan):
-        """Test execution with partial success."""
-        mock_executor = Mock()
-        mock_executor.execute_rebalance_plan.return_value = ExecutionResult(
-            status="PARTIAL_SUCCESS",
-            orders=[
-                OrderResult(symbol="AAPL", status="FILLED", quantity=Decimal("10")),
-                OrderResult(symbol="MSFT", status="REJECTED", quantity=Decimal("0")),
-            ],
-            total_value=Decimal("1500.00"),
-            execution_time_ms=2000,
-            errors=["MSFT order rejected: insufficient buying power"],
+        mock_executor.execute_rebalance_plan.assert_awaited_once_with(
+            sample_rebalance_plan
         )
-        mock_executor_class.return_value = mock_executor
-        
-        result = execution_manager.execute_rebalance_plan(sample_rebalance_plan)
-        
-        # Should return partial success result
-        assert result.status == "PARTIAL_SUCCESS"
-        assert len(result.orders) == 2
-        assert len(result.errors) == 1
-        assert "MSFT order rejected" in result.errors[0]
 
-    @patch('the_alchemiser.execution_v2.core.execution_manager.Executor')
-    def test_execute_rebalance_plan_failure(self, mock_executor_class, execution_manager, sample_rebalance_plan):
+    def test_execute_rebalance_plan_partial_success(
+        self, mock_alpaca_manager, execution_config, sample_rebalance_plan
+    ):
+        """Test execution with partial success."""
+        with patch(
+            "the_alchemiser.execution_v2.core.execution_manager.Executor"
+        ) as mock_executor_class:
+            mock_executor = Mock()
+            mock_executor.enable_smart_execution = True
+            partial_orders = [
+                _make_order_result(
+                    symbol="AAPL",
+                    action="BUY",
+                    shares=Decimal("10"),
+                    trade_amount=Decimal("1500.00"),
+                    success=True,
+                    price=Decimal("150.00"),
+                    order_id="order-aapl",
+                ),
+                _make_order_result(
+                    symbol="MSFT",
+                    action="SELL",
+                    shares=Decimal("5"),
+                    trade_amount=Decimal("0.00"),
+                    success=False,
+                    price=None,
+                    order_id="order-msft",
+                    error_message="MSFT order rejected: insufficient buying power",
+                ),
+            ]
+            mock_executor.execute_rebalance_plan = AsyncMock(
+                return_value=_make_execution_result(
+                    success=False,
+                    status=ExecutionStatus.PARTIAL_SUCCESS,
+                    orders=partial_orders,
+                    total_trade_value=Decimal("1500.00"),
+                )
+            )
+            mock_executor_class.return_value = mock_executor
+
+            execution_manager = ExecutionManager(
+                alpaca_manager=mock_alpaca_manager,
+                execution_config=execution_config,
+            )
+
+            result = execution_manager.execute_rebalance_plan(sample_rebalance_plan)
+
+        # Should return partial success result
+        assert result.status is ExecutionStatus.PARTIAL_SUCCESS
+        assert len(result.orders) == 2
+        failure_orders = [order for order in result.orders if not order.success]
+        assert len(failure_orders) == 1
+        assert "MSFT order rejected" in failure_orders[0].error_message
+
+        mock_executor.execute_rebalance_plan.assert_awaited_once_with(
+            sample_rebalance_plan
+        )
+
+    def test_execute_rebalance_plan_failure(
+        self, mock_alpaca_manager, execution_config, sample_rebalance_plan
+    ):
         """Test execution failure handling."""
-        mock_executor = Mock()
-        mock_executor.execute_rebalance_plan.side_effect = Exception("Market data unavailable")
-        mock_executor_class.return_value = mock_executor
-        
-        with pytest.raises(Exception, match="Market data unavailable"):
-            execution_manager.execute_rebalance_plan(sample_rebalance_plan)
+        with patch(
+            "the_alchemiser.execution_v2.core.execution_manager.Executor"
+        ) as mock_executor_class:
+            mock_executor = Mock()
+            mock_executor.enable_smart_execution = True
+            mock_executor.execute_rebalance_plan = AsyncMock(
+                side_effect=RuntimeError("Market data unavailable")
+            )
+            mock_executor_class.return_value = mock_executor
+
+            execution_manager = ExecutionManager(
+                alpaca_manager=mock_alpaca_manager,
+                execution_config=execution_config,
+            )
+
+            with pytest.raises(RuntimeError, match="Market data unavailable"):
+                execution_manager.execute_rebalance_plan(sample_rebalance_plan)
+
+        mock_executor.execute_rebalance_plan.assert_awaited_once_with(
+            sample_rebalance_plan
+        )
 
     def test_execution_config_validation(self, mock_alpaca_manager):
         """Test that execution configuration is properly validated."""
-        valid_config = ExecutionConfig(
-            max_order_value=Decimal("5000"),
-            min_order_value=Decimal("10"),
-            timeout_seconds=30,
-            allow_fractional_shares=True,
-        )
-        
-        manager = ExecutionManager(
-            alpaca_manager=mock_alpaca_manager,
-            execution_config=valid_config,
-        )
-        
-        # Should initialize without error
-        assert manager is not None
+        valid_config = ExecutionConfig(max_repegs_per_order=4)
 
-    def test_smart_execution_toggle(self, mock_alpaca_manager, execution_config):
-        """Test smart execution can be enabled/disabled."""
-        # With smart execution enabled
-        manager_smart = ExecutionManager(
-            alpaca_manager=mock_alpaca_manager,
-            execution_config=execution_config,
-            enable_smart_execution=True,
-        )
+        with patch(
+            "the_alchemiser.execution_v2.core.execution_manager.Executor"
+        ) as mock_executor_class:
+            mock_executor = Mock()
+            mock_executor.enable_smart_execution = True
+            mock_executor.execute_rebalance_plan = AsyncMock()
+            mock_executor_class.return_value = mock_executor
+
+            manager = ExecutionManager(
+                alpaca_manager=mock_alpaca_manager,
+                execution_config=valid_config,
+            )
+
+        # Should initialize without error and reflect smart execution status
+        assert manager.enable_smart_execution is True
+        mock_executor_class.assert_called_once()
+
+    def test_smart_execution_status_reflects_executor(
+        self, mock_alpaca_manager, execution_config
+    ):
+        """Execution manager exposes executor smart execution availability."""
+        with patch(
+            "the_alchemiser.execution_v2.core.execution_manager.Executor"
+        ) as mock_executor_class:
+            smart_executor = Mock()
+            smart_executor.enable_smart_execution = True
+            smart_executor.execute_rebalance_plan = AsyncMock()
+            mock_executor_class.return_value = smart_executor
+
+            manager_smart = ExecutionManager(
+                alpaca_manager=mock_alpaca_manager,
+                execution_config=execution_config,
+            )
         assert manager_smart.enable_smart_execution is True
-        
-        # With smart execution disabled
-        manager_basic = ExecutionManager(
-            alpaca_manager=mock_alpaca_manager,
-            execution_config=execution_config,
-            enable_smart_execution=False,
-        )
+
+        with patch(
+            "the_alchemiser.execution_v2.core.execution_manager.Executor"
+        ) as mock_executor_class:
+            fallback_executor = Mock()
+            fallback_executor.enable_smart_execution = False
+            fallback_executor.execute_rebalance_plan = AsyncMock()
+            mock_executor_class.return_value = fallback_executor
+
+            manager_basic = ExecutionManager(
+                alpaca_manager=mock_alpaca_manager,
+                execution_config=execution_config,
+            )
         assert manager_basic.enable_smart_execution is False
 
     def test_trade_ledger_toggle(self, mock_alpaca_manager, execution_config):
         """Test trade ledger can be enabled/disabled."""
         # With trade ledger enabled
-        with patch('the_alchemiser.execution_v2.core.execution_manager.TradeLedgerWriter'):
+        with patch(
+            "the_alchemiser.execution_v2.core.execution_manager.TradeLedgerWriter"
+        ), patch(
+            "the_alchemiser.execution_v2.core.execution_manager.Executor"
+        ) as mock_executor_class:
+            mock_executor = Mock()
+            mock_executor.enable_smart_execution = True
+            mock_executor.execute_rebalance_plan = AsyncMock()
+            mock_executor_class.return_value = mock_executor
+
             manager_with_ledger = ExecutionManager(
                 alpaca_manager=mock_alpaca_manager,
                 execution_config=execution_config,
                 enable_trade_ledger=True,
             )
             assert manager_with_ledger.enable_trade_ledger is True
-        
+
         # With trade ledger disabled
-        manager_no_ledger = ExecutionManager(
-            alpaca_manager=mock_alpaca_manager,
-            execution_config=execution_config,
-            enable_trade_ledger=False,
-        )
+        with patch(
+            "the_alchemiser.execution_v2.core.execution_manager.Executor"
+        ) as mock_executor_class:
+            mock_executor = Mock()
+            mock_executor.enable_smart_execution = True
+            mock_executor.execute_rebalance_plan = AsyncMock()
+            mock_executor_class.return_value = mock_executor
+
+            manager_no_ledger = ExecutionManager(
+                alpaca_manager=mock_alpaca_manager,
+                execution_config=execution_config,
+                enable_trade_ledger=False,
+            )
         assert manager_no_ledger.enable_trade_ledger is False
 
-    @patch('the_alchemiser.execution_v2.core.execution_manager.Executor')
-    def test_execution_result_processing(self, mock_executor_class, execution_manager, sample_rebalance_plan):
+    def test_execution_result_processing(
+        self, mock_alpaca_manager, execution_config, sample_rebalance_plan
+    ):
         """Test that execution results are properly processed."""
         # Mock execution with detailed results
-        mock_executor = Mock()
-        mock_executor.execute_rebalance_plan.return_value = ExecutionResult(
-            status="SUCCESS",
-            orders=[
-                OrderResult(
-                    symbol="AAPL", 
-                    status="FILLED", 
-                    quantity=Decimal("10"),
-                    filled_price=Decimal("150.00"),
-                    order_id="order_123",
-                ),
-            ],
-            total_value=Decimal("1500.00"),
-            execution_time_ms=1200,
-            commission=Decimal("0.00"),
-        )
-        mock_executor_class.return_value = mock_executor
-        
-        result = execution_manager.execute_rebalance_plan(sample_rebalance_plan)
-        
+        with patch(
+            "the_alchemiser.execution_v2.core.execution_manager.Executor"
+        ) as mock_executor_class:
+            mock_executor = Mock()
+            mock_executor.enable_smart_execution = True
+            detailed_order = _make_order_result(
+                symbol="AAPL",
+                action="BUY",
+                shares=Decimal("10"),
+                trade_amount=Decimal("1500.00"),
+                success=True,
+                price=Decimal("150.00"),
+                order_id="order-123",
+            )
+            mock_executor.execute_rebalance_plan = AsyncMock(
+                return_value=_make_execution_result(
+                    success=True,
+                    status=ExecutionStatus.SUCCESS,
+                    orders=[detailed_order],
+                    total_trade_value=Decimal("1500.00"),
+                    metadata={"execution_time_ms": 1200, "commission": "0.00"},
+                )
+            )
+            mock_executor_class.return_value = mock_executor
+
+            execution_manager = ExecutionManager(
+                alpaca_manager=mock_alpaca_manager,
+                execution_config=execution_config,
+            )
+
+            result = execution_manager.execute_rebalance_plan(sample_rebalance_plan)
+
         # Should preserve all execution details
-        assert result.status == "SUCCESS"
-        assert result.total_value == Decimal("1500.00")
-        assert result.execution_time_ms == 1200
-        assert result.commission == Decimal("0.00")
-        
+        assert result.status is ExecutionStatus.SUCCESS
+        assert result.total_trade_value == Decimal("1500.00")
+        assert result.orders_succeeded == 1
+        assert result.metadata == {"execution_time_ms": 1200, "commission": "0.00"}
+
         # Should preserve order details
         order = result.orders[0]
         assert order.symbol == "AAPL"
-        assert order.status == "FILLED"
-        assert order.quantity == Decimal("10")
-        assert order.filled_price == Decimal("150.00")
+        assert order.action == "BUY"
+        assert order.shares == Decimal("10")
+        assert order.price == Decimal("150.00")
 
-    def test_empty_rebalance_plan_handling(self, execution_manager):
+        mock_executor.execute_rebalance_plan.assert_awaited_once_with(
+            sample_rebalance_plan
+        )
+
+    def test_empty_rebalance_plan_handling(self, mock_alpaca_manager, execution_config):
         """Test handling of empty rebalance plan."""
         empty_plan = RebalancePlan(
             plan_id=str(uuid.uuid4()),
             correlation_id=str(uuid.uuid4()),
             items=[],
         )
-        
-        with patch('the_alchemiser.execution_v2.core.execution_manager.Executor') as mock_executor_class:
+
+        with patch(
+            "the_alchemiser.execution_v2.core.execution_manager.Executor"
+        ) as mock_executor_class:
             mock_executor = Mock()
-            mock_executor.execute_rebalance_plan.return_value = ExecutionResult(
-                status="SUCCESS",
-                orders=[],
-                total_value=Decimal("0.00"),
-                execution_time_ms=10,
+            mock_executor.enable_smart_execution = True
+            mock_executor.execute_rebalance_plan = AsyncMock(
+                return_value=_make_execution_result(
+                    success=True,
+                    status=ExecutionStatus.SUCCESS,
+                    orders=[],
+                    total_trade_value=Decimal("0.00"),
+                )
             )
             mock_executor_class.return_value = mock_executor
-            
-            result = execution_manager.execute_rebalance_plan(empty_plan)
-            
-            # Should handle empty plan gracefully
-            assert result.status == "SUCCESS"
-            assert len(result.orders) == 0
-            assert result.total_value == Decimal("0.00")
 
-    def test_execution_error_propagation(self, execution_manager, sample_rebalance_plan):
+            execution_manager = ExecutionManager(
+                alpaca_manager=mock_alpaca_manager,
+                execution_config=execution_config,
+            )
+
+            result = execution_manager.execute_rebalance_plan(empty_plan)
+
+            # Should handle empty plan gracefully
+            assert result.status is ExecutionStatus.SUCCESS
+            assert len(result.orders) == 0
+            assert result.total_trade_value == Decimal("0.00")
+
+        mock_executor.execute_rebalance_plan.assert_awaited_once_with(empty_plan)
+
+    def test_execution_error_propagation(
+        self, mock_alpaca_manager, execution_config, sample_rebalance_plan
+    ):
         """Test that execution errors are properly propagated."""
-        with patch('the_alchemiser.execution_v2.core.execution_manager.Executor') as mock_executor_class:
+        with patch(
+            "the_alchemiser.execution_v2.core.execution_manager.Executor"
+        ) as mock_executor_class:
             mock_executor = Mock()
+            mock_executor.enable_smart_execution = True
             # Simulate broker connection error
-            mock_executor.execute_rebalance_plan.side_effect = ConnectionError("Broker API unavailable")
+            mock_executor.execute_rebalance_plan = AsyncMock(
+                side_effect=ConnectionError("Broker API unavailable")
+            )
             mock_executor_class.return_value = mock_executor
-            
+
+            execution_manager = ExecutionManager(
+                alpaca_manager=mock_alpaca_manager,
+                execution_config=execution_config,
+            )
+
             with pytest.raises(ConnectionError, match="Broker API unavailable"):
                 execution_manager.execute_rebalance_plan(sample_rebalance_plan)
 
-    def test_execution_correlation_id_preservation(self, execution_manager, sample_rebalance_plan):
+        mock_executor.execute_rebalance_plan.assert_awaited_once_with(
+            sample_rebalance_plan
+        )
+
+    def test_execution_correlation_id_preservation(
+        self, mock_alpaca_manager, execution_config, sample_rebalance_plan
+    ):
         """Test that correlation IDs are preserved through execution."""
         correlation_id = sample_rebalance_plan.correlation_id
-        
-        with patch('the_alchemiser.execution_v2.core.execution_manager.Executor') as mock_executor_class:
+
+        with patch(
+            "the_alchemiser.execution_v2.core.execution_manager.Executor"
+        ) as mock_executor_class:
             mock_executor = Mock()
-            mock_executor.execute_rebalance_plan.return_value = ExecutionResult(
-                status="SUCCESS",
-                orders=[],
-                total_value=Decimal("0.00"),
-                execution_time_ms=50,
-                correlation_id=correlation_id,  # Should preserve correlation ID
+            mock_executor.enable_smart_execution = True
+            mock_executor.execute_rebalance_plan = AsyncMock(
+                return_value=_make_execution_result(
+                    success=True,
+                    status=ExecutionStatus.SUCCESS,
+                    orders=[],
+                    total_trade_value=Decimal("0.00"),
+                    correlation_id=correlation_id,
+                )
             )
             mock_executor_class.return_value = mock_executor
-            
+
+            execution_manager = ExecutionManager(
+                alpaca_manager=mock_alpaca_manager,
+                execution_config=execution_config,
+            )
+
             result = execution_manager.execute_rebalance_plan(sample_rebalance_plan)
-            
+
             # Should preserve correlation ID for traceability
-            assert hasattr(result, 'correlation_id')
-            if hasattr(result, 'correlation_id'):
+            assert hasattr(result, "correlation_id")
+            if hasattr(result, "correlation_id"):
                 assert result.correlation_id == correlation_id
+
+        mock_executor.execute_rebalance_plan.assert_awaited_once_with(
+            sample_rebalance_plan
+        )

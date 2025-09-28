@@ -219,7 +219,3 @@ class MarketBar(BaseModel):
             "vw": float(self.vwap) if self.vwap else None,
             "n": self.trade_count,
         }
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility alias
-MarketBarDTO = MarketBar
