@@ -15,8 +15,12 @@ import pytest
 
 from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
 from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
-from the_alchemiser.execution_v2.models.execution_result import ExecutionResult, OrderResult
-from the_alchemiser.execution_v2.models.execution_result import ExecutionStatus
+from the_alchemiser.execution_v2.models.execution_result import (
+    ExecutionResult,
+    ExecutionStatus,
+    OrderResult,
+)
+
 
 def _make_order_result(
     symbol: str,
@@ -71,9 +75,8 @@ def _make_execution_result(
         execution_timestamp=datetime.now(UTC),
         metadata=metadata or {},
     )
-    ExecutionResult,
-    OrderResult,
-)
+
+
 from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
     RebalancePlanItem,
