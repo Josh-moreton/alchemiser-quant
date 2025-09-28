@@ -152,8 +152,3 @@ class Trace(BaseModel):
         if self.completed_at is None:
             return None
         return (self.completed_at - self.started_at).total_seconds()
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility aliases
-TraceEntryDTO = TraceEntry
-TraceDTO = Trace

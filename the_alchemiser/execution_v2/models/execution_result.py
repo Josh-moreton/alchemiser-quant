@@ -101,8 +101,3 @@ class ExecutionResult(BaseModel):
     def failure_count(self) -> int:
         """Count of failed orders."""
         return self.orders_placed - self.orders_succeeded
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility aliases
-OrderResultDTO = OrderResult
-ExecutionResultDTO = ExecutionResult

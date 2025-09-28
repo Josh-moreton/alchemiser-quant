@@ -99,9 +99,10 @@ class MarketDataService(MarketDataPort):
         Returns:
             Quote model or None if not available
 
-        TODO: This uses legacy QuoteModel from shared.types.quote. Consider migrating
-        to enhanced QuoteModel from shared.types.market_data with bid_size/ask_size
-        for market depth analysis and better spread calculations.
+        Note: This still relies on the legacy QuoteModel from shared.types.quote. The
+        enhanced QuoteModel in shared.types.market_data offers bid_size/ask_size for
+        richer depth analytics, and migrating to it will unblock improved spread
+        calculations.
 
         """
         try:

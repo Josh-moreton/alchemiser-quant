@@ -227,8 +227,3 @@ class RebalancePlan(BaseModel):
                 items_data.append(item_data)  # Assume already a DTO
 
         return items_data
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility aliases
-RebalancePlanItemDTO = RebalancePlanItem
-RebalancePlanDTO = RebalancePlan

@@ -138,8 +138,3 @@ class Error(BaseModel):
     error_type: str = Field(description="Type of error")
     message: str = Field(description="Error message")
     context: dict[str, Any] = Field(default_factory=dict, description="Error context data")
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility aliases for these too
-ConfigurationDTO = Configuration
-ErrorDTO = Error

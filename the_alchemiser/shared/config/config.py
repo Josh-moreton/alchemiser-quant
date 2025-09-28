@@ -134,6 +134,8 @@ class ExecutionSettings(BaseModel):
     enable_smart_execution: bool = True
     # Trade ledger recording for execution tracking and performance attribution
     enable_trade_ledger: bool = False
+    # Control whether partial execution outcomes should be treated as workflow failures
+    treat_partial_execution_as_failure: bool = True
 
 
 class Settings(BaseSettings):

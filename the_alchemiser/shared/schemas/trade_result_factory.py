@@ -117,7 +117,7 @@ def _convert_orders_to_results(
         completed_at: Fallback timestamp for orders without filled_at
 
     Returns:
-        List of OrderResultSummaryDTO instances
+        List of OrderResultSummary instances
 
     """
     order_results: list[OrderResultSummary] = []
@@ -139,7 +139,7 @@ def _create_single_order_result(
         completed_at: Fallback timestamp
 
     Returns:
-        OrderResultSummaryDTO instance
+        OrderResultSummary instance
 
     """
     order_id = order.get("order_id", "")

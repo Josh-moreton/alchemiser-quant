@@ -139,6 +139,8 @@ class TradingExecutionHandler:
             # Execute the rebalance plan
             self.logger.info(f"🚀 Executing trades: {len(rebalance_plan.items)} items")
 
+            execution_settings = self.container.config.execution()
+
             # Create execution manager directly from infrastructure (like other handlers)
             from the_alchemiser.execution_v2.core.execution_manager import (
                 ExecutionManager,
@@ -150,8 +152,8 @@ class TradingExecutionHandler:
             execution_manager = ExecutionManager(
                 alpaca_manager=self.container.infrastructure.alpaca_manager(),
                 execution_config=ExecutionConfig(),
-                enable_smart_execution=self.container.config.execution().enable_smart_execution,
-                enable_trade_ledger=self.container.config.execution().enable_trade_ledger,
+                enable_smart_execution=execution_settings.enable_smart_execution,
+                enable_trade_ledger=execution_settings.enable_trade_ledger,
             )
             execution_result = execution_manager.execute_rebalance_plan(rebalance_plan)
 
@@ -165,8 +167,7 @@ class TradingExecutionHandler:
             )
 
             # Determine workflow success based on execution status
-            # For now, treat partial success as workflow failure (can be configurable in future)
-            treat_partial_as_failure = True  # TODO: Make this configurable
+            treat_partial_as_failure = execution_settings.treat_partial_execution_as_failure
 
             if execution_result.status == ExecutionStatus.SUCCESS:
                 execution_success = True

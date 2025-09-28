@@ -209,7 +209,7 @@ Detection is based on:
 Trade ledger recording is integrated at the execution manager level:
 
 1. Orders are executed normally through the execution system
-2. After successful execution, `ExecutionResultDTO` is processed
+2. After successful execution, `ExecutionResult` is processed
 3. Each successful order is converted to `TradeLedgerEntry` format
 4. Entries are written to the ledger with strategy attribution
 
