@@ -285,19 +285,27 @@ class AlpacaTradingService:
             if time_in_force is not None:
                 from alpaca.trading.enums import TimeInForce
                 # Convert string to TimeInForce enum
-                if time_in_force.lower() == "day":
+                tif_lower = time_in_force.lower()
+                if tif_lower == "day":
                     replace_request.time_in_force = TimeInForce.DAY
-                elif time_in_force.lower() == "gtc":
+                elif tif_lower == "gtc":
                     replace_request.time_in_force = TimeInForce.GTC
-                elif time_in_force.lower() == "ioc":
+                elif tif_lower == "ioc":
                     replace_request.time_in_force = TimeInForce.IOC
-                elif time_in_force.lower() == "fok":
+                elif tif_lower == "fok":
                     replace_request.time_in_force = TimeInForce.FOK
 
             # Replace the order
             updated_order = self._trading_client.replace_order_by_id(order_id, replace_request)
             
-            logger.info(f"Successfully replaced order {order_id} -> {updated_order.id}")
+            # Get order_id safely from either Order object or dict
+            new_order_id = getattr(updated_order, 'id', None)
+            if new_order_id is None and isinstance(updated_order, dict):
+                new_order_id = updated_order.get('id', order_id)
+            elif new_order_id is None:
+                new_order_id = order_id  # Fallback to original order_id
+                
+            logger.info(f"Successfully replaced order {order_id} -> {new_order_id}")
             
             # Convert the updated order to OrderExecutionResult
             return self._alpaca_order_to_execution_result(updated_order)

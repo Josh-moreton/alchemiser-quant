@@ -379,10 +379,8 @@ class RepegManager:
                     f"quantity: {remaining_qty}"
                 )
 
-                # Use cast to satisfy type checkers; quote is non-None when new_price exists
-                from typing import cast as _cast
-
-                q = _cast(QuoteModel, quote)
+                # Use quote directly (it's already validated as non-None when new_price exists)
+                q = quote
                 metadata_dict: LiquidityMetadata = {
                     "original_order_id": order_id,
                     "original_price": (float(original_anchor) if original_anchor else None),
@@ -489,7 +487,8 @@ class RepegManager:
                     placement_timestamp=datetime.now(UTC),
                 )
             else:
-                logger.warning(f"⚠️ Order replacement failed for {order_id}: {result.error_message}")
+                error_msg = getattr(result, 'error', 'Unknown error') or 'Order replacement failed'
+                logger.warning(f"⚠️ Order replacement failed for {order_id}: {error_msg}")
                 return None
                 
         except Exception as e:
