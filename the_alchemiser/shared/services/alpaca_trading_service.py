@@ -23,6 +23,7 @@ from alpaca.trading.requests import (
     GetOrdersRequest,
     LimitOrderRequest,
     MarketOrderRequest,
+    ReplaceOrderRequest,
 )
 
 from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
@@ -254,6 +255,56 @@ class AlpacaTradingService:
         except Exception as e:
             logger.error(f"Failed to cancel order {order_id}: {e}")
             return False
+
+    def replace_order_by_id(
+        self,
+        order_id: str,
+        quantity: float | None = None,
+        limit_price: float | None = None,
+        time_in_force: str | None = None,
+    ) -> OrderExecutionResult:
+        """Replace an order by ID with new parameters.
+
+        Args:
+            order_id: Order ID to replace
+            quantity: New quantity for the order
+            limit_price: New limit price for the order
+            time_in_force: New time in force for the order
+
+        Returns:
+            OrderExecutionResult containing the updated order information
+        """
+        try:
+            # Build the replace request with provided parameters
+            replace_request = ReplaceOrderRequest()
+            
+            if quantity is not None:
+                replace_request.qty = int(quantity)
+            if limit_price is not None:
+                replace_request.limit_price = limit_price
+            if time_in_force is not None:
+                from alpaca.trading.enums import TimeInForce
+                # Convert string to TimeInForce enum
+                if time_in_force.lower() == "day":
+                    replace_request.time_in_force = TimeInForce.DAY
+                elif time_in_force.lower() == "gtc":
+                    replace_request.time_in_force = TimeInForce.GTC
+                elif time_in_force.lower() == "ioc":
+                    replace_request.time_in_force = TimeInForce.IOC
+                elif time_in_force.lower() == "fok":
+                    replace_request.time_in_force = TimeInForce.FOK
+
+            # Replace the order
+            updated_order = self._trading_client.replace_order_by_id(order_id, replace_request)
+            
+            logger.info(f"Successfully replaced order {order_id} -> {updated_order.id}")
+            
+            # Convert the updated order to OrderExecutionResult
+            return self._alpaca_order_to_execution_result(updated_order)
+            
+        except Exception as e:
+            logger.error(f"Failed to replace order {order_id}: {e}")
+            return AlpacaErrorHandler.create_error_result(e, "Order replacement", order_id)
 
     def get_orders(self, status: str | None = None) -> list[Any]:
         """Get orders filtered by status.

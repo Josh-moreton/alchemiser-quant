@@ -401,6 +401,28 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Cancel an order by ID."""
         return self._get_trading_service().cancel_order(order_id)
 
+    def replace_order_by_id(
+        self,
+        order_id: str,
+        quantity: float | None = None,
+        limit_price: float | None = None,
+        time_in_force: str | None = None,
+    ) -> OrderExecutionResult:
+        """Replace an order by ID with new parameters.
+        
+        Args:
+            order_id: Order ID to replace
+            quantity: New quantity for the order
+            limit_price: New limit price for the order
+            time_in_force: New time in force for the order
+            
+        Returns:
+            OrderExecutionResult containing the updated order information
+        """
+        return self._get_trading_service().replace_order_by_id(
+            order_id, quantity, limit_price, time_in_force
+        )
+
     def get_orders(self, status: str | None = None) -> list[Any]:
         """Get orders, optionally filtered by status."""
         return self._get_trading_service().get_orders(status)
