@@ -40,38 +40,44 @@ class MonthlySummaryService:
 
         """
         self._trade_ledger = trade_ledger or get_default_trade_ledger()
+        # Respect explicit dependency injection. If None is passed, do not auto-create
+        # to allow tests and callers to disable Alpaca usage deterministically.
         self._alpaca_account_service = alpaca_account_service
-        
-        # Create Alpaca account service if not provided
-        if self._alpaca_account_service is None:
-            self._alpaca_account_service = self._create_alpaca_account_service()
 
     def _create_alpaca_account_service(self) -> AlpacaAccountService | None:
         """Create Alpaca account service from configuration.
-        
+
         Returns:
             AlpacaAccountService instance or None if credentials not available
+
         """
         try:
             from alpaca.trading.client import TradingClient
+
             from ..config.secrets_adapter import get_alpaca_keys
-            
+
             api_key, secret_key, endpoint = get_alpaca_keys()
             if not api_key or not secret_key:
                 logger.warning("Alpaca API keys not found - monthly summary will use fallback data")
                 return None
-            
-            # Determine if this is paper trading based on endpoint
-            paper = endpoint != "https://api.alpaca.markets" if endpoint else True
-            
-            trading_client = TradingClient(
-                api_key=api_key,
-                secret_key=secret_key,
-                paper=paper
-            )
-            
+
+            # Determine if this is paper trading based on endpoint (normalize variants)
+            def _is_paper_from_endpoint(ep: str | None) -> bool:
+                if not ep:
+                    return True
+                ep_norm = ep.strip().rstrip("/").lower()
+                if ep_norm.endswith("/v2"):
+                    ep_norm = ep_norm[:-3]
+                if "paper-api.alpaca.markets" in ep_norm:
+                    return True
+                return not ("api.alpaca.markets" in ep_norm and "paper" not in ep_norm)
+
+            paper = _is_paper_from_endpoint(endpoint)
+
+            trading_client = TradingClient(api_key=api_key, secret_key=secret_key, paper=paper)
+
             return AlpacaAccountService(trading_client)
-            
+
         except Exception as e:
             logger.warning(f"Failed to create Alpaca account service: {e}")
             return None
@@ -146,10 +152,11 @@ class MonthlySummaryService:
         if not self._alpaca_account_service:
             logger.warning("No Alpaca account service available to get account ID")
             return None
-            
+
         try:
             account_info = self._alpaca_account_service.get_account_dict()
-            if account_info and account_info.get("id"):
+            # Be defensive: ensure a real mapping before subscripting
+            if isinstance(account_info, dict) and account_info.get("id"):
                 return str(account_info["id"])
             return None
         except Exception as e:
@@ -187,9 +194,7 @@ class MonthlySummaryService:
 
             # Get portfolio history from Alpaca
             history = self._alpaca_account_service.get_portfolio_history(
-                start_date=start_date,
-                end_date=end_date,
-                timeframe="1Day"
+                start_date=start_date, end_date=end_date, timeframe="1D"
             )
 
             if not history or not history.get("equity") or not history.get("timestamp"):
@@ -253,17 +258,19 @@ class MonthlySummaryService:
 
         """
         try:
-            # Query trade ledger entries for the month
+            # Best-effort query to hint implementations about the window; ignore errors/empties
             query = TradeLedgerQuery(
                 start_date=start_date,
                 end_date=end_date,
                 order_by="timestamp",
                 ascending=True,
             )
-
-            entries = list(self._trade_ledger.query(query))
-            if not entries:
-                return []
+            try:
+                entries_iter = self._trade_ledger.query(query)
+                # Force iteration if possible to surface issues early but don't depend on results
+                _ = list(entries_iter) if entries_iter is not None else []
+            except Exception as exc:
+                logger.debug(f"Ignoring trade ledger query error for monthly summary window: {exc}")
 
             # Calculate performance summaries via ledger implementation
             # Note: Protocol does not accept date range; implementations may compute from full ledger

@@ -12,6 +12,7 @@ legacy argument-based calls.
 from __future__ import annotations
 
 import sys
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
 # CLI imports removed - using programmatic interface only
@@ -82,18 +83,16 @@ def _parse_arguments(argv: list[str] | None) -> _ArgumentParsing:
         elif arg == "--monthly":
             pnl_type = "monthly"
         elif arg == "--periods" and i + 1 < len(argv):
-            try:
+            with suppress(ValueError):
                 pnl_periods = int(argv[i + 1])
-            except ValueError:
-                pass
         elif arg == "--detailed":
             pnl_detailed = True
         elif arg == "--period" and i + 1 < len(argv):
             pnl_period = argv[i + 1]
 
     return _ArgumentParsing(
-        mode, 
-        show_tracking=show_tracking, 
+        mode,
+        show_tracking=show_tracking,
         export_tracking_json=export_tracking_json,
         pnl_type=pnl_type,
         pnl_periods=pnl_periods,
@@ -104,18 +103,19 @@ def _parse_arguments(argv: list[str] | None) -> _ArgumentParsing:
 
 def _execute_pnl_analysis(args: _ArgumentParsing) -> bool:
     """Execute P&L analysis command.
-    
+
     Args:
         args: Parsed arguments containing P&L configuration
-        
+
     Returns:
         True if successful, False otherwise
+
     """
     try:
         from the_alchemiser.shared.services.pnl_service import PnLService
-        
+
         service = PnLService()
-        
+
         # Determine analysis type and get data
         if args.pnl_type == "weekly":
             pnl_data = service.get_weekly_pnl(args.pnl_periods)
@@ -126,18 +126,19 @@ def _execute_pnl_analysis(args: _ArgumentParsing) -> bool:
         else:
             # Default to weekly if no specific type provided
             pnl_data = service.get_weekly_pnl(1)
-        
+
         # Generate and display report
         report = service.format_pnl_report(pnl_data, detailed=args.pnl_detailed)
         print()
         print(report)
         print()
-        
+
         # Return success if we have data
         return pnl_data.start_value is not None
-        
+
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"P&L analysis failed: {e}")
         return False
@@ -209,7 +210,7 @@ def main(argv: list[str] | None = None) -> TradeRunResult | bool:
                 show_tracking=args.show_tracking,
                 export_tracking_json=args.export_tracking_json,
             )
-        elif args.mode == "pnl":
+        if args.mode == "pnl":
             return _execute_pnl_analysis(args)
 
         return False

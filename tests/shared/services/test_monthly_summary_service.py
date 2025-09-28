@@ -29,7 +29,7 @@ class TestMonthlySummaryService:
         """Test that no Alpaca service returns summary with None portfolio values."""
         # Mock dependencies
         mock_trade_ledger = Mock()
-        
+
         mock_trade_ledger.query.return_value = []
         mock_trade_ledger.calculate_performance.return_value = []
 
@@ -46,7 +46,9 @@ class TestMonthlySummaryService:
         assert result.portfolio_pnl_abs is None
         assert result.portfolio_pnl_pct is None
         assert result.strategy_rows == []
-        assert "No portfolio history found for this month from Alpaca API" in result.notes
+        assert (
+            "No portfolio history found for this month from Alpaca API" in result.notes
+        )
 
     def test_alpaca_portfolio_history_success(self) -> None:
         """Test successful portfolio P&L computation from Alpaca API."""
@@ -74,9 +76,7 @@ class TestMonthlySummaryService:
 
         # Verify Alpaca API was called with correct parameters
         mock_alpaca_service.get_portfolio_history.assert_called_once_with(
-            start_date="2025-08-01",
-            end_date="2025-08-31", 
-            timeframe="1Day"
+            start_date="2025-08-01", end_date="2025-08-31", timeframe="1D"
         )
 
         # Verify results
@@ -113,7 +113,9 @@ class TestMonthlySummaryService:
         assert result.portfolio_last_value is None
         assert result.portfolio_pnl_abs is None
         assert result.portfolio_pnl_pct is None
-        assert "No portfolio history found for this month from Alpaca API" in result.notes
+        assert (
+            "No portfolio history found for this month from Alpaca API" in result.notes
+        )
 
     def test_strategy_performance_calculation(self) -> None:
         """Test strategy performance calculation from trade ledger."""
@@ -131,6 +133,7 @@ class TestMonthlySummaryService:
         mock_trade_ledger.calculate_performance.return_value = [
             PerformanceSummary(
                 strategy_name="TestStrategy",
+                calculation_timestamp=datetime(2025, 8, 31, 23, 59, 59, tzinfo=UTC),
                 realized_pnl=Decimal("150.50"),
                 realized_trades=5,
             )
@@ -173,4 +176,6 @@ class TestMonthlySummaryService:
         assert result.portfolio_last_value is None
         assert result.portfolio_pnl_abs is None
         assert result.portfolio_pnl_pct is None
-        assert "No portfolio history found for this month from Alpaca API" in result.notes
+        assert (
+            "No portfolio history found for this month from Alpaca API" in result.notes
+        )

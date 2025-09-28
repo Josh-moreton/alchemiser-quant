@@ -17,12 +17,8 @@ from the_alchemiser.main import main
 def run() -> None:
     """Run The Alchemiser Trading System programmatically."""
     # Parse command line arguments
-    if len(sys.argv) > 1:
-        # Pass all arguments to main() for processing
-        result = main(sys.argv[1:])
-    else:
-        # Default to trade mode for backward compatibility
-        result = main(["trade"])
+    # Use ternary to satisfy linter suggestion (SIM108)
+    result = main(sys.argv[1:]) if len(sys.argv) > 1 else main(["trade"])
 
     # Handle both TradeRunResult and boolean return types
     success = getattr(result, "success", False) if hasattr(result, "success") else bool(result)

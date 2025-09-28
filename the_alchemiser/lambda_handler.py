@@ -253,28 +253,26 @@ def parse_event_mode(event: LambdaEvent | dict[str, Any]) -> list[str] | None:
         return None
 
     # P&L analysis action
-    if (
-        isinstance(event_obj, LambdaEvent)
-        and getattr(event_obj, "action", None) == "pnl_analysis"
-    ):
+    if isinstance(event_obj, LambdaEvent) and getattr(event_obj, "action", None) == "pnl_analysis":
         logger.info("Parsed event to action: pnl_analysis")
         command_args = ["pnl"]
-        
+
         # Add P&L-specific arguments
         if getattr(event_obj, "pnl_type", None) == "weekly":
             command_args.append("--weekly")
         elif getattr(event_obj, "pnl_type", None) == "monthly":
             command_args.append("--monthly")
-        
+
         if getattr(event_obj, "pnl_period", None):
             command_args.extend(["--period", str(event_obj.pnl_period)])
-        
-        if getattr(event_obj, "pnl_periods", None) and event_obj.pnl_periods > 1:
+
+        pnl_periods_val = getattr(event_obj, "pnl_periods", None)
+        if isinstance(pnl_periods_val, int) and pnl_periods_val > 1:
             command_args.extend(["--periods", str(event_obj.pnl_periods)])
-        
+
         if getattr(event_obj, "pnl_detailed", None):
             command_args.append("--detailed")
-        
+
         return command_args
 
     logger.info("Parsed event to command: trade")
