@@ -34,7 +34,8 @@ class LambdaEvent(BaseModel):
 
     # Monthly summary invocation fields (optional)
     action: str | None = Field(
-        default=None, description="Action to perform (e.g., 'monthly_summary', 'pnl_analysis')"
+        default=None,
+        description="Action to perform (e.g., 'monthly_summary', 'pnl_analysis')",
     )
     month: str | None = Field(
         default=None,
