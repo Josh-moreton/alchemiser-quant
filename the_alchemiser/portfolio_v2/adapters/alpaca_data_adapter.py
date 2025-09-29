@@ -62,17 +62,23 @@ class AlpacaDataAdapter:
             raw_positions = self._alpaca_manager.get_positions()
 
             # Convert to symbol -> quantity mapping with Decimal precision
-            # Use qty_available instead of qty to account for shares tied up in open orders
+            # IMPORTANT: For planning we must reflect actual exposure, not what's currently
+            # available to trade. Prefer total qty for snapshot; fall back to qty_available
+            # only if qty is missing. Execution will handle availability constraints.
             positions = {}
             for position in raw_positions:
                 symbol = str(position.symbol).upper()
-                # Use qty_available if available, fallback to qty for compatibility
-                available_qty = getattr(position, "qty_available", None)
-                if available_qty is not None:
-                    quantity = Decimal(str(available_qty))
+                # Prefer total quantity if present
+                qty_total = getattr(position, "qty", None)
+                qty_available = getattr(position, "qty_available", None)
+
+                if qty_total is not None:
+                    quantity = Decimal(str(qty_total))
+                elif qty_available is not None:
+                    quantity = Decimal(str(qty_available))
                 else:
-                    # Fallback to total qty if qty_available is not available
-                    quantity = Decimal(str(position.qty))
+                    # If neither attribute is present, treat as zero (defensive)
+                    quantity = Decimal("0")
                 positions[symbol] = quantity
 
             log_with_context(
