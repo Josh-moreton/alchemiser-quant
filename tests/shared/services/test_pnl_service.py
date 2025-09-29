@@ -10,7 +10,7 @@ import pytest
 from decimal import Decimal
 from unittest.mock import Mock, patch
 
-from the_alchemiser.shared.dto.pnl import PnLData
+from the_alchemiser.shared.schemas.pnl import PnLData
 from the_alchemiser.shared.services.pnl_service import PnLService
 
 

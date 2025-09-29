@@ -19,7 +19,7 @@ from the_alchemiser.shared.brokers.alpaca_manager import (
     create_alpaca_manager,
 )
 from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
-from the_alchemiser.shared.dto.pnl import PnLData
+from the_alchemiser.shared.schemas.pnl import PnLData
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 PERCENTAGE_MULTIPLIER = Decimal("100")
 
 
-## DTO moved to shared/dto/pnl.py per typing policy
+## Schema moved to shared/schemas/pnl.py per typing policy
 
 
 class PnLService:
