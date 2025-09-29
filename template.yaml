@@ -93,8 +93,8 @@ Resources:
       FunctionName: !Sub "the-alchemiser-v2-lambda-${Stage}"
       PackageType: Zip
       Runtime: python3.12
-      CodeUri: the_alchemiser/
-      Handler: lambda_handler.lambda_handler
+      CodeUri: ./
+      Handler: the_alchemiser.lambda_handler.lambda_handler
       Role: !GetAtt TradingSystemExecutionRole.Arn
       Layers:
         - !Ref DependenciesLayer
@@ -103,20 +103,43 @@ Resources:
       BuildProperties:
         Exclude:
           - .git/**
+          - .git*
           - .github/**
           - .aws-sam/**
           - .venv/**
+          - .vscode/**
+          - .idea/**
           - venv/**
           - env/**
+          - .env*
+          - .cache/**
+          - .pytest_cache/**
+          - .mypy_cache/**
+          - .ruff_cache/**
+          - '**/__pycache__/**'
+          - '**/*.pyc'
+          - dist/**
+          - build/**
+          - '**/*.egg-info/**'
           - tests/**
           - docs/**
           - logs/**
           - data/**
           - scripts/**
           - dependencies/**
+          - '**/*.ipynb'
+          - '**/*.png'
+          - '**/*.jpg'
+          - '**/*.svg'
+          - '**/*.gif'
+          - '**/*.pdf'
+          - '**/*.csv'
           - CHANGELOG.md
           - README.md
           - logo.png
+          - Makefile
+          - .editorconfig
+          - .pre-commit-config.yaml
           - poetry.lock
           - pyproject.toml
           - pytest.ini
