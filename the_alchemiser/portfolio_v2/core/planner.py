@@ -244,6 +244,17 @@ class RebalancePlanCalculator:
         # Get all symbols
         all_symbols = set(target_values.keys()) | set(current_values.keys())
 
+        # Calculate total portfolio value for weight calculations
+        total_current_value = sum(current_values.values())
+        total_target_value = sum(target_values.values())
+        
+        # Use the larger of current or target for more stable weight calculations
+        portfolio_value_for_weights = max(total_current_value, total_target_value)
+        
+        # Handle edge case where both are zero
+        if portfolio_value_for_weights == Decimal("0"):
+            portfolio_value_for_weights = Decimal("1")  # Avoid division by zero
+
         for symbol in sorted(all_symbols):
             target_value = target_values.get(symbol, Decimal("0"))
             current_value = current_values.get(symbol, Decimal("0"))
@@ -262,12 +273,9 @@ class RebalancePlanCalculator:
             else:
                 action = "HOLD"
 
-            # Calculate weights (handle division by zero)
-            current_weight = Decimal("0")
-            target_weight = Decimal("0")
-
-            # Note: We don't have total values easily accessible here, so weights will be approximate
-            # This is acceptable for the DTO as weights are mainly for display/validation
+            # Calculate actual weights using portfolio value
+            current_weight = current_value / portfolio_value_for_weights if portfolio_value_for_weights > Decimal("0") else Decimal("0")
+            target_weight = target_value / portfolio_value_for_weights if portfolio_value_for_weights > Decimal("0") else Decimal("0")
 
             # Calculate priority (higher trade amounts get higher priority)
             priority = self._calculate_priority(abs(final_trade_amount))
