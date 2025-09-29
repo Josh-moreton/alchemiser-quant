@@ -84,7 +84,7 @@ class Executor:
         self.websocket_manager = None
         self.enable_smart_execution = True
 
-        # Initialize extracted helper modules (will be set in _initialize_helper_modules)
+        # Initialize extracted helper modules
         self._market_order_executor: MarketOrderExecutor | None = None
         self._order_monitor: OrderMonitor | None = None
         self._order_finalizer: OrderFinalizer | None = None
@@ -113,8 +113,15 @@ class Executor:
             )
             logger.info("✅ Smart execution strategy initialized with shared WebSocket")
 
-            # Initialize helper modules for cleaner separation of concerns
-            self._initialize_helper_modules()
+            # Initialize helper modules
+            self._market_order_executor = MarketOrderExecutor(
+                alpaca_manager, self.validator, self.buying_power_service
+            )
+            self._order_monitor = OrderMonitor(self.smart_strategy, execution_config)
+            self._order_finalizer = OrderFinalizer(alpaca_manager, execution_config)
+            self._position_utils = PositionUtils(
+                alpaca_manager, self.pricing_service, self.enable_smart_execution
+            )
 
         except Exception as e:
             logger.error(f"❌ Error initializing smart execution: {e}", exc_info=True)
@@ -122,24 +129,6 @@ class Executor:
             self.pricing_service = None
             self.smart_strategy = None
             self.websocket_manager = None
-            # Initialize fallback modules
-            self._initialize_helper_modules()
-
-    def _initialize_helper_modules(self) -> None:
-        """Initialize extracted helper modules."""
-        try:
-            self._market_order_executor = MarketOrderExecutor(
-                self.alpaca_manager, self.validator, self.buying_power_service
-            )
-            self._order_monitor = OrderMonitor(self.smart_strategy, self.execution_config)
-            self._order_finalizer = OrderFinalizer(self.alpaca_manager, self.execution_config)
-            self._position_utils = PositionUtils(
-                self.alpaca_manager, self.pricing_service, self.enable_smart_execution
-            )
-            logger.debug("✅ Helper modules initialized")
-        except Exception as e:
-            logger.warning(f"⚠️ Error initializing helper modules: {e}")
-            # Helper modules remain None to use fallback methods
 
     def __del__(self) -> None:
         """Clean up WebSocket connection when executor is destroyed."""
@@ -206,10 +195,44 @@ class Executor:
 
         # Fallback to regular market order
         logger.info(f"📈 Using standard market order for {symbol}")
-        return self._execute_market_order(symbol, side, Decimal(str(quantity)))
+        if self._market_order_executor:
+            return self._market_order_executor.execute_market_order(symbol, side, Decimal(str(quantity)))
+        else:
+            # Fallback if market order executor not initialized
+            return self._execute_market_order_fallback(symbol, side, Decimal(str(quantity)))
 
-    def _execute_market_order(self, symbol: str, side: str, quantity: Decimal) -> OrderResult:
-        """Execute a standard market order with preflight validation.
+    def _execute_market_order_fallback(self, symbol: str, side: str, quantity: Decimal) -> OrderResult:
+        """Fallback market order execution when market order executor is not available."""
+        try:
+            broker_result = self.alpaca_manager.place_market_order(symbol, side, float(quantity))
+            logger.info(f"📈 Fallback market order placed for {symbol}: {side.upper()} {quantity} shares")
+            
+            return OrderResult(
+                symbol=symbol,
+                action=side.upper(),
+                trade_amount=Decimal("0"),  # Will be updated later
+                shares=quantity,
+                price=None,
+                order_id=str(broker_result.id) if hasattr(broker_result, "id") else None,
+                success=True,
+                error_message=None,
+                timestamp=datetime.now(UTC),
+            )
+        except Exception as exc:
+            logger.error(f"❌ Fallback market order failed for {symbol}: {exc}")
+            return OrderResult(
+                symbol=symbol,
+                action=side.upper(),
+                trade_amount=Decimal("0"),
+                shares=quantity,
+                price=None,
+                order_id=None,
+                success=False,
+                error_message=str(exc),
+                timestamp=datetime.now(UTC),
+            )
+
+    async def execute_rebalance_plan(self, plan: RebalancePlan) -> ExecutionResult:
 
         Args:
             symbol: Stock symbol
@@ -535,19 +558,52 @@ class Executor:
         return execution_result
 
     def _extract_all_symbols(self, plan: RebalancePlan) -> list[str]:
-        """Extract all symbols from the rebalance plan."""
-        if self._position_utils:
-            return self._position_utils.extract_all_symbols(plan)
-        # Fallback implementation
+        """Extract all symbols from the rebalance plan.
+
+        Args:
+            plan: Rebalance plan to extract symbols from
+
+        Returns:
+            List of unique symbols in the plan
+
+        """
         symbols = {item.symbol for item in plan.items if item.action in ["BUY", "SELL"]}
-        return sorted(symbols)
+        sorted_symbols = sorted(symbols)
+        logger.debug(f"📋 Extracted {len(sorted_symbols)} unique symbols for execution")
+        return sorted_symbols
 
     def _bulk_subscribe_symbols(self, symbols: list[str]) -> dict[str, bool]:
-        """Bulk subscribe to all symbols for efficient real-time pricing."""
-        if self._position_utils:
-            return self._position_utils.bulk_subscribe_symbols(symbols)
-        # Fallback: return empty dict if position utils not available
-        return {}
+        """Bulk subscribe to all symbols for efficient real-time pricing.
+
+        Args:
+            symbols: List of symbols to subscribe to
+
+        Returns:
+            Dictionary mapping symbol to subscription success
+
+        """
+        if not self.pricing_service or not self.enable_smart_execution:
+            logger.info("📡 Smart execution disabled, skipping bulk subscription")
+            return {}
+
+        if not symbols:
+            return {}
+
+        logger.info(f"📡 Bulk subscribing to {len(symbols)} symbols for real-time pricing")
+
+        # Use the enhanced bulk subscription method
+        subscription_results = self.pricing_service.bulk_subscribe_symbols(
+            symbols,
+            priority=5.0,  # High priority for execution
+        )
+
+        successful_subscriptions = sum(1 for success in subscription_results.values() if success)
+        logger.info(
+            f"✅ Bulk subscription complete: {successful_subscriptions}/{len(symbols)} "
+            "symbols subscribed"
+        )
+
+        return subscription_results
 
     async def _execute_sell_phase(
         self, sell_items: list[RebalancePlanItem], correlation_id: str | None = None
@@ -772,14 +828,29 @@ class Executor:
         orders: list[OrderResult],
         correlation_id: str | None = None,
     ) -> list[OrderResult]:
-        """Monitor and re-peg orders from a specific execution phase."""
-        if self._order_monitor:
-            return await self._order_monitor.monitor_and_repeg_phase_orders(
-                phase_type, orders, correlation_id
-            )
-        # Fallback: return orders unchanged if monitor not available
-        logger.info(f"📊 {phase_type} phase: Order monitor not available; skipping re-peg loop")
-        return orders
+        """Monitor and re-peg orders from a specific execution phase.
+
+        Args:
+            phase_type: Type of phase ("SELL" or "BUY")
+            orders: List of orders from this phase to monitor
+            correlation_id: Optional correlation ID for tracking
+
+        Returns:
+            Updated list of orders with any re-pegged order IDs swapped in.
+
+        """
+        import time
+
+        if not self.smart_strategy:
+            logger.info(f"📊 {phase_type} phase: Smart strategy disabled; skipping re-peg loop")
+            return orders
+
+        config = self._get_repeg_monitoring_config()
+        self._log_monitoring_config(phase_type, config)
+
+        return await self._execute_repeg_monitoring_loop(
+            phase_type, orders, config, time.time(), correlation_id
+        )
 
     def _get_repeg_monitoring_config(self) -> dict[str, int]:
         """Get configuration parameters for repeg monitoring.
@@ -1014,10 +1085,24 @@ class Executor:
         )
 
     def _cleanup_subscriptions(self, symbols: list[str]) -> None:
-        """Clean up pricing subscriptions after execution."""
-        if self._position_utils:
-            self._position_utils.cleanup_subscriptions(symbols)
-        # No fallback needed - cleanup is optional
+        """Clean up pricing subscriptions after execution.
+
+        Args:
+            symbols: List of symbols to clean up subscriptions for
+
+        """
+        if not self.pricing_service or not symbols:
+            return
+
+        logger.info(f"🧹 Cleaning up pricing subscriptions for {len(symbols)} symbols")
+
+        for symbol in symbols:
+            try:
+                self.pricing_service.unsubscribe_after_order(symbol)
+            except Exception as e:
+                logger.warning(f"Error cleaning up subscription for {symbol}: {e}")
+
+        logger.info("✅ Subscription cleanup complete")
 
     async def _execute_single_item(self, item: RebalancePlanItem) -> OrderResult:
         """Execute a single rebalance plan item.
@@ -1100,6 +1185,29 @@ class Executor:
             Decimal price if available, otherwise None.
 
         """
+        try:
+            # Try real-time pricing first if smart execution enabled
+            if self.pricing_service and self.enable_smart_execution:
+                try:
+                    price_rt = self.pricing_service.get_real_time_price(symbol)
+                    if price_rt is None:
+                        price_rt = self.pricing_service.get_optimized_price_for_order(symbol)
+                    if price_rt is not None and price_rt > 0:
+                        return Decimal(str(price_rt))
+                except Exception as exc:
+                    logger.debug(f"Real-time price lookup failed for {symbol}: {exc}")
+
+            # Fallback to AlpacaManager's current price
+            try:
+                price = self.alpaca_manager.get_current_price(symbol)
+                if price is not None and price > 0:
+                    return Decimal(str(price))
+            except Exception:
+                return None
+        except Exception:
+            return None
+        return None
+
     def _adjust_quantity_for_fractionability(self, symbol: str, raw_quantity: Decimal) -> Decimal:
         """Adjust quantity for asset fractionability constraints.
 
@@ -1181,12 +1289,36 @@ class Executor:
         orders: list[OrderResult],
         items: list[RebalancePlanItem],
     ) -> tuple[list[OrderResult], int, Decimal]:
-        """Wait for placed orders to complete and rebuild results based on final status."""
-        if self._order_finalizer:
-            return self._order_finalizer.finalize_phase_orders(orders, items, phase_type)
-        # Fallback: return orders as-is
-        logger.warning(f"Order finalizer not available; returning {len(orders)} orders as-is")
-        return orders, len([o for o in orders if o.success]), sum((o.trade_amount for o in orders), Decimal("0"))
+        """Wait for placed orders to complete and rebuild results based on final status.
+
+        Args:
+            phase_type: "SELL" or "BUY" for logging context
+            orders: Initial order DTOs created at placement time
+            items: Corresponding plan items in the same order as orders
+
+        Returns:
+            Tuple of (updated_orders, succeeded_count, trade_value)
+
+        Notes:
+            - Success is defined strictly as FILLED
+            - PARTIALLY_FILLED is treated as not succeeded; we annotate error_message
+
+        """
+        try:
+            order_ids = [o.order_id for o in orders if o.order_id]
+            if not order_ids:
+                return orders, 0, Decimal("0")
+
+            max_wait = self._derive_max_wait_seconds()
+            final_status_map = self._get_final_status_map(order_ids, max_wait, phase_type)
+            updated_orders, succeeded, trade_value = self._rebuild_orders_with_final_status(
+                orders, items, final_status_map
+            )
+            logger.info(f"📊 {phase_type} phase completion: {succeeded}/{len(orders)} FILLED")
+            return updated_orders, succeeded, trade_value
+        except Exception as e:
+            logger.error(f"Error finalizing {phase_type} phase orders: {e}")
+            return orders, 0, Decimal("0")
 
     def _log_repeg_status(self, phase_type: str, repeg_result: SmartOrderResult) -> None:
         """Log repeg status with appropriate message for escalation or standard repeg."""
