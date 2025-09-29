@@ -20,6 +20,7 @@ from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 from the_alchemiser.shared.types.market_data import QuoteModel
 
+from ..extended_hours_strategy import ExtendedHoursExecutionStrategy
 from .models import (
     ExecutionConfig,
     LiquidityMetadata,
@@ -58,6 +59,9 @@ class SmartExecutionStrategy:
         # Initialize execution validator for preflight checks
         self.validator = ExecutionValidator(alpaca_manager)
 
+        # Initialize extended hours strategy
+        self.extended_hours_strategy = ExtendedHoursExecutionStrategy(alpaca_manager)
+
         # Initialize components
         self.quote_provider = QuoteProvider(
             alpaca_manager=alpaca_manager,
@@ -88,6 +92,13 @@ class SmartExecutionStrategy:
             f"🎯 Placing smart {request.side} order: {request.quantity} {request.symbol} "
             f"(urgency: {request.urgency})"
         )
+
+        # Check if extended hours strategy should be used
+        if self.extended_hours_strategy.is_extended_hours_active():
+            logger.info(f"🌙 Using extended hours strategy for {request.symbol}")
+            return await self.extended_hours_strategy.place_extended_hours_order(request)
+
+        # Continue with normal smart execution logic for regular hours
 
         # Preflight validation for non-fractionable assets
         validation_result = self.validator.validate_order(
