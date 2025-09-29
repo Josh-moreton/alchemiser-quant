@@ -466,12 +466,48 @@ class RepegManager:
             f"original={request.quantity}, filled={filled_qty}, remaining={remaining_qty}"
         )
 
-        min_qty_threshold = Decimal("0.01")
-        if remaining_qty <= min_qty_threshold:
-            logger.info(
-                f"✅ Order {order_id} has minimal remaining quantity ({remaining_qty}), considering complete"
-            )
-            return None
+        # Determine if remaining is too small to pursue based on fractionability and notional
+        try:
+            asset_info = self.alpaca_manager.get_asset_info(request.symbol)
+            # Get best available price for notional check
+            price: Decimal | None = None
+            try:
+                # Prefer streaming midpoint if available via QuoteProvider
+                validated = self.quote_provider.get_quote_with_validation(request.symbol)
+                if validated:
+                    quote, _ = validated
+                    # Use ask for BUY, bid for SELL to compute conservative notional
+                    if request.side.upper() == "BUY":
+                        price = Decimal(str(quote.ask_price))
+                    else:
+                        price = Decimal(str(quote.bid_price))
+                else:
+                    current_price = self.alpaca_manager.get_current_price(request.symbol)
+                    if current_price is not None and current_price > 0:
+                        price = Decimal(str(current_price))
+            except Exception:
+                price = None
+
+            min_notional = getattr(self.config, "min_fractional_notional_usd", Decimal("1.00"))
+
+            if asset_info is not None and asset_info.fractionable:
+                # For fractionable assets, skip if remaining notional is below broker minimum
+                if price is not None:
+                    remaining_notional = (remaining_qty * price).quantize(Decimal("0.01"))
+                    if remaining_notional < min_notional:
+                        logger.info(
+                            f"✅ Order {order_id} remaining notional ${remaining_notional} < ${min_notional}, considering complete"
+                        )
+                        return None
+            else:
+                # For non-fractionable or unknown, if rounding down yields zero shares, consider complete
+                if remaining_qty.quantize(Decimal("1")) <= 0:
+                    logger.info(
+                        f"✅ Order {order_id} remaining non-fractionable quantity rounds to 0, considering complete"
+                    )
+                    return None
+        except Exception as _small_e:
+            logger.debug(f"Minimal-remaining evaluation fallback due to error: {_small_e}")
 
         return remaining_qty
 

@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 
 
 def calculate_price_adjustment(
-    original_price: Decimal, target_price: Decimal, adjustment_factor: Decimal = Decimal("0.5")
+    original_price: Decimal,
+    target_price: Decimal,
+    adjustment_factor: Decimal = Decimal("0.5"),
 ) -> Decimal:
     """Calculate price adjustment moving toward a target price.
 
@@ -66,13 +68,9 @@ def validate_repeg_price_with_history(
     if side.upper() == "BUY":
         # For buys, increase price by minimum improvement
         adjusted_price = new_price + min_improvement
-        # Don't exceed ask price
-        adjusted_price = min(adjusted_price, Decimal(str(quote.ask_price)))
     else:  # SELL
         # For sells, decrease price by minimum improvement
         adjusted_price = new_price - min_improvement
-        # Don't go below bid price
-        adjusted_price = max(adjusted_price, Decimal(str(quote.bid_price)))
 
     # Re-quantize after adjustment
     adjusted_price = adjusted_price.quantize(Decimal("0.01"))

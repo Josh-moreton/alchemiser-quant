@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.config.config import load_settings
@@ -84,6 +84,13 @@ class RebalancePlanCalculator:
             # Step 3: Calculate trade amounts and actions
             trade_items = self._calculate_trade_items(target_values, current_values)
 
+            # Step 3.5: Suppress micro trades below 1% of total portfolio value
+            min_trade_threshold = self._min_trade_threshold(portfolio_value)
+            logger.info(
+                f"Applying minimum trade threshold ${min_trade_threshold} (1% of portfolio)"
+            )
+            trade_items = self._suppress_small_trades(trade_items, min_trade_threshold)
+
             # Ensure we have at least one item (required by DTO)
             if not trade_items:
                 # Create a dummy HOLD item if no trades are needed
@@ -127,6 +134,7 @@ class RebalancePlanCalculator:
                     "cash_balance": str(snapshot.cash),
                     "position_count": len(snapshot.positions),
                     "module": MODULE_NAME,
+                    "min_trade_threshold": str(min_trade_threshold),
                 },
             )
 
@@ -193,7 +201,9 @@ class RebalancePlanCalculator:
         current_values = {}
 
         # Get all symbols we need to consider
-        all_symbols = set(strategy.target_weights.keys()) | set(snapshot.positions.keys())
+        all_symbols = set(strategy.target_weights.keys()) | set(
+            snapshot.positions.keys()
+        )
 
         # Apply cash reserve to avoid buying power issues with broker constraints
         # This ensures we don't try to use 100% of portfolio value which can
@@ -288,6 +298,52 @@ class RebalancePlanCalculator:
         items.sort(key=order_priority)
 
         return items
+
+    def _min_trade_threshold(self, portfolio_value: Decimal) -> Decimal:
+        """Compute minimum trade threshold as 1% of total portfolio value, in dollars.
+
+        Always returns a non-negative Decimal quantized to cents.
+        """
+        if portfolio_value <= Decimal("0"):
+            return Decimal("0.00")
+        return (portfolio_value * Decimal("0.01")).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+
+    def _suppress_small_trades(
+        self, items: list[RebalancePlanItem], min_threshold: Decimal
+    ) -> list[RebalancePlanItem]:
+        """Convert BUY/SELL items below the threshold into HOLDs to avoid micro tweaks.
+
+        This prevents execution of tiny adjustments when running the strategy multiple times per day.
+        """
+        suppressed: list[RebalancePlanItem] = []
+        for item in items:
+            try:
+                if (
+                    item.action in ("BUY", "SELL")
+                    and abs(item.trade_amount) < min_threshold
+                ):
+                    logger.debug(
+                        f"Suppressing micro trade for {item.symbol}: ${item.trade_amount} < ${min_threshold} → HOLD"
+                    )
+                    suppressed.append(
+                        item.model_copy(
+                            update={
+                                "action": "HOLD",
+                                "trade_amount": Decimal("0.00"),
+                                # Keep other fields as-is for transparency
+                            }
+                        )
+                    )
+                else:
+                    suppressed.append(item)
+            except Exception as exc:
+                logger.debug(
+                    f"Micro-trade suppression skipped for {getattr(item, 'symbol', '?')}: {exc}"
+                )
+                suppressed.append(item)
+        return suppressed
 
     def _calculate_priority(self, trade_amount: Decimal) -> int:
         """Calculate execution priority based on trade amount.

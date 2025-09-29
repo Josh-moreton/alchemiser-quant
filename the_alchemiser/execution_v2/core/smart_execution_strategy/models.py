@@ -50,19 +50,17 @@ class ExecutionConfig:
     """Configuration for smart execution strategy."""
 
     # Spread limits
-    max_spread_percent: Decimal = Decimal(
-        "0.50"
-    )  # 0.50% maximum spread (increased from 0.25%)
+    max_spread_percent: Decimal = Decimal("0.50")  # 0.50% maximum spread (increased from 0.25%)
 
     # Re-pegging configuration
     repeg_threshold_percent: Decimal = Decimal("0.10")  # Re-peg if market moves >0.1%
-    max_repegs_per_order: int = 3  # Maximum re-pegs before escalation
+    max_repegs_per_order: int = 2  # Maximum re-pegs before escalation (lower for faster fallback)
+    repeg_min_improvement_cents: Decimal = Decimal("0.02")  # Minimum price improvement on re-pegs
+    allow_cross_spread_on_repeg: bool = True  # Allow marketable crossing limits on final re-pegs
 
     # Volume requirements - ADJUSTED FOR LOW LIQUIDITY ETFS
     min_bid_ask_size: Decimal = Decimal("10")  # Reduced from 100 to 10 shares minimum
-    min_bid_ask_size_high_liquidity: Decimal = Decimal(
-        "100"
-    )  # For liquid stocks like SPY
+    min_bid_ask_size_high_liquidity: Decimal = Decimal("100")  # For liquid stocks like SPY
 
     # Order timing
     quote_freshness_seconds: int = 5  # Require quote within 5 seconds
@@ -70,6 +68,11 @@ class ExecutionConfig:
     fill_wait_seconds: int = 10  # Wait time before attempting re-peg
     max_wait_time_seconds: int = 30  # Maximum wait time for quote data
     stale_order_timeout_minutes: int = 1  # Cancel orders older than this many minutes
+
+    # Fractional trading safeguards
+    # Minimum notional for fractional orders (e.g., Alpaca requires >= $1 for fractional)
+    # Used for skipping micro orders and for re-peg minimal-remaining logic
+    min_fractional_notional_usd: Decimal = Decimal("1.00")
 
     # Anchoring offsets (in cents)
     bid_anchor_offset_cents: Decimal = Decimal("0.01")  # Place at bid + $0.01 for buys

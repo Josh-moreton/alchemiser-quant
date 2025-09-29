@@ -300,7 +300,11 @@ class PricingCalculator:
             if price_history:
                 from .utils import validate_repeg_price_with_history
 
-                new_price = validate_repeg_price_with_history(new_price, price_history, side, quote)
+                # Use configured minimum improvement
+                min_imp = getattr(self.config, "repeg_min_improvement_cents", Decimal("0.01"))
+                new_price = validate_repeg_price_with_history(
+                    new_price, price_history, side, quote, min_improvement=min_imp
+                )
 
             # Final validation and quantization
             return self._finalize_repeg_price(new_price, original_price)
@@ -325,29 +329,41 @@ class PricingCalculator:
         """
         from .utils import calculate_price_adjustment
 
+        allow_cross = getattr(self.config, "allow_cross_spread_on_repeg", False)
         if side.upper() == "BUY":
+            ask_price = Decimal(str(quote.ask_price))
             if original_price:
                 # Move 50% closer to the ask price
-                ask_price = Decimal(str(quote.ask_price))
                 new_price = calculate_price_adjustment(original_price, ask_price)
             else:
                 # If no original price, use ask price minus small offset
-                new_price = Decimal(str(quote.ask_price)) - self.config.ask_anchor_offset_cents
+                new_price = ask_price - self.config.ask_anchor_offset_cents
 
-            # Ensure we don't exceed ask price
-            new_price = min(new_price, Decimal(str(quote.ask_price)))
+            # Optionally allow crossing the ask to ensure marketability
+            if allow_cross:
+                # Cross by at least min improvement to avoid same-price repeats
+                min_imp = getattr(self.config, "repeg_min_improvement_cents", Decimal("0.01"))
+                new_price = max(new_price, ask_price + min_imp)
+            else:
+                # Ensure we don't exceed ask price
+                new_price = min(new_price, ask_price)
 
         else:  # SELL
+            bid_price = Decimal(str(quote.bid_price))
             if original_price:
                 # Move 50% closer to the bid price
-                bid_price = Decimal(str(quote.bid_price))
                 new_price = calculate_price_adjustment(original_price, bid_price)
             else:
                 # If no original price, use bid price plus small offset
-                new_price = Decimal(str(quote.bid_price)) + self.config.bid_anchor_offset_cents
+                new_price = bid_price + self.config.bid_anchor_offset_cents
 
-            # Ensure we don't go below bid price
-            new_price = max(new_price, Decimal(str(quote.bid_price)))
+            # Optionally allow crossing the bid to ensure marketability
+            if allow_cross:
+                min_imp = getattr(self.config, "repeg_min_improvement_cents", Decimal("0.01"))
+                new_price = min(new_price, bid_price - min_imp)
+            else:
+                # Ensure we don't go below bid price
+                new_price = max(new_price, bid_price)
 
         return new_price
 
