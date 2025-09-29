@@ -15,7 +15,7 @@ from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanItem
 
 if TYPE_CHECKING:
     from the_alchemiser.execution_v2.core.executor import ExecutionStats
-    from the_alchemiser.execution_v2.core.position_utils import PositionUtils
+    from the_alchemiser.execution_v2.utils.position_utils import PositionUtils
     from the_alchemiser.execution_v2.core.smart_execution_strategy import SmartExecutionStrategy, ExecutionConfig
 
 logger = logging.getLogger(__name__)

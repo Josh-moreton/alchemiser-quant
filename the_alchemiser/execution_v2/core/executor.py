@@ -14,8 +14,8 @@ from the_alchemiser.execution_v2.core.market_order_executor import MarketOrderEx
 from the_alchemiser.execution_v2.core.order_finalizer import OrderFinalizer
 from the_alchemiser.execution_v2.core.order_monitor import OrderMonitor
 from the_alchemiser.execution_v2.core.phase_executor import PhaseExecutor
-from the_alchemiser.execution_v2.core.position_utils import PositionUtils
-from the_alchemiser.execution_v2.core.repeg_monitoring_service import RepegMonitoringService
+from the_alchemiser.execution_v2.utils.position_utils import PositionUtils
+from the_alchemiser.execution_v2.utils.repeg_monitoring_service import RepegMonitoringService
 from the_alchemiser.execution_v2.core.smart_execution_strategy import (
     SmartExecutionStrategy,
     SmartOrderRequest,
