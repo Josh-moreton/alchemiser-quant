@@ -240,149 +240,18 @@ class Executor:
         except Exception as exc:
             return self._handle_market_order_exception(symbol, side, final_quantity, exc)
 
-    def _validate_market_order(
-        self,
-        symbol: str,
-        quantity: Decimal,
-        side: str,
-    ) -> OrderValidationResult:
-        """Run preflight validation for the market order."""
-        return self.validator.validate_order(
-            symbol=symbol,
-            quantity=quantity,
-            side=side,
-            auto_adjust=True,
-        )
 
-    def _build_validation_failure_result(
-        self,
-        symbol: str,
-        side: str,
-        quantity: Decimal,
-        validation_result: OrderValidationResult,
-    ) -> OrderResult:
-        """Construct execution result for validation failure."""
-        error_msg = validation_result.error_message or f"Validation failed for {symbol}"
-        logger.error(f"❌ Preflight validation failed for {symbol}: {error_msg}")
-        return OrderResult(
-            symbol=symbol,
-            action=side.upper(),
-            trade_amount=Decimal("0"),  # No trade executed
-            shares=quantity,
-            price=None,
-            order_id=None,
-            success=False,
-            error_message=error_msg,
-            timestamp=datetime.now(UTC),
-        )
 
-    def _log_validation_warnings(self, validation_result: OrderValidationResult) -> None:
-        """Log any warnings produced during validation."""
-        for warning in validation_result.warnings:
-            logger.warning(f"⚠️ Order validation: {warning}")
 
-    def _ensure_buying_power(self, symbol: str, quantity: Decimal) -> None:
-        """Ensure sufficient buying power before placing a buy order."""
-        (
-            is_sufficient,
-            current_bp,
-            estimated_cost,
-        ) = self.buying_power_service.check_sufficient_buying_power(
-            symbol,
-            quantity,
-            buffer_pct=5.0,
-        )
 
-        if not is_sufficient and estimated_cost:
-            logger.warning(
-                f"⚠️ Insufficient buying power for {symbol}: "
-                f"need ~${estimated_cost}, have ${current_bp}"
-            )
-            if self.buying_power_service.force_account_refresh():
-                logger.info("💰 Account refreshed, proceeding with order attempt")
-            else:
-                logger.warning("⚠️ Account refresh failed, proceeding anyway")
 
-    def _place_market_order_with_broker(
-        self,
-        symbol: str,
-        side: str,
-        quantity: Decimal,
-    ) -> ExecutedOrder:
-        """Submit the market order via the broker."""
-        return self.alpaca_manager.place_market_order(
-            symbol=symbol,
-            side=side.lower(),
-            qty=float(quantity),
-        )
 
-    def _build_market_order_execution_result(
-        self,
-        symbol: str,
-        side: str,
-        quantity: Decimal,
-        broker_result: ExecutedOrder,
-    ) -> OrderResult:
-        """Convert broker response into OrderResult."""
-        success = broker_result.status not in ["REJECTED", "CANCELED"]
-        price = broker_result.price if broker_result.price is not None else None
 
-        return OrderResult(
-            symbol=symbol,
-            action=side.upper(),
-            trade_amount=abs(quantity * (price or Decimal("0"))),
-            shares=quantity,
-            price=price,
-            order_id=broker_result.order_id,
-            success=success,
-            error_message=None if success else "Order was rejected or canceled",
-            timestamp=datetime.now(UTC),
-        )
 
-    def _handle_market_order_exception(
-        self,
-        symbol: str,
-        side: str,
-        quantity: Decimal,
-        exc: Exception,
-    ) -> OrderResult:
-        """Handle exceptions raised during market order submission."""
-        error_str = str(exc)
 
-        if "insufficient buying power" in error_str.lower():
-            logger.error(f"💳 Insufficient buying power for {symbol}: {exc}")
-            try:
-                account = self.alpaca_manager.get_account_dict()
-                if account:
-                    buying_power = account.get("buying_power", "unknown")
-                    logger.error(f"💳 Current account state - Buying power: ${buying_power}")
-            except Exception as diagnostic_error:
-                logger.debug(f"Diagnostic account retrieval failed: {diagnostic_error}")
 
-            return OrderResult(
-                symbol=symbol,
-                action=side.upper(),
-                trade_amount=Decimal("0"),  # No trade executed
-                shares=quantity,
-                price=None,
-                order_id=None,
-                success=False,
-                error_message=f"Insufficient buying power: {exc}",
-                timestamp=datetime.now(UTC),
-            )
 
-        logger.error(f"❌ Market order failed for {symbol}: {exc}")
-        return OrderResult(
-            symbol=symbol,
-            action=side.upper(),
-            trade_amount=Decimal("0"),  # No trade executed
-            shares=quantity,
-            price=None,
-            order_id=None,
-            success=False,
-            error_message=error_str,
-            timestamp=datetime.now(UTC),
-        )
+
 
     async def execute_rebalance_plan(self, plan: RebalancePlan) -> ExecutionResult:
         """Execute a rebalance plan with settlement-aware sell-first, buy-second workflow.
@@ -781,52 +650,9 @@ class Executor:
         logger.info(f"📊 {phase_type} phase: Order monitor not available; skipping re-peg loop")
         return orders
 
-    def _get_repeg_monitoring_config(self) -> dict[str, int]:
-        """Get configuration parameters for repeg monitoring.
 
-        Returns:
-            Dictionary containing monitoring configuration parameters.
 
-        """
-        config = {
-            "max_repegs": 3,
-            "fill_wait_seconds": 10,
-            "wait_between_checks": 1,
-            "max_total_wait": 60,
-        }
 
-        try:
-            if self.execution_config is not None:
-                config["max_repegs"] = getattr(self.execution_config, "max_repegs_per_order", 3)
-                config["fill_wait_seconds"] = int(
-                    getattr(self.execution_config, "fill_wait_seconds", 10)
-                )
-                config["wait_between_checks"] = max(
-                    1, min(config["fill_wait_seconds"] // 5, 5)
-                )  # Check 5x per fill_wait period
-                placement_timeout = int(
-                    getattr(self.execution_config, "order_placement_timeout_seconds", 30)
-                )
-                # Fix: Use fill_wait_seconds for total time calculation, not wait_between_checks
-                config["max_total_wait"] = int(
-                    placement_timeout
-                    + config["fill_wait_seconds"] * (config["max_repegs"] + 1)
-                    + 30  # +30s safety margin
-                )
-                config["max_total_wait"] = max(
-                    60, min(config["max_total_wait"], 600)
-                )  # Increased max to 10 minutes
-        except Exception as exc:
-            logger.debug(f"Error deriving re-peg loop bounds: {exc}")
-
-        return config
-
-    def _log_monitoring_config(self, phase_type: str, config: dict[str, int]) -> None:
-        """Log the monitoring configuration parameters."""
-        logger.debug(
-            f"{phase_type} re-peg monitoring: max_repegs={config['max_repegs']}, "
-            f"fill_wait_seconds={config['fill_wait_seconds']}, max_total_wait={config['max_total_wait']}s"
-        )
 
     async def _execute_repeg_monitoring_loop(
         self,
@@ -1089,90 +915,10 @@ class Executor:
                 timestamp=datetime.now(UTC),
             )
 
-    def _get_price_for_estimation(self, symbol: str) -> Decimal | None:
-        """Get best-available current price for share estimation.
 
-        Preference order:
-        1) Real-time pricing service (mid/optimized)
-        2) AlpacaManager current price utility
 
-        Returns:
-            Decimal price if available, otherwise None.
 
-        """
-    def _adjust_quantity_for_fractionability(self, symbol: str, raw_quantity: Decimal) -> Decimal:
-        """Adjust quantity for asset fractionability constraints.
 
-        Args:
-            symbol: Asset symbol
-            raw_quantity: Raw calculated quantity
-
-        Returns:
-            Adjusted quantity (whole shares for non-fractionable assets)
-
-        """
-        # Defensive guard
-        if raw_quantity <= 0:
-            return Decimal("0")
-
-        # Fetch asset info to decide quantization strategy
-        asset_info = self.alpaca_manager.get_asset_info(symbol)
-
-        # Unknown asset: default to fractional quantization
-        if asset_info is None:
-            logger.debug(f"Could not determine fractionability for {symbol}, using fractional")
-            return raw_quantity.quantize(Decimal("0.000001"))
-
-        # Fractionable: preserve fractional shares with 6dp quantization
-        if asset_info.fractionable:
-            return raw_quantity.quantize(Decimal("0.000001"))
-
-        # Non-fractionable: delegate rounding to validator for consistency
-        validation = self.validator.validate_order(
-            symbol=symbol,
-            quantity=raw_quantity,
-            side="buy",
-            auto_adjust=True,
-        )
-
-        if not validation.is_valid and validation.error_code == "ZERO_QUANTITY_AFTER_ROUNDING":
-            return Decimal("0")
-
-        adjusted = (
-            validation.adjusted_quantity
-            if validation.adjusted_quantity is not None
-            else raw_quantity.quantize(Decimal("1"), rounding=ROUND_DOWN)
-        )
-
-        if adjusted != raw_quantity:
-            logger.info(
-                f"🔄 Portfolio sizing: {symbol} non-fractionable, adjusted {raw_quantity:.6f} → {adjusted} shares"
-            )
-
-        return max(adjusted, Decimal("0"))
-
-    def _get_position_quantity(self, symbol: str) -> Decimal:
-        """Get the actual quantity held for a symbol.
-
-        Args:
-            symbol: Stock symbol to check
-
-        Returns:
-            Decimal quantity owned, or 0 if no position exists
-
-        """
-        try:
-            position = self.alpaca_manager.get_position(symbol)
-            if position is None:
-                logger.debug(f"No position found for {symbol}")
-                return Decimal("0")
-
-            # Use qty_available to account for shares tied up in orders
-            qty = getattr(position, "qty_available", None) or getattr(position, "qty", 0)
-            return Decimal(str(qty))
-        except Exception as e:
-            logger.warning(f"Error getting position for {symbol}: {e}")
-            return Decimal("0")
 
     def _finalize_phase_orders(
         self,
@@ -1260,178 +1006,19 @@ class Executor:
                 updated.append(o)
         return updated
 
-    def _derive_max_wait_seconds(self) -> int:
-        """Compute a conservative max wait time for order fills from config."""
-        try:
-            if self.execution_config is not None:
-                fill_wait_seconds = getattr(self.execution_config, "fill_wait_seconds", 10)
-                max_repegs = getattr(self.execution_config, "max_repegs_per_order", 3)
-                placement_timeout = getattr(
-                    self.execution_config, "order_placement_timeout_seconds", 30
-                )
-                # Fix: Use fill_wait_seconds for calculation, not wait_base
-                max_wait = int(placement_timeout + fill_wait_seconds * (max_repegs + 1) + 30)
-                return max(60, min(max_wait, 600))  # Increased max to 10 minutes
-        except Exception as exc:
-            logger.debug(f"Using default max wait due to config error: {exc}")
-        return 120  # Increased default from 60s
 
-    def _get_final_status_map(
-        self,
-        order_ids: list[str],
-        max_wait: int,
-        phase_type: str,
-    ) -> dict[str, tuple[str, Decimal | None]]:
-        """Poll broker and return final status map for each order ID."""
-        valid_order_ids, invalid_order_ids = self._validate_order_ids(order_ids, phase_type)
 
-        if valid_order_ids:
-            self._poll_order_completion(valid_order_ids, max_wait, phase_type)
 
-        return self._build_final_status_map(valid_order_ids, invalid_order_ids)
 
-    def _validate_order_ids(
-        self, order_ids: list[str], phase_type: str
-    ) -> tuple[list[str], list[str]]:
-        """Validate order IDs and separate valid from invalid ones.
 
-        Args:
-            order_ids: List of order IDs to validate
-            phase_type: Phase type for logging
 
-        Returns:
-            Tuple of (valid_order_ids, invalid_order_ids)
 
-        """
 
-        def _is_valid_uuid(val: str) -> bool:
-            try:
-                import uuid
 
-                uuid.UUID(str(val))
-                return True
-            except Exception:
-                return False
 
-        valid_order_ids = [oid for oid in order_ids if oid and _is_valid_uuid(oid)]
-        invalid_order_ids = [oid for oid in order_ids if not (oid and _is_valid_uuid(oid))]
 
-        if invalid_order_ids:
-            logger.warning(
-                f"{phase_type} phase: {len(invalid_order_ids)} invalid order IDs will be marked rejected"
-            )
 
-        return valid_order_ids, invalid_order_ids
 
-    def _poll_order_completion(
-        self, valid_order_ids: list[str], max_wait: int, phase_type: str
-    ) -> None:
-        """Poll broker for order completion status.
-
-        Args:
-            valid_order_ids: List of valid order IDs to poll
-            max_wait: Maximum wait time in seconds
-            phase_type: Phase type for logging
-
-        """
-        try:
-            ws_result = self.alpaca_manager.wait_for_order_completion(
-                valid_order_ids, max_wait_seconds=max_wait
-            )
-            if getattr(ws_result, "status", None) is None:
-                logger.warning(
-                    f"⚠️ {phase_type} phase: Could not determine completion status via polling"
-                )
-        except Exception as exc:
-            logger.warning(f"{phase_type} phase: error while polling for completion: {exc}")
-
-    def _build_final_status_map(
-        self, valid_order_ids: list[str], invalid_order_ids: list[str]
-    ) -> dict[str, tuple[str, Decimal | None]]:
-        """Build final status map for all order IDs.
-
-        Args:
-            valid_order_ids: List of valid order IDs
-            invalid_order_ids: List of invalid order IDs
-
-        Returns:
-            Dictionary mapping order IDs to (status, price) tuples
-
-        """
-        final_status_map: dict[str, tuple[str, Decimal | None]] = {}
-
-        # Pre-populate invalid IDs as rejected without broker calls
-        for oid in invalid_order_ids:
-            final_status_map[oid] = ("rejected", None)
-
-        # Get status for valid order IDs
-        for oid in valid_order_ids:
-            status, price = self._get_order_status_and_price(oid)
-            final_status_map[oid] = (status, price)
-
-        return final_status_map
-
-    def _get_order_status_and_price(self, order_id: str) -> tuple[str, Decimal | None]:
-        """Get status and price for a single order ID.
-
-        Args:
-            order_id: Order ID to check
-
-        Returns:
-            Tuple of (status_string, average_price)
-
-        """
-        try:
-            exec_res = self.alpaca_manager.get_order_execution_result(order_id)
-            status_str = str(getattr(exec_res, "status", "accepted"))
-            avg_price_obj = getattr(exec_res, "avg_fill_price", None)
-            avg_price: Decimal | None = (
-                avg_price_obj if isinstance(avg_price_obj, Decimal) else None
-            )
-            return status_str, avg_price
-        except Exception as exc:
-            logger.warning(f"Failed to refresh order {order_id}: {exc}")
-            return "rejected", None
-
-    def _rebuild_orders_with_final_status(
-        self,
-        orders: list[OrderResult],
-        items: list[RebalancePlanItem],
-        final_status_map: dict[str, tuple[str, Decimal | None]],
-    ) -> tuple[list[OrderResult], int, Decimal]:
-        """Rebuild OrderResults with final semantics, compute success and trade value."""
-        updated_orders: list[OrderResult] = []
-        succeeded = 0
-        trade_value = Decimal("0")
-
-        for idx, o in enumerate(orders):
-            if not o.order_id:
-                updated_orders.append(o)
-                continue
-
-            status, avg_price = final_status_map.get(o.order_id, ("rejected", None))
-            is_filled = status == "filled"
-            error_msg = None if is_filled else f"final status: {status}"
-            final_price = avg_price if avg_price is not None else o.price
-
-            new_o = o.model_copy(
-                update={
-                    "success": is_filled,
-                    "price": final_price,
-                    "error_message": error_msg,
-                }
-            )
-            updated_orders.append(new_o)
-
-            if is_filled:
-                succeeded += 1
-                try:
-                    corresponding_item = items[idx]
-                    trade_value += abs(corresponding_item.trade_amount)
-                except Exception:
-                    trade_value += abs(o.trade_amount)
-
-        return updated_orders, succeeded, trade_value
 
     def shutdown(self) -> None:
         """Shutdown the executor and cleanup resources."""
