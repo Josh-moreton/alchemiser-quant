@@ -13,7 +13,9 @@ from typing import TYPE_CHECKING, TypedDict
 from the_alchemiser.execution_v2.core.market_order_executor import MarketOrderExecutor
 from the_alchemiser.execution_v2.core.order_finalizer import OrderFinalizer
 from the_alchemiser.execution_v2.core.order_monitor import OrderMonitor
+from the_alchemiser.execution_v2.core.phase_executor import PhaseExecutor
 from the_alchemiser.execution_v2.core.position_utils import PositionUtils
+from the_alchemiser.execution_v2.core.repeg_monitoring_service import RepegMonitoringService
 from the_alchemiser.execution_v2.core.smart_execution_strategy import (
     SmartExecutionStrategy,
     SmartOrderRequest,
@@ -89,6 +91,8 @@ class Executor:
         self._order_monitor: OrderMonitor | None = None
         self._order_finalizer: OrderFinalizer | None = None
         self._position_utils: PositionUtils | None = None
+        self._phase_executor: PhaseExecutor | None = None
+        self._repeg_monitoring_service: RepegMonitoringService | None = None
 
         # Initialize smart execution if enabled
         try:
@@ -136,6 +140,11 @@ class Executor:
             self._position_utils = PositionUtils(
                 self.alpaca_manager, self.pricing_service, self.enable_smart_execution
             )
+            self._phase_executor = PhaseExecutor(
+                self.alpaca_manager, self._position_utils, self.smart_strategy, 
+                self.execution_config, self.enable_smart_execution
+            )
+            self._repeg_monitoring_service = RepegMonitoringService(self.smart_strategy)
             logger.debug("✅ Helper modules initialized")
         except Exception as e:
             logger.warning(f"⚠️ Error initializing helper modules: {e}")
@@ -421,47 +430,25 @@ class Executor:
     async def _execute_sell_phase(
         self, sell_items: list[RebalancePlanItem], correlation_id: str | None = None
     ) -> tuple[list[OrderResult], ExecutionStats]:
-        """Execute sell orders phase with integrated re-pegging monitoring.
-
-        Args:
-            sell_items: List of sell order items
-            correlation_id: Optional correlation ID for tracking
-
-        Returns:
-            Tuple of (order results, execution statistics)
-
-        """
+        """Execute sell orders phase with integrated re-pegging monitoring."""
+        if self._phase_executor:
+            return await self._phase_executor.execute_sell_phase(
+                sell_items, correlation_id,
+                execute_order_callback=self._execute_single_item,
+                monitor_orders_callback=self._monitor_and_repeg_phase_orders,
+                finalize_orders_callback=self._finalize_phase_orders,
+            )
+        
+        # Fallback implementation
         orders = []
-        placed = 0
-        succeeded = 0
-
-        # Execute all sell orders first (placement only)
         for item in sell_items:
             order_result = await self._execute_single_item(item)
             orders.append(order_result)
-            placed += 1
-
-            if order_result.order_id:
-                logger.info(f"🧾 SELL {item.symbol} order placed (ID: {order_result.order_id})")
-            elif not order_result.success:
-                logger.error(
-                    f"❌ SELL {item.symbol} placement failed: {order_result.error_message}"
-                )
-
-        # Monitor and re-peg sell orders that haven't filled and await completion
-        if self.smart_strategy and self.enable_smart_execution:
-            logger.info("🔄 Monitoring SELL orders for re-pegging opportunities...")
-            orders = await self._monitor_and_repeg_phase_orders("SELL", orders, correlation_id)
-
-        # Await completion and finalize statuses
-        orders, succeeded, trade_value = self._finalize_phase_orders(
-            phase_type="SELL", orders=orders, items=sell_items
-        )
-
+        
         return orders, {
-            "placed": placed,
-            "succeeded": succeeded,
-            "trade_value": trade_value,
+            "placed": len(orders),
+            "succeeded": len([o for o in orders if o.success]),
+            "trade_value": sum((o.trade_amount for o in orders), Decimal("0")),
         }
 
     async def _execute_buy_phase_with_settlement_monitoring(
@@ -529,110 +516,25 @@ class Executor:
     async def _execute_buy_phase(
         self, buy_items: list[RebalancePlanItem], correlation_id: str | None = None
     ) -> tuple[list[OrderResult], ExecutionStats]:
-        """Execute buy orders phase with integrated re-pegging monitoring.
-
-        Args:
-            buy_items: List of buy order items
-            correlation_id: Optional correlation ID for tracking
-
-        Returns:
-            Tuple of (order results, execution statistics)
-
-        """
+        """Execute buy orders phase with integrated re-pegging monitoring."""
+        if self._phase_executor:
+            return await self._phase_executor.execute_buy_phase(
+                buy_items, correlation_id,
+                execute_order_callback=self._execute_single_item,
+                monitor_orders_callback=self._monitor_and_repeg_phase_orders,
+                finalize_orders_callback=self._finalize_phase_orders,
+            )
+        
+        # Fallback implementation
         orders = []
-        placed = 0
-        succeeded = 0
-
-        # Execute all buy orders first (placement only)
         for item in buy_items:
-            # Pre-check for micro orders that will be rejected by broker constraints
-            if self.execution_config is not None:
-                try:
-                    min_notional = getattr(
-                        self.execution_config,
-                        "min_fractional_notional_usd",
-                        Decimal("1.00"),
-                    )
-                    asset_info = self.alpaca_manager.get_asset_info(item.symbol)
-                    # Estimate shares and notional for skip logic
-                    est_price = self._get_price_for_estimation(item.symbol) or Decimal("0")
-                    est_shares = (
-                        abs(item.trade_amount) / est_price if est_price > 0 else Decimal("0")
-                    )
-                    if asset_info and asset_info.fractionable:
-                        est_notional = (est_shares * est_price).quantize(Decimal("0.01"))
-                        if est_notional < min_notional:
-                            logger.warning(
-                                f"  ❌ Skipping BUY {item.symbol}: estimated notional ${est_notional} < ${min_notional} (fractional min)"
-                            )
-                            # Record as a skipped/no-op, not a failure
-                            orders.append(
-                                OrderResult(
-                                    symbol=item.symbol,
-                                    action="BUY",
-                                    trade_amount=Decimal("0"),
-                                    shares=Decimal("0"),
-                                    price=None,
-                                    order_id=None,
-                                    success=True,
-                                    error_message=None,
-                                    timestamp=datetime.now(UTC),
-                                )
-                            )
-                            # Do not count as placed
-                            continue
-                    else:
-                        # Non-fractionable: if rounding would produce zero shares, skip
-                        raw_shares = (
-                            abs(item.trade_amount) / est_price if est_price > 0 else Decimal("0")
-                        )
-                        rounded = raw_shares.quantize(Decimal("1"), rounding=ROUND_DOWN)
-                        if rounded <= 0:
-                            logger.warning(
-                                f"  ❌ Skipping BUY {item.symbol}: non-fractionable and rounded shares {rounded} <= 0"
-                            )
-                            orders.append(
-                                OrderResult(
-                                    symbol=item.symbol,
-                                    action="BUY",
-                                    trade_amount=Decimal("0"),
-                                    shares=Decimal("0"),
-                                    price=None,
-                                    order_id=None,
-                                    success=True,
-                                    error_message=None,
-                                    timestamp=datetime.now(UTC),
-                                )
-                            )
-                            continue
-                except Exception as _skip_err:
-                    logger.debug(
-                        f"Skip pre-check failed (continuing with normal flow): {_skip_err}"
-                    )
-
             order_result = await self._execute_single_item(item)
             orders.append(order_result)
-            placed += 1
-
-            if order_result.order_id:
-                logger.info(f"🧾 BUY {item.symbol} order placed (ID: {order_result.order_id})")
-            elif not order_result.success:
-                logger.error(f"❌ BUY {item.symbol} placement failed: {order_result.error_message}")
-
-        # Monitor and re-peg buy orders that haven't filled and await completion
-        if self.smart_strategy and self.enable_smart_execution:
-            logger.info("🔄 Monitoring BUY orders for re-pegging opportunities...")
-            orders = await self._monitor_and_repeg_phase_orders("BUY", orders, correlation_id)
-
-        # Await completion and finalize statuses
-        orders, succeeded, trade_value = self._finalize_phase_orders(
-            phase_type="BUY", orders=orders, items=buy_items
-        )
-
+        
         return orders, {
-            "placed": placed,
-            "succeeded": succeeded,
-            "trade_value": trade_value,
+            "placed": len(orders),
+            "succeeded": len([o for o in orders if o.success]),
+            "trade_value": sum((o.trade_amount for o in orders), Decimal("0")),
         }
 
     async def _monitor_and_repeg_phase_orders(
@@ -861,21 +763,37 @@ class Executor:
             # Determine quantity (shares) to trade
             if item.action == "SELL" and item.target_weight == Decimal("0.0"):
                 # For liquidation (0% target), use actual position quantity
-                raw_shares = self._get_position_quantity(item.symbol)
-                shares = self._adjust_quantity_for_fractionability(item.symbol, raw_shares)
+                raw_shares = (
+                    self._position_utils.get_position_quantity(item.symbol)
+                    if self._position_utils
+                    else Decimal("0")
+                )
+                shares = (
+                    self._position_utils.adjust_quantity_for_fractionability(item.symbol, raw_shares)
+                    if self._position_utils
+                    else raw_shares.quantize(Decimal("1"), rounding=ROUND_DOWN)
+                )
                 logger.info(
                     f"📊 Liquidating {item.symbol}: selling {shares} shares (full position)"
                 )
             else:
                 # Estimate shares from trade amount using best available price
-                price = self._get_price_for_estimation(item.symbol)
+                price = (
+                    self._position_utils.get_price_for_estimation(item.symbol)
+                    if self._position_utils
+                    else None
+                )
                 if price is None or price <= Decimal("0"):
                     # Safety fallback to 1 share if price discovery fails
                     shares = Decimal("1")
                     logger.warning(f"⚠️ Price unavailable for {item.symbol}; defaulting to 1 share")
                 else:
                     raw_shares = abs(item.trade_amount) / price
-                    shares = self._adjust_quantity_for_fractionability(item.symbol, raw_shares)
+                    shares = (
+                        self._position_utils.adjust_quantity_for_fractionability(item.symbol, raw_shares)
+                        if self._position_utils
+                        else raw_shares.quantize(Decimal("1"), rounding=ROUND_DOWN)
+                    )
 
                 amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
                 logger.info(
