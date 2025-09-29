@@ -96,9 +96,7 @@ class PortfolioServiceV2:
                 target_symbols=sorted(target_symbols),
             )
 
-            snapshot = self._state_reader.build_portfolio_snapshot(
-                symbols=target_symbols
-            )
+            snapshot = self._state_reader.build_portfolio_snapshot(symbols=target_symbols)
 
             # Step 2: Calculate rebalance plan
             log_with_context(
