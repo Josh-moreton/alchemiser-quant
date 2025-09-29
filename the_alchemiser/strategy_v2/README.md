@@ -43,6 +43,76 @@ strategy_v2/
 
 ## Usage
 
+### As a Module (NEW)
+
+You can now run the strategy module directly to generate current signals without triggering trading:
+
+```bash
+# List all available strategies
+python -m the_alchemiser.strategy_v2 --list
+
+# Run a specific strategy
+python -m the_alchemiser.strategy_v2 --strategy Nuclear
+
+# Run all configured strategies (default)
+python -m the_alchemiser.strategy_v2
+
+# Output signals in JSON format
+python -m the_alchemiser.strategy_v2 --strategy TECL --format json
+
+# Enable verbose logging
+python -m the_alchemiser.strategy_v2 --strategy Nuclear --verbose
+```
+
+This CLI mode runs in test mode with mock credentials and gracefully falls back to CASH signals when market data is unavailable, making it perfect for signal analysis without requiring live API credentials.
+
+### CLI Examples
+
+```bash
+# See what strategies are available
+$ python -m the_alchemiser.strategy_v2 --list
+Available strategies:
+  1-KMLM
+  2-Nuclear
+  3-Starburst
+  4-What
+  5-Coin
+  6-TQQQ-FLT
+  7-Phoenix
+  TECL
+  Ult
+
+# Run the Nuclear strategy and see current signals
+$ python -m the_alchemiser.strategy_v2 --strategy Nuclear
+🔄 Running strategy: 2-Nuclear
+
+📊 Generated Signals:
+================================================================================
+Symbol     Action Strategy        Reasoning
+--------------------------------------------------------------------------------
+CASH       BUY    UNKNOWN         2-Nuclear evaluation failed, fallback to c...
+================================================================================
+Total signals: 1
+
+# Get signals in JSON format for programmatic use
+$ python -m the_alchemiser.strategy_v2 --strategy TECL --format json
+[
+  {
+    "symbol": "CASH",
+    "action": "BUY", 
+    "strategy": "UNKNOWN",
+    "reasoning": "TECL evaluation failed, fallback to cash position",
+    "timestamp": "2025-09-29T20:28:22.643214+00:00",
+    "data_source": "unknown",
+    "fallback": true
+  }
+]
+```
+
+**Note:** Currently the CLI runs in test mode and falls back to CASH signals when market data is unavailable. This provides a safe way to test strategy logic without requiring live API credentials. In a production environment with proper credentials, the strategies would generate actual buy/sell signals based on real market data.
+
+### As a Library
+
 ```python
 from the_alchemiser.strategy_v2.core.orchestrator import SingleStrategyOrchestrator
 from the_alchemiser.strategy_v2.models.context import StrategyContext
