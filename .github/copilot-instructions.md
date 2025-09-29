@@ -5,6 +5,7 @@
 - Every new module file starts with `"""Business Unit: … | Status: current."""` to document ownership.
 - Enforce strict typing (`mypy --config-file=pyproject.toml`); avoid `Any` in domain logic and keep DTOs frozen.
 - Event handlers must be idempotent, propagate `correlation_id`/`causation_id`, and tolerate replays.
+- use `poetry run` for python commands, not system python. Example: `poetry run python -m the_alchemiser`.
 
 ## Architecture boundaries
 - Five business modules live under `the_alchemiser/`: `strategy_v2`, `portfolio_v2`, `execution_v2`, `orchestration`, `shared`.
