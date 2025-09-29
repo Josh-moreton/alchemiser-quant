@@ -20,6 +20,9 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
+    from the_alchemiser.shared.events.bus import EventBus
+
+if TYPE_CHECKING:
     # Forward reference type aliases for type checking
     from .context import ErrorContextData
 
@@ -728,11 +731,14 @@ def handle_trading_error(
     return _error_handler.handle_error(error, context, component, additional_data)
 
 
-def send_error_notification_if_needed(event_bus: Any = None) -> ErrorNotificationData | None:
+def send_error_notification_if_needed(
+    event_bus: EventBus | None = None,
+) -> ErrorNotificationData | None:
     """Send error notification via event bus if there are errors that warrant it.
-    
+
     Args:
         event_bus: Optional event bus for event-driven notifications. If None, falls back to direct email.
+
     """
     if not _error_handler.should_send_error_email():
         return None
@@ -741,23 +747,24 @@ def send_error_notification_if_needed(event_bus: Any = None) -> ErrorNotificatio
         # Try event-driven approach if event bus is provided
         if event_bus is not None:
             return _send_error_notification_via_events(event_bus)
-        else:
-            # Fallback to direct email sending
-            return _send_error_notification_direct()
+        # Fallback to direct email sending
+        return _send_error_notification_direct()
     except Exception as event_error:
         # Fallback to direct email sending for backward compatibility
         import logging
+
         logging.getLogger(__name__).warning(
             f"Event-driven notification failed, falling back to direct email: {event_error}"
         )
         return _send_error_notification_direct()
 
 
-def _send_error_notification_via_events(event_bus: Any) -> ErrorNotificationData | None:
+def _send_error_notification_via_events(event_bus: EventBus) -> ErrorNotificationData | None:
     """Send error notification via event bus (preferred method).
-    
+
     Args:
         event_bus: Event bus instance for publishing events
+
     """
     from datetime import UTC, datetime
     from uuid import uuid4
@@ -820,6 +827,7 @@ def _send_error_notification_via_events(event_bus: Any) -> ErrorNotificationData
     }
 
     import logging
+
     logging.getLogger(__name__).info("Error notification event published successfully")
     return notification_data
 
@@ -852,7 +860,9 @@ def _send_error_notification_direct() -> ErrorNotificationData | None:
 
     # Build subject with error code if available
     if primary_error_code:
-        subject = f"[FAILURE][{priority}][{primary_error_code}] The Alchemiser - {severity} Error Report"
+        subject = (
+            f"[FAILURE][{priority}][{primary_error_code}] The Alchemiser - {severity} Error Report"
+        )
     else:
         subject = f"[FAILURE][{priority}] The Alchemiser - {severity} Error Report"
 
@@ -883,8 +893,11 @@ def _send_error_notification_direct() -> ErrorNotificationData | None:
     }
 
     import logging
+
     if success:
-        logging.getLogger(__name__).info("Error notification email sent successfully (direct fallback)")
+        logging.getLogger(__name__).info(
+            "Error notification email sent successfully (direct fallback)"
+        )
         return notification_data
     logging.getLogger(__name__).error("Failed to send error notification email (direct fallback)")
     return notification_data

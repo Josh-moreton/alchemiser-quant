@@ -491,11 +491,15 @@ class EventDrivenOrchestrator:
             # Emit the event
             self.event_bus.publish(trading_event)
 
-            self.logger.info(f"Trading notification event published successfully (success={success})")
+            self.logger.info(
+                f"Trading notification event published successfully (success={success})"
+            )
 
         except Exception as e:
             # Don't let notification failure break the workflow - fall back to direct email
-            self.logger.warning(f"Failed to publish trading notification event, falling back to direct: {e}")
+            self.logger.warning(
+                f"Failed to publish trading notification event, falling back to direct: {e}"
+            )
             self._send_trading_notification_direct(event, success=success)
 
     def _send_trading_notification_direct(self, event: TradeExecuted, *, success: bool) -> None:
@@ -588,7 +592,9 @@ class EventDrivenOrchestrator:
                 text_content=f"Trading execution completed. Success: {success}",
             )
 
-            self.logger.info(f"Trading notification sent successfully via direct fallback (success={success})")
+            self.logger.info(
+                f"Trading notification sent successfully via direct fallback (success={success})"
+            )
 
         except Exception as e:
             # Don't let notification failure break the workflow

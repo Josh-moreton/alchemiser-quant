@@ -3,7 +3,7 @@
 Notifications V2 Module - Event-Driven Email Service.
 
 This module provides event-driven email notification services that can be deployed
-independently as a Lambda function. It consumes notification events from the 
+independently as a Lambda function. It consumes notification events from the
 event bus and sends appropriate emails.
 
 Public API:
@@ -23,9 +23,10 @@ from .service import NotificationService
 
 def register_notification_handlers(container: ApplicationContainer) -> None:
     """Register notification event handlers with the event bus.
-    
+
     Args:
         container: Application container for dependency injection
+
     """
     notification_service = NotificationService(container)
     notification_service.register_handlers()
@@ -33,6 +34,6 @@ def register_notification_handlers(container: ApplicationContainer) -> None:
 
 # Public API exports
 __all__ = [
-    "register_notification_handlers",
     "NotificationService",
+    "register_notification_handlers",
 ]
