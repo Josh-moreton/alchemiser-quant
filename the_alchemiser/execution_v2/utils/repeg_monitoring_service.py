@@ -100,7 +100,7 @@ class RepegMonitoringService:
                             phase_type, orders, results, elapsed_total=0.0
                         )
         except Exception as _err:
-            logger.debug(f"Skipped final escalation due to error: {_err}")
+            logger.exception("Error during final escalation to market in repeg monitoring loop")
             
         self._log_monitoring_completion(phase_type, start_time)
         return orders
