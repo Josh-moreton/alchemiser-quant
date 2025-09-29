@@ -25,10 +25,11 @@ from typing import Any, ClassVar
 # Type checking imports to avoid circular dependencies
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.trading.client import TradingClient
-from alpaca.trading.models import Position, TradeAccount
+from alpaca.trading.models import Order, Position, TradeAccount
 from alpaca.trading.requests import (
     LimitOrderRequest,
     MarketOrderRequest,
+    ReplaceOrderRequest,
 )
 
 from the_alchemiser.shared.protocols.repository import (
@@ -400,6 +401,19 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def cancel_order(self, order_id: str) -> bool:
         """Cancel an order by ID."""
         return self._get_trading_service().cancel_order(order_id)
+
+    def replace_order(self, order_id: str, order_data: ReplaceOrderRequest) -> Order | dict[str, Any] | None:
+        """Replace an order with new parameters.
+        
+        Args:
+            order_id: The unique identifier for the order being replaced
+            order_data: The parameters to update in the order
+            
+        Returns:
+            The updated order object, or None if replacement failed
+            
+        """
+        return self._get_trading_service().replace_order_by_id(order_id, order_data)
 
     def get_orders(self, status: str | None = None) -> list[Any]:
         """Get orders, optionally filtered by status."""
