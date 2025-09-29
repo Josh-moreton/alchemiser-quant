@@ -5,7 +5,7 @@ The Alchemiser now includes built-in portfolio profit and loss analysis using th
 ## Features
 
 - **Weekly P&L Reports**: Analyze performance over the past N weeks
-- **Monthly P&L Reports**: Analyze performance over the past N months  
+- **Monthly P&L Reports**: Analyze performance over the past N months
 - **Flexible Period Analysis**: Use Alpaca period formats (1W, 1M, 3M, 1A)
 - **Detailed Breakdown**: Optional daily-level performance details
 - **Multiple Interfaces**: CLI script, main application, and Lambda integration
@@ -18,16 +18,16 @@ The primary interface for local development uses the main application entry poin
 
 ```bash
 # Show last week's P&L
-python -m the_alchemiser pnl --weekly
+poetry run python -m the_alchemiser pnl --weekly
 
 # Show last month's P&L with daily breakdown
-python -m the_alchemiser pnl --monthly --detailed
+poetry run python -m the_alchemiser pnl --monthly --detailed
 
 # Show P&L for last 3 weeks
-python -m the_alchemiser pnl --weekly --periods 3
+poetry run python -m the_alchemiser pnl --weekly --periods 3
 
 # Show P&L using Alpaca period format
-python -m the_alchemiser pnl --period 1M
+poetry run python -m the_alchemiser pnl --period 1M
 ```
 
 ### Standalone Script (Alternative)
@@ -107,7 +107,7 @@ service = PnLService()
 # Get weekly P&L
 weekly_data = service.get_weekly_pnl(weeks_back=1)
 
-# Get monthly P&L  
+# Get monthly P&L
 monthly_data = service.get_monthly_pnl(months_back=1)
 
 # Get P&L using Alpaca periods
