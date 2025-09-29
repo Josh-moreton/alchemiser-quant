@@ -253,7 +253,21 @@ class RebalancePlanCalculator:
         
         # Handle edge case where both are zero
         if portfolio_value_for_weights == Decimal("0"):
-            portfolio_value_for_weights = Decimal("1")  # Avoid division by zero
+            # Explicitly return zeroed-out items for all symbols
+            for symbol in sorted(all_symbols):
+                item = RebalancePlanItem(
+                    symbol=symbol,
+                    current_weight=Decimal("0"),
+                    target_weight=Decimal("0"),
+                    weight_diff=Decimal("0"),
+                    target_value=Decimal("0"),
+                    current_value=Decimal("0"),
+                    trade_amount=Decimal("0"),
+                    action="HOLD",
+                    priority=0,
+                )
+                items.append(item)
+            return items
 
         for symbol in sorted(all_symbols):
             target_value = target_values.get(symbol, Decimal("0"))
