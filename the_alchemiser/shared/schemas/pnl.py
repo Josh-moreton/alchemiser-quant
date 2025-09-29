@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Business Unit: shared | Status: current.
 
-DTOs for P&L analysis.
+Schemas for P&L analysis.
 """
 
 from __future__ import annotations
