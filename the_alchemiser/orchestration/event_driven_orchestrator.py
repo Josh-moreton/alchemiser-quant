@@ -28,9 +28,6 @@ from the_alchemiser.shared.events import (
     WorkflowStarted,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.notifications.templates.multi_strategy import (
-    MultiStrategyReportBuilder,
-)
 
 
 class EventDrivenOrchestrator:
@@ -496,109 +493,8 @@ class EventDrivenOrchestrator:
             )
 
         except Exception as e:
-            # Don't let notification failure break the workflow - fall back to direct email
-            self.logger.warning(
-                f"Failed to publish trading notification event, falling back to direct: {e}"
-            )
-            self._send_trading_notification_direct(event, success=success)
-
-    def _send_trading_notification_direct(self, event: TradeExecuted, *, success: bool) -> None:
-        """Send trading completion notification directly (fallback method).
-
-        Args:
-            event: The TradeExecuted event
-            success: Whether the trading was successful
-
-        """
-        try:
-            from the_alchemiser.shared.notifications.email_utils import (
-                build_error_email_html,
-                send_email_notification,
-            )
-
-            # Determine trading mode from container
-            is_live = not self.container.config.paper_trading()
-            mode_str = "LIVE" if is_live else "PAPER"
-
-            # Extract execution data
-            execution_data = event.execution_data
-            orders_placed = event.orders_placed
-            orders_succeeded = event.orders_succeeded
-            # total_trade_value may be Decimal, float, or string; normalize for formatting
-            raw_total_value = execution_data.get("total_trade_value", 0)
-            try:
-                total_trade_value_float = float(raw_total_value)
-            except (TypeError, ValueError):
-                total_trade_value_float = 0.0
-
-            if success:
-                # Use enhanced successful trading run template instead of basic HTML
-                try:
-                    # Create a result adapter for the enhanced template
-                    class EventResultAdapter:
-                        def __init__(
-                            self, execution_data: dict[str, Any], correlation_id: str
-                        ) -> None:
-                            self.success = True
-                            self.orders_executed: list[
-                                Any
-                            ] = []  # Event data doesn't have detailed order info
-                            self.strategy_signals: dict[
-                                str, Any
-                            ] = {}  # Event data doesn't have signal details
-                            self.correlation_id = correlation_id
-                            # Add any other fields the template might use via getattr
-                            self._execution_data = execution_data
-
-                        def __getattr__(self, name: str) -> object:
-                            # Allow template to access any field from execution_data
-                            return self._execution_data.get(name, None)
-
-                    result_adapter = EventResultAdapter(execution_data, event.correlation_id)
-                    html_content = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-                        result_adapter,
-                        mode_str,
-                    )
-                except Exception as template_error:
-                    # Fallback to basic template if enhanced template fails
-                    self.logger.warning(f"Enhanced template failed, using basic: {template_error}")
-                    html_content = f"""
-                    <h2>Trading Execution Report - {mode_str.upper()}</h2>
-                    <p><strong>Status:</strong> Success</p>
-                    <p><strong>Orders Placed:</strong> {orders_placed}</p>
-                    <p><strong>Orders Succeeded:</strong> {orders_succeeded}</p>
-                    <p><strong>Total Trade Value:</strong> ${total_trade_value_float:,.2f}</p>
-                    <p><strong>Correlation ID:</strong> {event.correlation_id}</p>
-                    <p><strong>Timestamp:</strong> {event.timestamp}</p>
-                    """
-            else:
-                error_message = event.metadata.get("error_message") or "Unknown error"
-                html_content = build_error_email_html(
-                    "Trading Execution Failed",
-                    f"Trading workflow failed: {error_message}",
-                )
-
-            status_tag = "SUCCESS" if success else "FAILURE"
-
-            # Include error code in subject if available for failures
-            if not success and hasattr(event, "error_code") and event.error_code:
-                subject = f"[{status_tag}][{event.error_code}] The Alchemiser - {mode_str.upper()} Trading Report"
-            else:
-                subject = f"[{status_tag}] The Alchemiser - {mode_str.upper()} Trading Report"
-
-            send_email_notification(
-                subject=subject,
-                html_content=html_content,
-                text_content=f"Trading execution completed. Success: {success}",
-            )
-
-            self.logger.info(
-                f"Trading notification sent successfully via direct fallback (success={success})"
-            )
-
-        except Exception as e:
             # Don't let notification failure break the workflow
-            self.logger.warning(f"Failed to send trading notification via direct fallback: {e}")
+            self.logger.error(f"Failed to publish trading notification event: {e}")
 
     def _perform_reconciliation(self) -> None:
         """Perform post-trade reconciliation workflow."""

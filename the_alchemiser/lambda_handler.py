@@ -115,7 +115,15 @@ def _handle_error(
             additional_data=additional_data,
         )
 
-        send_error_notification_if_needed()
+        # Create container and event bus for error notification
+        try:
+            from the_alchemiser.shared.config.container import ApplicationContainer
+
+            container = ApplicationContainer()
+            event_bus = container.services.event_bus()
+            send_error_notification_if_needed(event_bus)
+        except Exception as setup_error:
+            logger.warning(f"Failed to setup event bus for error notification: {setup_error}")
 
     except NotificationError as notification_error:
         logger.warning("Failed to send error notification: %s", notification_error)
