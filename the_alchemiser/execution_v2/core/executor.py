@@ -10,6 +10,10 @@ from datetime import UTC, datetime
 from decimal import ROUND_DOWN, Decimal
 from typing import TYPE_CHECKING, TypedDict
 
+from the_alchemiser.execution_v2.core.market_order_executor import MarketOrderExecutor
+from the_alchemiser.execution_v2.core.order_finalizer import OrderFinalizer
+from the_alchemiser.execution_v2.core.order_monitor import OrderMonitor
+from the_alchemiser.execution_v2.core.position_utils import PositionUtils
 from the_alchemiser.execution_v2.core.smart_execution_strategy import (
     SmartExecutionStrategy,
     SmartOrderRequest,
@@ -80,6 +84,12 @@ class Executor:
         self.websocket_manager = None
         self.enable_smart_execution = True
 
+        # Initialize extracted helper modules
+        self._market_order_executor: MarketOrderExecutor | None = None
+        self._order_monitor: OrderMonitor | None = None
+        self._order_finalizer: OrderFinalizer | None = None
+        self._position_utils: PositionUtils | None = None
+
         # Initialize smart execution if enabled
         try:
             logger.info("🚀 Initializing smart execution with shared WebSocket connection...")
@@ -102,6 +112,16 @@ class Executor:
                 config=execution_config,
             )
             logger.info("✅ Smart execution strategy initialized with shared WebSocket")
+
+            # Initialize helper modules
+            self._market_order_executor = MarketOrderExecutor(
+                alpaca_manager, self.validator, self.buying_power_service
+            )
+            self._order_monitor = OrderMonitor(self.smart_strategy, execution_config)
+            self._order_finalizer = OrderFinalizer(alpaca_manager, execution_config)
+            self._position_utils = PositionUtils(
+                alpaca_manager, self.pricing_service, self.enable_smart_execution
+            )
 
         except Exception as e:
             logger.error(f"❌ Error initializing smart execution: {e}", exc_info=True)
@@ -175,9 +195,42 @@ class Executor:
 
         # Fallback to regular market order
         logger.info(f"📈 Using standard market order for {symbol}")
-        return self._execute_market_order(symbol, side, Decimal(str(quantity)))
+        if self._market_order_executor:
+            return self._market_order_executor.execute_market_order(symbol, side, Decimal(str(quantity)))
+        else:
+            # Fallback if market order executor not initialized
+            return self._execute_market_order_fallback(symbol, side, Decimal(str(quantity)))
 
-    def _execute_market_order(self, symbol: str, side: str, quantity: Decimal) -> OrderResult:
+    def _execute_market_order_fallback(self, symbol: str, side: str, quantity: Decimal) -> OrderResult:
+        """Fallback market order execution when market order executor is not available."""
+        try:
+            broker_result = self.alpaca_manager.place_market_order(symbol, side, float(quantity))
+            logger.info(f"📈 Fallback market order placed for {symbol}: {side.upper()} {quantity} shares")
+            
+            return OrderResult(
+                symbol=symbol,
+                action=side.upper(),
+                trade_amount=Decimal("0"),  # Will be updated later
+                shares=quantity,
+                price=None,
+                order_id=str(broker_result.id) if hasattr(broker_result, "id") else None,
+                success=True,
+                error_message=None,
+                timestamp=datetime.now(UTC),
+            )
+        except Exception as exc:
+            logger.error(f"❌ Fallback market order failed for {symbol}: {exc}")
+            return OrderResult(
+                symbol=symbol,
+                action=side.upper(),
+                trade_amount=Decimal("0"),
+                shares=quantity,
+                price=None,
+                order_id=None,
+                success=False,
+                error_message=str(exc),
+                timestamp=datetime.now(UTC),
+            )
         """Execute a standard market order with preflight validation.
 
         Args:
