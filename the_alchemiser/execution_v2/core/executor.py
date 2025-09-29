@@ -556,127 +556,9 @@ class Executor:
 
 
 
-    async def _execute_repeg_monitoring_loop(
-        self,
-        phase_type: str,
-        orders: list[OrderResult],
-        config: dict[str, int],
-        start_time: float,
-        correlation_id: str | None = None,
-    ) -> list[OrderResult]:
-        """Execute the main repeg monitoring loop.
 
-        Args:
-            phase_type: Type of phase ("SELL" or "BUY")
-            orders: List of orders to monitor
-            config: Configuration parameters
-            start_time: Start time of monitoring
-            correlation_id: Optional correlation ID for tracking
 
-        Returns:
-            Updated list of orders with any re-pegged order IDs swapped in.
 
-        """
-        import asyncio
-        import time
-
-        attempts = 0
-        last_repeg_action_time = start_time
-
-        while (time.time() - start_time) < config["max_total_wait"]:
-            elapsed_total = time.time() - start_time
-
-            # Give existing orders time to fill before checking
-            await asyncio.sleep(config["wait_between_checks"])
-
-            repeg_results = []
-            if self.smart_strategy:
-                repeg_results = await self.smart_strategy.check_and_repeg_orders()
-
-            if repeg_results:
-                last_repeg_action_time = time.time()
-                orders = self._process_repeg_results(
-                    phase_type, orders, repeg_results, elapsed_total
-                )
-            else:
-                self._log_no_repeg_activity(phase_type, attempts, elapsed_total)
-
-            attempts += 1
-
-            # Check for early termination conditions
-            if self._should_terminate_early(last_repeg_action_time, config["fill_wait_seconds"]):
-                logger.info(
-                    f"📊 {phase_type} phase: No active orders remaining, ending monitoring early "
-                    f"(after {elapsed_total:.1f}s)"
-                )
-                break
-
-        self._log_monitoring_completion(phase_type, start_time, attempts, correlation_id)
-        # Ultimate fallback: if any active smart orders remain after monitoring window, escalate to market
-        try:
-            if self.smart_strategy and self.smart_strategy.get_active_order_count() > 0:
-                logger.warning(
-                    f"🚨 {phase_type} phase: Monitoring window ended with active orders; escalating remaining to market"
-                )
-                # Explicitly escalate remaining active orders to market and update order IDs
-                active = self.smart_strategy.order_tracker.get_active_orders()
-                if active:
-                    import asyncio as _asyncio
-
-                    tasks = [
-                        self.smart_strategy.repeg_manager._escalate_to_market(oid, req)
-                        for oid, req in active.items()
-                    ]
-                    results = [r for r in await _asyncio.gather(*tasks) if r]
-                    if results:
-                        # Process as if they were standard repeg results (will replace order IDs)
-                        orders = self._process_repeg_results(
-                            phase_type, orders, results, elapsed_total=0.0
-                        )
-        except Exception as _err:
-            logger.debug(f"Skipped final escalation due to error: {_err}")
-        return orders
-
-    def _process_repeg_results(
-        self,
-        phase_type: str,
-        orders: list[OrderResult],
-        repeg_results: list[SmartOrderResult],
-        elapsed_total: float,
-    ) -> list[OrderResult]:
-        """Process repeg results and update orders."""
-        if self._repeg_monitoring_service:
-            return self._repeg_monitoring_service._process_repeg_results(
-                phase_type, orders, repeg_results, elapsed_total
-            )
-        return orders
-
-    def _log_no_repeg_activity(self, phase_type: str, attempts: int, elapsed_total: float) -> None:
-        """Log when no repeg activity occurred."""
-        if self._repeg_monitoring_service:
-            self._repeg_monitoring_service._log_no_repeg_activity(phase_type, attempts, elapsed_total)
-
-    def _should_terminate_early(
-        self, last_repeg_action_time: float, fill_wait_seconds: int
-    ) -> bool:
-        """Check if monitoring should terminate early."""
-        if self._repeg_monitoring_service:
-            return self._repeg_monitoring_service._should_terminate_early(
-                last_repeg_action_time, fill_wait_seconds
-            )
-        import time
-        return time.time() - last_repeg_action_time > fill_wait_seconds * 2
-
-    def _log_monitoring_completion(
-        self,
-        phase_type: str,
-        start_time: float,
-        attempts: int,
-        correlation_id: str | None = None,
-    ) -> None:
-        """Log completion of monitoring phase."""
-        if self._repeg_monitoring_service:
-            self._repeg_monitoring_service._log_monitoring_completion(phase_type, start_time)
 
     def _cleanup_subscriptions(self, symbols: list[str]) -> None:
         """Clean up pricing subscriptions after execution."""
@@ -789,39 +671,7 @@ class Executor:
         logger.warning(f"Order finalizer not available; returning {len(orders)} orders as-is")
         return orders, len([o for o in orders if o.success]), sum((o.trade_amount for o in orders), Decimal("0"))
 
-    def _log_repeg_status(self, phase_type: str, repeg_result: SmartOrderResult) -> None:
-        """Log repeg status with appropriate message for escalation or standard repeg."""
-        if self._repeg_monitoring_service:
-            self._repeg_monitoring_service._log_repeg_status(phase_type, repeg_result)
 
-    def _extract_order_ids(self, repeg_result: SmartOrderResult) -> tuple[str, str]:
-        """Extract original and new order IDs from repeg result."""
-        if self._repeg_monitoring_service:
-            return self._repeg_monitoring_service._extract_order_ids(repeg_result)
-        return "", ""
-
-    def _handle_failed_repeg(self, phase_type: str, repeg_result: SmartOrderResult) -> None:
-        """Handle logging for failed repeg results."""
-        if self._repeg_monitoring_service:
-            self._repeg_monitoring_service._handle_failed_repeg(phase_type, repeg_result)
-
-    def _build_replacement_map_from_repeg_results(
-        self, phase_type: str, repeg_results: list[SmartOrderResult]
-    ) -> dict[str, str]:
-        """Build mapping from original to new order IDs for successful re-pegs."""
-        if self._repeg_monitoring_service:
-            return self._repeg_monitoring_service._build_replacement_map_from_repeg_results(
-                phase_type, repeg_results
-            )
-        return {}
-
-    def _replace_order_ids(
-        self, orders: list[OrderResult], replacement_map: dict[str, str]
-    ) -> list[OrderResult]:
-        """Replace order IDs in the given order list according to replacement_map."""
-        if self._repeg_monitoring_service:
-            return self._repeg_monitoring_service._replace_order_ids(orders, replacement_map)
-        return orders
 
 
 
