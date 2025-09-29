@@ -138,8 +138,3 @@ class PortfolioFragment(BaseModel):
         }
 
         return self.model_copy(update={"weights": normalized_weights})
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility aliases
-IndicatorRequestDTO = IndicatorRequest
-PortfolioFragmentDTO = PortfolioFragment

@@ -12,6 +12,7 @@ legacy argument-based calls.
 from __future__ import annotations
 
 import sys
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
 # CLI imports removed - using programmatic interface only
@@ -25,7 +26,7 @@ from the_alchemiser.shared.logging.logging_utils import (
 from the_alchemiser.shared.types.exceptions import ConfigurationError
 
 if TYPE_CHECKING:
-    from the_alchemiser.shared.schemas.trade_run_result import TradeRunResultDTO
+    from the_alchemiser.shared.schemas.trade_run_result import TradeRunResult
 
 
 class _ArgumentParsing:
@@ -37,10 +38,18 @@ class _ArgumentParsing:
         *,
         show_tracking: bool = False,
         export_tracking_json: str | None = None,
+        pnl_type: str | None = None,
+        pnl_periods: int = 1,
+        pnl_detailed: bool = False,
+        pnl_period: str | None = None,
     ) -> None:
         self.mode = mode
         self.show_tracking = show_tracking
         self.export_tracking_json = export_tracking_json
+        self.pnl_type = pnl_type
+        self.pnl_periods = pnl_periods
+        self.pnl_detailed = pnl_detailed
+        self.pnl_period = pnl_period
 
 
 def _parse_arguments(argv: list[str] | None) -> _ArgumentParsing:
@@ -59,16 +68,80 @@ def _parse_arguments(argv: list[str] | None) -> _ArgumentParsing:
     mode = argv[0] if argv else "trade"
     show_tracking = False
     export_tracking_json = None
+    pnl_type = None
+    pnl_periods = 1
+    pnl_detailed = False
+    pnl_period = None
 
     for i, arg in enumerate(argv):
         if arg == "--show-tracking":
             show_tracking = True
         elif arg == "--export-tracking-json" and i + 1 < len(argv):
             export_tracking_json = argv[i + 1]
+        elif arg == "--weekly":
+            pnl_type = "weekly"
+        elif arg == "--monthly":
+            pnl_type = "monthly"
+        elif arg == "--periods" and i + 1 < len(argv):
+            with suppress(ValueError):
+                pnl_periods = int(argv[i + 1])
+        elif arg == "--detailed":
+            pnl_detailed = True
+        elif arg == "--period" and i + 1 < len(argv):
+            pnl_period = argv[i + 1]
 
     return _ArgumentParsing(
-        mode, show_tracking=show_tracking, export_tracking_json=export_tracking_json
+        mode,
+        show_tracking=show_tracking,
+        export_tracking_json=export_tracking_json,
+        pnl_type=pnl_type,
+        pnl_periods=pnl_periods,
+        pnl_detailed=pnl_detailed,
+        pnl_period=pnl_period,
     )
+
+
+def _execute_pnl_analysis(args: _ArgumentParsing) -> bool:
+    """Execute P&L analysis command.
+
+    Args:
+        args: Parsed arguments containing P&L configuration
+
+    Returns:
+        True if successful, False otherwise
+
+    """
+    try:
+        from the_alchemiser.shared.services.pnl_service import PnLService
+
+        service = PnLService()
+
+        # Determine analysis type and get data
+        if args.pnl_type == "weekly":
+            pnl_data = service.get_weekly_pnl(args.pnl_periods)
+        elif args.pnl_type == "monthly":
+            pnl_data = service.get_monthly_pnl(args.pnl_periods)
+        elif args.pnl_period:
+            pnl_data = service.get_period_pnl(args.pnl_period)
+        else:
+            # Default to weekly if no specific type provided
+            pnl_data = service.get_weekly_pnl(1)
+
+        # Generate and display report
+        report = service.format_pnl_report(pnl_data, detailed=args.pnl_detailed)
+        print()
+        print(report)
+        print()
+
+        # Return success if we have data
+        return pnl_data.start_value is not None
+
+    except Exception as e:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"P&L analysis failed: {e}")
+        return False
 
 
 def _send_error_notification() -> None:
@@ -110,7 +183,7 @@ def _handle_error_with_notification(
     _send_error_notification()
 
 
-def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
+def main(argv: list[str] | None = None) -> TradeRunResult | bool:
     """Serve as main entry point for The Alchemiser Trading System.
 
     Args:
@@ -118,7 +191,7 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
               with legacy calls, but primarily for programmatic usage
 
     Returns:
-        TradeRunResultDTO for trade execution, or bool for other operations
+        TradeRunResult for trade execution, or bool for other operations
 
     """
     # Setup logging and request tracking
@@ -131,13 +204,14 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
 
     # Execute operation with proper error boundary
     try:
-        system = TradingSystem()
-
         if args.mode == "trade":
+            system = TradingSystem()
             return system.execute_trading(
                 show_tracking=args.show_tracking,
                 export_tracking_json=args.export_tracking_json,
             )
+        if args.mode == "pnl":
+            return _execute_pnl_analysis(args)
 
         return False
 
@@ -168,7 +242,7 @@ def main(argv: list[str] | None = None) -> TradeRunResultDTO | bool:
 
 if __name__ == "__main__":
     result = main()
-    # Handle both TradeRunResultDTO and boolean return types
+    # Handle both TradeRunResult and boolean return types
     if hasattr(result, "success"):
         sys.exit(0 if getattr(result, "success", False) else 1)
     sys.exit(0 if result else 1)

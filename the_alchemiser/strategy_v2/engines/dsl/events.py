@@ -18,9 +18,9 @@ from the_alchemiser.shared.events.dsl_events import (
     DecisionEvaluated,
     IndicatorComputed,
 )
-from the_alchemiser.shared.schemas.ast_node import ASTNodeDTO
-from the_alchemiser.shared.schemas.indicator_request import PortfolioFragmentDTO
-from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicatorDTO
+from the_alchemiser.shared.schemas.ast_node import ASTNode
+from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
+from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicator
 
 
 class DslEventPublisher:
@@ -42,7 +42,7 @@ class DslEventPublisher:
     def publish_indicator_computed(
         self,
         request_id: str,
-        indicator: TechnicalIndicatorDTO,
+        indicator: TechnicalIndicator,
         computation_time_ms: float,
         correlation_id: str,
         causation_id: str | None = None,
@@ -74,11 +74,11 @@ class DslEventPublisher:
 
     def publish_decision_evaluated(
         self,
-        decision_expression: ASTNodeDTO,
+        decision_expression: ASTNode,
         *,
         condition_result: bool,
         branch_taken: str,
-        branch_result: PortfolioFragmentDTO | None,
+        branch_result: PortfolioFragment | None,
         correlation_id: str,
         causation_id: str | None = None,
     ) -> None:

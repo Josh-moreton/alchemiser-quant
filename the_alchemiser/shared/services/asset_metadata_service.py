@@ -21,7 +21,7 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.schemas.asset_info import AssetInfoDTO
+from the_alchemiser.shared.schemas.asset_info import AssetInfo
 
 if TYPE_CHECKING:
     from alpaca.trading.client import TradingClient
@@ -45,19 +45,19 @@ class AssetMetadataService:
 
         """
         self._trading_client = trading_client
-        self._asset_cache: dict[str, AssetInfoDTO] = {}
+        self._asset_cache: dict[str, AssetInfo] = {}
         self._asset_cache_timestamps: dict[str, float] = {}
         self._asset_cache_ttl = asset_cache_ttl
         self._asset_cache_lock = threading.Lock()
 
-    def get_asset_info(self, symbol: str) -> AssetInfoDTO | None:
+    def get_asset_info(self, symbol: str) -> AssetInfo | None:
         """Get asset information with caching.
 
         Args:
             symbol: Stock symbol
 
         Returns:
-            AssetInfoDTO with asset metadata, or None if not found.
+            AssetInfo with asset metadata, or None if not found.
 
         """
         symbol_upper = symbol.upper()
@@ -79,7 +79,7 @@ class AssetMetadataService:
             asset = self._trading_client.get_asset(symbol_upper)
 
             # Convert SDK object to DTO at adapter boundary
-            asset_dto = AssetInfoDTO(
+            asset_info = AssetInfo(
                 symbol=getattr(asset, "symbol", symbol_upper),
                 name=getattr(asset, "name", None),
                 exchange=getattr(asset, "exchange", None),
@@ -92,15 +92,15 @@ class AssetMetadataService:
 
             # Cache the result
             with self._asset_cache_lock:
-                self._asset_cache[symbol_upper] = asset_dto
+                self._asset_cache[symbol_upper] = asset_info
                 self._asset_cache_timestamps[symbol_upper] = current_time
 
             logger.debug(
                 f"🏷️ Asset info retrieved for {symbol_upper}: "
-                f"fractionable={asset_dto.fractionable}, "
-                f"tradable={asset_dto.tradable}"
+                f"fractionable={asset_info.fractionable}, "
+                f"tradable={asset_info.tradable}"
             )
-            return asset_dto
+            return asset_info
 
         except Exception as e:
             logger.error(f"Failed to get asset info for {symbol_upper}: {e}")

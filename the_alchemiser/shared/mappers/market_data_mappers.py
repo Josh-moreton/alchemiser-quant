@@ -95,9 +95,9 @@ def quote_to_domain(raw: object) -> QuoteModel | None:
     Note:
         Uses defensive attribute access with getattr() for robust parsing
 
-    TODO: This creates legacy QuoteModel without market depth. Consider migrating
-    to enhanced QuoteModel from shared.types.market_data with bid_size/ask_size
-    for better market analysis and liquidity assessment.
+        Note: This currently creates the legacy QuoteModel without market depth.
+        Migrating to the enhanced QuoteModel from shared.types.market_data would
+        surface bid_size/ask_size details for richer liquidity analysis.
 
     """
     try:

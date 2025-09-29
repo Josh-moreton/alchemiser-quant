@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResult
 from the_alchemiser.shared.value_objects.core_types import (
     AccountInfo,
     EnrichedAccountInfo,
@@ -60,7 +60,7 @@ def build_error_email_html(title: str, message: str) -> str:
 
 
 def build_multi_strategy_email_html(
-    result: MultiStrategyExecutionResultDTO, mode: str = "PAPER"
+    result: MultiStrategyExecutionResult, mode: str = "PAPER"
 ) -> str:
     """Build a multi-strategy execution report email (neutral only).
 
@@ -108,7 +108,7 @@ class EmailTemplates:
 
     @staticmethod
     def successful_trading_run(
-        result: MultiStrategyExecutionResultDTO,
+        result: MultiStrategyExecutionResult,
         mode: str = "PAPER",
     ) -> str:
         """Generate successful trading run email - neutral mode with no dollar values.

@@ -10,14 +10,14 @@ Implements DSL operators for selecting subsets of assets:
 
 from __future__ import annotations
 
-from the_alchemiser.shared.schemas.ast_node import ASTNodeDTO
+from the_alchemiser.shared.schemas.ast_node import ASTNode
 
 from ..context import DslContext
 from ..dispatcher import DslDispatcher
 from ..types import DslEvaluationError
 
 
-def select_top(args: list[ASTNodeDTO], context: DslContext) -> int:
+def select_top(args: list[ASTNode], context: DslContext) -> int:
     """Evaluate select-top - select top N assets."""
     if not args:
         raise DslEvaluationError("select-top requires at least 1 argument")
@@ -32,7 +32,7 @@ def select_top(args: list[ASTNodeDTO], context: DslContext) -> int:
     return int(n)
 
 
-def select_bottom(args: list[ASTNodeDTO], context: DslContext) -> int:
+def select_bottom(args: list[ASTNode], context: DslContext) -> int:
     """Evaluate select-bottom - select bottom N assets."""
     if not args:
         raise DslEvaluationError("select-bottom requires at least 1 argument")

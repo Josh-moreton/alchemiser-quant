@@ -15,7 +15,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..utils.dto_conversion import (
+from ..utils.data_conversion import (
     convert_datetime_fields_from_dict,
     convert_decimal_fields_from_dict,
     convert_nested_order_data,
@@ -301,8 +301,3 @@ class ExecutionReport(BaseModel):
                 orders_data.append(order_data)  # Assume already a DTO
 
         return orders_data
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility aliases
-ExecutedOrderDTO = ExecutedOrder
-ExecutionReportDTO = ExecutionReport

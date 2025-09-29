@@ -2,7 +2,7 @@
 
 Asset Information DTO.
 
-Defines the AssetInfoDTO for standardized asset metadata representation
+Defines the AssetInfo for standardized asset metadata representation
 including fractionability support as required for non-fractionable asset handling.
 """
 
@@ -42,7 +42,3 @@ class AssetInfo(BaseModel):
     def normalize_symbol(cls, v: str) -> str:
         """Normalize symbol to uppercase."""
         return v.strip().upper()
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility alias
-AssetInfoDTO = AssetInfo

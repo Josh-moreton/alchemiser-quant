@@ -3,7 +3,7 @@
 
 Trade result factory utilities for creating DTOs.
 
-Provides utility functions for creating TradeRunResultDTO instances from
+Provides utility functions for creating TradeRunResult instances from
 various trading execution scenarios and outcomes.
 """
 
@@ -36,7 +36,7 @@ def create_failure_result(
         warnings: List of warning messages
 
     Returns:
-        TradeRunResultDTO representing a failed execution
+        TradeRunResult representing a failed execution
 
     """
     from datetime import UTC, datetime
@@ -85,12 +85,12 @@ def create_success_result(
         success: Whether the execution was successful
 
     Returns:
-        TradeRunResultDTO representing a successful execution
+        TradeRunResult representing a successful execution
 
     """
     orders_executed = trading_result.get("orders_executed", [])
-    order_dtos = _convert_orders_to_dtos(orders_executed, completed_at)
-    execution_summary = _calculate_execution_summary(order_dtos, started_at, completed_at)
+    order_results = _convert_orders_to_results(orders_executed, completed_at)
+    execution_summary = _calculate_execution_summary(order_results, started_at, completed_at)
     status = _determine_execution_status(success=success, execution_summary=execution_summary)
     trading_mode = _determine_trading_mode(orchestrator)
 
@@ -98,7 +98,7 @@ def create_success_result(
         status=status,
         success=success,
         execution_summary=execution_summary,
-        orders=order_dtos,
+        orders=order_results,
         warnings=warnings,
         trading_mode=trading_mode,
         started_at=started_at,
@@ -107,7 +107,7 @@ def create_success_result(
     )
 
 
-def _convert_orders_to_dtos(
+def _convert_orders_to_results(
     orders_executed: list[dict[str, Any]], completed_at: datetime
 ) -> list[OrderResultSummary]:
     """Convert executed orders to OrderResultSummary instances.
@@ -117,19 +117,21 @@ def _convert_orders_to_dtos(
         completed_at: Fallback timestamp for orders without filled_at
 
     Returns:
-        List of OrderResultSummaryDTO instances
+        List of OrderResultSummary instances
 
     """
-    order_dtos: list[OrderResultSummary] = []
+    order_results: list[OrderResultSummary] = []
 
     for order in orders_executed:
-        order_dto = _create_single_order_dto(order, completed_at)
-        order_dtos.append(order_dto)
+        order_result = _create_single_order_result(order, completed_at)
+        order_results.append(order_result)
 
-    return order_dtos
+    return order_results
 
 
-def _create_single_order_dto(order: dict[str, Any], completed_at: datetime) -> OrderResultSummary:
+def _create_single_order_result(
+    order: dict[str, Any], completed_at: datetime
+) -> OrderResultSummary:
     """Create a single OrderResultSummary from order data.
 
     Args:
@@ -137,7 +139,7 @@ def _create_single_order_dto(order: dict[str, Any], completed_at: datetime) -> O
         completed_at: Fallback timestamp
 
     Returns:
-        OrderResultSummaryDTO instance
+        OrderResultSummary instance
 
     """
     order_id = order.get("order_id", "")
@@ -183,25 +185,25 @@ def _calculate_trade_amount(
 
 
 def _calculate_execution_summary(
-    order_dtos: list[OrderResultSummary],
+    order_results: list[OrderResultSummary],
     started_at: datetime,
     completed_at: datetime,
 ) -> ExecutionSummary:
     """Calculate execution summary metrics from order DTOs.
 
     Args:
-        order_dtos: List of order result DTOs
+        order_results: List of order result DTOs
         started_at: Execution start time
         completed_at: Execution completion time
 
     Returns:
-        ExecutionSummaryDTO with calculated metrics
+        ExecutionSummary with calculated metrics
 
     """
-    orders_total = len(order_dtos)
-    orders_succeeded = sum(1 for order in order_dtos if order.success)
+    orders_total = len(order_results)
+    orders_succeeded = sum(1 for order in order_results if order.success)
     orders_failed = orders_total - orders_succeeded
-    total_value = sum((order.trade_amount for order in order_dtos), Decimal("0"))
+    total_value = sum((order.trade_amount for order in order_results), Decimal("0"))
     success_rate = orders_succeeded / orders_total if orders_total > 0 else 1.0
 
     return ExecutionSummary(

@@ -151,7 +151,3 @@ class ConsolidatedPortfolio(BaseModel):
 
         """
         return {symbol: float(weight) for symbol, weight in self.target_allocations.items()}
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility alias
-ConsolidatedPortfolioDTO = ConsolidatedPortfolio

@@ -36,12 +36,12 @@ from the_alchemiser.shared.protocols.repository import (
     MarketDataRepository,
     TradingRepository,
 )
-from the_alchemiser.shared.schemas.asset_info import AssetInfoDTO
+from the_alchemiser.shared.schemas.asset_info import AssetInfo
 from the_alchemiser.shared.schemas.broker import (
     OrderExecutionResult,
     WebSocketResult,
 )
-from the_alchemiser.shared.schemas.execution_report import ExecutedOrderDTO
+from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
 from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountService
 from the_alchemiser.shared.services.alpaca_trading_service import AlpacaTradingService
 from the_alchemiser.shared.services.asset_metadata_service import AssetMetadataService
@@ -252,14 +252,12 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Get position for a specific symbol."""
         return self._account_service.get_position(symbol)
 
-    def place_order(
-        self, order_request: LimitOrderRequest | MarketOrderRequest
-    ) -> ExecutedOrderDTO:
+    def place_order(self, order_request: LimitOrderRequest | MarketOrderRequest) -> ExecutedOrder:
         """Place an order and return execution details."""
         return self._get_trading_service().place_order(order_request)
 
     def get_order_execution_result(self, order_id: str) -> OrderExecutionResult:
-        """Fetch latest order state and map to execution result DTO.
+        """Fetch latest order state and map to execution result schema.
 
         Args:
             order_id: The unique Alpaca order ID
@@ -312,16 +310,16 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         return qty
 
-    def _create_error_dto(
+    def _create_error_result(
         self,
         order_id: str,
         symbol: str,
         side: str,
         qty: float | None,
         error_message: str,
-    ) -> ExecutedOrderDTO:
-        """Create error ExecutedOrderDTO for failed orders."""
-        return ExecutedOrderDTO(
+    ) -> ExecutedOrder:
+        """Create error ExecutedOrder for failed orders."""
+        return ExecutedOrder(
             order_id=order_id,
             symbol=symbol.upper() if symbol else "UNKNOWN",
             action=side.upper() if side and side.upper() in ["BUY", "SELL"] else "BUY",
@@ -342,7 +340,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         notional: float | None = None,
         *,
         is_complete_exit: bool = False,
-    ) -> ExecutedOrderDTO:
+    ) -> ExecutedOrder:
         """Place a market order with validation and execution result return."""
         try:
             # Validation
@@ -369,10 +367,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
         except ValueError as e:
             logger.error(f"Invalid order parameters: {e}")
-            return self._create_error_dto("INVALID", symbol, side, qty, str(e))
+            return self._create_error_result("INVALID", symbol, side, qty, str(e))
         except Exception as e:
             logger.error(f"Failed to place market order for {symbol}: {e}")
-            return self._create_error_dto("FAILED", symbol, side, qty, str(e))
+            return self._create_error_result("FAILED", symbol, side, qty, str(e))
 
     def place_limit_order(
         self,
@@ -382,7 +380,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         limit_price: float,
         time_in_force: str = "day",
     ) -> OrderExecutionResult:
-        """Place a limit order with validation and DTO conversion.
+        """Place a limit order with validation and schema conversion.
 
         Args:
             symbol: Stock symbol (e.g., 'AAPL')
@@ -414,10 +412,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         Returns the mid price between bid and ask, or None if not available.
         Uses centralized price discovery utility for consistent calculation.
 
-        TODO: Consider migrating callers to use structured pricing types:
-        - RealTimePricingService.get_quote_data() for bid/ask spreads with market depth
-        - RealTimePricingService.get_price_data() for volume and enhanced trade data
-        - Enhanced price discovery with QuoteModel and PriceDataModel
+        Note: Migrating callers to the structured pricing services would unlock richer
+        market context:
+        - RealTimePricingService.get_quote_data() surfaces bid/ask spreads with market depth
+        - RealTimePricingService.get_price_data() adds volume and enhanced trade data
+        - Enhanced price discovery with QuoteModel and PriceDataModel becomes possible
         """
         return self._market_data_service.get_current_price(symbol)
 
@@ -580,7 +579,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         return self._get_trading_service().liquidate_position(symbol)
 
-    def get_asset_info(self, symbol: str) -> AssetInfoDTO | None:
+    def get_asset_info(self, symbol: str) -> AssetInfo | None:
         """Get asset information with caching."""
         return self._asset_metadata_service.get_asset_info(symbol)
 
@@ -613,12 +612,15 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def get_portfolio_history(
         self,
-        _start_date: str | None = None,
-        _end_date: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
         timeframe: str = "1Day",
+        period: str | None = None,
     ) -> dict[str, Any] | None:
         """Get portfolio performance history."""
-        return self._account_service.get_portfolio_history(_start_date, _end_date, timeframe)
+        return self._account_service.get_portfolio_history(
+            start_date=start_date, end_date=end_date, timeframe=timeframe, period=period
+        )
 
     def get_activities(
         self,

@@ -3,7 +3,7 @@
 
 Portfolio state data transfer objects for inter-module communication.
 
-Provides typed DTOs for portfolio state with correlation tracking and
+Provides typed schemas for portfolio state with correlation tracking and
 serialization helpers for communication between portfolio and other modules.
 """
 
@@ -392,9 +392,3 @@ class PortfolioState(BaseModel):
                             f"Invalid {field_name} value in metrics: {metrics_data[field_name]}"
                         ) from e
             data["metrics"] = PortfolioMetrics(**metrics_data)
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility aliases
-PositionDTO = Position
-PortfolioMetricsDTO = PortfolioMetrics
-PortfolioStateDTO = PortfolioState

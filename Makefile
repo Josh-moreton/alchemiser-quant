@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check
+.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all
 
 # Default target
 help:
@@ -13,6 +13,19 @@ help:
 	@echo ""
 	@echo "Trading Commands:"
 	@echo "  run-trade       Execute trading via python -m the_alchemiser"
+	@echo ""
+	@echo "P&L Analysis Commands:"
+	@echo "  run-pnl-weekly  Show weekly P&L report"
+	@echo "  run-pnl-monthly Show monthly P&L report"
+	@echo "  run-pnl-detailed Show detailed monthly P&L report"
+	@echo ""
+	@echo "Testing Commands:"
+	@echo "  test            Run all tests"
+	@echo "  test-unit       Run unit tests only"
+	@echo "  test-integration Run integration tests only"
+	@echo "  test-functional Run functional tests only"
+	@echo "  test-e2e        Run end-to-end tests only"
+	@echo "  test-all        Run comprehensive test suite with coverage"
 	@echo ""
 	@echo "Development:"
 	@echo "  format          Format code with Ruff (formatter + fixes)"
@@ -34,6 +47,32 @@ dev:
 	@echo "🔧 Installing The Alchemiser with development dependencies (Poetry groups)..."
 	poetry install --with dev
 
+# Testing Commands
+test:
+	@echo "🧪 Running all tests..."
+	python -m pytest tests/ -v
+
+test-unit:
+	@echo "🔬 Running unit tests..."
+	python -m pytest -m unit tests/ -v
+
+test-integration:
+	@echo "🔗 Running integration tests..."
+	python -m pytest -m integration tests/ -v
+
+test-functional:
+	@echo "⚙️ Running functional tests..."
+	python -m pytest -m functional tests/ -v
+
+test-e2e:
+	@echo "🚀 Running end-to-end tests..."
+	python -m pytest -m e2e tests/ -v
+
+test-all:
+	@echo "🧪 Running comprehensive test suite..."
+	python -m pytest tests/ -v --tb=short
+	@echo "✅ Test suite completed!"
+
 # Trading Commands (using the CLI)
 # run-signals command removed - signal analysis is now integrated into run-trade
 
@@ -41,7 +80,18 @@ run-trade:
 	@echo "💰 Running trading (mode determined by stage)..."
 	python -m the_alchemiser
 
-# Removed run-trade-live - trading mode now determined by deployment stage
+# P&L Analysis Commands
+run-pnl-weekly:
+	@echo "📊 Running weekly P&L analysis..."
+	python -m the_alchemiser pnl --weekly
+
+run-pnl-monthly:
+	@echo "📊 Running monthly P&L analysis..."
+	python -m the_alchemiser pnl --monthly
+
+run-pnl-detailed:
+	@echo "📊 Running detailed monthly P&L analysis..."
+	python -m the_alchemiser pnl --monthly --detailed
 
 # Status command removed - use programmatic access via TradingSystem class
 

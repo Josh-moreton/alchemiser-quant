@@ -14,10 +14,12 @@ following the Single Responsibility Principle. It provides:
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 # Import Position and TradeAccount for runtime use
 from alpaca.trading.models import Position, TradeAccount
+from alpaca.trading.requests import GetPortfolioHistoryRequest
 
 if TYPE_CHECKING:
     from alpaca.trading.client import TradingClient
@@ -204,24 +206,58 @@ class AlpacaAccountService:
 
     def get_portfolio_history(
         self,
-        _start_date: str | None = None,
-        _end_date: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
         timeframe: str = "1Day",
+        period: str | None = None,
     ) -> dict[str, Any] | None:
         """Get portfolio performance history.
 
         Args:
-            _start_date: Start date (ISO format), defaults to 1 month ago - currently unused
-            _end_date: End date (ISO format), defaults to today - currently unused
-            timeframe: Timeframe for data points
+            start_date: Start date (ISO format YYYY-MM-DD)
+            end_date: End date (ISO format YYYY-MM-DD)
+            timeframe: Timeframe for data points (valid: 1Min, 5Min, 15Min, 1H, 1D)
+            period: Period string (1W, 1M, 3M, 1A) - alternative to start/end dates
 
         Returns:
             Portfolio history data, or None if failed.
 
         """
         try:
-            # Fetch without kwargs to satisfy type stubs
-            history = self._trading_client.get_portfolio_history()
+            # Normalize timeframe to Alpaca-accepted values for portfolio history
+            # Accept friendly inputs like "1Day"/"1Hour" and map to "1D"/"1H"
+            tf_input = (timeframe or "").strip()
+            tf_lower = tf_input.lower()
+            timeframe_normalized = tf_input
+            if tf_lower in ("1day", "1d"):
+                timeframe_normalized = "1D"
+            elif tf_lower in ("1hour", "1h"):
+                timeframe_normalized = "1H"
+            elif tf_lower in ("1min", "1m"):
+                timeframe_normalized = "1Min"
+            elif tf_lower in ("5min", "5m"):
+                timeframe_normalized = "5Min"
+            elif tf_lower in ("15min", "15m"):
+                timeframe_normalized = "15Min"
+
+            # Build request parameters (typed to allow datetime values for start/end)
+            request_params: dict[str, Any] = {"timeframe": timeframe_normalized}
+
+            if period:
+                request_params["period"] = period
+            else:
+                if start_date:
+                    request_params["start"] = datetime.fromisoformat(start_date)
+                if end_date:
+                    request_params["end"] = datetime.fromisoformat(end_date)
+
+            # Create request object
+            if request_params:
+                request = GetPortfolioHistoryRequest(**request_params)
+                history = self._trading_client.get_portfolio_history(request)
+            else:
+                history = self._trading_client.get_portfolio_history()
+
             # Convert to dictionary
             return {
                 "timestamp": getattr(history, "timestamp", []),
@@ -229,7 +265,7 @@ class AlpacaAccountService:
                 "profit_loss": getattr(history, "profit_loss", []),
                 "profit_loss_pct": getattr(history, "profit_loss_pct", []),
                 "base_value": getattr(history, "base_value", None),
-                "timeframe": timeframe,
+                "timeframe": timeframe_normalized,
             }
         except Exception as e:
             logger.error(f"Failed to get portfolio history: {e}")

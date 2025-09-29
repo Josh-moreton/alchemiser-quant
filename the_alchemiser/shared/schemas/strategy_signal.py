@@ -138,7 +138,3 @@ class StrategySignal(BaseModel):
                     raise ValueError(f"Invalid {field_name} value: {data[field_name]}") from e
 
         return cls(**data)
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility alias
-StrategySignalDTO = StrategySignal

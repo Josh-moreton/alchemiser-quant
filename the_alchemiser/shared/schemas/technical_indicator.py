@@ -215,21 +215,21 @@ class TechnicalIndicator(BaseModel):
 
         """
         try:
-            dto_data = cls._build_base_dto_data(symbol, legacy_indicators)
-            cls._map_price_indicators(legacy_indicators, dto_data)
-            cls._map_rsi_indicators(legacy_indicators, dto_data)
-            cls._map_moving_averages(legacy_indicators, dto_data)
-            cls._map_return_indicators(legacy_indicators, dto_data)
-            cls._map_volatility_indicators(legacy_indicators, dto_data)
-            cls._map_remaining_to_metadata(legacy_indicators, dto_data)
+            base_data = cls._build_base_data(symbol, legacy_indicators)
+            cls._map_price_indicators(legacy_indicators, base_data)
+            cls._map_rsi_indicators(legacy_indicators, base_data)
+            cls._map_moving_averages(legacy_indicators, base_data)
+            cls._map_return_indicators(legacy_indicators, base_data)
+            cls._map_volatility_indicators(legacy_indicators, base_data)
+            cls._map_remaining_to_metadata(legacy_indicators, base_data)
 
-            return cls(**dto_data)
+            return cls(**base_data)
 
         except (KeyError, ValueError, TypeError) as e:
             raise ValueError(f"Invalid legacy indicator data for {symbol}: {e}") from e
 
     @classmethod
-    def _build_base_dto_data(cls, symbol: str, legacy_indicators: dict[str, Any]) -> dict[str, Any]:
+    def _build_base_data(cls, symbol: str, legacy_indicators: dict[str, Any]) -> dict[str, Any]:
         """Build base DTO data with symbol, timestamp, and data source."""
         timestamp = legacy_indicators.get("timestamp", datetime.now(UTC))
         if isinstance(timestamp, str):
@@ -243,61 +243,61 @@ class TechnicalIndicator(BaseModel):
 
     @classmethod
     def _map_price_indicators(
-        cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]
+        cls, legacy_indicators: dict[str, Any], base_data: dict[str, Any]
     ) -> None:
         """Map price indicators from legacy format."""
         if "current_price" in legacy_indicators:
-            dto_data["current_price"] = Decimal(str(legacy_indicators["current_price"]))
+            base_data["current_price"] = Decimal(str(legacy_indicators["current_price"]))
 
     @classmethod
     def _map_rsi_indicators(
-        cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]
+        cls, legacy_indicators: dict[str, Any], base_data: dict[str, Any]
     ) -> None:
         """Map RSI indicators from legacy format."""
         for period in [10, 14, 20, 21]:
             key = f"rsi_{period}"
             if key in legacy_indicators:
-                dto_data[key] = float(legacy_indicators[key])
+                base_data[key] = float(legacy_indicators[key])
 
     @classmethod
     def _map_moving_averages(
-        cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]
+        cls, legacy_indicators: dict[str, Any], base_data: dict[str, Any]
     ) -> None:
         """Map moving average indicators from legacy format."""
         for period in [20, 50, 200]:
             key = f"ma_{period}"
             if key in legacy_indicators:
-                dto_data[key] = float(legacy_indicators[key])
+                base_data[key] = float(legacy_indicators[key])
 
     @classmethod
     def _map_return_indicators(
-        cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]
+        cls, legacy_indicators: dict[str, Any], base_data: dict[str, Any]
     ) -> None:
         """Map return indicators from legacy format."""
         return_keys = ["ma_return_90", "cum_return_60", "stdev_return_6"]
         for key in return_keys:
             if key in legacy_indicators:
-                dto_data[key] = float(legacy_indicators[key])
+                base_data[key] = float(legacy_indicators[key])
 
     @classmethod
     def _map_volatility_indicators(
-        cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]
+        cls, legacy_indicators: dict[str, Any], base_data: dict[str, Any]
     ) -> None:
         """Map volatility indicators from legacy format."""
         volatility_keys = ["volatility_14", "volatility_20", "atr_14"]
         for key in volatility_keys:
             if key in legacy_indicators:
-                dto_data[key] = float(legacy_indicators[key])
+                base_data[key] = float(legacy_indicators[key])
 
     @classmethod
     def _map_remaining_to_metadata(
-        cls, legacy_indicators: dict[str, Any], dto_data: dict[str, Any]
+        cls, legacy_indicators: dict[str, Any], base_data: dict[str, Any]
     ) -> None:
         """Map any remaining indicators to metadata."""
-        mapped_keys = set(dto_data.keys()) | {"timestamp", "data_source"}
+        mapped_keys = set(base_data.keys()) | {"timestamp", "data_source"}
         remaining = {k: v for k, v in legacy_indicators.items() if k not in mapped_keys}
         if remaining:
-            dto_data["metadata"] = remaining
+            base_data["metadata"] = remaining
 
     def to_legacy_dict(self) -> dict[str, Any]:
         """Convert to legacy dictionary format for backward compatibility.
@@ -380,7 +380,3 @@ class TechnicalIndicator(BaseModel):
         """
         field_name = f"ma_{period}"
         return getattr(self, field_name, None)
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility alias
-TechnicalIndicatorDTO = TechnicalIndicator

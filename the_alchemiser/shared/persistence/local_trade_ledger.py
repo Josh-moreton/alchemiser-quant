@@ -22,10 +22,12 @@ from typing import Any
 from ..schemas.trade_ledger import (
     AccountValueEntry,
     AccountValueQuery,
+    AssetType,
     Lot,
     PerformanceSummary,
     TradeLedgerEntry,
     TradeLedgerQuery,
+    TradeSide,
 )
 from .base_trade_ledger import BaseTradeLedger
 
@@ -481,6 +483,21 @@ class LocalTradeLedger(BaseTradeLedger):
         for field in decimal_fields:
             if data.get(field) is not None and isinstance(data[field], str):
                 data[field] = Decimal(data[field])
+
+        # Convert enum string fields back to Enum instances (strict model requires exact types)
+        asset_type_val = data.get("asset_type")
+        if isinstance(asset_type_val, str):
+            try:
+                data["asset_type"] = AssetType(asset_type_val.upper())
+            except Exception:
+                logger.warning(
+                    f"Unknown asset_type '{asset_type_val}', setting to None during deserialization"
+                )
+                data["asset_type"] = None
+
+        side_val = data.get("side")
+        if isinstance(side_val, str):
+            data["side"] = TradeSide(side_val.upper())
 
         return TradeLedgerEntry(**data)
 

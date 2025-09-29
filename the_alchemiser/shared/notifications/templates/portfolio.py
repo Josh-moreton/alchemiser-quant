@@ -17,8 +17,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Protocol, runtime_checkable
 
-from the_alchemiser.execution_v2.models.execution_result import ExecutionResultDTO
-from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResultDTO
+from the_alchemiser.execution_v2.models.execution_result import ExecutionResult
+from the_alchemiser.shared.schemas.common import MultiStrategyExecutionResult
 
 
 @runtime_checkable
@@ -29,17 +29,13 @@ class ExecutionSummaryLike(Protocol):  # pragma: no cover - structural typing he
 
 
 ExecutionLike = (
-    ExecutionResultDTO
-    | MultiStrategyExecutionResultDTO
-    | Mapping[str, Any]
-    | ExecutionSummaryLike
-    | Any
+    ExecutionResult | MultiStrategyExecutionResult | Mapping[str, Any] | ExecutionSummaryLike | Any
 )
 
 
 def _normalise_result(result: ExecutionLike) -> dict[str, Any]:
     """Return a plain dict for an execution result (DTO / mapping / object)."""
-    if isinstance(result, MultiStrategyExecutionResultDTO):  # pragma: no branch
+    if isinstance(result, MultiStrategyExecutionResult):  # pragma: no branch
         try:
             return result.model_dump()
         except Exception:  # pragma: no cover - defensive

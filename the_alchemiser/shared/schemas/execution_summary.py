@@ -4,7 +4,7 @@
 Execution Summary DTOs for The Alchemiser Trading System.
 
 This module provides structured DTOs for execution summaries, replacing
-dict[str, Any] usage in MultiStrategyExecutionResultDTO and other execution contexts.
+dict[str, Any] usage in MultiStrategyExecutionResult and other execution contexts.
 
 Key Features:
 - Pydantic v2 BaseModel with strict validation
@@ -90,7 +90,7 @@ class TradingSummary(BaseModel):
 class ExecutionSummary(BaseModel):
     """DTO for comprehensive execution summary.
 
-    Replaces the dict[str, Any] execution_summary field in MultiStrategyExecutionResultDTO.
+    Replaces the dict[str, Any] execution_summary field in MultiStrategyExecutionResult.
     """
 
     model_config = ConfigDict(
@@ -121,7 +121,7 @@ class ExecutionSummary(BaseModel):
 class PortfolioState(BaseModel):
     """DTO for final portfolio state.
 
-    Replaces the dict[str, Any] final_portfolio_state field in MultiStrategyExecutionResultDTO.
+    Replaces the dict[str, Any] final_portfolio_state field in MultiStrategyExecutionResult.
     """
 
     model_config = ConfigDict(

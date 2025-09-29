@@ -22,7 +22,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from the_alchemiser.shared.schemas.execution_summary import ExecutionSummary
 from the_alchemiser.shared.schemas.portfolio_state import PortfolioState
-from the_alchemiser.shared.value_objects.core_types import AccountInfo, OrderDetails, StrategySignal
+from the_alchemiser.shared.value_objects.core_types import (
+    AccountInfo,
+    OrderDetails,
+    StrategySignal,
+)
 
 
 class MultiStrategyExecutionResult(BaseModel):
@@ -99,12 +103,6 @@ class MultiStrategySummary(BaseModel):
     closed_pnl_subset: dict[str, Any] | None = None
 
 
-# TODO: Remove in Phase 3 - Temporary backward compatibility aliases
-MultiStrategyExecutionResultDTO = MultiStrategyExecutionResult
-AllocationComparisonDTO = AllocationComparison
-MultiStrategySummaryDTO = MultiStrategySummary
-
-
 class Configuration(BaseModel):
     """Placeholder for configuration data transfer.
 
@@ -140,8 +138,3 @@ class Error(BaseModel):
     error_type: str = Field(description="Type of error")
     message: str = Field(description="Error message")
     context: dict[str, Any] = Field(default_factory=dict, description="Error context data")
-
-
-# TODO: Remove in Phase 3 - Temporary backward compatibility aliases for these too
-ConfigurationDTO = Configuration
-ErrorDTO = Error

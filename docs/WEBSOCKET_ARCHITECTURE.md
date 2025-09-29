@@ -178,7 +178,7 @@ orchestrator = create_orchestrator(api_key, secret_key, paper=True)
 
 # Execution components
 alpaca_manager = AlpacaManager(api_key, secret_key, paper=True)
-executor = Executor(alpaca_manager, enable_smart_execution=True)
+executor = Executor(alpaca_manager)
 
 # All components automatically share the same connection instances
 ```
@@ -202,7 +202,7 @@ Components can be created in any order - the singleton patterns ensure connectio
 ```python
 # Order doesn't matter - all will share connections
 orchestrator = create_orchestrator(api_key, secret_key, paper=True)
-executor = Executor(AlpacaManager(api_key, secret_key, paper=True), enable_smart_execution=True)
+executor = Executor(AlpacaManager(api_key, secret_key, paper=True))
 ws_manager = WebSocketConnectionManager(api_key, secret_key, paper_trading=True)
 ```
 
