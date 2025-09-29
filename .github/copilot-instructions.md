@@ -20,7 +20,7 @@
 - Orchestrators (`orchestration/event_driven_orchestrator.py`) wire handlers through the `EventBus`; prefer registry/event wiring over direct imports.
 
 ## Typing & DTO policy
-- DTOs live in `shared/dto/` with `ConfigDict(strict=True, frozen=True)` and explicit field types.
+- DTOs live in `shared/schemas/` with `ConfigDict(strict=True, frozen=True)` and explicit field types.
 - Convert external SDK objects to DTOs at adapter boundaries (e.g., Alpaca managers); never leak raw dicts into business logic.
 - When serializing events, call `.model_dump()` and add deterministic hashes for dedupe if workflows require repeat safety.
 
