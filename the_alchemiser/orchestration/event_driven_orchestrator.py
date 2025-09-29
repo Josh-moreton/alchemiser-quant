@@ -59,18 +59,28 @@ class EventDrivenOrchestrator:
 
         # Cache event dispatch mapping to avoid per-call construction
         # Use cast to align specific handler signatures with BaseEvent for dispatching
-        self._event_handlers: dict[type[BaseEvent], TypingCallable[[BaseEvent], None]] = {
+        self._event_handlers: dict[
+            type[BaseEvent], TypingCallable[[BaseEvent], None]
+        ] = {
             StartupEvent: cast(TypingCallable[[BaseEvent], None], self._handle_startup),
-            WorkflowStarted: cast(TypingCallable[[BaseEvent], None], self._handle_workflow_started),
-            SignalGenerated: cast(TypingCallable[[BaseEvent], None], self._handle_signal_generated),
+            WorkflowStarted: cast(
+                TypingCallable[[BaseEvent], None], self._handle_workflow_started
+            ),
+            SignalGenerated: cast(
+                TypingCallable[[BaseEvent], None], self._handle_signal_generated
+            ),
             RebalancePlanned: cast(
                 TypingCallable[[BaseEvent], None], self._handle_rebalance_planned
             ),
-            TradeExecuted: cast(TypingCallable[[BaseEvent], None], self._handle_trade_executed),
+            TradeExecuted: cast(
+                TypingCallable[[BaseEvent], None], self._handle_trade_executed
+            ),
             WorkflowCompleted: cast(
                 TypingCallable[[BaseEvent], None], self._handle_workflow_completed
             ),
-            WorkflowFailed: cast(TypingCallable[[BaseEvent], None], self._handle_workflow_failed),
+            WorkflowFailed: cast(
+                TypingCallable[[BaseEvent], None], self._handle_workflow_failed
+            ),
         }
 
         # Register event handlers (both cross-cutting and domain)
@@ -107,7 +117,9 @@ class EventDrivenOrchestrator:
             register_portfolio_handlers(self.container)
             register_execution_handlers(self.container)
 
-            self.logger.debug("Registered domain event handlers via module registration functions")
+            self.logger.debug(
+                "Registered domain event handlers via module registration functions"
+            )
 
         except Exception as e:
             self.logger.error(f"Failed to register domain handlers: {e}")
@@ -127,7 +139,9 @@ class EventDrivenOrchestrator:
 
         workflow_correlation_id = correlation_id or str(uuid.uuid4())
 
-        self.logger.info(f"🚀 Starting event-driven trading workflow: {workflow_correlation_id}")
+        self.logger.info(
+            f"🚀 Starting event-driven trading workflow: {workflow_correlation_id}"
+        )
 
         try:
             # Emit WorkflowStarted event to trigger the domain handlers
@@ -146,7 +160,9 @@ class EventDrivenOrchestrator:
             )
 
             self.event_bus.publish(workflow_event)
-            self.logger.info(f"📡 Emitted WorkflowStarted event: {workflow_correlation_id}")
+            self.logger.info(
+                f"📡 Emitted WorkflowStarted event: {workflow_correlation_id}"
+            )
 
             return workflow_correlation_id
 
@@ -200,7 +216,9 @@ class EventDrivenOrchestrator:
             time.sleep(0.1)
 
         # Timeout occurred
-        self.logger.warning(f"⏰ Workflow timeout after {timeout_seconds}s: {correlation_id}")
+        self.logger.warning(
+            f"⏰ Workflow timeout after {timeout_seconds}s: {correlation_id}"
+        )
 
         # Clean up on timeout
         self.workflow_results.pop(correlation_id, None)
@@ -226,7 +244,7 @@ class EventDrivenOrchestrator:
         ):
             self.event_bus.subscribe(event_type, self)
 
-        self.logger.info(
+        self.logger.debug(
             "Registered event-driven orchestration handlers for cross-cutting concerns"
         )
 
@@ -334,7 +352,9 @@ class EventDrivenOrchestrator:
             self.workflow_results[event.correlation_id] = {}
 
         # Use the signals_data directly from the event
-        self.workflow_results[event.correlation_id]["strategy_signals"] = event.signals_data
+        self.workflow_results[event.correlation_id][
+            "strategy_signals"
+        ] = event.signals_data
 
         # Track successful signal processing
         self.workflow_state["last_successful_workflow"] = "signal_generation"
@@ -366,7 +386,9 @@ class EventDrivenOrchestrator:
             self.workflow_results[event.correlation_id] = {}
 
         # Use the rebalance_plan directly from the event
-        self.workflow_results[event.correlation_id]["rebalance_plan"] = event.rebalance_plan
+        self.workflow_results[event.correlation_id][
+            "rebalance_plan"
+        ] = event.rebalance_plan
 
         # Track successful rebalancing
         self.workflow_state["last_successful_workflow"] = "rebalancing"
@@ -431,7 +453,9 @@ class EventDrivenOrchestrator:
             # Trigger recovery workflow
             self._trigger_recovery_workflow(event)
 
-    def _send_trading_notification(self, event: TradeExecuted, *, success: bool) -> None:
+    def _send_trading_notification(
+        self, event: TradeExecuted, *, success: bool
+    ) -> None:
         """Send trading completion notification.
 
         Args:
@@ -469,12 +493,12 @@ class EventDrivenOrchestrator:
                             self, execution_data: dict[str, Any], correlation_id: str
                         ) -> None:
                             self.success = True
-                            self.orders_executed: list[
-                                Any
-                            ] = []  # Event data doesn't have detailed order info
-                            self.strategy_signals: dict[
-                                str, Any
-                            ] = {}  # Event data doesn't have signal details
+                            self.orders_executed: list[Any] = (
+                                []
+                            )  # Event data doesn't have detailed order info
+                            self.strategy_signals: dict[str, Any] = (
+                                {}
+                            )  # Event data doesn't have signal details
                             self.correlation_id = correlation_id
                             # Add any other fields the template might use via getattr
                             self._execution_data = execution_data
@@ -483,14 +507,20 @@ class EventDrivenOrchestrator:
                             # Allow template to access any field from execution_data
                             return self._execution_data.get(name, None)
 
-                    result_adapter = EventResultAdapter(execution_data, event.correlation_id)
-                    html_content = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-                        result_adapter,
-                        mode_str,
+                    result_adapter = EventResultAdapter(
+                        execution_data, event.correlation_id
+                    )
+                    html_content = (
+                        MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
+                            result_adapter,
+                            mode_str,
+                        )
                     )
                 except Exception as template_error:
                     # Fallback to basic template if enhanced template fails
-                    self.logger.warning(f"Enhanced template failed, using basic: {template_error}")
+                    self.logger.warning(
+                        f"Enhanced template failed, using basic: {template_error}"
+                    )
                     html_content = f"""
                     <h2>Trading Execution Report - {mode_str.upper()}</h2>
                     <p><strong>Status:</strong> Success</p>
@@ -513,7 +543,9 @@ class EventDrivenOrchestrator:
             if not success and hasattr(event, "error_code") and event.error_code:
                 subject = f"[{status_tag}][{event.error_code}] The Alchemiser - {mode_str.upper()} Trading Report"
             else:
-                subject = f"[{status_tag}] The Alchemiser - {mode_str.upper()} Trading Report"
+                subject = (
+                    f"[{status_tag}] The Alchemiser - {mode_str.upper()} Trading Report"
+                )
 
             send_email_notification(
                 subject=subject,
@@ -521,7 +553,9 @@ class EventDrivenOrchestrator:
                 text_content=f"Trading execution completed. Success: {success}",
             )
 
-            self.logger.info(f"Trading notification sent successfully (success={success})")
+            self.logger.info(
+                f"Trading notification sent successfully (success={success})"
+            )
 
         except Exception as e:
             # Don't let notification failure break the workflow
@@ -595,7 +629,9 @@ class EventDrivenOrchestrator:
         self.logger.info(f"🚀 Workflow started: {event.workflow_type}")
 
         # Track workflow start time
-        self.workflow_state["workflow_start_times"][event.correlation_id] = event.timestamp
+        self.workflow_state["workflow_start_times"][
+            event.correlation_id
+        ] = event.timestamp
         self.workflow_state["active_correlations"].add(event.correlation_id)
 
         # Update workflow state based on type
@@ -612,7 +648,9 @@ class EventDrivenOrchestrator:
         self.logger.info(f"✅ Workflow completed successfully: {event.workflow_type}")
 
         # Calculate and log workflow duration
-        start_time = self.workflow_state["workflow_start_times"].get(event.correlation_id)
+        start_time = self.workflow_state["workflow_start_times"].get(
+            event.correlation_id
+        )
         if start_time:
             duration_ms = (event.timestamp - start_time).total_seconds() * 1000
             self.logger.info(f"📊 Workflow duration: {duration_ms:.0f}ms")
@@ -643,7 +681,9 @@ class EventDrivenOrchestrator:
             event: The WorkflowFailed event
 
         """
-        self.logger.error(f"❌ Workflow failed: {event.workflow_type} - {event.failure_reason}")
+        self.logger.error(
+            f"❌ Workflow failed: {event.workflow_type} - {event.failure_reason}"
+        )
 
         # Update workflow state
         self.workflow_state["active_correlations"].discard(event.correlation_id)
