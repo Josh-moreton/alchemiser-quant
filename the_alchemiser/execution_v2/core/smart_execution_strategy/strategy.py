@@ -462,6 +462,58 @@ class SmartExecutionStrategy:
             SmartOrderResult using market order execution
 
         """
+        # If extended-hours is enabled, switch to DAY LIMIT fallback using inside price
+        if getattr(self.alpaca_manager, "extended_hours_enabled", False):
+            # Try to use the most recent quote (streaming first, REST fallback)
+            quote_tuple = self.quote_provider.get_quote_with_validation(request.symbol)
+            if not quote_tuple:
+                logger.warning(
+                    f"⚠️ No quote available for extended-hours fallback for {request.symbol}; "
+                    f"falling back to market despite extended-hours rules"
+                )
+            else:
+                quote, _used_fallback = quote_tuple
+                # Choose side-aware price: ask for BUY, bid for SELL
+                if request.side.upper() == "BUY":
+                    limit_price = Decimal(str(quote.ask_price))
+                    side_text = "ASK"
+                else:
+                    limit_price = Decimal(str(quote.bid_price))
+                    side_text = "BID"
+
+                # Quantize to cents
+                limit_price = Decimal(str(float(limit_price))).quantize(Decimal("0.01"))
+                logger.info(
+                    f"📈 Using extended-hours-safe LIMIT fallback for {request.symbol}: "
+                    f"{request.side.upper()} at {side_text} ${limit_price} (TIF=DAY, extended_hours=True)"
+                )
+
+                # Place DAY LIMIT at chosen price
+                result = await asyncio.to_thread(
+                    self.alpaca_manager.place_limit_order,
+                    request.symbol,
+                    request.side.lower(),
+                    float(request.quantity),
+                    float(limit_price),
+                    "day",
+                )
+
+                placement_time = datetime.now(UTC)
+                if result.success and result.order_id:
+                    return SmartOrderResult(
+                        success=True,
+                        order_id=result.order_id,
+                        final_price=limit_price,
+                        execution_strategy="extended_hours_limit_fallback",
+                        placement_timestamp=placement_time,
+                    )
+                return SmartOrderResult(
+                    success=False,
+                    error_message=result.error or "Extended-hours limit fallback failed",
+                    execution_strategy="extended_hours_limit_fallback_failed",
+                    placement_timestamp=placement_time,
+                )
+
         logger.info(f"📈 Using market order fallback for {request.symbol}")
 
         # Use asyncio.to_thread to make blocking I/O async

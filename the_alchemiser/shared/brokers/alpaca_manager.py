@@ -216,6 +216,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Return underlying trading client for backward compatibility."""
         return self._trading_client
 
+    @property
+    def extended_hours_enabled(self) -> bool:
+        """Return whether extended-hours trading is enabled for this manager instance."""
+        return self._extended_hours_enabled
+
     def get_data_client(self) -> StockHistoricalDataClient:
         """Return data client for market data access.
 

@@ -41,3 +41,8 @@ class ConfigProviders(containers.DeclarativeContainer):
 
     # Execution configuration
     execution = providers.Factory(lambda settings: settings.execution, settings=settings)
+
+    # Extended hours trading flag (from nested alpaca settings)
+    extended_hours_enabled = providers.Factory(
+        lambda settings: settings.alpaca.enable_extended_hours, settings=settings
+    )

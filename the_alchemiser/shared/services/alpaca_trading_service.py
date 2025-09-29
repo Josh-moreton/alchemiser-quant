@@ -81,7 +81,7 @@ class AlpacaTradingService:
         # WebSocket trading stream state
         self._trading_service_active = False
 
-        logger.debug(
+        logger.info(
             f"🏪 AlpacaTradingService initialized ({'paper' if paper_trading else 'live'}, "
             f"extended_hours={'enabled' if extended_hours_enabled else 'disabled'})"
         )

@@ -23,6 +23,7 @@ class InfrastructureProviders(containers.DeclarativeContainer):
         api_key=config.alpaca_api_key,
         secret_key=config.alpaca_secret_key,
         paper=config.paper_trading,
+        extended_hours_enabled=config.extended_hours_enabled,
     )
 
     # Market data service with proper domain boundary
