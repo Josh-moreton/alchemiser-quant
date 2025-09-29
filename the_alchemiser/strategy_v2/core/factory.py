@@ -32,11 +32,11 @@ def create_orchestrator(
     # Get extended hours setting from config
     config_service = ConfigService()
     extended_hours_enabled = config_service.extended_hours_enabled
-    
+
     # Create Alpaca manager
     alpaca_manager = AlpacaManager(
-        api_key=api_key, 
-        secret_key=secret_key, 
+        api_key=api_key,
+        secret_key=secret_key,
         paper=paper,
         extended_hours_enabled=extended_hours_enabled,
     )

@@ -175,8 +175,8 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         # Initialize extracted services
         self._account_service = AlpacaAccountService(self._trading_client)
         self._trading_service = AlpacaTradingService(
-            self._trading_client, 
-            self._websocket_manager, 
+            self._trading_client,
+            self._websocket_manager,
             paper_trading=self._paper,
             extended_hours_enabled=self._extended_hours_enabled,
         )
@@ -738,11 +738,22 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
 # Factory function for easy creation
 def create_alpaca_manager(
-    api_key: str, secret_key: str, *, paper: bool = True, base_url: str | None = None, extended_hours_enabled: bool = False
+    api_key: str,
+    secret_key: str,
+    *,
+    paper: bool = True,
+    base_url: str | None = None,
+    extended_hours_enabled: bool = False,
 ) -> AlpacaManager:
     """Create an AlpacaManager instance.
 
     This function provides a clean way to create AlpacaManager instances
     and can be easily extended with additional configuration options.
     """
-    return AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url, extended_hours_enabled=extended_hours_enabled)
+    return AlpacaManager(
+        api_key=api_key,
+        secret_key=secret_key,
+        paper=paper,
+        base_url=base_url,
+        extended_hours_enabled=extended_hours_enabled,
+    )

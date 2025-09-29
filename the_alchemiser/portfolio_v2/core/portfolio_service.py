@@ -70,15 +70,15 @@ class PortfolioServiceV2:
         """
         log_with_context(
             logger,
-            logging.INFO,
+            logging.DEBUG,
             "Creating rebalance plan",
             module=MODULE_NAME,
             action="create_rebalance_plan",
             correlation_id=correlation_id,
             target_symbols=sorted(strategy.target_weights.keys()),
-            strategy_portfolio_value=str(strategy.portfolio_value)
-            if strategy.portfolio_value
-            else None,
+            strategy_portfolio_value=(
+                str(strategy.portfolio_value) if strategy.portfolio_value else None
+            ),
         )
 
         try:
@@ -96,7 +96,9 @@ class PortfolioServiceV2:
                 target_symbols=sorted(target_symbols),
             )
 
-            snapshot = self._state_reader.build_portfolio_snapshot(symbols=target_symbols)
+            snapshot = self._state_reader.build_portfolio_snapshot(
+                symbols=target_symbols
+            )
 
             # Step 2: Calculate rebalance plan
             log_with_context(
@@ -119,7 +121,7 @@ class PortfolioServiceV2:
 
             log_with_context(
                 logger,
-                logging.INFO,
+                logging.DEBUG,
                 "Rebalance plan created successfully",
                 module=MODULE_NAME,
                 action="create_rebalance_plan",

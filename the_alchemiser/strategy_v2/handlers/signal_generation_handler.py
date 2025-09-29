@@ -97,14 +97,16 @@ class SignalGenerationHandler:
             "WorkflowStarted",
         ]
 
-    def _handle_signal_generation_request(self, event: StartupEvent | WorkflowStarted) -> None:
+    def _handle_signal_generation_request(
+        self, event: StartupEvent | WorkflowStarted
+    ) -> None:
         """Handle signal generation request from startup or workflow events.
 
         Args:
             event: The event that triggered signal generation
 
         """
-        self.logger.info("🔄 Starting signal generation from event-driven handler")
+        self.logger.debug("🔄 Starting signal generation from event-driven handler")
 
         try:
             # Generate signals using domain logic
@@ -148,8 +150,8 @@ class SignalGenerationHandler:
         strategy_signals = self._convert_signals_to_display_format(signals)
 
         # Create consolidated portfolio from signals
-        consolidated_portfolio_dict, contributing_strategies = self._build_consolidated_portfolio(
-            signals
+        consolidated_portfolio_dict, contributing_strategies = (
+            self._build_consolidated_portfolio(signals)
         )
 
         # Create ConsolidatedPortfolio
@@ -161,7 +163,9 @@ class SignalGenerationHandler:
 
         return strategy_signals, consolidated_portfolio
 
-    def _convert_signals_to_display_format(self, signals: list[StrategySignal]) -> dict[str, Any]:
+    def _convert_signals_to_display_format(
+        self, signals: list[StrategySignal]
+    ) -> dict[str, Any]:
         """Convert DSL signals to display format."""
         strategy_signals = {}
 
@@ -169,7 +173,9 @@ class SignalGenerationHandler:
             # For DSL engine, we group all signals under "DSL" strategy type
             if len(signals) > 1:
                 # Multiple signals - present a concise primary symbol; keep full list separately
-                symbols = [signal.symbol.value for signal in signals if signal.action == "BUY"]
+                symbols = [
+                    signal.symbol.value for signal in signals if signal.action == "BUY"
+                ]
                 primary_signal = signals[0]  # Use first signal for other attributes
                 primary_symbol = primary_signal.symbol.value
                 strategy_signals["DSL"] = {
@@ -290,7 +296,9 @@ class SignalGenerationHandler:
             self.logger.error(f"Failed to emit SignalGenerated event: {e}")
             raise
 
-    def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
+    def _emit_workflow_failure(
+        self, original_event: BaseEvent, error_message: str
+    ) -> None:
         """Emit WorkflowFailed event when signal generation fails.
 
         Args:
@@ -357,21 +365,29 @@ class SignalGenerationHandler:
 
     def _is_multi_symbol_signal(self, data: dict[str, Any]) -> bool:
         """Check if signal data represents a multi-symbol signal."""
-        return bool(data.get("is_multi_symbol")) and isinstance(data.get("symbols"), list)
+        return bool(data.get("is_multi_symbol")) and isinstance(
+            data.get("symbols"), list
+        )
 
-    def _format_multi_symbol_detail(self, name: str, action: str, data: dict[str, Any]) -> str:
+    def _format_multi_symbol_detail(
+        self, name: str, action: str, data: dict[str, Any]
+    ) -> str:
         """Format multi-symbol signal detail."""
         symbols = ", ".join(str(symbol) for symbol in data["symbols"])
         return f"{name}: {action} {symbols}" if symbols else f"{name}: {action}"
 
-    def _format_single_symbol_detail(self, name: str, action: str, data: dict[str, Any]) -> str:
+    def _format_single_symbol_detail(
+        self, name: str, action: str, data: dict[str, Any]
+    ) -> str:
         """Format single symbol signal detail."""
         symbol = data.get("symbol")
         if isinstance(symbol, str) and symbol.strip():
             return f"{name}: {action} {symbol}"
         return f"{name}: {action}"
 
-    def _log_portfolio_allocations(self, consolidated_portfolio: ConsolidatedPortfolio) -> None:
+    def _log_portfolio_allocations(
+        self, consolidated_portfolio: ConsolidatedPortfolio
+    ) -> None:
         """Log target portfolio allocations."""
         if consolidated_portfolio is None:
             return
@@ -385,7 +401,9 @@ class SignalGenerationHandler:
             percent = self._safe_convert_to_percentage(allocation)
             self.logger.info("  • %s: %.2f%%", symbol, percent)
 
-    def _safe_convert_to_percentage(self, allocation: float | int | str | Decimal) -> float:
+    def _safe_convert_to_percentage(
+        self, allocation: float | int | str | Decimal
+    ) -> float:
         """Safely convert allocation to percentage."""
         try:
             return float(allocation) * 100
