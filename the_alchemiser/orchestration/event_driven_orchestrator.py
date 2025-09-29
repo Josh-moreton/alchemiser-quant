@@ -100,12 +100,14 @@ class EventDrivenOrchestrator:
         try:
             # Register handlers from each business module
             from the_alchemiser.execution_v2 import register_execution_handlers
+            from the_alchemiser.notifications_v2 import register_notification_handlers
             from the_alchemiser.portfolio_v2 import register_portfolio_handlers
             from the_alchemiser.strategy_v2 import register_strategy_handlers
 
             register_strategy_handlers(self.container)
             register_portfolio_handlers(self.container)
             register_execution_handlers(self.container)
+            register_notification_handlers(self.container)
 
             self.logger.debug("Registered domain event handlers via module registration functions")
 
@@ -432,7 +434,72 @@ class EventDrivenOrchestrator:
             self._trigger_recovery_workflow(event)
 
     def _send_trading_notification(self, event: TradeExecuted, *, success: bool) -> None:
-        """Send trading completion notification.
+        """Send trading completion notification via event bus.
+
+        Args:
+            event: The TradeExecuted event
+            success: Whether the trading was successful
+
+        """
+        try:
+            from datetime import UTC, datetime
+            from uuid import uuid4
+
+            from the_alchemiser.shared.events.schemas import TradingNotificationRequested
+
+            # Determine trading mode from container
+            is_live = not self.container.config.paper_trading()
+            mode_str = "LIVE" if is_live else "PAPER"
+
+            # Extract execution data
+            execution_data = event.execution_data
+            orders_placed = event.orders_placed
+            orders_succeeded = event.orders_succeeded
+            # total_trade_value may be Decimal, float, or string; normalize for formatting
+            raw_total_value = execution_data.get("total_trade_value", 0)
+            try:
+                total_trade_value_float = float(raw_total_value)
+            except (TypeError, ValueError):
+                total_trade_value_float = 0.0
+
+            # Get error details if trading failed
+            error_message = None
+            error_code = None
+            if not success:
+                error_message = event.metadata.get("error_message") or "Unknown error"
+                if hasattr(event, "error_code"):
+                    error_code = event.error_code
+
+            # Create and emit trading notification event
+            trading_event = TradingNotificationRequested(
+                correlation_id=event.correlation_id,
+                causation_id=event.event_id,
+                event_id=f"trading-notification-{uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="orchestration.event_driven_orchestrator",
+                source_component="EventDrivenOrchestrator",
+                trading_success=success,
+                trading_mode=mode_str,
+                orders_placed=orders_placed,
+                orders_succeeded=orders_succeeded,
+                total_trade_value=total_trade_value_float,
+                execution_data=execution_data,
+                error_message=error_message,
+                error_code=error_code,
+            )
+
+            # Emit the event
+            self.event_bus.publish(trading_event)
+
+            self.logger.info(f"Trading notification event published successfully (success={success})")
+
+        except Exception as e:
+            # Don't let notification failure break the workflow - fall back to direct email
+            self.logger.warning(f"Failed to publish trading notification event, falling back to direct: {e}")
+            self._send_trading_notification_direct(event, success=success)
+
+    def _send_trading_notification_direct(self, event: TradeExecuted, *, success: bool) -> None:
+        """Send trading completion notification directly (fallback method).
 
         Args:
             event: The TradeExecuted event
@@ -521,11 +588,11 @@ class EventDrivenOrchestrator:
                 text_content=f"Trading execution completed. Success: {success}",
             )
 
-            self.logger.info(f"Trading notification sent successfully (success={success})")
+            self.logger.info(f"Trading notification sent successfully via direct fallback (success={success})")
 
         except Exception as e:
             # Don't let notification failure break the workflow
-            self.logger.warning(f"Failed to send trading notification: {e}")
+            self.logger.warning(f"Failed to send trading notification via direct fallback: {e}")
 
     def _perform_reconciliation(self) -> None:
         """Perform post-trade reconciliation workflow."""

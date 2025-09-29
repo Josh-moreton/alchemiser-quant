@@ -275,3 +275,62 @@ class WorkflowFailed(BaseEvent):
     error_details: dict[str, Any] = Field(
         default_factory=dict, description="Detailed error information"
     )
+
+
+# Notification Events (for event-driven email notifications)
+
+
+class ErrorNotificationRequested(BaseEvent):
+    """Event emitted when an error notification email should be sent.
+    
+    Contains error details and notification preferences.
+    """
+    
+    # Override event_type with default
+    event_type: str = Field(default="ErrorNotificationRequested", description=EVENT_TYPE_DESCRIPTION)
+    
+    # Error notification fields
+    error_severity: str = Field(..., description="Error severity level (CRITICAL, HIGH, MEDIUM)")
+    error_priority: str = Field(..., description="Error priority (URGENT, HIGH, MEDIUM)")
+    error_title: str = Field(..., description="Error title for subject line")
+    error_report: str = Field(..., description="Detailed error report content")
+    error_code: str | None = Field(default=None, description="Optional error code for categorization")
+    recipient_override: str | None = Field(default=None, description="Optional recipient email override")
+
+
+class TradingNotificationRequested(BaseEvent):
+    """Event emitted when a trading completion notification should be sent.
+    
+    Contains trading execution results and notification details.
+    """
+    
+    # Override event_type with default
+    event_type: str = Field(default="TradingNotificationRequested", description=EVENT_TYPE_DESCRIPTION)
+    
+    # Trading notification fields
+    trading_success: bool = Field(..., description="Whether trading was successful")
+    trading_mode: str = Field(..., description="Trading mode (LIVE, PAPER)")
+    orders_placed: int = Field(..., description="Number of orders placed")
+    orders_succeeded: int = Field(..., description="Number of orders that succeeded")
+    total_trade_value: float = Field(..., description="Total value of trades executed")
+    execution_data: dict[str, Any] = Field(..., description="Detailed execution data")
+    error_message: str | None = Field(default=None, description="Error message if trading failed")
+    error_code: str | None = Field(default=None, description="Optional error code")
+    recipient_override: str | None = Field(default=None, description="Optional recipient email override")
+
+
+class SystemNotificationRequested(BaseEvent):
+    """Event emitted when a general system notification should be sent.
+    
+    Contains system status or general notification details.
+    """
+    
+    # Override event_type with default
+    event_type: str = Field(default="SystemNotificationRequested", description=EVENT_TYPE_DESCRIPTION)
+    
+    # System notification fields
+    notification_type: str = Field(..., description="Type of notification (INFO, WARNING, ALERT)")
+    subject: str = Field(..., description="Email subject line")
+    html_content: str = Field(..., description="HTML email content")
+    text_content: str | None = Field(default=None, description="Optional plain text content")
+    recipient_override: str | None = Field(default=None, description="Optional recipient email override")
