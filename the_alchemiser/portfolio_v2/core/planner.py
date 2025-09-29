@@ -274,8 +274,9 @@ class RebalancePlanCalculator:
                 action = "HOLD"
 
             # Calculate actual weights using portfolio value
-            current_weight = current_value / portfolio_value_for_weights if portfolio_value_for_weights > Decimal("0") else Decimal("0")
-            target_weight = target_value / portfolio_value_for_weights if portfolio_value_for_weights > Decimal("0") else Decimal("0")
+            # portfolio_value_for_weights is guaranteed > 0 by line 256
+            current_weight = current_value / portfolio_value_for_weights
+            target_weight = target_value / portfolio_value_for_weights
 
             # Calculate priority (higher trade amounts get higher priority)
             priority = self._calculate_priority(abs(final_trade_amount))
