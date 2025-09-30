@@ -143,12 +143,10 @@ class TestExecutionManagerBusinessLogic:
             manager = ExecutionManager(
                 alpaca_manager=mock_alpaca_manager,
                 execution_config=execution_config,
-                enable_trade_ledger=False,
             )
 
         assert manager.alpaca_manager is mock_alpaca_manager
         assert manager.enable_smart_execution is True
-        assert manager.enable_trade_ledger is False
         mock_executor_class.assert_called_once()
 
     def test_execute_rebalance_plan_success(
@@ -344,42 +342,6 @@ class TestExecutionManagerBusinessLogic:
                 execution_config=execution_config,
             )
         assert manager_basic.enable_smart_execution is False
-
-    def test_trade_ledger_toggle(self, mock_alpaca_manager, execution_config):
-        """Test trade ledger can be enabled/disabled."""
-        # With trade ledger enabled
-        with patch(
-            "the_alchemiser.execution_v2.core.execution_manager.TradeLedgerWriter"
-        ), patch(
-            "the_alchemiser.execution_v2.core.execution_manager.Executor"
-        ) as mock_executor_class:
-            mock_executor = Mock()
-            mock_executor.enable_smart_execution = True
-            mock_executor.execute_rebalance_plan = AsyncMock()
-            mock_executor_class.return_value = mock_executor
-
-            manager_with_ledger = ExecutionManager(
-                alpaca_manager=mock_alpaca_manager,
-                execution_config=execution_config,
-                enable_trade_ledger=True,
-            )
-            assert manager_with_ledger.enable_trade_ledger is True
-
-        # With trade ledger disabled
-        with patch(
-            "the_alchemiser.execution_v2.core.execution_manager.Executor"
-        ) as mock_executor_class:
-            mock_executor = Mock()
-            mock_executor.enable_smart_execution = True
-            mock_executor.execute_rebalance_plan = AsyncMock()
-            mock_executor_class.return_value = mock_executor
-
-            manager_no_ledger = ExecutionManager(
-                alpaca_manager=mock_alpaca_manager,
-                execution_config=execution_config,
-                enable_trade_ledger=False,
-            )
-        assert manager_no_ledger.enable_trade_ledger is False
 
     def test_execution_result_processing(
         self, mock_alpaca_manager, execution_config, sample_rebalance_plan

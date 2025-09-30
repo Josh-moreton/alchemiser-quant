@@ -131,7 +131,6 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         --config-env "$ENVIRONMENT" \
         --parameter-overrides \
             Stage=dev \
-            TradeLedgerBucketName=the-alchemiser-v2-s3-dev \
             AlpacaKey="$ALPACA_KEY" \
             AlpacaSecret="$ALPACA_SECRET" \
             AlpacaEndpoint="$ALPACA_ENDPOINT_PARAM" \
