@@ -120,7 +120,7 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         exit 1
     fi
     ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://paper-api.alpaca.markets/v2"}
-    
+
     # Set defaults for strategy configs if not found in .env
     STRATEGY_DSL_FILES_PARAM=${STRATEGY_DSL_FILES:-'["1-KMLM.clj","2-Nuclear.clj","3-Starburst.clj","4-What.clj","5-Coin.clj","6-TQQQ-FLT.clj","7-Phoenix.clj"]'}
     STRATEGY_DSL_ALLOCATIONS_PARAM=${STRATEGY_DSL_ALLOCATIONS:-'{"1-KMLM.clj":0.2,"2-Nuclear.clj":0.15,"3-Starburst.clj":0.15,"4-What.clj":0.1,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.15,"7-Phoenix.clj":0.15}'}
@@ -140,7 +140,7 @@ if [ "$ENVIRONMENT" = "dev" ]; then
 else
     # Production deployment - load LIVE_* credentials from .env file
     echo "📋 Loading production credentials from .env file..."
-    
+
     # Load LIVE_* variables from .env file
     load_live_from_file() {
         local f="$1"
@@ -153,31 +153,31 @@ else
         [[ -z "${EMAIL_PASSWORD:-}" ]] && EMAIL_PASSWORD="$(grep -E '^EMAIL__PASSWORD=' "$f" | tail -n1 | sed -E 's/^EMAIL__PASSWORD=(.*)$/\1/')" || true
         [[ -z "${TWELVEDATA_KEY:-}" ]] && TWELVEDATA_KEY="$(grep -E '^TWELVEDATA_KEY=' "$f" | tail -n1 | sed -E 's/^TWELVEDATA_KEY=(.*)$/\1/')" || true
     }
-    
+
     for SECRETS_FILE in ../.env; do
         load_live_from_file "$SECRETS_FILE"
     done
-    
+
     # Check required production credentials
     if [[ -z "${LIVE_ALPACA_KEY:-}" || -z "${LIVE_ALPACA_SECRET:-}" ]]; then
         echo "❌ Error: LIVE_ALPACA_KEY and LIVE_ALPACA_SECRET must be set in .env file for production deployment." >&2
         echo "   Please add them to your .env file with the LIVE_ prefix." >&2
         exit 1
     fi
-    
+
     # Set defaults for optional parameters
     LIVE_ALPACA_ENDPOINT_PARAM=${LIVE_ALPACA_ENDPOINT:-"https://api.alpaca.markets"}
     EMAIL_PASSWORD_PARAM=${EMAIL_PASSWORD:-""}
     TWELVEDATA_KEY_PARAM=${TWELVEDATA_KEY:-""}
-    
+
     # Set defaults for strategy configs if not found in .env
     LIVE_STRATEGY_DSL_FILES_PARAM=${LIVE_STRATEGY_DSL_FILES:-'["1-KMLM.clj","2-Nuclear.clj","5-Coin.clj","6-TQQQ-FLT.clj"]'}
     LIVE_STRATEGY_DSL_ALLOCATIONS_PARAM=${LIVE_STRATEGY_DSL_ALLOCATIONS:-'{"1-KMLM.clj":0.4,"2-Nuclear.clj":0.25,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.25}'}
-    
+
     echo "✅ Production credentials loaded from .env"
     echo "⚠️  WARNING: Using LIVE trading keys - real money will be traded!"
     echo ""
-    
+
     sam deploy \
         --no-fail-on-empty-changeset \
         --resolve-s3 \
