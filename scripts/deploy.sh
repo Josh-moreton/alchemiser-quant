@@ -130,7 +130,42 @@ if [ "$ENVIRONMENT" = "dev" ]; then
             AlpacaSecret="$ALPACA_SECRET" \
             AlpacaEndpoint="$ALPACA_ENDPOINT_PARAM"
 else
-    sam deploy --no-fail-on-empty-changeset --resolve-s3 --config-env "$ENVIRONMENT"
+    # Production deployment - require credentials via environment variables
+    echo "📋 Production deployment requires credentials to be passed via environment variables:"
+    echo "   - PROD_ALPACA_KEY (required)"
+    echo "   - PROD_ALPACA_SECRET (required)"
+    echo "   - PROD_ALPACA_ENDPOINT (optional, defaults to https://api.alpaca.markets)"
+    echo "   - PROD_EMAIL_PASSWORD (optional)"
+    echo "   - PROD_TWELVEDATA_KEY (optional)"
+    echo ""
+    
+    # Check required production credentials
+    if [[ -z "${PROD_ALPACA_KEY:-}" || -z "${PROD_ALPACA_SECRET:-}" ]]; then
+        echo "❌ Error: PROD_ALPACA_KEY and PROD_ALPACA_SECRET must be set for production deployment." >&2
+        echo "   Example: PROD_ALPACA_KEY=xxx PROD_ALPACA_SECRET=yyy ./scripts/deploy.sh prod" >&2
+        exit 1
+    fi
+    
+    # Set defaults for optional parameters
+    PROD_ALPACA_ENDPOINT_PARAM=${PROD_ALPACA_ENDPOINT:-"https://api.alpaca.markets"}
+    PROD_EMAIL_PASSWORD_PARAM=${PROD_EMAIL_PASSWORD:-""}
+    PROD_TWELVEDATA_KEY_PARAM=${PROD_TWELVEDATA_KEY:-""}
+    
+    echo "✅ Production credentials validated"
+    echo ""
+    
+    sam deploy \
+        --no-fail-on-empty-changeset \
+        --resolve-s3 \
+        --config-env "$ENVIRONMENT" \
+        --parameter-overrides \
+            Stage=prod \
+            TradeLedgerBucketName=the-alchemiser-v2-s3 \
+            ProdAlpacaKey="$PROD_ALPACA_KEY" \
+            ProdAlpacaSecret="$PROD_ALPACA_SECRET" \
+            ProdAlpacaEndpoint="$PROD_ALPACA_ENDPOINT_PARAM" \
+            ProdEmailPassword="$PROD_EMAIL_PASSWORD_PARAM" \
+            ProdTwelveDataKey="$PROD_TWELVEDATA_KEY_PARAM"
 fi
 
 echo ""

@@ -57,14 +57,6 @@ class AlertsSettings(BaseModel):
     cooldown_minutes: int = 30
 
 
-class SecretsManagerSettings(BaseModel):
-    """Configuration for AWS Secrets Manager access."""
-
-    enabled: bool = True
-    region_name: str = DEFAULT_AWS_REGION
-    secret_name: str = "the-alchemiser-secrets"  # noqa: S105
-
-
 class StrategySettings(BaseModel):
     """High level configuration for strategy orchestration."""
 
@@ -135,13 +127,12 @@ class ExecutionSettings(BaseModel):
 
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables, .env file, and AWS Secrets Manager."""
+    """Application settings loaded from environment variables and .env file."""
 
     logging: LoggingSettings = LoggingSettings()
     alpaca: AlpacaSettings = AlpacaSettings()
     aws: AwsSettings = AwsSettings()
     alerts: AlertsSettings = AlertsSettings()
-    secrets_manager: SecretsManagerSettings = SecretsManagerSettings()
     strategy: StrategySettings = StrategySettings()
     email: EmailSettings = EmailSettings()
     data: DataSettings = DataSettings()
