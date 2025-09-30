@@ -34,28 +34,40 @@ MIGRATION NOTES:
 - Legacy get_real_time_quote() still supported with deprecation warnings
 - Enhanced data capture includes bid_size, ask_size, and volume
 - Structured types provide better type safety and richer market data
+
+REFACTORING NOTE (Phase 11):
+============================
+This module has been refactored into focused components:
+- RealTimeDataProcessor: Data extraction and processing
+- SubscriptionManager: Subscription logic and priority management
+- RealTimeStreamManager: Stream lifecycle and connection management
+- RealTimePriceStore: Price storage and retrieval
+
+This file now serves as the main orchestrator, delegating to these components.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-import threading
 import time
-from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.brokers.alpaca_utils import (
-    create_stock_data_stream,
-)
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.types.market_data import PriceDataModel, QuoteModel
+from the_alchemiser.shared.services.real_time_data_processor import RealTimeDataProcessor
+from the_alchemiser.shared.services.real_time_price_store import RealTimePriceStore
+from the_alchemiser.shared.services.real_time_stream_manager import RealTimeStreamManager
+from the_alchemiser.shared.services.subscription_manager import SubscriptionManager
+from the_alchemiser.shared.types.market_data import (
+    PriceDataModel,
+    QuoteModel,
+    RealTimeQuote,
+)
 
 logger = get_logger(__name__)
 
 if TYPE_CHECKING:
-    from alpaca.data.live import StockDataStream
     from alpaca.data.models import Quote, Trade
 
     # Type aliases for static type checking - can be either dict or Alpaca objects
@@ -71,55 +83,18 @@ else:
 # New implementation uses structured types with backward compatibility for RealTimeQuote
 
 
-@dataclass
-class RealTimeQuote:
-    """Real-time quote data structure."""
-
-    bid: float
-    ask: float
-    last_price: float
-    timestamp: datetime
-
-    @property
-    def mid_price(self) -> float:
-        """Calculate mid-point between bid and ask."""
-        if self.bid > 0 and self.ask > 0:
-            return (self.bid + self.ask) / 2
-        if self.bid > 0:
-            return self.bid
-        if self.ask > 0:
-            return self.ask
-        return self.last_price
-
-
-@dataclass
-class _SubscriptionPlan:
-    """Internal helper class for bulk subscription planning."""
-
-    results: dict[str, bool]
-    symbols_to_add: list[str]
-    symbols_to_replace: list[str]
-    available_slots: int
-    successfully_added: int = 0
-
-
-@dataclass
-class QuoteValues:
-    """Container for quote values extracted from incoming data."""
-
-    bid_price: float | None
-    ask_price: float | None
-    bid_size: float | None
-    ask_size: float | None
-    timestamp_raw: datetime | None
-
-
 class RealTimePricingService:
     """Real-time pricing service using Alpaca's WebSocket data streams.
 
     Provides up-to-date bid/ask quotes and last trade prices for accurate
     limit order placement. Automatically manages subscriptions based on
     active trading symbols.
+    
+    This service delegates to specialized components for cleaner separation of concerns:
+    - Data processing: RealTimeDataProcessor
+    - Subscription management: SubscriptionManager  
+    - Stream lifecycle: RealTimeStreamManager
+    - Price storage: RealTimePriceStore
     """
 
     def __init__(
@@ -156,49 +131,28 @@ class RealTimePricingService:
         self._api_key = api_key
         self._secret_key = secret_key
         self._paper_trading = paper_trading
-        self._max_symbols = max_symbols
 
-        # Initialize streaming state
-        self._stream_thread: threading.Thread | None = None
-        self._stream: StockDataStream | None = None
-        self._should_reconnect = False
-        self._connected = False
+        # Initialize component modules
+        self._data_processor = RealTimeDataProcessor()
+        self._subscription_manager = SubscriptionManager(max_symbols=max_symbols)
+        self._price_store = RealTimePriceStore()
+        
+        # Stream manager initialized in start() with callbacks
+        self._stream_manager: RealTimeStreamManager | None = None
 
-        # Initialize data storage
-        self._quotes: dict[str, RealTimeQuote] = {}
-        self._price_data: dict[str, PriceDataModel] = {}
-        self._quote_data: dict[str, QuoteModel] = {}
-        self._subscribed_symbols: set[str] = set()
-        self._data_lock = threading.Lock()
-        self._subscription_lock = threading.Lock()
-        self._quotes_lock = threading.Lock()
-
-        # Initialize cleanup settings
-        self._cleanup_interval = 60  # seconds between cleanup cycles
-        self._max_quote_age = 300  # maximum age of quotes in seconds
-
-        # Initialize missing attributes for smart execution
-        self._subscription_priority: dict[str, float] = {}
-        self._latest_quotes: dict[str, AlpacaQuoteData] = {}
+        # Statistics tracking
         self._stats: dict[str, int] = {
             "quotes_received": 0,
-            "total_subscriptions": 0,
             "trades_received": 0,
-            "subscription_limit_hits": 0,
         }
         self._datetime_stats: dict[str, datetime] = {}
+        self._latest_quotes: dict[str, AlpacaQuoteData] = {}
         self._latest_bid: dict[str, float] = {}
         self._latest_ask: dict[str, float] = {}
         self._last_quote_time: dict[str, datetime] = {}
-        self._last_update: dict[str, datetime] = {}
 
         # Task tracking for async operations
         self._background_tasks: set[asyncio.Task[None]] = set()
-
-        # Initialize circuit breaker for connection management
-        from the_alchemiser.shared.utils.circuit_breaker import ConnectionCircuitBreaker
-
-        self._circuit_breaker = ConnectionCircuitBreaker()
 
         # Initialize logger for this instance
         self.logger = get_logger(__name__)
@@ -222,6 +176,7 @@ class RealTimePricingService:
         """Get paper trading flag."""
         return self._paper_trading
 
+
     def start(self) -> bool:
         """Start the real-time pricing service.
 
@@ -230,59 +185,28 @@ class RealTimePricingService:
 
         """
         try:
-            if self._stream_thread and self._stream_thread.is_alive():
-                self.logger.warning("Real-time pricing service already running")
-                return True
-
-            # Initialize the data stream
-            # NOTE: Using IEX feed for both paper and live trading until SIP subscription is available
-            # SIP feed requires a paid subscription, IEX is free but has some limitations
-            self._stream = create_stock_data_stream(
+            # Initialize stream manager with callbacks
+            self._stream_manager = RealTimeStreamManager(
                 api_key=self.api_key,
                 secret_key=self.secret_key,
                 feed=self._get_feed(),
+                on_quote=self._on_quote,
+                on_trade=self._on_trade,
             )
 
-            # Set up the async event handlers BEFORE starting the stream
-            # This is critical - handlers must be registered before run() is called
-            self.logger.info("📡 Real-time pricing service initialized with async handlers")
-
-            # NOTE: Do NOT subscribe to wildcard "*" - it hits subscription limits immediately
-            # We'll subscribe to specific symbols only when needed via subscribe_for_order_placement()
-
-            # Start the stream in a background thread with proper async handling
-            self._should_reconnect = True
-            self._stream_thread = threading.Thread(
-                target=self._run_stream_with_event_loop,
-                name="RealTimePricing",
-                daemon=True,
+            # Start the stream
+            result = self._stream_manager.start(
+                get_symbols_callback=self._subscription_manager.get_subscribed_symbols
             )
-            self._stream_thread.start()
 
-            # Wait a moment for connection with exponential backoff
-            max_wait_time = 5.0  # 5 second timeout
-            check_interval = 0.05  # Start with 50ms
-            max_interval = 0.5  # Cap at 500ms
-            elapsed_time = 0.0
-
-            while elapsed_time < max_wait_time:
-                if self._connected:
-                    break
-                time.sleep(check_interval)
-                elapsed_time += check_interval
-                # Exponential backoff for less aggressive polling
-                check_interval = min(check_interval * 1.2, max_interval)
-
-            if self._connected:
-                self.logger.info("✅ Real-time pricing service started successfully")
-
+            if result:
                 # Start cleanup thread
-                cleanup_thread = threading.Thread(
-                    target=self._cleanup_old_quotes, name="QuoteCleanup", daemon=True
+                self._price_store.start_cleanup(
+                    is_connected_callback=lambda: self._stream_manager.is_connected() if self._stream_manager else False
                 )
-                cleanup_thread.start()
-
+                self.logger.info("✅ Real-time pricing service started successfully")
                 return True
+                
             self.logger.error("❌ Failed to establish real-time pricing connection")
             return False
 
@@ -293,13 +217,10 @@ class RealTimePricingService:
     def stop(self) -> None:
         """Stop the real-time pricing service."""
         try:
-            self._should_reconnect = False
+            if self._stream_manager:
+                self._stream_manager.stop()
 
-            if self._stream:
-                self._stream.stop()
-
-            if self._stream_thread and self._stream_thread.is_alive():
-                self._stream_thread.join(timeout=5)
+            self._price_store.stop_cleanup()
 
             # Cancel any remaining background tasks
             for task in self._background_tasks:
@@ -307,11 +228,121 @@ class RealTimePricingService:
                     task.cancel()
             self._background_tasks.clear()
 
-            self._connected = False
             self.logger.info("🛑 Real-time pricing service stopped")
 
         except Exception as e:
             self.logger.error(f"Error stopping real-time pricing service: {e}")
+
+    async def _on_quote(self, data: AlpacaQuoteData) -> None:
+        """Handle incoming quote data with async processing optimizations.
+
+        Args:
+            data: Quote data from Alpaca WebSocket
+
+        """
+        try:
+            symbol = self._data_processor.extract_symbol_from_quote(data)
+            if not symbol:
+                self.logger.warning("Received quote with no symbol")
+                return
+
+            quote_values = self._data_processor.extract_quote_values(data)
+            timestamp = self._data_processor.get_quote_timestamp(quote_values.timestamp_raw)
+
+            await self._process_quote_data(symbol, quote_values, timestamp, data)
+            self._update_quote_statistics(symbol)
+
+        except Exception as e:
+            await self._data_processor.handle_quote_error(e)
+
+    async def _process_quote_data(
+        self,
+        symbol: str,
+        quote_values: object,  # QuoteExtractionResult
+        timestamp: datetime,
+        original_data: AlpacaQuoteData,
+    ) -> None:
+        """Process and store quote data."""
+        await self._data_processor.log_quote_debug(symbol, quote_values.bid_price, quote_values.ask_price)
+
+        # Store complete quote data (non-blocking)
+        self._latest_quotes[symbol] = original_data
+
+        if quote_values.bid_price is not None and quote_values.ask_price is not None:
+            await self._update_bid_ask_data(symbol, quote_values, timestamp)
+
+    async def _update_bid_ask_data(
+        self, symbol: str, quote_values: object, timestamp: datetime
+    ) -> None:
+        """Update bid/ask tracking and data structures."""
+        # These values are guaranteed to be non-None by caller's if-check
+        if quote_values.bid_price is None or quote_values.ask_price is None:
+            raise ValueError("Bid and ask prices must not be None")
+
+        # Update tracking data immediately (non-blocking)
+        self._latest_bid[symbol] = quote_values.bid_price
+        self._latest_ask[symbol] = quote_values.ask_price
+
+        # Use asyncio.to_thread for potentially blocking lock operations
+        await asyncio.to_thread(
+            self._price_store.update_quote_data,
+            symbol,
+            quote_values.bid_price,
+            quote_values.ask_price,
+            quote_values.bid_size,
+            quote_values.ask_size,
+            timestamp,
+        )
+
+    def _update_quote_statistics(self, symbol: str) -> None:
+        """Update statistics for processed quote."""
+        self._stats["quotes_received"] += 1
+        self._last_quote_time[symbol] = datetime.now(UTC)
+
+    async def _on_trade(self, trade: AlpacaTradeData) -> None:
+        """Handle incoming trade updates from Alpaca stream with async processing optimizations."""
+        try:
+            symbol = self._data_processor.extract_symbol_from_trade(trade)
+            if not symbol:
+                self.logger.warning("Received trade with no symbol")
+                return
+
+            price, volume, timestamp = self._data_processor.extract_trade_values(trade)
+
+            if price and price > 0:
+                # Use asyncio.to_thread for potentially blocking lock operations
+                await asyncio.to_thread(
+                    self._price_store.update_trade_data,
+                    symbol,
+                    price,
+                    timestamp,
+                    volume,
+                )
+
+                # Update stats
+                self._stats["trades_received"] += 1
+                self._datetime_stats["last_heartbeat"] = datetime.now(UTC)
+
+                if self.logger.isEnabledFor(logging.DEBUG):
+                    debug_task = asyncio.create_task(
+                        asyncio.to_thread(
+                            self.logger.debug,
+                            f"📈 Trade received for {symbol}: price={price}, volume={volume}",
+                        )
+                    )
+                    self._background_tasks.add(debug_task)
+                    debug_task.add_done_callback(self._background_tasks.discard)
+
+            # Yield control to event loop
+            await asyncio.sleep(0)
+
+        except Exception as e:
+            error_task = asyncio.create_task(
+                asyncio.to_thread(self.logger.error, f"Error processing trade: {e}", exc_info=True)
+            )
+            self._background_tasks.add(error_task)
+            error_task.add_done_callback(self._background_tasks.discard)
+            await asyncio.sleep(0)
 
     def _run_stream_with_event_loop(self) -> None:
         """Run the WebSocket stream in a new event loop.
