@@ -148,19 +148,7 @@ class RealTimeDataProcessor:
                 metrics.suspicious_quotes += 1
 
             # Update spread statistics
-            spread = quote.spread
-            if spread >= 0:
-                if metrics.quote_count == 1:
-                    metrics.avg_spread = spread
-                    metrics.min_spread = spread
-                    metrics.max_spread = spread
-                else:
-                    # Running average
-                    metrics.avg_spread = (
-                        metrics.avg_spread * (metrics.quote_count - 1) + spread
-                    ) / metrics.quote_count
-                    metrics.min_spread = min(metrics.min_spread, spread)
-                    metrics.max_spread = max(metrics.max_spread, spread)
+            self._update_spread_stats(metrics, quote.spread)
 
             # Store in history
             self._quote_history[symbol].append(quote)
@@ -171,7 +159,7 @@ class RealTimeDataProcessor:
             return {
                 "symbol": symbol,
                 "is_suspicious": is_suspicious,
-                "spread": spread,
+                "spread": quote.spread,
                 "mid_price": quote.mid_price,
                 "quote_count": metrics.quote_count,
             }
@@ -369,6 +357,29 @@ class RealTimeDataProcessor:
         total_volume = sum(t.size for t in recent_trades)
 
         return total_value / total_volume if total_volume > 0 else 0.0
+
+    def _update_spread_stats(self, metrics: SymbolMetrics, spread: float) -> None:
+        """Update spread statistics for a symbol.
+
+        Args:
+            metrics: Symbol metrics to update
+            spread: New spread value
+
+        """
+        if spread < 0:
+            return
+
+        if metrics.quote_count == 1:
+            metrics.avg_spread = spread
+            metrics.min_spread = spread
+            metrics.max_spread = spread
+        else:
+            # Running average
+            metrics.avg_spread = (
+                metrics.avg_spread * (metrics.quote_count - 1) + spread
+            ) / metrics.quote_count
+            metrics.min_spread = min(metrics.min_spread, spread)
+            metrics.max_spread = max(metrics.max_spread, spread)
 
     def _maybe_cleanup(self) -> None:
         """Perform cleanup if enough time has passed.
