@@ -26,15 +26,16 @@ class SecretsManager:
 
     def __init__(self, _region_name: str | None = None) -> None:
         """Initialize the Secrets Manager.
-        
+
         Args:
             _region_name: Deprecated parameter, kept for backward compatibility
+
         """
         logger.info("Initialized SecretsManager with environment variable loading")
 
     def get_secret(self) -> dict[str, str] | None:
         """Retrieve a secret - not implemented.
-        
+
         Use specific methods like get_alpaca_keys() instead.
         """
         logger.warning(
@@ -70,7 +71,7 @@ class SecretsManager:
     @property
     def stage(self) -> str:
         """Determine stage based on environment.
-        
+
         Returns 'prod' if AWS_LAMBDA_FUNCTION_NAME is set, otherwise 'dev'.
         """
         if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
