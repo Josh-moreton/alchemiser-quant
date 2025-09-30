@@ -52,6 +52,7 @@ from .order_request import (
     MarketData,
     OrderRequest,
 )
+from .pnl import PnLData
 from .portfolio_state import (
     PortfolioMetrics,
     PortfolioState,
@@ -118,6 +119,7 @@ __all__ = [
     "OrderRequest",
     "OrderResultSummary",
     "PerformanceSummary",
+    "PnLData",
     "PortfolioAllocationResult",
     "PortfolioMetrics",
     "PortfolioState",
