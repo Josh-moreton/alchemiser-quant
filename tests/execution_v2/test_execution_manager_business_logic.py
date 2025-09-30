@@ -446,11 +446,28 @@ class TestExecutionManagerBusinessLogic:
         )
 
     def test_empty_rebalance_plan_handling(self, mock_alpaca_manager, execution_config):
-        """Test handling of empty rebalance plan."""
+        """Test handling of rebalance plan with only HOLD actions (effectively empty)."""
+        # Create a plan with only HOLD actions (effectively empty for execution)
         empty_plan = RebalancePlan(
             plan_id=str(uuid.uuid4()),
             correlation_id=str(uuid.uuid4()),
-            items=[],
+            causation_id=str(uuid.uuid4()),
+            timestamp=datetime.now(UTC),
+            total_portfolio_value=Decimal("1000.00"),
+            total_trade_value=Decimal("0.00"),
+            items=[
+                RebalancePlanItem(
+                    symbol="AAPL",
+                    action="HOLD",
+                    current_weight=Decimal("1.0"),
+                    target_weight=Decimal("1.0"),
+                    weight_diff=Decimal("0.0"),
+                    current_value=Decimal("1000.00"),
+                    target_value=Decimal("1000.00"),
+                    trade_amount=Decimal("0.00"),
+                    priority=1,
+                ),
+            ],
         )
 
         with patch(
