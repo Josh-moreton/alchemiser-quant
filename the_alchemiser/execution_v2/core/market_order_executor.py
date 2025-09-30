@@ -5,7 +5,6 @@ Market order execution functionality extracted from the main executor.
 
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -16,13 +15,14 @@ from the_alchemiser.execution_v2.utils.execution_validator import (
     OrderValidationResult,
 )
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
 from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
 
 if TYPE_CHECKING:
     pass
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class MarketOrderExecutor:

@@ -9,7 +9,6 @@ supporting weekly and monthly performance reports.
 
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -19,9 +18,10 @@ from the_alchemiser.shared.brokers.alpaca_manager import (
     create_alpaca_manager,
 )
 from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.pnl import PnLData
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Constants
 PERCENTAGE_MULTIPLIER = Decimal("100")

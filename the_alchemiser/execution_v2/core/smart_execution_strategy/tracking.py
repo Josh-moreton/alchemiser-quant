@@ -8,13 +8,14 @@ placement times, anchor prices, and repeg counts.
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime
 from decimal import Decimal
 
+from the_alchemiser.shared.logging.logging_utils import get_logger
+
 from .models import SmartOrderRequest
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class OrderTracker:

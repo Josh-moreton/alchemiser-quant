@@ -5,14 +5,16 @@ Market Data Mappers.
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types.market_data import BarModel
 from the_alchemiser.shared.types.quote import QuoteModel
+
+logger = get_logger(__name__)
 
 
 def _parse_ts(value: datetime | str | int | float | None) -> datetime | None:
@@ -78,7 +80,7 @@ def bars_to_domain(rows: Iterable[dict[str, Any]], symbol: str | None = None) ->
                 )
             )
         except Exception as exc:
-            logging.getLogger(__name__).debug("Failed to map bar row to domain: %s", exc)
+            logger.debug("Failed to map bar row to domain: %s", exc)
             continue
     return out
 

@@ -14,7 +14,6 @@ modes based on the event payload.
 from __future__ import annotations
 
 import json
-import logging
 from typing import Any
 
 from the_alchemiser.main import main
@@ -26,6 +25,7 @@ from the_alchemiser.shared.errors.error_handler import (
 )
 from the_alchemiser.shared.logging.logging_utils import (
     generate_request_id,
+    get_logger,
     log_error_with_context,
     set_request_id,
 )
@@ -38,7 +38,7 @@ from the_alchemiser.shared.types.exceptions import (
 )
 
 # Set up logging
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _determine_trading_mode(mode: str) -> str:

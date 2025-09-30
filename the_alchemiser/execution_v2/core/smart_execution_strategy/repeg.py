@@ -9,11 +9,11 @@ orders when maximum re-peg attempts are reached.
 from __future__ import annotations
 
 import asyncio
-import logging
 from datetime import UTC, datetime
 from decimal import Decimal
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.broker import OrderExecutionResult
 from the_alchemiser.shared.types.exceptions import OrderExecutionError
 from the_alchemiser.shared.types.market_data import QuoteModel
@@ -28,7 +28,7 @@ from .pricing import PricingCalculator
 from .quotes import QuoteProvider
 from .tracking import OrderTracker
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class _RemoveFromTracking(Exception):

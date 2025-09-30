@@ -8,17 +8,17 @@ handling both streaming and REST API fallback scenarios.
 
 from __future__ import annotations
 
-import logging
 import time
 from datetime import UTC, datetime
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 from the_alchemiser.shared.types.market_data import QuoteModel
 
 from .models import ExecutionConfig
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class QuoteProvider:

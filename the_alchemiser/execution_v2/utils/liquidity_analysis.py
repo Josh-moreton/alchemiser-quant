@@ -8,15 +8,16 @@ to enable truly liquidity-aware order placement that goes beyond simple bid/ask 
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, NamedTuple
 
+from the_alchemiser.shared.logging.logging_utils import get_logger
+
 if TYPE_CHECKING:
     from the_alchemiser.shared.types.market_data import QuoteModel
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class LiquidityLevel(NamedTuple):

@@ -21,6 +21,7 @@ from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.logging.logging_utils import (
     configure_application_logging,
     generate_request_id,
+    get_logger,
     set_request_id,
 )
 from the_alchemiser.shared.types.exceptions import ConfigurationError
@@ -137,9 +138,7 @@ def _execute_pnl_analysis(args: _ArgumentParsing) -> bool:
         return pnl_data.start_value is not None
 
     except Exception as e:
-        import logging
-
-        logger = logging.getLogger(__name__)
+        logger = get_logger(__name__)
         logger.error(f"P&L analysis failed: {e}")
         return False
 
@@ -157,11 +156,8 @@ def _send_error_notification() -> None:
         event_bus = container.services.event_bus()
         send_error_notification_if_needed(event_bus)
     except Exception as notification_error:  # pragma: no cover (best-effort)
-        import logging
-
-        logging.getLogger(__name__).warning(
-            f"Failed to send error notification: {notification_error}"
-        )
+        logger = get_logger(__name__)
+        logger.warning(f"Failed to send error notification: {notification_error}")
 
 
 def _handle_error_with_notification(

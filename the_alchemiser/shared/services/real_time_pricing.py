@@ -49,7 +49,10 @@ from typing import TYPE_CHECKING
 from the_alchemiser.shared.brokers.alpaca_utils import (
     create_stock_data_stream,
 )
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types.market_data import PriceDataModel, QuoteModel
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     from alpaca.data.live import StockDataStream
@@ -147,7 +150,7 @@ class RealTimePricingService:
             secret_key = secret_key or os.getenv("ALPACA_SECRET")
 
         if not api_key or not secret_key:
-            logging.error("❌ Alpaca credentials not provided or found in environment")
+            logger.error("❌ Alpaca credentials not provided or found in environment")
             raise ValueError("Alpaca API credentials required")
 
         self._api_key = api_key
@@ -198,9 +201,9 @@ class RealTimePricingService:
         self._circuit_breaker = ConnectionCircuitBreaker()
 
         # Initialize logger for this instance
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
 
-        logging.info(
+        self.logger.info(
             f"📡 Real-time pricing service initialized ({'paper' if paper_trading else 'live'})"
         )
 
@@ -228,7 +231,7 @@ class RealTimePricingService:
         """
         try:
             if self._stream_thread and self._stream_thread.is_alive():
-                logging.warning("Real-time pricing service already running")
+                self.logger.warning("Real-time pricing service already running")
                 return True
 
             # Initialize the data stream
@@ -242,7 +245,7 @@ class RealTimePricingService:
 
             # Set up the async event handlers BEFORE starting the stream
             # This is critical - handlers must be registered before run() is called
-            logging.info("📡 Real-time pricing service initialized with async handlers")
+            self.logger.info("📡 Real-time pricing service initialized with async handlers")
 
             # NOTE: Do NOT subscribe to wildcard "*" - it hits subscription limits immediately
             # We'll subscribe to specific symbols only when needed via subscribe_for_order_placement()
@@ -271,7 +274,7 @@ class RealTimePricingService:
                 check_interval = min(check_interval * 1.2, max_interval)
 
             if self._connected:
-                logging.info("✅ Real-time pricing service started successfully")
+                self.logger.info("✅ Real-time pricing service started successfully")
 
                 # Start cleanup thread
                 cleanup_thread = threading.Thread(
@@ -280,11 +283,11 @@ class RealTimePricingService:
                 cleanup_thread.start()
 
                 return True
-            logging.error("❌ Failed to establish real-time pricing connection")
+            self.logger.error("❌ Failed to establish real-time pricing connection")
             return False
 
         except Exception as e:
-            logging.error(f"Error starting real-time pricing service: {e}")
+            self.logger.error(f"Error starting real-time pricing service: {e}")
             return False
 
     def stop(self) -> None:
@@ -305,10 +308,10 @@ class RealTimePricingService:
             self._background_tasks.clear()
 
             self._connected = False
-            logging.info("🛑 Real-time pricing service stopped")
+            self.logger.info("🛑 Real-time pricing service stopped")
 
         except Exception as e:
-            logging.error(f"Error stopping real-time pricing service: {e}")
+            self.logger.error(f"Error stopping real-time pricing service: {e}")
 
     def _run_stream_with_event_loop(self) -> None:
         """Run the WebSocket stream in a new event loop.
@@ -325,7 +328,7 @@ class RealTimePricingService:
             # Run the async stream method
             loop.run_until_complete(self._run_stream_async())
         except Exception as e:
-            logging.error(f"Error in stream event loop: {e}")
+            self.logger.error(f"Error in stream event loop: {e}")
         finally:
             # Clean up the event loop
             try:
@@ -339,7 +342,7 @@ class RealTimePricingService:
 
                 loop.close()
             except Exception as e:
-                logging.error(f"Error cleaning up event loop: {e}")
+                self.logger.error(f"Error cleaning up event loop: {e}")
 
     async def _run_stream_async(self) -> None:
         """Async method to run the WebSocket stream.
@@ -367,7 +370,7 @@ class RealTimePricingService:
             finally:
                 self._connected = False
 
-        logging.info("📡 Real-time pricing stream thread exiting")
+        self.logger.info("📡 Real-time pricing stream thread exiting")
 
     async def _execute_stream_attempt(self, attempt_number: int) -> bool:
         """Execute a single stream attempt with circuit breaker protection.
@@ -379,7 +382,7 @@ class RealTimePricingService:
             True if should break from retry loop, False to continue
 
         """
-        logging.info(f"🔄 Attempting to start real-time data stream (attempt {attempt_number})")
+        self.logger.info(f"🔄 Attempting to start real-time data stream (attempt {attempt_number})")
 
         symbols_to_subscribe = self._get_symbols_to_subscribe()
 
@@ -412,11 +415,11 @@ class RealTimePricingService:
         symbols_to_subscribe = self._get_symbols_to_subscribe()
 
         if symbols_to_subscribe:
-            logging.info(f"📡 New subscriptions detected: {sorted(symbols_to_subscribe)}")
+            self.logger.info(f"📡 New subscriptions detected: {sorted(symbols_to_subscribe)}")
             self._connected = False
             return False  # Continue retry loop
 
-        logging.info("📡 Shutting down stream - no reconnection requested")
+        self.logger.info("📡 Shutting down stream - no reconnection requested")
         return True  # Break from retry loop
 
     def _get_symbols_to_subscribe(self) -> list[str]:
@@ -434,7 +437,7 @@ class RealTimePricingService:
             True if stream closed normally, False if should retry
 
         """
-        logging.info(
+        self.logger.info(
             f"📡 Setting up subscriptions for {len(symbols_to_subscribe)} symbols: {sorted(symbols_to_subscribe)}"
         )
 
@@ -449,7 +452,7 @@ class RealTimePricingService:
         self._stream.subscribe_quotes(self._on_quote, *symbols_to_subscribe)
         self._stream.subscribe_trades(self._on_trade, *symbols_to_subscribe)
 
-        logging.info("✅ All subscriptions set up successfully")
+        self.logger.info("✅ All subscriptions set up successfully")
 
         # Mark as connected before starting the stream
         self._connected = True
@@ -458,12 +461,12 @@ class RealTimePricingService:
         await self._stream._run_forever()
 
         # If we get here, the stream closed normally
-        logging.info("📡 Real-time data stream closed normally")
+        self.logger.info("📡 Real-time data stream closed normally")
         return True
 
     async def _wait_for_subscription_requests(self) -> None:
         """Wait for subscriptions to be added."""
-        logging.info("📡 No symbols to subscribe to, waiting for subscription requests...")
+        self.logger.info("📡 No symbols to subscribe to, waiting for subscription requests...")
         self._connected = True  # Mark as ready to receive subscriptions
 
         symbols_to_subscribe: list[str] = []
@@ -487,14 +490,14 @@ class RealTimePricingService:
 
         """
         delay = min(base_delay * (2 ** (retry_count - 1)), 30.0)  # Cap at 30 seconds
-        logging.error(f"❌ Real-time data stream error (attempt {retry_count}): {error}")
+        self.logger.error(f"❌ Real-time data stream error (attempt {retry_count}): {error}")
 
         if retry_count < max_retries and self._should_reconnect:
-            logging.info(f"⏱️ Retrying in {delay:.1f} seconds...")
+            self.logger.info(f"⏱️ Retrying in {delay:.1f} seconds...")
             await asyncio.sleep(delay)
             return True
 
-        logging.error("🚨 Max retries exceeded, stopping real-time pricing service")
+        self.logger.error("🚨 Max retries exceeded, stopping real-time pricing service")
         return False
 
     async def _on_quote(self, data: AlpacaQuoteData) -> None:
@@ -821,10 +824,10 @@ class RealTimePricingService:
                         self._last_update.pop(symbol, None)
 
                     if symbols_to_remove:
-                        logging.info(f"🧹 Cleaned up {len(symbols_to_remove)} old quotes")
+                        self.logger.info(f"🧹 Cleaned up {len(symbols_to_remove)} old quotes")
 
             except Exception as e:
-                logging.error(f"Error during quote cleanup: {e}")
+                self.logger.error(f"Error during quote cleanup: {e}")
 
     def get_real_time_quote(self, symbol: str) -> RealTimeQuote | None:
         """Get real-time quote for a symbol.
@@ -937,7 +940,7 @@ class RealTimePricingService:
         if quote_data and quote_data.bid_price > 0 and quote_data.ask_price > 0:
             # Additional validation: ensure ask > bid for a reasonable spread
             if quote_data.ask_price <= quote_data.bid_price:
-                logging.warning(
+                self.logger.warning(
                     f"Invalid spread for {symbol}: bid={quote_data.bid_price}, ask={quote_data.ask_price} (ask <= bid)"
                 )
                 return None
@@ -950,7 +953,7 @@ class RealTimePricingService:
 
         # Additional validation: ensure ask > bid for a reasonable spread
         if quote.ask <= quote.bid:
-            logging.warning(
+            self.logger.warning(
                 f"Invalid spread for {symbol}: bid={quote.bid}, ask={quote.ask} (ask <= bid)"
             )
             return None
@@ -1012,7 +1015,7 @@ class RealTimePricingService:
         if not normalized_symbols:
             return {}
 
-        logging.info(
+        self.logger.info(
             f"📡 Bulk subscribing to {len(normalized_symbols)} symbols with priority {priority:.1f}"
         )
 
@@ -1022,7 +1025,7 @@ class RealTimePricingService:
 
         self._restart_stream_if_needed(subscription_plan.successfully_added)
 
-        logging.info(
+        self.logger.info(
             f"✅ Bulk subscription complete: {subscription_plan.successfully_added}/"
             f"{len(subscription_plan.symbols_to_add)} new symbols subscribed"
         )
@@ -1044,7 +1047,7 @@ class RealTimePricingService:
                     self._subscription_priority.get(symbol, 0), priority
                 )
                 results[symbol] = True
-                logging.debug(
+                self.logger.debug(
                     f"Already subscribed to {symbol}, updated priority to "
                     f"{self._subscription_priority[symbol]:.1f}"
                 )
@@ -1095,7 +1098,7 @@ class RealTimePricingService:
             self._subscribed_symbols.discard(symbol_to_remove)
             self._subscription_priority.pop(symbol_to_remove, None)
             self._stats["subscription_limit_hits"] += 1
-            logging.info(f"📊 Replaced {symbol_to_remove} for higher priority symbols")
+            self.logger.info(f"📊 Replaced {symbol_to_remove} for higher priority symbols")
 
         # Add new symbols
         for symbol in plan.symbols_to_add[: plan.available_slots]:
@@ -1108,12 +1111,12 @@ class RealTimePricingService:
         # Mark symbols we couldn't subscribe to due to limits
         for symbol in plan.symbols_to_add[plan.available_slots :]:
             plan.results[symbol] = False
-            logging.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
+            self.logger.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
 
     def _restart_stream_if_needed(self, successfully_added: int) -> None:
         """Restart stream if new symbols were added and we're connected."""
         if successfully_added > 0 and self._connected:
-            logging.info(f"🔄 Restarting stream to add {successfully_added} new subscriptions")
+            self.logger.info(f"🔄 Restarting stream to add {successfully_added} new subscriptions")
             self._restart_stream_for_new_subscription()
 
     def subscribe_symbol(self, symbol: str, priority: float | None = None) -> None:
@@ -1143,7 +1146,7 @@ class RealTimePricingService:
 
                 if priority > lowest_priority:
                     # Unsubscribe lowest priority symbol
-                    logging.info(
+                    self.logger.info(
                         f"📊 Subscription limit reached. Replacing {lowest_priority_symbol} (priority: {lowest_priority:.1f}) with {symbol} (priority: {priority:.1f})"
                     )
                     self._subscribed_symbols.remove(lowest_priority_symbol)
@@ -1151,7 +1154,7 @@ class RealTimePricingService:
                     self._stats["subscription_limit_hits"] += 1
                     needs_restart = True
                 else:
-                    logging.warning(
+                    self.logger.warning(
                         f"⚠️ Cannot subscribe to {symbol} - priority {priority:.1f} too low (limit: {self._max_symbols} symbols)"
                     )
                     return
@@ -1161,8 +1164,10 @@ class RealTimePricingService:
                 self._subscription_priority[symbol] = priority
                 needs_restart = self._connected  # Only restart if already connected
 
-                logging.info(f"📡 Added {symbol} to subscription list (priority: {priority:.1f})")
-                logging.debug(f"📊 Current subscriptions: {sorted(self._subscribed_symbols)}")
+                self.logger.info(
+                    f"📡 Added {symbol} to subscription list (priority: {priority:.1f})"
+                )
+                self.logger.debug(f"📊 Current subscriptions: {sorted(self._subscribed_symbols)}")
                 self._stats["total_subscriptions"] += 1
             else:
                 # Update priority for existing subscription
@@ -1172,7 +1177,7 @@ class RealTimePricingService:
 
         # Restart stream if needed (outside the lock to avoid deadlock)
         if needs_restart and self._connected:
-            logging.info(f"🔄 Restarting stream to add subscription for {symbol}")
+            self.logger.info(f"🔄 Restarting stream to add subscription for {symbol}")
             self._restart_stream_for_new_subscription()
 
     def _update_existing_symbols_priority(
@@ -1248,7 +1253,7 @@ class RealTimePricingService:
         for symbol_to_remove in symbols_to_replace:
             self._subscribed_symbols.discard(symbol_to_remove)
             self._subscription_priority.pop(symbol_to_remove, None)
-            logging.info(f"📊 Replaced {symbol_to_remove} for higher priority symbols")
+            self.logger.info(f"📊 Replaced {symbol_to_remove} for higher priority symbols")
             self._stats["subscription_limit_hits"] += 1
 
     def _add_new_symbols(
@@ -1277,7 +1282,7 @@ class RealTimePricingService:
                 needs_restart = True
             else:
                 results[symbol] = False
-                logging.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
+                self.logger.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
 
         return needs_restart
 
@@ -1319,13 +1324,15 @@ class RealTimePricingService:
             needs_restart = self._add_new_symbols(symbols_to_add, priority, results)
 
             if needs_restart:
-                logging.info(
+                self.logger.info(
                     f"📡 Bulk subscribing to {sum(results.values())} symbols with priority {priority:.1f}"
                 )
 
         # Single restart for all changes (outside the lock)
         if needs_restart and self._connected:
-            logging.info(f"🔄 Restarting stream to add {sum(results.values())} new subscriptions")
+            self.logger.info(
+                f"🔄 Restarting stream to add {sum(results.values())} new subscriptions"
+            )
             self._restart_stream_for_new_subscription()
 
         return results
@@ -1346,13 +1353,13 @@ class RealTimePricingService:
                     time.sleep(0.5)  # Give Alpaca time to close the connection
                     self._stream = None  # Clear the reference
                 except Exception as e:
-                    logging.debug(f"Error stopping stream for restart: {e}")
+                    self.logger.debug(f"Error stopping stream for restart: {e}")
 
             # Wait for the stream thread to finish with longer timeout
             if self._stream_thread and self._stream_thread.is_alive():
                 self._stream_thread.join(timeout=5.0)  # Increased from 2.0
                 if self._stream_thread.is_alive():
-                    logging.warning("⚠️ Stream thread didn't terminate cleanly")
+                    self.logger.warning("⚠️ Stream thread didn't terminate cleanly")
                     return  # Don't restart if old thread is still running
 
             # Add backoff delay before reconnecting to prevent rapid attempts
@@ -1372,14 +1379,14 @@ class RealTimePricingService:
             start_time = time.time()
             while time.time() - start_time < 10.0:  # Increased timeout
                 if self._connected:
-                    logging.info("✅ Stream restarted successfully with new subscriptions")
+                    self.logger.info("✅ Stream restarted successfully with new subscriptions")
                     break
                 time.sleep(0.1)
             else:
-                logging.warning("⚠️ Stream restart timed out - may not be connected")
+                self.logger.warning("⚠️ Stream restart timed out - may not be connected")
 
         except Exception as e:
-            logging.error(f"Error restarting stream for new subscription: {e}")
+            self.logger.error(f"Error restarting stream for new subscription: {e}")
             self._connected = False
 
     def unsubscribe_symbol(self, symbol: str) -> None:
@@ -1401,7 +1408,7 @@ class RealTimePricingService:
                     self._quote_data.pop(symbol, None)  # New quote storage
                     self._last_update.pop(symbol, None)
 
-                logging.info(f"📴 Unsubscribed from real-time data for {symbol}")
+                self.logger.info(f"📴 Unsubscribed from real-time data for {symbol}")
 
     def subscribe_for_trading(self, symbol: str) -> None:
         """Subscribe to real-time data for a symbol that will be traded.

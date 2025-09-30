@@ -6,12 +6,13 @@ Prevents rapid reconnection attempts that can overwhelm the Alpaca API
 and cause connection limit exceeded errors.
 """
 
-import logging
 import time
 from enum import Enum
 from typing import NamedTuple
 
-logger = logging.getLogger(__name__)
+from the_alchemiser.shared.logging.logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class CircuitState(Enum):

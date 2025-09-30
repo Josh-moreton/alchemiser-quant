@@ -8,15 +8,15 @@ fallback pricing, and re-pegging price calculations.
 
 from __future__ import annotations
 
-import logging
 from decimal import Decimal
 
 from the_alchemiser.execution_v2.utils.liquidity_analysis import LiquidityAnalyzer
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types.market_data import QuoteModel
 
 from .models import ExecutionConfig, LiquidityMetadata
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class PricingCalculator:
