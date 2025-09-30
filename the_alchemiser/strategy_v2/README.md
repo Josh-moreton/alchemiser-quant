@@ -151,6 +151,29 @@ All errors include:
 - **Correlation ID** propagation for end-to-end observability
 - **Batched API calls**: Minimize Alpaca API requests
 
+## Logging
+
+All strategy operations include structured logging with correlation IDs:
+
+```json
+{
+  "timestamp": "2024-01-01T10:00:00Z",
+  "level": "INFO",
+  "message": "Strategy execution started",
+  "correlation_id": "signal-123",
+  "strategy_name": "nuclear",
+  "symbols": ["SPY", "QQQ"],
+  "module": "strategy_v2.core.orchestrator"
+}
+```
+
+Key log points:
+- Strategy execution start/completion
+- Signal generation (per strategy)
+- Indicator calculations
+- Error conditions
+- Data fetching operations
+
 ## Testing and Validation
 
 ### Unit Tests
