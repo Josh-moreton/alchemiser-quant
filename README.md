@@ -247,8 +247,8 @@ PAPER_TRADING=true  # Default for local runs
 # Deploy to Lambda
 make deploy
 
-# Uses AWS Secrets Manager for credentials
-# Configure secrets: alchemiser/alpaca/api-key, alchemiser/alpaca/secret-key
+# Production credentials are passed via environment variables
+# Set PROD_ALPACA_KEY, PROD_ALPACA_SECRET before deploying to prod
 ```
 
 ## Observability

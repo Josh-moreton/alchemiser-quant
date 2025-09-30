@@ -138,9 +138,9 @@ class PnLData:
 
 The P&L service uses the same Alpaca API configuration as the main trading system:
 
-- **Environment Variables**: `ALPACA_KEY`, `ALPACA_SECRET`
-- **AWS Secrets Manager**: Automatic detection in Lambda environment
-- **Paper vs Live**: Determined by endpoint configuration
+- **Environment Variables**: `ALPACA_KEY`, `ALPACA_SECRET`, `ALPACA_ENDPOINT`
+- **Lambda Environment**: Credentials passed via Lambda environment variables
+- **Paper vs Live**: Determined by endpoint configuration (paper-api.alpaca.markets vs api.alpaca.markets)
 
 ## Output Format
 
