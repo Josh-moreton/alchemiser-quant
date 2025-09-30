@@ -78,8 +78,7 @@ class ExecutionResult(BaseModel):
 
         """
         if orders_placed == 0:
-            # No orders needed - portfolio already balanced (success scenario)
-            return True, ExecutionStatus.SUCCESS
+            return False, ExecutionStatus.FAILURE
         if orders_succeeded == orders_placed:
             return True, ExecutionStatus.SUCCESS
         if orders_succeeded > 0:
