@@ -27,7 +27,9 @@ from the_alchemiser.execution_v2.utils.execution_validator import (
     ExecutionValidator,
 )
 from the_alchemiser.execution_v2.utils.position_utils import PositionUtils
-from the_alchemiser.execution_v2.utils.repeg_monitoring_service import RepegMonitoringService
+from the_alchemiser.execution_v2.utils.repeg_monitoring_service import (
+    RepegMonitoringService,
+)
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
@@ -93,7 +95,9 @@ class Executor:
 
         # Initialize smart execution if enabled
         try:
-            logger.info("🚀 Initializing smart execution with shared WebSocket connection...")
+            logger.info(
+                "🚀 Initializing smart execution with shared WebSocket connection..."
+            )
 
             # Use shared WebSocket connection manager to prevent connection limits
             self.websocket_manager = WebSocketConnectionManager(
@@ -132,7 +136,9 @@ class Executor:
             self.alpaca_manager, self.validator, self.buying_power_service
         )
         self._order_monitor = OrderMonitor(self.smart_strategy, self.execution_config)
-        self._order_finalizer = OrderFinalizer(self.alpaca_manager, self.execution_config)
+        self._order_finalizer = OrderFinalizer(
+            self.alpaca_manager, self.execution_config
+        )
         self._position_utils = PositionUtils(
             self.alpaca_manager, self.pricing_service, self.enable_smart_execution
         )
@@ -195,7 +201,8 @@ class Executor:
                         symbol=symbol,
                         action=side.upper(),
                         trade_amount=abs(
-                            Decimal(str(quantity)) * (result.final_price or Decimal("0"))
+                            Decimal(str(quantity))
+                            * (result.final_price or Decimal("0"))
                         ),
                         shares=Decimal(str(quantity)),
                         price=(result.final_price if result.final_price else None),
@@ -204,7 +211,9 @@ class Executor:
                         error_message=None,
                         timestamp=datetime.now(UTC),
                     )
-                logger.warning(f"⚠️ Smart execution failed for {symbol}: {result.error_message}")
+                logger.warning(
+                    f"⚠️ Smart execution failed for {symbol}: {result.error_message}"
+                )
 
             except Exception as e:
                 logger.error(f"❌ Smart execution failed for {symbol}: {e}")
@@ -213,7 +222,9 @@ class Executor:
         logger.info(f"📈 Using standard market order for {symbol}")
         return self._execute_market_order(symbol, side, Decimal(str(quantity)))
 
-    def _execute_market_order(self, symbol: str, side: str, quantity: Decimal) -> OrderResult:
+    def _execute_market_order(
+        self, symbol: str, side: str, quantity: Decimal
+    ) -> OrderResult:
         """Execute a standard market order with preflight validation.
 
         Args:
@@ -259,14 +270,18 @@ class Executor:
         else:
             logger.debug("No execution_config found, using default timeout")
 
-        logger.info(f"🧹 Checking for stale orders (older than {stale_timeout_minutes} minutes)...")
+        logger.info(
+            f"🧹 Checking for stale orders (older than {stale_timeout_minutes} minutes)..."
+        )
         stale_result = self.alpaca_manager.cancel_stale_orders(stale_timeout_minutes)
         logger.debug(f"Stale order result: {stale_result}")
 
         if stale_result["cancelled_count"] > 0:
             logger.info(f"🗑️ Cancelled {stale_result['cancelled_count']} stale orders")
         if stale_result["errors"]:
-            logger.warning(f"⚠️ Errors during stale order cancellation: {stale_result['errors']}")
+            logger.warning(
+                f"⚠️ Errors during stale order cancellation: {stale_result['errors']}"
+            )
 
         # Extract all symbols upfront for bulk subscription
         all_symbols = self._extract_all_symbols(plan)
@@ -292,7 +307,9 @@ class Executor:
         # Phase 1: Execute SELL orders and monitor settlement
         sell_order_ids: list[str] = []
         if sell_items:
-            logger.info("🔄 Phase 1: Executing SELL orders with settlement monitoring...")
+            logger.info(
+                "🔄 Phase 1: Executing SELL orders with settlement monitoring..."
+            )
 
             sell_orders, sell_stats = await self._execute_sell_phase(
                 sell_items, plan.correlation_id
@@ -304,7 +321,9 @@ class Executor:
 
             # Collect successful sell order IDs for settlement monitoring
             sell_order_ids = [
-                order.order_id for order in sell_orders if order.success and order.order_id
+                order.order_id
+                for order in sell_orders
+                if order.success and order.order_id
             ]
 
         # Phase 2: Monitor settlement and execute BUY orders
@@ -312,8 +331,10 @@ class Executor:
             logger.info("🔄 Phase 2: Monitoring settlement and executing BUY orders...")
 
             # Wait for settlement and then execute buys
-            buy_orders, buy_stats = await self._execute_buy_phase_with_settlement_monitoring(
-                buy_items, sell_order_ids, plan.correlation_id, plan.plan_id
+            buy_orders, buy_stats = (
+                await self._execute_buy_phase_with_settlement_monitoring(
+                    buy_items, sell_order_ids, plan.correlation_id, plan.plan_id
+                )
             )
 
             orders.extend(buy_orders)
@@ -323,9 +344,13 @@ class Executor:
 
         elif buy_items:
             # No sells to wait for, execute buys immediately
-            logger.info("🔄 Phase 2: Executing BUY orders (no settlement monitoring needed)...")
+            logger.info(
+                "🔄 Phase 2: Executing BUY orders (no settlement monitoring needed)..."
+            )
 
-            buy_orders, buy_stats = await self._execute_buy_phase(buy_items, plan.correlation_id)
+            buy_orders, buy_stats = await self._execute_buy_phase(
+                buy_items, plan.correlation_id
+            )
             orders.extend(buy_orders)
             orders_placed += buy_stats["placed"]
             orders_succeeded += buy_stats["succeeded"]
@@ -339,7 +364,9 @@ class Executor:
         self._cleanup_subscriptions(all_symbols)
 
         # Classify execution status
-        success, status = ExecutionResult.classify_execution_status(orders_placed, orders_succeeded)
+        success, status = ExecutionResult.classify_execution_status(
+            orders_placed, orders_succeeded
+        )
 
         # Create execution result
         execution_result = ExecutionResult(
@@ -515,14 +542,18 @@ class Executor:
                 if price is None or price <= Decimal("0"):
                     # Safety fallback to 1 share if price discovery fails
                     shares = Decimal("1")
-                    logger.warning(f"⚠️ Price unavailable for {item.symbol}; defaulting to 1 share")
+                    logger.warning(
+                        f"⚠️ Price unavailable for {item.symbol}; defaulting to 1 share"
+                    )
                 else:
                     raw_shares = abs(item.trade_amount) / price
                     shares = self._position_utils.adjust_quantity_for_fractionability(
                         item.symbol, raw_shares
                     )
 
-                amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
+                amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(
+                    Decimal("0.01")
+                )
                 logger.info(
                     f"📊 Executing {item.action} for {item.symbol}: "
                     f"${amount_fmt} (estimated {shares} shares)"
