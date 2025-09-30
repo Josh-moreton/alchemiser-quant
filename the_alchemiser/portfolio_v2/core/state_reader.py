@@ -12,6 +12,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.logging.logging_utils import get_logger, log_with_context
+from the_alchemiser.shared.types.exceptions import NegativeCashBalanceError
 
 if TYPE_CHECKING:
     from the_alchemiser.portfolio_v2.adapters.alpaca_data_adapter import (
@@ -80,6 +81,22 @@ class PortfolioStateReader:
 
             # Step 4: Get cash balance
             cash = self._data_adapter.get_account_cash()
+
+            # Check for negative or zero cash balance - graceful exit condition
+            if cash <= Decimal("0"):
+                log_with_context(
+                    logger,
+                    logging.ERROR,
+                    f"Account has non-positive cash balance: ${cash}. Trading cannot proceed.",
+                    module=MODULE_NAME,
+                    action="build_snapshot",
+                    cash_balance=str(cash),
+                )
+                raise NegativeCashBalanceError(
+                    f"Account cash balance is ${cash}. Trading requires positive cash balance.",
+                    cash_balance=str(cash),
+                    module=MODULE_NAME,
+                )
 
             # Step 5: Calculate total portfolio value
             position_value = Decimal("0")
