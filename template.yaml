@@ -55,12 +55,6 @@ Parameters:
     NoEcho: true
     Description: Email SMTP password for production notifications (optional)
 
-  ProdTwelveDataKey:
-    Type: String
-    Default: ""
-    NoEcho: true
-    Description: TwelveData API key for production (optional)
-
   # Strategy configuration: now defined in code defaults. Override via env only if required.
 
 Conditions:
@@ -87,8 +81,6 @@ Globals:
         EMAIL__TO_EMAIL: josh@rwxt.org
         EMAIL__NEUTRAL_MODE: true
         EMAIL__PASSWORD: !If [ IsDev, "", !Ref ProdEmailPassword ]
-        # TwelveData Configuration
-        TWELVEDATA_KEY: !If [ IsDev, "", !Ref ProdTwelveDataKey ]
         # Strategy DSL configuration now comes from code defaults; override via env only if necessary
         # STRATEGY__DSL_FILES: '["1-KMLM.clj","2-Nuclear.clj","5-Coin.clj","6-TQQQ-FLT.clj"]'
         # STRATEGY__DSL_ALLOCATIONS: '{"1-KMLM.clj":0.4,"2-Nuclear.clj":0.25,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.25}'

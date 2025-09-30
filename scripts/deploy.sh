@@ -139,8 +139,13 @@ else
         [[ -z "${LIVE_ALPACA_KEY:-}" ]] && LIVE_ALPACA_KEY="$(grep -E '^LIVE_ALPACA_KEY=' "$f" | tail -n1 | sed -E 's/^LIVE_ALPACA_KEY=(.*)$/\1/')" || true
         [[ -z "${LIVE_ALPACA_SECRET:-}" ]] && LIVE_ALPACA_SECRET="$(grep -E '^LIVE_ALPACA_SECRET=' "$f" | tail -n1 | sed -E 's/^LIVE_ALPACA_SECRET=(.*)$/\1/')" || true
         [[ -z "${LIVE_ALPACA_ENDPOINT:-}" ]] && LIVE_ALPACA_ENDPOINT="$(grep -E '^LIVE_ALPACA_ENDPOINT=' "$f" | tail -n1 | sed -E 's/^LIVE_ALPACA_ENDPOINT=(.*)$/\1/')" || true
-        [[ -z "${EMAIL_PASSWORD:-}" ]] && EMAIL_PASSWORD="$(grep -E '^EMAIL__PASSWORD=' "$f" | tail -n1 | sed -E 's/^EMAIL__PASSWORD=(.*)$/\1/')" || true
-        [[ -z "${TWELVEDATA_KEY:-}" ]] && TWELVEDATA_KEY="$(grep -E '^TWELVEDATA_KEY=' "$f" | tail -n1 | sed -E 's/^TWELVEDATA_KEY=(.*)$/\1/')" || true
+        # Prefer EMAIL__PASSWORD (double underscore) to match app config; fallback to EMAIL_PASSWORD
+        if [[ -z "${EMAIL_PASSWORD:-}" ]]; then
+            EMAIL_PASSWORD="$(grep -E '^EMAIL__PASSWORD=' "$f" | tail -n1 | sed -E 's/^EMAIL__PASSWORD=(.*)$/\1/')"
+            if [[ -z "$EMAIL_PASSWORD" ]]; then
+                EMAIL_PASSWORD="$(grep -E '^EMAIL_PASSWORD=' "$f" | tail -n1 | sed -E 's/^EMAIL_PASSWORD=(.*)$/\1/')"
+            fi
+        fi
     }
 
     for SECRETS_FILE in .env; do
@@ -157,23 +162,27 @@ else
     # Set defaults for optional parameters
     LIVE_ALPACA_ENDPOINT_PARAM=${LIVE_ALPACA_ENDPOINT:-"https://api.alpaca.markets"}
     EMAIL_PASSWORD_PARAM=${EMAIL_PASSWORD:-""}
-    TWELVEDATA_KEY_PARAM=${TWELVEDATA_KEY:-""}
 
     echo "✅ Production credentials loaded from .env"
     echo "⚠️  WARNING: Using LIVE trading keys - real money will be traded!"
     echo ""
 
+    # Build parameter overrides, conditionally including optional email password
+    PARAMS=(
+        "Stage=prod"
+        "ProdAlpacaKey=$LIVE_ALPACA_KEY"
+        "ProdAlpacaSecret=$LIVE_ALPACA_SECRET"
+        "ProdAlpacaEndpoint=$LIVE_ALPACA_ENDPOINT_PARAM"
+    )
+    if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
+        PARAMS+=("ProdEmailPassword=$EMAIL_PASSWORD_PARAM")
+    fi
+
     sam deploy \
         --no-fail-on-empty-changeset \
         --resolve-s3 \
         --config-env "$ENVIRONMENT" \
-        --parameter-overrides \
-            Stage=prod \
-            ProdAlpacaKey="$LIVE_ALPACA_KEY" \
-            ProdAlpacaSecret="$LIVE_ALPACA_SECRET" \
-            ProdAlpacaEndpoint="$LIVE_ALPACA_ENDPOINT_PARAM" \
-            ProdEmailPassword="$EMAIL_PASSWORD_PARAM" \
-            ProdTwelveDataKey="$TWELVEDATA_KEY_PARAM"
+        --parameter-overrides ${PARAMS[@]}
 fi
 
 echo ""

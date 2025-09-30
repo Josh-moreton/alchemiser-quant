@@ -12,7 +12,12 @@ from pydantic_settings import (
 )
 
 from ..constants import DEFAULT_AWS_REGION
-from .strategy_profiles import DEV_DSL_ALLOCATIONS, DEV_DSL_FILES, PROD_DSL_ALLOCATIONS, PROD_DSL_FILES
+from .strategy_profiles import (
+    DEV_DSL_ALLOCATIONS,
+    DEV_DSL_FILES,
+    PROD_DSL_ALLOCATIONS,
+    PROD_DSL_FILES,
+)
 
 """Typed configuration loader for The Alchemiser."""
 
@@ -67,8 +72,13 @@ class StrategySettings(BaseModel):
         default_factory=lambda: {"nuclear": 0.3, "tecl": 0.5, "klm": 0.2}
     )
     # DSL multi-file support
-    dsl_files: list[str] = Field(default_factory=list, description="List of DSL .clj strategy files")
-    dsl_allocations: dict[str, float] = Field(default_factory=dict, description="Per-DSL-file allocation weights that should sum to ~1.0")
+    dsl_files: list[str] = Field(
+        default_factory=list, description="List of DSL .clj strategy files"
+    )
+    dsl_allocations: dict[str, float] = Field(
+        default_factory=dict,
+        description="Per-DSL-file allocation weights that should sum to ~1.0",
+    )
     poll_timeout: int = 30
     poll_interval: float = 2.0
 

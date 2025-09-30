@@ -116,7 +116,9 @@ def main() -> int:
 
     Returns process exit code (0 on success).
     """
-    ap = argparse.ArgumentParser(description="Extract multi-line JSON env value from .env")
+    ap = argparse.ArgumentParser(
+        description="Extract multi-line JSON env value from .env"
+    )
     ap.add_argument("--file", required=True, help="Path to .env-like file")
     ap.add_argument("--var", required=True, help="Variable name to extract")
     args = ap.parse_args()
