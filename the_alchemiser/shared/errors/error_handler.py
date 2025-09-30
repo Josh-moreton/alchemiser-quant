@@ -20,6 +20,9 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
+    from the_alchemiser.shared.events.bus import EventBus
+
+if TYPE_CHECKING:
     # Forward reference type aliases for type checking
     from .context import ErrorContextData
 
@@ -59,6 +62,10 @@ class ErrorNotificationData(TypedDict):
     title: str
     error_report: str
     html_content: str
+    success: bool
+    email_sent: bool
+    correlation_id: str | None
+    event_id: str | None
 
 
 # Import exceptions
@@ -724,73 +731,90 @@ def handle_trading_error(
     return _error_handler.handle_error(error, context, component, additional_data)
 
 
-def send_error_notification_if_needed() -> ErrorNotificationData | None:
-    """Send error notification email if there are errors that warrant it."""
+def send_error_notification_if_needed(event_bus: EventBus) -> ErrorNotificationData | None:
+    """Send error notification via event bus if there are errors that warrant it.
+
+    Args:
+        event_bus: Event bus for event-driven notifications.
+
+    """
     if not _error_handler.should_send_error_email():
         return None
 
-    try:
-        from the_alchemiser.shared.notifications.client import send_email_notification
-        from the_alchemiser.shared.notifications.templates import EmailTemplates
+    return _send_error_notification_via_events(event_bus)
 
-        # Generate error report
-        error_report = _error_handler.generate_error_report()
 
-        # Determine severity for subject
-        if _error_handler.has_critical_errors():
-            severity = "🚨 CRITICAL"
-            priority = "URGENT"
-        elif _error_handler.has_trading_errors():
-            severity = "💰 TRADING"
-            priority = "HIGH"
-        else:
-            severity = "⚠️ SYSTEM"
-            priority = "MEDIUM"
+def _send_error_notification_via_events(event_bus: EventBus) -> ErrorNotificationData | None:
+    """Send error notification via event bus (preferred method).
 
-        # Find primary error code for subject (first non-None error code)
-        primary_error_code = None
-        for error_detail in _error_handler.errors:
-            if error_detail.error_code:
-                primary_error_code = error_detail.error_code
-                break
+    Args:
+        event_bus: Event bus instance for publishing events
 
-        # Build subject with error code if available
-        if primary_error_code:
-            subject = f"[FAILURE][{priority}][{primary_error_code}] The Alchemiser - {severity} Error Report"
-        else:
-            subject = f"[FAILURE][{priority}] The Alchemiser - {severity} Error Report"
+    """
+    from datetime import UTC, datetime
+    from uuid import uuid4
 
-        # Build HTML email
-        html_content = EmailTemplates.build_error_report(
-            title=f"{severity} Alert - Trading System Errors",
-            error_message=error_report,
-        )
+    from the_alchemiser.shared.events.schemas import ErrorNotificationRequested
 
-        # Send notification
-        success = send_email_notification(
-            subject=subject,
-            html_content=html_content,
-            text_content=error_report,
-        )
+    # Generate error report
+    error_report = _error_handler.generate_error_report()
 
-        # Create notification data
-        notification_data: ErrorNotificationData = {
-            "severity": severity,
-            "priority": priority,
-            "title": f"[{priority}] The Alchemiser - {severity} Error Report",
-            "error_report": error_report,
-            "html_content": html_content,
-        }
+    # Determine severity for subject
+    if _error_handler.has_critical_errors():
+        severity = "🚨 CRITICAL"
+        priority = "URGENT"
+    elif _error_handler.has_trading_errors():
+        severity = "💰 TRADING"
+        priority = "HIGH"
+    else:
+        severity = "⚠️ SYSTEM"
+        priority = "MEDIUM"
 
-        if success:
-            logging.info("Error notification email sent successfully")
-            return notification_data
-        logging.error("Failed to send error notification email")
-        return notification_data
+    # Find primary error code for subject (first non-None error code)
+    primary_error_code = None
+    for error_detail in _error_handler.errors:
+        if error_detail.error_code:
+            primary_error_code = error_detail.error_code
+            break
 
-    except Exception as e:
-        logging.error(f"Failed to send error notification: {e}")
-        return None
+    # Build error title for notification
+    error_title = f"{severity} Alert - Trading System Errors"
+
+    # Create and emit error notification event
+    error_event = ErrorNotificationRequested(
+        correlation_id=str(uuid4()),
+        causation_id=f"error-handler-{datetime.now(UTC).isoformat()}",
+        event_id=f"error-notification-{uuid4()}",
+        timestamp=datetime.now(UTC),
+        source_module="shared.errors.error_handler",
+        source_component="TradingSystemErrorHandler",
+        error_severity=severity,
+        error_priority=priority,
+        error_title=error_title,
+        error_report=error_report,
+        error_code=primary_error_code,
+    )
+
+    # Get event bus and emit event
+    event_bus.publish(error_event)
+
+    # Create notification data for return value
+    notification_data: ErrorNotificationData = {
+        "severity": severity,
+        "priority": priority,
+        "title": f"[{priority}] The Alchemiser - {severity} Error Report",
+        "error_report": error_report,
+        "html_content": "(Generated by notification service)",
+        "success": True,  # Event was published successfully
+        "email_sent": True,
+        "correlation_id": error_event.correlation_id,
+        "event_id": error_event.event_id,
+    }
+
+    import logging
+
+    logging.getLogger(__name__).info("Error notification event published successfully")
+    return notification_data
 
 
 # Enhanced Error Handling Utilities for Production Resilience

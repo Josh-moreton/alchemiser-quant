@@ -364,7 +364,12 @@ class TradingSystem:
                     send_error_notification_if_needed,
                 )
 
-                send_error_notification_if_needed()
+                # Use the existing event bus from the container
+                if self.container is not None:
+                    event_bus = self.container.services.event_bus()
+                    send_error_notification_if_needed(event_bus)
+                else:
+                    self.logger.warning("Container not available for error notification")
             except Exception as notification_error:
                 self.logger.warning(f"Failed to send error notification: {notification_error}")
 
