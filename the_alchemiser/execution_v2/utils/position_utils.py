@@ -26,6 +26,7 @@ class PositionUtils:
         self,
         alpaca_manager: AlpacaManager,
         pricing_service: RealTimePricingService | None,
+        *,
         enable_smart_execution: bool = True,
     ) -> None:
         """Initialize position utilities.

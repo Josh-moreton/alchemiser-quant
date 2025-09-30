@@ -6,6 +6,7 @@ Phase execution functionality for sell and buy phases extracted from the main ex
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from decimal import ROUND_DOWN, Decimal
 from typing import TYPE_CHECKING
 
@@ -33,6 +34,7 @@ class PhaseExecutor:
         position_utils: PositionUtils | None,
         smart_strategy: SmartExecutionStrategy | None,
         execution_config: ExecutionConfig | None,
+        *,
         enable_smart_execution: bool = True,
     ) -> None:
         """Initialize the phase executor.
@@ -55,9 +57,13 @@ class PhaseExecutor:
         self,
         sell_items: list[RebalancePlanItem],
         correlation_id: str | None = None,
-        execute_order_callback: callable = None,
-        monitor_orders_callback: callable = None,
-        finalize_orders_callback: callable = None,
+        execute_order_callback: Callable[[RebalancePlanItem], Awaitable[OrderResult]] | None = None,
+        monitor_orders_callback: Callable[
+            [str, list[OrderResult], str | None], Awaitable[list[OrderResult]]
+        ]
+        | None = None,
+        finalize_orders_callback: Callable[..., tuple[list[OrderResult], int, Decimal]]
+        | None = None,
     ) -> tuple[list[OrderResult], ExecutionStats]:
         """Execute sell orders phase with integrated re-pegging monitoring.
 
@@ -113,9 +119,13 @@ class PhaseExecutor:
         self,
         buy_items: list[RebalancePlanItem],
         correlation_id: str | None = None,
-        execute_order_callback: callable = None,
-        monitor_orders_callback: callable = None,
-        finalize_orders_callback: callable = None,
+        execute_order_callback: Callable[[RebalancePlanItem], Awaitable[OrderResult]] | None = None,
+        monitor_orders_callback: Callable[
+            [str, list[OrderResult], str | None], Awaitable[list[OrderResult]]
+        ]
+        | None = None,
+        finalize_orders_callback: Callable[..., tuple[list[OrderResult], int, Decimal]]
+        | None = None,
     ) -> tuple[list[OrderResult], ExecutionStats]:
         """Execute buy orders phase with integrated re-pegging monitoring.
 
@@ -230,8 +240,6 @@ class PhaseExecutor:
         from datetime import UTC, datetime
 
         try:
-            side = "buy" if item.action == "BUY" else "sell"
-
             # Determine quantity (shares) to trade
             if item.action == "SELL" and item.target_weight == Decimal("0.0"):
                 # For liquidation (0% target), use actual position quantity
