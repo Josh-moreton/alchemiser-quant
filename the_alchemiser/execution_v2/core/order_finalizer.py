@@ -22,7 +22,9 @@ logger = logging.getLogger(__name__)
 class OrderFinalizer:
     """Handles order status finalization and completion polling."""
 
-    def __init__(self, alpaca_manager: AlpacaManager, execution_config: ExecutionConfig | None) -> None:
+    def __init__(
+        self, alpaca_manager: AlpacaManager, execution_config: ExecutionConfig | None
+    ) -> None:
         """Initialize the order finalizer.
 
         Args:
@@ -106,9 +108,7 @@ class OrderFinalizer:
         # Build final status map
         return self._build_final_status_map(valid_order_ids, invalid_order_ids)
 
-    def _validate_order_ids(
-        self, orders: list[OrderResult]
-    ) -> tuple[list[str], list[str]]:
+    def _validate_order_ids(self, orders: list[OrderResult]) -> tuple[list[str], list[str]]:
         """Validate order IDs and separate valid from invalid.
 
         Args:
@@ -118,10 +118,12 @@ class OrderFinalizer:
             Tuple of (valid_order_ids, invalid_order_ids)
 
         """
+
         def _is_valid_uuid(val: str) -> bool:
             """Check if a string is a valid UUID."""
             try:
                 import uuid
+
                 uuid.UUID(val)
                 return True
             except (ValueError, TypeError):

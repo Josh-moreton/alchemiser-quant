@@ -28,7 +28,12 @@ logger = logging.getLogger(__name__)
 class MarketOrderExecutor:
     """Handles market order execution with validation and error handling."""
 
-    def __init__(self, alpaca_manager: AlpacaManager, validator: ExecutionValidator, buying_power_service: BuyingPowerService) -> None:
+    def __init__(
+        self,
+        alpaca_manager: AlpacaManager,
+        validator: ExecutionValidator,
+        buying_power_service: BuyingPowerService,
+    ) -> None:
         """Initialize the market order executor.
 
         Args:
@@ -132,13 +137,15 @@ class MarketOrderExecutor:
                 if not price or price <= 0:
                     logger.warning(f"⚠️ Could not get price for {symbol} buying power check")
                     return  # Skip buying power check if no price available
-                
+
                 estimated_cost = quantity * Decimal(str(price))
             except Exception as exc:
                 logger.warning(f"⚠️ Could not estimate cost for {symbol}: {exc}")
                 return  # Skip buying power check if price unavailable
-            
-            buying_power_check = self.buying_power_service.verify_buying_power_available(estimated_cost)
+
+            buying_power_check = self.buying_power_service.verify_buying_power_available(
+                estimated_cost
+            )
             if not buying_power_check[0]:
                 error_msg = (
                     f"Insufficient buying power for {symbol}: "
@@ -153,7 +160,9 @@ class MarketOrderExecutor:
             logger.warning(f"⚠️ Could not verify buying power for {symbol}: {exc}")
             # Continue with order placement - broker will reject if insufficient funds
 
-    def _place_market_order_with_broker(self, symbol: str, side: str, quantity: Decimal) -> ExecutedOrder:
+    def _place_market_order_with_broker(
+        self, symbol: str, side: str, quantity: Decimal
+    ) -> ExecutedOrder:
         """Place market order with broker.
 
         Args:

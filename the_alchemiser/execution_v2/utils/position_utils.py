@@ -165,13 +165,14 @@ class PositionUtils:
             if supports_fractional:
                 # Keep fractional quantity (limit to 6 decimal places for precision)
                 adjusted_quantity = raw_quantity.quantize(Decimal("0.000001"))
-                logger.debug(f"📊 {symbol}: fractional shares supported, quantity={adjusted_quantity}")
+                logger.debug(
+                    f"📊 {symbol}: fractional shares supported, quantity={adjusted_quantity}"
+                )
                 return adjusted_quantity
-            else:
-                # Round down to whole shares
-                adjusted_quantity = raw_quantity.quantize(Decimal("1"), rounding=ROUND_DOWN)
-                logger.debug(f"📊 {symbol}: whole shares only, quantity={adjusted_quantity}")
-                return adjusted_quantity
+            # Round down to whole shares
+            adjusted_quantity = raw_quantity.quantize(Decimal("1"), rounding=ROUND_DOWN)
+            logger.debug(f"📊 {symbol}: whole shares only, quantity={adjusted_quantity}")
+            return adjusted_quantity
 
         except Exception as exc:
             logger.debug(f"Error checking fractionability for {symbol}: {exc}")

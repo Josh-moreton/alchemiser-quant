@@ -14,8 +14,10 @@ from the_alchemiser.execution_v2.core.smart_execution_strategy import SmartOrder
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
 
 if TYPE_CHECKING:
-    from the_alchemiser.execution_v2.core.smart_execution_strategy import SmartExecutionStrategy
-    from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
+    from the_alchemiser.execution_v2.core.smart_execution_strategy import (
+        ExecutionConfig,
+        SmartExecutionStrategy,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,11 @@ logger = logging.getLogger(__name__)
 class OrderMonitor:
     """Handles order monitoring and re-pegging operations."""
 
-    def __init__(self, smart_strategy: SmartExecutionStrategy | None, execution_config: ExecutionConfig | None) -> None:
+    def __init__(
+        self,
+        smart_strategy: SmartExecutionStrategy | None,
+        execution_config: ExecutionConfig | None,
+    ) -> None:
         """Initialize the order monitor.
 
         Args:
@@ -164,7 +170,11 @@ class OrderMonitor:
         return self._replace_order_ids(orders, replacement_map)
 
     def _process_repeg_results(
-        self, phase_type: str, repeg_results: list[SmartOrderResult], attempts: int, elapsed_total: float
+        self,
+        phase_type: str,
+        repeg_results: list[SmartOrderResult],
+        attempts: int,
+        elapsed_total: float,
     ) -> dict[str, str]:
         """Process re-pegging results and extract order ID replacements.
 

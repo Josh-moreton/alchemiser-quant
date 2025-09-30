@@ -15,8 +15,11 @@ from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanItem
 
 if TYPE_CHECKING:
     from the_alchemiser.execution_v2.core.executor import ExecutionStats
+    from the_alchemiser.execution_v2.core.smart_execution_strategy import (
+        ExecutionConfig,
+        SmartExecutionStrategy,
+    )
     from the_alchemiser.execution_v2.utils.position_utils import PositionUtils
-    from the_alchemiser.execution_v2.core.smart_execution_strategy import SmartExecutionStrategy, ExecutionConfig
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +52,8 @@ class PhaseExecutor:
         self.enable_smart_execution = enable_smart_execution
 
     async def execute_sell_phase(
-        self, 
-        sell_items: list[RebalancePlanItem], 
+        self,
+        sell_items: list[RebalancePlanItem],
         correlation_id: str | None = None,
         execute_order_callback: callable = None,
         monitor_orders_callback: callable = None,
@@ -107,8 +110,8 @@ class PhaseExecutor:
         }
 
     async def execute_buy_phase(
-        self, 
-        buy_items: list[RebalancePlanItem], 
+        self,
+        buy_items: list[RebalancePlanItem],
         correlation_id: str | None = None,
         execute_order_callback: callable = None,
         monitor_orders_callback: callable = None,
@@ -181,13 +184,11 @@ class PhaseExecutor:
             asset_info = self.alpaca_manager.get_asset_info(item.symbol)
             # Estimate shares and notional for skip logic
             est_price = (
-                self.position_utils.get_price_for_estimation(item.symbol) 
-                if self.position_utils 
+                self.position_utils.get_price_for_estimation(item.symbol)
+                if self.position_utils
                 else Decimal("0")
             ) or Decimal("0")
-            est_shares = (
-                abs(item.trade_amount) / est_price if est_price > 0 else Decimal("0")
-            )
+            est_shares = abs(item.trade_amount) / est_price if est_price > 0 else Decimal("0")
             if asset_info and asset_info.fractionable:
                 est_notional = (est_shares * est_price).quantize(Decimal("0.01"))
                 if est_notional < min_notional:
@@ -203,7 +204,7 @@ class PhaseExecutor:
     def _create_skipped_order_result(self, item: RebalancePlanItem) -> OrderResult:
         """Create an OrderResult for a skipped order."""
         from datetime import UTC, datetime
-        
+
         return OrderResult(
             symbol=item.symbol,
             action=item.action,
@@ -227,7 +228,7 @@ class PhaseExecutor:
 
         """
         from datetime import UTC, datetime
-        
+
         try:
             side = "buy" if item.action == "BUY" else "sell"
 
@@ -261,7 +262,9 @@ class PhaseExecutor:
                 else:
                     raw_shares = abs(item.trade_amount) / price
                     shares = (
-                        self.position_utils.adjust_quantity_for_fractionability(item.symbol, raw_shares)
+                        self.position_utils.adjust_quantity_for_fractionability(
+                            item.symbol, raw_shares
+                        )
                         if self.position_utils
                         else raw_shares.quantize(Decimal("1"), rounding=ROUND_DOWN)
                     )

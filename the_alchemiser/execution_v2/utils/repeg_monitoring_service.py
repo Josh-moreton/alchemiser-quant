@@ -76,9 +76,7 @@ class RepegMonitoringService:
             attempts += 1
 
             # Check if we should break early based on termination conditions
-            if self._should_terminate_early(
-                last_repeg_action_time, config["fill_wait_seconds"]
-            ):
+            if self._should_terminate_early(last_repeg_action_time, config["fill_wait_seconds"]):
                 break
 
         try:
@@ -101,7 +99,7 @@ class RepegMonitoringService:
                         )
         except Exception as _err:
             logger.exception("Error during final escalation to market in repeg monitoring loop")
-            
+
         self._log_monitoring_completion(phase_type, start_time)
         return orders
 
@@ -125,9 +123,7 @@ class RepegMonitoringService:
 
         """
         # Build replacement map from repeg results
-        replacement_map = self._build_replacement_map_from_repeg_results(
-            phase_type, repeg_results
-        )
+        replacement_map = self._build_replacement_map_from_repeg_results(phase_type, repeg_results)
 
         # Apply replacements to orders
         return self._replace_order_ids(orders, replacement_map)
