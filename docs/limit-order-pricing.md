@@ -48,6 +48,41 @@ Quotes move; we keep our resting order in a good place by cancel/replace:
   - For fractional assets: if the remaining notional is below `min_fractional_notional_usd`, we consider the leg complete and do not place “micro” residuals.
   - For non-fractionable assets: if rounding the remaining shares to whole units yields zero, we consider the leg complete.
 
+### Re-peg cycle (sequence)
+
+```mermaid
+sequenceDiagram
+  participant Exe as Executor
+  participant RP as Repeg Manager
+  participant Q as Quotes
+  participant B as Broker
+
+  Exe->>Q: Get best bid/ask
+  Q-->>Exe: bid/ask/mid
+  Exe->>RP: Compute inside-spread limit
+  RP-->>Exe: Limit price (tick-rounded)
+  Exe->>B: Place limit order
+  B-->>Exe: Order accepted (id)
+  loop Monitoring window
+    Exe->>B: Poll order status
+    B-->>Exe: Partial/No fill + remaining qty
+    Exe->>Q: Refresh quotes
+    Q-->>Exe: Updated bid/ask
+    Exe->>RP: Should re-peg?
+    RP-->>Exe: Yes -> new price | No
+    alt Re-peg
+      Exe->>B: Cancel/Replace at new limit
+      B-->>Exe: Ack (or race with fill)
+    end
+  end
+  alt End-of-window & meaningful remainder
+    Exe->>B: Escalate remainder to market
+    B-->>Exe: Fill complete
+  else Micro remainder or non-fractionable <1 share
+    Exe-->>Exe: Mark complete without escalation
+  end
+```
+
 ## Sizing and fractionability rules
 
 - Incoming plan items specify a trade_amount in USD; quantity is estimated using a side-aware reference price:
