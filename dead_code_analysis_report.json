@@ -1,0 +1,762 @@
+{
+  "summary": {
+    "total_python_files": 217
+  },
+  "analyses": [
+    {
+      "tool": "vulture",
+      "findings": [],
+      "raw_output": ""
+    },
+    {
+      "tool": "deprecated_config_scanner",
+      "findings": []
+    },
+    {
+      "tool": "unused_import_scanner",
+      "findings": [
+        {
+          "file": "the_alchemiser/shared/config/secrets_adapter.py",
+          "line": 16,
+          "issue": "potentially unused import",
+          "import": "env_loader"
+        }
+      ]
+    },
+    {
+      "tool": "stub_file_detector",
+      "findings": [
+        {
+          "file": "the_alchemiser/shared/math/__init__.py",
+          "issue": "stub file with no real implementation",
+          "line_count": 3,
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/logging/__init__.py",
+          "issue": "stub file with no real implementation",
+          "line_count": 3,
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/adapters/__init__.py",
+          "issue": "stub file with no real implementation",
+          "line_count": 1,
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/portfolio_v2/models/__init__.py",
+          "issue": "stub file with no real implementation",
+          "line_count": 3,
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/portfolio_v2/core/__init__.py",
+          "issue": "stub file with no real implementation",
+          "line_count": 3,
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/portfolio_v2/adapters/__init__.py",
+          "issue": "stub file with no real implementation",
+          "line_count": 3,
+          "safe_to_remove": false
+        }
+      ]
+    },
+    {
+      "tool": "todo_marker_scanner",
+      "findings": [
+        {
+          "file": "the_alchemiser/orchestration/display_utils.py",
+          "line": 1,
+          "marker": "PLACEHOLDER",
+          "content": "\"\"\"Deprecated module placeholder."
+        },
+        {
+          "file": "the_alchemiser/execution_v2/handlers/trading_execution_handler.py",
+          "line": 158,
+          "marker": "NOTE",
+          "content": "# Note: ExecutionResult.metadata is read-only (frozen), so strategy attribution"
+        },
+        {
+          "file": "the_alchemiser/execution_v2/core/smart_execution_strategy/repeg.py",
+          "line": 544,
+          "marker": "PLACEHOLDER",
+          "content": "- If quote is missing or price cannot be calculated, returns (None, original_anchor, quote_placehold"
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/core/orchestrator.py",
+          "line": 129,
+          "marker": "PLACEHOLDER",
+          "content": "This is a placeholder implementation. In future phases,"
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/adapters/market_data_adapter.py",
+          "line": 97,
+          "marker": "NOTE",
+          "content": "# Note: Could be optimized for batch requests if Alpaca SDK supports it"
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/engines/dsl/operators/indicators.py",
+          "line": 227,
+          "marker": "NOT IMPLEMENTED",
+          "content": "\"\"\"Evaluate ma - disabled mock; not implemented.\"\"\""
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/engines/dsl/operators/indicators.py",
+          "line": 229,
+          "marker": "NOT IMPLEMENTED",
+          "content": "\"ma is not implemented in DSL evaluator; use moving-average-* indicators via data layer\""
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/engines/dsl/operators/indicators.py",
+          "line": 234,
+          "marker": "NOT IMPLEMENTED",
+          "content": "\"\"\"Evaluate volatility - disabled mock; not implemented.\"\"\""
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/engines/dsl/operators/indicators.py",
+          "line": 236,
+          "marker": "NOT IMPLEMENTED",
+          "content": "\"volatility is not implemented in DSL evaluator; compute via data layer\""
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/engines/dsl/operators/indicators.py",
+          "line": 403,
+          "marker": "NOTE",
+          "content": "# Note: For brevity, I'm including the most common indicators"
+        },
+        {
+          "file": "the_alchemiser/shared/brokers/alpaca_manager.py",
+          "line": 150,
+          "marker": "NOTE",
+          "content": "# Note: TradingClient type stubs may not accept base_url as kwarg; avoid passing extras for mypy"
+        },
+        {
+          "file": "the_alchemiser/shared/utils/config.py",
+          "line": 3,
+          "marker": "PLACEHOLDER",
+          "content": "Placeholder implementation for configuration management."
+        },
+        {
+          "file": "the_alchemiser/shared/utils/config.py",
+          "line": 13,
+          "marker": "PLACEHOLDER",
+          "content": "\"\"\"Placeholder configuration class."
+        },
+        {
+          "file": "the_alchemiser/shared/utils/config.py",
+          "line": 50,
+          "marker": "PLACEHOLDER",
+          "content": "Placeholder implementation. Will be enhanced in Phase 2."
+        },
+        {
+          "file": "the_alchemiser/shared/utils/config.py",
+          "line": 56,
+          "marker": "PLACEHOLDER",
+          "content": "# Placeholder - will load actual config in Phase 2"
+        },
+        {
+          "file": "the_alchemiser/shared/utils/config.py",
+          "line": 63,
+          "marker": "PLACEHOLDER",
+          "content": "Placeholder implementation. Will be enhanced in Phase 2."
+        },
+        {
+          "file": "the_alchemiser/shared/services/alpaca_trading_service.py",
+          "line": 147,
+          "marker": "NOTE",
+          "content": "# Note: is_complete_exit is passed through but not implemented in the trading service"
+        },
+        {
+          "file": "the_alchemiser/shared/services/alpaca_trading_service.py",
+          "line": 147,
+          "marker": "NOT IMPLEMENTED",
+          "content": "# Note: is_complete_exit is passed through but not implemented in the trading service"
+        },
+        {
+          "file": "the_alchemiser/shared/services/real_time_pricing.py",
+          "line": 238,
+          "marker": "NOTE",
+          "content": "# NOTE: Using IEX feed for both paper and live trading until SIP subscription is available"
+        },
+        {
+          "file": "the_alchemiser/shared/services/real_time_pricing.py",
+          "line": 250,
+          "marker": "NOTE",
+          "content": "# NOTE: Do NOT subscribe to wildcard \"*\" - it hits subscription limits immediately"
+        },
+        {
+          "file": "the_alchemiser/shared/services/__init__.py",
+          "line": 28,
+          "marker": "NOTE",
+          "content": "# Note: The submodules listed below have been moved to other packages."
+        },
+        {
+          "file": "the_alchemiser/shared/math/trading_math.py",
+          "line": 33,
+          "marker": "NOTE",
+          "content": "# Note: Phase 12 - Types earmarked for future migration to structured trading calculations"
+        },
+        {
+          "file": "the_alchemiser/shared/schemas/common.py",
+          "line": 107,
+          "marker": "PLACEHOLDER",
+          "content": "\"\"\"Placeholder for configuration data transfer."
+        },
+        {
+          "file": "the_alchemiser/shared/schemas/common.py",
+          "line": 109,
+          "marker": "PLACEHOLDER",
+          "content": "Proper Pydantic v2 DTO to replace placeholder class."
+        },
+        {
+          "file": "the_alchemiser/shared/schemas/common.py",
+          "line": 126,
+          "marker": "PLACEHOLDER",
+          "content": "\"\"\"Placeholder for error data transfer."
+        },
+        {
+          "file": "the_alchemiser/shared/schemas/common.py",
+          "line": 128,
+          "marker": "PLACEHOLDER",
+          "content": "Proper Pydantic v2 DTO to replace placeholder class."
+        }
+      ]
+    },
+    {
+      "tool": "unreferenced_module_scanner",
+      "findings": [
+        {
+          "file": "the_alchemiser/__main__.py",
+          "module": "the_alchemiser.__main__",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/lambda_handler.py",
+          "module": "the_alchemiser.lambda_handler",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/notifications_v2/service.py",
+          "module": "the_alchemiser.notifications_v2.service",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/errors.py",
+          "module": "the_alchemiser.strategy_v2.errors",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/orchestration/display_utils.py",
+          "module": "the_alchemiser.orchestration.display_utils",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/orchestration/trading_orchestrator.py",
+          "module": "the_alchemiser.orchestration.trading_orchestrator",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/execution_v2/handlers/trading_execution_handler.py",
+          "module": "the_alchemiser.execution_v2.handlers.trading_execution_handler",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/execution_v2/config/execution_providers.py",
+          "module": "the_alchemiser.execution_v2.config.execution_providers",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/execution_v2/core/smart_execution_strategy/utils.py",
+          "module": "the_alchemiser.execution_v2.core.smart_execution_strategy.utils",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/execution_v2/core/smart_execution_strategy/tracking.py",
+          "module": "the_alchemiser.execution_v2.core.smart_execution_strategy.tracking",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/execution_v2/core/smart_execution_strategy/pricing.py",
+          "module": "the_alchemiser.execution_v2.core.smart_execution_strategy.pricing",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/execution_v2/core/smart_execution_strategy/repeg.py",
+          "module": "the_alchemiser.execution_v2.core.smart_execution_strategy.repeg",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/execution_v2/core/smart_execution_strategy/strategy.py",
+          "module": "the_alchemiser.execution_v2.core.smart_execution_strategy.strategy",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/execution_v2/core/smart_execution_strategy/quotes.py",
+          "module": "the_alchemiser.execution_v2.core.smart_execution_strategy.quotes",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/execution_v2/core/smart_execution_strategy/models.py",
+          "module": "the_alchemiser.execution_v2.core.smart_execution_strategy.models",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/models/context.py",
+          "module": "the_alchemiser.strategy_v2.models.context",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/handlers/signal_generation_handler.py",
+          "module": "the_alchemiser.strategy_v2.handlers.signal_generation_handler",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/core/factory.py",
+          "module": "the_alchemiser.strategy_v2.core.factory",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/core/orchestrator.py",
+          "module": "the_alchemiser.strategy_v2.core.orchestrator",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/core/registry.py",
+          "module": "the_alchemiser.strategy_v2.core.registry",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/adapters/feature_pipeline.py",
+          "module": "the_alchemiser.strategy_v2.adapters.feature_pipeline",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/adapters/market_data_adapter.py",
+          "module": "the_alchemiser.strategy_v2.adapters.market_data_adapter",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/indicators/indicator_utils.py",
+          "module": "the_alchemiser.strategy_v2.indicators.indicator_utils",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/engines/dsl/context.py",
+          "module": "the_alchemiser.strategy_v2.engines.dsl.context",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/engines/dsl/dsl_evaluator.py",
+          "module": "the_alchemiser.strategy_v2.engines.dsl.dsl_evaluator",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/engines/dsl/dispatcher.py",
+          "module": "the_alchemiser.strategy_v2.engines.dsl.dispatcher",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/engines/dsl/events.py",
+          "module": "the_alchemiser.strategy_v2.engines.dsl.events",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/engines/dsl/sexpr_parser.py",
+          "module": "the_alchemiser.strategy_v2.engines.dsl.sexpr_parser",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/engines/dsl/operators/indicators.py",
+          "module": "the_alchemiser.strategy_v2.engines.dsl.operators.indicators",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/engines/dsl/operators/comparison.py",
+          "module": "the_alchemiser.strategy_v2.engines.dsl.operators.comparison",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/engines/dsl/operators/selection.py",
+          "module": "the_alchemiser.strategy_v2.engines.dsl.operators.selection",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/engines/dsl/operators/portfolio.py",
+          "module": "the_alchemiser.strategy_v2.engines.dsl.operators.portfolio",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/strategy_v2/engines/dsl/operators/control_flow.py",
+          "module": "the_alchemiser.strategy_v2.engines.dsl.operators.control_flow",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/types/time_in_force.py",
+          "module": "the_alchemiser.shared.types.time_in_force",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/types/account.py",
+          "module": "the_alchemiser.shared.types.account",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/types/strategy_registry.py",
+          "module": "the_alchemiser.shared.types.strategy_registry",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/types/quantity.py",
+          "module": "the_alchemiser.shared.types.quantity",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/types/money.py",
+          "module": "the_alchemiser.shared.types.money",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/types/broker_enums.py",
+          "module": "the_alchemiser.shared.types.broker_enums",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/types/strategy_protocol.py",
+          "module": "the_alchemiser.shared.types.strategy_protocol",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/utils/context.py",
+          "module": "the_alchemiser.shared.utils.context",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/utils/strategy_utils.py",
+          "module": "the_alchemiser.shared.utils.strategy_utils",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/utils/data_conversion.py",
+          "module": "the_alchemiser.shared.utils.data_conversion",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/utils/serialization.py",
+          "module": "the_alchemiser.shared.utils.serialization",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/utils/common.py",
+          "module": "the_alchemiser.shared.utils.common",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/utils/timezone_utils.py",
+          "module": "the_alchemiser.shared.utils.timezone_utils",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/utils/decorators.py",
+          "module": "the_alchemiser.shared.utils.decorators",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/utils/config.py",
+          "module": "the_alchemiser.shared.utils.config",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/utils/portfolio_calculations.py",
+          "module": "the_alchemiser.shared.utils.portfolio_calculations",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/utils/error_reporter.py",
+          "module": "the_alchemiser.shared.utils.error_reporter",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/mappers/market_data_mappers.py",
+          "module": "the_alchemiser.shared.mappers.market_data_mappers",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/mappers/execution_summary_mapping.py",
+          "module": "the_alchemiser.shared.mappers.execution_summary_mapping",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/math/asset_info.py",
+          "module": "the_alchemiser.shared.math.asset_info",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/math/math_utils.py",
+          "module": "the_alchemiser.shared.math.math_utils",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/math/trading_math.py",
+          "module": "the_alchemiser.shared.math.trading_math",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/notifications/email_utils.py",
+          "module": "the_alchemiser.shared.notifications.email_utils",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/notifications/config.py",
+          "module": "the_alchemiser.shared.notifications.config",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/protocols/order_like.py",
+          "module": "the_alchemiser.shared.protocols.order_like",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/protocols/strategy_tracking.py",
+          "module": "the_alchemiser.shared.protocols.strategy_tracking",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/protocols/alpaca.py",
+          "module": "the_alchemiser.shared.protocols.alpaca",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/schemas/market_data.py",
+          "module": "the_alchemiser.shared.schemas.market_data",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/schemas/order_request.py",
+          "module": "the_alchemiser.shared.schemas.order_request",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/schemas/enriched_data.py",
+          "module": "the_alchemiser.shared.schemas.enriched_data",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/schemas/cli.py",
+          "module": "the_alchemiser.shared.schemas.cli",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/schemas/accounts.py",
+          "module": "the_alchemiser.shared.schemas.accounts",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/schemas/execution_result.py",
+          "module": "the_alchemiser.shared.schemas.execution_result",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/schemas/strategy_signal.py",
+          "module": "the_alchemiser.shared.schemas.strategy_signal",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/schemas/operations.py",
+          "module": "the_alchemiser.shared.schemas.operations",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/schemas/lambda_event.py",
+          "module": "the_alchemiser.shared.schemas.lambda_event",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/schemas/errors.py",
+          "module": "the_alchemiser.shared.schemas.errors",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/errors/context.py",
+          "module": "the_alchemiser.shared.errors.context",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/errors/catalog.py",
+          "module": "the_alchemiser.shared.errors.catalog",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/config/env_loader.py",
+          "module": "the_alchemiser.shared.config.env_loader",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/config/config_service.py",
+          "module": "the_alchemiser.shared.config.config_service",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/config/strategy_profiles.py",
+          "module": "the_alchemiser.shared.config.strategy_profiles",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/config/symbols_config.py",
+          "module": "the_alchemiser.shared.config.symbols_config",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/adapters/alpaca_asset_metadata_adapter.py",
+          "module": "the_alchemiser.shared.adapters.alpaca_asset_metadata_adapter",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/notifications/templates/email_facade.py",
+          "module": "the_alchemiser.shared.notifications.templates.email_facade",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/notifications/templates/signals.py",
+          "module": "the_alchemiser.shared.notifications.templates.signals",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/notifications/templates/monthly.py",
+          "module": "the_alchemiser.shared.notifications.templates.monthly",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/notifications/templates/performance.py",
+          "module": "the_alchemiser.shared.notifications.templates.performance",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/notifications/templates/portfolio.py",
+          "module": "the_alchemiser.shared.notifications.templates.portfolio",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/shared/notifications/templates/base.py",
+          "module": "the_alchemiser.shared.notifications.templates.base",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/portfolio_v2/models/portfolio_snapshot.py",
+          "module": "the_alchemiser.portfolio_v2.models.portfolio_snapshot",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/portfolio_v2/handlers/portfolio_analysis_handler.py",
+          "module": "the_alchemiser.portfolio_v2.handlers.portfolio_analysis_handler",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/portfolio_v2/core/planner.py",
+          "module": "the_alchemiser.portfolio_v2.core.planner",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/portfolio_v2/core/state_reader.py",
+          "module": "the_alchemiser.portfolio_v2.core.state_reader",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        },
+        {
+          "file": "the_alchemiser/portfolio_v2/core/portfolio_service.py",
+          "module": "the_alchemiser.portfolio_v2.core.portfolio_service",
+          "issue": "module never imported",
+          "safe_to_remove": false
+        }
+      ]
+    }
+  ]
+}
