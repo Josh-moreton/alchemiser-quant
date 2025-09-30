@@ -28,9 +28,6 @@ from the_alchemiser.shared.events import (
     WorkflowStarted,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
-from the_alchemiser.shared.notifications.templates.multi_strategy import (
-    MultiStrategyReportBuilder,
-)
 
 
 class EventDrivenOrchestrator:
@@ -100,12 +97,14 @@ class EventDrivenOrchestrator:
         try:
             # Register handlers from each business module
             from the_alchemiser.execution_v2 import register_execution_handlers
+            from the_alchemiser.notifications_v2 import register_notification_handlers
             from the_alchemiser.portfolio_v2 import register_portfolio_handlers
             from the_alchemiser.strategy_v2 import register_strategy_handlers
 
             register_strategy_handlers(self.container)
             register_portfolio_handlers(self.container)
             register_execution_handlers(self.container)
+            register_notification_handlers(self.container)
 
             self.logger.debug("Registered domain event handlers via module registration functions")
 
@@ -432,7 +431,7 @@ class EventDrivenOrchestrator:
             self._trigger_recovery_workflow(event)
 
     def _send_trading_notification(self, event: TradeExecuted, *, success: bool) -> None:
-        """Send trading completion notification.
+        """Send trading completion notification via event bus.
 
         Args:
             event: The TradeExecuted event
@@ -440,10 +439,10 @@ class EventDrivenOrchestrator:
 
         """
         try:
-            from the_alchemiser.shared.notifications.email_utils import (
-                build_error_email_html,
-                send_email_notification,
-            )
+            from datetime import UTC, datetime
+            from uuid import uuid4
+
+            from the_alchemiser.shared.events.schemas import TradingNotificationRequested
 
             # Determine trading mode from container
             is_live = not self.container.config.paper_trading()
@@ -460,72 +459,42 @@ class EventDrivenOrchestrator:
             except (TypeError, ValueError):
                 total_trade_value_float = 0.0
 
-            if success:
-                # Use enhanced successful trading run template instead of basic HTML
-                try:
-                    # Create a result adapter for the enhanced template
-                    class EventResultAdapter:
-                        def __init__(
-                            self, execution_data: dict[str, Any], correlation_id: str
-                        ) -> None:
-                            self.success = True
-                            self.orders_executed: list[
-                                Any
-                            ] = []  # Event data doesn't have detailed order info
-                            self.strategy_signals: dict[
-                                str, Any
-                            ] = {}  # Event data doesn't have signal details
-                            self.correlation_id = correlation_id
-                            # Add any other fields the template might use via getattr
-                            self._execution_data = execution_data
-
-                        def __getattr__(self, name: str) -> object:
-                            # Allow template to access any field from execution_data
-                            return self._execution_data.get(name, None)
-
-                    result_adapter = EventResultAdapter(execution_data, event.correlation_id)
-                    html_content = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-                        result_adapter,
-                        mode_str,
-                    )
-                except Exception as template_error:
-                    # Fallback to basic template if enhanced template fails
-                    self.logger.warning(f"Enhanced template failed, using basic: {template_error}")
-                    html_content = f"""
-                    <h2>Trading Execution Report - {mode_str.upper()}</h2>
-                    <p><strong>Status:</strong> Success</p>
-                    <p><strong>Orders Placed:</strong> {orders_placed}</p>
-                    <p><strong>Orders Succeeded:</strong> {orders_succeeded}</p>
-                    <p><strong>Total Trade Value:</strong> ${total_trade_value_float:,.2f}</p>
-                    <p><strong>Correlation ID:</strong> {event.correlation_id}</p>
-                    <p><strong>Timestamp:</strong> {event.timestamp}</p>
-                    """
-            else:
+            # Get error details if trading failed
+            error_message = None
+            error_code = None
+            if not success:
                 error_message = event.metadata.get("error_message") or "Unknown error"
-                html_content = build_error_email_html(
-                    "Trading Execution Failed",
-                    f"Trading workflow failed: {error_message}",
-                )
+                if hasattr(event, "error_code"):
+                    error_code = event.error_code
 
-            status_tag = "SUCCESS" if success else "FAILURE"
-
-            # Include error code in subject if available for failures
-            if not success and hasattr(event, "error_code") and event.error_code:
-                subject = f"[{status_tag}][{event.error_code}] The Alchemiser - {mode_str.upper()} Trading Report"
-            else:
-                subject = f"[{status_tag}] The Alchemiser - {mode_str.upper()} Trading Report"
-
-            send_email_notification(
-                subject=subject,
-                html_content=html_content,
-                text_content=f"Trading execution completed. Success: {success}",
+            # Create and emit trading notification event
+            trading_event = TradingNotificationRequested(
+                correlation_id=event.correlation_id,
+                causation_id=event.event_id,
+                event_id=f"trading-notification-{uuid4()}",
+                timestamp=datetime.now(UTC),
+                source_module="orchestration.event_driven_orchestrator",
+                source_component="EventDrivenOrchestrator",
+                trading_success=success,
+                trading_mode=mode_str,
+                orders_placed=orders_placed,
+                orders_succeeded=orders_succeeded,
+                total_trade_value=total_trade_value_float,
+                execution_data=execution_data,
+                error_message=error_message,
+                error_code=error_code,
             )
 
-            self.logger.info(f"Trading notification sent successfully (success={success})")
+            # Emit the event
+            self.event_bus.publish(trading_event)
+
+            self.logger.info(
+                f"Trading notification event published successfully (success={success})"
+            )
 
         except Exception as e:
             # Don't let notification failure break the workflow
-            self.logger.warning(f"Failed to send trading notification: {e}")
+            self.logger.error(f"Failed to publish trading notification event: {e}")
 
     def _perform_reconciliation(self) -> None:
         """Perform post-trade reconciliation workflow."""

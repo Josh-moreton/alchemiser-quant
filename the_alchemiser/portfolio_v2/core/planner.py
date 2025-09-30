@@ -201,9 +201,7 @@ class RebalancePlanCalculator:
         current_values = {}
 
         # Get all symbols we need to consider
-        all_symbols = set(strategy.target_weights.keys()) | set(
-            snapshot.positions.keys()
-        )
+        all_symbols = set(strategy.target_weights.keys()) | set(snapshot.positions.keys())
 
         # Apply cash reserve to avoid buying power issues with broker constraints
         # This ensures we don't try to use 100% of portfolio value which can
@@ -306,9 +304,7 @@ class RebalancePlanCalculator:
         """
         if portfolio_value <= Decimal("0"):
             return Decimal("0.00")
-        return (portfolio_value * Decimal("0.01")).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
+        return (portfolio_value * Decimal("0.01")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     def _suppress_small_trades(
         self, items: list[RebalancePlanItem], min_threshold: Decimal
@@ -320,10 +316,7 @@ class RebalancePlanCalculator:
         suppressed: list[RebalancePlanItem] = []
         for item in items:
             try:
-                if (
-                    item.action in ("BUY", "SELL")
-                    and abs(item.trade_amount) < min_threshold
-                ):
+                if item.action in ("BUY", "SELL") and abs(item.trade_amount) < min_threshold:
                     logger.debug(
                         f"Suppressing micro trade for {item.symbol}: ${item.trade_amount} < ${min_threshold} → HOLD"
                     )

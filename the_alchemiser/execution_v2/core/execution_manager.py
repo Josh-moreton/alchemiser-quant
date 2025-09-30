@@ -6,16 +6,13 @@ Execution manager that coordinates Executor with AlpacaManager.
 from __future__ import annotations
 
 import logging
-from decimal import Decimal
 
 from the_alchemiser.execution_v2.core.executor import Executor
 from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
 from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionResult,
-    OrderResult,
 )
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 
 logger = logging.getLogger(__name__)
@@ -28,30 +25,15 @@ class ExecutionManager:
         self,
         alpaca_manager: AlpacaManager,
         execution_config: ExecutionConfig | None = None,
-        *,
-        enable_trade_ledger: bool = False,
     ) -> None:
         """Initialize the execution manager.
 
         Args:
             alpaca_manager: The Alpaca broker manager
             execution_config: Configuration for smart execution strategies
-            enable_trade_ledger: Whether to enable trade ledger recording
 
         """
         self.alpaca_manager = alpaca_manager
-        self.enable_trade_ledger = enable_trade_ledger
-
-        # Initialize trade ledger writer if enabled
-        if self.enable_trade_ledger:
-            from the_alchemiser.shared.services.trade_ledger_writer import (
-                TradeLedgerWriter,
-            )
-
-            self.trade_ledger_writer: TradeLedgerWriter | None = TradeLedgerWriter()
-            logger.info("Trade ledger recording enabled")
-        else:
-            self.trade_ledger_writer = None
 
         # Delegate all execution (and smart execution setup) to Executor
         self.executor = Executor(
@@ -59,81 +41,6 @@ class ExecutionManager:
             execution_config=execution_config,
         )
         self.enable_smart_execution = self.executor.enable_smart_execution
-
-    def _record_execution_in_ledger(self, result: ExecutionResult, plan: RebalancePlan) -> None:
-        """Record execution results in the trade ledger.
-
-        Args:
-            result: Execution result with order details
-            plan: Original rebalance plan for context
-
-        """
-        try:
-            if not self.trade_ledger_writer:
-                return
-
-            # Convert OrderResult to ExecutedOrder format for trade ledger
-            executed_orders = []
-            for order in result.orders:
-                if order.success and order.shares > 0:
-                    # Convert OrderResult to ExecutedOrder
-                    executed_order = self._convert_order_result_to_executed_order(order)
-                    executed_orders.append(executed_order)
-
-            if executed_orders:
-                # Extract strategy name from rebalance plan metadata or use default
-                strategy_name = "unknown"
-                if plan.metadata and "strategy_name" in plan.metadata:
-                    strategy_name = plan.metadata["strategy_name"]
-                elif result.metadata and "strategy_name" in result.metadata:
-                    strategy_name = result.metadata["strategy_name"]
-
-                # Record in trade ledger
-                self.trade_ledger_writer.record_executions(
-                    executed_orders,
-                    strategy_name=strategy_name,
-                    correlation_id=result.correlation_id,
-                    causation_id=plan.causation_id,
-                )
-
-                logger.info(f"Recorded {len(executed_orders)} trades in ledger")
-
-        except Exception as e:
-            # Don't fail execution if trade ledger recording fails
-            logger.error(f"Failed to record execution in trade ledger: {e}")
-
-    def _convert_order_result_to_executed_order(self, order: OrderResult) -> ExecutedOrder:
-        """Convert OrderResult to ExecutedOrder for trade ledger.
-
-        Args:
-            order: Order result from execution
-
-        Returns:
-            ExecutedOrder for trade ledger recording
-
-        """
-        # Calculate filled quantity (assume full fill if successful)
-        filled_quantity = order.shares if order.success else Decimal("0")
-
-        # Use price if available, otherwise calculate from trade_amount
-        price = order.price
-        if not price and order.shares and order.shares > 0:
-            price = order.trade_amount / order.shares
-
-        return ExecutedOrder(
-            order_id=order.order_id or f"unknown-{order.symbol}-{order.timestamp.isoformat()}",
-            symbol=order.symbol,
-            action=order.action,
-            quantity=order.shares,
-            filled_quantity=filled_quantity,
-            price=price or Decimal("0.01"),  # Fallback price
-            total_value=order.trade_amount,
-            status="FILLED" if order.success else "FAILED",
-            execution_timestamp=order.timestamp,
-            commission=None,  # Not available in OrderResult
-            fees=None,  # Not available in OrderResult
-            error_message=order.error_message,
-        )
 
     def execute_rebalance_plan(self, plan: RebalancePlan) -> ExecutionResult:
         """Execute rebalance plan using executor.
@@ -183,10 +90,6 @@ class ExecutionManager:
 
         logger.info(f"✅ Execution complete: {result.success} ({result.orders_placed} orders)")
 
-        # Record trades in ledger if enabled
-        if self.enable_trade_ledger and self.trade_ledger_writer:
-            self._record_execution_in_ledger(result, plan)
-
         return result
 
     @classmethod
@@ -197,7 +100,6 @@ class ExecutionManager:
         *,
         paper: bool = True,
         execution_config: ExecutionConfig | None = None,
-        enable_trade_ledger: bool = False,
     ) -> ExecutionManager:
         """Create ExecutionManager with config and smart execution options.
 
@@ -206,7 +108,6 @@ class ExecutionManager:
             secret_key: Alpaca secret key
             paper: Whether to use paper trading
             execution_config: Configuration for smart execution strategies
-            enable_trade_ledger: Whether to enable trade ledger recording
 
         Returns:
             ExecutionManager instance with configured smart execution
@@ -216,5 +117,4 @@ class ExecutionManager:
         return cls(
             alpaca_manager=alpaca_manager,
             execution_config=execution_config,
-            enable_trade_ledger=enable_trade_ledger,
         )
