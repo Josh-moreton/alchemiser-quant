@@ -7,13 +7,12 @@ Core rebalance plan calculator for translating strategy allocations into trade p
 
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.config.config import load_settings
-from the_alchemiser.shared.logging.logging_utils import log_with_context
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
     RebalancePlanItem,
@@ -25,7 +24,7 @@ if TYPE_CHECKING:
 
 from ..models.portfolio_snapshot import PortfolioSnapshot
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Module name constant for consistent logging
 MODULE_NAME = "portfolio_v2.core.planner"
@@ -61,15 +60,15 @@ class RebalancePlanCalculator:
             PortfolioError: If plan cannot be calculated
 
         """
-        log_with_context(
-            logger,
-            logging.INFO,
+        logger.info(
             "Building rebalance plan",
-            module=MODULE_NAME,
-            action="build_plan",
-            correlation_id=correlation_id,
-            target_symbols=sorted(strategy.target_weights.keys()),
-            portfolio_value=str(snapshot.total_value),
+            extra={
+                "module": MODULE_NAME,
+                "action": "build_plan",
+                "correlation_id": correlation_id,
+                "target_symbols": sorted(strategy.target_weights.keys()),
+                "portfolio_value": str(snapshot.total_value),
+            },
         )
 
         try:
@@ -138,28 +137,28 @@ class RebalancePlanCalculator:
                 },
             )
 
-            log_with_context(
-                logger,
-                logging.INFO,
+            logger.info(
                 "Rebalance plan built successfully",
-                module=MODULE_NAME,
-                action="build_plan",
-                correlation_id=correlation_id,
-                item_count=len(trade_items),
-                total_trade_value=str(total_trade_value),
+                extra={
+                    "module": MODULE_NAME,
+                    "action": "build_plan",
+                    "correlation_id": correlation_id,
+                    "item_count": len(trade_items),
+                    "total_trade_value": str(total_trade_value),
+                },
             )
 
             return plan
 
         except Exception as e:
-            log_with_context(
-                logger,
-                logging.ERROR,
+            logger.error(
                 f"Failed to build rebalance plan: {e}",
-                module=MODULE_NAME,
-                action="build_plan",
-                correlation_id=correlation_id,
-                error=str(e),
+                extra={
+                    "module": MODULE_NAME,
+                    "action": "build_plan",
+                    "correlation_id": correlation_id,
+                    "error": str(e),
+                },
             )
             raise PortfolioError(f"Failed to build rebalance plan: {e}") from e
 
@@ -201,7 +200,9 @@ class RebalancePlanCalculator:
         current_values = {}
 
         # Get all symbols we need to consider
-        all_symbols = set(strategy.target_weights.keys()) | set(snapshot.positions.keys())
+        all_symbols = set(strategy.target_weights.keys()) | set(
+            snapshot.positions.keys()
+        )
 
         # Apply cash reserve to avoid buying power issues with broker constraints
         # This ensures we don't try to use 100% of portfolio value which can
@@ -327,7 +328,9 @@ class RebalancePlanCalculator:
         """
         if portfolio_value <= Decimal("0"):
             return Decimal("0.00")
-        return (portfolio_value * Decimal("0.01")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        return (portfolio_value * Decimal("0.01")).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
 
     def _suppress_small_trades(
         self, items: list[RebalancePlanItem], min_threshold: Decimal
@@ -339,7 +342,10 @@ class RebalancePlanCalculator:
         suppressed: list[RebalancePlanItem] = []
         for item in items:
             try:
-                if item.action in ("BUY", "SELL") and abs(item.trade_amount) < min_threshold:
+                if (
+                    item.action in ("BUY", "SELL")
+                    and abs(item.trade_amount) < min_threshold
+                ):
                     logger.debug(
                         f"Suppressing micro trade for {item.symbol}: ${item.trade_amount} < ${min_threshold} → HOLD"
                     )

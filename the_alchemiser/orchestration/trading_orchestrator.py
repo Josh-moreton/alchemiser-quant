@@ -9,10 +9,11 @@ lightweight and designed to work with mocked dependencies in tests.
 
 from __future__ import annotations
 
-import logging
 import uuid
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
+
+from the_alchemiser.shared.logging.logging_utils import get_logger
 
 
 @runtime_checkable
@@ -98,7 +99,7 @@ class TradingOrchestrator:
             notification_service=notification_service,
         )
         self.live_trading: bool = bool(live_trading)
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
 
         # Workflow state tracking for tests
         self.workflow_state: dict[str, Any] = {

@@ -5,12 +5,11 @@ Execution tracking and logging utilities for execution_v2.
 
 from __future__ import annotations
 
-import logging
-
 from the_alchemiser.execution_v2.models.execution_result import ExecutionResult
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ExecutionTracker:

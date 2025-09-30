@@ -6,12 +6,12 @@ Order monitoring and re-pegging functionality extracted from the main executor.
 from __future__ import annotations
 
 import asyncio
-import logging
 import time
 from typing import TYPE_CHECKING
 
 from the_alchemiser.execution_v2.core.smart_execution_strategy import SmartOrderResult
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
+from the_alchemiser.shared.logging.logging_utils import get_logger
 
 if TYPE_CHECKING:
     from the_alchemiser.execution_v2.core.smart_execution_strategy import (
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
         SmartExecutionStrategy,
     )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class OrderMonitor:

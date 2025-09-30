@@ -15,11 +15,12 @@ Functions include:
 
 from __future__ import annotations
 
-import logging
-
 import pandas as pd
 
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.math.num import floats_equal
+
+logger = get_logger(__name__)
 
 
 def calculate_stdev_returns(close_prices: pd.Series, window: int) -> float:
@@ -84,7 +85,7 @@ def calculate_moving_average(close_prices: pd.Series, window: int) -> float:
         # Fallback to current price if MA calculation fails
         return float(close_prices.iloc[-1])
     except Exception as e:
-        logging.warning(f"Error calculating MA({window}): {e}, using current price")
+        logger.warning(f"Error calculating MA({window}): {e}, using current price")
         return float(close_prices.iloc[-1]) if len(close_prices) > 0 else 0.0
 
 
@@ -119,7 +120,7 @@ def calculate_moving_average_return(close_prices: pd.Series, window: int = 20) -
                 return float(((current_ma - prev_ma) / prev_ma) * 100)
         return 0.0
     except Exception as e:
-        logging.warning(f"Error calculating MA return({window}): {e}")
+        logger.warning(f"Error calculating MA return({window}): {e}")
         return 0.0
 
 
@@ -186,7 +187,7 @@ def calculate_rolling_metric(data: pd.Series, window: int, metric: str = "mean")
         result = rolling_result.iloc[-1]
         return float(result) if not pd.isna(result) else 0.0
     except Exception as e:
-        logging.warning(f"Error calculating rolling {metric}: {e}")
+        logger.warning(f"Error calculating rolling {metric}: {e}")
         return 0.0
 
 

@@ -9,14 +9,14 @@ handling float-based statistical calculations with appropriate tolerances.
 
 from __future__ import annotations
 
-import logging
 import math
 
 import numpy as np
 
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.market_bar import MarketBar
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class FeaturePipeline:
@@ -34,7 +34,6 @@ class FeaturePipeline:
 
         """
         self._tolerance = default_tolerance
-        self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
     def compute_returns(self, bars: list[MarketBar]) -> list[float]:
         """Compute price returns from bar data.
@@ -61,15 +60,13 @@ class FeaturePipeline:
 
                 # Use direct comparison with a small epsilon for financial price data
                 if prev_close < 1e-6:
-                    self._logger.warning(
-                        "Zero or near-zero price encountered in returns calculation"
-                    )
+                    logger.warning("Zero or near-zero price encountered in returns calculation")
                     returns.append(0.0)
                 else:
                     ret = (curr_close - prev_close) / prev_close
                     returns.append(ret)
             except (ValueError, TypeError) as e:
-                self._logger.warning(f"Invalid bar data in returns calculation: {e}")
+                logger.warning(f"Invalid bar data in returns calculation: {e}")
                 returns.append(0.0)
 
         return returns
@@ -113,7 +110,7 @@ class FeaturePipeline:
             return vol
 
         except Exception as e:
-            self._logger.warning(f"Error computing volatility: {e}")
+            logger.warning(f"Error computing volatility: {e}")
             return 0.0
 
     def compute_moving_average(self, values: list[float], window: int) -> list[float]:
@@ -174,7 +171,7 @@ class FeaturePipeline:
             return float(correlation)
 
         except Exception as e:
-            self._logger.warning(f"Error computing correlation: {e}")
+            logger.warning(f"Error computing correlation: {e}")
             return 0.0
 
     def is_close(self, a: float, b: float, tolerance: float | None = None) -> bool:
@@ -299,7 +296,7 @@ class FeaturePipeline:
             )
 
         except Exception as e:
-            self._logger.warning(f"Error extracting price features: {e}")
+            logger.warning(f"Error extracting price features: {e}")
             # Return default features on error
             features = {
                 "current_price": 0.0,

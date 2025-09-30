@@ -9,15 +9,16 @@ with exponential backoff to wait for account state synchronization.
 
 from __future__ import annotations
 
-import logging
 import time
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from the_alchemiser.shared.logging.logging_utils import get_logger
+
 if TYPE_CHECKING:
     from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class BuyingPowerService:

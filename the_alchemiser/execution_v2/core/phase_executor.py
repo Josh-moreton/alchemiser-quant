@@ -5,13 +5,13 @@ Phase execution functionality for sell and buy phases extracted from the main ex
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Awaitable, Callable
 from decimal import ROUND_DOWN, Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanItem
 
 if TYPE_CHECKING:
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     )
     from the_alchemiser.execution_v2.utils.position_utils import PositionUtils
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class PhaseExecutor:
