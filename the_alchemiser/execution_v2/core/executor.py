@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from decimal import ROUND_DOWN, Decimal
+from decimal import Decimal
 from typing import TYPE_CHECKING, TypedDict
 
 from the_alchemiser.execution_v2.core.market_order_executor import MarketOrderExecutor
@@ -84,12 +84,12 @@ class Executor:
         self.enable_smart_execution = True
 
         # Initialize extracted helper modules (will be set in _initialize_helper_modules)
-        self._market_order_executor: MarketOrderExecutor | None = None
-        self._order_monitor: OrderMonitor | None = None
-        self._order_finalizer: OrderFinalizer | None = None
-        self._position_utils: PositionUtils | None = None
-        self._phase_executor: PhaseExecutor | None = None
-        self._repeg_monitoring_service: RepegMonitoringService | None = None
+        self._market_order_executor: MarketOrderExecutor
+        self._order_monitor: OrderMonitor
+        self._order_finalizer: OrderFinalizer
+        self._position_utils: PositionUtils
+        self._phase_executor: PhaseExecutor
+        self._repeg_monitoring_service: RepegMonitoringService
 
         # Initialize smart execution if enabled
         try:
@@ -128,27 +128,23 @@ class Executor:
 
     def _initialize_helper_modules(self) -> None:
         """Initialize extracted helper modules."""
-        try:
-            self._market_order_executor = MarketOrderExecutor(
-                self.alpaca_manager, self.validator, self.buying_power_service
-            )
-            self._order_monitor = OrderMonitor(self.smart_strategy, self.execution_config)
-            self._order_finalizer = OrderFinalizer(self.alpaca_manager, self.execution_config)
-            self._position_utils = PositionUtils(
-                self.alpaca_manager, self.pricing_service, self.enable_smart_execution
-            )
-            self._phase_executor = PhaseExecutor(
-                self.alpaca_manager,
-                self._position_utils,
-                self.smart_strategy,
-                self.execution_config,
-                self.enable_smart_execution,
-            )
-            self._repeg_monitoring_service = RepegMonitoringService(self.smart_strategy)
-            logger.debug("✅ Helper modules initialized")
-        except Exception as e:
-            logger.warning(f"⚠️ Error initializing helper modules: {e}")
-            # Helper modules remain None to use fallback methods
+        self._market_order_executor = MarketOrderExecutor(
+            self.alpaca_manager, self.validator, self.buying_power_service
+        )
+        self._order_monitor = OrderMonitor(self.smart_strategy, self.execution_config)
+        self._order_finalizer = OrderFinalizer(self.alpaca_manager, self.execution_config)
+        self._position_utils = PositionUtils(
+            self.alpaca_manager, self.pricing_service, self.enable_smart_execution
+        )
+        self._phase_executor = PhaseExecutor(
+            self.alpaca_manager,
+            self._position_utils,
+            self.smart_strategy,
+            self.execution_config,
+            self.enable_smart_execution,
+        )
+        self._repeg_monitoring_service = RepegMonitoringService(self.smart_strategy)
+        logger.debug("✅ Helper modules initialized")
 
     def __del__(self) -> None:
         """Clean up WebSocket connection when executor is destroyed."""
@@ -229,25 +225,7 @@ class Executor:
             ExecutionResult with order details
 
         """
-        validation_result = self._validate_market_order(symbol, quantity, side)
-
-        if not validation_result.is_valid:
-            return self._build_validation_failure_result(symbol, side, quantity, validation_result)
-
-        final_quantity = validation_result.adjusted_quantity or quantity
-
-        self._log_validation_warnings(validation_result)
-
-        try:
-            if side.lower() == "buy":
-                self._ensure_buying_power(symbol, final_quantity)
-
-            broker_result = self._place_market_order_with_broker(symbol, side, final_quantity)
-            return self._build_market_order_execution_result(
-                symbol, side, final_quantity, broker_result
-            )
-        except Exception as exc:
-            return self._handle_market_order_exception(symbol, side, final_quantity, exc)
+        return self._market_order_executor.execute_market_order(symbol, side, quantity)
 
     async def execute_rebalance_plan(self, plan: RebalancePlan) -> ExecutionResult:
         """Execute a rebalance plan with settlement-aware sell-first, buy-second workflow.
@@ -401,43 +379,23 @@ class Executor:
 
     def _extract_all_symbols(self, plan: RebalancePlan) -> list[str]:
         """Extract all symbols from the rebalance plan."""
-        if self._position_utils:
-            return self._position_utils.extract_all_symbols(plan)
-        # Fallback implementation
-        symbols = {item.symbol for item in plan.items if item.action in ["BUY", "SELL"]}
-        return sorted(symbols)
+        return self._position_utils.extract_all_symbols(plan)
 
     def _bulk_subscribe_symbols(self, symbols: list[str]) -> dict[str, bool]:
         """Bulk subscribe to all symbols for efficient real-time pricing."""
-        if self._position_utils:
-            return self._position_utils.bulk_subscribe_symbols(symbols)
-        # Fallback: return empty dict if position utils not available
-        return {}
+        return self._position_utils.bulk_subscribe_symbols(symbols)
 
     async def _execute_sell_phase(
         self, sell_items: list[RebalancePlanItem], correlation_id: str | None = None
     ) -> tuple[list[OrderResult], ExecutionStats]:
         """Execute sell orders phase with integrated re-pegging monitoring."""
-        if self._phase_executor:
-            return await self._phase_executor.execute_sell_phase(
-                sell_items,
-                correlation_id,
-                execute_order_callback=self._execute_single_item,
-                monitor_orders_callback=self._monitor_and_repeg_phase_orders,
-                finalize_orders_callback=self._finalize_phase_orders,
-            )
-
-        # Fallback implementation
-        orders = []
-        for item in sell_items:
-            order_result = await self._execute_single_item(item)
-            orders.append(order_result)
-
-        return orders, {
-            "placed": len(orders),
-            "succeeded": len([o for o in orders if o.success]),
-            "trade_value": sum((o.trade_amount for o in orders), Decimal("0")),
-        }
+        return await self._phase_executor.execute_sell_phase(
+            sell_items,
+            correlation_id,
+            execute_order_callback=self._execute_single_item,
+            monitor_orders_callback=self._monitor_and_repeg_phase_orders,
+            finalize_orders_callback=self._finalize_phase_orders,
+        )
 
     async def _execute_buy_phase_with_settlement_monitoring(
         self,
@@ -505,26 +463,13 @@ class Executor:
         self, buy_items: list[RebalancePlanItem], correlation_id: str | None = None
     ) -> tuple[list[OrderResult], ExecutionStats]:
         """Execute buy orders phase with integrated re-pegging monitoring."""
-        if self._phase_executor:
-            return await self._phase_executor.execute_buy_phase(
-                buy_items,
-                correlation_id,
-                execute_order_callback=self._execute_single_item,
-                monitor_orders_callback=self._monitor_and_repeg_phase_orders,
-                finalize_orders_callback=self._finalize_phase_orders,
-            )
-
-        # Fallback implementation
-        orders = []
-        for item in buy_items:
-            order_result = await self._execute_single_item(item)
-            orders.append(order_result)
-
-        return orders, {
-            "placed": len(orders),
-            "succeeded": len([o for o in orders if o.success]),
-            "trade_value": sum((o.trade_amount for o in orders), Decimal("0")),
-        }
+        return await self._phase_executor.execute_buy_phase(
+            buy_items,
+            correlation_id,
+            execute_order_callback=self._execute_single_item,
+            monitor_orders_callback=self._monitor_and_repeg_phase_orders,
+            finalize_orders_callback=self._finalize_phase_orders,
+        )
 
     async def _monitor_and_repeg_phase_orders(
         self,
@@ -533,19 +478,13 @@ class Executor:
         correlation_id: str | None = None,
     ) -> list[OrderResult]:
         """Monitor and re-peg orders from a specific execution phase."""
-        if self._order_monitor:
-            return await self._order_monitor.monitor_and_repeg_phase_orders(
-                phase_type, orders, correlation_id
-            )
-        # Fallback: return orders unchanged if monitor not available
-        logger.info(f"📊 {phase_type} phase: Order monitor not available; skipping re-peg loop")
-        return orders
+        return await self._order_monitor.monitor_and_repeg_phase_orders(
+            phase_type, orders, correlation_id
+        )
 
     def _cleanup_subscriptions(self, symbols: list[str]) -> None:
         """Clean up pricing subscriptions after execution."""
-        if self._position_utils:
-            self._position_utils.cleanup_subscriptions(symbols)
-        # No fallback needed - cleanup is optional
+        self._position_utils.cleanup_subscriptions(symbols)
 
     async def _execute_single_item(self, item: RebalancePlanItem) -> OrderResult:
         """Execute a single rebalance plan item.
@@ -563,40 +502,24 @@ class Executor:
             # Determine quantity (shares) to trade
             if item.action == "SELL" and item.target_weight == Decimal("0.0"):
                 # For liquidation (0% target), use actual position quantity
-                raw_shares = (
-                    self._position_utils.get_position_quantity(item.symbol)
-                    if self._position_utils
-                    else Decimal("0")
-                )
-                shares = (
-                    self._position_utils.adjust_quantity_for_fractionability(
-                        item.symbol, raw_shares
-                    )
-                    if self._position_utils
-                    else raw_shares.quantize(Decimal("1"), rounding=ROUND_DOWN)
+                raw_shares = self._position_utils.get_position_quantity(item.symbol)
+                shares = self._position_utils.adjust_quantity_for_fractionability(
+                    item.symbol, raw_shares
                 )
                 logger.info(
                     f"📊 Liquidating {item.symbol}: selling {shares} shares (full position)"
                 )
             else:
                 # Estimate shares from trade amount using best available price
-                price = (
-                    self._position_utils.get_price_for_estimation(item.symbol)
-                    if self._position_utils
-                    else None
-                )
+                price = self._position_utils.get_price_for_estimation(item.symbol)
                 if price is None or price <= Decimal("0"):
                     # Safety fallback to 1 share if price discovery fails
                     shares = Decimal("1")
                     logger.warning(f"⚠️ Price unavailable for {item.symbol}; defaulting to 1 share")
                 else:
                     raw_shares = abs(item.trade_amount) / price
-                    shares = (
-                        self._position_utils.adjust_quantity_for_fractionability(
-                            item.symbol, raw_shares
-                        )
-                        if self._position_utils
-                        else raw_shares.quantize(Decimal("1"), rounding=ROUND_DOWN)
+                    shares = self._position_utils.adjust_quantity_for_fractionability(
+                        item.symbol, raw_shares
                     )
 
                 amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
@@ -645,15 +568,7 @@ class Executor:
         items: list[RebalancePlanItem],
     ) -> tuple[list[OrderResult], int, Decimal]:
         """Wait for placed orders to complete and rebuild results based on final status."""
-        if self._order_finalizer:
-            return self._order_finalizer.finalize_phase_orders(orders, items, phase_type)
-        # Fallback: return orders as-is
-        logger.warning(f"Order finalizer not available; returning {len(orders)} orders as-is")
-        return (
-            orders,
-            len([o for o in orders if o.success]),
-            sum((o.trade_amount for o in orders), Decimal("0")),
-        )
+        return self._order_finalizer.finalize_phase_orders(orders, items, phase_type)
 
     def shutdown(self) -> None:
         """Shutdown the executor and cleanup resources."""
