@@ -209,7 +209,9 @@ class RealTimeStreamManager:
                     task.cancel()
 
                 if pending:
-                    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                    loop.run_until_complete(
+                        asyncio.gather(*pending, return_exceptions=True)
+                    )
 
                 loop.close()
             except Exception as e:
@@ -255,7 +257,9 @@ class RealTimeStreamManager:
 
         try:
             if symbols_to_subscribe:
-                result = await self._setup_and_run_stream_with_symbols(symbols_to_subscribe)
+                result = await self._setup_and_run_stream_with_symbols(
+                    symbols_to_subscribe
+                )
             else:
                 result = await self._handle_no_symbols_to_subscribe()
 
@@ -265,13 +269,20 @@ class RealTimeStreamManager:
 
         except Exception as e:
             error_msg = str(e)
-            if "connection limit exceeded" in error_msg.lower() or "http 429" in error_msg.lower():
-                self._circuit_breaker.record_failure(f"Connection limit exceeded: {error_msg}")
+            if (
+                "connection limit exceeded" in error_msg.lower()
+                or "http 429" in error_msg.lower()
+            ):
+                self._circuit_breaker.record_failure(
+                    f"Connection limit exceeded: {error_msg}"
+                )
             else:
                 self._circuit_breaker.record_failure(f"Stream error: {error_msg}")
             raise
 
-    async def _setup_and_run_stream_with_symbols(self, symbols_to_subscribe: list[str]) -> bool:
+    async def _setup_and_run_stream_with_symbols(
+        self, symbols_to_subscribe: list[str]
+    ) -> bool:
         """Set up stream with symbols and run it.
 
         Args:
@@ -322,7 +333,9 @@ class RealTimeStreamManager:
         symbols_to_subscribe = self._get_symbols()
 
         if symbols_to_subscribe:
-            self.logger.info(f"📡 New subscriptions detected: {sorted(symbols_to_subscribe)}")
+            self.logger.info(
+                f"📡 New subscriptions detected: {sorted(symbols_to_subscribe)}"
+            )
             self._connected = False
             return False  # Continue retry loop
 
