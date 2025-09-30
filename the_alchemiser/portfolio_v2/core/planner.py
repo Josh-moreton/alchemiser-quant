@@ -201,7 +201,9 @@ class RebalancePlanCalculator:
         current_values = {}
 
         # Get all symbols we need to consider
-        all_symbols = set(strategy.target_weights.keys()) | set(snapshot.positions.keys())
+        all_symbols = set(strategy.target_weights.keys()) | set(
+            snapshot.positions.keys()
+        )
 
         # Apply cash reserve to avoid buying power issues with broker constraints
         # This ensures we don't try to use 100% of portfolio value which can
@@ -251,7 +253,21 @@ class RebalancePlanCalculator:
 
         # Handle edge case where both are zero
         if portfolio_value_for_weights == Decimal("0"):
-            portfolio_value_for_weights = Decimal("1")  # Avoid division by zero
+            # Explicitly return zeroed-out items for all symbols
+            for symbol in sorted(all_symbols):
+                item = RebalancePlanItem(
+                    symbol=symbol,
+                    current_weight=Decimal("0"),
+                    target_weight=Decimal("0"),
+                    weight_diff=Decimal("0"),
+                    target_value=Decimal("0"),
+                    current_value=Decimal("0"),
+                    trade_amount=Decimal("0"),
+                    action="HOLD",
+                    priority=0,
+                )
+                items.append(item)
+            return items
 
         for symbol in sorted(all_symbols):
             target_value = target_values.get(symbol, Decimal("0"))
@@ -272,16 +288,9 @@ class RebalancePlanCalculator:
                 action = "HOLD"
 
             # Calculate actual weights using portfolio value
-            current_weight = (
-                current_value / portfolio_value_for_weights
-                if portfolio_value_for_weights > Decimal("0")
-                else Decimal("0")
-            )
-            target_weight = (
-                target_value / portfolio_value_for_weights
-                if portfolio_value_for_weights > Decimal("0")
-                else Decimal("0")
-            )
+            # portfolio_value_for_weights is guaranteed > 0 by line 256
+            current_weight = current_value / portfolio_value_for_weights
+            target_weight = target_value / portfolio_value_for_weights
 
             # Calculate priority (higher trade amounts get higher priority)
             priority = self._calculate_priority(abs(final_trade_amount))
@@ -320,7 +329,9 @@ class RebalancePlanCalculator:
         """
         if portfolio_value <= Decimal("0"):
             return Decimal("0.00")
-        return (portfolio_value * Decimal("0.01")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        return (portfolio_value * Decimal("0.01")).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
 
     def _suppress_small_trades(
         self, items: list[RebalancePlanItem], min_threshold: Decimal
@@ -332,7 +343,10 @@ class RebalancePlanCalculator:
         suppressed: list[RebalancePlanItem] = []
         for item in items:
             try:
-                if item.action in ("BUY", "SELL") and abs(item.trade_amount) < min_threshold:
+                if (
+                    item.action in ("BUY", "SELL")
+                    and abs(item.trade_amount) < min_threshold
+                ):
                     logger.debug(
                         f"Suppressing micro trade for {item.symbol}: ${item.trade_amount} < ${min_threshold} → HOLD"
                     )
