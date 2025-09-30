@@ -29,38 +29,40 @@ class RealTimePriceStore:
         max_quote_age: int = 300,
     ) -> None:
         """Initialize the price store.
-        
+
         Args:
             cleanup_interval: Seconds between cleanup cycles
             max_quote_age: Maximum age of quotes in seconds before cleanup
+
         """
         self._cleanup_interval = cleanup_interval
         self._max_quote_age = max_quote_age
-        
+
         # Data storage
         self._quotes: dict[str, RealTimeQuote] = {}
         self._price_data: dict[str, PriceDataModel] = {}
         self._quote_data: dict[str, QuoteModel] = {}
         self._last_update: dict[str, datetime] = {}
-        
+
         # Thread safety
         self._quotes_lock = threading.Lock()
-        
+
         # Cleanup control
         self._should_cleanup = False
         self._cleanup_thread: threading.Thread | None = None
-        
+
         self.logger = get_logger(__name__)
 
     def start_cleanup(self, is_connected_callback: callable) -> None:
         """Start the cleanup thread.
-        
+
         Args:
             is_connected_callback: Callback to check if connected
+
         """
         if self._cleanup_thread and self._cleanup_thread.is_alive():
             return
-            
+
         self._should_cleanup = True
         self._is_connected = is_connected_callback
         self._cleanup_thread = threading.Thread(
@@ -86,7 +88,7 @@ class RealTimePriceStore:
         timestamp: datetime,
     ) -> None:
         """Update quote data with locking.
-        
+
         Args:
             symbol: Stock symbol
             bid_price: Bid price
@@ -94,6 +96,7 @@ class RealTimePriceStore:
             bid_size: Bid size (optional)
             ask_size: Ask size (optional)
             timestamp: Quote timestamp
+
         """
         with self._quotes_lock:
             current_quote = self._quotes.get(symbol)
@@ -121,12 +124,13 @@ class RealTimePriceStore:
         self, symbol: str, price: float, timestamp: datetime, volume: int | float | None
     ) -> None:
         """Update trade data with locking.
-        
+
         Args:
             symbol: Stock symbol
             price: Trade price
             timestamp: Trade timestamp
             volume: Trade volume (optional)
+
         """
         with self._quotes_lock:
             current_quote = self._quotes.get(symbol)
@@ -167,15 +171,16 @@ class RealTimePriceStore:
 
     def get_real_time_quote(self, symbol: str) -> RealTimeQuote | None:
         """Get real-time quote for a symbol (legacy).
-        
+
         Args:
             symbol: Stock symbol
-            
+
         Returns:
             RealTimeQuote object or None if not available
-            
+
         Warning:
             This method is deprecated. Use get_quote_data() for new code.
+
         """
         import warnings
 
@@ -189,38 +194,41 @@ class RealTimePriceStore:
 
     def get_quote_data(self, symbol: str) -> QuoteModel | None:
         """Get structured quote data for a symbol.
-        
+
         Args:
             symbol: Stock symbol
-            
+
         Returns:
             QuoteModel object with bid/ask prices and sizes, or None if not available
+
         """
         with self._quotes_lock:
             return self._quote_data.get(symbol)
 
     def get_price_data(self, symbol: str) -> PriceDataModel | None:
         """Get structured price data for a symbol.
-        
+
         Args:
             symbol: Stock symbol
-            
+
         Returns:
             PriceDataModel object with price, bid/ask, and volume, or None if not available
+
         """
         with self._quotes_lock:
             return self._price_data.get(symbol)
 
     def get_real_time_price(self, symbol: str) -> float | None:
         """Get the best available real-time price for a symbol.
-        
+
         Priority: mid-price > last trade > bid > ask
-        
+
         Args:
             symbol: Stock symbol
-            
+
         Returns:
             Current price or None if not available
+
         """
         # Try structured data first (preferred)
         price_data = self.get_price_data(symbol)
@@ -259,12 +267,13 @@ class RealTimePriceStore:
 
     def get_bid_ask_spread(self, symbol: str) -> tuple[float, float] | None:
         """Get current bid/ask spread for a symbol.
-        
+
         Args:
             symbol: Stock symbol
-            
+
         Returns:
             Tuple of (bid, ask) or None if not available
+
         """
         # Try structured data first (preferred)
         quote_data = self.get_quote_data(symbol)
@@ -299,14 +308,15 @@ class RealTimePriceStore:
         max_wait: float = 0.5,
     ) -> float | None:
         """Get the most accurate price for order placement.
-        
+
         Args:
             symbol: Stock symbol
             subscribe_callback: Callback to subscribe symbol with high priority
             max_wait: Maximum wait time for fresh data
-            
+
         Returns:
             Current price optimized for order accuracy
+
         """
         # Subscribe with highest priority for order placement
         subscribe_callback(symbol)
@@ -331,9 +341,10 @@ class RealTimePriceStore:
 
     def get_stats(self) -> dict[str, int]:
         """Get storage statistics.
-        
+
         Returns:
             Dictionary of statistics
+
         """
         with self._quotes_lock:
             return {
@@ -345,13 +356,14 @@ class RealTimePriceStore:
 
     def has_recent_data(self, symbol: str, max_age_seconds: float = 1.0) -> bool:
         """Check if we have recent data for a symbol.
-        
+
         Args:
             symbol: Stock symbol
             max_age_seconds: Maximum age in seconds
-            
+
         Returns:
             True if data is recent
+
         """
         with self._quotes_lock:
             if symbol not in self._last_update:

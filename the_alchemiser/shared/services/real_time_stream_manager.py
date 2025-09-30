@@ -11,7 +11,8 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.brokers.alpaca_utils import create_stock_data_stream
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -39,36 +40,39 @@ class RealTimeStreamManager:
         on_trade: Callable[[AlpacaTradeData], None] | None = None,
     ) -> None:
         """Initialize the stream manager.
-        
+
         Args:
             api_key: Alpaca API key
             secret_key: Alpaca secret key
             feed: Data feed to use (iex or sip)
             on_quote: Callback for quote events
             on_trade: Callback for trade events
+
         """
         self._api_key = api_key
         self._secret_key = secret_key
         self._feed = feed
         self._on_quote = on_quote
         self._on_trade = on_trade
-        
+
         self._stream: StockDataStream | None = None
         self._stream_thread: threading.Thread | None = None
         self._should_reconnect = False
         self._connected = False
-        
+
         # Circuit breaker for connection management
         from the_alchemiser.shared.utils.circuit_breaker import ConnectionCircuitBreaker
+
         self._circuit_breaker = ConnectionCircuitBreaker()
-        
+
         self.logger = get_logger(__name__)
 
     def is_connected(self) -> bool:
         """Check if stream is currently connected.
-        
+
         Returns:
             True if connected
+
         """
         return self._connected
 
@@ -77,12 +81,13 @@ class RealTimeStreamManager:
         get_symbols_callback: Callable[[], list[str]],
     ) -> bool:
         """Start the stream in a background thread.
-        
+
         Args:
             get_symbols_callback: Callback to get current subscribed symbols
-            
+
         Returns:
             True if started successfully
+
         """
         try:
             if self._stream_thread and self._stream_thread.is_alive():
@@ -114,7 +119,7 @@ class RealTimeStreamManager:
             if self._connected:
                 self.logger.info("✅ Real-time stream started successfully")
                 return True
-                
+
             self.logger.error("❌ Failed to establish stream connection")
             return False
 
@@ -236,12 +241,13 @@ class RealTimeStreamManager:
 
     async def _execute_stream_attempt(self, attempt_number: int) -> bool:
         """Execute a single stream attempt with circuit breaker protection.
-        
+
         Args:
             attempt_number: Current attempt number
-            
+
         Returns:
             True if should break from retry loop
+
         """
         self.logger.info(f"🔄 Attempting to start stream (attempt {attempt_number})")
 
@@ -267,12 +273,13 @@ class RealTimeStreamManager:
 
     async def _setup_and_run_stream_with_symbols(self, symbols_to_subscribe: list[str]) -> bool:
         """Set up stream with symbols and run it.
-        
+
         Args:
             symbols_to_subscribe: List of symbols to subscribe to
-            
+
         Returns:
             True if stream closed normally
+
         """
         self.logger.info(
             f"📡 Setting up subscriptions for {len(symbols_to_subscribe)} symbols: "
@@ -306,9 +313,10 @@ class RealTimeStreamManager:
 
     async def _handle_no_symbols_to_subscribe(self) -> bool:
         """Handle case when no symbols are available.
-        
+
         Returns:
             True if should break from retry loop
+
         """
         await self._wait_for_subscription_requests()
         symbols_to_subscribe = self._get_symbols()
@@ -335,15 +343,16 @@ class RealTimeStreamManager:
         self, error: Exception, retry_count: int, max_retries: int, base_delay: float
     ) -> bool:
         """Handle stream errors and determine if retry should continue.
-        
+
         Args:
             error: The exception that occurred
             retry_count: Current retry attempt number
             max_retries: Maximum number of retries allowed
             base_delay: Base delay for exponential backoff
-            
+
         Returns:
             True if should continue retrying
+
         """
         delay = min(base_delay * (2 ** (retry_count - 1)), 30.0)
         self.logger.error(f"❌ Stream error (attempt {retry_count}): {error}")

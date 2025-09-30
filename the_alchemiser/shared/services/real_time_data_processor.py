@@ -35,12 +35,13 @@ class RealTimeDataProcessor:
 
     def extract_symbol_from_quote(self, data: AlpacaQuoteData) -> str:
         """Extract symbol from quote data.
-        
+
         Args:
             data: Quote data from Alpaca WebSocket
-            
+
         Returns:
             Symbol string or empty string if not found
+
         """
         if hasattr(data, "symbol"):
             return str(data.symbol)
@@ -48,12 +49,13 @@ class RealTimeDataProcessor:
 
     def extract_quote_values(self, data: AlpacaQuoteData) -> QuoteExtractionResult:
         """Extract bid/ask data from quote.
-        
+
         Args:
             data: Quote data from Alpaca WebSocket
-            
+
         Returns:
             QuoteExtractionResult with extracted values
+
         """
         if isinstance(data, dict):
             return QuoteExtractionResult(
@@ -74,12 +76,13 @@ class RealTimeDataProcessor:
 
     def extract_symbol_from_trade(self, data: AlpacaTradeData) -> str:
         """Extract symbol from trade data.
-        
+
         Args:
             data: Trade data from Alpaca WebSocket
-            
+
         Returns:
             Symbol string or empty string if not found
+
         """
         if hasattr(data, "symbol"):
             return str(data.symbol)
@@ -89,12 +92,13 @@ class RealTimeDataProcessor:
         self, trade: AlpacaTradeData
     ) -> tuple[float, int | float | None, datetime]:
         """Extract price, volume, and timestamp from trade data.
-        
+
         Args:
             trade: Trade data from Alpaca WebSocket
-            
+
         Returns:
             Tuple of (price, volume, timestamp)
+
         """
         if isinstance(trade, dict):
             price = trade.get("price", 0)
@@ -112,23 +116,25 @@ class RealTimeDataProcessor:
 
     def get_quote_timestamp(self, timestamp_raw: datetime | None) -> datetime:
         """Ensure timestamp is a datetime for quotes.
-        
+
         Args:
             timestamp_raw: Raw timestamp value
-            
+
         Returns:
             Valid datetime object
+
         """
         return timestamp_raw if isinstance(timestamp_raw, datetime) else datetime.now(UTC)
 
     def get_trade_timestamp(self, timestamp_raw: datetime | str | None) -> datetime:
         """Ensure timestamp is a datetime for trades.
-        
+
         Args:
             timestamp_raw: Raw timestamp value
-            
+
         Returns:
             Valid datetime object
+
         """
         if isinstance(timestamp_raw, datetime):
             return timestamp_raw
@@ -136,12 +142,13 @@ class RealTimeDataProcessor:
 
     def _safe_float_convert(self, value: str | float | int | None) -> float | None:
         """Safely convert value to float.
-        
+
         Args:
             value: Value to convert
-            
+
         Returns:
             Float value or None if conversion fails
+
         """
         if value is None:
             return None
@@ -152,12 +159,13 @@ class RealTimeDataProcessor:
 
     def _safe_datetime_convert(self, value: str | float | int | datetime | None) -> datetime | None:
         """Safely convert value to datetime.
-        
+
         Args:
             value: Value to convert
-            
+
         Returns:
             Datetime value or None if not a datetime
+
         """
         if isinstance(value, datetime):
             return value
@@ -167,11 +175,12 @@ class RealTimeDataProcessor:
         self, symbol: str, bid_price: float | None, ask_price: float | None
     ) -> None:
         """Log quote data asynchronously for debugging.
-        
+
         Args:
             symbol: Stock symbol
             bid_price: Bid price
             ask_price: Ask price
+
         """
         if self.logger.isEnabledFor(logging.DEBUG):
             await asyncio.to_thread(
@@ -182,9 +191,12 @@ class RealTimeDataProcessor:
 
     async def handle_quote_error(self, error: Exception) -> None:
         """Handle errors in quote processing.
-        
+
         Args:
             error: Exception that occurred
+
         """
-        await asyncio.to_thread(self.logger.error, f"Error processing quote: {error}", exc_info=True)
+        await asyncio.to_thread(
+            self.logger.error, f"Error processing quote: {error}", exc_info=True
+        )
         await asyncio.sleep(0)

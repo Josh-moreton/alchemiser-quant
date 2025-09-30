@@ -88,10 +88,10 @@ class RealTimePricingService:
     Provides up-to-date bid/ask quotes and last trade prices for accurate
     limit order placement. Automatically manages subscriptions based on
     active trading symbols.
-    
+
     This service delegates to specialized components for cleaner separation of concerns:
     - Data processing: RealTimeDataProcessor
-    - Subscription management: SubscriptionManager  
+    - Subscription management: SubscriptionManager
     - Stream lifecycle: RealTimeStreamManager
     - Price storage: RealTimePriceStore
     """
@@ -135,7 +135,7 @@ class RealTimePricingService:
         self._data_processor = RealTimeDataProcessor()
         self._subscription_manager = SubscriptionManager(max_symbols=max_symbols)
         self._price_store = RealTimePriceStore()
-        
+
         # Stream manager initialized in start() with callbacks
         self._stream_manager: RealTimeStreamManager | None = None
 
@@ -196,11 +196,13 @@ class RealTimePricingService:
             if result:
                 # Start cleanup thread
                 self._price_store.start_cleanup(
-                    is_connected_callback=lambda: self._stream_manager.is_connected() if self._stream_manager else False
+                    is_connected_callback=lambda: self._stream_manager.is_connected()
+                    if self._stream_manager
+                    else False
                 )
                 self.logger.info("✅ Real-time pricing service started successfully")
                 return True
-                
+
             self.logger.error("❌ Failed to establish real-time pricing connection")
             return False
 
@@ -243,7 +245,9 @@ class RealTimePricingService:
             quote_values = self._data_processor.extract_quote_values(data)
             timestamp = self._data_processor.get_quote_timestamp(quote_values.timestamp_raw)
 
-            await self._data_processor.log_quote_debug(symbol, quote_values.bid_price, quote_values.ask_price)
+            await self._data_processor.log_quote_debug(
+                symbol, quote_values.bid_price, quote_values.ask_price
+            )
 
             if quote_values.bid_price is not None and quote_values.ask_price is not None:
                 # Use asyncio.to_thread for potentially blocking lock operations
@@ -299,7 +303,7 @@ class RealTimePricingService:
             await asyncio.sleep(0)
 
     # Price retrieval methods (delegate to price store)
-    
+
     def get_real_time_quote(self, symbol: str) -> RealTimeQuote | None:
         """Get real-time quote for a symbol.
 
@@ -375,11 +379,11 @@ class RealTimePricingService:
         uptime = (
             (datetime.now(UTC) - last_hb).total_seconds() if isinstance(last_hb, datetime) else 0
         )
-        
+
         # Combine stats from all components
         price_stats = self._price_store.get_stats()
         sub_stats = self._subscription_manager.get_stats()
-        
+
         return {
             **self._stats,
             **self._datetime_stats,
@@ -404,7 +408,7 @@ class RealTimePricingService:
         return feed
 
     # Subscription methods (delegate to subscription manager)
-    
+
     def subscribe_symbols_bulk(
         self, symbols: list[str], priority: float | None = None
     ) -> dict[str, bool]:
@@ -435,7 +439,9 @@ class RealTimePricingService:
         self._subscription_manager.execute_subscription_plan(subscription_plan, priority)
 
         if subscription_plan.successfully_added > 0 and self.is_connected():
-            self.logger.info(f"🔄 Restarting stream to add {subscription_plan.successfully_added} new subscriptions")
+            self.logger.info(
+                f"🔄 Restarting stream to add {subscription_plan.successfully_added} new subscriptions"
+            )
             if self._stream_manager:
                 self._stream_manager.restart()
 

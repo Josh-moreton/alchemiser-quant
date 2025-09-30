@@ -196,7 +196,7 @@ def dataframe_to_bars(df: pd.DataFrame, symbol: str) -> list[BarModel]:
 @dataclass
 class RealTimeQuote:
     """Real-time quote data structure (legacy).
-    
+
     Deprecated: Use QuoteModel for new code.
     Kept for backward compatibility with existing code.
     """

@@ -20,9 +20,10 @@ class SubscriptionManager:
 
     def __init__(self, max_symbols: int = 30) -> None:
         """Initialize the subscription manager.
-        
+
         Args:
             max_symbols: Maximum number of concurrent symbol subscriptions
+
         """
         self._max_symbols = max_symbols
         self._subscribed_symbols: set[str] = set()
@@ -36,24 +37,26 @@ class SubscriptionManager:
 
     def normalize_symbols(self, symbols: list[str]) -> list[str]:
         """Normalize symbol list by cleaning and filtering.
-        
+
         Args:
             symbols: List of raw symbol strings
-            
+
         Returns:
             List of cleaned and uppercased symbols
+
         """
         return [symbol.upper().strip() for symbol in symbols if symbol.strip()]
 
     def plan_bulk_subscription(self, symbols: list[str], priority: float) -> SubscriptionPlan:
         """Plan bulk subscription operations.
-        
+
         Args:
             symbols: List of symbols to subscribe to
             priority: Priority score for subscriptions
-            
+
         Returns:
             SubscriptionPlan with planned operations
+
         """
         results: dict[str, bool] = {}
         symbols_to_add = []
@@ -90,14 +93,15 @@ class SubscriptionManager:
         self, symbols_to_add: list[str], available_slots: int, priority: float
     ) -> list[str]:
         """Find existing symbols that can be replaced with higher priority ones.
-        
+
         Args:
             symbols_to_add: Symbols that need slots
             available_slots: Current available capacity
             priority: Priority of new symbols
-            
+
         Returns:
             List of symbols to replace
+
         """
         if len(symbols_to_add) <= available_slots:
             return []
@@ -120,10 +124,11 @@ class SubscriptionManager:
 
     def execute_subscription_plan(self, plan: SubscriptionPlan, priority: float) -> None:
         """Execute the planned subscription operations.
-        
+
         Args:
             plan: Subscription plan to execute
             priority: Priority for new subscriptions
+
         """
         # Remove symbols to be replaced
         for symbol_to_remove in plan.symbols_to_replace:
@@ -145,17 +150,16 @@ class SubscriptionManager:
             plan.results[symbol] = False
             self.logger.warning(f"⚠️ Cannot subscribe to {symbol} - subscription limit reached")
 
-    def subscribe_symbol(
-        self, symbol: str, priority: float | None = None
-    ) -> tuple[bool, bool]:
+    def subscribe_symbol(self, symbol: str, priority: float | None = None) -> tuple[bool, bool]:
         """Subscribe to a single symbol with priority management.
-        
+
         Args:
             symbol: Stock symbol to subscribe to
             priority: Priority score (higher = more important)
-            
+
         Returns:
             Tuple of (needs_restart, was_added)
+
         """
         if priority is None:
             priority = time.time()
@@ -198,21 +202,21 @@ class SubscriptionManager:
                 self.logger.debug(f"📊 Current subscriptions: {sorted(self._subscribed_symbols)}")
                 self._stats["total_subscriptions"] += 1
                 return True, True
-            else:
-                # Update priority for existing subscription
-                self._subscription_priority[symbol] = max(
-                    self._subscription_priority.get(symbol, 0), priority
-                )
-                return False, False
+            # Update priority for existing subscription
+            self._subscription_priority[symbol] = max(
+                self._subscription_priority.get(symbol, 0), priority
+            )
+            return False, False
 
     def unsubscribe_symbol(self, symbol: str) -> bool:
         """Unsubscribe from a symbol.
-        
+
         Args:
             symbol: Stock symbol to unsubscribe from
-            
+
         Returns:
             True if symbol was removed
+
         """
         with self._subscription_lock:
             if symbol in self._subscribed_symbols:
@@ -224,41 +228,44 @@ class SubscriptionManager:
 
     def get_subscribed_symbols(self) -> set[str]:
         """Get current subscribed symbols.
-        
+
         Returns:
             Set of currently subscribed symbols
+
         """
         with self._subscription_lock:
             return self._subscribed_symbols.copy()
 
     def get_stats(self) -> dict[str, int]:
         """Get subscription statistics.
-        
+
         Returns:
             Dictionary of statistics
+
         """
         return self._stats.copy()
 
     def can_subscribe(self, symbol: str, priority: float) -> bool:
         """Check if a symbol can be subscribed with given priority.
-        
+
         Args:
             symbol: Stock symbol
             priority: Desired priority
-            
+
         Returns:
             True if subscription is possible
+
         """
         with self._subscription_lock:
             if symbol in self._subscribed_symbols:
                 return True
-                
+
             if len(self._subscribed_symbols) < self._max_symbols:
                 return True
-                
+
             # Check if we can replace a lower priority symbol
             lowest_priority = min(
                 (self._subscription_priority.get(s, 0) for s in self._subscribed_symbols),
-                default=float('inf')
+                default=float("inf"),
             )
             return priority > lowest_priority
