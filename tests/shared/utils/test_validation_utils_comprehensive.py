@@ -328,3 +328,107 @@ class TestDetectSuspiciousQuotePrices:
         # Exactly at max_spread_percent should not be suspicious
         is_suspicious, reasons = detect_suspicious_quote_prices(100.0, 110.0, max_spread_percent=10.0)
         assert not is_suspicious
+
+
+class TestValidateNonNegativeDecimal:
+    """Test non-negative decimal validation functionality."""
+
+    def test_positive_decimal_accepted(self):
+        """Test that positive decimals are accepted."""
+        from the_alchemiser.shared.utils.validation_utils import validate_non_negative_decimal
+        
+        validate_non_negative_decimal(Decimal("100.50"))
+        validate_non_negative_decimal(Decimal("0.01"))
+
+    def test_zero_accepted(self):
+        """Test that zero is accepted."""
+        from the_alchemiser.shared.utils.validation_utils import validate_non_negative_decimal
+        
+        validate_non_negative_decimal(Decimal("0"))
+        validate_non_negative_decimal(Decimal("0.00"))
+
+    def test_negative_decimal_raises_error(self):
+        """Test that negative decimals raise ValueError."""
+        from the_alchemiser.shared.utils.validation_utils import validate_non_negative_decimal
+        
+        with pytest.raises(ValueError, match="Value cannot be negative: -10"):
+            validate_non_negative_decimal(Decimal("-10"))
+
+    def test_custom_field_name(self):
+        """Test custom field name in error message."""
+        from the_alchemiser.shared.utils.validation_utils import validate_non_negative_decimal
+        
+        with pytest.raises(ValueError, match="Cash cannot be negative: -5.50"):
+            validate_non_negative_decimal(Decimal("-5.50"), "Cash")
+
+
+class TestValidateQuantityNonNegative:
+    """Test quantity validation functionality."""
+
+    def test_positive_quantity_accepted(self):
+        """Test that positive quantities are accepted."""
+        from the_alchemiser.shared.utils.validation_utils import validate_quantity_non_negative
+        
+        validate_quantity_non_negative(Decimal("100"), "AAPL")
+        validate_quantity_non_negative(Decimal("0.5"), "BTC")
+
+    def test_zero_quantity_accepted(self):
+        """Test that zero quantity is accepted."""
+        from the_alchemiser.shared.utils.validation_utils import validate_quantity_non_negative
+        
+        validate_quantity_non_negative(Decimal("0"), "AAPL")
+
+    def test_negative_quantity_raises_error(self):
+        """Test that negative quantities raise ValueError."""
+        from the_alchemiser.shared.utils.validation_utils import validate_quantity_non_negative
+        
+        with pytest.raises(ValueError, match="Position quantity cannot be negative for AAPL: -10"):
+            validate_quantity_non_negative(Decimal("-10"), "AAPL")
+
+
+class TestValidatePositionsHavePrices:
+    """Test position-price validation functionality."""
+
+    def test_all_positions_have_prices(self):
+        """Test that validation passes when all positions have prices."""
+        from the_alchemiser.shared.utils.validation_utils import validate_positions_have_prices
+        
+        positions = {"AAPL": Decimal("100"), "MSFT": Decimal("50")}
+        prices = {"AAPL": Decimal("150.00"), "MSFT": Decimal("300.00")}
+        
+        validate_positions_have_prices(positions, prices)
+
+    def test_empty_positions_accepted(self):
+        """Test that empty positions are accepted."""
+        from the_alchemiser.shared.utils.validation_utils import validate_positions_have_prices
+        
+        validate_positions_have_prices({}, {})
+
+    def test_extra_prices_accepted(self):
+        """Test that extra prices (not in positions) are accepted."""
+        from the_alchemiser.shared.utils.validation_utils import validate_positions_have_prices
+        
+        positions = {"AAPL": Decimal("100")}
+        prices = {"AAPL": Decimal("150.00"), "MSFT": Decimal("300.00"), "GOOGL": Decimal("2500.00")}
+        
+        validate_positions_have_prices(positions, prices)
+
+    def test_missing_price_raises_error(self):
+        """Test that missing price raises ValueError."""
+        from the_alchemiser.shared.utils.validation_utils import validate_positions_have_prices
+        
+        positions = {"AAPL": Decimal("100"), "MSFT": Decimal("50"), "GOOGL": Decimal("25")}
+        prices = {"AAPL": Decimal("150.00")}
+        
+        with pytest.raises(ValueError, match="Missing prices for positions: \\['GOOGL', 'MSFT'\\]"):
+            validate_positions_have_prices(positions, prices)
+
+    def test_error_message_sorted(self):
+        """Test that missing symbols are sorted in error message."""
+        from the_alchemiser.shared.utils.validation_utils import validate_positions_have_prices
+        
+        positions = {"ZZZ": Decimal("10"), "AAA": Decimal("20"), "MMM": Decimal("30")}
+        prices = {}
+        
+        with pytest.raises(ValueError, match="Missing prices for positions: \\['AAA', 'MMM', 'ZZZ'\\]"):
+            validate_positions_have_prices(positions, prices)

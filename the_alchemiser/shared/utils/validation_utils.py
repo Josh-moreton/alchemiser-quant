@@ -216,3 +216,54 @@ def detect_suspicious_quote_prices(
             reasons.append(f"excessive spread: {spread_percent:.2f}% > {max_spread_percent}%")
 
     return len(reasons) > 0, reasons
+
+
+# Portfolio snapshot validation functions
+
+
+def validate_non_negative_decimal(value: Decimal, field_name: str = "Value") -> None:
+    """Validate that a Decimal value is non-negative.
+
+    Args:
+        value: The value to validate
+        field_name: Name of the field for error messages
+
+    Raises:
+        ValueError: If value is negative
+
+    """
+    if value < 0:
+        raise ValueError(f"{field_name} cannot be negative: {value}")
+
+
+def validate_quantity_non_negative(quantity: Decimal, symbol: str) -> None:
+    """Validate that a position quantity is non-negative.
+
+    Args:
+        quantity: Position quantity to validate
+        symbol: Trading symbol for error messages
+
+    Raises:
+        ValueError: If quantity is negative
+
+    """
+    if quantity < 0:
+        raise ValueError(f"Position quantity cannot be negative for {symbol}: {quantity}")
+
+
+def validate_positions_have_prices(
+    positions: dict[str, Decimal], prices: dict[str, Decimal]
+) -> None:
+    """Validate that all positions have corresponding prices.
+
+    Args:
+        positions: Dictionary of symbol -> quantity
+        prices: Dictionary of symbol -> price
+
+    Raises:
+        ValueError: If any position is missing a price
+
+    """
+    missing_prices = set(positions.keys()) - set(prices.keys())
+    if missing_prices:
+        raise ValueError(f"Missing prices for positions: {sorted(missing_prices)}")

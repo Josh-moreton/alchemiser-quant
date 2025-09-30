@@ -184,3 +184,41 @@ def convert_nested_rebalance_item_data(item_data: dict[str, Any]) -> dict[str, A
     convert_decimal_fields_from_dict(item_data, item_decimal_fields)
 
     return item_data
+
+
+def convert_decimal_dict_to_strings(data: dict[str, Decimal]) -> dict[str, str]:
+    """Convert a dictionary of Decimal values to strings.
+
+    Args:
+        data: Dictionary with Decimal values
+
+    Returns:
+        Dictionary with string values
+
+    """
+    return {k: str(v) for k, v in data.items()}
+
+
+def convert_string_dict_to_decimals(data: dict[str, str]) -> dict[str, Decimal]:
+    """Convert a dictionary of string values to Decimals.
+
+    Args:
+        data: Dictionary with string values
+
+    Returns:
+        Dictionary with Decimal values
+
+    Raises:
+        ValueError: If any string cannot be converted to Decimal
+
+    """
+    result = {}
+    for k, v in data.items():
+        try:
+            result[k] = Decimal(v)
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid decimal value for key '{k}': {v}") from e
+        except Exception as e:
+            # Catch Decimal's InvalidOperation and other exceptions
+            raise ValueError(f"Invalid decimal value for key '{k}': {v}") from e
+    return result
