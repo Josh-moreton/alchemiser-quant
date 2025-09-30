@@ -124,14 +124,16 @@ class TestRebalancePlanCalculator:
         )
 
         total_value = sample_portfolio_snapshot.total_value
+        # Account for cash reserve (1% default)
+        effective_value = total_value * Decimal("0.99")
 
         for item in plan.items:
             expected_target_weight = sample_strategy_allocation.target_weights[
                 item.symbol
             ]
-            expected_target_value = total_value * expected_target_weight
+            expected_target_value = effective_value * expected_target_weight
 
-            # Target value should match allocation percentage
+            # Target value should match allocation percentage (accounting for cash reserve)
             assert abs(item.target_value - expected_target_value) < Decimal("0.01")
 
     def test_quantity_calculation_fractional_assets(self, calculator):
@@ -156,7 +158,7 @@ class TestRebalancePlanCalculator:
 
         # Should be able to buy fractional shares
         aapl_item = next(item for item in plan.items if item.symbol == "AAPL")
-        assert aapl_item.target_value == Decimal("1000.00")
+        assert aapl_item.target_value == Decimal("990.00")  # 1000 * (1 - 0.01 cash reserve)
         # For fractionable assets, quantity can be fractional
 
     def test_quantity_calculation_non_fractional_assets(self, calculator):
@@ -179,7 +181,7 @@ class TestRebalancePlanCalculator:
 
         # Should handle whole share requirements
         googl_item = next(item for item in plan.items if item.symbol == "GOOGL")
-        assert googl_item.target_value == Decimal("1000.00")
+        assert googl_item.target_value == Decimal("990.00")  # 1000 * (1 - 0.01 cash reserve)
         # For non-fractionable assets, quantities should be whole numbers
 
     def test_rebalance_determines_correct_actions(
