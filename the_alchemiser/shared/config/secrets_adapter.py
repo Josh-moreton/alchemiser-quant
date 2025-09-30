@@ -95,7 +95,5 @@ def _get_email_password_from_env() -> str | None:
         )
         return None
 
-    logger.debug(
-        "Successfully loaded email password from environment variables (fallback method)"
-    )
+    logger.debug("Successfully loaded email password from environment variables (fallback method)")
     return password
