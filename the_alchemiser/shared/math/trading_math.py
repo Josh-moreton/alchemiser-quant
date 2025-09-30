@@ -26,10 +26,7 @@ from decimal import Decimal
 from typing import Protocol
 
 from the_alchemiser.shared.config.config import load_settings
-from the_alchemiser.shared.logging.logging_utils import (
-    AlchemiserLoggerAdapter,
-    get_logger,
-)
+from the_alchemiser.shared.logging.logging_utils import get_logger
 
 logger = get_logger(__name__)
 
@@ -82,7 +79,7 @@ def _log_enhanced_threshold_analysis(
     min_trade_threshold: float,
     *,
     needs_rebalance: bool,
-    logger: logging.Logger | AlchemiserLoggerAdapter,
+    logger: logging.Logger,
 ) -> None:
     """Log enhanced threshold analysis for debugging.
 
@@ -152,7 +149,7 @@ def _log_critical_bug_detection(
     target_value: float,
     current_value: float,
     total_portfolio_value: float,
-    logger: logging.Logger | AlchemiserLoggerAdapter,
+    logger: logging.Logger,
 ) -> None:
     """Log critical bug detection for debugging trade calculation issues.
 
@@ -207,7 +204,7 @@ def _log_rebalance_summary(
     min_trade_threshold: float,
     total_portfolio_value: float,
     rebalance_plan: dict[str, dict[str, float]],
-    logger: logging.Logger | AlchemiserLoggerAdapter,
+    logger: logging.Logger,
 ) -> None:
     """Log comprehensive summary of rebalancing calculation results.
 
@@ -257,7 +254,7 @@ def _process_symbol_rebalance(
     current_values: dict[str, float],
     total_portfolio_value: float,
     min_trade_threshold: float,
-    logger: logging.Logger | AlchemiserLoggerAdapter,
+    logger: logging.Logger,
 ) -> tuple[dict[str, float], bool]:
     """Process rebalancing calculation for a single symbol.
 
@@ -687,6 +684,7 @@ def calculate_rebalance_amounts(
         current_values but not both. Missing positions are treated as 0.0.
 
     """
+
     logger = get_logger(__name__)
 
     # === TRADING_MATH ENTRY POINT LOGGING ===

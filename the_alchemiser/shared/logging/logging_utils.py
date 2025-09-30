@@ -112,32 +112,29 @@ class StructuredFormatter(logging.Formatter):
         return json.dumps(log_entry, default=str)
 
 
-def get_logger(name: str) -> AlchemiserLoggerAdapter:
-    """Get an enhanced logger instance with automatic context and formatting.
+def get_logger(name: str) -> logging.Logger:
+    """Get a logger instance with proper configuration.
 
-    Retrieves a logger from Python's logging system wrapped in AlchemiserLoggerAdapter
-    for enhanced functionality. The logger will use the centralized configuration
-    established by setup_logging() and automatically add context and formatting.
+    Retrieves a logger from Python's logging system that will use the centralized
+    configuration established by setup_logging(). The logger will inherit all
+    formatting, levels, and handlers configured globally.
 
-    Logger features:
-    - Automatic [ALCHEMISER] prefix on all messages
-    - Automatic context variables (request_id, error_id) when present
+    Logger retrieval behavior:
     - Uses the standard logging hierarchy (dotted names create parent-child relationships)
     - Inherits root logger configuration (handlers, formatters, levels)
     - Supports both structured (JSON) and standard text formatting
-    - Enhanced type safety with proper adapter typing
+    - Automatically includes context variables (request_id, error_id) when present
 
     Args:
         name: Logger name, typically __name__ for module-level logging.
               Creates hierarchical loggers (e.g., 'the_alchemiser.strategy_v2.core')
 
     Returns:
-        AlchemiserLoggerAdapter instance that provides enhanced logging with
-        automatic context tracking and consistent formatting.
+        Configured logger instance that uses centralized handlers and formatting.
+        Output will go to console and/or file based on setup_logging() configuration.
 
     """
-    base_logger = logging.getLogger(name)
-    return AlchemiserLoggerAdapter(base_logger, {})
+    return logging.getLogger(name)
 
 
 def set_request_id(request_id: str | None) -> None:
@@ -257,6 +254,20 @@ def generate_request_id() -> str:
 
     """
     return str(uuid.uuid4())
+
+
+def log_with_context(logger: logging.Logger, level: int, message: str, **context: object) -> None:
+    """Log a message with additional context fields.
+
+    Args:
+        logger: Logger instance
+        level: Logging level (e.g., logging.INFO)
+        message: Log message
+        **context: Additional context fields to include
+
+    """
+    extra: dict[str, object] = {"extra_fields": context}
+    logger.log(level, message, extra=extra)
 
 
 def _create_formatter(*, structured_format: bool) -> logging.Formatter:
@@ -514,16 +525,13 @@ def get_trading_logger(
     """
     logger = get_logger(module_name)
     if context:
-        # Create adapter with default context from the underlying logger
-        return AlchemiserLoggerAdapter(logger.logger, context)
+        # Create adapter with default context
+        return AlchemiserLoggerAdapter(logger, context)
     return logger
 
 
 def log_trade_event(
-    logger: logging.Logger | AlchemiserLoggerAdapter,
-    event_type: str,
-    symbol: str,
-    **details: object,
+    logger: logging.Logger, event_type: str, symbol: str, **details: object
 ) -> None:
     """Log a trading event with standardized structure.
 
@@ -540,14 +548,11 @@ def log_trade_event(
         "timestamp": datetime.now(UTC).isoformat() + "Z",
         **details,
     }
-    logger.info(f"Trading event: {event_type} for {symbol}", extra=context)
+    log_with_context(logger, logging.INFO, f"Trading event: {event_type} for {symbol}", **context)
 
 
 def log_error_with_context(
-    logger: logging.Logger | AlchemiserLoggerAdapter,
-    error: Exception,
-    operation: str,
-    **context: object,
+    logger: logging.Logger, error: Exception, operation: str, **context: object
 ) -> None:
     """Log an error with full context and traceback.
 
@@ -565,7 +570,7 @@ def log_error_with_context(
             "error_message": str(error),
         }
     )
-    logger.error(f"Error in {operation}: {error}", extra=context)
+    log_with_context(logger, logging.ERROR, f"Error in {operation}: {error}", **context)
     logger.exception(f"Full traceback for {operation} error:")
 
 

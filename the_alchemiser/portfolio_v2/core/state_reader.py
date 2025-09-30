@@ -7,10 +7,11 @@ Portfolio state reader for building immutable snapshots from live data.
 
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging.logging_utils import get_logger, log_with_context
 
 if TYPE_CHECKING:
     from the_alchemiser.portfolio_v2.adapters.alpaca_data_adapter import (
@@ -55,13 +56,13 @@ class PortfolioStateReader:
             Exception: If snapshot cannot be built due to data errors
 
         """
-        logger.debug(
+        log_with_context(
+            logger,
+            logging.DEBUG,
             "Building portfolio snapshot",
-            extra={
-                "module": MODULE_NAME,
-                "action": "build_snapshot",
-                "requested_symbols": sorted(symbols) if symbols else None,
-            },
+            module=MODULE_NAME,
+            action="build_snapshot",
+            requested_symbols=sorted(symbols) if symbols else None,
         )
 
         try:
@@ -98,40 +99,38 @@ class PortfolioStateReader:
 
             # Validate snapshot consistency
             if not snapshot.validate_total_value():
-                logger.warning(
+                log_with_context(
+                    logger,
+                    logging.WARNING,
                     "Snapshot total value validation failed - continuing anyway",
-                    extra={
-                        "module": MODULE_NAME,
-                        "action": "build_snapshot",
-                        "calculated_total": str(
-                            snapshot.get_total_position_value() + snapshot.cash
-                        ),
-                        "snapshot_total": str(snapshot.total_value),
-                    },
+                    module=MODULE_NAME,
+                    action="build_snapshot",
+                    calculated_total=str(snapshot.get_total_position_value() + snapshot.cash),
+                    snapshot_total=str(snapshot.total_value),
                 )
 
-            logger.debug(
+            log_with_context(
+                logger,
+                logging.DEBUG,
                 "Portfolio snapshot built successfully",
-                extra={
-                    "module": MODULE_NAME,
-                    "action": "build_snapshot",
-                    "position_count": len(positions),
-                    "price_count": len(prices),
-                    "total_value": str(total_value),
-                    "cash_balance": str(cash),
-                    "position_value": str(position_value),
-                },
+                module=MODULE_NAME,
+                action="build_snapshot",
+                position_count=len(positions),
+                price_count=len(prices),
+                total_value=str(total_value),
+                cash_balance=str(cash),
+                position_value=str(position_value),
             )
 
             return snapshot
 
         except Exception as e:
-            logger.error(
+            log_with_context(
+                logger,
+                logging.ERROR,
                 f"Failed to build portfolio snapshot: {e}",
-                extra={
-                    "module": MODULE_NAME,
-                    "action": "build_snapshot",
-                    "error": str(e),
-                },
+                module=MODULE_NAME,
+                action="build_snapshot",
+                error=str(e),
             )
             raise

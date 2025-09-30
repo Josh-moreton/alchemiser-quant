@@ -8,10 +8,11 @@ for portfolio-specific data access.
 
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging.logging_utils import get_logger, log_with_context
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
@@ -48,12 +49,12 @@ class AlpacaDataAdapter:
             Exception: If positions cannot be retrieved
 
         """
-        logger.debug(
+        log_with_context(
+            logger,
+            logging.DEBUG,
             "Fetching current positions",
-            extra={
-                "module": MODULE_NAME,
-                "action": "get_positions",
-            },
+            module=MODULE_NAME,
+            action="get_positions",
         )
 
         try:
@@ -74,26 +75,26 @@ class AlpacaDataAdapter:
                     quantity = Decimal(str(position.qty))
                 positions[symbol] = quantity
 
-            logger.debug(
+            log_with_context(
+                logger,
+                logging.DEBUG,
                 f"Retrieved {len(positions)} positions",
-                extra={
-                    "module": MODULE_NAME,
-                    "action": "get_positions",
-                    "position_count": len(positions),
-                    "symbols": sorted(positions.keys()),
-                },
+                module=MODULE_NAME,
+                action="get_positions",
+                position_count=len(positions),
+                symbols=sorted(positions.keys()),
             )
 
             return positions
 
         except Exception as e:
-            logger.error(
+            log_with_context(
+                logger,
+                logging.ERROR,
                 f"Failed to retrieve positions: {e}",
-                extra={
-                    "module": MODULE_NAME,
-                    "action": "get_positions",
-                    "error": str(e),
-                },
+                module=MODULE_NAME,
+                action="get_positions",
+                error=str(e),
             )
             raise
 
@@ -113,13 +114,13 @@ class AlpacaDataAdapter:
         if not symbols:
             return {}
 
-        logger.debug(
+        log_with_context(
+            logger,
+            logging.DEBUG,
             f"Fetching current prices for {len(symbols)} symbols",
-            extra={
-                "module": MODULE_NAME,
-                "action": "get_current_prices",
-                "symbols": sorted(symbols),
-            },
+            module=MODULE_NAME,
+            action="get_current_prices",
+            symbols=sorted(symbols),
         )
 
         try:
@@ -137,25 +138,25 @@ class AlpacaDataAdapter:
 
                 prices[symbol_upper] = Decimal(str(raw_price))
 
-            logger.debug(
+            log_with_context(
+                logger,
+                logging.DEBUG,
                 f"Retrieved prices for {len(prices)} symbols",
-                extra={
-                    "module": MODULE_NAME,
-                    "action": "get_current_prices",
-                    "symbol_count": len(prices),
-                },
+                module=MODULE_NAME,
+                action="get_current_prices",
+                symbol_count=len(prices),
             )
 
             return prices
 
         except Exception as e:
-            logger.error(
+            log_with_context(
+                logger,
+                logging.ERROR,
                 f"Failed to retrieve prices: {e}",
-                extra={
-                    "module": MODULE_NAME,
-                    "action": "get_current_prices",
-                    "error": str(e),
-                },
+                module=MODULE_NAME,
+                action="get_current_prices",
+                error=str(e),
             )
             raise
 
@@ -169,12 +170,12 @@ class AlpacaDataAdapter:
             Exception: If account data cannot be retrieved
 
         """
-        logger.debug(
+        log_with_context(
+            logger,
+            logging.DEBUG,
             "Fetching account cash balance",
-            extra={
-                "module": MODULE_NAME,
-                "action": "get_account_cash",
-            },
+            module=MODULE_NAME,
+            action="get_account_cash",
         )
 
         try:
@@ -187,24 +188,24 @@ class AlpacaDataAdapter:
                 raise RuntimeError("Cash information not available in account")
             cash = Decimal(str(cash_value))
 
-            logger.debug(
+            log_with_context(
+                logger,
+                logging.DEBUG,
                 f"Retrieved cash balance: ${cash}",
-                extra={
-                    "module": MODULE_NAME,
-                    "action": "get_account_cash",
-                    "cash_balance": str(cash),
-                },
+                module=MODULE_NAME,
+                action="get_account_cash",
+                cash_balance=str(cash),
             )
 
             return cash
 
         except Exception as e:
-            logger.error(
+            log_with_context(
+                logger,
+                logging.ERROR,
                 f"Failed to retrieve cash balance: {e}",
-                extra={
-                    "module": MODULE_NAME,
-                    "action": "get_account_cash",
-                    "error": str(e),
-                },
+                module=MODULE_NAME,
+                action="get_account_cash",
+                error=str(e),
             )
             raise

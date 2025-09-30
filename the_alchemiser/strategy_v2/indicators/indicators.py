@@ -45,7 +45,9 @@ class TechnicalIndicators:
     @staticmethod
     def rsi(
         data: pd.Series, window: int = 14
-    ) -> pd.Series:  # Enhanced: Ready for IndicatorData structured output in future phases
+    ) -> (
+        pd.Series
+    ):  # Enhanced: Ready for IndicatorData structured output in future phases
         """Calculate RSI using Wilder's smoothing method.
 
         Computes the Relative Strength Index (RSI) using Wilder's smoothing
@@ -236,6 +238,8 @@ class TechnicalIndicators:
                 drawdowns = (x / roll_max) - 1.0
                 return float(-drawdowns.min() * 100.0)
 
-            return data.rolling(window=window, min_periods=window).apply(mdd_window, raw=False)
+            return data.rolling(window=window, min_periods=window).apply(
+                mdd_window, raw=False
+            )
         except Exception:
             return pd.Series([0] * len(data), index=data.index)

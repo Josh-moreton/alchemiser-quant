@@ -7,12 +7,13 @@ Core rebalance plan calculator for translating strategy allocations into trade p
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.config.config import load_settings
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging.logging_utils import get_logger, log_with_context
 from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
     RebalancePlanItem,
@@ -60,15 +61,15 @@ class RebalancePlanCalculator:
             PortfolioError: If plan cannot be calculated
 
         """
-        logger.info(
+        log_with_context(
+            logger,
+            logging.INFO,
             "Building rebalance plan",
-            extra={
-                "module": MODULE_NAME,
-                "action": "build_plan",
-                "correlation_id": correlation_id,
-                "target_symbols": sorted(strategy.target_weights.keys()),
-                "portfolio_value": str(snapshot.total_value),
-            },
+            module=MODULE_NAME,
+            action="build_plan",
+            correlation_id=correlation_id,
+            target_symbols=sorted(strategy.target_weights.keys()),
+            portfolio_value=str(snapshot.total_value),
         )
 
         try:
@@ -137,28 +138,28 @@ class RebalancePlanCalculator:
                 },
             )
 
-            logger.info(
+            log_with_context(
+                logger,
+                logging.INFO,
                 "Rebalance plan built successfully",
-                extra={
-                    "module": MODULE_NAME,
-                    "action": "build_plan",
-                    "correlation_id": correlation_id,
-                    "item_count": len(trade_items),
-                    "total_trade_value": str(total_trade_value),
-                },
+                module=MODULE_NAME,
+                action="build_plan",
+                correlation_id=correlation_id,
+                item_count=len(trade_items),
+                total_trade_value=str(total_trade_value),
             )
 
             return plan
 
         except Exception as e:
-            logger.error(
+            log_with_context(
+                logger,
+                logging.ERROR,
                 f"Failed to build rebalance plan: {e}",
-                extra={
-                    "module": MODULE_NAME,
-                    "action": "build_plan",
-                    "correlation_id": correlation_id,
-                    "error": str(e),
-                },
+                module=MODULE_NAME,
+                action="build_plan",
+                correlation_id=correlation_id,
+                error=str(e),
             )
             raise PortfolioError(f"Failed to build rebalance plan: {e}") from e
 
