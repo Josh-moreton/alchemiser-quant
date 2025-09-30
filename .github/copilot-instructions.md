@@ -13,48 +13,48 @@
 - Each file/module has one clear purpose. No mixing concerns (e.g. DB, HTTP, trading logic in one file).
 
 ### 2. File Size Discipline
-- Target **≤ 500 lines per module**.  
+- Target **≤ 500 lines per module**.
 - Split when **> 800 lines** or **> 20 functions/classes**.
 
 ### 3. Function/Method Size
-- **≤ 50 lines** per function (aim 10–30).  
+- **≤ 50 lines** per function (aim 10–30).
 - **≤ 5 parameters** (excluding `self`). Extract objects/params if exceeded.
 
 ### 4. Complexity
-- Cyclomatic complexity **≤ 10** per function (radon/mccabe).  
+- Cyclomatic complexity **≤ 10** per function (radon/mccabe).
 - Cognitive complexity **≤ 15**. Flatten nesting; early returns preferred.
 
 ### 5. Naming & Cohesion
-- Group related code into purposeful modules (e.g. `data_parsers.py`, `risk_controls.py`).  
+- Group related code into purposeful modules (e.g. `data_parsers.py`, `risk_controls.py`).
 - Ban `misc.py`, `helpers.py`, and grab-bag modules.
 
 ### 6. Imports
-- No `from x import *`.  
-- Order: stdlib → third-party → local; keep import sections separated.  
+- No `from x import *`.
+- Order: stdlib → third-party → local; keep import sections separated.
 - Absolute imports inside business modules; no deep relative spelunking.
 
 ### 7. Tests
-- Every public function/class has at least one test.  
-- Mirror source structure (`tests/test_<module>.py`).  
-- Include **property-based tests** (Hypothesis) for critical maths/strategies.  
+- Every public function/class has at least one test.
+- Mirror source structure (`tests/test_<module>.py`).
+- Include **property-based tests** (Hypothesis) for critical maths/strategies.
 - Deterministic tests: freeze time and seed RNG (`random`, `numpy`).
 
 ### 8. Error Handling
-- No silent `except`. Catch narrow exceptions; re-raise as module-specific errors from `shared.errors`.  
+- No silent `except`. Catch narrow exceptions; re-raise as module-specific errors from `shared.errors`.
 - Retries for I/O with bounded backoff; no infinite loops.
 
 ### 9. Documentation
-- Docstrings on all public APIs (purpose, args, returns, raises, examples).  
+- Docstrings on all public APIs (purpose, args, returns, raises, examples).
 - Module docstring explains responsibility and invariants.
 
 ### 10. No Hardcoding
-- No magic numbers/paths/secrets in code.  
+- No magic numbers/paths/secrets in code.
 - Use constants, config, or environment variables; 12-factor friendly.
 
 ## Architecture boundaries
 - Business modules under `the_alchemiser/`: `strategy_v2`, `portfolio_v2`, `execution_v2`, `orchestration`, `shared`.
-- Allowed imports: business modules → `shared`.  
-- Orchestrators may import business **APIs via their `__init__`** only.  
+- Allowed imports: business modules → `shared`.
+- Orchestrators may import business **APIs via their `__init__`** only.
 - **No cross business-module imports** or deep path imports.
 - Shared utilities live in `shared/` and **must have zero** dependencies on business modules.
 - Event contracts and schemas: `shared/events`, `shared/schemas` (extend, don’t duplicate).
@@ -71,51 +71,51 @@
 - Event serialisation uses `.model_dump()`. Add deterministic idempotency keys (hash of DTO payload + schema version) where dedupe is required.
 
 ## Security & compliance
-- **No secrets in code or logs.** Redact tokens, API keys, account IDs.  
-- Validate all external data at boundaries with DTOs (fail-closed).  
-- Forbid `eval`, dynamic `exec`, and unvetted dynamic imports.  
-- Use least privilege for AWS Lambda roles; environment variable allow-list in config loader.  
+- **No secrets in code or logs.** Redact tokens, API keys, account IDs.
+- Validate all external data at boundaries with DTOs (fail-closed).
+- Forbid `eval`, dynamic `exec`, and unvetted dynamic imports.
+- Use least privilege for AWS Lambda roles; environment variable allow-list in config loader.
 - Run static analysis (`bandit`) and secret scanning (`gitleaks`) in CI.
 
 ## Data & time-series discipline
-- Money: `Decimal` with explicit contexts; never mix with float.  
-- Market data: indexing is by `UTC` timestamps; always timezone-aware (`datetime.timezone.utc`).  
-- Avoid in-place Pandas mutations in domain logic; prefer pure transforms returning new frames/series.  
-- Vectorise hot paths; avoid Python loops over rows.  
+- Money: `Decimal` with explicit contexts; never mix with float.
+- Market data: indexing is by `UTC` timestamps; always timezone-aware (`datetime.timezone.utc`).
+- Avoid in-place Pandas mutations in domain logic; prefer pure transforms returning new frames/series.
+- Vectorise hot paths; avoid Python loops over rows.
 - Handle missing data explicitly (forward-fill/back-fill rules documented at call-site).
 
 ## Concurrency & I/O
-- I/O boundaries are **async** where possible; pure computation stays sync.  
-- No hidden I/O in strategies/portfolio logic; all side-effects live in adapters.  
+- I/O boundaries are **async** where possible; pure computation stays sync.
+- No hidden I/O in strategies/portfolio logic; all side-effects live in adapters.
 - Centralise HTTP sessions/clients; respect rate limits; backoff with jitter.
 
 ## Developer workflows
-- Install: `poetry install` (or `make dev` for optional groups).  
-- Format/lint/type-check: `make format && make type-check`.  
-- Type-check only: `make type-check`.  
-- Import boundaries: `poetry run importlinter --config pyproject.toml`.  
-- Local trading: `poetry run python -m the_alchemiser` (paper/live via config).  
+- Install: `poetry install` (or `make dev` for optional groups).
+- Format/lint/type-check: `make format && make type-check`.
+- Type-check only: `make type-check`.
+- Import boundaries: `poetry run importlinter --config pyproject.toml`.
+- Local trading: `poetry run python -m the_alchemiser` (paper/live via config).
 - Deploy (AWS Lambda): `make deploy` → `scripts/deploy.sh`.
 
 ## Observability
-- Use `shared.logging` for structured JSON logs; include `module`, `event_id`, `correlation_id`, and key business facts (symbol, qty, price).  
+- Use `shared.logging` for structured JSON logs; include `module`, `event_id`, `correlation_id`, and key business facts (symbol, qty, price).
 - Emit one log line per state change; avoid noisy debug spam in hot loops.
 
 ## Pull request & CI gates
-- CI must pass: format, lint, type, imports, security (bandit), secrets (gitleaks), tests.  
-- Max PR size: **~400 lines diff** unless refactor flagged with `#refactor` label.  
-- No failing or skipped tests on `main`.  
+- CI must pass: format, lint, type, imports, security (bandit), secrets (gitleaks), tests.
+- Max PR size: **~400 lines diff** unless refactor flagged with `#refactor` label.
+- No failing or skipped tests on `main`.
 - Lockfile changes justified in PR description.
 
 ## Hard limits (enforced targets)
-- **Module lines:** ≤ 500 (soft), split at > 800.  
-- **Function lines:** ≤ 50. **Params:** ≤ 5.  
-- **Cyclomatic complexity:** ≤ 10. **Cognitive:** ≤ 15.  
-- **Public API test coverage:** ≥ 90% for strategy/portfolio; ≥ 80% overall until raised.  
+- **Module lines:** ≤ 500 (soft), split at > 800.
+- **Function lines:** ≤ 50. **Params:** ≤ 5.
+- **Cyclomatic complexity:** ≤ 10. **Cognitive:** ≤ 15.
+- **Public API test coverage:** ≥ 90% for strategy/portfolio; ≥ 80% overall until raised.
 - **Latency budgets:** adapter calls must expose timeouts; no call without a timeout.
 
 ## Implementation tips
-- Use `shared.logging` and `shared.errors`; never catch `Exception` without re-raising a typed error.  
-- Keep handlers stateless; persistent state lives in module-owned stores (`shared/persistence`).  
-- Follow module READMEs (`strategy_v2/README.md`, `portfolio_v2/README.md`, …) for migration status before moving code.  
+- Use `shared.logging` and `shared.errors`; never catch `Exception` without re-raising a typed error.
+- Keep handlers stateless; state is managed via Alpaca API for P&L tracking.
+- Follow module READMEs (`strategy_v2/README.md`, `portfolio_v2/README.md`, …) for migration status before moving code.
 - When responsibility is unclear, map it to a business unit above **before** writing code.
