@@ -158,7 +158,9 @@ class TestRebalancePlanCalculator:
 
         # Should be able to buy fractional shares
         aapl_item = next(item for item in plan.items if item.symbol == "AAPL")
-        assert aapl_item.target_value == Decimal("990.00")  # 1000 * (1 - 0.01 cash reserve)
+        assert aapl_item.target_value == Decimal(
+            "990.00"
+        )  # 1000 * (1 - 0.01 cash reserve)
         # For fractionable assets, quantity can be fractional
 
     def test_quantity_calculation_non_fractional_assets(self, calculator):
@@ -181,7 +183,9 @@ class TestRebalancePlanCalculator:
 
         # Should handle whole share requirements
         googl_item = next(item for item in plan.items if item.symbol == "GOOGL")
-        assert googl_item.target_value == Decimal("990.00")  # 1000 * (1 - 0.01 cash reserve)
+        assert googl_item.target_value == Decimal(
+            "990.00"
+        )  # 1000 * (1 - 0.01 cash reserve)
         # For non-fractionable assets, quantities should be whole numbers
 
     def test_rebalance_determines_correct_actions(
