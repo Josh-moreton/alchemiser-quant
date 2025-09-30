@@ -28,6 +28,8 @@ from typing import Protocol
 from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.logging.logging_utils import get_logger
 
+logger = get_logger(__name__)
+
 # Note: Phase 12 - Types earmarked for future migration to structured trading calculations
 # from the_alchemiser.shared.value_objects.core_types import BacktestResult, PerformanceMetrics, TradeAnalysis
 
@@ -216,12 +218,12 @@ def _log_rebalance_summary(
 
     """
     # Add comprehensive summary logging
-    logging.info("=== REBALANCE CALCULATION SUMMARY ===")
-    logging.info(f"Total symbols processed: {len(all_symbols)}")
-    logging.info(f"Symbols needing rebalance: {symbols_needing_rebalance}")
-    logging.info(f"Symbols NOT needing rebalance: {len(all_symbols) - symbols_needing_rebalance}")
-    logging.info(f"Threshold used: {min_trade_threshold:.4f} ({min_trade_threshold * 100:.1f}%)")
-    logging.info(f"Portfolio value: ${total_portfolio_value:,.2f}")
+    logger.info("=== REBALANCE CALCULATION SUMMARY ===")
+    logger.info(f"Total symbols processed: {len(all_symbols)}")
+    logger.info(f"Symbols needing rebalance: {symbols_needing_rebalance}")
+    logger.info(f"Symbols NOT needing rebalance: {len(all_symbols) - symbols_needing_rebalance}")
+    logger.info(f"Threshold used: {min_trade_threshold:.4f} ({min_trade_threshold * 100:.1f}%)")
+    logger.info(f"Portfolio value: ${total_portfolio_value:,.2f}")
 
     # Log which symbols need rebalancing
     symbols_to_rebalance = [
@@ -232,14 +234,14 @@ def _log_rebalance_summary(
     ]
 
     if symbols_to_rebalance:
-        logging.info(f"Symbols TO REBALANCE: {symbols_to_rebalance}")
+        logger.info(f"Symbols TO REBALANCE: {symbols_to_rebalance}")
     else:
-        logging.warning(
+        logger.warning(
             "NO SYMBOLS NEED REBALANCING - portfolio already balanced or all diffs below threshold"
         )
 
     if symbols_to_skip:
-        logging.info(f"Symbols to SKIP (below threshold): {symbols_to_skip}")
+        logger.info(f"Symbols to SKIP (below threshold): {symbols_to_skip}")
 
     logger.debug(
         f"Rebalance calculation complete: {symbols_needing_rebalance}/{len(all_symbols)} symbols need rebalancing"

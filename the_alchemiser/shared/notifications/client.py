@@ -8,16 +8,18 @@ Replaces the `send_email_notification` function from the original email_utils.py
 
 from __future__ import annotations
 
-import logging
 import smtplib
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.reporting import EmailCredentials
 
 from .config import EmailConfig
+
+logger = get_logger(__name__)
 
 
 class EmailClient:
@@ -57,7 +59,7 @@ class EmailClient:
         """
         email_config = self._get_config()
         if not email_config:
-            logging.warning("Email configuration not available - skipping email notification")
+            logger.warning("Email configuration not available - skipping email notification")
             return False
 
         smtp_server = email_config["smtp_server"]
@@ -68,7 +70,7 @@ class EmailClient:
 
         recipient = recipient_email or default_recipient
         if not recipient:
-            logging.error("No recipient email configured")
+            logger.error("No recipient email configured")
             return False
 
         try:
@@ -102,11 +104,11 @@ class EmailClient:
                 server.login(from_email, email_password)
                 server.send_message(msg)
 
-            logging.info(f"Email notification sent successfully to {recipient}")
+            logger.info(f"Email notification sent successfully to {recipient}")
             return True
 
         except Exception as e:
-            logging.error(f"Failed to send email notification: {e}")
+            logger.error(f"Failed to send email notification: {e}")
             return False
 
     def send_plain_text(

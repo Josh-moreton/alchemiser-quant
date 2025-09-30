@@ -183,6 +183,9 @@ except ImportError:
 # Define FlexibleContext after ErrorContextData is available
 FlexibleContext = ErrorContextData | ErrorData | None
 
+# Module-level logger
+logger = get_logger(__name__)
+
 
 class ErrorSeverity:
     """Error severity levels for production monitoring."""
@@ -815,7 +818,7 @@ def _send_error_notification_via_events(event_bus: EventBus) -> ErrorNotificatio
 
     import logging
 
-    logging.getLogger(__name__).info("Error notification event published successfully")
+    logger.info("Error notification event published successfully")
     return notification_data
 
 
@@ -841,7 +844,7 @@ def _handle_final_retry_attempt(exception: Exception, max_retries: int, func_nam
     """Handle the final retry attempt by adding context and logging."""
     if hasattr(exception, "retry_count"):
         exception.retry_count = max_retries
-    logging.error(f"Function {func_name} failed after {max_retries} retries: {exception}")
+    logger.error(f"Function {func_name} failed after {max_retries} retries: {exception}")
 
 
 def retry_with_backoff(
@@ -887,7 +890,7 @@ def retry_with_backoff(
                         attempt, base_delay, backoff_factor, max_delay, jitter=jitter
                     )
 
-                    logging.warning(
+                    logger.warning(
                         f"Attempt {attempt + 1}/{max_retries + 1} failed for {func.__name__}: {e}. "
                         f"Retrying in {delay:.2f}s..."
                     )
@@ -949,14 +952,14 @@ class CircuitBreaker:
                         f"Retry after {self.timeout}s timeout."
                     )
                 self.state = "HALF_OPEN"
-                logging.info(f"Circuit breaker moving to HALF_OPEN for {func.__name__}")
+                logger.info(f"Circuit breaker moving to HALF_OPEN for {func.__name__}")
 
             try:
                 result = func(*args, **kwargs)
                 if self.state == "HALF_OPEN":
                     self.state = "CLOSED"
                     self.failure_count = 0
-                    logging.info(f"Circuit breaker CLOSED for {func.__name__}")
+                    logger.info(f"Circuit breaker CLOSED for {func.__name__}")
                 return result
             except self.expected_exception:
                 self.failure_count += 1
@@ -964,7 +967,7 @@ class CircuitBreaker:
 
                 if self.failure_count >= self.failure_threshold:
                     self.state = "OPEN"
-                    logging.warning(
+                    logger.warning(
                         f"Circuit breaker OPENED for {func.__name__} after "
                         f"{self.failure_count} failures"
                     )
@@ -1088,7 +1091,7 @@ class EnhancedErrorReporter:
         error_rate = len(self.recent_errors) / (self.error_rate_window / 60)  # errors per minute
 
         if error_rate > 10:  # More than 10 errors per minute
-            logging.warning(f"High error rate detected: {error_rate:.1f} errors/minute")
+            logger.warning(f"High error rate detected: {error_rate:.1f} errors/minute")
 
     def get_error_summary(self) -> dict[str, Any]:
         """Get summary of recent errors for dashboard."""

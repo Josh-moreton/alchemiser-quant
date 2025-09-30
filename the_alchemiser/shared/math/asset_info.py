@@ -11,9 +11,12 @@ This module now uses the AssetMetadataProvider protocol to avoid infrastructure 
 
 from __future__ import annotations
 
-import logging
 from enum import Enum
 from typing import TYPE_CHECKING
+
+from the_alchemiser.shared.logging.logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.protocols.asset_metadata import AssetMetadataProvider
@@ -71,11 +74,11 @@ class FractionabilityDetector:
 
             symbol_obj = Symbol(symbol)
             fractionable = self.asset_metadata_provider.is_fractionable(symbol_obj)
-            logging.debug(f"📡 Provider: {symbol} fractionable = {fractionable}")
+            logger.debug(f"📡 Provider: {symbol} fractionable = {fractionable}")
             return fractionable
 
         except Exception as e:
-            logging.warning(f"⚠️ Provider error for {symbol}: {e}")
+            logger.warning(f"⚠️ Provider error for {symbol}: {e}")
             return None
 
     def is_fractionable(self, symbol: str, *, use_cache: bool = True) -> bool:
@@ -94,7 +97,7 @@ class FractionabilityDetector:
         # Check cache first
         if use_cache and symbol in self._fractionability_cache:
             cached_result = self._fractionability_cache[symbol]
-            logging.debug(f"📋 Cache hit: {symbol} fractionable = {cached_result}")
+            logger.debug(f"📋 Cache hit: {symbol} fractionable = {cached_result}")
             return cached_result
 
         # Query provider for authoritative answer
@@ -106,7 +109,7 @@ class FractionabilityDetector:
             return provider_result
 
         # Fallback to backup prediction if provider unavailable
-        logging.info(f"🔄 Using fallback prediction for {symbol} (provider unavailable)")
+        logger.info(f"🔄 Using fallback prediction for {symbol} (provider unavailable)")
         fallback_result = self._fallback_fractionability_prediction(symbol)
 
         # Cache the fallback result with a warning
@@ -213,7 +216,7 @@ class FractionabilityDetector:
         if used_rounding:
             original_value = quantity * current_price
             new_value = whole_shares * current_price
-            logging.info(
+            logger.info(
                 f"🔄 Provider-confirmed non-fractionable {symbol}: {quantity:.6f} → {whole_shares} shares "
                 f"(${original_value:.2f} → ${new_value:.2f})"
             )
