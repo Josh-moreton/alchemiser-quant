@@ -61,8 +61,7 @@ class PhaseExecutor:
             Callable[[RebalancePlanItem], Awaitable[OrderResult]] | None
         ) = None,
         monitor_orders_callback: (
-            Callable[[str, list[OrderResult], str | None], Awaitable[list[OrderResult]]]
-            | None
+            Callable[[str, list[OrderResult], str | None], Awaitable[list[OrderResult]]] | None
         ) = None,
         finalize_orders_callback: (
             Callable[..., tuple[list[OrderResult], int, Decimal]] | None
@@ -95,20 +94,14 @@ class PhaseExecutor:
             placed += 1
 
             if order_result.order_id:
-                logger.info(
-                    f"🧾 SELL {item.symbol} order placed (ID: {order_result.order_id})"
-                )
+                logger.info(f"🧾 SELL {item.symbol} order placed (ID: {order_result.order_id})")
             elif not order_result.success:
                 logger.error(
                     f"❌ SELL {item.symbol} placement failed: {order_result.error_message}"
                 )
 
         # Monitor and re-peg sell orders that haven't filled and await completion
-        if (
-            monitor_orders_callback
-            and self.smart_strategy
-            and self.enable_smart_execution
-        ):
+        if monitor_orders_callback and self.smart_strategy and self.enable_smart_execution:
             logger.info("🔄 Monitoring SELL orders for re-pegging opportunities...")
             orders = await monitor_orders_callback("SELL", orders, correlation_id)
 
@@ -132,8 +125,7 @@ class PhaseExecutor:
             Callable[[RebalancePlanItem], Awaitable[OrderResult]] | None
         ) = None,
         monitor_orders_callback: (
-            Callable[[str, list[OrderResult], str | None], Awaitable[list[OrderResult]]]
-            | None
+            Callable[[str, list[OrderResult], str | None], Awaitable[list[OrderResult]]] | None
         ) = None,
         finalize_orders_callback: (
             Callable[..., tuple[list[OrderResult], int, Decimal]] | None
@@ -171,20 +163,12 @@ class PhaseExecutor:
             placed += 1
 
             if order_result.order_id:
-                logger.info(
-                    f"🧾 BUY {item.symbol} order placed (ID: {order_result.order_id})"
-                )
+                logger.info(f"🧾 BUY {item.symbol} order placed (ID: {order_result.order_id})")
             elif not order_result.success:
-                logger.error(
-                    f"❌ BUY {item.symbol} placement failed: {order_result.error_message}"
-                )
+                logger.error(f"❌ BUY {item.symbol} placement failed: {order_result.error_message}")
 
         # Monitor and re-peg buy orders that haven't filled and await completion
-        if (
-            monitor_orders_callback
-            and self.smart_strategy
-            and self.enable_smart_execution
-        ):
+        if monitor_orders_callback and self.smart_strategy and self.enable_smart_execution:
             logger.info("🔄 Monitoring BUY orders for re-pegging opportunities...")
             orders = await monitor_orders_callback("BUY", orders, correlation_id)
 
@@ -218,9 +202,7 @@ class PhaseExecutor:
                 if self.position_utils
                 else Decimal("0")
             ) or Decimal("0")
-            est_shares = (
-                abs(item.trade_amount) / est_price if est_price > 0 else Decimal("0")
-            )
+            est_shares = abs(item.trade_amount) / est_price if est_price > 0 else Decimal("0")
             if asset_info and asset_info.fractionable:
                 est_notional = (est_shares * est_price).quantize(Decimal("0.01"))
                 if est_notional < min_notional:
@@ -271,9 +253,7 @@ class PhaseExecutor:
                     else Decimal("0")
                 )
                 shares = (
-                    self.position_utils.adjust_quantity_for_fractionability(
-                        item.symbol, raw_shares
-                    )
+                    self.position_utils.adjust_quantity_for_fractionability(item.symbol, raw_shares)
                     if self.position_utils
                     else raw_shares.quantize(Decimal("1"), rounding=ROUND_DOWN)
                 )
@@ -290,9 +270,7 @@ class PhaseExecutor:
                 if price is None or price <= Decimal("0"):
                     # Safety fallback to 1 share if price discovery fails
                     shares = Decimal("1")
-                    logger.warning(
-                        f"⚠️ Price unavailable for {item.symbol}; defaulting to 1 share"
-                    )
+                    logger.warning(f"⚠️ Price unavailable for {item.symbol}; defaulting to 1 share")
                 else:
                     raw_shares = abs(item.trade_amount) / price
                     shares = (
@@ -303,9 +281,7 @@ class PhaseExecutor:
                         else raw_shares.quantize(Decimal("1"), rounding=ROUND_DOWN)
                     )
 
-                amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(
-                    Decimal("0.01")
-                )
+                amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
                 logger.info(
                     f"📊 Executing {item.action} for {item.symbol}: "
                     f"${amount_fmt} (estimated {shares} shares)"
