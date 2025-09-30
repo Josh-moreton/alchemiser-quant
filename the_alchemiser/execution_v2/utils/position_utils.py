@@ -73,7 +73,9 @@ class PositionUtils:
         if not symbols:
             return {}
 
-        logger.info(f"📡 Bulk subscribing to {len(symbols)} symbols for real-time pricing")
+        logger.info(
+            f"📡 Bulk subscribing to {len(symbols)} symbols for real-time pricing"
+        )
 
         # Use the enhanced bulk subscription method
         subscription_results = self.pricing_service.bulk_subscribe_symbols(
@@ -81,7 +83,9 @@ class PositionUtils:
             priority=5.0,  # High priority for execution
         )
 
-        successful_subscriptions = sum(1 for success in subscription_results.values() if success)
+        successful_subscriptions = sum(
+            1 for success in subscription_results.values() if success
+        )
         logger.info(
             f"✅ Bulk subscription complete: {successful_subscriptions}/{len(symbols)} "
             "symbols subscribed"
@@ -125,12 +129,20 @@ class PositionUtils:
         if self.pricing_service and self.enable_smart_execution:
             try:
                 quote = self.pricing_service.get_quote_data(symbol)
-                if quote and hasattr(quote, "bid_price") and hasattr(quote, "ask_price"):
+                if (
+                    quote
+                    and hasattr(quote, "bid_price")
+                    and hasattr(quote, "ask_price")
+                ):
                     bid = quote.bid_price
                     ask = quote.ask_price
                     if bid and ask and bid > 0 and ask > 0:
-                        mid_price = (Decimal(str(bid)) + Decimal(str(ask))) / Decimal("2")
-                        logger.debug(f"💰 Real-time price for {symbol}: ${mid_price:.2f}")
+                        mid_price = (Decimal(str(bid)) + Decimal(str(ask))) / Decimal(
+                            "2"
+                        )
+                        logger.debug(
+                            f"💰 Real-time price for {symbol}: ${mid_price:.2f}"
+                        )
                         return mid_price
             except Exception as exc:
                 logger.debug(f"Could not get real-time price for {symbol}: {exc}")
@@ -147,7 +159,9 @@ class PositionUtils:
 
         return None
 
-    def adjust_quantity_for_fractionability(self, symbol: str, raw_quantity: Decimal) -> Decimal:
+    def adjust_quantity_for_fractionability(
+        self, symbol: str, raw_quantity: Decimal
+    ) -> Decimal:
         """Adjust quantity based on whether the symbol supports fractional shares.
 
         Args:
@@ -172,7 +186,9 @@ class PositionUtils:
                 return adjusted_quantity
             # Round down to whole shares
             adjusted_quantity = raw_quantity.quantize(Decimal("1"), rounding=ROUND_DOWN)
-            logger.debug(f"📊 {symbol}: whole shares only, quantity={adjusted_quantity}")
+            logger.debug(
+                f"📊 {symbol}: whole shares only, quantity={adjusted_quantity}"
+            )
             return adjusted_quantity
 
         except Exception as exc:
