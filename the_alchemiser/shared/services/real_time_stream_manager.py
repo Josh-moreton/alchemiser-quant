@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.brokers.alpaca_utils import create_stock_data_stream
@@ -36,8 +36,8 @@ class RealTimeStreamManager:
         api_key: str,
         secret_key: str,
         feed: str = "iex",
-        on_quote: Callable[[AlpacaQuoteData], None] | None = None,
-        on_trade: Callable[[AlpacaTradeData], None] | None = None,
+        on_quote: Callable[[AlpacaQuoteData], Awaitable[None]] | None = None,
+        on_trade: Callable[[AlpacaTradeData], Awaitable[None]] | None = None,
     ) -> None:
         """Initialize the stream manager.
 

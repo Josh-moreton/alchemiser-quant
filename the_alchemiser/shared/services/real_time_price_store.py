@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import threading
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -53,7 +54,7 @@ class RealTimePriceStore:
 
         self.logger = get_logger(__name__)
 
-    def start_cleanup(self, is_connected_callback: callable) -> None:
+    def start_cleanup(self, is_connected_callback: Callable[[], bool]) -> None:
         """Start the cleanup thread.
 
         Args:
@@ -304,7 +305,7 @@ class RealTimePriceStore:
     def get_optimized_price_for_order(
         self,
         symbol: str,
-        subscribe_callback: callable,
+        subscribe_callback: Callable[[str], None],
         max_wait: float = 0.5,
     ) -> float | None:
         """Get the most accurate price for order placement.

@@ -190,7 +190,9 @@ class RealTimePricingService:
 
             # Start the stream
             result = self._stream_manager.start(
-                get_symbols_callback=self._subscription_manager.get_subscribed_symbols
+                get_symbols_callback=lambda: list(
+                    self._subscription_manager.get_subscribed_symbols()
+                )
             )
 
             if result:
@@ -462,7 +464,7 @@ class RealTimePricingService:
         if priority is None:
             priority = time.time()
 
-        needs_restart, was_added = self._subscription_manager.subscribe_symbol(symbol, priority)
+        needs_restart, _ = self._subscription_manager.subscribe_symbol(symbol, priority)
 
         if needs_restart and self.is_connected() and self._stream_manager:
             self.logger.info(f"🔄 Restarting stream to add subscription for {symbol}")

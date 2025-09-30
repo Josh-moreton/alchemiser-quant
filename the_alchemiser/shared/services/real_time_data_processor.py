@@ -112,7 +112,15 @@ class RealTimeDataProcessor:
             timestamp_raw = trade.timestamp
 
         timestamp = self.get_trade_timestamp(timestamp_raw)
-        return float(price), volume, timestamp
+        # Convert volume to proper type
+        volume_typed: int | float | None = None
+        if volume is not None:
+            try:
+                volume_typed = float(volume) if isinstance(volume, (str, int, float)) else None
+            except (ValueError, TypeError):
+                volume_typed = None
+
+        return float(price), volume_typed, timestamp
 
     def get_quote_timestamp(self, timestamp_raw: datetime | None) -> datetime:
         """Ensure timestamp is a datetime for quotes.
@@ -126,7 +134,7 @@ class RealTimeDataProcessor:
         """
         return timestamp_raw if isinstance(timestamp_raw, datetime) else datetime.now(UTC)
 
-    def get_trade_timestamp(self, timestamp_raw: datetime | str | None) -> datetime:
+    def get_trade_timestamp(self, timestamp_raw: datetime | str | float | int | None) -> datetime:
         """Ensure timestamp is a datetime for trades.
 
         Args:
