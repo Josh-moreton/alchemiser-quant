@@ -815,7 +815,6 @@ def _send_error_notification_via_events(event_bus: EventBus) -> ErrorNotificatio
         "event_id": error_event.event_id,
     }
 
-
     logger.info("Error notification event published successfully")
     return notification_data
 
