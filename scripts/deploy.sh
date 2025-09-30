@@ -111,7 +111,7 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         [[ -z "${STRATEGY_DSL_FILES:-}" ]] && STRATEGY_DSL_FILES="$(grep -E '^STRATEGY__DSL_FILES=' "$f" | tail -n1 | sed -E 's/^STRATEGY__DSL_FILES=(.*)$/\1/')" || true
         [[ -z "${STRATEGY_DSL_ALLOCATIONS:-}" ]] && STRATEGY_DSL_ALLOCATIONS="$(grep -E '^STRATEGY__DSL_ALLOCATIONS=' "$f" | tail -n1 | sed -E 's/^STRATEGY__DSL_ALLOCATIONS=(.*)$/\1/')" || true
     }
-    for SECRETS_FILE in dev.secrets ../.env.dev ../.env.local ../.env; do
+    for SECRETS_FILE in scripts/dev.secrets .env.dev .env.local .env; do
         load_from_file "$SECRETS_FILE"
     done
 
@@ -131,6 +131,7 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         --config-env "$ENVIRONMENT" \
         --parameter-overrides \
             Stage=dev \
+            TradeLedgerBucketName=the-alchemiser-v2-s3-dev \
             AlpacaKey="$ALPACA_KEY" \
             AlpacaSecret="$ALPACA_SECRET" \
             AlpacaEndpoint="$ALPACA_ENDPOINT_PARAM" \
@@ -153,7 +154,7 @@ else
         [[ -z "${TWELVEDATA_KEY:-}" ]] && TWELVEDATA_KEY="$(grep -E '^TWELVEDATA_KEY=' "$f" | tail -n1 | sed -E 's/^TWELVEDATA_KEY=(.*)$/\1/')" || true
     }
 
-    for SECRETS_FILE in ../.env; do
+    for SECRETS_FILE in .env; do
         load_live_from_file "$SECRETS_FILE"
     done
 
