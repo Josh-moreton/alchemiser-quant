@@ -16,7 +16,6 @@ Key Features:
 from __future__ import annotations
 
 import asyncio
-import logging
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -26,12 +25,13 @@ from the_alchemiser.shared.events import (
     OrderSettlementCompleted,
 )
 from the_alchemiser.shared.events.bus import EventBus
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class SettlementMonitor:

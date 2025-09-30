@@ -9,11 +9,11 @@ according to the error handling improvement plan.
 
 from __future__ import annotations
 
-import logging
 from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Protocol
 
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types.exceptions import (
     InsufficientFundsError,
     MarketClosedError,
@@ -37,7 +37,7 @@ class NotificationManager(Protocol):  # pragma: no cover - structural typing hel
 # Type alias for error context
 ErrorContext = dict[str, object]
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ErrorReporter:

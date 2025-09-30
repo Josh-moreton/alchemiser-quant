@@ -19,6 +19,8 @@ from datetime import UTC, datetime
 from functools import wraps
 from typing import TYPE_CHECKING, Any, TypedDict
 
+from the_alchemiser.shared.logging.logging_utils import get_logger
+
 if TYPE_CHECKING:
     from the_alchemiser.shared.events.bus import EventBus
 
@@ -329,7 +331,7 @@ class TradingSystemErrorHandler:
     def __init__(self) -> None:
         """Create a new error handler with empty history."""
         self.errors: list[ErrorDetails] = []
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
 
     def _categorize_by_exception_type(self, error: Exception) -> str | None:
         """Categorize error based purely on exception type."""

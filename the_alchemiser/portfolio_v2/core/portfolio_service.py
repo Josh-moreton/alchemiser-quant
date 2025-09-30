@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.logging.logging_utils import log_with_context
+from the_alchemiser.shared.logging.logging_utils import get_logger, log_with_context
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 from the_alchemiser.shared.types.exceptions import PortfolioError
 
@@ -22,7 +22,7 @@ from ..adapters.alpaca_data_adapter import AlpacaDataAdapter
 from .planner import RebalancePlanCalculator
 from .state_reader import PortfolioStateReader
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Module name constant for consistent logging
 MODULE_NAME = "portfolio_v2.core.portfolio_service"

@@ -15,7 +15,6 @@ Phase 3 Update: Moved to shared module to resolve architectural boundary violati
 
 from __future__ import annotations
 
-import logging
 import threading
 import time
 from datetime import UTC, datetime, timedelta
@@ -31,6 +30,7 @@ from alpaca.trading.requests import (
     MarketOrderRequest,
 )
 
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
     MarketDataRepository,
@@ -82,7 +82,7 @@ HTTPError = _HTTPErrorImported
 RequestException = _RequestExcImported
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):

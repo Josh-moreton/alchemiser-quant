@@ -9,15 +9,15 @@ consumption with batched data fetching and strategy-specific interface.
 
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.market_bar import MarketBar
 from the_alchemiser.shared.services.market_data_service import MarketDataService
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Component identifier for logging
 _COMPONENT = "strategy_v2.adapters.market_data_adapter"
@@ -52,7 +52,6 @@ class StrategyMarketDataAdapter:
 
         """
         self._alpaca = alpaca_manager
-        self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
         # Initialize MarketDataService for improved retry logic and consistent market data access
         self._market_data_service = MarketDataService(alpaca_manager)
@@ -112,19 +111,19 @@ class StrategyMarketDataAdapter:
                         market_bar = MarketBar.from_alpaca_bar(bar_dict, symbol, timeframe)
                         typed_bars.append(market_bar)
                     except ValueError as e:
-                        self._logger.warning(
+                        logger.warning(
                             f"Failed to convert bar data for {symbol}: {e}",
                             extra={"component": _COMPONENT},
                         )
                         continue
 
                 result[symbol] = typed_bars
-                self._logger.debug(
+                logger.debug(
                     f"Fetched {len(typed_bars)} bars for {symbol} "
                     f"({timeframe}, {lookback_days}d lookback)"
                 )
             except Exception as e:
-                self._logger.warning(
+                logger.warning(
                     f"Failed to fetch bars for {symbol}: {e}",
                     extra={"component": _COMPONENT},
                 )
@@ -157,12 +156,12 @@ class StrategyMarketDataAdapter:
                     # Use mid price as current price
                     mid_price = (quote["ask_price"] + quote["bid_price"]) / 2.0
                     result[symbol] = mid_price
-                    self._logger.debug(f"Current price for {symbol}: {mid_price}")
+                    logger.debug(f"Current price for {symbol}: {mid_price}")
                 else:
-                    self._logger.warning(f"No quote data for {symbol}")
+                    logger.warning(f"No quote data for {symbol}")
                     result[symbol] = 0.0
             except Exception as e:
-                self._logger.warning(
+                logger.warning(
                     f"Failed to get current price for {symbol}: {e}",
                     extra={"component": _COMPONENT},
                 )
@@ -180,7 +179,7 @@ class StrategyMarketDataAdapter:
         try:
             return self._alpaca.validate_connection()
         except Exception as e:
-            self._logger.error(
+            logger.error(
                 f"Market data connection validation failed: {e}",
                 extra={"component": _COMPONENT},
             )

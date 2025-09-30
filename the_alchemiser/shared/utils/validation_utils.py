@@ -8,11 +8,12 @@ to eliminate the duplicate __post_init__() methods identified in Priority 2.1.
 
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
 from decimal import Decimal
 
-logger = logging.getLogger(__name__)
+from the_alchemiser.shared.logging.logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 
 def validate_decimal_range(

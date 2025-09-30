@@ -10,14 +10,14 @@ This module provides environment variable loading for secrets:
 
 from __future__ import annotations
 
-import logging
 import os
 
 # Auto-load .env file into environment variables
 from the_alchemiser.shared.config import env_loader  # noqa: F401
 from the_alchemiser.shared.config.config import load_settings
+from the_alchemiser.shared.logging.logging_utils import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def get_alpaca_keys() -> tuple[str, str, str] | tuple[None, None, None]:

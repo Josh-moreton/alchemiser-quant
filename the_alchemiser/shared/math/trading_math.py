@@ -26,6 +26,7 @@ from decimal import Decimal
 from typing import Protocol
 
 from the_alchemiser.shared.config.config import load_settings
+from the_alchemiser.shared.logging.logging_utils import get_logger
 
 # Note: Phase 12 - Types earmarked for future migration to structured trading calculations
 # from the_alchemiser.shared.value_objects.core_types import BacktestResult, PerformanceMetrics, TradeAnalysis
@@ -681,9 +682,8 @@ def calculate_rebalance_amounts(
         current_values but not both. Missing positions are treated as 0.0.
 
     """
-    import logging
 
-    logger = logging.getLogger(__name__)
+    logger = get_logger(__name__)
 
     # === TRADING_MATH ENTRY POINT LOGGING ===
     logger.info("=== TRADING_MATH: CALCULATE_REBALANCE_AMOUNTS ===")

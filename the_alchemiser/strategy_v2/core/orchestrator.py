@@ -10,17 +10,17 @@ strategy engines and converting their outputs to StrategyAllocation.
 
 from __future__ import annotations
 
-import logging
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 
 from ..adapters.market_data_adapter import StrategyMarketDataAdapter
 from ..models.context import StrategyContext
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Constants for repeated literals
 ORCHESTRATOR_COMPONENT = "strategy_v2.core.orchestrator"
@@ -41,7 +41,6 @@ class SingleStrategyOrchestrator:
 
         """
         self._market_data = market_data_adapter
-        self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
     def run(self, strategy_id: str, context: StrategyContext) -> StrategyAllocation:
         """Run strategy and return allocation schema.
@@ -61,7 +60,7 @@ class SingleStrategyOrchestrator:
         correlation_id = str(uuid.uuid4())
 
         try:
-            self._logger.info(
+            logger.info(
                 f"Running strategy {strategy_id} with context: {context}",
                 extra={
                     "component": ORCHESTRATOR_COMPONENT,
@@ -94,7 +93,7 @@ class SingleStrategyOrchestrator:
                 },
             )
 
-            self._logger.info(
+            logger.info(
                 f"Strategy {strategy_id} completed successfully",
                 extra={
                     "component": ORCHESTRATOR_COMPONENT,
@@ -107,7 +106,7 @@ class SingleStrategyOrchestrator:
             return allocation
 
         except Exception as e:
-            self._logger.error(
+            logger.error(
                 f"Strategy {strategy_id} execution failed: {e}",
                 extra={
                     "component": ORCHESTRATOR_COMPONENT,
@@ -159,7 +158,7 @@ class SingleStrategyOrchestrator:
 
         # Handle zero or negative total
         if total <= 0:
-            self._logger.warning(
+            logger.warning(
                 f"Invalid total weight: {total}, using equal weights",
                 extra={"component": ORCHESTRATOR_COMPONENT},
             )
