@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+import logging
+import os
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -10,6 +12,12 @@ from pydantic_settings import (
 )
 
 from ..constants import DEFAULT_AWS_REGION
+from .strategy_profiles import (
+    DEV_DSL_ALLOCATIONS,
+    DEV_DSL_FILES,
+    PROD_DSL_ALLOCATIONS,
+    PROD_DSL_FILES,
+)
 
 """Typed configuration loader for The Alchemiser."""
 
@@ -65,15 +73,116 @@ class StrategySettings(BaseModel):
     )
     # DSL multi-file support
     dsl_files: list[str] = Field(
-        default_factory=lambda: ["KLM.clj"],
-        description="List of DSL .clj strategy files",
+        default_factory=list, description="List of DSL .clj strategy files"
     )
     dsl_allocations: dict[str, float] = Field(
-        default_factory=lambda: {"KLM.clj": 1.0},
+        default_factory=dict,
         description="Per-DSL-file allocation weights that should sum to ~1.0",
     )
     poll_timeout: int = 30
     poll_interval: float = 2.0
+
+    # ---- Validators to make env var formats robust ----
+    @field_validator("dsl_files", mode="before")
+    @classmethod
+    def _parse_dsl_files(cls, v: object) -> object:
+        r"""Accept list[str] or string formats.
+
+        Supported input when coming from env vars:
+        - JSON array string: "[\"A.clj\",\"B.clj\"]"
+        - Comma or newline separated string: "A.clj,B.clj" or lines
+        Returns a list[str].
+        """
+        if isinstance(v, list):
+            # Ensure strings only
+            return [str(x) for x in v]
+        if isinstance(v, str):
+            s = v.strip()
+            # Try JSON first
+            if s.startswith("[") and s.endswith("]"):
+                import json
+
+                try:
+                    parsed = json.loads(s)
+                    if isinstance(parsed, list):
+                        return [str(x) for x in parsed]
+                except Exception as exc:  # pragma: no cover - defensive logging
+                    logging.debug("Failed to parse DSL files as JSON: %s", exc)
+                    # Fall back to CSV parsing below
+            # Fallback: split by commas/newlines and strip whitespace/quotes
+            parts = [p.strip().strip("\"'") for p in s.replace("\n", ",").split(",")]
+            return [p for p in parts if p]
+        return v
+
+    @field_validator("dsl_allocations", mode="before")
+    @classmethod
+    def _parse_dsl_allocations(cls, v: object) -> object:
+        r"""Accept dict[str,float] or string formats.
+
+        Supported input when coming from env vars:
+        - JSON object string: "{\"A.clj\":0.6,\"B.clj\":0.4}"
+        - CSV pairs: "A.clj=0.6,B.clj=0.4" (also supports newlines)
+        Returns a dict[str, float].
+        """
+        if isinstance(v, dict):
+            return {str(k): float(vv) for k, vv in v.items()}
+        if isinstance(v, str):
+            s = v.strip()
+            # Try JSON first
+            if s.startswith("{") and s.endswith("}"):
+                import json
+
+                try:
+                    parsed = json.loads(s)
+                    if isinstance(parsed, dict):
+                        return {str(k): float(vv) for k, vv in parsed.items()}
+                except Exception as exc:  # pragma: no cover - defensive logging
+                    logging.debug("Failed to parse DSL allocations as JSON: %s", exc)
+                    # Fall back to key=value parsing
+            # Fallback: key=value pairs separated by comma/newline
+            items: dict[str, float] = {}
+            for token in s.replace("\n", ",").split(","):
+                token = token.strip()
+                if not token:
+                    continue
+                if "=" not in token:
+                    # Skip malformed entries rather than crashing at load time
+                    continue
+                k, val = token.split("=", 1)
+                k = k.strip().strip("\"'")
+                try:
+                    items[k] = float(val.strip())
+                except ValueError:
+                    continue
+            return items
+        return v
+
+    @model_validator(mode="after")
+    def _apply_env_profile(self) -> StrategySettings:
+        """Backfill DSL defaults based on stage iff fields are empty.
+
+        Order of precedence (highest to lowest):
+        - Values provided explicitly in env/.env (already parsed above)
+        - Stage profile defaults selected by APP__STAGE/Stage env
+        - Fallbacks: derive from the other field or equal weights
+        """
+        if not self.dsl_files and not self.dsl_allocations:
+            stage = (os.getenv("APP__STAGE") or os.getenv("STAGE") or "").lower()
+            if stage == "prod":
+                self.dsl_files = list(PROD_DSL_FILES)
+                self.dsl_allocations = dict(PROD_DSL_ALLOCATIONS)
+            else:
+                self.dsl_files = list(DEV_DSL_FILES)
+                self.dsl_allocations = dict(DEV_DSL_ALLOCATIONS)
+        elif not self.dsl_files and self.dsl_allocations:
+            # Use allocation keys order
+            self.dsl_files = list(self.dsl_allocations.keys())
+        elif self.dsl_files and not self.dsl_allocations:
+            # Equal-weight files
+            n = len(self.dsl_files) or 1
+            w = 1.0 / n
+            self.dsl_allocations = dict.fromkeys(self.dsl_files, w)
+        return self
 
 
 class EmailSettings(BaseModel):

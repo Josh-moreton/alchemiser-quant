@@ -38,8 +38,7 @@ jobs:
           EMAIL__FROM_EMAIL: ${{ vars.EMAIL__FROM_EMAIL }}
           EMAIL__TO_EMAIL: ${{ vars.EMAIL__TO_EMAIL }}
           EMAIL__PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-          STRATEGY__DSL_ALLOCATIONS: ${{ vars.STRATEGY__DSL_ALLOCATIONS }}
-          STRATEGY__DSL_FILES: ${{ vars.STRATEGY__DSL_FILES }}
+          APP__STAGE: dev
           LOGGING__CONSOLE_LEVEL: DEBUG
           LOGGING__LEVEL: DEBUG
         run: |
