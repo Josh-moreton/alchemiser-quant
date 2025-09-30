@@ -37,8 +37,7 @@ def test_environment():
         "PAPER_TRADING": "true",
         "ALPACA_API_KEY": "test_api_key_e2e",
         "ALPACA_SECRET_KEY": "test_secret_key_e2e",
-        "ALPACA_ENDPOINT": "https://paper-api.alpaca.markets",
-        "SECRETS_MANAGER__ENABLED": "false"  # Disable AWS Secrets Manager
+        "ALPACA_ENDPOINT": "https://paper-api.alpaca.markets"
     }
     
     for key, value in test_env.items():

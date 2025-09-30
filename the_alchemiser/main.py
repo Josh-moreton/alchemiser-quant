@@ -145,13 +145,17 @@ def _execute_pnl_analysis(args: _ArgumentParsing) -> bool:
 
 
 def _send_error_notification() -> None:
-    """Send error notification if needed, with fallback handling."""
+    """Send error notification if needed, using event bus."""
     try:
+        from the_alchemiser.shared.config.container import ApplicationContainer
         from the_alchemiser.shared.errors.error_handler import (
             send_error_notification_if_needed,
         )
 
-        send_error_notification_if_needed()
+        # Create container and event bus for error notification
+        container = ApplicationContainer()
+        event_bus = container.services.event_bus()
+        send_error_notification_if_needed(event_bus)
     except Exception as notification_error:  # pragma: no cover (best-effort)
         import logging
 

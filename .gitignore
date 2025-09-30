@@ -62,8 +62,9 @@ test-results/
 build/
 dist/
 *.egg-info/
+.aws-sam/
 
-# Trade Ledger
+# Data outputs
 data/*
 
 # Test snapshots (can be regenerated)

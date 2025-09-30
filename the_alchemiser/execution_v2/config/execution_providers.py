@@ -23,8 +23,4 @@ class ExecutionProviders(containers.DeclarativeContainer):
         ExecutionManager,
         alpaca_manager=infrastructure.alpaca_manager,
         execution_config=providers.Factory(ExecutionConfig),
-        enable_trade_ledger=providers.Factory(
-            lambda exec_settings: exec_settings.enable_trade_ledger,
-            exec_settings=config.execution,
-        ),
     )

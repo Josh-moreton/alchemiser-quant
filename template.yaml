@@ -14,11 +14,6 @@ Parameters:
       - prod
     Description: Deployment stage (dev or prod)
 
-  TradeLedgerBucketName:
-    Type: String
-    Default: the-alchemiser-v2-s3
-    Description: S3 bucket name for trade ledger storage (override for dev to avoid collisions)
-
   AlpacaKey:
     Type: String
     Default: ""
@@ -36,6 +31,57 @@ Parameters:
     Default: https://paper-api.alpaca.markets/v2
     Description: Alpaca API endpoint; defaults to paper for dev, live is used for prod
 
+  # Production-only parameters (only used when Stage=prod)
+  ProdAlpacaKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Key for production (required when Stage=prod)
+
+  ProdAlpacaSecret:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Alpaca API Secret for production (required when Stage=prod)
+
+  ProdAlpacaEndpoint:
+    Type: String
+    Default: https://api.alpaca.markets
+    Description: Alpaca API endpoint for production
+
+  ProdEmailPassword:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Email SMTP password for production notifications (optional)
+
+  ProdTwelveDataKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: TwelveData API key for production (optional)
+
+  # Strategy configuration parameters for dev and prod
+  DevStrategyFiles:
+    Type: String
+    Default: '["1-KMLM.clj","2-Nuclear.clj","3-Starburst.clj","4-What.clj","5-Coin.clj","6-TQQQ-FLT.clj","7-Phoenix.clj"]'
+    Description: Strategy DSL files for dev environment
+
+  DevStrategyAllocations:
+    Type: String
+    Default: '{"1-KMLM.clj":0.2,"2-Nuclear.clj":0.15,"3-Starburst.clj":0.15,"4-What.clj":0.1,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.15,"7-Phoenix.clj":0.15}'
+    Description: Strategy DSL allocations for dev environment
+
+  ProdStrategyFiles:
+    Type: String
+    Default: '["1-KMLM.clj","2-Nuclear.clj","5-Coin.clj","6-TQQQ-FLT.clj"]'
+    Description: Strategy DSL files for production environment
+
+  ProdStrategyAllocations:
+    Type: String
+    Default: '{"1-KMLM.clj":0.4,"2-Nuclear.clj":0.25,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.25}'
+    Description: Strategy DSL allocations for production environment
+
 Conditions:
   IsDev: !Equals [ !Ref Stage, dev ]
 
@@ -47,27 +93,24 @@ Globals:
       Variables:
         # Logging
         LOGGING__LEVEL: INFO
-        # Trade Ledger
-        EXECUTION__ENABLE_TRADE_LEDGER: !If [ IsDev, "false", "true" ]
-        S3_BUCKET_NAME: !Ref TradeLedgerBucket
         # Alpaca Configuration
-        ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, "" ]
-        ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, "" ]
-        ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, "https://api.alpaca.markets" ]
+        ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
+        ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
+        ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
         ALPACA__CASH_RESERVE_PCT: "0.02"
-        # Secrets Manager configuration
-        SECRETS_MANAGER__ENABLED: !If [ IsDev, "false", "true" ]
-        SECRETS_MANAGER__REGION_NAME: !Ref "AWS::Region"
-        SECRETS_MANAGER__SECRET_NAME: !If [ IsDev, "the-alchemiser-v2-secrets-dev", "the-alchemiser-v2-secrets" ]
         # Email Configuration
         EMAIL__SMTP_SERVER: smtp.mail.me.com
         EMAIL__SMTP_PORT: 587
         EMAIL__FROM_EMAIL: josh@rwxt.org
         EMAIL__TO_EMAIL: josh@rwxt.org
         EMAIL__NEUTRAL_MODE: true
-        # Strategy DSL configuration - matches current .env file exactly
-        STRATEGY__DSL_FILES: '["1-KMLM.clj","2-Nuclear.clj","5-Coin.clj","6-TQQQ-FLT.clj"]'
-        STRATEGY__DSL_ALLOCATIONS: '{"1-KMLM.clj":0.4,"2-Nuclear.clj":0.25,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.25}'
+        EMAIL__PASSWORD: !If [ IsDev, "", !Ref ProdEmailPassword ]
+        # TwelveData Configuration
+        TWELVEDATA_KEY: !If [ IsDev, "", !Ref ProdTwelveDataKey ]
+        # Strategy DSL configuration - different for dev vs prod
+        STRATEGY__DSL_FILES: !If [ IsDev, !Ref DevStrategyFiles, !Ref ProdStrategyFiles ]
+        STRATEGY__DSL_ALLOCATIONS: !If [ IsDev, !Ref DevStrategyAllocations, !Ref ProdStrategyAllocations ]
+
 
         # DSL parallelism configuration
         ALCHEMISER_DSL_PARALLELISM: threads
@@ -242,17 +285,6 @@ Resources:
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
-              # S3 access for trade ledger storage
-              - Effect: Allow
-                Action:
-                  - s3:ListBucket
-                Resource: !GetAtt TradeLedgerBucket.Arn
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                Resource: !Sub "${TradeLedgerBucket.Arn}/*"
-
               # CloudWatch Logs (enhanced logging)
               - Effect: Allow
                 Action:
@@ -263,31 +295,6 @@ Resources:
                   - logs:DescribeLogGroups
                 Resource: "*"
 
-              # AWS Secrets Manager read access (for prod when enabled)
-              - Effect: Allow
-                Action:
-                  - secretsmanager:GetSecretValue
-                  - secretsmanager:DescribeSecret
-                Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:the-alchemiser-v2-secrets*"
-
-
-  # S3 bucket for trade ledger storage (managed by this stack)
-  TradeLedgerBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Ref TradeLedgerBucketName
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      OwnershipControls:
-        Rules:
-          - ObjectOwnership: BucketOwnerEnforced
-      VersioningConfiguration:
-        Status: Enabled
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
 
   # CloudWatch Log Group with retention
   TradingSystemLogGroup:
