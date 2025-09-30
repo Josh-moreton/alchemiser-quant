@@ -173,6 +173,10 @@ class PositionUtils:
 
         """
         try:
+            # Ensure input is always a Decimal for safety
+            if not isinstance(raw_quantity, Decimal):
+                raw_quantity = Decimal(str(raw_quantity))
+
             # Check if asset supports fractional trading
             asset_info = self.alpaca_manager.get_asset_info(symbol)
             supports_fractional = getattr(asset_info, "fractionable", False)
@@ -193,7 +197,9 @@ class PositionUtils:
 
         except Exception as exc:
             logger.debug(f"Error checking fractionability for {symbol}: {exc}")
-            # Default to whole shares if we can't determine fractionability
+            # Default to whole shares if we can't determine fractionability - ensure Decimal input
+            if not isinstance(raw_quantity, Decimal):
+                raw_quantity = Decimal(str(raw_quantity))
             return raw_quantity.quantize(Decimal("1"), rounding=ROUND_DOWN)
 
     def get_position_quantity(self, symbol: str) -> Decimal:
@@ -209,9 +215,11 @@ class PositionUtils:
         try:
             position = self.alpaca_manager.get_position(symbol)
             if position:
-                qty = getattr(position, "qty", Decimal("0"))
-                logger.debug(f"📊 Current position for {symbol}: {qty} shares")
-                return qty
+                qty = getattr(position, "qty", 0)
+                # Ensure we always return a Decimal, even if the position object returns a string/float
+                qty_decimal = Decimal(str(qty))
+                logger.debug(f"📊 Current position for {symbol}: {qty_decimal} shares")
+                return qty_decimal
         except Exception as exc:
             logger.debug(f"Could not get position for {symbol}: {exc}")
 
