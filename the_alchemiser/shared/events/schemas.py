@@ -12,6 +12,7 @@ Provides specific event classes for the system workflow:
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
@@ -348,3 +349,65 @@ class SystemNotificationRequested(BaseEvent):
     recipient_override: str | None = Field(
         default=None, description="Optional recipient email override"
     )
+
+
+# Real-time Market Data Events
+
+
+class QuoteReceived(BaseEvent):
+    """Event emitted when a real-time quote is received.
+
+    Contains quote data with bid/ask prices and market depth.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="QuoteReceived", description=EVENT_TYPE_DESCRIPTION)
+
+    # Quote data fields
+    symbol: str = Field(..., min_length=1, description="Stock symbol")
+    bid_price: float = Field(..., gt=0, description="Bid price")
+    ask_price: float = Field(..., gt=0, description="Ask price")
+    bid_size: float = Field(..., ge=0, description="Bid size (shares)")
+    ask_size: float = Field(..., ge=0, description="Ask size (shares)")
+    quote_timestamp: datetime = Field(..., description="Quote timestamp from exchange")
+    spread: float = Field(..., ge=0, description="Bid-ask spread")
+    mid_price: float = Field(..., gt=0, description="Mid-point price")
+    is_suspicious: bool = Field(default=False, description="Whether quote appears suspicious")
+
+
+class TradeReceived(BaseEvent):
+    """Event emitted when a real-time trade is received.
+
+    Contains trade execution data with price and volume.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="TradeReceived", description=EVENT_TYPE_DESCRIPTION)
+
+    # Trade data fields
+    symbol: str = Field(..., min_length=1, description="Stock symbol")
+    price: float = Field(..., gt=0, description="Trade price")
+    size: float = Field(..., gt=0, description="Trade size (shares)")
+    trade_timestamp: datetime = Field(..., description="Trade timestamp from exchange")
+    vwap: float = Field(..., ge=0, description="Volume-weighted average price")
+    total_volume: float = Field(..., ge=0, description="Total volume traded")
+
+
+class BarReceived(BaseEvent):
+    """Event emitted when a real-time bar (OHLCV) is received.
+
+    Contains aggregated bar data for a timeframe.
+    """
+
+    # Override event_type with default
+    event_type: str = Field(default="BarReceived", description=EVENT_TYPE_DESCRIPTION)
+
+    # Bar data fields
+    symbol: str = Field(..., min_length=1, description="Stock symbol")
+    bar_timestamp: datetime = Field(..., description="Bar timestamp")
+    open_price: float = Field(..., gt=0, description="Open price")
+    high_price: float = Field(..., gt=0, description="High price")
+    low_price: float = Field(..., gt=0, description="Low price")
+    close_price: float = Field(..., gt=0, description="Close price")
+    volume: int = Field(..., ge=0, description="Volume traded")
+    is_valid: bool = Field(default=True, description="Whether OHLC values are valid")
