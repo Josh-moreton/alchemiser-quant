@@ -8,11 +8,12 @@ Replaces the `get_email_config` function from the original email_utils.py.
 
 from __future__ import annotations
 
-import logging
-
 from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.config.secrets_adapter import get_email_password
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.reporting import EmailCredentials
+
+logger = get_logger(__name__)
 
 
 class EmailConfig:
@@ -49,18 +50,18 @@ class EmailConfig:
 
             # Validate required fields
             if not from_email:
-                logging.error("from_email not configured in environment variables")
+                logger.error("from_email not configured in environment variables")
                 return None
 
             if not email_password:
-                logging.warning("Email password not found - email notifications will be disabled")
+                logger.warning("Email password not found - email notifications will be disabled")
                 return None
 
             # Use from_email as to_email if to_email is not specified
             if not to_email:
                 to_email = from_email
 
-            logging.debug(
+            logger.debug(
                 f"Email config loaded: SMTP={smtp_server}:{smtp_port}, from={from_email}, to={to_email}"
             )
 
@@ -74,7 +75,7 @@ class EmailConfig:
             return self._config_cache
 
         except Exception as e:
-            logging.error(f"Error loading email configuration: {e}")
+            logger.error(f"Error loading email configuration: {e}")
             return None
 
     def clear_cache(self) -> None:
@@ -87,7 +88,7 @@ class EmailConfig:
             config = load_settings()
             return config.email.neutral_mode
         except Exception as e:
-            logging.warning(f"Error checking neutral mode config: {e}")
+            logger.warning(f"Error checking neutral mode config: {e}")
             return False
 
 

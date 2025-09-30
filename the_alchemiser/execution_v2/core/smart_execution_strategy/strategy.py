@@ -9,7 +9,6 @@ all the extracted components to provide intelligent order placement and executio
 from __future__ import annotations
 
 import asyncio
-import logging
 from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -17,6 +16,7 @@ from typing import Any
 
 from the_alchemiser.execution_v2.utils.execution_validator import ExecutionValidator
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 from the_alchemiser.shared.types.market_data import QuoteModel
 
@@ -31,7 +31,7 @@ from .quotes import QuoteProvider
 from .repeg import RepegManager
 from .tracking import OrderTracker
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class SmartExecutionStrategy:

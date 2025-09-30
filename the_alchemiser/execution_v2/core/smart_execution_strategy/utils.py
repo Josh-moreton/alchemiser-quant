@@ -8,13 +8,13 @@ of the main strategy functions while keeping them focused and readable.
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime
 from decimal import Decimal
 
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types.market_data import QuoteModel
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def calculate_price_adjustment(

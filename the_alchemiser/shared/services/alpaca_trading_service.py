@@ -10,7 +10,6 @@ placement, execution monitoring, and smart execution logic.
 from __future__ import annotations
 
 import asyncio
-import logging
 import time
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -26,6 +25,7 @@ from alpaca.trading.requests import (
 )
 
 from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.broker import (
     OrderExecutionResult,
     WebSocketResult,
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
         WebSocketConnectionManager,
     )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AlpacaTradingService:

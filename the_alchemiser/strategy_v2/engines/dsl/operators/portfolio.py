@@ -14,10 +14,10 @@ Implements DSL operators for building portfolio allocations:
 
 from __future__ import annotations
 
-import logging
 import uuid
 from typing import Literal, cast
 
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.indicator_request import (
     IndicatorRequest,
@@ -29,7 +29,7 @@ from ..dispatcher import DslDispatcher
 from ..types import DslEvaluationError, DSLValue
 from .control_flow import create_indicator_with_symbol
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ---------- Shared helpers ----------

@@ -23,13 +23,13 @@ Key Features:
 
 from __future__ import annotations
 
-import logging
 from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.types.quote import QuoteModel
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @runtime_checkable

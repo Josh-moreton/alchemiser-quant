@@ -7,11 +7,10 @@ Portfolio state reader for building immutable snapshots from live data.
 
 from __future__ import annotations
 
-import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.logging.logging_utils import log_with_context
+from the_alchemiser.shared.logging.logging_utils import get_logger
 
 if TYPE_CHECKING:
     from the_alchemiser.portfolio_v2.adapters.alpaca_data_adapter import (
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
 
 from ..models.portfolio_snapshot import PortfolioSnapshot
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Module name constant for consistent logging
 MODULE_NAME = "portfolio_v2.core.state_reader"
@@ -42,7 +41,9 @@ class PortfolioStateReader:
         """
         self._data_adapter = data_adapter
 
-    def build_portfolio_snapshot(self, symbols: set[str] | None = None) -> PortfolioSnapshot:
+    def build_portfolio_snapshot(
+        self, symbols: set[str] | None = None
+    ) -> PortfolioSnapshot:
         """Build current portfolio snapshot with positions, prices, and cash.
 
         Args:
@@ -56,13 +57,13 @@ class PortfolioStateReader:
             Exception: If snapshot cannot be built due to data errors
 
         """
-        log_with_context(
-            logger,
-            logging.DEBUG,
+        logger.debug(
             "Building portfolio snapshot",
-            module=MODULE_NAME,
-            action="build_snapshot",
-            requested_symbols=sorted(symbols) if symbols else None,
+            extra={
+                "module": MODULE_NAME,
+                "action": "build_snapshot",
+                "requested_symbols": sorted(symbols) if symbols else None,
+            },
         )
 
         try:
@@ -71,7 +72,9 @@ class PortfolioStateReader:
 
             # Step 2: Determine which symbols we need prices for
             position_symbols = set(positions.keys())
-            price_symbols = position_symbols if symbols is None else symbols.union(position_symbols)
+            price_symbols = (
+                position_symbols if symbols is None else symbols.union(position_symbols)
+            )
 
             # Step 3: Get current prices for all required symbols
             prices = {}
@@ -99,38 +102,40 @@ class PortfolioStateReader:
 
             # Validate snapshot consistency
             if not snapshot.validate_total_value():
-                log_with_context(
-                    logger,
-                    logging.WARNING,
+                logger.warning(
                     "Snapshot total value validation failed - continuing anyway",
-                    module=MODULE_NAME,
-                    action="build_snapshot",
-                    calculated_total=str(snapshot.get_total_position_value() + snapshot.cash),
-                    snapshot_total=str(snapshot.total_value),
+                    extra={
+                        "module": MODULE_NAME,
+                        "action": "build_snapshot",
+                        "calculated_total": str(
+                            snapshot.get_total_position_value() + snapshot.cash
+                        ),
+                        "snapshot_total": str(snapshot.total_value),
+                    },
                 )
 
-            log_with_context(
-                logger,
-                logging.DEBUG,
+            logger.debug(
                 "Portfolio snapshot built successfully",
-                module=MODULE_NAME,
-                action="build_snapshot",
-                position_count=len(positions),
-                price_count=len(prices),
-                total_value=str(total_value),
-                cash_balance=str(cash),
-                position_value=str(position_value),
+                extra={
+                    "module": MODULE_NAME,
+                    "action": "build_snapshot",
+                    "position_count": len(positions),
+                    "price_count": len(prices),
+                    "total_value": str(total_value),
+                    "cash_balance": str(cash),
+                    "position_value": str(position_value),
+                },
             )
 
             return snapshot
 
         except Exception as e:
-            log_with_context(
-                logger,
-                logging.ERROR,
+            logger.error(
                 f"Failed to build portfolio snapshot: {e}",
-                module=MODULE_NAME,
-                action="build_snapshot",
-                error=str(e),
+                extra={
+                    "module": MODULE_NAME,
+                    "action": "build_snapshot",
+                    "error": str(e),
+                },
             )
             raise

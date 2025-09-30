@@ -9,18 +9,18 @@ Manages both StockDataStream (pricing) and TradingStream (order updates).
 
 from __future__ import annotations
 
-import logging
 import threading
 import time
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 
 if TYPE_CHECKING:
     from alpaca.trading.stream import TradingStream
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class WebSocketConnectionManager:

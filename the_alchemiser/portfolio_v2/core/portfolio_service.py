@@ -7,10 +7,9 @@ Portfolio service V2 - orchestration facade for rebalance plan creation.
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.logging.logging_utils import log_with_context
+from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 from the_alchemiser.shared.types.exceptions import PortfolioError
 
@@ -22,7 +21,7 @@ from ..adapters.alpaca_data_adapter import AlpacaDataAdapter
 from .planner import RebalancePlanCalculator
 from .state_reader import PortfolioStateReader
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Module name constant for consistent logging
 MODULE_NAME = "portfolio_v2.core.portfolio_service"
@@ -68,17 +67,17 @@ class PortfolioServiceV2:
             PortfolioError: If rebalance plan cannot be created
 
         """
-        log_with_context(
-            logger,
-            logging.INFO,
+        logger.info(
             "Creating rebalance plan",
-            module=MODULE_NAME,
-            action="create_rebalance_plan",
-            correlation_id=correlation_id,
-            target_symbols=sorted(strategy.target_weights.keys()),
-            strategy_portfolio_value=str(strategy.portfolio_value)
-            if strategy.portfolio_value
-            else None,
+            extra={
+                "module": MODULE_NAME,
+                "action": "create_rebalance_plan",
+                "correlation_id": correlation_id,
+                "target_symbols": sorted(strategy.target_weights.keys()),
+                "strategy_portfolio_value": (
+                    str(strategy.portfolio_value) if strategy.portfolio_value else None
+                ),
+            },
         )
 
         try:
@@ -86,29 +85,31 @@ class PortfolioServiceV2:
             # Include all symbols from strategy target weights to ensure we have prices
             target_symbols = set(strategy.target_weights.keys())
 
-            log_with_context(
-                logger,
-                logging.DEBUG,
+            logger.debug(
                 "Building portfolio snapshot",
-                module=MODULE_NAME,
-                action="build_snapshot",
-                correlation_id=correlation_id,
-                target_symbols=sorted(target_symbols),
+                extra={
+                    "module": MODULE_NAME,
+                    "action": "build_snapshot",
+                    "correlation_id": correlation_id,
+                    "target_symbols": sorted(target_symbols),
+                },
             )
 
-            snapshot = self._state_reader.build_portfolio_snapshot(symbols=target_symbols)
+            snapshot = self._state_reader.build_portfolio_snapshot(
+                symbols=target_symbols
+            )
 
             # Step 2: Calculate rebalance plan
-            log_with_context(
-                logger,
-                logging.DEBUG,
+            logger.debug(
                 "Calculating rebalance plan",
-                module=MODULE_NAME,
-                action="calculate_plan",
-                correlation_id=correlation_id,
-                snapshot_total_value=str(snapshot.total_value),
-                snapshot_cash=str(snapshot.cash),
-                snapshot_position_count=len(snapshot.positions),
+                extra={
+                    "module": MODULE_NAME,
+                    "action": "calculate_plan",
+                    "correlation_id": correlation_id,
+                    "snapshot_total_value": str(snapshot.total_value),
+                    "snapshot_cash": str(snapshot.cash),
+                    "snapshot_position_count": len(snapshot.positions),
+                },
             )
 
             plan = self._planner.build_plan(strategy, snapshot, correlation_id)
@@ -117,29 +118,29 @@ class PortfolioServiceV2:
             trade_count = len([item for item in plan.items if item.action != "HOLD"])
             hold_count = len([item for item in plan.items if item.action == "HOLD"])
 
-            log_with_context(
-                logger,
-                logging.INFO,
+            logger.info(
                 "Rebalance plan created successfully",
-                module=MODULE_NAME,
-                action="create_rebalance_plan",
-                correlation_id=correlation_id,
-                total_items=len(plan.items),
-                trade_items=trade_count,
-                hold_items=hold_count,
-                total_trade_value=str(plan.total_trade_value),
+                extra={
+                    "module": MODULE_NAME,
+                    "action": "create_rebalance_plan",
+                    "correlation_id": correlation_id,
+                    "total_items": len(plan.items),
+                    "trade_items": trade_count,
+                    "hold_items": hold_count,
+                    "total_trade_value": str(plan.total_trade_value),
+                },
             )
 
             return plan
 
         except Exception as e:
-            log_with_context(
-                logger,
-                logging.ERROR,
+            logger.error(
                 f"Failed to create rebalance plan: {e}",
-                module=MODULE_NAME,
-                action="create_rebalance_plan",
-                correlation_id=correlation_id,
-                error=str(e),
+                extra={
+                    "module": MODULE_NAME,
+                    "action": "create_rebalance_plan",
+                    "correlation_id": correlation_id,
+                    "error": str(e),
+                },
             )
             raise PortfolioError(f"Failed to create rebalance plan: {e}") from e
