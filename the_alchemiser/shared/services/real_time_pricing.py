@@ -176,7 +176,6 @@ class RealTimePricingService:
         """Get paper trading flag."""
         return self._paper_trading
 
-
     def start(self) -> bool:
         """Start the real-time pricing service.
 
@@ -185,28 +184,59 @@ class RealTimePricingService:
 
         """
         try:
-            # Initialize stream manager with callbacks
-            self._stream_manager = RealTimeStreamManager(
+            if self._stream_thread and self._stream_thread.is_alive():
+                self.logger.warning("Real-time pricing service already running")
+                return True
+
+            # Initialize the data stream
+            # NOTE: Using IEX feed for both paper and live trading until SIP subscription is available
+            # SIP feed requires a paid subscription, IEX is free but has some limitations
+            self._stream = create_stock_data_stream(
                 api_key=self.api_key,
                 secret_key=self.secret_key,
                 feed=self._get_feed(),
-                on_quote=self._on_quote,
-                on_trade=self._on_trade,
             )
 
-            # Start the stream
-            result = self._stream_manager.start(
-                get_symbols_callback=self._subscription_manager.get_subscribed_symbols
-            )
+            # Set up the async event handlers BEFORE starting the stream
+            # This is critical - handlers must be registered before run() is called
+            self.logger.info("📡 Real-time pricing service initialized with async handlers")
 
-            if result:
-                # Start cleanup thread
-                self._price_store.start_cleanup(
-                    is_connected_callback=lambda: self._stream_manager.is_connected() if self._stream_manager else False
-                )
+            # NOTE: Do NOT subscribe to wildcard "*" - it hits subscription limits immediately
+            # We'll subscribe to specific symbols only when needed via subscribe_for_order_placement()
+
+            # Start the stream in a background thread with proper async handling
+            self._should_reconnect = True
+            self._stream_thread = threading.Thread(
+                target=self._run_stream_with_event_loop,
+                name="RealTimePricing",
+                daemon=True,
+            )
+            self._stream_thread.start()
+
+            # Wait a moment for connection with exponential backoff
+            max_wait_time = 5.0  # 5 second timeout
+            check_interval = 0.05  # Start with 50ms
+            max_interval = 0.5  # Cap at 500ms
+            elapsed_time = 0.0
+
+            while elapsed_time < max_wait_time:
+                if self._connected:
+                    break
+                time.sleep(check_interval)
+                elapsed_time += check_interval
+                # Exponential backoff for less aggressive polling
+                check_interval = min(check_interval * 1.2, max_interval)
+
+            if self._connected:
                 self.logger.info("✅ Real-time pricing service started successfully")
+
+                # Start cleanup thread
+                cleanup_thread = threading.Thread(
+                    target=self._cleanup_old_quotes, name="QuoteCleanup", daemon=True
+                )
+                cleanup_thread.start()
+
                 return True
-                
             self.logger.error("❌ Failed to establish real-time pricing connection")
             return False
 
@@ -217,10 +247,13 @@ class RealTimePricingService:
     def stop(self) -> None:
         """Stop the real-time pricing service."""
         try:
-            if self._stream_manager:
-                self._stream_manager.stop()
+            self._should_reconnect = False
 
-            self._price_store.stop_cleanup()
+            if self._stream:
+                self._stream.stop()
+
+            if self._stream_thread and self._stream_thread.is_alive():
+                self._stream_thread.join(timeout=5)
 
             # Cancel any remaining background tasks
             for task in self._background_tasks:
@@ -228,121 +261,11 @@ class RealTimePricingService:
                     task.cancel()
             self._background_tasks.clear()
 
+            self._connected = False
             self.logger.info("🛑 Real-time pricing service stopped")
 
         except Exception as e:
             self.logger.error(f"Error stopping real-time pricing service: {e}")
-
-    async def _on_quote(self, data: AlpacaQuoteData) -> None:
-        """Handle incoming quote data with async processing optimizations.
-
-        Args:
-            data: Quote data from Alpaca WebSocket
-
-        """
-        try:
-            symbol = self._data_processor.extract_symbol_from_quote(data)
-            if not symbol:
-                self.logger.warning("Received quote with no symbol")
-                return
-
-            quote_values = self._data_processor.extract_quote_values(data)
-            timestamp = self._data_processor.get_quote_timestamp(quote_values.timestamp_raw)
-
-            await self._process_quote_data(symbol, quote_values, timestamp, data)
-            self._update_quote_statistics(symbol)
-
-        except Exception as e:
-            await self._data_processor.handle_quote_error(e)
-
-    async def _process_quote_data(
-        self,
-        symbol: str,
-        quote_values: object,  # QuoteExtractionResult
-        timestamp: datetime,
-        original_data: AlpacaQuoteData,
-    ) -> None:
-        """Process and store quote data."""
-        await self._data_processor.log_quote_debug(symbol, quote_values.bid_price, quote_values.ask_price)
-
-        # Store complete quote data (non-blocking)
-        self._latest_quotes[symbol] = original_data
-
-        if quote_values.bid_price is not None and quote_values.ask_price is not None:
-            await self._update_bid_ask_data(symbol, quote_values, timestamp)
-
-    async def _update_bid_ask_data(
-        self, symbol: str, quote_values: object, timestamp: datetime
-    ) -> None:
-        """Update bid/ask tracking and data structures."""
-        # These values are guaranteed to be non-None by caller's if-check
-        if quote_values.bid_price is None or quote_values.ask_price is None:
-            raise ValueError("Bid and ask prices must not be None")
-
-        # Update tracking data immediately (non-blocking)
-        self._latest_bid[symbol] = quote_values.bid_price
-        self._latest_ask[symbol] = quote_values.ask_price
-
-        # Use asyncio.to_thread for potentially blocking lock operations
-        await asyncio.to_thread(
-            self._price_store.update_quote_data,
-            symbol,
-            quote_values.bid_price,
-            quote_values.ask_price,
-            quote_values.bid_size,
-            quote_values.ask_size,
-            timestamp,
-        )
-
-    def _update_quote_statistics(self, symbol: str) -> None:
-        """Update statistics for processed quote."""
-        self._stats["quotes_received"] += 1
-        self._last_quote_time[symbol] = datetime.now(UTC)
-
-    async def _on_trade(self, trade: AlpacaTradeData) -> None:
-        """Handle incoming trade updates from Alpaca stream with async processing optimizations."""
-        try:
-            symbol = self._data_processor.extract_symbol_from_trade(trade)
-            if not symbol:
-                self.logger.warning("Received trade with no symbol")
-                return
-
-            price, volume, timestamp = self._data_processor.extract_trade_values(trade)
-
-            if price and price > 0:
-                # Use asyncio.to_thread for potentially blocking lock operations
-                await asyncio.to_thread(
-                    self._price_store.update_trade_data,
-                    symbol,
-                    price,
-                    timestamp,
-                    volume,
-                )
-
-                # Update stats
-                self._stats["trades_received"] += 1
-                self._datetime_stats["last_heartbeat"] = datetime.now(UTC)
-
-                if self.logger.isEnabledFor(logging.DEBUG):
-                    debug_task = asyncio.create_task(
-                        asyncio.to_thread(
-                            self.logger.debug,
-                            f"📈 Trade received for {symbol}: price={price}, volume={volume}",
-                        )
-                    )
-                    self._background_tasks.add(debug_task)
-                    debug_task.add_done_callback(self._background_tasks.discard)
-
-            # Yield control to event loop
-            await asyncio.sleep(0)
-
-        except Exception as e:
-            error_task = asyncio.create_task(
-                asyncio.to_thread(self.logger.error, f"Error processing trade: {e}", exc_info=True)
-            )
-            self._background_tasks.add(error_task)
-            error_task.add_done_callback(self._background_tasks.discard)
-            await asyncio.sleep(0)
 
     def _run_stream_with_event_loop(self) -> None:
         """Run the WebSocket stream in a new event loop.
