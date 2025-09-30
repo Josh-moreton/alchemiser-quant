@@ -9,7 +9,6 @@ categorization, and detailed error reporting via email notifications.
 
 from __future__ import annotations
 
-import logging
 import time
 import traceback
 import uuid
@@ -816,7 +815,6 @@ def _send_error_notification_via_events(event_bus: EventBus) -> ErrorNotificatio
         "event_id": error_event.event_id,
     }
 
-    import logging
 
     logger.info("Error notification event published successfully")
     return notification_data

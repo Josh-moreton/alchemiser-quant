@@ -684,7 +684,6 @@ def calculate_rebalance_amounts(
         current_values but not both. Missing positions are treated as 0.0.
 
     """
-
     logger = get_logger(__name__)
 
     # === TRADING_MATH ENTRY POINT LOGGING ===
