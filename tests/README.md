@@ -7,6 +7,7 @@ Comprehensive test suite for The Alchemiser Quantitative Trading System implemen
 ### Test Levels
 
 #### 🔧 Unit Tests
+
 - **Location**: `tests/shared/`, `tests/execution_v2/`, `tests/strategy_v2/`
 - **Purpose**: Test individual components and functions in isolation
 - **Scope**: Single classes, functions, or modules
@@ -14,6 +15,7 @@ Comprehensive test suite for The Alchemiser Quantitative Trading System implemen
 - **Markers**: `@pytest.mark.unit`
 
 #### 🔗 Integration Tests
+
 - **Location**: `tests/integration/`
 - **Purpose**: Test cross-module interactions and event-driven workflows
 - **Scope**: Multiple modules working together with in-memory event bus
@@ -21,6 +23,7 @@ Comprehensive test suite for The Alchemiser Quantitative Trading System implemen
 - **Markers**: `@pytest.mark.integration`
 
 #### ⚙️ Functional Tests
+
 - **Location**: `tests/functional/`
 - **Purpose**: Test complete workflows with mocked external dependencies
 - **Scope**: Full business workflows (Strategy → Portfolio → Execution)
@@ -28,6 +31,7 @@ Comprehensive test suite for The Alchemiser Quantitative Trading System implemen
 - **Markers**: `@pytest.mark.functional`
 
 #### 🚀 End-to-End Tests
+
 - **Location**: `tests/e2e/`
 - **Purpose**: Test complete system including main entry points
 - **Scope**: Entire application with paper trading mode
@@ -58,7 +62,6 @@ tests/
 ├── shared/                       # Existing Unit Tests
 │   ├── events/
 │   ├── notifications/
-│   ├── persistence/
 │   ├── services/
 │   └── utils/
 │
@@ -72,11 +75,13 @@ tests/
 ## Running Tests
 
 ### All Tests
+
 ```bash
 pytest tests/
 ```
 
 ### By Test Level
+
 ```bash
 # Unit tests only
 pytest -m unit
@@ -92,6 +97,7 @@ pytest -m e2e
 ```
 
 ### By Directory
+
 ```bash
 # Integration tests
 pytest tests/integration/
@@ -104,6 +110,7 @@ pytest tests/e2e/
 ```
 
 ### Specific Test Files
+
 ```bash
 # Event-driven integration tests
 pytest tests/integration/test_event_driven_workflow_simple.py -v
@@ -118,21 +125,25 @@ pytest tests/e2e/test_complete_system.py -v
 ## Test Categories by Feature
 
 ### Event-Driven Architecture Tests
+
 - **Integration**: Event bus, event publishing/subscribing, event handlers
 - **Functional**: Complete event chains (Strategy → Portfolio → Execution)
 - **E2E**: Full workflow with event correlation and causation tracking
 
 ### Trading Workflow Tests
+
 - **Integration**: Module interactions, event sequence validation
 - **Functional**: Portfolio analysis, rebalancing, order execution workflows
 - **E2E**: Complete trading cycles with paper trading validation
 
 ### Error Handling and Recovery Tests
+
 - **Integration**: Event-driven error propagation, WorkflowFailed events
 - **Functional**: Module-level error handling and recovery
 - **E2E**: System-level error recovery and graceful degradation
 
 ### Configuration and Environment Tests
+
 - **Unit**: Configuration loading and validation
 - **Functional**: Environment-specific configurations (dev, test, prod)
 - **E2E**: Complete system with environment variables and secrets
@@ -140,6 +151,7 @@ pytest tests/e2e/test_complete_system.py -v
 ## Test Fixtures and Utilities
 
 ### Global Fixtures (`conftest.py`)
+
 - `mock_alpaca_manager`: Mock AlpacaManager for all test levels
 - `mock_container`: Mock ApplicationContainer with test configuration
 - `test_correlation_id`, `test_causation_id`, `test_event_id`: Test identifiers
@@ -148,6 +160,7 @@ pytest tests/e2e/test_complete_system.py -v
 - `disable_external_calls`: Disable external API calls during testing
 
 ### Test Utilities
+
 - `EventCollector`: Collects events for verification
 - `MockPortfolioHandler`, `MockExecutionHandler`: Mock event handlers
 - Environment setup and teardown utilities
@@ -155,6 +168,7 @@ pytest tests/e2e/test_complete_system.py -v
 ## Event-Driven Testing Patterns
 
 ### Event Creation and Validation
+
 ```python
 # Create events with proper schema
 signal_event = SignalGenerated(
@@ -171,6 +185,7 @@ assert signal_event.signal_count == 5
 ```
 
 ### Event Chain Testing
+
 ```python
 # Test complete event chains
 event_bus.subscribe("SignalGenerated", portfolio_handler)
@@ -184,6 +199,7 @@ assert len(events_received) == 3  # Signal → Rebalance → Completion
 ```
 
 ### Idempotency Testing
+
 ```python
 # Test event replay scenarios
 event_bus.publish(same_event)
@@ -196,16 +212,19 @@ assert handler_call_count == 1  # Should not process duplicates
 ## Safety and Compliance
 
 ### Paper Trading Enforcement
+
 - All tests use `PAPER_TRADING=true` environment variable
 - Mock external dependencies to prevent real API calls
 - Test environments isolated from production
 
 ### Data Protection
+
 - No real API keys or secrets in test code
 - Mock data for all external service interactions
 - Test correlation IDs for traceability without exposure
 
 ### Error Boundaries
+
 - Tests isolated from each other
 - Failed tests don't affect other test execution
 - Proper setup and teardown for all test levels
@@ -213,6 +232,7 @@ assert handler_call_count == 1  # Should not process duplicates
 ## Continuous Integration
 
 ### Test Markers for CI/CD
+
 ```bash
 # Fast tests for PR validation
 pytest -m "not slow and not e2e"
@@ -225,6 +245,7 @@ pytest -m e2e --tb=short
 ```
 
 ### Performance Testing
+
 - `@pytest.mark.slow` for long-running tests
 - Timeout configurations for E2E tests
 - Memory and performance validation
@@ -232,6 +253,7 @@ pytest -m e2e --tb=short
 ## Contributing to Tests
 
 ### Adding New Tests
+
 1. Choose appropriate test level (unit/integration/functional/e2e)
 2. Use existing fixtures and utilities from `conftest.py`
 3. Follow event-driven testing patterns
@@ -239,6 +261,7 @@ pytest -m e2e --tb=short
 5. Update this documentation
 
 ### Test Writing Guidelines
+
 - Test one thing per test function
 - Use descriptive test names
 - Include docstrings explaining test purpose
@@ -249,12 +272,14 @@ pytest -m e2e --tb=short
 ## Troubleshooting
 
 ### Common Issues
+
 - **Import Errors**: Ensure all dependencies are installed (`pip install -r requirements.txt`)
 - **Environment Variables**: Check test environment setup in fixtures
 - **Event Schema Errors**: Verify event creation with all required fields
 - **Mock Issues**: Ensure mocks implement required protocols (EventHandler, etc.)
 
 ### Debug Mode
+
 ```bash
 # Run with verbose output and debug info
 pytest tests/integration/ -v -s --tb=long
@@ -273,6 +298,7 @@ pytest tests/integration/test_event_driven_workflow_simple.py::TestSimpleEventDr
 ---
 
 For more information, see:
+
 - [Event-Driven Enforcement Plan](../docs/event_driven_enforcement_plan.md)
 - [DTO Migration Plan](../docs/DTO_MIGRATION_PLAN.md)
 - [Project README](../README.md)
