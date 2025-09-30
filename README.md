@@ -1,6 +1,6 @@
 # The Alchemiser
 
-A multi-strategy quantitative trading system built on event-driven architecture. Combines multiple quantitative strategies (Nuclear, TECL momentum, KLM ensemble) into a single, resilient execution engine with strict module boundaries and end-to-end traceability.
+Multi-strategy quantitative trading system built on event-driven architecture. Combines multiple quantitative strategies (Nuclear, TECL momentum, KLM ensemble) into a single, resilient execution engine with strict module boundaries and end-to-end traceability.
 
 ## System Architecture
 
@@ -10,18 +10,18 @@ The Alchemiser is organized into five key business modules communicating exclusi
 graph TB
     subgraph "Business Modules"
         S[Strategy v2<br/>Signal Generation]
-        P[Portfolio v2<br/>Rebalance Planning]  
+        P[Portfolio v2<br/>Rebalance Planning]
         E[Execution v2<br/>Order Management]
         O[Orchestration<br/>Workflow Coordination]
         SH[Shared<br/>Events, DTOs, Services]
     end
-    
+
     subgraph "External Systems"
         A[Alpaca API<br/>Market Data & Trading]
         AWS[AWS Lambda<br/>Cloud Deployment]
         L[Logs & Metrics<br/>Observability]
     end
-    
+
     S --> SH
     P --> SH
     E --> SH
@@ -29,11 +29,11 @@ graph TB
     SH --> A
     O --> AWS
     SH --> L
-    
+
     classDef module fill:#e1f5fe
     classDef shared fill:#f3e5f5
     classDef external fill:#fff3e0
-    
+
     class S,P,E,O module
     class SH shared
     class A,AWS,L external
@@ -42,7 +42,7 @@ graph TB
 ### Module Boundaries
 
 - **Strategy v2**: Generates trading signals from market data
-- **Portfolio v2**: Converts signals into rebalance plans  
+- **Portfolio v2**: Converts signals into rebalance plans
 - **Execution v2**: Executes trades via Alpaca broker
 - **Orchestration**: Coordinates workflows through event handlers
 - **Shared**: Common DTOs, events, adapters, and utilities
@@ -57,7 +57,7 @@ The system operates through a pure event-driven architecture with idempotent, tr
 sequenceDiagram
     participant O as Orchestration
     participant S as Strategy v2
-    participant P as Portfolio v2  
+    participant P as Portfolio v2
     participant E as Execution v2
     participant Bus as Event Bus
     participant A as Alpaca API
@@ -66,26 +66,26 @@ sequenceDiagram
 
     O->>Bus: WorkflowStarted
     Bus->>S: WorkflowStarted
-    
+
     S->>A: Fetch market data
     A-->>S: Price/volume data
     S->>S: Calculate signals (Nuclear, TECL, KLM)
     S->>Bus: SignalGenerated
-    
+
     Bus->>P: SignalGenerated
     P->>A: Get current positions/cash
     A-->>P: Account snapshot
     P->>P: Calculate rebalance plan
     P->>Bus: RebalancePlanned
-    
+
     Bus->>E: RebalancePlanned
     E->>A: Place orders
     A-->>E: Order confirmations
     E->>Bus: TradeExecuted
-    
+
     Bus->>O: TradeExecuted
     O->>Bus: WorkflowCompleted
-    
+
     Note over O,A: All events include correlation_id for traceability
 ```
 
@@ -106,13 +106,14 @@ All events extend `BaseEvent` with correlation tracking and metadata:
 ### Additional Events
 
 - `StartupEvent`: System initialization trigger
-- `WorkflowFailed`: Error handling and recovery  
+- `WorkflowFailed`: Error handling and recovery
 - `ExecutionPhaseCompleted`: Multi-phase trade coordination
 - `PortfolioStateChanged`: Position/balance updates
 
 All events include:
+
 - `correlation_id`: End-to-end workflow tracking
-- `causation_id`: Parent event reference  
+- `causation_id`: Parent event reference
 - `event_id`: Unique event identifier
 - `timestamp`: Event creation time
 - `source_module`/`source_component`: Event origin
@@ -127,8 +128,9 @@ All events include:
 **Outputs**: `SignalGenerated` events with strategy allocations
 
 **Key Components**:
+
 - `engines/`: Strategy implementations (Nuclear, TECL, KLM)
-- `indicators/`: Technical indicator calculations  
+- `indicators/`: Technical indicator calculations
 - `handlers/`: Event handlers for signal generation
 - `adapters/`: Market data access layer
 
@@ -138,10 +140,11 @@ All events include:
 
 **Purpose**: Convert strategy signals into executable rebalance plans.
 
-**Inputs**: `SignalGenerated` events  
+**Inputs**: `SignalGenerated` events
 **Outputs**: `RebalancePlanned` events with trade specifications
 
 **Key Components**:
+
 - `core/planner.py`: Rebalance plan calculator
 - `core/state_reader.py`: Portfolio snapshot builder
 - `adapters/`: Account data access
@@ -157,8 +160,9 @@ All events include:
 **Outputs**: `TradeExecuted` events with execution results
 
 **Key Components**:
+
 - `core/execution_manager.py`: Order placement coordination
-- `handlers/`: Event handlers for trade execution  
+- `handlers/`: Event handlers for trade execution
 - `models/`: Execution result DTOs
 
 **Boundaries**: No recalculation of plans. Pure order execution with slippage controls.
@@ -168,6 +172,7 @@ All events include:
 **Purpose**: Coordinate complete workflows and handle cross-cutting concerns.
 
 **Key Components**:
+
 - `event_driven_orchestrator.py`: Primary workflow coordinator
 - `system.py`: System bootstrap and configuration
 
@@ -178,6 +183,7 @@ All events include:
 **Purpose**: Common services, DTOs, and protocols used across modules.
 
 **Key Components**:
+
 - `events/`: Event bus, schemas, and handlers
 - `schemas/`: DTOs for data exchange
 - `adapters/`: External service integrations (Alpaca)
@@ -260,7 +266,7 @@ All events and operations include structured metadata:
 ```json
 {
   "timestamp": "2024-01-15T10:30:00Z",
-  "level": "INFO", 
+  "level": "INFO",
   "correlation_id": "wf-123e4567-e89b-12d3",
   "event_type": "SignalGenerated",
   "module": "strategy_v2",
@@ -282,8 +288,9 @@ All events and operations include structured metadata:
 ### Idempotency
 
 All event handlers are idempotent and safe under:
+
 - Message replay
-- Network retries  
+- Network retries
 - System restarts
 
 Each event includes deterministic hashes for deduplication.
@@ -297,12 +304,15 @@ Each event includes deterministic hashes for deduplication.
 ## Strategies Implemented
 
 ### Nuclear Strategy
+
 High-conviction momentum strategy targeting leveraged ETFs with strict risk controls.
 
-### TECL Strategy  
+### TECL Strategy
+
 Technology sector momentum with dynamic position sizing based on volatility.
 
 ### KLM Ensemble
+
 Multi-timeframe ensemble combining trend following with mean reversion signals.
 
 ## Architecture Principles
@@ -316,7 +326,7 @@ Multi-timeframe ensemble combining trend following with mean reversion signals.
 
 ---
 
-**Version**: 2.0.0  
-**License**: MIT  
-**Author**: Josh Moreton  
+**Version**: 2.0.0
+**License**: MIT
+**Author**: Josh Moreton
 **Repository**: [Josh-moreton/alchemiser-quant](https://github.com/Josh-moreton/alchemiser-quant)
