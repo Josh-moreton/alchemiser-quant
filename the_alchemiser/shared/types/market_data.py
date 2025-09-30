@@ -191,3 +191,50 @@ def dataframe_to_bars(df: pd.DataFrame, symbol: str) -> list[BarModel]:
             )
         )
     return bars
+
+
+@dataclass
+class RealTimeQuote:
+    """Real-time quote data structure (legacy).
+
+    Deprecated: Use QuoteModel for new code.
+    Kept for backward compatibility with existing code.
+    """
+
+    bid: float
+    ask: float
+    last_price: float
+    timestamp: datetime
+
+    @property
+    def mid_price(self) -> float:
+        """Calculate mid-point between bid and ask."""
+        if self.bid > 0 and self.ask > 0:
+            return (self.bid + self.ask) / 2
+        if self.bid > 0:
+            return self.bid
+        if self.ask > 0:
+            return self.ask
+        return self.last_price
+
+
+@dataclass
+class SubscriptionPlan:
+    """Helper class for bulk subscription planning."""
+
+    results: dict[str, bool]
+    symbols_to_add: list[str]
+    symbols_to_replace: list[str]
+    available_slots: int
+    successfully_added: int = 0
+
+
+@dataclass
+class QuoteExtractionResult:
+    """Container for quote values extracted from incoming data."""
+
+    bid_price: float | None
+    ask_price: float | None
+    bid_size: float | None
+    ask_size: float | None
+    timestamp_raw: datetime | None
