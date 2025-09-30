@@ -54,21 +54,7 @@ def _get_alpaca_keys_from_env() -> tuple[str, str, str] | tuple[None, None, None
     return api_key, secret_key, endpoint
 
 
-def get_twelvedata_api_key() -> str | None:
-    """Get TwelveData API key from environment variables."""
-    return _get_twelvedata_key_from_env()
-
-
-def _get_twelvedata_key_from_env() -> str | None:
-    """Get TwelveData key from environment variables."""
-    api_key = os.getenv("TWELVEDATA_KEY")
-
-    if not api_key:
-        logger.warning("TwelveData API key not found in environment variables")
-        return None
-
-    logger.debug("Successfully loaded TwelveData API key from environment")
-    return api_key
+# TwelveData is no longer used; legacy helpers removed.
 
 
 def get_email_password() -> str | None:
@@ -109,5 +95,7 @@ def _get_email_password_from_env() -> str | None:
         )
         return None
 
-    logger.debug("Successfully loaded email password from environment variables (fallback method)")
+    logger.debug(
+        "Successfully loaded email password from environment variables (fallback method)"
+    )
     return password

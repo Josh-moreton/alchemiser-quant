@@ -55,32 +55,7 @@ Parameters:
     NoEcho: true
     Description: Email SMTP password for production notifications (optional)
 
-  ProdTwelveDataKey:
-    Type: String
-    Default: ""
-    NoEcho: true
-    Description: TwelveData API key for production (optional)
-
-  # Strategy configuration parameters for dev and prod
-  DevStrategyFiles:
-    Type: String
-    Default: '["1-KMLM.clj","2-Nuclear.clj","3-Starburst.clj","4-What.clj","5-Coin.clj","6-TQQQ-FLT.clj","7-Phoenix.clj"]'
-    Description: Strategy DSL files for dev environment
-
-  DevStrategyAllocations:
-    Type: String
-    Default: '{"1-KMLM.clj":0.2,"2-Nuclear.clj":0.15,"3-Starburst.clj":0.15,"4-What.clj":0.1,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.15,"7-Phoenix.clj":0.15}'
-    Description: Strategy DSL allocations for dev environment
-
-  ProdStrategyFiles:
-    Type: String
-    Default: '["1-KMLM.clj","2-Nuclear.clj","5-Coin.clj","6-TQQQ-FLT.clj"]'
-    Description: Strategy DSL files for production environment
-
-  ProdStrategyAllocations:
-    Type: String
-    Default: '{"1-KMLM.clj":0.4,"2-Nuclear.clj":0.25,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.25}'
-    Description: Strategy DSL allocations for production environment
+  # Strategy configuration: now defined in code defaults. Override via env only if required.
 
 Conditions:
   IsDev: !Equals [ !Ref Stage, dev ]
@@ -93,11 +68,12 @@ Globals:
       Variables:
         # Logging
         LOGGING__LEVEL: INFO
+        # Stage awareness for code-level profiles
+        APP__STAGE: !If [ IsDev, "dev", "prod" ]
         # Alpaca Configuration
         ALPACA__KEY: !If [ IsDev, !Ref AlpacaKey, !Ref ProdAlpacaKey ]
         ALPACA__SECRET: !If [ IsDev, !Ref AlpacaSecret, !Ref ProdAlpacaSecret ]
         ALPACA__ENDPOINT: !If [ IsDev, !Ref AlpacaEndpoint, !Ref ProdAlpacaEndpoint ]
-        ALPACA__CASH_RESERVE_PCT: "0.02"
         # Email Configuration
         EMAIL__SMTP_SERVER: smtp.mail.me.com
         EMAIL__SMTP_PORT: 587
@@ -105,12 +81,9 @@ Globals:
         EMAIL__TO_EMAIL: josh@rwxt.org
         EMAIL__NEUTRAL_MODE: true
         EMAIL__PASSWORD: !If [ IsDev, "", !Ref ProdEmailPassword ]
-        # TwelveData Configuration
-        TWELVEDATA_KEY: !If [ IsDev, "", !Ref ProdTwelveDataKey ]
-        # Strategy DSL configuration - different for dev vs prod
-        STRATEGY__DSL_FILES: !If [ IsDev, !Ref DevStrategyFiles, !Ref ProdStrategyFiles ]
-        STRATEGY__DSL_ALLOCATIONS: !If [ IsDev, !Ref DevStrategyAllocations, !Ref ProdStrategyAllocations ]
-
+        # Strategy DSL configuration now comes from code defaults; override via env only if necessary
+        # STRATEGY__DSL_FILES: '["1-KMLM.clj","2-Nuclear.clj","5-Coin.clj","6-TQQQ-FLT.clj"]'
+        # STRATEGY__DSL_ALLOCATIONS: '{"1-KMLM.clj":0.4,"2-Nuclear.clj":0.25,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.25}'
 
         # DSL parallelism configuration
         ALCHEMISER_DSL_PARALLELISM: threads
