@@ -23,9 +23,7 @@ _S3_PROTOCOL_PREFIX = "s3://"
 # Set of string values that, when present in configuration, indicate S3 logging should be enabled.
 _S3_ENABLED_VALUES = frozenset(["1", "true", "yes", "on"])
 # Set of environment variable names that, if present, indicate the code is running in an AWS Lambda environment.
-_LAMBDA_ENV_VARS = frozenset(
-    ["AWS_EXECUTION_ENV", "AWS_LAMBDA_RUNTIME_API", "LAMBDA_RUNTIME_DIR"]
-)
+_LAMBDA_ENV_VARS = frozenset(["AWS_EXECUTION_ENV", "AWS_LAMBDA_RUNTIME_API", "LAMBDA_RUNTIME_DIR"])
 
 # Context variables for request tracking
 request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
@@ -801,9 +799,7 @@ def _configure_production_logging(resolved_level: int, settings: object | None) 
     )
 
 
-def _determine_development_console_level(
-    default_level: int, settings: object | None
-) -> int:
+def _determine_development_console_level(default_level: int, settings: object | None) -> int:
     """Determine console level for development environment."""
     env_console = _parse_log_level(os.getenv("LOGGING__CONSOLE_LEVEL"))
     if env_console is not None:
@@ -832,9 +828,7 @@ def _determine_development_log_file(settings: object | None) -> str | None:
     return None
 
 
-def _configure_development_logging(
-    resolved_level: int, settings: object | None
-) -> None:
+def _configure_development_logging(resolved_level: int, settings: object | None) -> None:
     """Configure logging for development environment."""
     setup_logging(
         log_level=resolved_level,
@@ -857,9 +851,7 @@ def _is_lambda_production_environment() -> bool:
     )
 
 
-def _should_skip_logging_setup(
-    root_logger: logging.Logger, *, is_production: bool
-) -> bool:
+def _should_skip_logging_setup(root_logger: logging.Logger, *, is_production: bool) -> bool:
     """Determine if logging setup should be skipped."""
     return root_logger.hasHandlers() and not is_production
 
