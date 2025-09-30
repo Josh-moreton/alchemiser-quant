@@ -101,15 +101,13 @@ echo ""
 echo "🚀 Deploying to AWS..."
 
 if [ "$ENVIRONMENT" = "dev" ]; then
-    # Load Alpaca creds and strategy configs from common dotenv files (best-effort)
+    # Load Alpaca creds from common dotenv files (best-effort)
     load_from_file() {
         local f="$1"
         [[ -f "$f" ]] || return 0
         [[ -z "${ALPACA_KEY:-}" ]] && ALPACA_KEY="$(grep -E '^ALPACA_KEY=' "$f" | tail -n1 | sed -E 's/^ALPACA_KEY=(.*)$/\1/')" || true
         [[ -z "${ALPACA_SECRET:-}" ]] && ALPACA_SECRET="$(grep -E '^ALPACA_SECRET=' "$f" | tail -n1 | sed -E 's/^ALPACA_SECRET=(.*)$/\1/')" || true
         [[ -z "${ALPACA_ENDPOINT:-}" ]] && ALPACA_ENDPOINT="$(grep -E '^ALPACA_ENDPOINT=' "$f" | tail -n1 | sed -E 's/^ALPACA_ENDPOINT=(.*)$/\1/')" || true
-        [[ -z "${STRATEGY_DSL_FILES:-}" ]] && STRATEGY_DSL_FILES="$(grep -E '^STRATEGY__DSL_FILES=' "$f" | tail -n1 | sed -E 's/^STRATEGY__DSL_FILES=(.*)$/\1/')" || true
-        [[ -z "${STRATEGY_DSL_ALLOCATIONS:-}" ]] && STRATEGY_DSL_ALLOCATIONS="$(grep -E '^STRATEGY__DSL_ALLOCATIONS=' "$f" | tail -n1 | sed -E 's/^STRATEGY__DSL_ALLOCATIONS=(.*)$/\1/')" || true
     }
     for SECRETS_FILE in scripts/dev.secrets .env.dev .env.local .env; do
         load_from_file "$SECRETS_FILE"
@@ -121,10 +119,6 @@ if [ "$ENVIRONMENT" = "dev" ]; then
     fi
     ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://paper-api.alpaca.markets/v2"}
 
-    # Set defaults for strategy configs if not found in .env
-    STRATEGY_DSL_FILES_PARAM=${STRATEGY_DSL_FILES:-'["1-KMLM.clj","2-Nuclear.clj","3-Starburst.clj","4-What.clj","5-Coin.clj","6-TQQQ-FLT.clj","7-Phoenix.clj"]'}
-    STRATEGY_DSL_ALLOCATIONS_PARAM=${STRATEGY_DSL_ALLOCATIONS:-'{"1-KMLM.clj":0.2,"2-Nuclear.clj":0.15,"3-Starburst.clj":0.15,"4-What.clj":0.1,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.15,"7-Phoenix.clj":0.15}'}
-
     sam deploy \
         --no-fail-on-empty-changeset \
         --resolve-s3 \
@@ -133,9 +127,7 @@ if [ "$ENVIRONMENT" = "dev" ]; then
             Stage=dev \
             AlpacaKey="$ALPACA_KEY" \
             AlpacaSecret="$ALPACA_SECRET" \
-            AlpacaEndpoint="$ALPACA_ENDPOINT_PARAM" \
-            DevStrategyFiles="$STRATEGY_DSL_FILES_PARAM" \
-            DevStrategyAllocations="$STRATEGY_DSL_ALLOCATIONS_PARAM"
+            AlpacaEndpoint="$ALPACA_ENDPOINT_PARAM"
 else
     # Production deployment - load LIVE_* credentials from .env file
     echo "📋 Loading production credentials from .env file..."
@@ -147,8 +139,6 @@ else
         [[ -z "${LIVE_ALPACA_KEY:-}" ]] && LIVE_ALPACA_KEY="$(grep -E '^LIVE_ALPACA_KEY=' "$f" | tail -n1 | sed -E 's/^LIVE_ALPACA_KEY=(.*)$/\1/')" || true
         [[ -z "${LIVE_ALPACA_SECRET:-}" ]] && LIVE_ALPACA_SECRET="$(grep -E '^LIVE_ALPACA_SECRET=' "$f" | tail -n1 | sed -E 's/^LIVE_ALPACA_SECRET=(.*)$/\1/')" || true
         [[ -z "${LIVE_ALPACA_ENDPOINT:-}" ]] && LIVE_ALPACA_ENDPOINT="$(grep -E '^LIVE_ALPACA_ENDPOINT=' "$f" | tail -n1 | sed -E 's/^LIVE_ALPACA_ENDPOINT=(.*)$/\1/')" || true
-        [[ -z "${LIVE_STRATEGY_DSL_FILES:-}" ]] && LIVE_STRATEGY_DSL_FILES="$(grep -E '^LIVE_STRATEGY__DSL_FILES=' "$f" | tail -n1 | sed -E 's/^LIVE_STRATEGY__DSL_FILES=(.*)$/\1/')" || true
-        [[ -z "${LIVE_STRATEGY_DSL_ALLOCATIONS:-}" ]] && LIVE_STRATEGY_DSL_ALLOCATIONS="$(grep -E '^LIVE_STRATEGY__DSL_ALLOCATIONS=' "$f" | tail -n1 | sed -E 's/^LIVE_STRATEGY__DSL_ALLOCATIONS=(.*)$/\1/')" || true
         [[ -z "${EMAIL_PASSWORD:-}" ]] && EMAIL_PASSWORD="$(grep -E '^EMAIL__PASSWORD=' "$f" | tail -n1 | sed -E 's/^EMAIL__PASSWORD=(.*)$/\1/')" || true
         [[ -z "${TWELVEDATA_KEY:-}" ]] && TWELVEDATA_KEY="$(grep -E '^TWELVEDATA_KEY=' "$f" | tail -n1 | sed -E 's/^TWELVEDATA_KEY=(.*)$/\1/')" || true
     }
@@ -169,10 +159,6 @@ else
     EMAIL_PASSWORD_PARAM=${EMAIL_PASSWORD:-""}
     TWELVEDATA_KEY_PARAM=${TWELVEDATA_KEY:-""}
 
-    # Set defaults for strategy configs if not found in .env
-    LIVE_STRATEGY_DSL_FILES_PARAM=${LIVE_STRATEGY_DSL_FILES:-'["1-KMLM.clj","2-Nuclear.clj","5-Coin.clj","6-TQQQ-FLT.clj"]'}
-    LIVE_STRATEGY_DSL_ALLOCATIONS_PARAM=${LIVE_STRATEGY_DSL_ALLOCATIONS:-'{"1-KMLM.clj":0.4,"2-Nuclear.clj":0.25,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.25}'}
-
     echo "✅ Production credentials loaded from .env"
     echo "⚠️  WARNING: Using LIVE trading keys - real money will be traded!"
     echo ""
@@ -187,9 +173,7 @@ else
             ProdAlpacaSecret="$LIVE_ALPACA_SECRET" \
             ProdAlpacaEndpoint="$LIVE_ALPACA_ENDPOINT_PARAM" \
             ProdEmailPassword="$EMAIL_PASSWORD_PARAM" \
-            ProdTwelveDataKey="$TWELVEDATA_KEY_PARAM" \
-            ProdStrategyFiles="$LIVE_STRATEGY_DSL_FILES_PARAM" \
-            ProdStrategyAllocations="$LIVE_STRATEGY_DSL_ALLOCATIONS_PARAM"
+            ProdTwelveDataKey="$TWELVEDATA_KEY_PARAM"
 fi
 
 echo ""
