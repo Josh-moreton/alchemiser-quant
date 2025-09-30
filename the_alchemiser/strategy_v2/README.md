@@ -43,19 +43,45 @@ strategy_v2/
 
 ## Usage
 
+### Event-Driven (Preferred)
+
+The strategy module integrates with the event-driven architecture through handler registration:
+
+```python
+from the_alchemiser.strategy_v2 import register_strategy_handlers
+from the_alchemiser.shared.config.container import ApplicationContainer
+
+# Register handlers with the event bus
+container = ApplicationContainer()
+register_strategy_handlers(container)
+
+# Handlers automatically respond to:
+# - StartupEvent: Initial system startup
+# - WorkflowStarted: New trading workflow initiation
+```
+
+Strategies emit `SignalGenerated` events containing `StrategyAllocationDTO` with:
+- Target weights for each symbol
+- Correlation ID for tracking
+- Metadata (strategy name, timestamp, confidence)
+
+### Direct Access (Legacy - Being Phased Out)
+
+For migration and testing purposes only:
+
 ```python
 from the_alchemiser.strategy_v2.core.orchestrator import SingleStrategyOrchestrator
 from the_alchemiser.strategy_v2.models.context import StrategyContext
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Create strategy context
 context = StrategyContext(
     symbols=["SPY", "QQQ"],
     timeframe="1D",
-    as_of=datetime.utcnow()
+    as_of=datetime.now(timezone.utc)
 )
 
-# Run strategy
+# Run strategy directly
 orchestrator = SingleStrategyOrchestrator()
 allocation = orchestrator.run("nuclear", context)
 
@@ -81,17 +107,69 @@ Strategy engines and indicators will be moved verbatim from the legacy strategy 
 - `strategy/engines/tecl/` → `strategy_v2/engines/tecl/`
 - `strategy/indicators/` → `strategy_v2/indicators/`
 
+## Integration Points
+
+### Dependencies
+- **shared/brokers**: AlpacaManager for market data access
+- **shared/events**: EventBus for event-driven communication
+- **shared/schemas**: StrategyAllocationDTO and related DTOs
+
+### Outputs
+- Publishes `SignalGenerated` events to the event bus
+- Events consumed by portfolio_v2 for rebalance planning
+
+### Module Boundaries
+- **Imports from**: `shared/` only (brokers, events, schemas, logging, errors)
+- **No imports from**: `portfolio_v2/`, `execution_v2/`, `orchestration/`
+- **Communication**: Event-driven only; no direct cross-module calls
+
 ## Error Handling
 
 Strategy_v2 uses typed exceptions with module context:
 
-- `StrategyError`: Strategy execution failures
-- `ConfigurationError`: Invalid configuration or context
-- All errors include `module="strategy_v2.*"` metadata
+```python
+from the_alchemiser.shared.errors import StrategyError, ConfigurationError
+
+try:
+    allocation = orchestrator.run("nuclear", context)
+except StrategyError as e:
+    logger.error(f"Strategy execution failed: {e}", extra=e.context)
+except ConfigurationError as e:
+    logger.error(f"Invalid configuration: {e}", extra=e.context)
+```
+
+All errors include:
+- `module="strategy_v2.*"` metadata for filtering
+- Correlation IDs for tracking across workflow
+- Contextual information (strategy name, symbols, timeframe)
 
 ## Performance
 
-- O(n * lookback) complexity with batched data fetching
-- Zero I/O inside inner loops
-- Deterministic outputs for same inputs
-- Correlation ID propagation for observability
+- **O(n * lookback)** complexity with batched data fetching
+- **Zero I/O** inside inner loops (data fetched once at start)
+- **Deterministic**: Same inputs → same signals
+- **Correlation ID** propagation for end-to-end observability
+- **Batched API calls**: Minimize Alpaca API requests
+
+## Testing and Validation
+
+### Unit Tests
+```bash
+# Run strategy module tests
+poetry run pytest tests/strategy_v2/ -v
+
+# Test with coverage
+poetry run pytest tests/strategy_v2/ --cov=the_alchemiser.strategy_v2
+```
+
+### Integration Testing
+```bash
+# Validate with real market data (paper trading)
+poetry run python scripts/validate_strategy_v2.py
+```
+
+### Type Checking
+```bash
+# Verify type correctness
+make type-check
+```
