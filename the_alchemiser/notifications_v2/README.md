@@ -1,5 +1,7 @@
 # Notifications V2 - Event-Driven Email Service
 
+**Business Unit: notifications | Status: current**
+
 ## Overview
 
 The `notifications_v2` module provides event-driven email notification services that can be deployed independently as a Lambda function. It consumes notification events from the event bus and sends appropriate emails using the existing email infrastructure.
@@ -160,19 +162,78 @@ Uses the same email configuration as the existing system:
 - **Logging**: All notification attempts are logged with correlation IDs
 - **Retries**: Inherits retry logic from underlying email infrastructure
 
-## Testing
+## Testing and Validation
 
-Run the integration test to verify functionality:
-
+### Unit Tests
 ```bash
+# Run notification module tests
+poetry run pytest tests/notifications_v2/ -v
+
+# Test with coverage
+poetry run pytest tests/notifications_v2/ --cov=the_alchemiser.notifications_v2
+```
+
+### Integration Testing
+```bash
+# Run integration test to verify functionality
 poetry run python /tmp/integration_test.py
 ```
 
-The test verifies:
+The integration test verifies:
 - Event processing capabilities
 - Email template generation
 - Independent deployment readiness
 - Module boundary compliance
+
+### Manual Testing
+```python
+# Test notification event handling
+from the_alchemiser.notifications_v2 import NotificationService
+from the_alchemiser.shared.config.container import ApplicationContainer
+from the_alchemiser.shared.events.schemas import ErrorNotificationRequested
+
+container = ApplicationContainer()
+service = NotificationService(container)
+service.register_handlers()
+
+# Create and publish test event
+event = ErrorNotificationRequested(
+    correlation_id="test-123",
+    causation_id="manual-test",
+    error_severity="MEDIUM",
+    error_priority="MEDIUM",
+    error_title="Test Notification",
+    error_report="This is a test notification email",
+)
+
+# Event bus will route to notification handler
+container.services.event_bus().publish(event)
+```
+
+### Type Checking
+```bash
+# Verify type correctness
+make type-check
+```
+
+## Performance
+
+### Execution Characteristics
+- **Async email sending**: Non-blocking SMTP operations
+- **Event-driven**: Decoupled from main trading workflow
+- **Independent scaling**: Can be deployed as separate Lambda for isolation
+- **Graceful degradation**: Falls back to direct email if event bus unavailable
+
+### Resource Usage
+- **Memory**: O(1) per notification event
+- **Network**: SMTP connection + email transmission
+- **CPU**: Minimal (template rendering and SMTP I/O)
+
+### Timing Considerations
+- **Email delivery**: 1-5 seconds typical via SMTP
+- **Event processing**: Near-instant event handling
+- **Non-blocking**: Does not delay trading workflows
+- **Retry logic**: Built into underlying email infrastructure
 
 ## Future Enhancements
 

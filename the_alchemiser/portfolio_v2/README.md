@@ -1,5 +1,7 @@
 # Portfolio_v2 Module
 
+**Business Unit: portfolio | Status: current**
+
 ## Overview
 
 Portfolio_v2 is a minimal, DTO-first module that replaces the legacy portfolio module with clean separation of concerns and deterministic rebalancing logic.
