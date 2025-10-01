@@ -521,8 +521,11 @@ class EventDrivenOrchestrator:
             }
         )
 
-        # Remove from active correlations as workflow is complete
-        self.workflow_state["active_correlations"].discard(event.correlation_id)
+        # NOTE: Do NOT remove from active_correlations here!
+        # The workflow is not actually complete until WorkflowCompleted is processed.
+        # Removing it prematurely causes wait_for_workflow_completion() to return
+        # before the workflow has fully completed, which can lead to timing issues.
+        # The correlation_id will be removed in _handle_workflow_completed().
 
         # Collect execution results for workflow results
         if event.correlation_id not in self.workflow_results:
