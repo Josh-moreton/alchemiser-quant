@@ -58,17 +58,13 @@ class OrderMonitor:
 
         """
         if not self.smart_strategy:
-            logger.info(
-                f"📊 {phase_type} phase: Smart strategy disabled; skipping re-peg loop"
-            )
+            logger.info(f"📊 {phase_type} phase: Smart strategy disabled; skipping re-peg loop")
             return orders
 
         config = self._get_repeg_monitoring_config()
         self._log_monitoring_config(phase_type, config)
 
-        return await self._execute_repeg_monitoring_loop(
-            phase_type, orders, config, time.time()
-        )
+        return await self._execute_repeg_monitoring_loop(phase_type, orders, config, time.time())
 
     def _get_repeg_monitoring_config(self) -> dict[str, int]:
         """Get configuration parameters for repeg monitoring.
@@ -86,9 +82,7 @@ class OrderMonitor:
 
         try:
             if self.execution_config is not None:
-                config["max_repegs"] = getattr(
-                    self.execution_config, "max_repegs_per_order", 3
-                )
+                config["max_repegs"] = getattr(self.execution_config, "max_repegs_per_order", 3)
                 config["fill_wait_seconds"] = int(
                     getattr(self.execution_config, "fill_wait_seconds", 10)
                 )
@@ -96,9 +90,7 @@ class OrderMonitor:
                     1, min(config["fill_wait_seconds"] // 5, 5)
                 )  # Check 5x per fill_wait period
                 placement_timeout = int(
-                    getattr(
-                        self.execution_config, "order_placement_timeout_seconds", 30
-                    )
+                    getattr(self.execution_config, "order_placement_timeout_seconds", 30)
                 )
                 # Fix: Use fill_wait_seconds for total time calculation, not wait_between_checks
                 config["max_total_wait"] = int(
@@ -150,9 +142,7 @@ class OrderMonitor:
             elapsed_total = time.time() - start_time
 
             # Early termination check
-            if self._should_terminate_early(
-                elapsed_total, config["max_total_wait"], phase_type
-            ):
+            if self._should_terminate_early(elapsed_total, config["max_total_wait"], phase_type):
                 break
 
             try:
@@ -162,18 +152,14 @@ class OrderMonitor:
                 repeg_results = await self.smart_strategy.check_and_repeg_orders()
 
                 replacement_map.update(
-                    self._process_repeg_results(
-                        phase_type, repeg_results, attempts, elapsed_total
-                    )
+                    self._process_repeg_results(phase_type, repeg_results, attempts, elapsed_total)
                 )
 
                 # Wait for fills after re-pegging
                 await asyncio.sleep(config["fill_wait_seconds"])
 
             except Exception as exc:
-                logger.warning(
-                    f"⚠️ {phase_type} phase re-peg attempt {attempts} failed: {exc}"
-                )
+                logger.warning(f"⚠️ {phase_type} phase re-peg attempt {attempts} failed: {exc}")
 
         self._log_monitoring_completion(phase_type, attempts, time.time() - start_time)
 
@@ -181,19 +167,13 @@ class OrderMonitor:
         updated_orders = self._replace_order_ids(orders, replacement_map)
 
         # Final safeguard: escalate any remaining active orders to market
-        replacement_after_escalation = await self._final_escalation_if_active_orders(
-            phase_type
-        )
+        replacement_after_escalation = await self._final_escalation_if_active_orders(phase_type)
         if replacement_after_escalation:
-            updated_orders = self._replace_order_ids(
-                updated_orders, replacement_after_escalation
-            )
+            updated_orders = self._replace_order_ids(updated_orders, replacement_after_escalation)
 
         return updated_orders
 
-    async def _final_escalation_if_active_orders(
-        self, phase_type: str
-    ) -> dict[str, str]:
+    async def _final_escalation_if_active_orders(self, phase_type: str) -> dict[str, str]:
         """Escalate any remaining active orders to market and return replacement map.
 
         This prevents scenarios where the final order stays as a limit order
@@ -227,9 +207,7 @@ class OrderMonitor:
             replacement_map: dict[str, str] = {}
             for r in results:
                 meta = getattr(r, "metadata", None) or {}
-                original_id = (
-                    str(meta.get("original_order_id")) if isinstance(meta, dict) else ""
-                )
+                original_id = str(meta.get("original_order_id")) if isinstance(meta, dict) else ""
                 new_id = getattr(r, "order_id", None) or ""
                 if getattr(r, "success", False) and original_id and new_id:
                     replacement_map[original_id] = new_id
@@ -276,9 +254,7 @@ class OrderMonitor:
 
         return replacement_map
 
-    def _log_no_repeg_activity(
-        self, phase_type: str, attempts: int, elapsed_total: float
-    ) -> None:
+    def _log_no_repeg_activity(self, phase_type: str, attempts: int, elapsed_total: float) -> None:
         """Log when no re-pegging activity occurred."""
         logger.debug(
             f"🔄 {phase_type} phase re-peg check #{attempts}: no unfilled orders "
@@ -323,9 +299,7 @@ class OrderMonitor:
             f"{attempts} attempts in {total_elapsed:.1f}s"
         )
 
-    def _log_repeg_status(
-        self, phase_type: str, repeg_result: SmartOrderResult
-    ) -> None:
+    def _log_repeg_status(self, phase_type: str, repeg_result: SmartOrderResult) -> None:
         """Log the status of a re-pegging operation."""
         strategy = getattr(repeg_result, "execution_strategy", "")
         order_id = getattr(repeg_result, "order_id", "")
@@ -341,26 +315,18 @@ class OrderMonitor:
                 if self.execution_config
                 else 3
             )
-            logger.debug(
-                f"✅ {phase_type} REPEG {repegs_used}/{max_repegs}: {order_id}"
-            )
+            logger.debug(f"✅ {phase_type} REPEG {repegs_used}/{max_repegs}: {order_id}")
 
     def _extract_order_ids(self, repeg_result: SmartOrderResult) -> tuple[str, str]:
         """Extract old and new order IDs from repeg result for logging."""
         meta = getattr(repeg_result, "metadata", None) or {}
-        original_id = (
-            str(meta.get("original_order_id")) if isinstance(meta, dict) else ""
-        )
+        original_id = str(meta.get("original_order_id")) if isinstance(meta, dict) else ""
         new_id = getattr(repeg_result, "order_id", None) or ""
         return original_id, new_id
 
-    def _handle_failed_repeg(
-        self, phase_type: str, repeg_result: SmartOrderResult
-    ) -> None:
+    def _handle_failed_repeg(self, phase_type: str, repeg_result: SmartOrderResult) -> None:
         """Handle failed re-pegging attempts."""
-        logger.warning(
-            f"⚠️ {phase_type} phase re-peg failed: {repeg_result.error_message}"
-        )
+        logger.warning(f"⚠️ {phase_type} phase re-peg failed: {repeg_result.error_message}")
 
     def _build_replacement_map_from_repeg_result(
         self, repeg_result: SmartOrderResult
