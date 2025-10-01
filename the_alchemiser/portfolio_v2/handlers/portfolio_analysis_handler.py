@@ -145,7 +145,9 @@ class PortfolioAnalysisHandler:
             event: The SignalGenerated event
 
         """
-        self.logger.info("🔄 Starting portfolio analysis from SignalGenerated event")
+        self.logger.debug(
+            f"🔄 RECEIVED SignalGenerated event correlation_id={event.correlation_id}, starting portfolio analysis"
+        )
 
         try:
             # Extract strategy names from the signals data
@@ -174,7 +176,13 @@ class PortfolioAnalysisHandler:
                 allocation_comparison, account_info, strategy_names
             )
 
-            # Emit RebalancePlanned event (even if no trades needed)
+            # If no rebalance plan could be created, treat as failure and stop
+            if rebalance_plan is None:
+                raise ValueError(
+                    "Rebalance plan could not be created; preconditions not met (e.g., negative cash)"
+                )
+
+            # Emit RebalancePlanned event
             self._emit_rebalance_planned_event(
                 rebalance_plan,
                 allocation_comparison,
@@ -494,28 +502,22 @@ class PortfolioAnalysisHandler:
 
         """
         try:
-            # Create a plan even if None - represent as no-trade plan
+            # Check if workflow has failed before emitting events
+            is_failed = self.event_bus.is_workflow_failed(correlation_id)
+            self.logger.debug(
+                f"🔍 Workflow state check: correlation_id={correlation_id}, is_failed={is_failed}"
+            )
+
+            if is_failed:
+                self.logger.info(
+                    f"🚫 Skipping RebalancePlanned event emission - workflow {correlation_id} already failed"
+                )
+                return
+
+            # Do not emit if no plan exists; treat upstream as failure
             if rebalance_plan is None:
-                from the_alchemiser.shared.schemas.rebalance_plan import (
-                    RebalancePlan,
-                )
-
-                # Format strategy names for metadata
-                strategy_name = self._format_strategy_names(strategy_names or ["DSL"])
-
-                rebalance_plan = RebalancePlan(
-                    plan_id=f"no-trade-{uuid.uuid4()}",
-                    correlation_id=correlation_id,
-                    causation_id=correlation_id,
-                    timestamp=datetime.now(UTC),
-                    items=[],
-                    total_portfolio_value=Decimal(str(account_info.get("portfolio_value", 0))),
-                    total_trade_value=Decimal("0"),
-                    metadata={
-                        "scenario": "no_trades_needed",
-                        "strategy_name": strategy_name,
-                    },
-                )
+                self.logger.error("No rebalance plan available; aborting RebalancePlanned emission")
+                raise ValueError("No rebalance plan to emit")
             self._log_final_rebalance_plan_summary(rebalance_plan)
 
             # Determine if actual trades (BUY/SELL) are required, not just HOLDs
@@ -673,6 +675,18 @@ class PortfolioAnalysisHandler:
 
         """
         try:
+            # Check if workflow has already failed before emitting additional failure events
+            is_failed = self.event_bus.is_workflow_failed(original_event.correlation_id)
+            self.logger.debug(
+                f"🔍 Workflow state check for failure: correlation_id={original_event.correlation_id}, is_failed={is_failed}"
+            )
+
+            if is_failed:
+                self.logger.info(
+                    f"🚫 Skipping WorkflowFailed event emission - workflow {original_event.correlation_id} already failed"
+                )
+                return
+
             failure_event = WorkflowFailed(
                 correlation_id=original_event.correlation_id,
                 causation_id=original_event.event_id,

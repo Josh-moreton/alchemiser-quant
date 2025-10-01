@@ -10,11 +10,23 @@ Designed to be extensible to external message brokers (Kafka, RabbitMQ) if neede
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any
+from typing import Any, Protocol
 
 from ..logging.logging_utils import get_logger
 from .base import BaseEvent
 from .handlers import EventHandler
+
+
+class WorkflowStateChecker(Protocol):
+    """Protocol for workflow state checking."""
+
+    def is_workflow_failed(self, correlation_id: str) -> bool:
+        """Check if a workflow has failed."""
+        ...
+
+    def is_workflow_active(self, correlation_id: str) -> bool:
+        """Check if a workflow is active."""
+        ...
 
 
 class EventBus:
@@ -30,6 +42,9 @@ class EventBus:
         self._handlers: dict[str, list[EventHandler]] = defaultdict(list)
         self._global_handlers: list[EventHandler] = []
         self._event_count = 0
+        self._workflow_state_checker: WorkflowStateChecker | None = (
+            None  # Reference to orchestrator for workflow state checking
+        )
 
     def subscribe(self, event_type: str, handler: EventHandler) -> None:
         """Subscribe a handler to a specific event type.
@@ -208,3 +223,46 @@ class EventBus:
             "global_handlers": len(self._global_handlers),
             "total_handlers": self.get_handler_count(),
         }
+
+    def set_workflow_state_checker(self, state_checker: WorkflowStateChecker | None) -> None:
+        """Set the workflow state checker (orchestrator).
+
+        Args:
+            state_checker: Object that provides workflow state checking methods
+
+        """
+        self._workflow_state_checker = state_checker
+        self.logger.debug("Set workflow state checker on event bus")
+
+    def is_workflow_failed(self, correlation_id: str) -> bool:
+        """Check if a workflow has failed.
+
+        Args:
+            correlation_id: The workflow correlation ID to check
+
+        Returns:
+            True if the workflow has failed, False if active or if no state checker available
+
+        """
+        if self._workflow_state_checker is None:
+            self.logger.debug(f"🔍 No workflow state checker available for {correlation_id}")
+            return False
+
+        result = self._workflow_state_checker.is_workflow_failed(correlation_id)
+        self.logger.debug(f"🔍 Workflow state check result: {correlation_id} -> failed={result}")
+        return result
+
+    def is_workflow_active(self, correlation_id: str) -> bool:
+        """Check if a workflow is actively running.
+
+        Args:
+            correlation_id: The workflow correlation ID to check
+
+        Returns:
+            True if the workflow is running, False if failed/completed or if no state checker available
+
+        """
+        if self._workflow_state_checker is None:
+            return True  # Assume active if no state checker
+
+        return self._workflow_state_checker.is_workflow_active(correlation_id)

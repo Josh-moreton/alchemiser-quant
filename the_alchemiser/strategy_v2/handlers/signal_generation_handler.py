@@ -124,7 +124,16 @@ class SignalGenerationHandler:
                 strategy_signals, consolidated_portfolio, event.correlation_id
             )
 
-            self.logger.info("✅ Signal generation completed successfully")
+            # Check if workflow failed during event processing
+            if self.event_bus.is_workflow_failed(event.correlation_id):
+                # Demoted to DEBUG to avoid any INFO logs after downstream processing begins
+                self.logger.debug(
+                    f"🚫 Workflow {event.correlation_id} failed during event processing - signal generation stopping"
+                )
+                return
+
+            # Event emission completion indicates signal generation is done
+            # No additional logging needed as downstream processing may have failed
 
         except Exception as e:
             self.logger.error(f"Signal generation failed: {e}")
@@ -263,7 +272,23 @@ class SignalGenerationHandler:
 
         """
         try:
+            # Check if workflow has failed before emitting events
+            is_failed = self.event_bus.is_workflow_failed(correlation_id)
+            self.logger.debug(
+                f"🔍 Workflow state check: correlation_id={correlation_id}, is_failed={is_failed}"
+            )
+
+            if is_failed:
+                self.logger.info(
+                    f"🚫 Skipping SignalGenerated event emission - workflow {correlation_id} already failed"
+                )
+                return
+
             self._log_final_signal_summary(strategy_signals, consolidated_portfolio)
+
+            self.logger.debug(
+                f"🚀 ABOUT TO EMIT SignalGenerated event for correlation_id={correlation_id}"
+            )
 
             event = SignalGenerated(
                 correlation_id=correlation_id,
@@ -281,9 +306,12 @@ class SignalGenerationHandler:
                 },
             )
 
+            self.logger.debug(
+                f"📡 Publishing SignalGenerated event with {len(strategy_signals)} signals for correlation_id={correlation_id}"
+            )
             self.event_bus.publish(event)
-            self.logger.info(
-                f"📡 Emitted SignalGenerated event with {len(strategy_signals)} signals"
+            self.logger.debug(
+                f"✅ SignalGenerated event publish completed for correlation_id={correlation_id}"
             )
 
         except Exception as e:
