@@ -8,8 +8,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
+    from alpaca.trading.requests import (
+        LimitOrderRequest,
+        MarketOrderRequest,
+        ReplaceOrderRequest,
+    )
 
+    from the_alchemiser.shared.schemas.broker import OrderExecutionResult
     from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
 
 
@@ -132,6 +137,21 @@ class TradingRepository(Protocol):
 
         Returns:
             True if successful, False otherwise.
+
+        """
+        ...
+
+    def replace_order(
+        self, order_id: str, order_data: ReplaceOrderRequest | None = None
+    ) -> OrderExecutionResult:
+        """Replace an order with new parameters.
+
+        Args:
+            order_id: The unique order ID to replace
+            order_data: The parameters to update (quantity, limit_price, etc.)
+
+        Returns:
+            OrderExecutionResult with the updated order details.
 
         """
         ...
