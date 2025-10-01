@@ -20,7 +20,6 @@ _USE_STRUCTLOG = os.getenv("ALCHEMISER_USE_STRUCTLOG", "false").lower() in (
 )
 
 if _USE_STRUCTLOG:
-
     from .structlog_config import configure_structlog, get_structlog_logger
     from .structlog_trading import (
         log_data_integrity_checkpoint as log_data_checkpoint_structlog,
@@ -54,7 +53,10 @@ def get_logger(name: str) -> Any:  # noqa: ANN401
 
 
 def log_trade_event(
-    logger: Any, event_type: str, symbol: str, **details: Any  # noqa: ANN401
+    logger: Any,  # noqa: ANN401
+    event_type: str,
+    symbol: str,
+    **details: Any,  # noqa: ANN401
 ) -> None:
     """Log trade event - delegates to appropriate implementation.
 

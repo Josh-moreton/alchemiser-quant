@@ -18,7 +18,9 @@ from .context import error_id_context, request_id_context
 
 
 def add_alchemiser_context(
-    logger: Any, method_name: str, event_dict: dict[str, Any]  # noqa: ANN401
+    logger: Any,  # noqa: ANN401
+    method_name: str,
+    event_dict: dict[str, Any],
 ) -> dict[str, Any]:
     """Add Alchemiser-specific context to log entries.
 
@@ -93,9 +95,7 @@ def configure_structlog(
 
     if structured_format:
         # JSON output for production
-        processors.append(
-            structlog.processors.JSONRenderer(default=decimal_serializer)
-        )
+        processors.append(structlog.processors.JSONRenderer(default=decimal_serializer))
     else:
         # Human-readable output for development
         processors.append(structlog.dev.ConsoleRenderer())
