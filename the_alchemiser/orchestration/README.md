@@ -126,22 +126,29 @@ correlation_id = orchestrator.start_trading_workflow()
 
 ### Monitoring Workflow State
 
+The orchestrator provides comprehensive state management APIs for monitoring workflows:
+
 ```python
-# Check active workflows
-active_correlations = orchestrator.workflow_state["active_correlations"]
-print(f"Active workflows: {len(active_correlations)}")
+# Check if workflow is in a specific state
+if orchestrator.is_workflow_active(correlation_id):
+    print("Workflow is running")
+elif orchestrator.is_workflow_failed(correlation_id):
+    print("Workflow has failed")
 
-# Check if specific workflow is active
-if correlation_id in active_correlations:
-    print(f"Workflow {correlation_id} is in progress")
+# Get the exact workflow state
+state = orchestrator.get_workflow_state(correlation_id)
+if state:
+    print(f"Workflow state: {state.value}")  # "running", "failed", or "completed"
 
-# Get workflow stage
-if orchestrator.workflow_state["signal_generation_in_progress"]:
-    print("Currently generating signals...")
-elif orchestrator.workflow_state["rebalancing_in_progress"]:
-    print("Currently planning rebalance...")
-elif orchestrator.workflow_state["trading_in_progress"]:
-    print("Currently executing trades...")
+# Get comprehensive status with metrics
+status = orchestrator.get_workflow_status()
+print(f"Total tracked workflows: {status['workflow_state_metrics']['total_tracked']}")
+print(f"Running: {status['workflow_state_metrics']['by_state']['running']}")
+print(f"Failed: {status['workflow_state_metrics']['by_state']['failed']}")
+print(f"Completed: {status['workflow_state_metrics']['by_state']['completed']}")
+
+# Clean up workflow state after results retrieved
+orchestrator.cleanup_workflow_state(correlation_id)
 ```
 
 ## Event Bus Integration
@@ -272,7 +279,12 @@ The orchestrator wraps registered handlers with `StateCheckingHandlerWrapper` th
 def _wrap_handlers_with_state_checking(self) -> None:
     """Wrap registered handlers with workflow state checking."""
     # Events that should check workflow state before processing
-    state_checked_events = ["SignalGenerated", "RebalancePlanned"]
+    # TradeExecuted added to prevent post-failure execution events
+    state_checked_events = [
+        "SignalGenerated", 
+        "RebalancePlanned",
+        "TradeExecuted"
+    ]
     
     for event_type in state_checked_events:
         # Wrap existing handlers to check state before delegating
@@ -280,6 +292,19 @@ def _wrap_handlers_with_state_checking(self) -> None:
             StateCheckingHandlerWrapper(handler, self, event_type, self.logger)
             for handler in original_handlers
         ]
+```
+
+**State Cleanup:**
+
+To prevent memory leaks, workflow states are automatically cleaned up after results are retrieved:
+
+```python
+# In wait_for_workflow_completion()
+self.cleanup_workflow_state(correlation_id)
+
+# Or manually when needed
+if orchestrator.cleanup_workflow_state(correlation_id):
+    print("Workflow state cleaned up successfully")
 ```
 
 **Thread Safety:**

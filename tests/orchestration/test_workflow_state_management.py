@@ -276,3 +276,62 @@ class TestWorkflowStateManagement:
         
         assert orchestrator.is_workflow_failed(correlation_id_2)
         assert not orchestrator.is_workflow_active(correlation_id_2)
+
+    def test_get_workflow_state(self, orchestrator):
+        """Test getting workflow state directly."""
+        correlation_id = str(uuid.uuid4())
+        
+        # Initially, state should be None
+        assert orchestrator.get_workflow_state(correlation_id) is None
+        
+        # Set state to RUNNING
+        orchestrator._set_workflow_state(correlation_id, WorkflowState.RUNNING)
+        assert orchestrator.get_workflow_state(correlation_id) == WorkflowState.RUNNING
+        
+        # Set state to FAILED
+        orchestrator._set_workflow_state(correlation_id, WorkflowState.FAILED)
+        assert orchestrator.get_workflow_state(correlation_id) == WorkflowState.FAILED
+        
+        # Set state to COMPLETED
+        orchestrator._set_workflow_state(correlation_id, WorkflowState.COMPLETED)
+        assert orchestrator.get_workflow_state(correlation_id) == WorkflowState.COMPLETED
+
+    def test_cleanup_workflow_state(self, orchestrator):
+        """Test cleaning up workflow state."""
+        correlation_id = str(uuid.uuid4())
+        
+        # Set a workflow state
+        orchestrator._set_workflow_state(correlation_id, WorkflowState.COMPLETED)
+        assert orchestrator.get_workflow_state(correlation_id) == WorkflowState.COMPLETED
+        
+        # Clean up the state
+        result = orchestrator.cleanup_workflow_state(correlation_id)
+        assert result is True
+        assert orchestrator.get_workflow_state(correlation_id) is None
+        
+        # Try to clean up non-existent state
+        result = orchestrator.cleanup_workflow_state(correlation_id)
+        assert result is False
+
+    def test_workflow_state_metrics(self, orchestrator):
+        """Test workflow state metrics collection."""
+        # Create workflows in different states
+        running_id = str(uuid.uuid4())
+        failed_id = str(uuid.uuid4())
+        completed_id = str(uuid.uuid4())
+        
+        orchestrator._set_workflow_state(running_id, WorkflowState.RUNNING)
+        orchestrator._set_workflow_state(failed_id, WorkflowState.FAILED)
+        orchestrator._set_workflow_state(completed_id, WorkflowState.COMPLETED)
+        
+        # Get workflow status
+        status = orchestrator.get_workflow_status()
+        
+        # Verify metrics are included
+        assert "workflow_state_metrics" in status
+        metrics = status["workflow_state_metrics"]
+        
+        assert metrics["total_tracked"] == 3
+        assert metrics["by_state"]["running"] == 1
+        assert metrics["by_state"]["failed"] == 1
+        assert metrics["by_state"]["completed"] == 1

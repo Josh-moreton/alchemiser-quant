@@ -18,12 +18,55 @@ from the_alchemiser.orchestration.event_driven_orchestrator import (
     WorkflowState,
 )
 from the_alchemiser.shared.events import (
+    BaseEvent,
     SignalGenerated,
     RebalancePlanned,
     WorkflowFailed,
     WorkflowStarted,
 )
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
+
+
+class MockHandler:
+    """Mock event handler for testing that properly implements EventHandler protocol."""
+
+    def __init__(self, name: str = "MockHandler"):
+        """Initialize mock handler.
+        
+        Args:
+            name: Name for this handler instance
+        
+        """
+        self.name = name
+        self.handle_event_calls = []
+        self.can_handle_calls = []
+
+    def handle_event(self, event: BaseEvent) -> None:
+        """Handle an event.
+        
+        Args:
+            event: The event to handle
+        
+        """
+        self.handle_event_calls.append(event)
+
+    def can_handle(self, event_type: str) -> bool:
+        """Check if handler can handle a specific event type.
+        
+        Args:
+            event_type: The type of event to check
+        
+        Returns:
+            Always returns True for testing
+        
+        """
+        self.can_handle_calls.append(event_type)
+        return True
+
+    def reset_mock(self) -> None:
+        """Reset call tracking."""
+        self.handle_event_calls = []
+        self.can_handle_calls = []
 
 
 class TestWorkflowFailurePropagation:
@@ -67,12 +110,9 @@ class TestWorkflowFailurePropagation:
         correlation_id = str(uuid.uuid4())
         
         # Create mock handlers to track calls
-        signal_handler = Mock()
-        signal_handler.can_handle.return_value = True
-        portfolio_handler = Mock()
-        portfolio_handler.can_handle.return_value = True
-        execution_handler = Mock()
-        execution_handler.can_handle.return_value = True
+        signal_handler = MockHandler("SignalHandler")
+        portfolio_handler = MockHandler("PortfolioHandler")
+        execution_handler = MockHandler("ExecutionHandler")
         
         # Register handlers with event bus
         event_bus = orchestrator.event_bus
@@ -116,8 +156,8 @@ class TestWorkflowFailurePropagation:
         event_bus.publish(signal_event)
         
         # Handlers should be called for RUNNING workflow
-        assert signal_handler.handle_event.call_count > 0
-        assert portfolio_handler.handle_event.call_count > 0
+        assert len(signal_handler.handle_event_calls) > 0
+        assert len(portfolio_handler.handle_event_calls) > 0
         
         # Reset call counts
         signal_handler.reset_mock()
@@ -158,8 +198,8 @@ class TestWorkflowFailurePropagation:
         event_bus.publish(another_signal_event)
         
         # Handlers should NOT be called for FAILED workflow
-        signal_handler.handle_event.assert_not_called()
-        portfolio_handler.handle_event.assert_not_called()
+        assert len(signal_handler.handle_event_calls) == 0
+        assert len(portfolio_handler.handle_event_calls) == 0
         
         # Step 5: Try to emit RebalancePlanned event (should also be skipped)
         rebalance_event = RebalancePlanned(
@@ -174,9 +214,22 @@ class TestWorkflowFailurePropagation:
                 correlation_id=correlation_id,
                 causation_id=signal_event.event_id,
                 timestamp=datetime.now(UTC),
-                items=[],
-                total_portfolio_value=Decimal("0"),
-                total_trade_value=Decimal("0"),
+                items=[
+                    # Add a dummy item since RebalancePlan requires at least one
+                    {
+                        "symbol": "SPY",
+                        "current_weight": Decimal("0"),
+                        "target_weight": Decimal("1.0"),
+                        "weight_diff": Decimal("1.0"),
+                        "target_value": Decimal("1000"),
+                        "current_value": Decimal("0"),
+                        "trade_amount": Decimal("1000"),
+                        "action": "BUY",
+                        "priority": 1,
+                    }
+                ],
+                total_portfolio_value=Decimal("1000"),
+                total_trade_value=Decimal("1000"),
                 metadata={},
             ),
             allocation_comparison={
@@ -184,13 +237,13 @@ class TestWorkflowFailurePropagation:
                 "current_values": {},
                 "deltas": {},
             },
-            trades_required=False,
+            trades_required=True,
             metadata={},
         )
         event_bus.publish(rebalance_event)
         
         # Execution handler should NOT be called for FAILED workflow
-        execution_handler.handle_event.assert_not_called()
+        assert len(execution_handler.handle_event_calls) == 0
 
     def test_multiple_concurrent_workflows_independent_failure(
         self, orchestrator_with_mocked_handlers
@@ -244,8 +297,7 @@ class TestWorkflowFailurePropagation:
         assert not orchestrator.is_workflow_failed(correlation_id_2)
         
         # Create mock handler
-        mock_handler = Mock()
-        mock_handler.can_handle.return_value = True
+        mock_handler = MockHandler("TestHandler")
         
         # Register handler
         orchestrator.event_bus.subscribe("SignalGenerated", mock_handler)
@@ -268,10 +320,10 @@ class TestWorkflowFailurePropagation:
             orchestrator.event_bus.publish(event)
         
         # Handler should be called only once (for the active workflow)
-        assert mock_handler.handle_event.call_count == 1
+        assert len(mock_handler.handle_event_calls) == 1
         
         # Verify it was called with the correct correlation_id
-        called_event = mock_handler.handle_event.call_args[0][0]
+        called_event = mock_handler.handle_event_calls[0]
         assert called_event.correlation_id == correlation_id_2
 
     def test_workflow_failure_during_different_stages(
