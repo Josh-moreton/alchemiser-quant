@@ -43,6 +43,8 @@ from .formatters import AlchemiserLoggerAdapter, StructuredFormatter
 # Migration bridge - provides feature flag support for structlog
 from .migration import (
     is_structlog_enabled,
+    log_order_flow as log_order_flow_bridge,
+    log_repeg_operation as log_repeg_operation_bridge,
     setup_application_logging,
 )
 
@@ -51,8 +53,6 @@ from .structlog_config import configure_structlog, get_structlog_logger
 from .structlog_trading import (
     bind_trading_context,
     log_data_integrity_checkpoint,
-    log_order_flow,
-    log_repeg_operation,
 )
 
 # Trading-specific logging
@@ -89,8 +89,8 @@ __all__ = [
     "log_data_integrity_checkpoint",
     "log_data_transfer_checkpoint",
     "log_error_with_context",
-    "log_order_flow",
-    "log_repeg_operation",
+    "log_order_flow_bridge",
+    "log_repeg_operation_bridge",
     # Trading-specific
     "log_trade_event",
     "log_trade_expectation_vs_reality",
@@ -102,3 +102,7 @@ __all__ = [
     "setup_application_logging",
     "setup_logging",
 ]
+
+# Alias bridge functions to their expected names
+log_order_flow = log_order_flow_bridge
+log_repeg_operation = log_repeg_operation_bridge

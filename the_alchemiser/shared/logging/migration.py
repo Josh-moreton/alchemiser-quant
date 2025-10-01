@@ -25,6 +25,12 @@ if _USE_STRUCTLOG:
         log_data_integrity_checkpoint as log_data_checkpoint_structlog,
     )
     from .structlog_trading import (
+        log_order_flow as log_order_flow_structlog,
+    )
+    from .structlog_trading import (
+        log_repeg_operation as log_repeg_operation_structlog,
+    )
+    from .structlog_trading import (
         log_trade_event as log_trade_event_structlog,
     )
 else:
@@ -110,6 +116,98 @@ def setup_application_logging(**kwargs: Any) -> None:  # noqa: ANN401
         from .config import configure_application_logging
 
         configure_application_logging()
+
+
+def log_order_flow(
+    logger: Any,  # noqa: ANN401
+    stage: str,
+    symbol: str,
+    quantity: Any,  # noqa: ANN401
+    price: Any = None,  # noqa: ANN401
+    order_id: str | None = None,
+    **context: Any,  # noqa: ANN401
+) -> None:
+    """Log order flow - delegates to appropriate implementation.
+
+    Args:
+        logger: Logger instance (structlog or stdlib)
+        stage: Stage of order flow (e.g., 'submission', 'filled', 'cancelled')
+        symbol: Trading symbol
+        quantity: Order quantity
+        price: Order price (optional)
+        order_id: Order ID (optional)
+        **context: Additional context information
+
+    """
+    if _USE_STRUCTLOG and hasattr(logger, "bind"):  # structlog logger
+        log_order_flow_structlog(
+            logger,
+            stage=stage,
+            symbol=symbol,
+            quantity=quantity,
+            price=price,
+            order_id=order_id,
+            **context,
+        )
+    else:
+        # Fallback to stdlib logging with similar structure
+        log_data = f"Order flow: stage={stage} symbol={symbol} quantity={quantity}"
+        if price is not None:
+            log_data += f" price={price}"
+        if order_id:
+            log_data += f" order_id={order_id}"
+        if context:
+            context_str = " ".join(f"{k}={v}" for k, v in context.items())
+            log_data += f" {context_str}"
+        logger.info(log_data)
+
+
+def log_repeg_operation(
+    logger: Any,  # noqa: ANN401
+    operation: str,
+    symbol: str,
+    old_price: Any,  # noqa: ANN401
+    new_price: Any,  # noqa: ANN401
+    quantity: Any,  # noqa: ANN401
+    reason: str,
+    **context: Any,  # noqa: ANN401
+) -> None:
+    """Log repeg operation - delegates to appropriate implementation.
+
+    Args:
+        logger: Logger instance (structlog or stdlib)
+        operation: Type of operation ('replace_order' or 'cancel_and_resubmit')
+        symbol: Trading symbol
+        old_price: Previous order price
+        new_price: New order price
+        quantity: Order quantity
+        reason: Reason for repeg operation
+        **context: Additional context information
+
+    """
+    if _USE_STRUCTLOG and hasattr(logger, "bind"):  # structlog logger
+        log_repeg_operation_structlog(
+            logger,
+            operation=operation,
+            symbol=symbol,
+            old_price=old_price,
+            new_price=new_price,
+            quantity=quantity,
+            reason=reason,
+            **context,
+        )
+    else:
+        # Fallback to stdlib logging with price improvement calculation
+        price_improvement = float(new_price) - float(old_price)
+        log_data = (
+            f"Repeg operation: operation={operation} symbol={symbol} "
+            f"old_price={old_price} new_price={new_price} "
+            f"price_improvement={price_improvement} quantity={quantity} reason={reason}"
+        )
+        if context:
+            context_str = " ".join(f"{k}={v}" for k, v in context.items())
+            log_data += f" {context_str}"
+        logger.info(log_data)
 
 
 def is_structlog_enabled() -> bool:

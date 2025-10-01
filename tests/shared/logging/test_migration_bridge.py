@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
@@ -12,6 +13,8 @@ from the_alchemiser.shared.logging.migration import (
     get_logger,
     is_structlog_enabled,
     log_data_transfer_checkpoint,
+    log_order_flow,
+    log_repeg_operation,
     log_trade_event,
     setup_application_logging,
 )
@@ -122,4 +125,111 @@ def test_log_data_checkpoint_with_empty_data() -> None:
         stage="processing",
         data={},
         context="no data",
+    )
+
+
+def test_log_order_flow_basic() -> None:
+    """Test log_order_flow with basic parameters."""
+    logger = get_logger(__name__)
+
+    # Should not raise
+    log_order_flow(
+        logger,
+        stage="submission",
+        symbol="AAPL",
+        quantity=Decimal("100"),
+        price=Decimal("150.25"),
+        order_id="ord-123",
+    )
+
+
+def test_log_order_flow_without_optional_fields() -> None:
+    """Test log_order_flow without optional fields."""
+    logger = get_logger(__name__)
+
+    # Should work without price and order_id
+    log_order_flow(
+        logger,
+        stage="filled",
+        symbol="TSLA",
+        quantity=Decimal("50"),
+    )
+
+
+def test_log_order_flow_with_context() -> None:
+    """Test log_order_flow with additional context."""
+    logger = get_logger(__name__)
+
+    # Should handle additional context
+    log_order_flow(
+        logger,
+        stage="cancelled",
+        symbol="NVDA",
+        quantity=Decimal("10"),
+        price=Decimal("500.00"),
+        order_id="ord-456",
+        broker="alpaca",
+        strategy="momentum",
+    )
+
+
+def test_log_repeg_operation_basic() -> None:
+    """Test log_repeg_operation with basic parameters."""
+    logger = get_logger(__name__)
+
+    # Should not raise
+    log_repeg_operation(
+        logger,
+        operation="replace_order",
+        symbol="AAPL",
+        old_price=Decimal("150.00"),
+        new_price=Decimal("151.00"),
+        quantity=Decimal("100"),
+        reason="market_movement",
+    )
+
+
+def test_log_repeg_operation_with_context() -> None:
+    """Test log_repeg_operation with additional context."""
+    logger = get_logger(__name__)
+
+    # Should handle additional context
+    log_repeg_operation(
+        logger,
+        operation="cancel_and_resubmit",
+        symbol="TSLA",
+        old_price=Decimal("250.00"),
+        new_price=Decimal("252.50"),
+        quantity=Decimal("50"),
+        reason="spread_improvement",
+        order_id="ord-789",
+        attempt=2,
+        max_attempts=5,
+    )
+
+
+def test_log_repeg_operation_price_improvement() -> None:
+    """Test log_repeg_operation handles price improvement correctly."""
+    logger = get_logger(__name__)
+
+    # Positive price improvement (higher price for sell)
+    log_repeg_operation(
+        logger,
+        operation="replace_order",
+        symbol="NVDA",
+        old_price=Decimal("500.00"),
+        new_price=Decimal("505.00"),
+        quantity=Decimal("10"),
+        reason="better_quote",
+    )
+
+    # Negative price improvement (lower price for buy)
+    log_repeg_operation(
+        logger,
+        operation="replace_order",
+        symbol="GOOG",
+        old_price=Decimal("140.00"),
+        new_price=Decimal("139.50"),
+        quantity=Decimal("20"),
+        reason="market_dip",
     )
