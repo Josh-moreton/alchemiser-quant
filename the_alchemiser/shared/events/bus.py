@@ -147,9 +147,7 @@ class EventBus:
         for handler in handlers_to_notify:
             try:
                 # Check if handler can handle this event type
-                if hasattr(handler, "can_handle") and not handler.can_handle(
-                    event_type
-                ):
+                if hasattr(handler, "can_handle") and not handler.can_handle(event_type):
                     continue
 
                 handler.handle_event(event)
@@ -220,16 +218,13 @@ class EventBus:
             "total_events_published": self._event_count,
             "event_types_registered": list(self._handlers.keys()),
             "handlers_by_type": {
-                event_type: len(handlers)
-                for event_type, handlers in self._handlers.items()
+                event_type: len(handlers) for event_type, handlers in self._handlers.items()
             },
             "global_handlers": len(self._global_handlers),
             "total_handlers": self.get_handler_count(),
         }
 
-    def set_workflow_state_checker(
-        self, state_checker: WorkflowStateChecker | None
-    ) -> None:
+    def set_workflow_state_checker(self, state_checker: WorkflowStateChecker | None) -> None:
         """Set the workflow state checker (orchestrator).
 
         Args:
@@ -250,15 +245,11 @@ class EventBus:
 
         """
         if self._workflow_state_checker is None:
-            self.logger.debug(
-                f"🔍 No workflow state checker available for {correlation_id}"
-            )
+            self.logger.debug(f"🔍 No workflow state checker available for {correlation_id}")
             return False
 
         result = self._workflow_state_checker.is_workflow_failed(correlation_id)
-        self.logger.debug(
-            f"🔍 Workflow state check result: {correlation_id} -> failed={result}"
-        )
+        self.logger.debug(f"🔍 Workflow state check result: {correlation_id} -> failed={result}")
         return result
 
     def is_workflow_active(self, correlation_id: str) -> bool:
