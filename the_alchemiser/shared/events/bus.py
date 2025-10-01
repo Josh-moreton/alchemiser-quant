@@ -42,7 +42,7 @@ class EventBus:
         self._handlers: dict[str, list[EventHandler]] = defaultdict(list)
         self._global_handlers: list[EventHandler] = []
         self._event_count = 0
-        self._workflow_state_checker = None  # Reference to orchestrator for workflow state checking
+        self._workflow_state_checker: WorkflowStateChecker | None = None  # Reference to orchestrator for workflow state checking
 
     def subscribe(self, event_type: str, handler: EventHandler) -> None:
         """Subscribe a handler to a specific event type.
