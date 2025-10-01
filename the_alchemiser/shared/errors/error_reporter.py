@@ -94,9 +94,7 @@ class EnhancedErrorReporter:
 
     def _check_error_rates(self) -> None:
         """Check for high error rates and alert."""
-        error_rate = len(self.recent_errors) / (
-            self.error_rate_window / 60
-        )  # errors per minute
+        error_rate = len(self.recent_errors) / (self.error_rate_window / 60)  # errors per minute
 
         if error_rate > 10:  # More than 10 errors per minute
             logger.warning(f"High error rate detected: {error_rate:.1f} errors/minute")
@@ -107,8 +105,7 @@ class EnhancedErrorReporter:
             "total_error_types": len(self.error_counts),
             "error_counts": dict(self.error_counts),
             "recent_errors_count": len(self.recent_errors),
-            "error_rate_per_minute": len(self.recent_errors)
-            / (self.error_rate_window / 60),
+            "error_rate_per_minute": len(self.recent_errors) / (self.error_rate_window / 60),
             "most_common_errors": sorted(
                 self.error_counts.items(), key=lambda x: x[1], reverse=True
             )[:5],

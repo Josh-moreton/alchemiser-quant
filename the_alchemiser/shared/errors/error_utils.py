@@ -85,15 +85,11 @@ def _calculate_retry_delay(
     return delay
 
 
-def _handle_final_retry_attempt(
-    exception: Exception, max_retries: int, func_name: str
-) -> None:
+def _handle_final_retry_attempt(exception: Exception, max_retries: int, func_name: str) -> None:
     """Handle the final retry attempt by adding context and logging."""
     if hasattr(exception, "retry_count"):
         exception.retry_count = max_retries
-    logger.error(
-        f"Function {func_name} failed after {max_retries} retries: {exception}"
-    )
+    logger.error(f"Function {func_name} failed after {max_retries} retries: {exception}")
 
 
 def retry_with_backoff(
@@ -195,10 +191,7 @@ class CircuitBreaker:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
             if self.state == "OPEN":
-                if (
-                    self.last_failure_time
-                    and time.time() - self.last_failure_time < self.timeout
-                ):
+                if self.last_failure_time and time.time() - self.last_failure_time < self.timeout:
                     raise CircuitBreakerOpenError(
                         f"Circuit breaker is OPEN for {func.__name__}. "
                         f"Retry after {self.timeout}s timeout."
@@ -231,13 +224,11 @@ class CircuitBreaker:
 
 def categorize_error_severity(error: Exception) -> str:
     """Categorize error severity for monitoring."""
-    if isinstance(
-        error, InsufficientFundsError | (OrderExecutionError | PositionValidationError)
-    ):
+    if isinstance(error, InsufficientFundsError | (OrderExecutionError | PositionValidationError)):
         return ErrorSeverity.HIGH
-    if isinstance(
-        error, MarketDataError | DataProviderError
-    ) or _is_strategy_execution_error(error):
+    if isinstance(error, MarketDataError | DataProviderError) or _is_strategy_execution_error(
+        error
+    ):
         return ErrorSeverity.MEDIUM
     if isinstance(error, ConfigurationError):
         return ErrorSeverity.HIGH
