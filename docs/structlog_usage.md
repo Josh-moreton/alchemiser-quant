@@ -1,10 +1,10 @@
 # Structlog Integration for Alchemiser
 
-This document describes the new structlog integration for enhanced structured logging in the Alchemiser trading platform.
+This document describes the structlog-based structured logging system for the Alchemiser trading platform.
 
 ## Overview
 
-The logging system now supports both the traditional Python stdlib logging and the modern [structlog](https://www.structlog.org/) library. A feature flag (`ALCHEMISER_USE_STRUCTLOG`) enables gradual migration between the two systems.
+The logging system uses [structlog](https://www.structlog.org/) for all structured logging throughout the platform. Structlog provides automatic serialization of complex types including Decimal for financial data, built-in context propagation, and better performance than custom formatters.
 
 ## Why Structlog?
 
@@ -23,20 +23,6 @@ The logging system now supports both the traditional Python stdlib logging and t
 - **Better Analytics**: Structured output makes log analysis and querying easier
 - **Enhanced Debugging**: Rich context automatically included in all log entries
 
-## Feature Flag
-
-Control structlog usage via environment variable:
-
-```bash
-# Use stdlib logging (default)
-export ALCHEMISER_USE_STRUCTLOG=false
-
-# Use structlog
-export ALCHEMISER_USE_STRUCTLOG=true
-```
-
-Values recognized as "enabled": `true`, `1`, `yes` (case-insensitive)
-
 ## Usage
 
 ### Basic Logging
@@ -48,37 +34,9 @@ logger = get_logger(__name__)
 logger.info("Order placed", symbol="AAPL", quantity=100, price=Decimal("150.25"))
 ```
 
-### Structlog-Specific Features
-
-When `ALCHEMISER_USE_STRUCTLOG=true`:
-
-```python
-from the_alchemiser.shared.logging import (
-    get_structlog_logger,
-    bind_trading_context,
-)
-
-# Get a structlog logger
-logger = get_structlog_logger(__name__)
-
-# Bind persistent context
-logger = bind_trading_context(
-    logger,
-    symbol="AAPL",
-    strategy="momentum"
-)
-
-# All subsequent logs include bound context
-logger.info("Signal generated", confidence=0.85)
-# Output includes symbol="AAPL" and strategy="momentum"
-
-logger.info("Order placed", order_id="ord-123")
-# Output includes symbol="AAPL", strategy="momentum", and order_id="ord-123"
-```
-
 ### Trading-Specific Helpers
 
-These helpers work with both stdlib and structlog through the migration bridge:
+These helpers work throughout the codebase:
 
 ```python
 from the_alchemiser.shared.logging import (
@@ -90,7 +48,7 @@ from the_alchemiser.shared.logging import (
 
 logger = get_logger(__name__)
 
-# Log order flow events (automatically delegates to structlog or stdlib)
+# Log order flow events
 log_order_flow(
     logger,
     stage="submission",
@@ -124,11 +82,34 @@ log_data_integrity_checkpoint(
 ```
 
 **Benefits of using these helpers:**
-- Works with both logging systems (controlled by feature flag)
 - Consistent structure across all logs
 - Automatic calculations (e.g., price improvement for repegs)
 - Type-safe with proper Decimal handling
-- Easy to migrate - no code changes needed when enabling structlog
+
+### Context Binding
+
+```python
+from the_alchemiser.shared.logging import (
+    get_logger,
+    bind_trading_context,
+)
+
+logger = get_logger(__name__)
+
+# Bind persistent context
+logger = bind_trading_context(
+    logger,
+    symbol="AAPL",
+    strategy="momentum"
+)
+
+# All subsequent logs include bound context
+logger.info("Signal generated", confidence=0.85)
+# Output includes symbol="AAPL" and strategy="momentum"
+
+logger.info("Order placed", order_id="ord-123")
+# Output includes symbol="AAPL", strategy="momentum", and order_id="ord-123"
+```
 
 ## Configuration
 
@@ -136,6 +117,7 @@ log_data_integrity_checkpoint(
 
 ```python
 from the_alchemiser.shared.logging import configure_structlog
+import logging
 
 # JSON output (production)
 configure_structlog(structured_format=True, log_level=logging.INFO)
@@ -144,38 +126,20 @@ configure_structlog(structured_format=True, log_level=logging.INFO)
 configure_structlog(structured_format=False, log_level=logging.DEBUG)
 ```
 
-### Migration Bridge
-
-The migration bridge provides backward compatibility:
+### Application Logging
 
 ```python
-from the_alchemiser.shared.logging import (
-    setup_application_logging,
-    is_structlog_enabled,
-)
+from the_alchemiser.shared.logging import configure_application_logging
 
-# Setup delegates to appropriate system
-setup_application_logging(
-    structured_format=True,
-    log_level=logging.INFO
-)
-
-# Check which system is active
-if is_structlog_enabled():
-    print("Using structlog")
-else:
-    print("Using stdlib logging")
+# Automatically selects format based on environment
+# Production (Lambda): JSON format
+# Development: Console format
+configure_application_logging()
 ```
 
 ## Output Formats
 
-### Stdlib Logging (Default)
-
-```
-2025-10-01 15:11:21,149 - INFO - __main__ - Trading event: order_placed for AAPL
-```
-
-### Structlog (JSON Format)
+### JSON Format (Production)
 
 ```json
 {
@@ -189,7 +153,7 @@ else:
 }
 ```
 
-### Structlog (Console Format)
+### Console Format (Development)
 
 ```
 2025-10-01T15:11:21.151071Z [info] Order placed symbol=AAPL quantity=100 price=150.25 system=alchemiser
@@ -197,7 +161,7 @@ else:
 
 ## Context Variables
 
-Both systems support context variables via `contextvars`:
+Structlog integrates with Python's contextvars:
 
 ```python
 from the_alchemiser.shared.logging import set_request_id, set_error_id
@@ -236,66 +200,13 @@ poetry run pytest tests/shared/logging/ -v
 # Run specific test suites
 poetry run pytest tests/shared/logging/test_structlog_config.py -v
 poetry run pytest tests/shared/logging/test_structlog_trading.py -v
-poetry run pytest tests/shared/logging/test_migration_bridge.py -v
 ```
-
-## Migration Strategy
-
-### Phase 1: Core Infrastructure (✅ COMPLETED)
-- ✅ Add structlog dependency
-- ✅ Create structlog configuration module
-- ✅ Create trading-specific helpers
-- ✅ Create migration bridge with feature flag
-- ✅ Add comprehensive tests
-
-### Phase 2: Module Migration (🔄 IN PROGRESS)
-- ✅ Extended migration bridge with `log_repeg_operation()` and `log_order_flow()` helpers
-- ✅ Update execution_v2 repeg logic to use `log_repeg_operation()`
-- ✅ Update execution_v2 order execution to use `log_order_flow()`
-- [ ] Update execution_v2 validation logging to use `log_data_integrity_checkpoint()`
-- [ ] Migrate portfolio_v2 logging
-- [ ] Update strategy_v2 logging
-- [ ] Convert orchestration logging
-
-### Phase 3: Production Rollout
-- [ ] Enable in development environment
-- [ ] Gradual production rollout
-- [ ] Performance analysis
-- [ ] Monitor and optimize
-
-### Phase 4: Cleanup
-- [ ] Remove migration bridge
-- [ ] Remove stdlib logging code
-- [ ] Update documentation
-- [ ] Mark migration complete
-
-## Performance Considerations
-
-Structlog is designed for production use and provides:
-
-- **Efficient Processing**: Lazy evaluation of log formatting
-- **Better Caching**: Logger instances are cached
-- **Optimized JSON**: Native JSON serialization is faster than custom formatters
-
-## Backward Compatibility
-
-All existing logging code continues to work unchanged:
-
-```python
-# This works with both systems
-from the_alchemiser.shared.logging import get_logger, log_trade_event
-
-logger = get_logger(__name__)
-log_trade_event(logger, "order_placed", "AAPL", quantity=100)
-```
-
-The migration bridge automatically delegates to the appropriate backend.
 
 ## Examples
 
 ### Before and After Migration
 
-**Before (stdlib logging):**
+**Before (manual string formatting):**
 ```python
 logger.info(
     f"✅ Re-peg successful: new order {executed_order.order_id} "
@@ -304,7 +215,7 @@ logger.info(
 )
 ```
 
-**After (migration bridge with structlog support):**
+**After (structured logging):**
 ```python
 log_repeg_operation(
     logger,
@@ -321,22 +232,29 @@ log_repeg_operation(
 )
 ```
 
-**Benefits:**
+**Advantages:**
 - ✅ Structured data instead of formatted strings
 - ✅ Automatic price improvement calculation
-- ✅ Works with both logging systems
 - ✅ Easy to query and analyze in log aggregation tools
 - ✅ Type-safe with Decimal values
 
-### Real Migration Examples
+### Real Examples
 
-See the following files for real-world migration examples:
+See the following files for real-world usage:
 - `the_alchemiser/execution_v2/core/smart_execution_strategy/repeg.py` - Repeg operation logging
 - `the_alchemiser/execution_v2/core/executor.py` - Smart order execution logging
 - `the_alchemiser/execution_v2/core/market_order_executor.py` - Market order logging
+
+## Performance Considerations
+
+Structlog is designed for production use and provides:
+
+- **Efficient Processing**: Lazy evaluation of log formatting
+- **Better Caching**: Logger instances are cached
+- **Optimized JSON**: Native JSON serialization is faster than custom formatters
 
 ## Additional Resources
 
 - [Structlog Documentation](https://www.structlog.org/)
 - [Python Logging Best Practices](https://docs.python.org/3/howto/logging.html)
-- [Issue #1434](https://github.com/Josh-moreton/alchemiser-quant/issues/1434) - This migration
+- [Issue #1442](https://github.com/Josh-moreton/alchemiser-quant/issues/1442) - Migration tracking
