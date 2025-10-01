@@ -12,6 +12,8 @@ import asyncio
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from alpaca.trading.requests import ReplaceOrderRequest
+
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.logging.logging_utils import get_logger
 from the_alchemiser.shared.schemas.broker import OrderExecutionResult
@@ -137,6 +139,10 @@ class RepegManager:
                     f"🔄 Order {order_id} hasn't filled after {time_elapsed:.1f}s, "
                     f"attempting re-peg (attempt {current_repeg_count + 1}/{self.config.max_repegs_per_order})"
                 )
+
+            # Use replace_order if enabled, otherwise fall back to cancel-and-resubmit
+            if self.config.use_replace_order:
+                return await self._attempt_replace(order_id, request)
             return await self._attempt_repeg(order_id, request)
 
         except Exception as e:
@@ -312,6 +318,168 @@ class RepegManager:
                 success=False,
                 error_message=str(exc),
                 execution_strategy="market_escalation_error",
+            )
+
+    async def _attempt_replace(
+        self, order_id: str, request: SmartOrderRequest
+    ) -> SmartOrderResult | bool | None:
+        """Attempt to re-peg an order using Alpaca's replace_order API.
+
+        This method uses the atomic replace_order operation which maintains queue
+        priority when possible and avoids the race conditions of cancel-and-resubmit.
+
+        Args:
+            order_id: The order ID to re-peg
+            request: Original order request
+
+        Returns:
+            SmartOrderResult if re-peg was attempted,
+            False if skipped but should keep tracking,
+            None if invalid and should be removed
+
+        """
+        try:
+            remaining_qty = await self._get_remaining_after_status_update(order_id, request)
+
+            if remaining_qty is None:
+                return None
+
+            # Determine valid re-peg price and required context
+            try:
+                new_price, original_anchor, quote = self._calculate_repeg_price(order_id, request)
+            except _RemoveFromTracking:
+                return None
+
+            if new_price is None:
+                return False
+
+            # Update tracking BEFORE placing new order to ensure count persistence
+            old_repeg_count = self.order_tracker.get_repeg_count(order_id)
+            new_repeg_count = old_repeg_count + 1
+
+            logger.debug(
+                f"📈 Re-pegging {request.symbol} {request.side} from "
+                f"${original_anchor} to ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order}) "
+                f"with remaining quantity {remaining_qty} (original: {request.quantity}) using replace_order"
+            )
+
+            # Ensure price is properly quantized to avoid sub-penny precision errors
+            quantized_price = new_price.quantize(Decimal("0.01"))
+
+            if quantized_price <= 0:
+                logger.error(
+                    f"⚠️ Quantized re-peg price ${quantized_price} is invalid for {request.symbol}. "
+                    f"This should not happen after validation - skipping re-peg."
+                )
+                return False
+
+            # Create replace request
+            replace_request = ReplaceOrderRequest(
+                qty=float(remaining_qty),
+                limit_price=float(quantized_price),
+            )
+
+            # Execute replace order
+            try:
+                result = await asyncio.to_thread(
+                    self.alpaca_manager.replace_order, order_id, replace_request
+                )
+
+                # Check if replace was successful
+                if not result.success:
+                    logger.warning(
+                        f"⚠️ Replace order failed for {order_id}: {result.error}. "
+                        f"Falling back to cancel-and-resubmit."
+                    )
+                    if self.config.replace_order_fallback:
+                        return await self._attempt_repeg(order_id, request)
+                    return False
+
+                # Update tracking in place (same order ID)
+                self.order_tracker.update_order_in_place(order_id, new_price, datetime.now(UTC))
+
+                logger.info(
+                    f"✅ Re-peg successful via replace_order: order {order_id} "
+                    f"updated to ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order}) "
+                    f"quantity: {remaining_qty}"
+                )
+
+                # Use cast to satisfy type checkers; quote is non-None when new_price exists
+                from typing import cast as _cast
+
+                q = _cast(QuoteModel, quote)
+                metadata_dict: LiquidityMetadata = {
+                    "original_order_id": order_id,
+                    "original_price": (float(original_anchor) if original_anchor else None),
+                    "new_price": float(new_price),
+                    "bid_price": q.bid_price,
+                    "ask_price": q.ask_price,
+                    "spread_percent": (q.ask_price - q.bid_price) / q.bid_price * 100,
+                    "bid_size": q.bid_size,
+                    "ask_size": q.ask_size,
+                }
+                return SmartOrderResult(
+                    success=True,
+                    order_id=order_id,  # Same order ID with replace_order
+                    final_price=new_price,
+                    anchor_price=original_anchor,
+                    repegs_used=new_repeg_count,
+                    execution_strategy=f"smart_repeg_replace_{new_repeg_count}",
+                    placement_timestamp=datetime.now(UTC),
+                    metadata=metadata_dict,
+                )
+
+            except Exception as e:
+                error_str = str(e).lower()
+                # Check for order not replaceable errors
+                if any(
+                    phrase in error_str
+                    for phrase in [
+                        "order not replaceable",
+                        "cannot replace",
+                        "not eligible",
+                        "invalid order status",
+                    ]
+                ):
+                    logger.warning(
+                        f"⚠️ Order {order_id} not replaceable: {e}. "
+                        f"Falling back to cancel-and-resubmit."
+                    )
+                    if self.config.replace_order_fallback:
+                        return await self._attempt_repeg(order_id, request)
+                    return False
+
+                # For other errors, check if we have insufficient quantity
+                if self._is_insufficient_quantity_error(error_str):
+                    logger.warning(
+                        f"⚠️ Insufficient quantity for replace_order on {order_id}. "
+                        f"Falling back to cancel-and-resubmit with retry logic."
+                    )
+                    if self.config.replace_order_fallback:
+                        return await self._attempt_repeg(order_id, request)
+                    raise
+
+                # Unexpected error - re-raise
+                raise
+
+        except Exception as e:
+            logger.error(f"❌ Error during replace_order attempt for {order_id}: {e}")
+            # On unexpected errors, fall back if enabled
+            if self.config.replace_order_fallback:
+                logger.info(f"🔄 Falling back to cancel-and-resubmit for {order_id}")
+                try:
+                    return await self._attempt_repeg(order_id, request)
+                except Exception as fallback_error:
+                    logger.error(f"❌ Fallback also failed: {fallback_error}")
+                    return SmartOrderResult(
+                        success=False,
+                        error_message=f"Replace failed: {e}; Fallback failed: {fallback_error}",
+                        execution_strategy="smart_repeg_error",
+                    )
+            return SmartOrderResult(
+                success=False,
+                error_message=str(e),
+                execution_strategy="smart_repeg_error",
             )
 
     async def _attempt_repeg(

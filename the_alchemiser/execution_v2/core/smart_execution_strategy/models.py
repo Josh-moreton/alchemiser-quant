@@ -57,6 +57,8 @@ class ExecutionConfig:
     max_repegs_per_order: int = 2  # Maximum re-pegs before escalation (lower for faster fallback)
     repeg_min_improvement_cents: Decimal = Decimal("0.02")  # Minimum price improvement on re-pegs
     allow_cross_spread_on_repeg: bool = True  # Allow marketable crossing limits on final re-pegs
+    use_replace_order: bool = True  # Use Alpaca's replace_order API instead of cancel-and-resubmit
+    replace_order_fallback: bool = True  # Fall back to cancel-and-resubmit if replace fails
 
     # Volume requirements - ADJUSTED FOR LOW LIQUIDITY ETFS
     min_bid_ask_size: Decimal = Decimal("10")  # Reduced from 100 to 10 shares minimum

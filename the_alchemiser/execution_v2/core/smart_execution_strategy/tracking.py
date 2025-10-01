@@ -104,6 +104,48 @@ class OrderTracker:
                 f"cumulative filled: {filled_quantity})"
             )
 
+    def update_order_in_place(
+        self,
+        order_id: str,
+        new_anchor_price: Decimal,
+        placement_time: datetime,
+    ) -> None:
+        """Update order tracking when using replace_order (same order ID).
+
+        This is used when Alpaca's replace_order API is used, which maintains
+        the same order ID but updates parameters like price and quantity.
+
+        Args:
+            order_id: Order ID (unchanged)
+            new_anchor_price: New anchor price after replacement
+            placement_time: When the replacement was made
+
+        """
+        if order_id not in self._active_orders:
+            logger.warning(f"⚠️ Cannot update non-existent order {order_id}")
+            return
+
+        # Increment repeg count
+        old_repeg_count = self._repeg_counts.get(order_id, 0)
+        self._repeg_counts[order_id] = old_repeg_count + 1
+
+        # Update placement time
+        self._order_placement_times[order_id] = placement_time
+
+        # Update anchor price
+        old_anchor = self._order_anchor_prices.get(order_id)
+        self._order_anchor_prices[order_id] = new_anchor_price
+
+        # Extend price history
+        price_history = self._price_history.get(order_id, [])
+        self._price_history[order_id] = [*price_history, new_anchor_price]
+
+        logger.debug(
+            f"📊 Updated order {order_id} in place (replace_order): "
+            f"${old_anchor} -> ${new_anchor_price} "
+            f"(repeg count: {old_repeg_count + 1})"
+        )
+
     def remove_order(self, order_id: str) -> None:
         """Remove order from tracking.
 
