@@ -85,9 +85,7 @@ class TradingSystem:
     def _initialize_event_orchestration(self) -> None:
         """Initialize event-driven orchestration system."""
         if self.container is None:
-            raise RuntimeError(
-                "Cannot initialize event orchestration: DI container not ready"
-            )
+            raise RuntimeError("Cannot initialize event orchestration: DI container not ready")
 
         # Initialize event-driven orchestrator - this is required for system operation
         from the_alchemiser.orchestration.event_driven_orchestrator import (
@@ -106,9 +104,7 @@ class TradingSystem:
         """
         try:
             if self.container is None:
-                self.logger.warning(
-                    "Cannot emit StartupEvent: DI container not initialized"
-                )
+                self.logger.warning("Cannot emit StartupEvent: DI container not initialized")
                 return
 
             # Get event bus from container
@@ -130,9 +126,7 @@ class TradingSystem:
 
             # Emit the event
             event_bus.publish(event)
-            self.logger.debug(
-                f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}"
-            )
+            self.logger.debug(f"Emitted StartupEvent {event.event_id} for mode: {startup_mode}")
 
         except Exception as e:
             # Don't let startup event emission failure break the system
@@ -156,27 +150,32 @@ class TradingSystem:
             TradeRunResult with complete execution results and metadata
 
         """
-        self.logger.info(f"🚀 execute_trading called (method entry)")
-
-        # Generate correlation ID for tracking
-        correlation_id = str(uuid.uuid4())
+        # Start timing and correlation tracking
         started_at = datetime.now(UTC)
-
-        # Initialize warnings list
+        correlation_id = str(uuid.uuid4())
         warnings: list[str] = []
 
         try:
-            self.logger.info(
-                f"🚀 About to call _execute_trading_event_driven with correlation_id: {correlation_id}"
-            )
+            if self.container is None:
+                return create_failure_result(
+                    "DI container not initialized", started_at, correlation_id, warnings
+                )
+
+            # Event-driven orchestration is the ONLY execution path
+            if self.event_driven_orchestrator is None:
+                return create_failure_result(
+                    "Event-driven orchestrator not initialized - check system configuration",
+                    started_at,
+                    correlation_id,
+                    warnings,
+                )
+
+            self.logger.debug("🚀 Using event-driven orchestration for trading workflow")
             trading_result = self._execute_trading_event_driven(
                 correlation_id,
                 started_at,
                 show_tracking=show_tracking,
                 export_tracking_json=export_tracking_json,
-            )
-            self.logger.info(
-                f"🚀 _execute_trading_event_driven returned: {trading_result is not None}"
             )
 
             if trading_result is None:
@@ -216,33 +215,19 @@ class TradingSystem:
             TradeRunResult or None if failed
 
         """
-        self.logger.info(
-            f"🚀 _execute_trading_event_driven called with correlation_id: {correlation_id}"
-        )
-
         try:
             if not self.event_driven_orchestrator:
                 self.logger.error("Event-driven orchestrator not available")
                 return None
 
             # Start the event-driven workflow
-            self.logger.info(
-                f"🚀 About to call start_trading_workflow with correlation_id: {correlation_id}"
-            )
-            workflow_correlation_id = (
-                self.event_driven_orchestrator.start_trading_workflow(
-                    correlation_id=correlation_id
-                )
-            )
-            self.logger.info(
-                f"🚀 start_trading_workflow returned correlation_id: {workflow_correlation_id}"
+            workflow_correlation_id = self.event_driven_orchestrator.start_trading_workflow(
+                correlation_id=correlation_id
             )
 
             # Wait for workflow completion
-            workflow_result = (
-                self.event_driven_orchestrator.wait_for_workflow_completion(
-                    workflow_correlation_id, timeout_seconds=300
-                )
+            workflow_result = self.event_driven_orchestrator.wait_for_workflow_completion(
+                workflow_correlation_id, timeout_seconds=300
             )
 
             if not workflow_result.get("success"):
@@ -300,9 +285,7 @@ class TradingSystem:
             mode_str = "paper trading" if paper_trading else "live trading"
             print(f"\n📊 Strategy Performance Tracking ({mode_str}):")
 
-            module = importlib.import_module(
-                "the_alchemiser.shared.utils.strategy_utils"
-            )
+            module = importlib.import_module("the_alchemiser.shared.utils.strategy_utils")
             func = getattr(module, "display_strategy_performance_tracking", None)
 
             if callable(func):
@@ -333,9 +316,7 @@ class TradingSystem:
                 "status": trading_result.get("status", "unknown"),
                 "execution_summary": trading_result.get("execution_summary", {}),
                 "rebalance_plan": trading_result.get("rebalance_plan"),
-                "stale_orders_canceled": trading_result.get(
-                    "stale_orders_canceled", []
-                ),
+                "stale_orders_canceled": trading_result.get("stale_orders_canceled", []),
             }
 
             export_file = Path(export_path)
@@ -388,19 +369,11 @@ class TradingSystem:
                     event_bus = self.container.services.event_bus()
                     send_error_notification_if_needed(event_bus)
                 else:
-                    self.logger.warning(
-                        "Container not available for error notification"
-                    )
+                    self.logger.warning("Container not available for error notification")
             except Exception as notification_error:
-                self.logger.warning(
-                    f"Failed to send error notification: {notification_error}"
-                )
+                self.logger.warning(f"Failed to send error notification: {notification_error}")
 
-            return create_failure_result(
-                f"System error: {e}", started_at, correlation_id, warnings
-            )
+            return create_failure_result(f"System error: {e}", started_at, correlation_id, warnings)
         # Generic error handling
         self.logger.error(f"Unexpected trading execution error: {e}")
-        return create_failure_result(
-            f"Unexpected error: {e}", started_at, correlation_id, warnings
-        )
+        return create_failure_result(f"Unexpected error: {e}", started_at, correlation_id, warnings)

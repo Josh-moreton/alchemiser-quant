@@ -142,7 +142,6 @@ class EventDrivenOrchestrator:
             type[BaseEvent], TypingCallable[[BaseEvent], None]
         ] = {
             StartupEvent: cast(TypingCallable[[BaseEvent], None], self._handle_startup),
-            # Note: WorkflowStarted events are published by orchestrator, not handled by it
             SignalGenerated: cast(
                 TypingCallable[[BaseEvent], None], self._handle_signal_generated
             ),
@@ -541,11 +540,8 @@ class EventDrivenOrchestrator:
             }
         )
 
-        # NOTE: Do NOT remove from active_correlations here!
-        # The workflow is not actually complete until WorkflowCompleted is processed.
-        # Removing it prematurely causes wait_for_workflow_completion() to return
-        # before the workflow has fully completed, which can lead to timing issues.
-        # The correlation_id will be removed in _handle_workflow_completed().
+        # Remove from active correlations as workflow is complete
+        self.workflow_state["active_correlations"].discard(event.correlation_id)
 
         # Collect execution results for workflow results
         if event.correlation_id not in self.workflow_results:
