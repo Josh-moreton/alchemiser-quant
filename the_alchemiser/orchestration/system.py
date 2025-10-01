@@ -22,7 +22,7 @@ from the_alchemiser.shared.config.config import Settings, load_settings
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
 from the_alchemiser.shared.events import EventBus, StartupEvent
-from the_alchemiser.shared.logging.logging_utils import (
+from the_alchemiser.shared.logging import (
     get_logger,
 )
 from the_alchemiser.shared.schemas.trade_result_factory import (
