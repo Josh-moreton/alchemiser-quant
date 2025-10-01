@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Business Unit: utilities; Status: current.
+"""Business Unit: shared; Status: current.
 
 Error handling utilities for production resilience.
 
@@ -71,7 +71,12 @@ def _calculate_jitter_factor(attempt: int) -> float:
 
 
 def _calculate_retry_delay(
-    attempt: int, base_delay: float, backoff_factor: float, max_delay: float, *, jitter: bool
+    attempt: int,
+    base_delay: float,
+    backoff_factor: float,
+    max_delay: float,
+    *,
+    jitter: bool,
 ) -> float:
     """Calculate retry delay with exponential backoff and optional jitter."""
     delay = min(base_delay * (backoff_factor**attempt), max_delay)
@@ -80,11 +85,15 @@ def _calculate_retry_delay(
     return delay
 
 
-def _handle_final_retry_attempt(exception: Exception, max_retries: int, func_name: str) -> None:
+def _handle_final_retry_attempt(
+    exception: Exception, max_retries: int, func_name: str
+) -> None:
     """Handle the final retry attempt by adding context and logging."""
     if hasattr(exception, "retry_count"):
         exception.retry_count = max_retries
-    logger.error(f"Function {func_name} failed after {max_retries} retries: {exception}")
+    logger.error(
+        f"Function {func_name} failed after {max_retries} retries: {exception}"
+    )
 
 
 def retry_with_backoff(
@@ -186,7 +195,10 @@ class CircuitBreaker:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
             if self.state == "OPEN":
-                if self.last_failure_time and time.time() - self.last_failure_time < self.timeout:
+                if (
+                    self.last_failure_time
+                    and time.time() - self.last_failure_time < self.timeout
+                ):
                     raise CircuitBreakerOpenError(
                         f"Circuit breaker is OPEN for {func.__name__}. "
                         f"Retry after {self.timeout}s timeout."
@@ -219,11 +231,13 @@ class CircuitBreaker:
 
 def categorize_error_severity(error: Exception) -> str:
     """Categorize error severity for monitoring."""
-    if isinstance(error, InsufficientFundsError | (OrderExecutionError | PositionValidationError)):
-        return ErrorSeverity.HIGH
-    if isinstance(error, MarketDataError | DataProviderError) or _is_strategy_execution_error(
-        error
+    if isinstance(
+        error, InsufficientFundsError | (OrderExecutionError | PositionValidationError)
     ):
+        return ErrorSeverity.HIGH
+    if isinstance(
+        error, MarketDataError | DataProviderError
+    ) or _is_strategy_execution_error(error):
         return ErrorSeverity.MEDIUM
     if isinstance(error, ConfigurationError):
         return ErrorSeverity.HIGH
