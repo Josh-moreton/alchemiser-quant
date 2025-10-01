@@ -518,6 +518,13 @@ class PortfolioAnalysisHandler:
                 )
             self._log_final_rebalance_plan_summary(rebalance_plan)
 
+            # Determine if actual trades (BUY/SELL) are required, not just HOLDs
+            trades_required = False
+            if rebalance_plan and rebalance_plan.items:
+                trades_required = any(
+                    item.action in ["BUY", "SELL"] for item in rebalance_plan.items
+                )
+
             event = RebalancePlanned(
                 correlation_id=correlation_id,
                 causation_id=correlation_id,  # This event is caused by the signal generation
@@ -527,11 +534,7 @@ class PortfolioAnalysisHandler:
                 source_component="PortfolioAnalysisHandler",
                 rebalance_plan=rebalance_plan,
                 allocation_comparison=allocation_comparison,
-                trades_required=(
-                    rebalance_plan is not None and len(rebalance_plan.items) > 0
-                    if rebalance_plan
-                    else False
-                ),
+                trades_required=trades_required,
                 metadata={
                     "analysis_timestamp": datetime.now(UTC).isoformat(),
                     "source": "event_driven_handler",
