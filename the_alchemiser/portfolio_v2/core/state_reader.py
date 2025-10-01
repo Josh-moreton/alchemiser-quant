@@ -11,7 +11,7 @@ import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.logging import get_logger, log_with_context
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.exceptions import NegativeCashBalanceError
 
 if TYPE_CHECKING:
@@ -57,9 +57,7 @@ class PortfolioStateReader:
             Exception: If snapshot cannot be built due to data errors
 
         """
-        log_with_context(
-            logger,
-            logging.DEBUG,
+        logger.debug(
             "Building portfolio snapshot",
             module=MODULE_NAME,
             action="build_snapshot",
@@ -84,9 +82,7 @@ class PortfolioStateReader:
 
             # Check for negative or zero cash balance - graceful exit condition
             if cash <= Decimal("0"):
-                log_with_context(
-                    logger,
-                    logging.ERROR,
+                logger.error(
                     f"Account has non-positive cash balance: ${cash}. Trading cannot proceed.",
                     module=MODULE_NAME,
                     action="build_snapshot",
@@ -116,9 +112,7 @@ class PortfolioStateReader:
 
             # Validate snapshot consistency
             if not snapshot.validate_total_value():
-                log_with_context(
-                    logger,
-                    logging.WARNING,
+                logger.warning(
                     "Snapshot total value validation failed - continuing anyway",
                     module=MODULE_NAME,
                     action="build_snapshot",
@@ -126,9 +120,7 @@ class PortfolioStateReader:
                     snapshot_total=str(snapshot.total_value),
                 )
 
-            log_with_context(
-                logger,
-                logging.DEBUG,
+            logger.debug(
                 "Portfolio snapshot built successfully",
                 module=MODULE_NAME,
                 action="build_snapshot",
@@ -142,9 +134,7 @@ class PortfolioStateReader:
             return snapshot
 
         except Exception as e:
-            log_with_context(
-                logger,
-                logging.ERROR,
+            logger.error(
                 f"Failed to build portfolio snapshot: {e}",
                 module=MODULE_NAME,
                 action="build_snapshot",
