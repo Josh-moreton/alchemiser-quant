@@ -89,7 +89,9 @@ __all__ = [
     "log_data_integrity_checkpoint",
     "log_data_transfer_checkpoint",
     "log_error_with_context",
+    "log_order_flow",
     "log_order_flow_bridge",
+    "log_repeg_operation",
     "log_repeg_operation_bridge",
     # Trading-specific
     "log_trade_event",
