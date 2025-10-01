@@ -18,7 +18,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from the_alchemiser.shared.config.config import load_settings
-from the_alchemiser.shared.logging.logging_utils import configure_application_logging
+from the_alchemiser.shared.logging import configure_application_logging
 from the_alchemiser.shared.services.pnl_service import PnLService
 
 

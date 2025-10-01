@@ -23,7 +23,7 @@ from the_alchemiser.shared.errors.error_handler import (
     handle_trading_error,
     send_error_notification_if_needed,
 )
-from the_alchemiser.shared.logging.logging_utils import (
+from the_alchemiser.shared.logging import (
     generate_request_id,
     get_logger,
     log_error_with_context,

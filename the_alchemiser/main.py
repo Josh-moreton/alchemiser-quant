@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 # CLI imports removed - using programmatic interface only
 from the_alchemiser.orchestration.system import TradingSystem
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
-from the_alchemiser.shared.logging.logging_utils import (
+from the_alchemiser.shared.logging import (
     configure_application_logging,
     generate_request_id,
     get_logger,
