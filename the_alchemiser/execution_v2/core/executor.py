@@ -26,9 +26,6 @@ from the_alchemiser.execution_v2.utils.execution_validator import (
     ExecutionValidator,
 )
 from the_alchemiser.execution_v2.utils.position_utils import PositionUtils
-from the_alchemiser.execution_v2.utils.repeg_monitoring_service import (
-    RepegMonitoringService,
-)
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import (
@@ -91,7 +88,6 @@ class Executor:
         self._order_finalizer: OrderFinalizer
         self._position_utils: PositionUtils
         self._phase_executor: PhaseExecutor
-        self._repeg_monitoring_service: RepegMonitoringService
 
         # Initialize smart execution if enabled
         try:
@@ -147,7 +143,6 @@ class Executor:
             self.execution_config,
             enable_smart_execution=self.enable_smart_execution,
         )
-        self._repeg_monitoring_service = RepegMonitoringService(self.smart_strategy)
         logger.debug("✅ Helper modules initialized")
 
     def __del__(self) -> None:
