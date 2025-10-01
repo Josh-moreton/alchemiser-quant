@@ -53,7 +53,7 @@ import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.services.real_time_data_processor import (
     RealTimeDataProcessor,
 )

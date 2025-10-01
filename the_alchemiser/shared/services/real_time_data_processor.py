@@ -13,7 +13,7 @@ import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import QuoteExtractionResult
 
 if TYPE_CHECKING:

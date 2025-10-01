@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from functools import wraps
 from typing import TYPE_CHECKING, Any
 
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 
 # Import from decomposed modules
 from .enhanced_exceptions import (

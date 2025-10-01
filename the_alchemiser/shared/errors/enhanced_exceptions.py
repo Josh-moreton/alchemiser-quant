@@ -66,7 +66,7 @@ class EnhancedAlchemiserError(AlchemiserError):
 
         # Set error_id in context for logging
         try:
-            from the_alchemiser.shared.logging.logging_utils import set_error_id
+            from the_alchemiser.shared.logging import set_error_id
 
             set_error_id(self.error_id)
         except ImportError:

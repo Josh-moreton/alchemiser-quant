@@ -13,7 +13,7 @@ import time
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import (
     PriceDataModel,
     QuoteModel,

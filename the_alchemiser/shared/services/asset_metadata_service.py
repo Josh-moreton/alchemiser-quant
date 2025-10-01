@@ -20,7 +20,7 @@ import threading
 import time
 from typing import TYPE_CHECKING, Any
 
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.asset_info import AssetInfo
 
 if TYPE_CHECKING:

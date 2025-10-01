@@ -19,7 +19,7 @@ from the_alchemiser.shared.events.schemas import (
     SystemNotificationRequested,
     TradingNotificationRequested,
 )
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.notifications.client import send_email_notification
 from the_alchemiser.shared.notifications.templates import (
     EmailTemplates,
