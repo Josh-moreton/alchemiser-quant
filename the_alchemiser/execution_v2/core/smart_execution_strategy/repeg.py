@@ -186,7 +186,9 @@ class RepegManager:
         if not placement_time:
             return False
 
-        if should_consider_repeg(placement_time, current_time, self.config.fill_wait_seconds):
+        if should_consider_repeg(
+            placement_time, current_time, self.config.fill_wait_seconds
+        ):
             return True
 
         # Log debug info for orders still waiting
@@ -210,7 +212,9 @@ class RepegManager:
         """
         from .utils import should_escalate_order
 
-        return should_escalate_order(current_repeg_count, self.config.max_repegs_per_order)
+        return should_escalate_order(
+            current_repeg_count, self.config.max_repegs_per_order
+        )
 
     async def _escalate_to_market(
         self, order_id: str, request: SmartOrderRequest
@@ -231,7 +235,9 @@ class RepegManager:
                 f"(after {self.order_tracker.get_repeg_count(order_id)} re-pegs)"
             )
             # Use asyncio.to_thread to make blocking I/O async
-            cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
+            cancel_success = await asyncio.to_thread(
+                self.alpaca_manager.cancel_order, order_id
+            )
             if not cancel_success:
                 logger.warning(
                     f"⚠️ Failed to cancel order {order_id}; attempting market order anyway"
@@ -280,7 +286,9 @@ class RepegManager:
                         float(original_anchor) if original_anchor is not None else None
                     ),
                     "new_price": (
-                        float(executed_order.price) if executed_order.price is not None else 0.0
+                        float(executed_order.price)
+                        if executed_order.price is not None
+                        else 0.0
                     ),
                 }
                 logger.info(
@@ -291,7 +299,9 @@ class RepegManager:
                     success=True,
                     order_id=executed_order.order_id,
                     final_price=(
-                        executed_order.price if executed_order.price is not None else None
+                        executed_order.price
+                        if executed_order.price is not None
+                        else None
                     ),
                     anchor_price=original_anchor,
                     repegs_used=self.config.max_repegs_per_order,
@@ -371,14 +381,18 @@ class RepegManager:
 
         """
         try:
-            remaining_qty = await self._get_remaining_after_status_update(order_id, request)
+            remaining_qty = await self._get_remaining_after_status_update(
+                order_id, request
+            )
 
             if remaining_qty is None:
                 return None
 
             # Determine valid re-peg price and required context
             try:
-                new_price, original_anchor, quote = self._calculate_repeg_price(order_id, request)
+                new_price, original_anchor, quote = self._calculate_repeg_price(
+                    order_id, request
+                )
             except _RemoveFromTracking:
                 return None
 
@@ -427,7 +441,9 @@ class RepegManager:
                     )
 
                 # Update tracking in place (same order ID)
-                self.order_tracker.update_order_in_place(order_id, new_price, datetime.now(UTC))
+                self.order_tracker.update_order_in_place(
+                    order_id, new_price, datetime.now(UTC)
+                )
 
                 logger.info(
                     f"✅ Re-peg successful via replace_order: order {order_id} "
@@ -435,29 +451,14 @@ class RepegManager:
                     f"quantity: {remaining_qty}"
                 )
 
-                # Use cast to satisfy type checkers; quote is non-None when new_price exists
-                from typing import cast as _cast
-
-                q = _cast(QuoteModel, quote)
-                metadata_dict: LiquidityMetadata = {
-                    "original_order_id": order_id,
-                    "original_price": (float(original_anchor) if original_anchor else None),
-                    "new_price": float(new_price),
-                    "bid_price": q.bid_price,
-                    "ask_price": q.ask_price,
-                    "spread_percent": (q.ask_price - q.bid_price) / q.bid_price * 100,
-                    "bid_size": q.bid_size,
-                    "ask_size": q.ask_size,
-                }
-                return SmartOrderResult(
-                    success=True,
+                return self._create_successful_repeg_result(
                     order_id=order_id,  # Same order ID with replace_order
-                    final_price=new_price,
-                    anchor_price=original_anchor,
-                    repegs_used=new_repeg_count,
+                    original_order_id=order_id,
+                    new_price=new_price,
+                    original_anchor=original_anchor,
+                    repeg_count=new_repeg_count,
                     execution_strategy=f"smart_repeg_replace_{new_repeg_count}",
-                    placement_timestamp=datetime.now(UTC),
-                    metadata=metadata_dict,
+                    quote=quote,  # type: ignore[arg-type]  # guaranteed non-None by control flow
                 )
 
             except Exception as e:
@@ -515,7 +516,9 @@ class RepegManager:
 
         """
         try:
-            remaining_qty = await self._get_remaining_after_status_update(order_id, request)
+            remaining_qty = await self._get_remaining_after_status_update(
+                order_id, request
+            )
 
             if remaining_qty is None:
                 return None
@@ -526,7 +529,9 @@ class RepegManager:
 
             # Determine valid re-peg price and required context
             try:
-                new_price, original_anchor, quote = self._calculate_repeg_price(order_id, request)
+                new_price, original_anchor, quote = self._calculate_repeg_price(
+                    order_id, request
+                )
             except _RemoveFromTracking:
                 return None
 
@@ -576,29 +581,14 @@ class RepegManager:
                         f"quantity: {remaining_qty}"
                     )
 
-                    # Use cast to satisfy type checkers; quote is non-None when new_price exists
-                    from typing import cast as _cast
-
-                    q = _cast(QuoteModel, quote)
-                    metadata_dict: LiquidityMetadata = {
-                        "original_order_id": order_id,
-                        "original_price": (float(original_anchor) if original_anchor else None),
-                        "new_price": float(new_price),
-                        "bid_price": q.bid_price,
-                        "ask_price": q.ask_price,
-                        "spread_percent": (q.ask_price - q.bid_price) / q.bid_price * 100,
-                        "bid_size": q.bid_size,
-                        "ask_size": q.ask_size,
-                    }
-                    return SmartOrderResult(
-                        success=True,
+                    return self._create_successful_repeg_result(
                         order_id=executed_order.order_id,
-                        final_price=new_price,
-                        anchor_price=original_anchor,
-                        repegs_used=new_repeg_count,
+                        original_order_id=order_id,
+                        new_price=new_price,
+                        original_anchor=original_anchor,
+                        repeg_count=new_repeg_count,
                         execution_strategy=f"smart_repeg_{new_repeg_count}",
-                        placement_timestamp=datetime.now(UTC),
-                        metadata=metadata_dict,
+                        quote=quote,  # type: ignore[arg-type]  # guaranteed non-None by control flow
                     )
                 logger.warning(
                     "⚠️ Re-peg placement returned non-UUID order_id; skipping tracking update"
@@ -610,7 +600,9 @@ class RepegManager:
                     repegs_used=new_repeg_count,
                 )
 
-            logger.error(f"❌ Re-peg failed for {request.symbol}: no valid order ID returned")
+            logger.error(
+                f"❌ Re-peg failed for {request.symbol}: no valid order ID returned"
+            )
             return SmartOrderResult(
                 success=False,
                 error_message="Re-peg order placement failed",
@@ -640,7 +632,9 @@ class RepegManager:
         )
 
         filled_qty = (
-            order_result.filled_qty if hasattr(order_result, "filled_qty") else Decimal("0")
+            order_result.filled_qty
+            if hasattr(order_result, "filled_qty")
+            else Decimal("0")
         )
         self.order_tracker.update_filled_quantity(order_id, filled_qty)
 
@@ -658,7 +652,9 @@ class RepegManager:
             price: Decimal | None = None
             try:
                 # Prefer streaming midpoint if available via QuoteProvider
-                validated = self.quote_provider.get_quote_with_validation(request.symbol)
+                validated = self.quote_provider.get_quote_with_validation(
+                    request.symbol
+                )
                 if validated:
                     quote, _ = validated
                     # Use ask for BUY, bid for SELL to compute conservative notional
@@ -667,18 +663,24 @@ class RepegManager:
                     else:
                         price = Decimal(str(quote.bid_price))
                 else:
-                    current_price = self.alpaca_manager.get_current_price(request.symbol)
+                    current_price = self.alpaca_manager.get_current_price(
+                        request.symbol
+                    )
                     if current_price is not None and current_price > 0:
                         price = Decimal(str(current_price))
             except Exception:
                 price = None
 
-            min_notional = getattr(self.config, "min_fractional_notional_usd", Decimal("1.00"))
+            min_notional = getattr(
+                self.config, "min_fractional_notional_usd", Decimal("1.00")
+            )
 
             if asset_info is not None and asset_info.fractionable:
                 # For fractionable assets, skip if remaining notional is below broker minimum
                 if price is not None:
-                    remaining_notional = (remaining_qty * price).quantize(Decimal("0.01"))
+                    remaining_notional = (remaining_qty * price).quantize(
+                        Decimal("0.01")
+                    )
                     if remaining_notional < min_notional:
                         logger.info(
                             f"✅ Order {order_id} remaining notional ${remaining_notional} < ${min_notional}, considering complete"
@@ -692,7 +694,9 @@ class RepegManager:
                     )
                     return None
         except Exception as _small_e:
-            logger.debug(f"Minimal-remaining evaluation fallback due to error: {_small_e}")
+            logger.debug(
+                f"Minimal-remaining evaluation fallback due to error: {_small_e}"
+            )
 
         return remaining_qty
 
@@ -702,7 +706,9 @@ class RepegManager:
         Returns True only when cancellation completes; otherwise False.
         """
         logger.info(f"❌ Canceling order {order_id} for re-pegging")
-        cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
+        cancel_success = await asyncio.to_thread(
+            self.alpaca_manager.cancel_order, order_id
+        )
         if not cancel_success:
             logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
             return False
@@ -717,7 +723,9 @@ class RepegManager:
             )
             return False
 
-        logger.debug(f"✅ Order {order_id} cancellation confirmed, buying power released")
+        logger.debug(
+            f"✅ Order {order_id} cancellation confirmed, buying power released"
+        )
         return True
 
     def _calculate_repeg_price(
@@ -855,6 +863,54 @@ class RepegManager:
                 price=float(limit_price),
             )
 
+    def _create_successful_repeg_result(
+        self,
+        order_id: str,
+        original_order_id: str,
+        new_price: Decimal,
+        original_anchor: Decimal | None,
+        repeg_count: int,
+        execution_strategy: str,
+        quote: QuoteModel,
+    ) -> SmartOrderResult:
+        """Create a successful SmartOrderResult for re-peg operations.
+
+        Args:
+            order_id: The new or updated order ID
+            original_order_id: The original order ID for metadata
+            new_price: The new price after re-peg
+            original_anchor: The original anchor price
+            repeg_count: Number of re-pegs used
+            execution_strategy: Strategy used for execution
+            quote: Quote data for metadata
+
+        Returns:
+            SmartOrderResult with success=True and populated metadata
+
+        """
+        metadata_dict: LiquidityMetadata = {
+            "original_order_id": original_order_id,
+            "original_price": (float(original_anchor) if original_anchor else None),
+            "new_price": float(new_price),
+            "bid_price": quote.bid_price,
+            "ask_price": quote.ask_price,
+            "spread_percent": (quote.ask_price - quote.bid_price)
+            / quote.bid_price
+            * 100,
+            "bid_size": quote.bid_size,
+            "ask_size": quote.ask_size,
+        }
+        return SmartOrderResult(
+            success=True,
+            order_id=order_id,
+            final_price=new_price,
+            anchor_price=original_anchor,
+            repegs_used=repeg_count,
+            execution_strategy=execution_strategy,
+            placement_timestamp=datetime.now(UTC),
+            metadata=metadata_dict,
+        )
+
     def _is_valid_uuid_str(self, value: str) -> bool:
         """Check if provided string is a valid UUID format."""
         try:
@@ -865,7 +921,9 @@ class RepegManager:
         except Exception:
             return False
 
-    def _wait_for_order_cancellation(self, order_id: str, timeout_seconds: float = 10.0) -> bool:
+    def _wait_for_order_cancellation(
+        self, order_id: str, timeout_seconds: float = 10.0
+    ) -> bool:
         """Wait for an order to be actually cancelled and buying power released.
 
         This prevents the race condition where we try to place a replacement order
@@ -886,7 +944,9 @@ class RepegManager:
 
         while time.time() - start_time < timeout_seconds:
             try:
-                order_status = self.alpaca_manager._check_order_completion_status(order_id)
+                order_status = self.alpaca_manager._check_order_completion_status(
+                    order_id
+                )
 
                 if order_status and order_status.upper() in [
                     "CANCELED",
@@ -903,7 +963,9 @@ class RepegManager:
                 time.sleep(check_interval)
 
             except Exception as e:
-                logger.warning(f"Error checking cancellation status for {order_id}: {e}")
+                logger.warning(
+                    f"Error checking cancellation status for {order_id}: {e}"
+                )
                 # Continue trying until timeout
                 time.sleep(check_interval)
 

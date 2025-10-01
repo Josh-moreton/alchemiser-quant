@@ -126,8 +126,11 @@ async def test_repeg_uses_remaining_quantity_after_partial_fill(
     # Mock successful order placement
     new_order = Mock()
     new_order.success = True
-    new_order.order_id = "new-order-456"
+    new_order.order_id = "12345678-1234-5678-9abc-123456789012"  # Valid UUID format
     mock_alpaca_manager.place_limit_order.return_value = new_order
+
+    # Mock the cancellation wait to return success immediately
+    repeg_manager._wait_for_order_cancellation = Mock(return_value=True)
 
     # Execute repeg
     result = await repeg_manager._attempt_repeg(order_id, request)
@@ -141,7 +144,10 @@ async def test_repeg_uses_remaining_quantity_after_partial_fill(
     assert result.success is True
 
     # Verify filled quantity was tracked
-    assert order_tracker.get_filled_quantity("new-order-456") == filled_qty
+    assert (
+        order_tracker.get_filled_quantity("12345678-1234-5678-9abc-123456789012")
+        == filled_qty
+    )
 
 
 @pytest.mark.asyncio
@@ -190,13 +196,18 @@ async def test_repeg_handles_insufficient_quantity_error(
     # Mock successful retry with available quantity
     successful_order = Mock()
     successful_order.success = True
-    successful_order.order_id = "retry-order-789"
+    successful_order.order_id = (
+        "87654321-4321-8765-dcba-210987654321"  # Valid UUID format
+    )
 
     # Configure mock to fail first, succeed second
     mock_alpaca_manager.place_limit_order.side_effect = [
         insufficient_error,
         successful_order,
     ]
+
+    # Mock the cancellation wait to return success immediately
+    repeg_manager._wait_for_order_cancellation = Mock(return_value=True)
 
     # Execute repeg
     result = await repeg_manager._attempt_repeg(order_id, request)
