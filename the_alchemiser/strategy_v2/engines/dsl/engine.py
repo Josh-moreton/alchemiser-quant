@@ -22,7 +22,7 @@ from the_alchemiser.shared.events.dsl_events import (
     StrategyEvaluationRequested,
 )
 from the_alchemiser.shared.events.handlers import EventHandler
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 from the_alchemiser.shared.schemas.trace import Trace

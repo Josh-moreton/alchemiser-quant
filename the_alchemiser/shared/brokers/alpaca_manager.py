@@ -31,7 +31,7 @@ from alpaca.trading.requests import (
     ReplaceOrderRequest,
 )
 
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.protocols.repository import (
     AccountRepository,
     MarketDataRepository,

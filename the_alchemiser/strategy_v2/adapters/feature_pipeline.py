@@ -13,7 +13,7 @@ import math
 
 import numpy as np
 
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.market_bar import MarketBar
 
 logger = get_logger(__name__)

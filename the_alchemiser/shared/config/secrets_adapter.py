@@ -15,7 +15,7 @@ import os
 # Auto-load .env file into environment variables
 from the_alchemiser.shared.config import env_loader  # noqa: F401
 from the_alchemiser.shared.config.config import load_settings
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
 

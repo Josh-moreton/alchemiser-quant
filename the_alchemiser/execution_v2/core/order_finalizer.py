@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlanItem
 
 if TYPE_CHECKING:

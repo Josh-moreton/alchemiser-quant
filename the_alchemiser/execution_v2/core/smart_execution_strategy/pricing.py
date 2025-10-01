@@ -11,7 +11,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from the_alchemiser.execution_v2.utils.liquidity_analysis import LiquidityAnalyzer
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import QuoteModel
 
 from .models import ExecutionConfig, LiquidityMetadata

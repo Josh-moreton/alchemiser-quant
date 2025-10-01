@@ -14,7 +14,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 
 from .error_types import ErrorSeverity
 

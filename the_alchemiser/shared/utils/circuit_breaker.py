@@ -10,7 +10,7 @@ import time
 from enum import Enum
 from typing import NamedTuple
 
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
 

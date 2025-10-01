@@ -18,7 +18,7 @@ from the_alchemiser.shared.brokers.alpaca_manager import (
     create_alpaca_manager,
 )
 from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.pnl import PnLData
 
 logger = get_logger(__name__)

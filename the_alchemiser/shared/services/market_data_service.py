@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 from secrets import randbelow
 from typing import TYPE_CHECKING, Any
 
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import BarModel
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.quote import QuoteModel
