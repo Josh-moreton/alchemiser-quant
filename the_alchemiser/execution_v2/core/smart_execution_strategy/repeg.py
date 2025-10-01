@@ -232,8 +232,36 @@ class RepegManager:
                 f"(after {self.order_tracker.get_repeg_count(order_id)} re-pegs)"
             )
             # Use asyncio.to_thread to make blocking I/O async
-            cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
-            if not cancel_success:
+            cancel_result = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
+            
+            # Check if order was already in a terminal state (e.g., filled, cancelled)
+            if cancel_result.success and cancel_result.error and cancel_result.error.startswith("already_"):
+                terminal_state = cancel_result.error.replace("already_", "")
+                logger.info(
+                    f"✅ Order {order_id} already in terminal state '{terminal_state}' - "
+                    f"no market escalation needed"
+                )
+                
+                # Clean up tracking
+                original_anchor = self.order_tracker.get_anchor_price(order_id)
+                self.order_tracker.remove_order(order_id)
+                
+                # Return success result indicating order is complete
+                return SmartOrderResult(
+                    success=True,
+                    order_id=order_id,
+                    final_price=original_anchor,
+                    anchor_price=original_anchor,
+                    repegs_used=self.config.max_repegs_per_order,
+                    execution_strategy=f"already_{terminal_state}",
+                    placement_timestamp=datetime.now(UTC),
+                    metadata={
+                        "reason": f"Order already in terminal state: {terminal_state}",
+                        "escalation_prevented": True,
+                    },
+                )
+            
+            if not cancel_result.success:
                 logger.warning(
                     f"⚠️ Failed to cancel order {order_id}; attempting market order anyway"
                 )
@@ -524,8 +552,19 @@ class RepegManager:
         Returns True only when cancellation completes; otherwise False.
         """
         logger.info(f"❌ Canceling order {order_id} for re-pegging")
-        cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
-        if not cancel_success:
+        cancel_result = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
+        
+        # Check if order was already in a terminal state (e.g., filled, cancelled)
+        if cancel_result.success and cancel_result.error and cancel_result.error.startswith("already_"):
+            terminal_state = cancel_result.error.replace("already_", "")
+            logger.info(
+                f"✅ Order {order_id} already in terminal state '{terminal_state}' - "
+                f"no re-peg needed"
+            )
+            # Signal to remove from tracking - order is complete
+            raise _RemoveFromTracking()
+        
+        if not cancel_result.success:
             logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
             return False
 

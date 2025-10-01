@@ -32,6 +32,7 @@ from the_alchemiser.shared.schemas.broker import (
     WebSocketResult,
     WebSocketStatus,
 )
+from the_alchemiser.shared.schemas.operations import OrderCancellationResult
 from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
 from the_alchemiser.shared.utils.alpaca_error_handler import AlpacaErrorHandler
 from the_alchemiser.shared.utils.order_tracker import OrderTracker
@@ -238,23 +239,47 @@ class AlpacaTradingService:
             logger.error(f"Failed to place limit order for {symbol}: {e}")
             return AlpacaErrorHandler.create_error_result(e, "Limit order placement")
 
-    def cancel_order(self, order_id: str) -> bool:
+    def cancel_order(self, order_id: str) -> OrderCancellationResult:
         """Cancel an order by ID.
 
         Args:
             order_id: Order ID to cancel
 
         Returns:
-            True if successful, False otherwise
+            OrderCancellationResult with success status and detailed error information
 
         """
         try:
             self._trading_client.cancel_order_by_id(order_id)
             logger.info(f"Cancelled order: {order_id}")
-            return True
+            return OrderCancellationResult(
+                success=True,
+                error=None,
+                order_id=order_id,
+            )
         except Exception as e:
+            # Check if order is already in a terminal state (filled, cancelled, etc.)
+            is_terminal, terminal_state = AlpacaErrorHandler.is_order_already_in_terminal_state(e)
+            
+            if is_terminal:
+                # This is not really an error - the order already reached a final state
+                logger.info(
+                    f"Order {order_id} already in terminal state '{terminal_state}' - "
+                    f"treating as successful cancellation"
+                )
+                return OrderCancellationResult(
+                    success=True,
+                    error=f"already_{terminal_state}",
+                    order_id=order_id,
+                )
+            
+            # Genuine cancellation failure
             logger.error(f"Failed to cancel order {order_id}: {e}")
-            return False
+            return OrderCancellationResult(
+                success=False,
+                error=str(e),
+                order_id=order_id,
+            )
 
     def replace_order(
         self, order_id: str, order_data: ReplaceOrderRequest | None = None

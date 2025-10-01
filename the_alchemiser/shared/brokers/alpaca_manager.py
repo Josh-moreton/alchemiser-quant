@@ -43,6 +43,7 @@ from the_alchemiser.shared.schemas.broker import (
     WebSocketResult,
 )
 from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
+from the_alchemiser.shared.schemas.operations import OrderCancellationResult
 from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountService
 from the_alchemiser.shared.services.alpaca_trading_service import AlpacaTradingService
 from the_alchemiser.shared.services.asset_metadata_service import AssetMetadataService
@@ -398,8 +399,12 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             symbol, side, quantity, limit_price, time_in_force
         )
 
-    def cancel_order(self, order_id: str) -> bool:
-        """Cancel an order by ID."""
+    def cancel_order(self, order_id: str) -> OrderCancellationResult:
+        """Cancel an order by ID.
+        
+        Returns:
+            OrderCancellationResult with detailed cancellation status
+        """
         return self._get_trading_service().cancel_order(order_id)
 
     def replace_order(
@@ -529,7 +534,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 for order in symbol_orders:
                     order_id = getattr(order, "id", None)
                     if order_id:
-                        self.cancel_order(str(order_id))
+                        cancel_result = self.cancel_order(str(order_id))
+                        if not cancel_result.success:
+                            logger.warning(f"Failed to cancel order {order_id}: {cancel_result.error}")
             else:
                 # Cancel all open orders
                 self._trading_client.cancel_orders()
@@ -561,10 +568,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                     submitted_at = getattr(order, "submitted_at", None)
                     if submitted_at and submitted_at < cutoff_time:
                         order_id = str(getattr(order, "id", "unknown"))
-                        if self.cancel_order(order_id):
+                        cancel_result = self.cancel_order(order_id)
+                        if cancel_result.success:
                             cancelled_orders.append(order_id)
                         else:
-                            errors.append(f"Failed to cancel order {order_id}")
+                            errors.append(f"Failed to cancel order {order_id}: {cancel_result.error}")
                 except Exception as e:
                     errors.append(f"Error processing order: {e}")
 

@@ -56,6 +56,50 @@ class AlpacaErrorHandler:
     """
 
     @staticmethod
+    def is_order_already_in_terminal_state(error: Exception) -> tuple[bool, str]:
+        """Check if cancellation error indicates order is already in a terminal state.
+
+        This handles cases where an order cannot be cancelled because it has already
+        been filled, cancelled, or reached another terminal state. This is NOT an error
+        condition - it means the order completed successfully or is already inactive.
+
+        Args:
+            error: Exception from cancellation attempt
+
+        Returns:
+            Tuple of (is_terminal, terminal_state) where terminal_state is one of:
+            'filled', 'cancelled', 'rejected', 'expired', or empty string if not terminal
+
+        """
+        msg = str(error).lower()
+        
+        # Alpaca error code 42210000: "order is already in \"filled\" state"
+        # This is the primary case from the issue
+        if "42210000" in msg or 'order is already in "filled" state' in msg:
+            return True, "filled"
+        
+        # Other terminal state patterns
+        if 'order is already in "canceled" state' in msg or 'order is already in "cancelled" state' in msg:
+            return True, "cancelled"
+        
+        if 'order is already in "rejected" state' in msg:
+            return True, "rejected"
+        
+        if 'order is already in "expired" state' in msg:
+            return True, "expired"
+        
+        # Generic terminal state check
+        if "already in" in msg and "state" in msg:
+            # Try to extract the state
+            match = re.search(r'already in ["\']?(\w+)["\']? state', msg)
+            if match:
+                state = match.group(1).lower()
+                if state in ["filled", "canceled", "cancelled", "rejected", "expired"]:
+                    return True, state
+        
+        return False, ""
+
+    @staticmethod
     def is_transient_error(error: Exception) -> tuple[bool, str]:
         """Determine if error is transient and should be retried.
 
