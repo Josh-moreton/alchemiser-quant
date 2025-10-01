@@ -231,6 +231,66 @@ workflow_state = {
 }
 ```
 
+### Workflow State Management (NEW)
+
+Each workflow is tracked with a specific state to prevent event processing after failures:
+
+```python
+class WorkflowState(Enum):
+    RUNNING = "running"      # Workflow is actively running
+    FAILED = "failed"        # Workflow has failed - no further processing
+    COMPLETED = "completed"  # Workflow completed successfully
+```
+
+**State Transitions:**
+- `WorkflowStarted` → State set to `RUNNING`
+- `WorkflowFailed` → State set to `FAILED` (blocks future event processing)
+- `WorkflowCompleted` → State set to `COMPLETED`
+
+**Failure Prevention:**
+
+When a workflow fails, the orchestrator marks it as `FAILED` and all subsequent event handlers are automatically skipped for that correlation ID:
+
+```python
+# Example: Portfolio analysis fails due to negative cash balance
+❌ Workflow failed: portfolio_analysis - Account has non-positive cash balance
+🚫 Workflow 2e740e82-851a marked as FAILED - future events will be skipped
+🚫 Skipping SignalGenerationHandler - workflow 2e740e82-851a already failed
+🚫 Skipping TradingExecutionHandler - workflow 2e740e82-851a already failed
+```
+
+This prevents:
+- Race conditions where handlers process events in parallel after failure
+- Misleading "success" messages after workflow has failed
+- Wasted processing and API calls for already-failed workflows
+
+**Implementation:**
+
+The orchestrator wraps registered handlers with `StateCheckingHandlerWrapper` that intercepts events for failed workflows:
+
+```python
+def _wrap_handlers_with_state_checking(self) -> None:
+    """Wrap registered handlers with workflow state checking."""
+    # Events that should check workflow state before processing
+    state_checked_events = ["SignalGenerated", "RebalancePlanned"]
+    
+    for event_type in state_checked_events:
+        # Wrap existing handlers to check state before delegating
+        wrapped_handlers = [
+            StateCheckingHandlerWrapper(handler, self, event_type, self.logger)
+            for handler in original_handlers
+        ]
+```
+
+**Thread Safety:**
+
+All state checking operations are protected by a lock for concurrent access:
+
+```python
+with self.workflow_states_lock:
+    return self.workflow_states.get(correlation_id) == WorkflowState.FAILED
+```
+
 ### Result Collection
 
 Results are collected across events and stored by correlation ID:

@@ -14,11 +14,13 @@ cross-module workflows through command-line interfaces.
 
 Exports:
     - EventDrivenOrchestrator: Event-driven workflow orchestration
+    - WorkflowState: Workflow execution state enum (RUNNING, FAILED, COMPLETED)
 """
 
 # Lazy imports to avoid circular dependencies and missing dependencies during CLI operations
 __all__ = [
     "EventDrivenOrchestrator",
+    "WorkflowState",
 ]
 
 
@@ -28,4 +30,8 @@ def __getattr__(name: str) -> object:
         from .event_driven_orchestrator import EventDrivenOrchestrator
 
         return EventDrivenOrchestrator
+    if name == "WorkflowState":
+        from .event_driven_orchestrator import WorkflowState
+
+        return WorkflowState
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
