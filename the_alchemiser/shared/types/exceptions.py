@@ -225,6 +225,20 @@ class PortfolioError(AlchemiserError):
         self.correlation_id = correlation_id
 
 
+class NegativeCashBalanceError(PortfolioError):
+    """Raised when account has negative or zero cash balance."""
+
+    def __init__(
+        self,
+        message: str,
+        cash_balance: str | None = None,
+        module: str | None = None,
+    ) -> None:
+        """Initialize negative cash balance error with context."""
+        super().__init__(message, module=module, operation="cash_balance_check")
+        self.cash_balance = cash_balance
+
+
 class IndicatorCalculationError(AlchemiserError):
     """Raised when technical indicator calculations fail."""
 
