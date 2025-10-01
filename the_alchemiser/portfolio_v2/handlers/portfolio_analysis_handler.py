@@ -25,7 +25,7 @@ from the_alchemiser.shared.events import (
     SignalGenerated,
     WorkflowFailed,
 )
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.common import AllocationComparison
 from the_alchemiser.shared.schemas.consolidated_portfolio import (
     ConsolidatedPortfolio,

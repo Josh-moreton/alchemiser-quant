@@ -12,7 +12,7 @@ import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.logging.logging_utils import get_logger, log_with_context
+from the_alchemiser.shared.logging import get_logger, log_with_context
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager

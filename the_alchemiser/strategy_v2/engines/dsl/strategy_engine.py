@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Literal, cast
 
 from the_alchemiser.shared.config.config import Settings
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.strategy_value_objects import (
     StrategySignal,

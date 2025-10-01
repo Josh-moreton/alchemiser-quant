@@ -13,7 +13,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.config.config import load_settings
-from the_alchemiser.shared.logging.logging_utils import get_logger, log_with_context
+from the_alchemiser.shared.logging import get_logger, log_with_context
 from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
     RebalancePlanItem,

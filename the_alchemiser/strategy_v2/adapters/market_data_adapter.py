@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.market_bar import MarketBar
 from the_alchemiser.shared.services.market_data_service import MarketDataService
 
