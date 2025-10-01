@@ -28,6 +28,7 @@ from alpaca.trading.models import Position, TradeAccount
 from alpaca.trading.requests import (
     LimitOrderRequest,
     MarketOrderRequest,
+    ReplaceOrderRequest,
 )
 
 from the_alchemiser.shared.logging.logging_utils import get_logger
@@ -400,6 +401,21 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     def cancel_order(self, order_id: str) -> bool:
         """Cancel an order by ID."""
         return self._get_trading_service().cancel_order(order_id)
+
+    def replace_order(
+        self, order_id: str, order_data: ReplaceOrderRequest | None = None
+    ) -> OrderExecutionResult:
+        """Replace an order with new parameters.
+
+        Args:
+            order_id: The unique order ID to replace
+            order_data: The parameters to update (quantity, limit_price, etc.)
+
+        Returns:
+            OrderExecutionResult with the updated order details
+
+        """
+        return self._get_trading_service().replace_order(order_id, order_data)
 
     def get_orders(self, status: str | None = None) -> list[Any]:
         """Get orders, optionally filtered by status."""
