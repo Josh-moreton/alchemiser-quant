@@ -25,7 +25,7 @@ from the_alchemiser.shared.events import (
     OrderSettlementCompleted,
 )
 from the_alchemiser.shared.events.bus import EventBus
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
 
 if TYPE_CHECKING:

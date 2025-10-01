@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, NamedTuple
 
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.types.market_data import QuoteModel

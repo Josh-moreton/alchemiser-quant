@@ -15,7 +15,7 @@ from the_alchemiser.execution_v2.utils.execution_validator import (
     OrderValidationResult,
 )
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
 from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
 

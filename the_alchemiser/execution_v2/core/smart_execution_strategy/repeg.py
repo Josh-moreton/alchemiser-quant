@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.broker import OrderExecutionResult
 from the_alchemiser.shared.types.exceptions import OrderExecutionError
 from the_alchemiser.shared.types.market_data import QuoteModel

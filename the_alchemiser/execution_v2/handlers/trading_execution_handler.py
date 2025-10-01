@@ -29,7 +29,7 @@ from the_alchemiser.shared.events import (
     WorkflowCompleted,
     WorkflowFailed,
 )
-from the_alchemiser.shared.logging.logging_utils import get_logger
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 
 
