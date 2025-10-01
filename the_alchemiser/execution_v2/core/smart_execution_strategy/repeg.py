@@ -320,6 +320,38 @@ class RepegManager:
                 execution_strategy="market_escalation_error",
             )
 
+    async def _handle_replace_order_fallback(
+        self, order_id: str, request: SmartOrderRequest, error: Exception, reason: str
+    ) -> SmartOrderResult | bool | None:
+        """Handle fallback to cancel-and-resubmit when replace_order fails.
+
+        Args:
+            order_id: The order ID that failed to be replaced
+            request: Original order request
+            error: The error that caused the fallback
+            reason: Human-readable reason for the fallback
+
+        Returns:
+            Result from fallback attempt or False if fallback disabled
+
+        """
+        logger.warning(
+            f"⚠️ {reason} for order {order_id}: {error}. Falling back to cancel-and-resubmit."
+        )
+
+        if not self.config.replace_order_fallback:
+            return False
+
+        try:
+            return await self._attempt_repeg(order_id, request)
+        except Exception as fallback_error:
+            logger.error(f"❌ Fallback also failed for {order_id}: {fallback_error}")
+            return SmartOrderResult(
+                success=False,
+                error_message=f"Replace failed: {error}; Fallback failed: {fallback_error}",
+                execution_strategy="smart_repeg_error",
+            )
+
     async def _attempt_replace(
         self, order_id: str, request: SmartOrderRequest
     ) -> SmartOrderResult | bool | None:
@@ -387,13 +419,12 @@ class RepegManager:
 
                 # Check if replace was successful
                 if not result.success:
-                    logger.warning(
-                        f"⚠️ Replace order failed for {order_id}: {result.error}. "
-                        f"Falling back to cancel-and-resubmit."
+                    return await self._handle_replace_order_fallback(
+                        order_id,
+                        request,
+                        Exception(result.error or "Replace failed"),
+                        "Replace order failed",
                     )
-                    if self.config.replace_order_fallback:
-                        return await self._attempt_repeg(order_id, request)
-                    return False
 
                 # Update tracking in place (same order ID)
                 self.order_tracker.update_order_in_place(order_id, new_price, datetime.now(UTC))
@@ -441,23 +472,15 @@ class RepegManager:
                         "invalid order status",
                     ]
                 ):
-                    logger.warning(
-                        f"⚠️ Order {order_id} not replaceable: {e}. "
-                        f"Falling back to cancel-and-resubmit."
+                    return await self._handle_replace_order_fallback(
+                        order_id, request, e, "Order not replaceable"
                     )
-                    if self.config.replace_order_fallback:
-                        return await self._attempt_repeg(order_id, request)
-                    return False
 
                 # For other errors, check if we have insufficient quantity
                 if self._is_insufficient_quantity_error(error_str):
-                    logger.warning(
-                        f"⚠️ Insufficient quantity for replace_order on {order_id}. "
-                        f"Falling back to cancel-and-resubmit with retry logic."
+                    return await self._handle_replace_order_fallback(
+                        order_id, request, e, "Insufficient quantity for replace_order"
                     )
-                    if self.config.replace_order_fallback:
-                        return await self._attempt_repeg(order_id, request)
-                    raise
 
                 # Unexpected error - re-raise
                 raise
@@ -467,15 +490,9 @@ class RepegManager:
             # On unexpected errors, fall back if enabled
             if self.config.replace_order_fallback:
                 logger.info(f"🔄 Falling back to cancel-and-resubmit for {order_id}")
-                try:
-                    return await self._attempt_repeg(order_id, request)
-                except Exception as fallback_error:
-                    logger.error(f"❌ Fallback also failed: {fallback_error}")
-                    return SmartOrderResult(
-                        success=False,
-                        error_message=f"Replace failed: {e}; Fallback failed: {fallback_error}",
-                        execution_strategy="smart_repeg_error",
-                    )
+                return await self._handle_replace_order_fallback(
+                    order_id, request, e, "Unexpected error during replace_order"
+                )
             return SmartOrderResult(
                 success=False,
                 error_message=str(e),
