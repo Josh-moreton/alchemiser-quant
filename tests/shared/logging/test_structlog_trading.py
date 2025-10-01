@@ -169,7 +169,9 @@ def test_log_data_integrity_checkpoint_with_valid_data() -> None:
     data = {"AAPL": 0.3, "MSFT": 0.3, "GOOG": 0.4}
 
     with patch("sys.stdout", new=StringIO()) as fake_out:
-        log_data_integrity_checkpoint(logger, stage="portfolio_allocation", data=data, context="rebalance")
+        log_data_integrity_checkpoint(
+            logger, stage="portfolio_allocation", data=data, context="rebalance"
+        )
 
         output = fake_out.getvalue()
         log_entry = json.loads(output)
