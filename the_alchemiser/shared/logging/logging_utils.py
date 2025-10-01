@@ -50,47 +50,35 @@ from .trading import (
 
 # Re-export private functions used internally (prefixed with _)
 # These are needed for internal module dependencies
-from .utils import (
-    _LAMBDA_ENV_VARS,
-    _S3_ENABLED_VALUES,
-    _S3_PROTOCOL_PREFIX,
-    _create_directory_if_needed,
-    _is_lambda_environment,
-    _is_lambda_production_environment,
-    _is_s3_logging_enabled,
-    _parse_log_level,
-    _should_suppress_s3_logging,
-    _suppress_third_party_loggers,
-)
 
 __all__ = [
-    # Context variables and functions
-    "request_id_context",
-    "error_id_context",
-    "set_request_id",
-    "get_request_id",
-    "set_error_id",
-    "get_error_id",
-    "generate_request_id",
     # Formatters and adapters
     "AlchemiserLoggerAdapter",
     "StructuredFormatter",
-    # Core functions
-    "get_logger",
-    "log_with_context",
-    "setup_logging",
-    "get_service_logger",
+    "configure_application_logging",
+    "configure_production_logging",
     "configure_quiet_logging",
-    "restore_logging",
     # Configuration functions
     "configure_test_logging",
-    "configure_production_logging",
-    "configure_application_logging",
-    "resolve_log_level",
+    "error_id_context",
+    "generate_request_id",
+    "get_error_id",
+    # Core functions
+    "get_logger",
+    "get_request_id",
+    "get_service_logger",
     # Trading functions
     "get_trading_logger",
-    "log_trade_event",
-    "log_error_with_context",
     "log_data_transfer_checkpoint",
+    "log_error_with_context",
+    "log_trade_event",
     "log_trade_expectation_vs_reality",
+    "log_with_context",
+    # Context variables and functions
+    "request_id_context",
+    "resolve_log_level",
+    "restore_logging",
+    "set_error_id",
+    "set_request_id",
+    "setup_logging",
 ]

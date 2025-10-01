@@ -27,6 +27,7 @@ def setup_logging(verbose: bool) -> None:
 
     Args:
         verbose: Enable verbose logging
+
     """
     if verbose:
         configure_application_logging()
@@ -47,6 +48,7 @@ def validate_positive_int(value: str) -> int:
         
     Raises:
         argparse.ArgumentTypeError: If value is not a positive integer
+
     """
     try:
         ivalue = int(value)
@@ -62,6 +64,7 @@ def main() -> int:
 
     Returns:
         Exit code (0 for success, 1 for error)
+
     """
     parser = argparse.ArgumentParser(
         description="Analyze portfolio profit and loss performance using Alpaca API",
@@ -147,7 +150,7 @@ Examples:
     try:
         # Load configuration and create service
         logger.info("Initializing P&L service...")
-        settings = load_settings()
+        load_settings()
         service = PnLService()
 
         # Determine analysis type and get data
