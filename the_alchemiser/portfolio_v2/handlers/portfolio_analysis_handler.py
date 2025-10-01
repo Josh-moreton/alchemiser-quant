@@ -145,7 +145,9 @@ class PortfolioAnalysisHandler:
             event: The SignalGenerated event
 
         """
-        self.logger.info("🔄 Starting portfolio analysis from SignalGenerated event")
+        self.logger.debug(
+            f"🔄 RECEIVED SignalGenerated event correlation_id={event.correlation_id}, starting portfolio analysis"
+        )
 
         try:
             # Extract strategy names from the signals data
@@ -159,10 +161,14 @@ class PortfolioAnalysisHandler:
             # Get current account and position data
             account_data = self._get_comprehensive_account_data()
             if not account_data or not account_data.get("account_info"):
-                raise ValueError("Could not retrieve account data for portfolio analysis")
+                raise ValueError(
+                    "Could not retrieve account data for portfolio analysis"
+                )
 
             # Analyze allocation comparison
-            allocation_comparison = self._analyze_allocation_comparison(consolidated_portfolio)
+            allocation_comparison = self._analyze_allocation_comparison(
+                consolidated_portfolio
+            )
             if not allocation_comparison:
                 raise ValueError("Failed to generate allocation comparison")
 
@@ -174,7 +180,13 @@ class PortfolioAnalysisHandler:
                 allocation_comparison, account_info, strategy_names
             )
 
-            # Emit RebalancePlanned event (even if no trades needed)
+            # If no rebalance plan could be created, treat as failure and stop
+            if rebalance_plan is None:
+                raise ValueError(
+                    "Rebalance plan could not be created; preconditions not met (e.g., negative cash)"
+                )
+
+            # Emit RebalancePlanned event
             self._emit_rebalance_planned_event(
                 rebalance_plan,
                 allocation_comparison,
@@ -244,7 +256,9 @@ class PortfolioAnalysisHandler:
 
         return strategy_names
 
-    def _extract_from_strategy_allocations(self, signals_data: dict[str, Any] | None) -> list[str]:
+    def _extract_from_strategy_allocations(
+        self, signals_data: dict[str, Any] | None
+    ) -> list[str]:
         """Extract strategy names from strategy allocations as fallback.
 
         Args:
@@ -254,7 +268,10 @@ class PortfolioAnalysisHandler:
             List of strategy names from allocations
 
         """
-        if not isinstance(signals_data, dict) or "strategy_allocations" not in signals_data:
+        if (
+            not isinstance(signals_data, dict)
+            or "strategy_allocations" not in signals_data
+        ):
             return []
 
         strategy_allocations = signals_data["strategy_allocations"]
@@ -288,7 +305,9 @@ class PortfolioAnalysisHandler:
             orders_list = [
                 {
                     "id": str(order.id) if hasattr(order, "id") else "unknown",
-                    "symbol": (str(order.symbol) if hasattr(order, "symbol") else "unknown"),
+                    "symbol": (
+                        str(order.symbol) if hasattr(order, "symbol") else "unknown"
+                    ),
                     "side": str(order.side) if hasattr(order, "side") else "unknown",
                     "qty": _to_float_safe(getattr(order, "qty", 0)),
                 }
@@ -407,7 +426,9 @@ class PortfolioAnalysisHandler:
             portfolio_service = PortfolioServiceV2(alpaca_manager)
 
             # Generate correlation_id for this analysis
-            correlation_id = f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+            correlation_id = (
+                f"portfolio_analysis_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+            )
 
             # Create StrategyAllocation from allocation comparison
             from the_alchemiser.shared.schemas.strategy_allocation import (
@@ -494,28 +515,24 @@ class PortfolioAnalysisHandler:
 
         """
         try:
-            # Create a plan even if None - represent as no-trade plan
+            # Check if workflow has failed before emitting events
+            is_failed = self.event_bus.is_workflow_failed(correlation_id)
+            self.logger.debug(
+                f"🔍 Workflow state check: correlation_id={correlation_id}, is_failed={is_failed}"
+            )
+
+            if is_failed:
+                self.logger.info(
+                    f"🚫 Skipping RebalancePlanned event emission - workflow {correlation_id} already failed"
+                )
+                return
+
+            # Do not emit if no plan exists; treat upstream as failure
             if rebalance_plan is None:
-                from the_alchemiser.shared.schemas.rebalance_plan import (
-                    RebalancePlan,
+                self.logger.error(
+                    "No rebalance plan available; aborting RebalancePlanned emission"
                 )
-
-                # Format strategy names for metadata
-                strategy_name = self._format_strategy_names(strategy_names or ["DSL"])
-
-                rebalance_plan = RebalancePlan(
-                    plan_id=f"no-trade-{uuid.uuid4()}",
-                    correlation_id=correlation_id,
-                    causation_id=correlation_id,
-                    timestamp=datetime.now(UTC),
-                    items=[],
-                    total_portfolio_value=Decimal(str(account_info.get("portfolio_value", 0))),
-                    total_trade_value=Decimal("0"),
-                    metadata={
-                        "scenario": "no_trades_needed",
-                        "strategy_name": strategy_name,
-                    },
-                )
+                raise ValueError("No rebalance plan to emit")
             self._log_final_rebalance_plan_summary(rebalance_plan)
 
             # Determine if actual trades (BUY/SELL) are required, not just HOLDs
@@ -544,7 +561,9 @@ class PortfolioAnalysisHandler:
             self.event_bus.publish(event)
 
             trades_count = len(rebalance_plan.items) if rebalance_plan else 0
-            self.logger.info(f"📡 Emitted RebalancePlanned event with {trades_count} trades")
+            self.logger.info(
+                f"📡 Emitted RebalancePlanned event with {trades_count} trades"
+            )
 
         except Exception as e:
             self.logger.error(f"Failed to emit RebalancePlanned event: {e}")
@@ -592,18 +611,24 @@ class PortfolioAnalysisHandler:
             return 0.0, 0.0
 
         try:
-            target_weight = float(item.target_value / total_portfolio_value * Decimal("100"))
+            target_weight = float(
+                item.target_value / total_portfolio_value * Decimal("100")
+            )
         except (TypeError, ValueError, ArithmeticError):
             target_weight = 0.0
 
         try:
-            current_weight = float(item.current_value / total_portfolio_value * Decimal("100"))
+            current_weight = float(
+                item.current_value / total_portfolio_value * Decimal("100")
+            )
         except (TypeError, ValueError, ArithmeticError):
             current_weight = 0.0
 
         return target_weight, current_weight
 
-    def _extract_plan_totals(self, rebalance_plan: RebalancePlan) -> tuple[float, Decimal, bool]:
+    def _extract_plan_totals(
+        self, rebalance_plan: RebalancePlan
+    ) -> tuple[float, Decimal, bool]:
         """Extract total trade value, portfolio value, and validity flag from rebalance plan.
 
         Args:
@@ -664,7 +689,9 @@ class PortfolioAnalysisHandler:
         except Exception as exc:  # pragma: no cover - defensive logging
             self.logger.warning("Failed to log final rebalance plan summary: %s", exc)
 
-    def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
+    def _emit_workflow_failure(
+        self, original_event: BaseEvent, error_message: str
+    ) -> None:
         """Emit WorkflowFailed event when portfolio analysis fails.
 
         Args:
@@ -673,6 +700,18 @@ class PortfolioAnalysisHandler:
 
         """
         try:
+            # Check if workflow has already failed before emitting additional failure events
+            is_failed = self.event_bus.is_workflow_failed(original_event.correlation_id)
+            self.logger.debug(
+                f"🔍 Workflow state check for failure: correlation_id={original_event.correlation_id}, is_failed={is_failed}"
+            )
+
+            if is_failed:
+                self.logger.info(
+                    f"🚫 Skipping WorkflowFailed event emission - workflow {original_event.correlation_id} already failed"
+                )
+                return
+
             failure_event = WorkflowFailed(
                 correlation_id=original_event.correlation_id,
                 causation_id=original_event.event_id,
