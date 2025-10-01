@@ -121,15 +121,22 @@ class RepegManager:
 
             current_repeg_count = self.order_tracker.get_repeg_count(order_id)
 
-            # Check if we've reached max re-pegs — escalate to market
-            if self._should_escalate_order(current_repeg_count):
+            # Business rule: the "final step" should be a market escalation, not another limit re-peg.
+            # Therefore, when the NEXT re-peg would meet or exceed the configured max, escalate now.
+            # Example: max=2 -> allow at most 1 re-peg; on the second consideration, escalate to market.
+            try:
+                max_repegs_allowed = int(getattr(self.config, "max_repegs_per_order", 0))
+            except Exception:
+                max_repegs_allowed = 0
+
+            if current_repeg_count + 1 >= max_repegs_allowed:
                 logger.warning(
-                    f"⚠️ Order {order_id} reached max re-pegs "
-                    f"({current_repeg_count}/{self.config.max_repegs_per_order}), escalating to market order"
+                    f"⚠️ Order {order_id} approaching max re-pegs "
+                    f"(current={current_repeg_count}, max={max_repegs_allowed}); escalating to market instead of another re-peg"
                 )
                 return await self._escalate_to_market(order_id, request)
 
-            # Attempt re-pegging
+            # Attempt re-pegging (we still have room before reaching the max)
             placement_time = self.order_tracker.get_placement_time(order_id)
             if placement_time:
                 time_elapsed = (current_time - placement_time).total_seconds()
