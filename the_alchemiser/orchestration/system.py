@@ -150,33 +150,24 @@ class TradingSystem:
             TradeRunResult with complete execution results and metadata
 
         """
-        # Start timing and correlation tracking
-        started_at = datetime.now(UTC)
+        self.logger.info(f"🚀 execute_trading called (method entry)")
+        
+        # Generate correlation ID for tracking
         correlation_id = str(uuid.uuid4())
+        started_at = datetime.now(UTC)
+
+        # Initialize warnings list
         warnings: list[str] = []
 
         try:
-            if self.container is None:
-                return create_failure_result(
-                    "DI container not initialized", started_at, correlation_id, warnings
-                )
-
-            # Event-driven orchestration is the ONLY execution path
-            if self.event_driven_orchestrator is None:
-                return create_failure_result(
-                    "Event-driven orchestrator not initialized - check system configuration",
-                    started_at,
-                    correlation_id,
-                    warnings,
-                )
-
-            self.logger.debug("🚀 Using event-driven orchestration for trading workflow")
+            self.logger.info(f"🚀 About to call _execute_trading_event_driven with correlation_id: {correlation_id}")
             trading_result = self._execute_trading_event_driven(
                 correlation_id,
                 started_at,
                 show_tracking=show_tracking,
                 export_tracking_json=export_tracking_json,
             )
+            self.logger.info(f"🚀 _execute_trading_event_driven returned: {trading_result is not None}")
 
             if trading_result is None:
                 return create_failure_result(
@@ -215,15 +206,19 @@ class TradingSystem:
             TradeRunResult or None if failed
 
         """
+        self.logger.info(f"🚀 _execute_trading_event_driven called with correlation_id: {correlation_id}")
+        
         try:
             if not self.event_driven_orchestrator:
                 self.logger.error("Event-driven orchestrator not available")
                 return None
 
             # Start the event-driven workflow
+            self.logger.info(f"🚀 About to call start_trading_workflow with correlation_id: {correlation_id}")
             workflow_correlation_id = self.event_driven_orchestrator.start_trading_workflow(
                 correlation_id=correlation_id
             )
+            self.logger.info(f"🚀 start_trading_workflow returned correlation_id: {workflow_correlation_id}")
 
             # Wait for workflow completion
             workflow_result = self.event_driven_orchestrator.wait_for_workflow_completion(

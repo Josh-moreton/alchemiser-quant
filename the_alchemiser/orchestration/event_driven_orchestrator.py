@@ -140,7 +140,7 @@ class EventDrivenOrchestrator:
         # Use cast to align specific handler signatures with BaseEvent for dispatching
         self._event_handlers: dict[type[BaseEvent], TypingCallable[[BaseEvent], None]] = {
             StartupEvent: cast(TypingCallable[[BaseEvent], None], self._handle_startup),
-            WorkflowStarted: cast(TypingCallable[[BaseEvent], None], self._handle_workflow_started),
+            # Note: WorkflowStarted events are published by orchestrator, not handled by it
             SignalGenerated: cast(TypingCallable[[BaseEvent], None], self._handle_signal_generated),
             RebalancePlanned: cast(
                 TypingCallable[[BaseEvent], None], self._handle_rebalance_planned
@@ -681,35 +681,6 @@ class EventDrivenOrchestrator:
 
         except Exception as e:
             self.logger.error(f"Recovery workflow failed: {e}")
-
-    def _handle_workflow_started(self, event: WorkflowStarted) -> None:
-        """Handle WorkflowStarted event for monitoring and state tracking.
-
-        Args:
-            event: The WorkflowStarted event
-
-        """
-        # Check if this workflow has already completed - ignore duplicate starts
-        if event.correlation_id in self.workflow_state["completed_correlations"]:
-            self.logger.info(
-                f"🔄 Ignoring duplicate WorkflowStarted event for already completed workflow: "
-                f"{event.workflow_type} (correlation_id: {event.correlation_id})"
-            )
-            return
-
-        self.logger.info(f"🚀 Workflow started: {event.workflow_type}")
-
-        # Track workflow start time
-        self.workflow_state["workflow_start_times"][event.correlation_id] = event.timestamp
-        self.workflow_state["active_correlations"].add(event.correlation_id)
-
-        # Update workflow state based on type
-        if event.workflow_type == "trading":
-            self.workflow_state["signal_generation_in_progress"] = True
-
-        # Set workflow state to RUNNING
-        self._set_workflow_state(event.correlation_id, WorkflowState.RUNNING)
-        self.logger.info(f"🚀 Workflow {event.correlation_id} marked as RUNNING")
 
     def _handle_workflow_completed(self, event: WorkflowCompleted) -> None:
         """Handle WorkflowCompleted event for monitoring and cleanup.
