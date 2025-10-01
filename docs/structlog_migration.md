@@ -78,21 +78,27 @@ logger.info("Order placed", order_id="ord-123")
 
 ### Trading-Specific Helpers
 
+These helpers work with both stdlib and structlog through the migration bridge:
+
 ```python
 from the_alchemiser.shared.logging import (
+    get_logger,
     log_order_flow,
     log_repeg_operation,
     log_data_integrity_checkpoint,
 )
 
-# Log order flow events
+logger = get_logger(__name__)
+
+# Log order flow events (automatically delegates to structlog or stdlib)
 log_order_flow(
     logger,
-    stage="filled",
+    stage="submission",
     symbol="TSLA",
     quantity=Decimal("50"),
     price=Decimal("250.00"),
-    order_id="ord-123"
+    order_id="ord-123",
+    execution_strategy="smart_limit"
 )
 
 # Log repeg operations with automatic price improvement calculation
@@ -103,7 +109,9 @@ log_repeg_operation(
     old_price=Decimal("500.00"),
     new_price=Decimal("505.00"),
     quantity=Decimal("10"),
-    reason="market_movement"
+    reason="market_movement",
+    repeg_attempt=2,
+    max_repegs=5
 )
 
 # Log data integrity checkpoints with validation
@@ -114,6 +122,13 @@ log_data_integrity_checkpoint(
     context="rebalance"
 )
 ```
+
+**Benefits of using these helpers:**
+- Works with both logging systems (controlled by feature flag)
+- Consistent structure across all logs
+- Automatic calculations (e.g., price improvement for repegs)
+- Type-safe with proper Decimal handling
+- Easy to migrate - no code changes needed when enabling structlog
 
 ## Configuration
 
@@ -226,15 +241,18 @@ poetry run pytest tests/shared/logging/test_migration_bridge.py -v
 
 ## Migration Strategy
 
-### Phase 1: Core Infrastructure (Current)
+### Phase 1: Core Infrastructure (✅ COMPLETED)
 - ✅ Add structlog dependency
 - ✅ Create structlog configuration module
 - ✅ Create trading-specific helpers
 - ✅ Create migration bridge with feature flag
 - ✅ Add comprehensive tests
 
-### Phase 2: Module Migration
-- [ ] Update execution_v2 to use structlog helpers
+### Phase 2: Module Migration (🔄 IN PROGRESS)
+- ✅ Extended migration bridge with `log_repeg_operation()` and `log_order_flow()` helpers
+- ✅ Update execution_v2 repeg logic to use `log_repeg_operation()`
+- ✅ Update execution_v2 order execution to use `log_order_flow()`
+- [ ] Update execution_v2 validation logging to use `log_data_integrity_checkpoint()`
 - [ ] Migrate portfolio_v2 logging
 - [ ] Update strategy_v2 logging
 - [ ] Convert orchestration logging
@@ -273,12 +291,52 @@ log_trade_event(logger, "order_placed", "AAPL", quantity=100)
 
 The migration bridge automatically delegates to the appropriate backend.
 
+## Examples
+
+### Before and After Migration
+
+**Before (stdlib logging):**
+```python
+logger.info(
+    f"✅ Re-peg successful: new order {executed_order.order_id} "
+    f"at ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order}) "
+    f"quantity: {remaining_qty}"
+)
+```
+
+**After (migration bridge with structlog support):**
+```python
+log_repeg_operation(
+    logger,
+    operation="replace_order",
+    symbol=request.symbol,
+    old_price=original_anchor if original_anchor else new_price,
+    new_price=new_price,
+    quantity=remaining_qty,
+    reason="unfilled_order",
+    new_order_id=str(executed_order.order_id),
+    original_order_id=order_id,
+    repeg_attempt=new_repeg_count,
+    max_repegs=self.config.max_repegs_per_order,
+)
+```
+
+**Benefits:**
+- ✅ Structured data instead of formatted strings
+- ✅ Automatic price improvement calculation
+- ✅ Works with both logging systems
+- ✅ Easy to query and analyze in log aggregation tools
+- ✅ Type-safe with Decimal values
+
+### Real Migration Examples
+
+See the following files for real-world migration examples:
+- `the_alchemiser/execution_v2/core/smart_execution_strategy/repeg.py` - Repeg operation logging
+- `the_alchemiser/execution_v2/core/executor.py` - Smart order execution logging
+- `the_alchemiser/execution_v2/core/market_order_executor.py` - Market order logging
+
 ## Additional Resources
 
 - [Structlog Documentation](https://www.structlog.org/)
 - [Python Logging Best Practices](https://docs.python.org/3/howto/logging.html)
 - [Issue #1434](https://github.com/Josh-moreton/alchemiser-quant/issues/1434) - This migration
-
-## Examples
-
-See `/tmp/demo_structlog.py` for a comprehensive demonstration of both logging systems.
