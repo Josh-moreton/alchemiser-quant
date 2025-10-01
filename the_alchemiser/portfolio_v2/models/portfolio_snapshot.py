@@ -31,17 +31,16 @@ class PortfolioSnapshot:
         if missing_prices:
             raise ValueError(f"Missing prices for positions: {sorted(missing_prices)}")
 
-        # Validate all values are non-negative
-        if self.cash < 0:
-            raise ValueError(f"Cash cannot be negative: {self.cash}")
-
+        # Validate total value is non-negative
         if self.total_value < 0:
             raise ValueError(f"Total value cannot be negative: {self.total_value}")
 
+        # Validate position quantities are non-negative
         for symbol, quantity in self.positions.items():
             if quantity < 0:
                 raise ValueError(f"Position quantity cannot be negative for {symbol}: {quantity}")
 
+        # Validate prices are positive
         for symbol, price in self.prices.items():
             if price <= 0:
                 raise ValueError(f"Price must be positive for {symbol}: {price}")
