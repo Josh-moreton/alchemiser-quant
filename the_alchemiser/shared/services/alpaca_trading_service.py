@@ -22,6 +22,7 @@ from alpaca.trading.requests import (
     GetOrdersRequest,
     LimitOrderRequest,
     MarketOrderRequest,
+    ReplaceOrderRequest,
 )
 
 from the_alchemiser.shared.constants import UTC_TIMEZONE_SUFFIX
@@ -254,6 +255,27 @@ class AlpacaTradingService:
         except Exception as e:
             logger.error(f"Failed to cancel order {order_id}: {e}")
             return False
+
+    def replace_order(
+        self, order_id: str, order_data: ReplaceOrderRequest | None = None
+    ) -> OrderExecutionResult:
+        """Replace an order with new parameters.
+
+        Args:
+            order_id: The unique order ID to replace
+            order_data: The parameters to update (quantity, limit_price, etc.)
+
+        Returns:
+            OrderExecutionResult with the updated order details
+
+        """
+        try:
+            updated_order = self._trading_client.replace_order_by_id(order_id, order_data)
+            logger.info(f"Replaced order: {order_id}")
+            return self._alpaca_order_to_execution_result(updated_order)
+        except Exception as e:
+            logger.error(f"Failed to replace order {order_id}: {e}")
+            return AlpacaErrorHandler.create_error_result(e, "Order replacement", order_id)
 
     def get_orders(self, status: str | None = None) -> list[Any]:
         """Get orders filtered by status.

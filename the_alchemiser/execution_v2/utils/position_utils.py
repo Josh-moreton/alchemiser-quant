@@ -76,7 +76,7 @@ class PositionUtils:
         logger.info(f"📡 Bulk subscribing to {len(symbols)} symbols for real-time pricing")
 
         # Use the enhanced bulk subscription method
-        subscription_results = self.pricing_service.bulk_subscribe_symbols(
+        subscription_results: dict[str, bool] = self.pricing_service.subscribe_symbols_bulk(
             symbols,
             priority=5.0,  # High priority for execution
         )
