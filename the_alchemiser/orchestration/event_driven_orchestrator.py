@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from collections.abc import Callable as TypingCallable
 from datetime import UTC, datetime
+from enum import Enum
+from threading import Lock
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
@@ -28,6 +30,75 @@ from the_alchemiser.shared.events import (
     WorkflowStarted,
 )
 from the_alchemiser.shared.logging.logging_utils import get_logger
+
+
+class WorkflowState(Enum):
+    """Workflow execution state for tracking and preventing post-failure processing."""
+
+    RUNNING = "running"
+    FAILED = "failed"
+    COMPLETED = "completed"
+
+
+class StateCheckingHandlerWrapper:
+    """Wrapper that checks workflow state before delegating to actual handler.
+
+    This prevents handlers from processing events for failed workflows without
+    requiring changes to the handlers themselves.
+    """
+
+    def __init__(
+        self,
+        wrapped_handler: Any,
+        orchestrator: Any,  # EventDrivenOrchestrator - using Any to avoid forward reference
+        event_type: str,
+        logger: Any,
+    ) -> None:
+        """Initialize the wrapper.
+
+        Args:
+            wrapped_handler: The actual handler to wrap
+            orchestrator: The orchestrator to check workflow state
+            event_type: The event type this wrapper handles
+            logger: Logger instance
+
+        """
+        self.wrapped_handler = wrapped_handler
+        self.orchestrator = orchestrator
+        self.event_type = event_type
+        self.logger = logger
+
+    def handle_event(self, event: BaseEvent) -> None:
+        """Handle event with workflow state checking.
+
+        Args:
+            event: The event to handle
+
+        """
+        # Check if workflow has failed before processing
+        if self.orchestrator.is_workflow_failed(event.correlation_id):
+            handler_name = type(self.wrapped_handler).__name__
+            self.logger.info(
+                f"🚫 Skipping {handler_name} - workflow {event.correlation_id} already failed"
+            )
+            return
+
+        # Delegate to actual handler
+        self.wrapped_handler.handle_event(event)
+
+    def can_handle(self, event_type: str) -> bool:
+        """Check if wrapped handler can handle event type.
+
+        Args:
+            event_type: The event type to check
+
+        Returns:
+            True if the wrapped handler can handle this event type
+
+        """
+        if hasattr(self.wrapped_handler, "can_handle"):
+            return self.wrapped_handler.can_handle(event_type)
+        return True
 
 
 class EventDrivenOrchestrator:
@@ -88,6 +159,10 @@ class EventDrivenOrchestrator:
         # Collect workflow results for each correlation ID
         self.workflow_results: dict[str, dict[str, Any]] = {}
 
+        # Track workflow states per correlation_id for failure prevention
+        self.workflow_states: dict[str, WorkflowState] = {}
+        self.workflow_states_lock = Lock()
+
     def _register_domain_handlers(self) -> None:
         """Register domain event handlers using module registration functions.
 
@@ -106,11 +181,40 @@ class EventDrivenOrchestrator:
             register_execution_handlers(self.container)
             register_notification_handlers(self.container)
 
+            # Wrap handlers with state checking
+            self._wrap_handlers_with_state_checking()
+
             self.logger.debug("Registered domain event handlers via module registration functions")
 
         except Exception as e:
             self.logger.error(f"Failed to register domain handlers: {e}")
             raise RuntimeError(f"Domain handler registration failed: {e}") from e
+
+    def _wrap_handlers_with_state_checking(self) -> None:
+        """Wrap registered handlers with workflow state checking.
+
+        This ensures handlers skip processing for failed workflows without
+        modifying the handlers themselves.
+        """
+        # Get the event bus to access registered handlers
+        event_bus = self.event_bus
+
+        # Event types that should check workflow state before processing
+        state_checked_events = [
+            "SignalGenerated",
+            "RebalancePlanned",
+        ]
+
+        for event_type in state_checked_events:
+            if event_type in event_bus._handlers:
+                original_handlers = event_bus._handlers[event_type].copy()
+                event_bus._handlers[event_type].clear()
+
+                for handler in original_handlers:
+                    wrapped_handler = StateCheckingHandlerWrapper(
+                        handler, self, event_type, self.logger
+                    )
+                    event_bus._handlers[event_type].append(wrapped_handler)
 
     def start_trading_workflow(self, *, correlation_id: str | None = None) -> str:
         """Start a complete trading workflow via event-driven coordination.
@@ -571,6 +675,10 @@ class EventDrivenOrchestrator:
         if event.workflow_type == "trading":
             self.workflow_state["signal_generation_in_progress"] = True
 
+        # Set workflow state to RUNNING
+        self._set_workflow_state(event.correlation_id, WorkflowState.RUNNING)
+        self.logger.info(f"🚀 Workflow {event.correlation_id} marked as RUNNING")
+
     def _handle_workflow_completed(self, event: WorkflowCompleted) -> None:
         """Handle WorkflowCompleted event for monitoring and cleanup.
 
@@ -605,6 +713,10 @@ class EventDrivenOrchestrator:
             }
         )
 
+        # Set workflow state to COMPLETED
+        self._set_workflow_state(event.correlation_id, WorkflowState.COMPLETED)
+        self.logger.info(f"✅ Workflow {event.correlation_id} marked as COMPLETED")
+
     def _handle_workflow_failed(self, event: WorkflowFailed) -> None:
         """Handle WorkflowFailed event for error handling and recovery.
 
@@ -613,6 +725,12 @@ class EventDrivenOrchestrator:
 
         """
         self.logger.error(f"❌ Workflow failed: {event.workflow_type} - {event.failure_reason}")
+
+        # Set workflow state to FAILED to prevent further event processing
+        self._set_workflow_state(event.correlation_id, WorkflowState.FAILED)
+        self.logger.info(
+            f"🚫 Workflow {event.correlation_id} marked as FAILED - future events will be skipped"
+        )
 
         # Update workflow state
         self.workflow_state["active_correlations"].discard(event.correlation_id)
@@ -652,3 +770,40 @@ class EventDrivenOrchestrator:
             "event_bus_stats": self.event_bus.get_stats(),
             "orchestrator_active": True,
         }
+
+    def is_workflow_failed(self, correlation_id: str) -> bool:
+        """Check if a workflow has failed.
+
+        Args:
+            correlation_id: The workflow correlation ID to check
+
+        Returns:
+            True if the workflow has failed, False otherwise
+
+        """
+        with self.workflow_states_lock:
+            return self.workflow_states.get(correlation_id) == WorkflowState.FAILED
+
+    def is_workflow_active(self, correlation_id: str) -> bool:
+        """Check if a workflow is actively running.
+
+        Args:
+            correlation_id: The workflow correlation ID to check
+
+        Returns:
+            True if the workflow is running, False otherwise
+
+        """
+        with self.workflow_states_lock:
+            return self.workflow_states.get(correlation_id) == WorkflowState.RUNNING
+
+    def _set_workflow_state(self, correlation_id: str, state: WorkflowState) -> None:
+        """Set the workflow state for a given correlation ID.
+
+        Args:
+            correlation_id: The workflow correlation ID
+            state: The new state to set
+
+        """
+        with self.workflow_states_lock:
+            self.workflow_states[correlation_id] = state
