@@ -187,8 +187,6 @@ class PortfolioAnalysisHandler:
                 rebalance_plan,
                 allocation_comparison,
                 event.correlation_id,
-                account_info,
-                strategy_names,
             )
 
             self.logger.info("✅ Portfolio analysis completed successfully")
@@ -488,8 +486,6 @@ class PortfolioAnalysisHandler:
         rebalance_plan: RebalancePlan | None,
         allocation_comparison: AllocationComparison,
         correlation_id: str,
-        account_info: dict[str, Any],
-        strategy_names: list[str] | None = None,
     ) -> None:
         """Emit RebalancePlanned event.
 
@@ -497,8 +493,6 @@ class PortfolioAnalysisHandler:
             rebalance_plan: Generated rebalance plan (may be None for no-op)
             allocation_comparison: Allocation comparison data
             correlation_id: Correlation ID from the triggering event
-            account_info: Account information with portfolio value
-            strategy_names: List of strategy names that generated the signals
 
         """
         try:
@@ -643,9 +637,7 @@ class PortfolioAnalysisHandler:
             )
 
             self.logger.info(
-                "⚖️ Final rebalance plan: %s trades | total value $%.2f",
-                trade_count,
-                total_trade_value,
+                f"⚖️ Final rebalance plan: {trade_count} trades | total value ${total_trade_value:.2f}"
             )
 
             for item in rebalance_plan.items:
@@ -655,16 +647,11 @@ class PortfolioAnalysisHandler:
                 )
 
                 self.logger.debug(
-                    "  • %s %s | $%.2f | target %.2f%% vs current %.2f%%",
-                    action,
-                    symbol,
-                    trade_amount,
-                    target_weight,
-                    current_weight,
+                    f"  • {action} {symbol} | ${trade_amount:.2f} | target {target_weight:.2f}% vs current {current_weight:.2f}%"
                 )
 
         except Exception as exc:  # pragma: no cover - defensive logging
-            self.logger.warning("Failed to log final rebalance plan summary: %s", exc)
+            self.logger.warning(f"Failed to log final rebalance plan summary: {exc}")
 
     def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
         """Emit WorkflowFailed event when portfolio analysis fails.
