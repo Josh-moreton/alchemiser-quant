@@ -14,7 +14,6 @@ from the_alchemiser.shared.services.real_time_pricing import RealTimePricingServ
 
 logger = get_logger(__name__)
 
-
 class PositionUtils:
     """Utilities for position management and pricing operations."""
 
