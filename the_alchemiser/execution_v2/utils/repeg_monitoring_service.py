@@ -199,7 +199,7 @@ class RepegMonitoringService:
                         if result is not None:
                             # Type narrowing: at this point result is SmartOrderResult, not Exception
                             results.append(cast(SmartOrderResult, result))
-                    
+
                     if results:
                         # Process as if they were standard repeg results (will replace order IDs)
                         orders = self._process_repeg_results(phase_type, orders, results)
