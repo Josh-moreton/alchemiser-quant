@@ -89,7 +89,7 @@ class PhaseExecutor:
             if execute_order_callback:
                 order_result = await execute_order_callback(item)
             else:
-                order_result = self._execute_single_item(item)
+                order_result = await self._execute_single_item(item)
             orders.append(order_result)
             placed += 1
 
@@ -158,7 +158,7 @@ class PhaseExecutor:
             if execute_order_callback:
                 order_result = await execute_order_callback(item)
             else:
-                order_result = self._execute_single_item(item)
+                order_result = await self._execute_single_item(item)
             orders.append(order_result)
             placed += 1
 
@@ -269,7 +269,7 @@ class PhaseExecutor:
             return self.position_utils.adjust_quantity_for_fractionability(symbol, raw_shares)
         return raw_shares.quantize(Decimal("1"), rounding=ROUND_DOWN)
 
-    def _execute_single_item(self, item: RebalancePlanItem) -> OrderResult:
+    async def _execute_single_item(self, item: RebalancePlanItem) -> OrderResult:
         """Execute a single rebalance plan item.
 
         Args:
@@ -279,9 +279,13 @@ class PhaseExecutor:
             OrderResult with execution results
 
         """
+        import asyncio
         from datetime import UTC, datetime
 
         try:
+            # Yield control to event loop for proper async behavior
+            await asyncio.sleep(0)
+            
             # Determine quantity (shares) to trade
             if item.action == "SELL" and item.target_weight == Decimal("0.0"):
                 shares = self._calculate_liquidation_shares(item.symbol)
