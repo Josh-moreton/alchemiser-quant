@@ -15,6 +15,10 @@ from decimal import Decimal
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.logging import get_logger, log_repeg_operation
 from the_alchemiser.shared.schemas.broker import OrderExecutionResult
+from the_alchemiser.shared.schemas.operations import (
+    OrderCancellationResult,
+    TerminalOrderError,
+)
 from the_alchemiser.shared.types.exceptions import OrderExecutionError
 from the_alchemiser.shared.types.market_data import QuoteModel
 
@@ -62,6 +66,29 @@ class RepegManager:
         self.pricing_calculator = pricing_calculator
         self.order_tracker = order_tracker
         self.config = config
+
+    def _is_order_in_terminal_state(
+        self, cancel_result: OrderCancellationResult
+    ) -> tuple[bool, TerminalOrderError | None]:
+        """Check if cancellation result indicates order is in terminal state.
+
+        Args:
+            cancel_result: Result from cancel_order operation
+
+        Returns:
+            Tuple of (is_terminal, terminal_error_type) where terminal_error_type
+            is the specific TerminalOrderError enum value, or None if not terminal
+
+        """
+        if not cancel_result.success or not cancel_result.error:
+            return False, None
+
+        # Check if the error matches any terminal order error enum value
+        for terminal_error in TerminalOrderError:
+            if cancel_result.error == terminal_error.value:
+                return True, terminal_error
+
+        return False, None
 
     async def check_and_repeg_orders(self) -> list[SmartOrderResult]:
         """Check active orders and repeg if they haven't filled after the wait period.
@@ -233,8 +260,35 @@ class RepegManager:
                 f"(after {self.order_tracker.get_repeg_count(order_id)} re-pegs)"
             )
             # Use asyncio.to_thread to make blocking I/O async
-            cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
-            if not cancel_success:
+            cancel_result = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
+
+            # Check if order was already in a terminal state (e.g., filled, cancelled)
+            is_terminal, terminal_error = self._is_order_in_terminal_state(cancel_result)
+            if is_terminal and terminal_error:
+                # Extract just the state name (e.g., "filled" from "already_filled")
+                terminal_state = terminal_error.value.replace("already_", "")
+                logger.info(
+                    f"✅ Order {order_id} already in terminal state '{terminal_state}' - "
+                    f"no market escalation needed"
+                )
+
+                # Clean up tracking
+                original_anchor = self.order_tracker.get_anchor_price(order_id)
+                self.order_tracker.remove_order(order_id)
+
+                # Return success result indicating order is complete
+                return SmartOrderResult(
+                    success=True,
+                    order_id=order_id,
+                    final_price=original_anchor,
+                    anchor_price=original_anchor,
+                    repegs_used=self.config.max_repegs_per_order,
+                    execution_strategy=terminal_error.value,
+                    placement_timestamp=datetime.now(UTC),
+                    error_message=f"Order already in terminal state: {terminal_state} (escalation prevented)",
+                )
+
+            if not cancel_result.success:
                 logger.warning(
                     f"⚠️ Failed to cancel order {order_id}; attempting market order anyway"
                 )
@@ -562,8 +616,21 @@ class RepegManager:
         Returns True only when cancellation completes; otherwise False.
         """
         logger.info(f"❌ Canceling order {order_id} for re-pegging")
-        cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
-        if not cancel_success:
+        cancel_result = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
+
+        # Check if order was already in a terminal state (e.g., filled, cancelled)
+        is_terminal, terminal_error = self._is_order_in_terminal_state(cancel_result)
+        if is_terminal and terminal_error:
+            # Extract just the state name (e.g., "filled" from "already_filled")
+            terminal_state = terminal_error.value.replace("already_", "")
+            logger.info(
+                f"✅ Order {order_id} already in terminal state '{terminal_state}' - "
+                f"no re-peg needed"
+            )
+            # Signal to remove from tracking - order is complete
+            raise _RemoveFromTracking()
+
+        if not cancel_result.success:
             logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
             return False
 

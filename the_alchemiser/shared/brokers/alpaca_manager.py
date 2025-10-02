@@ -43,6 +43,7 @@ from the_alchemiser.shared.schemas.broker import (
     WebSocketResult,
 )
 from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
+from the_alchemiser.shared.schemas.operations import OrderCancellationResult
 from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountService
 from the_alchemiser.shared.services.alpaca_trading_service import AlpacaTradingService
 from the_alchemiser.shared.services.asset_metadata_service import AssetMetadataService
@@ -398,8 +399,13 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             symbol, side, quantity, limit_price, time_in_force
         )
 
-    def cancel_order(self, order_id: str) -> bool:
-        """Cancel an order by ID."""
+    def cancel_order(self, order_id: str) -> OrderCancellationResult:
+        """Cancel an order by ID.
+
+        Returns:
+            OrderCancellationResult with detailed cancellation status
+
+        """
         return self._get_trading_service().cancel_order(order_id)
 
     def replace_order(
