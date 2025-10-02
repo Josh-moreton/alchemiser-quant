@@ -27,7 +27,7 @@ from the_alchemiser.execution_v2.utils.execution_validator import (
 )
 from the_alchemiser.execution_v2.utils.position_utils import PositionUtils
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.logging import get_logger, log_order_flow
 from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
     RebalancePlanItem,
@@ -189,7 +189,15 @@ class Executor:
 
                 if result.success:
                     # Success here means order was placed; fill will be checked later
-                    logger.info(f"✅ Smart execution placed order for {symbol}")
+                    log_order_flow(
+                        logger,
+                        stage="submission",
+                        symbol=symbol,
+                        quantity=Decimal(str(quantity)),
+                        price=result.final_price,
+                        order_id=result.order_id,
+                        execution_strategy="smart_limit",
+                    )
                     return OrderResult(
                         symbol=symbol,
                         action=side.upper(),

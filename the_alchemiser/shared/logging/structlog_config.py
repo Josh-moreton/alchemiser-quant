@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import structlog
@@ -69,15 +70,48 @@ def decimal_serializer(obj: Any) -> Any:  # noqa: ANN401
 def configure_structlog(
     *,
     structured_format: bool = True,
-    log_level: int = logging.INFO,
+    console_level: int = logging.INFO,
+    file_level: int = logging.DEBUG,
+    file_path: str | None = None,
 ) -> None:
-    """Configure structlog with Alchemiser-specific processors.
+    """Configure structlog with stdlib logging handlers for proper console/file separation.
+
+    This follows the proper pattern: let stdlib logging handle routing to different
+    handlers with different levels, while structlog handles formatting.
 
     Args:
-        structured_format: If True, use JSON output; if False, use human-readable console output
-        log_level: Minimum log level to output
+        structured_format: If True, use JSON for file output; if False, use human-readable
+        console_level: Log level for console output (INFO keeps terminal clean)
+        file_level: Log level for file output (DEBUG captures everything)
+        file_path: Optional file path for logging (defaults to logs/trade_run.log)
 
     """
+    # Set up stdlib logging handlers first
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)  # Allow all levels through to handlers
+    root_logger.handlers.clear()  # Clear any existing handlers
+
+    # Console handler (INFO+ only for clean terminal)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(console_level)
+    console_handler.setFormatter(logging.Formatter("%(message)s"))  # Just the message
+    root_logger.addHandler(console_handler)
+
+    # File handler (DEBUG+ for detailed logs)
+    if file_path is None:
+        file_path = "logs/trade_run.log"
+
+    log_path = Path(file_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    file_handler = logging.FileHandler(file_path)
+    file_handler.setLevel(file_level)
+    file_handler.setFormatter(
+        logging.Formatter("%(message)s")
+    )  # Structlog handles formatting
+    root_logger.addHandler(file_handler)
+
+    # Configure structlog processors
     processors: list[Any] = [
         # Merge context variables automatically
         structlog.contextvars.merge_contextvars,
@@ -94,7 +128,7 @@ def configure_structlog(
     ]
 
     if structured_format:
-        # JSON output for production
+        # JSON output for production/file logging
         processors.append(structlog.processors.JSONRenderer(default=decimal_serializer))
     else:
         # Human-readable output for development
@@ -102,8 +136,8 @@ def configure_structlog(
 
     structlog.configure(
         processors=processors,
-        wrapper_class=structlog.make_filtering_bound_logger(log_level),
-        logger_factory=structlog.PrintLoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
 

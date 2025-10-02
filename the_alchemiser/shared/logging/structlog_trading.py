@@ -80,7 +80,7 @@ def log_repeg_operation(
     logger: structlog.stdlib.BoundLogger,
     operation: str,
     symbol: str,
-    old_price: Decimal,
+    old_price: Decimal | None,
     new_price: Decimal,
     quantity: Decimal,
     reason: str,
@@ -92,13 +92,16 @@ def log_repeg_operation(
         logger: Structlog logger instance
         operation: Type of operation ('replace_order' or 'cancel_and_resubmit')
         symbol: Trading symbol
-        old_price: Previous order price
+        old_price: Previous order price (None if no original price available)
         new_price: New order price
         quantity: Order quantity
         reason: Reason for repeg operation
         **context: Additional context information
 
     """
+    # Calculate price improvement only if old_price is available
+    price_improvement = new_price - old_price if old_price is not None else None
+
     logger.info(
         "Repeg operation",
         operation=operation,
@@ -107,7 +110,7 @@ def log_repeg_operation(
         new_price=new_price,
         quantity=quantity,
         reason=reason,
-        price_improvement=new_price - old_price,
+        price_improvement=price_improvement,
         **context,
     )
 
@@ -186,7 +189,7 @@ def log_data_integrity_checkpoint(
         context=context,
         data_count=data_count,
         data_checksum=data_checksum,
-        data_sample=dict(list(data.items())[:3]) if data_count > 0 and data_count <= 10 else None,
+        data_sample=(dict(list(data.items())[:3]) if data_count > 0 and data_count <= 10 else None),
     )
 
     # Validation warnings

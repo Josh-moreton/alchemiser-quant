@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
-from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.logging import get_logger, log_repeg_operation
 from the_alchemiser.shared.schemas.broker import OrderExecutionResult
 from the_alchemiser.shared.types.exceptions import OrderExecutionError
 from the_alchemiser.shared.types.market_data import QuoteModel
@@ -392,10 +392,19 @@ class RepegManager:
                         order_id, executed_order.order_id, new_price, datetime.now(UTC)
                     )
 
-                    logger.info(
-                        f"✅ Re-peg successful: new order {executed_order.order_id} "
-                        f"at ${new_price} (attempt {new_repeg_count}/{self.config.max_repegs_per_order}) "
-                        f"quantity: {remaining_qty}"
+                    # Use structured logging for repeg operation
+                    log_repeg_operation(
+                        logger,
+                        operation="replace_order",
+                        symbol=request.symbol,
+                        old_price=(original_anchor if original_anchor is not None else None),
+                        new_price=new_price,
+                        quantity=remaining_qty,
+                        reason="unfilled_order",
+                        new_order_id=str(executed_order.order_id),
+                        original_order_id=order_id,
+                        repeg_attempt=new_repeg_count,
+                        max_repegs=self.config.max_repegs_per_order,
                     )
 
                     # Use cast to satisfy type checkers; quote is non-None when new_price exists
