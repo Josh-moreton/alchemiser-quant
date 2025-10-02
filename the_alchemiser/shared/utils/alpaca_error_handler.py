@@ -19,6 +19,7 @@ from typing import Any, Literal
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.broker import OrderExecutionResult
+from the_alchemiser.shared.schemas.operations import TerminalOrderError
 
 # Import exceptions for error handling with type safety
 _RetryExcImported: type[Exception]
@@ -54,6 +55,67 @@ class AlpacaErrorHandler:
     This class provides static methods for error detection, sanitization,
     and standardized error result creation across all Alpaca services.
     """
+
+    @staticmethod
+    def is_order_already_in_terminal_state(
+        error: Exception,
+    ) -> tuple[bool, TerminalOrderError | None]:
+        r"""Check if cancellation error indicates order is already in a terminal state.
+
+        This handles cases where an order cannot be cancelled because it has already
+        been filled, cancelled, or reached another terminal state. This is NOT an error
+        condition - it means the order completed successfully or is already inactive.
+
+        Args:
+            error: Exception from cancellation attempt
+
+        Returns:
+            Tuple of (is_terminal, terminal_error_type) where terminal_error_type is
+            a TerminalOrderError enum value or None if not terminal
+
+        Example:
+            >>> error = Exception('{"code":42210000,"message":"order is already in \\"filled\\" state"}')
+            >>> is_terminal, error_type = AlpacaErrorHandler.is_order_already_in_terminal_state(error)
+            >>> print(is_terminal, error_type)
+            True TerminalOrderError.ALREADY_FILLED
+
+        """
+        msg = str(error).lower()
+
+        # Alpaca error code 42210000: "order is already in \"filled\" state"
+        # This is the primary case from the issue
+        if "42210000" in msg or 'order is already in "filled" state' in msg:
+            return True, TerminalOrderError.ALREADY_FILLED
+
+        # Other terminal state patterns
+        if (
+            'order is already in "canceled" state' in msg
+            or 'order is already in "cancelled" state' in msg
+        ):
+            return True, TerminalOrderError.ALREADY_CANCELLED
+
+        if 'order is already in "rejected" state' in msg:
+            return True, TerminalOrderError.ALREADY_REJECTED
+
+        if 'order is already in "expired" state' in msg:
+            return True, TerminalOrderError.ALREADY_EXPIRED
+
+        # Generic terminal state check
+        if "already in" in msg and "state" in msg:
+            # Try to extract the state
+            match = re.search(r'already in ["\']?(\w+)["\']? state', msg)
+            if match:
+                state = match.group(1).lower()
+                if state == "filled":
+                    return True, TerminalOrderError.ALREADY_FILLED
+                if state in ["canceled", "cancelled"]:
+                    return True, TerminalOrderError.ALREADY_CANCELLED
+                if state == "rejected":
+                    return True, TerminalOrderError.ALREADY_REJECTED
+                if state == "expired":
+                    return True, TerminalOrderError.ALREADY_EXPIRED
+
+        return False, None
 
     @staticmethod
     def is_transient_error(error: Exception) -> tuple[bool, str]:

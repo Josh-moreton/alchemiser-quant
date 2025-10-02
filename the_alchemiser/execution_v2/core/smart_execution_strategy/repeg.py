@@ -15,6 +15,10 @@ from decimal import Decimal
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.logging import get_logger, log_repeg_operation
 from the_alchemiser.shared.schemas.broker import OrderExecutionResult
+from the_alchemiser.shared.schemas.operations import (
+    OrderCancellationResult,
+    TerminalOrderError,
+)
 from the_alchemiser.shared.types.exceptions import OrderExecutionError
 from the_alchemiser.shared.types.market_data import QuoteModel
 
@@ -27,6 +31,7 @@ from .models import (
 from .pricing import PricingCalculator
 from .quotes import QuoteProvider
 from .tracking import OrderTracker
+from .utils import fetch_price_for_notional_check, is_remaining_quantity_too_small
 
 logger = get_logger(__name__)
 
@@ -61,6 +66,29 @@ class RepegManager:
         self.pricing_calculator = pricing_calculator
         self.order_tracker = order_tracker
         self.config = config
+
+    def _is_order_in_terminal_state(
+        self, cancel_result: OrderCancellationResult
+    ) -> tuple[bool, TerminalOrderError | None]:
+        """Check if cancellation result indicates order is in terminal state.
+
+        Args:
+            cancel_result: Result from cancel_order operation
+
+        Returns:
+            Tuple of (is_terminal, terminal_error_type) where terminal_error_type
+            is the specific TerminalOrderError enum value, or None if not terminal
+
+        """
+        if not cancel_result.success or not cancel_result.error:
+            return False, None
+
+        # Check if the error matches any terminal order error enum value
+        for terminal_error in TerminalOrderError:
+            if cancel_result.error == terminal_error.value:
+                return True, terminal_error
+
+        return False, None
 
     async def check_and_repeg_orders(self) -> list[SmartOrderResult]:
         """Check active orders and repeg if they haven't filled after the wait period.
@@ -232,8 +260,35 @@ class RepegManager:
                 f"(after {self.order_tracker.get_repeg_count(order_id)} re-pegs)"
             )
             # Use asyncio.to_thread to make blocking I/O async
-            cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
-            if not cancel_success:
+            cancel_result = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
+
+            # Check if order was already in a terminal state (e.g., filled, cancelled)
+            is_terminal, terminal_error = self._is_order_in_terminal_state(cancel_result)
+            if is_terminal and terminal_error:
+                # Extract just the state name (e.g., "filled" from "already_filled")
+                terminal_state = terminal_error.value.replace("already_", "")
+                logger.info(
+                    f"✅ Order {order_id} already in terminal state '{terminal_state}' - "
+                    f"no market escalation needed"
+                )
+
+                # Clean up tracking
+                original_anchor = self.order_tracker.get_anchor_price(order_id)
+                self.order_tracker.remove_order(order_id)
+
+                # Return success result indicating order is complete
+                return SmartOrderResult(
+                    success=True,
+                    order_id=order_id,
+                    final_price=original_anchor,
+                    anchor_price=original_anchor,
+                    repegs_used=self.config.max_repegs_per_order,
+                    execution_strategy=terminal_error.value,
+                    placement_timestamp=datetime.now(UTC),
+                    error_message=f"Order already in terminal state: {terminal_state} (escalation prevented)",
+                )
+
+            if not cancel_result.success:
                 logger.warning(
                     f"⚠️ Failed to cancel order {order_id}; attempting market order anyway"
                 )
@@ -482,50 +537,78 @@ class RepegManager:
             f"original={request.quantity}, filled={filled_qty}, remaining={remaining_qty}"
         )
 
-        # Determine if remaining is too small to pursue based on fractionability and notional
+        # Check if remaining is too small to pursue
+        if self._should_remove_due_to_small_remaining(order_id, request, remaining_qty):
+            return None
+
+        return remaining_qty
+
+    def _should_remove_due_to_small_remaining(
+        self, order_id: str, request: SmartOrderRequest, remaining_qty: Decimal
+    ) -> bool:
+        """Check if remaining quantity is too small and order should be removed.
+
+        Args:
+            order_id: Order ID for logging
+            request: Original order request
+            remaining_qty: Remaining quantity to check
+
+        Returns:
+            True if order should be removed from tracking due to small remaining
+
+        """
         try:
             asset_info = self.alpaca_manager.get_asset_info(request.symbol)
-            # Get best available price for notional check
-            price: Decimal | None = None
-            try:
-                # Prefer streaming midpoint if available via QuoteProvider
-                validated = self.quote_provider.get_quote_with_validation(request.symbol)
-                if validated:
-                    quote, _ = validated
-                    # Use ask for BUY, bid for SELL to compute conservative notional
-                    if request.side.upper() == "BUY":
-                        price = Decimal(str(quote.ask_price))
-                    else:
-                        price = Decimal(str(quote.bid_price))
-                else:
-                    current_price = self.alpaca_manager.get_current_price(request.symbol)
-                    if current_price is not None and current_price > 0:
-                        price = Decimal(str(current_price))
-            except Exception:
-                price = None
-
+            price = fetch_price_for_notional_check(
+                request.symbol, request.side, self.quote_provider, self.alpaca_manager
+            )
             min_notional = getattr(self.config, "min_fractional_notional_usd", Decimal("1.00"))
 
-            if asset_info is not None and asset_info.fractionable:
-                # For fractionable assets, skip if remaining notional is below broker minimum
-                if price is not None:
-                    remaining_notional = (remaining_qty * price).quantize(Decimal("0.01"))
-                    if remaining_notional < min_notional:
-                        logger.info(
-                            f"✅ Order {order_id} remaining notional ${remaining_notional} < ${min_notional}, considering complete"
-                        )
-                        return None
-            else:
-                # For non-fractionable or unknown, if rounding down yields zero shares, consider complete
-                if remaining_qty.quantize(Decimal("1")) <= 0:
-                    logger.info(
-                        f"✅ Order {order_id} remaining non-fractionable quantity rounds to 0, considering complete"
-                    )
-                    return None
+            if is_remaining_quantity_too_small(remaining_qty, asset_info, price, min_notional):
+                self._log_small_remaining_removal(
+                    order_id, request, remaining_qty, asset_info, price, min_notional
+                )
+                return True
         except Exception as _small_e:
             logger.debug(f"Minimal-remaining evaluation fallback due to error: {_small_e}")
 
-        return remaining_qty
+        return False
+
+    def _log_small_remaining_removal(
+        self,
+        order_id: str,
+        request: SmartOrderRequest,
+        remaining_qty: Decimal,
+        asset_info: object | None,
+        price: Decimal | None,
+        min_notional: Decimal,
+    ) -> None:
+        """Log removal of order due to small remaining quantity.
+
+        Args:
+            order_id: Order ID
+            request: Original order request
+            remaining_qty: Remaining quantity
+            asset_info: Asset info with fractionable attribute
+            price: Current price
+            min_notional: Minimum notional value
+
+        """
+        if (
+            asset_info is not None
+            and getattr(asset_info, "fractionable", False)
+            and price is not None
+        ):
+            remaining_notional = (remaining_qty * price).quantize(Decimal("0.01"))
+            logger.info(
+                f"✅ Order {order_id} remaining notional ${remaining_notional} < "
+                f"${min_notional}, considering complete"
+            )
+        else:
+            logger.info(
+                f"✅ Order {order_id} remaining non-fractionable quantity rounds to 0, "
+                f"considering complete"
+            )
 
     async def _cancel_for_repeg(self, order_id: str) -> bool:
         """Cancel the existing order and wait until cancellation is confirmed.
@@ -533,8 +616,21 @@ class RepegManager:
         Returns True only when cancellation completes; otherwise False.
         """
         logger.info(f"❌ Canceling order {order_id} for re-pegging")
-        cancel_success = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
-        if not cancel_success:
+        cancel_result = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
+
+        # Check if order was already in a terminal state (e.g., filled, cancelled)
+        is_terminal, terminal_error = self._is_order_in_terminal_state(cancel_result)
+        if is_terminal and terminal_error:
+            # Extract just the state name (e.g., "filled" from "already_filled")
+            terminal_state = terminal_error.value.replace("already_", "")
+            logger.info(
+                f"✅ Order {order_id} already in terminal state '{terminal_state}' - "
+                f"no re-peg needed"
+            )
+            # Signal to remove from tracking - order is complete
+            raise _RemoveFromTracking()
+
+        if not cancel_result.success:
             logger.warning(f"⚠️ Failed to cancel order {order_id}, skipping re-peg")
             return False
 

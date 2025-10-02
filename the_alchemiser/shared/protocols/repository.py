@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
     from the_alchemiser.shared.schemas.broker import OrderExecutionResult
     from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
+    from the_alchemiser.shared.schemas.operations import OrderCancellationResult
 
 
 class AccountRepository(Protocol):
@@ -129,14 +130,14 @@ class TradingRepository(Protocol):
         """
         ...
 
-    def cancel_order(self, order_id: str) -> bool:
+    def cancel_order(self, order_id: str) -> OrderCancellationResult:
         """Cancel an order.
 
         Args:
             order_id: Order ID to cancel
 
         Returns:
-            True if successful, False otherwise.
+            OrderCancellationResult with detailed cancellation status.
 
         """
         ...

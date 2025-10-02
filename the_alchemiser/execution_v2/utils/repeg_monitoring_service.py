@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from the_alchemiser.execution_v2.core.smart_execution_strategy import SmartOrderResult
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
@@ -37,7 +37,6 @@ class RepegMonitoringService:
         orders: list[OrderResult],
         config: dict[str, int],
         start_time: float,
-        correlation_id: str | None = None,
     ) -> list[OrderResult]:
         """Execute the main repeg monitoring loop.
 
@@ -46,7 +45,6 @@ class RepegMonitoringService:
             orders: List of orders to monitor
             config: Configuration parameters
             start_time: Start time of monitoring
-            correlation_id: Optional correlation ID for tracking
 
         Returns:
             Updated list of orders with any re-pegged order IDs swapped in.
@@ -67,9 +65,7 @@ class RepegMonitoringService:
 
             if repeg_results:
                 last_repeg_action_time = time.time()
-                orders = self._process_repeg_results(
-                    phase_type, orders, repeg_results, elapsed_total
-                )
+                orders = self._process_repeg_results(phase_type, orders, repeg_results)
             else:
                 self._log_no_repeg_activity(phase_type, attempts, elapsed_total)
 
@@ -79,26 +75,7 @@ class RepegMonitoringService:
             if self._should_terminate_early(last_repeg_action_time, config["fill_wait_seconds"]):
                 break
 
-        try:
-            if self.smart_strategy and self.smart_strategy.get_active_order_count() > 0:
-                logger.warning(
-                    f"🚨 {phase_type} phase: Monitoring window ended with active orders; escalating remaining to market"
-                )
-                # Explicitly escalate remaining active orders to market and update order IDs
-                active = self.smart_strategy.order_tracker.get_active_orders()
-                if active:
-                    tasks = [
-                        self.smart_strategy.repeg_manager._escalate_to_market(oid, req)
-                        for oid, req in active.items()
-                    ]
-                    results = [r for r in await asyncio.gather(*tasks) if r]
-                    if results:
-                        # Process as if they were standard repeg results (will replace order IDs)
-                        orders = self._process_repeg_results(
-                            phase_type, orders, results, elapsed_total=0.0
-                        )
-        except Exception as _err:
-            logger.exception("Error during final escalation to market in repeg monitoring loop")
+        orders = await self._escalate_remaining_orders(phase_type, orders)
 
         self._log_monitoring_completion(phase_type, start_time)
         return orders
@@ -108,7 +85,6 @@ class RepegMonitoringService:
         phase_type: str,
         orders: list[OrderResult],
         repeg_results: list[SmartOrderResult],
-        elapsed_total: float,
     ) -> list[OrderResult]:
         """Process repeg results and update orders.
 
@@ -116,7 +92,6 @@ class RepegMonitoringService:
             phase_type: Type of phase ("SELL" or "BUY")
             orders: Current list of orders
             repeg_results: Results from repeg operation
-            elapsed_total: Total elapsed time
 
         Returns:
             Updated list of orders
@@ -186,6 +161,52 @@ class RepegMonitoringService:
         """Log completion of the monitoring loop."""
         total_time = time.time() - start_time
         logger.info(f"✅ {phase_type} phase re-peg monitoring complete: {total_time:.1f}s total")
+
+    async def _escalate_remaining_orders(
+        self, phase_type: str, orders: list[OrderResult]
+    ) -> list[OrderResult]:
+        """Escalate any remaining active orders to market.
+
+        Args:
+            phase_type: Type of phase ("SELL" or "BUY")
+            orders: Current list of orders
+
+        Returns:
+            Updated list of orders with escalated order IDs
+
+        """
+        try:
+            if self.smart_strategy:
+                # Get active orders once (avoids redundant API call)
+                active = self.smart_strategy.order_tracker.get_active_orders()
+                if active:
+                    logger.warning(
+                        f"🚨 {phase_type} phase: Monitoring window ended with active orders; escalating remaining to market"
+                    )
+                    # Explicitly escalate remaining active orders to market and update order IDs
+                    tasks = [
+                        self.smart_strategy.repeg_manager._escalate_to_market(oid, req)
+                        for oid, req in active.items()
+                    ]
+                    # Use return_exceptions=True for better fault tolerance
+                    gather_results = await asyncio.gather(*tasks, return_exceptions=True)
+                    results: list[SmartOrderResult] = []
+                    for idx, result in enumerate(gather_results):
+                        if isinstance(result, Exception):
+                            order_id = list(active.keys())[idx]
+                            logger.error(f"Error escalating order {order_id}: {result}")
+                            continue
+                        if result is not None:
+                            # Type narrowing: at this point result is SmartOrderResult, not Exception
+                            results.append(cast(SmartOrderResult, result))
+
+                    if results:
+                        # Process as if they were standard repeg results (will replace order IDs)
+                        orders = self._process_repeg_results(phase_type, orders, results)
+        except Exception:
+            logger.exception("Error during final escalation to market in repeg monitoring loop")
+
+        return orders
 
     def _log_repeg_status(self, phase_type: str, repeg_result: SmartOrderResult) -> None:
         """Log repeg status with appropriate message for escalation or standard repeg."""

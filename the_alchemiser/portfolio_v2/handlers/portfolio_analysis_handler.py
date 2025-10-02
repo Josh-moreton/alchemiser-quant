@@ -187,8 +187,6 @@ class PortfolioAnalysisHandler:
                 rebalance_plan,
                 allocation_comparison,
                 event.correlation_id,
-                account_info,
-                strategy_names,
             )
 
             self.logger.info("✅ Portfolio analysis completed successfully")
@@ -488,8 +486,6 @@ class PortfolioAnalysisHandler:
         rebalance_plan: RebalancePlan | None,
         allocation_comparison: AllocationComparison,
         correlation_id: str,
-        account_info: dict[str, Any],
-        strategy_names: list[str] | None = None,
     ) -> None:
         """Emit RebalancePlanned event.
 
@@ -497,8 +493,6 @@ class PortfolioAnalysisHandler:
             rebalance_plan: Generated rebalance plan (may be None for no-op)
             allocation_comparison: Allocation comparison data
             correlation_id: Correlation ID from the triggering event
-            account_info: Account information with portfolio value
-            strategy_names: List of strategy names that generated the signals
 
         """
         try:
