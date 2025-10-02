@@ -196,16 +196,8 @@ class NotificationService:
                 }
 
                 # Add failed symbols if available in execution data
-                if event.execution_data:
-                    orders = event.execution_data.get("orders", [])
-                    failed_orders = [
-                        order
-                        for order in orders
-                        if isinstance(order, dict) and not order.get("success", True)
-                    ]
-                    if failed_orders:
-                        failed_symbols = [order.get("symbol", "Unknown") for order in failed_orders]
-                        context["Failed Symbols"] = ", ".join(failed_symbols)
+                if event.execution_data and event.execution_data.get("failed_symbols"):
+                    context["Failed Symbols"] = ", ".join(event.execution_data["failed_symbols"])
 
                 html_content = EmailTemplates.failed_trading_run(
                     error_details=error_message,

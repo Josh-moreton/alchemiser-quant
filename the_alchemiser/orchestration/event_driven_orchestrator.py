@@ -587,8 +587,13 @@ class EventDrivenOrchestrator:
             is_live = not self.container.config.paper_trading()
             mode_str = "LIVE" if is_live else "PAPER"
 
-            # Extract execution data
-            execution_data = event.execution_data
+            # Extract execution data and enhance with failure details
+            execution_data = event.execution_data.copy() if event.execution_data else {}
+            
+            # Add failed symbols to execution data for notification service
+            if not success and event.failed_symbols:
+                execution_data["failed_symbols"] = event.failed_symbols
+            
             orders_placed = event.orders_placed
             orders_succeeded = event.orders_succeeded
             # total_trade_value may be Decimal, float, or string; normalize for formatting
