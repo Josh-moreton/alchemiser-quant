@@ -283,9 +283,7 @@ class PhaseExecutor:
         """
         if item.action == "SELL" and item.target_weight == Decimal("0.0"):
             shares = self._calculate_liquidation_shares(item.symbol)
-            logger.info(
-                f"📊 Liquidating {item.symbol}: selling {shares} shares (full position)"
-            )
+            logger.info(f"📊 Liquidating {item.symbol}: selling {shares} shares (full position)")
         else:
             shares = self._calculate_shares_from_amount(item.symbol, item.trade_amount)
             amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
