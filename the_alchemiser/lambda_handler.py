@@ -26,7 +26,6 @@ from the_alchemiser.shared.errors.error_handler import (
 from the_alchemiser.shared.logging import (
     generate_request_id,
     get_logger,
-    log_error_with_context,
     set_request_id,
 )
 from the_alchemiser.shared.schemas import LambdaEvent
@@ -348,17 +347,17 @@ def lambda_handler(
         parsed_command_args = locals().get("command_args")  # type: list[str] | None
 
         error_message = f"Lambda execution error ({type(e).__name__}): {e!s}"
-        log_error_with_context(
-            logger,
-            e,
-            "lambda_execution",
-            function="lambda_handler",
+        logger.error(
+            "Lambda execution error",
+            error_message=error_message,
             error_type=type(e).__name__,
+            operation="lambda_execution",
+            function="lambda_handler",
             mode=mode,
             trading_mode=trading_mode,
             request_id=request_id,
+            exc_info=True,
         )
-        logger.error(error_message, exc_info=True)
 
         # Enhanced error handling with detailed reporting
         _handle_trading_error(e, event, request_id, parsed_command_args)
@@ -374,14 +373,15 @@ def lambda_handler(
         critical_command_args = locals().get("command_args")  # type: list[str] | None
 
         error_message = f"Lambda execution critical error: {e!s}"
-        log_error_with_context(
-            logger,
-            e,
-            "lambda_execution",
-            function="lambda_handler",
+        logger.error(
+            "Lambda execution critical error",
+            error_message=error_message,
             error_type="unexpected_critical_error",
             original_error=type(e).__name__,
+            operation="lambda_execution",
+            function="lambda_handler",
             request_id=request_id,
+            exc_info=True,
         )
         logger.error(error_message, exc_info=True)
 
