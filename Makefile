@@ -140,8 +140,8 @@ deploy:
 
 release:
 	@echo "🏷️ Creating GitHub release..."
-	@if [ -n "$(VERSION)" ]; then \
-		VERSION_TO_USE="$(VERSION)"; \
+	@if [ -n "$(v)" ]; then \
+		VERSION_TO_USE="$(v)"; \
 		echo "📋 Using specified version: $$VERSION_TO_USE"; \
 	else \
 		VERSION_TO_USE=$$(poetry version -s); \
