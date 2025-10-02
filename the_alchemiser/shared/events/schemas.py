@@ -97,6 +97,13 @@ class TradeExecuted(BaseEvent):
     metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional execution metadata"
     )
+    # Failure details (populated when success=False)
+    failure_reason: str | None = Field(
+        default=None, description="Detailed failure reason when execution fails"
+    )
+    failed_symbols: list[str] = Field(
+        default_factory=list, description="List of symbols that failed execution"
+    )
 
 
 class TradeExecutionStarted(BaseEvent):
