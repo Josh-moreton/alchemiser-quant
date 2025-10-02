@@ -118,6 +118,70 @@ class AlpacaErrorHandler:
         return False, None
 
     @staticmethod
+    def _check_502_error(msg: str) -> tuple[bool, str]:
+        """Check if error is a 502 Bad Gateway.
+
+        Args:
+            msg: Error message string
+
+        Returns:
+            Tuple of (is_502, reason) if match found, else (False, "")
+
+        """
+        if "502" in msg or "Bad Gateway" in msg:
+            return True, "502 Bad Gateway"
+        return False, ""
+
+    @staticmethod
+    def _check_503_error(msg: str) -> tuple[bool, str]:
+        """Check if error is a 503 Service Unavailable.
+
+        Args:
+            msg: Error message string
+
+        Returns:
+            Tuple of (is_503, reason) if match found, else (False, "")
+
+        """
+        if "503" in msg or "Service Unavailable" in msg:
+            return True, "503 Service Unavailable"
+        return False, ""
+
+    @staticmethod
+    def _check_timeout_error(msg: str) -> tuple[bool, str]:
+        """Check if error is a timeout or 504 Gateway Timeout.
+
+        Args:
+            msg: Error message string
+
+        Returns:
+            Tuple of (is_timeout, reason) if match found, else (False, "")
+
+        """
+        msg_lower = msg.lower()
+        if "504" in msg or "Gateway Timeout" in msg or "timeout" in msg_lower:
+            return True, "Gateway Timeout/Timeout"
+        return False, ""
+
+    @staticmethod
+    def _check_html_error(msg: str) -> tuple[bool, str]:
+        """Check if error contains HTML error page.
+
+        Args:
+            msg: Error message string
+
+        Returns:
+            Tuple of (is_html_error, reason) with extracted status code if found
+
+        """
+        if "<html" not in msg.lower():
+            return False, ""
+
+        m = re.search(r"\b(5\d{2})\b", msg)
+        code = m.group(1) if m else "5xx"
+        return True, f"HTTP {code} HTML error"
+
+    @staticmethod
     def is_transient_error(error: Exception) -> tuple[bool, str]:
         """Determine if error is transient and should be retried.
 
@@ -129,19 +193,18 @@ class AlpacaErrorHandler:
 
         """
         msg = str(error)
-        # Normalize common transient markers
-        if "502" in msg or "Bad Gateway" in msg:
-            return True, "502 Bad Gateway"
-        if "503" in msg or "Service Unavailable" in msg:
-            return True, "503 Service Unavailable"
-        if "504" in msg or "Gateway Timeout" in msg or "timeout" in msg.lower():
-            return True, "Gateway Timeout/Timeout"
-        # HTML error pages from proxies
-        if "<html" in msg.lower():
-            # Try to extract status code
-            m = re.search(r"\b(5\d{2})\b", msg)
-            code = m.group(1) if m else "5xx"
-            return True, f"HTTP {code} HTML error"
+
+        # Check each error type using dedicated helper methods
+        for check_method in [
+            AlpacaErrorHandler._check_502_error,
+            AlpacaErrorHandler._check_503_error,
+            AlpacaErrorHandler._check_timeout_error,
+            AlpacaErrorHandler._check_html_error,
+        ]:
+            is_transient, reason = check_method(msg)
+            if is_transient:
+                return True, reason
+
         return False, ""
 
     @staticmethod
