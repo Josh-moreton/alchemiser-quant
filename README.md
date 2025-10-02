@@ -245,7 +245,9 @@ PAPER_TRADING=true  # Default for local runs
 
 #### Automated Deployment via GitHub Releases (Recommended)
 
-The system automatically deploys to AWS Lambda when you create a GitHub Release:
+The system automatically deploys to AWS Lambda when you create a GitHub Release.
+
+> 📖 **See [docs/deployment-setup.md](docs/deployment-setup.md) for complete setup instructions.**
 
 **Production Deployment:**
 ```bash
