@@ -27,6 +27,7 @@ from .models import (
 from .pricing import PricingCalculator
 from .quotes import QuoteProvider
 from .tracking import OrderTracker
+from .utils import fetch_price_for_notional_check, is_remaining_quantity_too_small
 
 logger = get_logger(__name__)
 
@@ -502,8 +503,6 @@ class RepegManager:
             True if order should be removed from tracking due to small remaining
 
         """
-        from .utils import fetch_price_for_notional_check, is_remaining_quantity_too_small
-
         try:
             asset_info = self.alpaca_manager.get_asset_info(request.symbol)
             price = fetch_price_for_notional_check(
@@ -541,7 +540,7 @@ class RepegManager:
             min_notional: Minimum notional value
 
         """
-        if asset_info is not None and getattr(asset_info, "fractionable", False) and price:
+        if asset_info is not None and getattr(asset_info, "fractionable", False) and price is not None:
             remaining_notional = (remaining_qty * price).quantize(Decimal("0.01"))
             logger.info(
                 f"✅ Order {order_id} remaining notional ${remaining_notional} < "
