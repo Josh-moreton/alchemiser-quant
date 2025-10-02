@@ -61,7 +61,7 @@ class PhaseExecutor:
             Callable[[RebalancePlanItem], Awaitable[OrderResult]] | None
         ) = None,
         monitor_orders_callback: (
-            Callable[[str, list[OrderResult], str | None], Awaitable[list[OrderResult]]] | None
+            Callable[[str, list[OrderResult]], Awaitable[list[OrderResult]]] | None
         ) = None,
         finalize_orders_callback: (
             Callable[..., tuple[list[OrderResult], int, Decimal]] | None
@@ -103,7 +103,7 @@ class PhaseExecutor:
         # Monitor and re-peg sell orders that haven't filled and await completion
         if monitor_orders_callback and self.smart_strategy and self.enable_smart_execution:
             logger.info("🔄 Monitoring SELL orders for re-pegging opportunities...")
-            orders = await monitor_orders_callback("SELL", orders, correlation_id)
+            orders = await monitor_orders_callback("SELL", orders)
 
         # Await completion and finalize statuses
         if finalize_orders_callback:
@@ -125,7 +125,7 @@ class PhaseExecutor:
             Callable[[RebalancePlanItem], Awaitable[OrderResult]] | None
         ) = None,
         monitor_orders_callback: (
-            Callable[[str, list[OrderResult], str | None], Awaitable[list[OrderResult]]] | None
+            Callable[[str, list[OrderResult]], Awaitable[list[OrderResult]]] | None
         ) = None,
         finalize_orders_callback: (
             Callable[..., tuple[list[OrderResult], int, Decimal]] | None
@@ -170,7 +170,7 @@ class PhaseExecutor:
         # Monitor and re-peg buy orders that haven't filled and await completion
         if monitor_orders_callback and self.smart_strategy and self.enable_smart_execution:
             logger.info("🔄 Monitoring BUY orders for re-pegging opportunities...")
-            orders = await monitor_orders_callback("BUY", orders, correlation_id)
+            orders = await monitor_orders_callback("BUY", orders)
 
         # Await completion and finalize statuses
         if finalize_orders_callback:

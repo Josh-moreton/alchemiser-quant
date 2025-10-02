@@ -474,12 +474,9 @@ class Executor:
         self,
         phase_type: str,
         orders: list[OrderResult],
-        correlation_id: str | None = None,
     ) -> list[OrderResult]:
         """Monitor and re-peg orders from a specific execution phase."""
-        return await self._order_monitor.monitor_and_repeg_phase_orders(
-            phase_type, orders, correlation_id
-        )
+        return await self._order_monitor.monitor_and_repeg_phase_orders(phase_type, orders)
 
     def _cleanup_subscriptions(self, symbols: list[str]) -> None:
         """Clean up pricing subscriptions after execution."""

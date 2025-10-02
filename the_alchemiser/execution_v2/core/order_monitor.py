@@ -44,14 +44,12 @@ class OrderMonitor:
         self,
         phase_type: str,
         orders: list[OrderResult],
-        correlation_id: str | None = None,
     ) -> list[OrderResult]:
         """Monitor and re-peg orders from a specific execution phase.
 
         Args:
             phase_type: Type of phase ("SELL" or "BUY")
             orders: List of orders from this phase to monitor
-            correlation_id: Optional correlation ID for tracking
 
         Returns:
             Updated list of orders with any re-pegged order IDs swapped in.
