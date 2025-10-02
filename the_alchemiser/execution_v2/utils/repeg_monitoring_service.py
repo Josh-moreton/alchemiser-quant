@@ -268,7 +268,6 @@ class RepegMonitoringService:
         # Type guard: smart_strategy must exist at this point
         if self.smart_strategy is None:
             return orders
-        
         active = self.smart_strategy.order_tracker.get_active_orders()
         if not active:
             return orders
