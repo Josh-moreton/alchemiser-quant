@@ -449,6 +449,80 @@ class AlpacaErrorHandler:
             )
 
 
+def _calculate_retry_delay(
+    base_delay: float, backoff_factor: float, attempt: int
+) -> float:
+    """Calculate retry delay with exponential backoff and jitter.
+
+    Args:
+        base_delay: Base delay in seconds
+        backoff_factor: Exponential backoff multiplier
+        attempt: Current attempt number (1-based)
+
+    Returns:
+        Sleep duration in seconds with jitter applied
+
+    """
+    jitter = 1.0 + 0.2 * (randbelow(1000) / 1000.0)
+    return base_delay * (backoff_factor ** (attempt - 1)) * jitter
+
+
+def _should_raise_error(
+    transient: bool, attempt: int, max_retries: int  # noqa: FBT001
+) -> bool:
+    """Determine if error should be raised or retry should continue.
+
+    Args:
+        transient: Whether error is transient
+        attempt: Current attempt number
+        max_retries: Maximum number of retries
+
+    Returns:
+        True if error should be raised, False if should retry
+
+    """
+    return not transient or attempt == max_retries
+
+
+def _handle_retry_failure(
+    error: Exception, operation_name: str, attempt: int
+) -> None:
+    """Handle final retry failure by logging and raising RuntimeError.
+
+    Args:
+        error: Exception that occurred
+        operation_name: Name of operation for logging
+        attempt: Current attempt number
+
+    Raises:
+        RuntimeError: Always raises with formatted error message
+
+    """
+    summary = AlpacaErrorHandler.sanitize_error_message(error)
+    error_msg = f"{operation_name} failed after {attempt} attempts: {summary}"
+    logger.error(error_msg)
+    raise RuntimeError(error_msg) from error
+
+
+def _log_retry_attempt(
+    operation_name: str, reason: str, attempt: int, max_retries: int, sleep_duration: float
+) -> None:
+    """Log retry attempt with details.
+
+    Args:
+        operation_name: Name of operation
+        reason: Reason for retry (error description)
+        attempt: Current attempt number
+        max_retries: Maximum number of retries
+        sleep_duration: Sleep duration in seconds
+
+    """
+    logger.warning(
+        f"{operation_name} transient error ({reason}); "
+        f"retry {attempt}/{max_retries} in {sleep_duration:.2f}s"
+    )
+
+
 @contextmanager
 def alpaca_retry_context(
     max_retries: int = 3,
@@ -486,21 +560,11 @@ def alpaca_retry_context(
             last_error = e
             transient, reason = AlpacaErrorHandler.is_transient_error(e)
 
-            if not transient or attempt == max_retries:
-                # Non-transient error or final attempt
-                summary = AlpacaErrorHandler.sanitize_error_message(e)
-                error_msg = f"{operation_name} failed after {attempt} attempts: {summary}"
-                logger.error(error_msg)
-                raise RuntimeError(error_msg) from e
+            if _should_raise_error(transient, attempt, max_retries):
+                _handle_retry_failure(e, operation_name, attempt)
 
-            # Calculate delay with exponential backoff and jitter
-            jitter = 1.0 + 0.2 * (randbelow(1000) / 1000.0)
-            sleep_duration = base_delay * (backoff_factor ** (attempt - 1)) * jitter
-
-            logger.warning(
-                f"{operation_name} transient error ({reason}); "
-                f"retry {attempt}/{max_retries} in {sleep_duration:.2f}s"
-            )
+            sleep_duration = _calculate_retry_delay(base_delay, backoff_factor, attempt)
+            _log_retry_attempt(operation_name, reason, attempt, max_retries, sleep_duration)
             time.sleep(sleep_duration)
 
     # This should never be reached due to the loop structure, but just in case
