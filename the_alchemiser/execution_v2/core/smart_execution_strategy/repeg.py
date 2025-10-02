@@ -376,6 +376,136 @@ class RepegManager:
                 execution_strategy="market_escalation_error",
             )
 
+    def _build_repeg_success_result(
+        self,
+        order_id: str,
+        executed_order: OrderExecutionResult,
+        request: SmartOrderRequest,
+        new_price: Decimal,
+        original_anchor: Decimal | None,
+        quote: QuoteModel | None,
+        remaining_qty: Decimal,
+        new_repeg_count: int,
+    ) -> SmartOrderResult:
+        """Build success result for a successful repeg operation.
+
+        Args:
+            order_id: Original order ID
+            executed_order: Result from placing the new order
+            request: Original order request
+            new_price: New limit price
+            original_anchor: Original anchor price
+            quote: Quote data used for pricing
+            remaining_qty: Remaining quantity
+            new_repeg_count: Current repeg count
+
+        Returns:
+            SmartOrderResult indicating success
+
+        """
+        self.order_tracker.update_order(
+            order_id, executed_order.order_id, new_price, datetime.now(UTC)
+        )
+
+        # Use structured logging for repeg operation
+        log_repeg_operation(
+            logger,
+            operation="replace_order",
+            symbol=request.symbol,
+            old_price=original_anchor,
+            new_price=new_price,
+            quantity=remaining_qty,
+            reason="unfilled_order",
+            new_order_id=str(executed_order.order_id),
+            original_order_id=order_id,
+            repeg_attempt=new_repeg_count,
+            max_repegs=self.config.max_repegs_per_order,
+        )
+
+        # Use cast to satisfy type checkers; quote is non-None when new_price exists
+        from typing import cast as _cast
+
+        q = _cast(QuoteModel, quote)
+        metadata_dict: LiquidityMetadata = {
+            "original_order_id": order_id,
+            "original_price": (float(original_anchor) if original_anchor else None),
+            "new_price": float(new_price),
+            "bid_price": q.bid_price,
+            "ask_price": q.ask_price,
+            "spread_percent": (q.ask_price - q.bid_price) / q.bid_price * 100,
+            "bid_size": q.bid_size,
+            "ask_size": q.ask_size,
+        }
+        return SmartOrderResult(
+            success=True,
+            order_id=executed_order.order_id,
+            final_price=new_price,
+            anchor_price=original_anchor,
+            repegs_used=new_repeg_count,
+            execution_strategy=f"smart_repeg_{new_repeg_count}",
+            placement_timestamp=datetime.now(UTC),
+            metadata=metadata_dict,
+        )
+
+    def _handle_repeg_order_result(
+        self,
+        executed_order: OrderExecutionResult,
+        order_id: str,
+        request: SmartOrderRequest,
+        new_price: Decimal,
+        original_anchor: Decimal | None,
+        quote: QuoteModel | None,
+        remaining_qty: Decimal,
+        new_repeg_count: int,
+    ) -> SmartOrderResult:
+        """Handle the result of a repeg order placement.
+
+        Args:
+            executed_order: Result from placing the new order
+            order_id: Original order ID
+            request: Original order request
+            new_price: New limit price
+            original_anchor: Original anchor price
+            quote: Quote data used for pricing
+            remaining_qty: Remaining quantity
+            new_repeg_count: Current repeg count
+
+        Returns:
+            SmartOrderResult with success or failure status
+
+        """
+        # Check if placement succeeded and order_id looks valid (UUID)
+        if not (getattr(executed_order, "success", False) and getattr(executed_order, "order_id", None)):
+            logger.error(f"❌ Re-peg failed for {request.symbol}: no valid order ID returned")
+            return SmartOrderResult(
+                success=False,
+                error_message="Re-peg order placement failed",
+                execution_strategy="smart_repeg_failed",
+                repegs_used=new_repeg_count,
+            )
+
+        if not self._is_valid_uuid_str(str(executed_order.order_id)):
+            logger.warning(
+                "⚠️ Re-peg placement returned non-UUID order_id; skipping tracking update"
+            )
+            return SmartOrderResult(
+                success=False,
+                error_message="Re-peg returned invalid order ID",
+                execution_strategy="smart_repeg_failed",
+                repegs_used=new_repeg_count,
+            )
+
+        return self._build_repeg_success_result(
+            order_id,
+            executed_order,
+            request,
+            new_price,
+            original_anchor,
+            quote,
+            remaining_qty,
+            new_repeg_count,
+        )
+
     async def _attempt_repeg(
         self, order_id: str, request: SmartOrderRequest
     ) -> SmartOrderResult | bool | None:
@@ -438,70 +568,15 @@ class RepegManager:
             except _RemoveFromTracking:
                 return None
 
-            # Only proceed if placement succeeded and order_id looks valid (UUID)
-            if getattr(executed_order, "success", False) and getattr(
-                executed_order, "order_id", None
-            ):
-                if self._is_valid_uuid_str(str(executed_order.order_id)):
-                    self.order_tracker.update_order(
-                        order_id, executed_order.order_id, new_price, datetime.now(UTC)
-                    )
-
-                    # Use structured logging for repeg operation
-                    log_repeg_operation(
-                        logger,
-                        operation="replace_order",
-                        symbol=request.symbol,
-                        old_price=original_anchor,
-                        new_price=new_price,
-                        quantity=remaining_qty,
-                        reason="unfilled_order",
-                        new_order_id=str(executed_order.order_id),
-                        original_order_id=order_id,
-                        repeg_attempt=new_repeg_count,
-                        max_repegs=self.config.max_repegs_per_order,
-                    )
-
-                    # Use cast to satisfy type checkers; quote is non-None when new_price exists
-                    from typing import cast as _cast
-
-                    q = _cast(QuoteModel, quote)
-                    metadata_dict: LiquidityMetadata = {
-                        "original_order_id": order_id,
-                        "original_price": (float(original_anchor) if original_anchor else None),
-                        "new_price": float(new_price),
-                        "bid_price": q.bid_price,
-                        "ask_price": q.ask_price,
-                        "spread_percent": (q.ask_price - q.bid_price) / q.bid_price * 100,
-                        "bid_size": q.bid_size,
-                        "ask_size": q.ask_size,
-                    }
-                    return SmartOrderResult(
-                        success=True,
-                        order_id=executed_order.order_id,
-                        final_price=new_price,
-                        anchor_price=original_anchor,
-                        repegs_used=new_repeg_count,
-                        execution_strategy=f"smart_repeg_{new_repeg_count}",
-                        placement_timestamp=datetime.now(UTC),
-                        metadata=metadata_dict,
-                    )
-                logger.warning(
-                    "⚠️ Re-peg placement returned non-UUID order_id; skipping tracking update"
-                )
-                return SmartOrderResult(
-                    success=False,
-                    error_message="Re-peg returned invalid order ID",
-                    execution_strategy="smart_repeg_failed",
-                    repegs_used=new_repeg_count,
-                )
-
-            logger.error(f"❌ Re-peg failed for {request.symbol}: no valid order ID returned")
-            return SmartOrderResult(
-                success=False,
-                error_message="Re-peg order placement failed",
-                execution_strategy="smart_repeg_failed",
-                repegs_used=new_repeg_count,
+            return self._handle_repeg_order_result(
+                executed_order,
+                order_id,
+                request,
+                quantized_price,
+                original_anchor,
+                quote,
+                remaining_qty,
+                new_repeg_count,
             )
 
         except Exception as e:
