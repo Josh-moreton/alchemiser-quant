@@ -15,11 +15,25 @@ Key Features:
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any
 
 from pydantic import ConfigDict
 
 from the_alchemiser.shared.schemas.base import Result
+
+
+class TerminalOrderError(str, Enum):
+    """Error types indicating an order is already in a terminal state.
+
+    These are not actual errors - they indicate the order has completed
+    or been terminated and cannot be modified further.
+    """
+
+    ALREADY_FILLED = "already_filled"
+    ALREADY_CANCELLED = "already_cancelled"
+    ALREADY_REJECTED = "already_rejected"
+    ALREADY_EXPIRED = "already_expired"
 
 
 class OperationResult(Result):

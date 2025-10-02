@@ -19,6 +19,7 @@ from typing import Any, Literal
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.broker import OrderExecutionResult
+from the_alchemiser.shared.schemas.operations import TerminalOrderError
 
 # Import exceptions for error handling with type safety
 _RetryExcImported: type[Exception]
@@ -56,8 +57,10 @@ class AlpacaErrorHandler:
     """
 
     @staticmethod
-    def is_order_already_in_terminal_state(error: Exception) -> tuple[bool, str]:
-        """Check if cancellation error indicates order is already in a terminal state.
+    def is_order_already_in_terminal_state(
+        error: Exception,
+    ) -> tuple[bool, TerminalOrderError | None]:
+        r"""Check if cancellation error indicates order is already in a terminal state.
 
         This handles cases where an order cannot be cancelled because it has already
         been filled, cancelled, or reached another terminal state. This is NOT an error
@@ -67,37 +70,52 @@ class AlpacaErrorHandler:
             error: Exception from cancellation attempt
 
         Returns:
-            Tuple of (is_terminal, terminal_state) where terminal_state is one of:
-            'filled', 'cancelled', 'rejected', 'expired', or empty string if not terminal
+            Tuple of (is_terminal, terminal_error_type) where terminal_error_type is
+            a TerminalOrderError enum value or None if not terminal
+
+        Example:
+            >>> error = Exception('{"code":42210000,"message":"order is already in \\"filled\\" state"}')
+            >>> is_terminal, error_type = AlpacaErrorHandler.is_order_already_in_terminal_state(error)
+            >>> print(is_terminal, error_type)
+            True TerminalOrderError.ALREADY_FILLED
 
         """
         msg = str(error).lower()
-        
+
         # Alpaca error code 42210000: "order is already in \"filled\" state"
         # This is the primary case from the issue
         if "42210000" in msg or 'order is already in "filled" state' in msg:
-            return True, "filled"
-        
+            return True, TerminalOrderError.ALREADY_FILLED
+
         # Other terminal state patterns
-        if 'order is already in "canceled" state' in msg or 'order is already in "cancelled" state' in msg:
-            return True, "cancelled"
-        
+        if (
+            'order is already in "canceled" state' in msg
+            or 'order is already in "cancelled" state' in msg
+        ):
+            return True, TerminalOrderError.ALREADY_CANCELLED
+
         if 'order is already in "rejected" state' in msg:
-            return True, "rejected"
-        
+            return True, TerminalOrderError.ALREADY_REJECTED
+
         if 'order is already in "expired" state' in msg:
-            return True, "expired"
-        
+            return True, TerminalOrderError.ALREADY_EXPIRED
+
         # Generic terminal state check
         if "already in" in msg and "state" in msg:
             # Try to extract the state
             match = re.search(r'already in ["\']?(\w+)["\']? state', msg)
             if match:
                 state = match.group(1).lower()
-                if state in ["filled", "canceled", "cancelled", "rejected", "expired"]:
-                    return True, state
-        
-        return False, ""
+                if state == "filled":
+                    return True, TerminalOrderError.ALREADY_FILLED
+                if state in ["canceled", "cancelled"]:
+                    return True, TerminalOrderError.ALREADY_CANCELLED
+                if state == "rejected":
+                    return True, TerminalOrderError.ALREADY_REJECTED
+                if state == "expired":
+                    return True, TerminalOrderError.ALREADY_EXPIRED
+
+        return False, None
 
     @staticmethod
     def is_transient_error(error: Exception) -> tuple[bool, str]:
@@ -186,9 +204,9 @@ class AlpacaErrorHandler:
         """
         from datetime import UTC, datetime
 
-        status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"] = (
-            "rejected"
-        )
+        status: Literal[
+            "accepted", "filled", "partially_filled", "rejected", "canceled"
+        ] = "rejected"
 
         return OrderExecutionResult(
             success=False,
@@ -259,7 +277,9 @@ def alpaca_retry_context(
             if not transient or attempt == max_retries:
                 # Non-transient error or final attempt
                 summary = AlpacaErrorHandler.sanitize_error_message(e)
-                error_msg = f"{operation_name} failed after {attempt} attempts: {summary}"
+                error_msg = (
+                    f"{operation_name} failed after {attempt} attempts: {summary}"
+                )
                 logger.error(error_msg)
                 raise RuntimeError(error_msg) from e
 

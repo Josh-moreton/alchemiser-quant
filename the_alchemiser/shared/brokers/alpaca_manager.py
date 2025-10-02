@@ -401,9 +401,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
     def cancel_order(self, order_id: str) -> OrderCancellationResult:
         """Cancel an order by ID.
-        
+
         Returns:
             OrderCancellationResult with detailed cancellation status
+
         """
         return self._get_trading_service().cancel_order(order_id)
 
@@ -536,7 +537,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                     if order_id:
                         cancel_result = self.cancel_order(str(order_id))
                         if not cancel_result.success:
-                            logger.warning(f"Failed to cancel order {order_id}: {cancel_result.error}")
+                            logger.warning(
+                                f"Failed to cancel order {order_id}: {cancel_result.error}"
+                            )
             else:
                 # Cancel all open orders
                 self._trading_client.cancel_orders()
@@ -572,7 +575,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                         if cancel_result.success:
                             cancelled_orders.append(order_id)
                         else:
-                            errors.append(f"Failed to cancel order {order_id}: {cancel_result.error}")
+                            errors.append(
+                                f"Failed to cancel order {order_id}: {cancel_result.error}"
+                            )
                 except Exception as e:
                     errors.append(f"Error processing order: {e}")
 
