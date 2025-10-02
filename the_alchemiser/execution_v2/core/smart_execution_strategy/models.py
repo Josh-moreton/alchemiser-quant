@@ -67,7 +67,6 @@ class ExecutionConfig:
     order_placement_timeout_seconds: int = 30  # Timeout for order placement
     fill_wait_seconds: int = 10  # Wait time before attempting re-peg
     max_wait_time_seconds: int = 30  # Maximum wait time for quote data
-    stale_order_timeout_minutes: int = 1  # Cancel orders older than this many minutes
 
     # Fractional trading safeguards
     # Minimum notional for fractional orders (e.g., Alpaca requires >= $1 for fractional)

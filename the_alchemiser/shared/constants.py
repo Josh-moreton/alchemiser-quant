@@ -32,6 +32,7 @@ EXECUTION_HANDLERS_MODULE = "execution_v2.handlers"
 # Event schema descriptions
 EVENT_SCHEMA_VERSION_DESCRIPTION = "Event schema version"
 EVENT_TYPE_DESCRIPTION = "Type of event"
+RECIPIENT_OVERRIDE_DESCRIPTION = "Optional recipient email override"
 
 # UI/CLI styling constants
 STYLE_BOLD_CYAN = "bold cyan"
@@ -79,6 +80,7 @@ __all__ = [
     "PERCENTAGE_RANGE",
     "PROGRESS_DESCRIPTION_FORMAT",
     "REBALANCE_PLAN_GENERATED",
+    "RECIPIENT_OVERRIDE_DESCRIPTION",
     "SIGNAL_ACTIONS",
     "STYLE_BOLD_BLUE",
     "STYLE_BOLD_CYAN",

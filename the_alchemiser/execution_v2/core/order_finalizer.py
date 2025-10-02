@@ -237,19 +237,10 @@ class OrderFinalizer:
         trade_value = Decimal("0")
 
         for idx, o in enumerate(orders):
-            # Default to existing values
-            final_price = o.price
-            is_filled = o.success
-            final_error = o.error_message
-
-            # Update with final status if available
-            if o.order_id and o.order_id in final_status_map:
-                status_str, avg_price = final_status_map[o.order_id]
-                is_filled = status_str.lower() in ["filled", "partially_filled"]
-                if avg_price is not None:
-                    final_price = avg_price
-                if not is_filled and status_str.lower() in ["rejected", "canceled"]:
-                    final_error = f"Order {status_str.lower()}"
+            # Apply final status updates to the order
+            final_price, is_filled, final_error = self._apply_final_status_to_order(
+                o, final_status_map
+            )
 
             # Create updated order result
             new_o = OrderResult(
@@ -265,12 +256,58 @@ class OrderFinalizer:
             )
             updated_orders.append(new_o)
 
+            # Update statistics for filled orders
             if is_filled:
                 succeeded += 1
-                try:
-                    corresponding_item = items[idx]
-                    trade_value += abs(corresponding_item.trade_amount)
-                except Exception:
-                    trade_value += abs(o.trade_amount)
+                trade_value += self._calculate_order_trade_value(o, items, idx)
 
         return updated_orders, succeeded, trade_value
+
+    def _apply_final_status_to_order(
+        self,
+        order: OrderResult,
+        final_status_map: dict[str, tuple[str, Decimal | None]],
+    ) -> tuple[Decimal | None, bool, str | None]:
+        """Apply final status from broker to order, updating price, filled status, and error.
+
+        Args:
+            order: Original order result
+            final_status_map: Final status for each order
+
+        Returns:
+            Tuple of (final_price, is_filled, final_error)
+
+        """
+        final_price = order.price
+        is_filled = order.success
+        final_error = order.error_message
+
+        if order.order_id and order.order_id in final_status_map:
+            status_str, avg_price = final_status_map[order.order_id]
+            is_filled = status_str.lower() in ["filled", "partially_filled"]
+            if avg_price is not None:
+                final_price = avg_price
+            if not is_filled and status_str.lower() in ["rejected", "canceled"]:
+                final_error = f"Order {status_str.lower()}"
+
+        return final_price, is_filled, final_error
+
+    def _calculate_order_trade_value(
+        self, order: OrderResult, items: list[RebalancePlanItem], idx: int
+    ) -> Decimal:
+        """Calculate trade value for an order from corresponding rebalance plan item.
+
+        Args:
+            order: Order result
+            items: List of rebalance plan items
+            idx: Index of order in the list
+
+        Returns:
+            Trade value as absolute Decimal
+
+        """
+        try:
+            corresponding_item = items[idx]
+            return abs(corresponding_item.trade_amount)
+        except Exception:
+            return abs(order.trade_amount)
