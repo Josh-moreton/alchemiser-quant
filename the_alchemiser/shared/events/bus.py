@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any, Protocol
 
-from ..logging.logging_utils import get_logger
+from ..logging import get_logger
 from .base import BaseEvent
 from .handlers import EventHandler
 
