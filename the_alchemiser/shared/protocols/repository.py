@@ -94,7 +94,9 @@ class TradingRepository(Protocol):
         """
         ...
 
-    def place_order(self, order_request: LimitOrderRequest | MarketOrderRequest) -> ExecutedOrder:
+    def place_order(
+        self, order_request: LimitOrderRequest | MarketOrderRequest
+    ) -> ExecutedOrder:
         """Place an order.
 
         Args:
@@ -181,7 +183,9 @@ class TradingRepository(Protocol):
         """
         ...
 
-    def close_all_positions(self, cancel_orders: bool = True) -> list[dict[str, Any]]:
+    def close_all_positions(
+        self, *, cancel_orders: bool = True
+    ) -> list[dict[str, Any]]:
         """Liquidate all positions for an account.
 
         Places an order for each open position to liquidate.

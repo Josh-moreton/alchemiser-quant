@@ -7,11 +7,10 @@ Portfolio state reader for building immutable snapshots from live data.
 
 from __future__ import annotations
 
-import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.logging import get_logger, log_with_context
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.exceptions import NegativeCashBalanceError
 
 if TYPE_CHECKING:
@@ -50,9 +49,7 @@ class PortfolioStateReader:
             Tuple of (updated_cash, updated_positions) after liquidation
 
         """
-        log_with_context(
-            logger,
-            logging.INFO,
+        logger.info(
             "Liquidation completed. Re-checking cash balance and positions...",
             module=MODULE_NAME,
             action="build_snapshot",
@@ -103,10 +100,8 @@ class PortfolioStateReader:
         cash, positions = self._liquidate_and_recheck()
 
         if cash > Decimal("0"):
-            log_with_context(
-                logger,
-                logging.INFO,
-                f"Cash balance recovered after liquidation: ${cash}. Continuing with trading.",
+            logger.info(
+                "Cash balance recovered after liquidation. Continuing with trading.",
                 module=MODULE_NAME,
                 action="build_snapshot",
                 cash_balance=str(cash),
@@ -114,10 +109,8 @@ class PortfolioStateReader:
             return cash, positions
 
         # Cash still negative after liquidation
-        log_with_context(
-            logger,
-            logging.ERROR,
-            f"Cash balance still non-positive after liquidation: ${cash}",
+        logger.error(
+            "Cash balance still non-positive after liquidation",
             module=MODULE_NAME,
             action="build_snapshot",
             cash_balance=str(cash),
@@ -183,7 +176,9 @@ class PortfolioStateReader:
                 "Snapshot total value validation failed - continuing anyway",
                 module=MODULE_NAME,
                 action="build_snapshot",
-                calculated_total=str(snapshot.get_total_position_value() + snapshot.cash),
+                calculated_total=str(
+                    snapshot.get_total_position_value() + snapshot.cash
+                ),
                 snapshot_total=str(snapshot.total_value),
             )
 
@@ -249,11 +244,9 @@ class PortfolioStateReader:
             total_value = self._calculate_portfolio_value(positions, prices, cash)
 
             # Step 6: Create and validate snapshot
-            snapshot = self._create_and_validate_snapshot(
+            return self._create_and_validate_snapshot(
                 positions, prices, cash, total_value
             )
-
-            return snapshot
 
         except Exception as e:
             logger.error(

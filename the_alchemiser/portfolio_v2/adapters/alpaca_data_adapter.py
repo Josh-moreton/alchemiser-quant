@@ -198,9 +198,7 @@ class AlpacaDataAdapter:
             True if liquidation was successful, False otherwise
 
         """
-        log_with_context(
-            logger,
-            logging.WARNING,
+        logger.warning(
             "Attempting to liquidate all positions due to negative cash balance",
             module=MODULE_NAME,
             action="liquidate_all_positions",
@@ -208,32 +206,26 @@ class AlpacaDataAdapter:
 
         try:
             result = self._alpaca_manager.close_all_positions(cancel_orders=True)
-            
+
             if result:
-                log_with_context(
-                    logger,
-                    logging.INFO,
-                    f"Successfully liquidated {len(result)} positions",
+                logger.info(
+                    "Successfully liquidated positions",
                     module=MODULE_NAME,
                     action="liquidate_all_positions",
                     positions_closed=len(result),
                 )
                 return True
-            else:
-                log_with_context(
-                    logger,
-                    logging.WARNING,
-                    "No positions were liquidated (account may already be empty)",
-                    module=MODULE_NAME,
-                    action="liquidate_all_positions",
-                )
-                return False
+
+            logger.warning(
+                "No positions were liquidated (account may already be empty)",
+                module=MODULE_NAME,
+                action="liquidate_all_positions",
+            )
+            return False
 
         except Exception as e:
-            log_with_context(
-                logger,
-                logging.ERROR,
-                f"Failed to liquidate all positions: {e}",
+            logger.error(
+                "Failed to liquidate all positions",
                 module=MODULE_NAME,
                 action="liquidate_all_positions",
                 error=str(e),
