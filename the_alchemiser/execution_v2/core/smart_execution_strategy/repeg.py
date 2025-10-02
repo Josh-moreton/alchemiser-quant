@@ -15,6 +15,7 @@ from decimal import Decimal
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.logging import get_logger, log_repeg_operation
 from the_alchemiser.shared.schemas.broker import OrderExecutionResult
+from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
 from the_alchemiser.shared.schemas.operations import (
     OrderCancellationResult,
     TerminalOrderError,
@@ -153,7 +154,9 @@ class RepegManager:
             # Therefore, when the NEXT re-peg would meet or exceed the configured max, escalate now.
             # Example: max=2 -> allow at most 1 re-peg; on the second consideration, escalate to market.
             try:
-                max_repegs_allowed = int(getattr(self.config, "max_repegs_per_order", 0))
+                max_repegs_allowed = int(
+                    getattr(self.config, "max_repegs_per_order", 0)
+                )
             except Exception:
                 max_repegs_allowed = 0
 
@@ -215,7 +218,9 @@ class RepegManager:
         if not placement_time:
             return False
 
-        if should_consider_repeg(placement_time, current_time, self.config.fill_wait_seconds):
+        if should_consider_repeg(
+            placement_time, current_time, self.config.fill_wait_seconds
+        ):
             return True
 
         # Log debug info for orders still waiting
@@ -239,11 +244,143 @@ class RepegManager:
         """
         from .utils import should_escalate_order
 
-        return should_escalate_order(current_repeg_count, self.config.max_repegs_per_order)
+        return should_escalate_order(
+            current_repeg_count, self.config.max_repegs_per_order
+        )
+
+    def _handle_terminal_state_order(
+        self, order_id: str, terminal_error: TerminalOrderError
+    ) -> SmartOrderResult:
+        """Handle order already in terminal state during escalation.
+
+        Args:
+            order_id: Order ID
+            terminal_error: Terminal error type
+
+        Returns:
+            SmartOrderResult indicating order is complete
+
+        """
+        terminal_state = terminal_error.value.replace("already_", "")
+        logger.info(
+            f"✅ Order {order_id} already in terminal state '{terminal_state}' - "
+            f"no market escalation needed"
+        )
+
+        # Clean up tracking
+        original_anchor = self.order_tracker.get_anchor_price(order_id)
+        self.order_tracker.remove_order(order_id)
+
+        return SmartOrderResult(
+            success=True,
+            order_id=order_id,
+            final_price=original_anchor,
+            anchor_price=original_anchor,
+            repegs_used=self.config.max_repegs_per_order,
+            execution_strategy=terminal_error.value,
+            placement_timestamp=datetime.now(UTC),
+            error_message=f"Order already in terminal state: {terminal_state} (escalation prevented)",
+        )
+
+    async def _handle_cancellation_wait(
+        self, order_id: str, cancel_result: OrderCancellationResult
+    ) -> None:
+        """Handle waiting for order cancellation confirmation.
+
+        Args:
+            order_id: Order ID to wait for cancellation
+            cancel_result: Result of cancellation request
+
+        """
+        if not cancel_result.success:
+            logger.warning(
+                f"⚠️ Failed to cancel order {order_id}; attempting market order anyway"
+            )
+            return
+
+        logger.debug(
+            f"⏳ Waiting for order {order_id} cancellation to complete before market escalation..."
+        )
+        cancellation_confirmed = await asyncio.to_thread(
+            self._wait_for_order_cancellation, order_id, timeout_seconds=10.0
+        )
+
+        if not cancellation_confirmed:
+            logger.warning(
+                f"⚠️ Order {order_id} cancellation did not complete within timeout, proceeding with market order anyway"
+            )
+        else:
+            logger.debug(
+                f"✅ Order {order_id} cancellation confirmed, proceeding with market escalation"
+            )
+
+    def _build_market_escalation_result(
+        self,
+        order_id: str,
+        executed_order: ExecutedOrder,
+        original_anchor: Decimal | None,
+        request: SmartOrderRequest,
+    ) -> SmartOrderResult:
+        """Build result for market order escalation based on execution outcome.
+
+        Args:
+            order_id: Original order ID
+            executed_order: Market order execution result
+            original_anchor: Original anchor price
+            request: Original order request
+
+        Returns:
+            SmartOrderResult with success or failure status
+
+        """
+        if executed_order.order_id and executed_order.status not in [
+            "REJECTED",
+            "CANCELED",
+        ]:
+            metadata: LiquidityMetadata = {
+                "original_order_id": order_id,
+                "original_price": (
+                    float(original_anchor) if original_anchor is not None else None
+                ),
+                "new_price": (
+                    float(executed_order.price)
+                    if executed_order.price is not None
+                    else 0.0
+                ),
+            }
+            logger.info(
+                f"✅ Market escalation successful: new order {executed_order.order_id} "
+                f"(escalated from {order_id} after {self.config.max_repegs_per_order} re-pegs)"
+            )
+            return SmartOrderResult(
+                success=True,
+                order_id=executed_order.order_id,
+                final_price=(
+                    executed_order.price if executed_order.price is not None else None
+                ),
+                anchor_price=original_anchor,
+                repegs_used=self.config.max_repegs_per_order,
+                execution_strategy="market_escalation",
+                placement_timestamp=executed_order.execution_timestamp,
+                metadata=metadata,
+            )
+
+        # Placement failed
+        logger.error(
+            f"❌ Market escalation failed for {request.symbol}: status={executed_order.status}"
+        )
+        return SmartOrderResult(
+            success=False,
+            order_id=executed_order.order_id,
+            error_message=getattr(executed_order, "error_message", None)
+            or "Market escalation placement failed",
+            execution_strategy="market_escalation_failed",
+            placement_timestamp=executed_order.execution_timestamp,
+        )
 
     async def _escalate_to_market(
         self, order_id: str, request: SmartOrderRequest
-    ) -> SmartOrderResult | None:
+    ) -> SmartOrderResult:
         """Cancel current limit order and place a market order (final escalation).
 
         Args:
@@ -251,7 +388,7 @@ class RepegManager:
             request: Original smart order request details
 
         Returns:
-            SmartOrderResult describing the escalation outcome, or None if cancel failed
+            SmartOrderResult describing the escalation outcome
 
         """
         try:
@@ -260,56 +397,19 @@ class RepegManager:
                 f"(after {self.order_tracker.get_repeg_count(order_id)} re-pegs)"
             )
             # Use asyncio.to_thread to make blocking I/O async
-            cancel_result = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
+            cancel_result = await asyncio.to_thread(
+                self.alpaca_manager.cancel_order, order_id
+            )
 
             # Check if order was already in a terminal state (e.g., filled, cancelled)
-            is_terminal, terminal_error = self._is_order_in_terminal_state(cancel_result)
+            is_terminal, terminal_error = self._is_order_in_terminal_state(
+                cancel_result
+            )
             if is_terminal and terminal_error:
-                # Extract just the state name (e.g., "filled" from "already_filled")
-                terminal_state = terminal_error.value.replace("already_", "")
-                logger.info(
-                    f"✅ Order {order_id} already in terminal state '{terminal_state}' - "
-                    f"no market escalation needed"
-                )
+                return self._handle_terminal_state_order(order_id, terminal_error)
 
-                # Clean up tracking
-                original_anchor = self.order_tracker.get_anchor_price(order_id)
-                self.order_tracker.remove_order(order_id)
-
-                # Return success result indicating order is complete
-                return SmartOrderResult(
-                    success=True,
-                    order_id=order_id,
-                    final_price=original_anchor,
-                    anchor_price=original_anchor,
-                    repegs_used=self.config.max_repegs_per_order,
-                    execution_strategy=terminal_error.value,
-                    placement_timestamp=datetime.now(UTC),
-                    error_message=f"Order already in terminal state: {terminal_state} (escalation prevented)",
-                )
-
-            if not cancel_result.success:
-                logger.warning(
-                    f"⚠️ Failed to cancel order {order_id}; attempting market order anyway"
-                )
-                # Don't return None - still try market order as the limit order might fill/cancel
-            else:
-                # Wait for actual cancellation to complete and buying power to be released
-                logger.debug(
-                    f"⏳ Waiting for order {order_id} cancellation to complete before market escalation..."
-                )
-                cancellation_confirmed = await asyncio.to_thread(
-                    self._wait_for_order_cancellation, order_id, timeout_seconds=10.0
-                )
-
-                if not cancellation_confirmed:
-                    logger.warning(
-                        f"⚠️ Order {order_id} cancellation did not complete within timeout, proceeding with market order anyway"
-                    )
-                else:
-                    logger.debug(
-                        f"✅ Order {order_id} cancellation confirmed, proceeding with market escalation"
-                    )
+            # Wait for cancellation to complete
+            await self._handle_cancellation_wait(order_id, cancel_result)
 
             # Place market order
             logger.info(f"📈 Placing market order for {request.symbol} {request.side}")
@@ -325,49 +425,10 @@ class RepegManager:
             original_anchor = self.order_tracker.get_anchor_price(order_id)
             self.order_tracker.remove_order(order_id)
 
-            # Successful placement if not rejected/canceled
-            if executed_order.order_id and executed_order.status not in [
-                "REJECTED",
-                "CANCELED",
-            ]:
-                metadata: LiquidityMetadata = {
-                    "original_order_id": order_id,
-                    "original_price": (
-                        float(original_anchor) if original_anchor is not None else None
-                    ),
-                    "new_price": (
-                        float(executed_order.price) if executed_order.price is not None else 0.0
-                    ),
-                }
-                logger.info(
-                    f"✅ Market escalation successful: new order {executed_order.order_id} "
-                    f"(escalated from {order_id} after {self.config.max_repegs_per_order} re-pegs)"
-                )
-                return SmartOrderResult(
-                    success=True,
-                    order_id=executed_order.order_id,
-                    final_price=(
-                        executed_order.price if executed_order.price is not None else None
-                    ),
-                    anchor_price=original_anchor,
-                    repegs_used=self.config.max_repegs_per_order,
-                    execution_strategy="market_escalation",
-                    placement_timestamp=executed_order.execution_timestamp,
-                    metadata=metadata,
-                )
+            return self._build_market_escalation_result(
+                order_id, executed_order, original_anchor, request
+            )
 
-            # Placement failed
-            logger.error(
-                f"❌ Market escalation failed for {request.symbol}: status={executed_order.status}"
-            )
-            return SmartOrderResult(
-                success=False,
-                order_id=executed_order.order_id,
-                error_message=getattr(executed_order, "error_message", None)
-                or "Market escalation placement failed",
-                execution_strategy="market_escalation_failed",
-                placement_timestamp=executed_order.execution_timestamp,
-            )
         except Exception as exc:
             logger.error(f"❌ Error during market escalation for {order_id}: {exc}")
             return SmartOrderResult(
@@ -476,9 +537,12 @@ class RepegManager:
         """
         # Check if placement succeeded and order_id looks valid (UUID)
         if not (
-            getattr(executed_order, "success", False) and getattr(executed_order, "order_id", None)
+            getattr(executed_order, "success", False)
+            and getattr(executed_order, "order_id", None)
         ):
-            logger.error(f"❌ Re-peg failed for {request.symbol}: no valid order ID returned")
+            logger.error(
+                f"❌ Re-peg failed for {request.symbol}: no valid order ID returned"
+            )
             return SmartOrderResult(
                 success=False,
                 error_message="Re-peg order placement failed",
@@ -524,7 +588,9 @@ class RepegManager:
 
         """
         try:
-            remaining_qty = await self._get_remaining_after_status_update(order_id, request)
+            remaining_qty = await self._get_remaining_after_status_update(
+                order_id, request
+            )
 
             if remaining_qty is None:
                 return None
@@ -535,7 +601,9 @@ class RepegManager:
 
             # Determine valid re-peg price and required context
             try:
-                new_price, original_anchor, quote = self._calculate_repeg_price(order_id, request)
+                new_price, original_anchor, quote = self._calculate_repeg_price(
+                    order_id, request
+                )
             except _RemoveFromTracking:
                 return None
 
@@ -603,7 +671,9 @@ class RepegManager:
         )
 
         filled_qty = (
-            order_result.filled_qty if hasattr(order_result, "filled_qty") else Decimal("0")
+            order_result.filled_qty
+            if hasattr(order_result, "filled_qty")
+            else Decimal("0")
         )
         self.order_tracker.update_filled_quantity(order_id, filled_qty)
 
@@ -639,15 +709,21 @@ class RepegManager:
             price = fetch_price_for_notional_check(
                 request.symbol, request.side, self.quote_provider, self.alpaca_manager
             )
-            min_notional = getattr(self.config, "min_fractional_notional_usd", Decimal("1.00"))
+            min_notional = getattr(
+                self.config, "min_fractional_notional_usd", Decimal("1.00")
+            )
 
-            if is_remaining_quantity_too_small(remaining_qty, asset_info, price, min_notional):
+            if is_remaining_quantity_too_small(
+                remaining_qty, asset_info, price, min_notional
+            ):
                 self._log_small_remaining_removal(
                     order_id, request, remaining_qty, asset_info, price, min_notional
                 )
                 return True
         except Exception as _small_e:
-            logger.debug(f"Minimal-remaining evaluation fallback due to error: {_small_e}")
+            logger.debug(
+                f"Minimal-remaining evaluation fallback due to error: {_small_e}"
+            )
 
         return False
 
@@ -693,7 +769,9 @@ class RepegManager:
         Returns True only when cancellation completes; otherwise False.
         """
         logger.info(f"❌ Canceling order {order_id} for re-pegging")
-        cancel_result = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
+        cancel_result = await asyncio.to_thread(
+            self.alpaca_manager.cancel_order, order_id
+        )
 
         # Check if order was already in a terminal state (e.g., filled, cancelled)
         is_terminal, terminal_error = self._is_order_in_terminal_state(cancel_result)
@@ -721,7 +799,9 @@ class RepegManager:
             )
             return False
 
-        logger.debug(f"✅ Order {order_id} cancellation confirmed, buying power released")
+        logger.debug(
+            f"✅ Order {order_id} cancellation confirmed, buying power released"
+        )
         return True
 
     def _calculate_repeg_price(
@@ -869,7 +949,9 @@ class RepegManager:
         except Exception:
             return False
 
-    def _wait_for_order_cancellation(self, order_id: str, timeout_seconds: float = 10.0) -> bool:
+    def _wait_for_order_cancellation(
+        self, order_id: str, timeout_seconds: float = 10.0
+    ) -> bool:
         """Wait for an order to be actually cancelled and buying power released.
 
         This prevents the race condition where we try to place a replacement order
@@ -890,7 +972,9 @@ class RepegManager:
 
         while time.time() - start_time < timeout_seconds:
             try:
-                order_status = self.alpaca_manager._check_order_completion_status(order_id)
+                order_status = self.alpaca_manager._check_order_completion_status(
+                    order_id
+                )
 
                 if order_status and order_status.upper() in [
                     "CANCELED",
@@ -907,7 +991,9 @@ class RepegManager:
                 time.sleep(check_interval)
 
             except Exception as e:
-                logger.warning(f"Error checking cancellation status for {order_id}: {e}")
+                logger.warning(
+                    f"Error checking cancellation status for {order_id}: {e}"
+                )
                 # Continue trying until timeout
                 time.sleep(check_interval)
 
