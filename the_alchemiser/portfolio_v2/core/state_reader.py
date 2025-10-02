@@ -132,13 +132,12 @@ class PortfolioStateReader:
         return cash, positions
 
     def _handle_negative_cash_balance(
-        self, cash: Decimal, positions: dict[str, Decimal]
+        self, cash: Decimal
     ) -> tuple[Decimal, dict[str, Decimal]]:
         """Handle negative cash balance through liquidation.
 
         Args:
             cash: Current cash balance
-            positions: Current positions
 
         Returns:
             Tuple of (updated_cash, updated_positions) after liquidation attempt
@@ -300,7 +299,7 @@ class PortfolioStateReader:
 
             # Check for negative or zero cash balance - liquidate and retry
             if cash <= Decimal("0"):
-                cash, positions = self._handle_negative_cash_balance(cash, positions)
+                cash, positions = self._handle_negative_cash_balance(cash)
 
             # Step 5: Calculate total portfolio value
             total_value = self._calculate_portfolio_value(positions, prices, cash)
