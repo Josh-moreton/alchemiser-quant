@@ -10,8 +10,7 @@ This package provides structlog-based structured logging infrastructure with:
 - Decimal serialization for precise financial data
 """
 
-# Structlog configuration - now the primary logging system
-# Legacy configuration functions (kept for compatibility with existing config)
+# Structlog configuration functions
 from .config import (
     configure_application_logging,
     configure_production_logging,
@@ -40,7 +39,7 @@ from .structlog_trading import (
 __all__ = [
     # Trading-specific helpers
     "bind_trading_context",
-    # Legacy configuration (transitional)
+    # Configuration functions
     "configure_application_logging",
     "configure_production_logging",
     # Structlog primary functions
@@ -59,5 +58,5 @@ __all__ = [
     "set_request_id",
 ]
 
-# Backward compatibility alias - get_logger now returns structlog logger
+# Alias for convenience - get_logger returns structlog logger
 get_logger = get_structlog_logger
