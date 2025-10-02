@@ -44,25 +44,33 @@ class OrderMonitor:
         self,
         phase_type: str,
         orders: list[OrderResult],
+        correlation_id: str | None = None,
     ) -> list[OrderResult]:
         """Monitor and re-peg orders from a specific execution phase.
 
         Args:
             phase_type: Type of phase ("SELL" or "BUY")
             orders: List of orders from this phase to monitor
+            correlation_id: Optional correlation ID for tracking
 
         Returns:
             Updated list of orders with any re-pegged order IDs swapped in.
 
         """
+        log_prefix = f"[{correlation_id}]" if correlation_id else ""
+
         if not self.smart_strategy:
-            logger.info(f"📊 {phase_type} phase: Smart strategy disabled; skipping re-peg loop")
+            logger.info(
+                f"{log_prefix} 📊 {phase_type} phase: Smart strategy disabled; skipping re-peg loop"
+            )
             return orders
 
         config = self._get_repeg_monitoring_config()
-        self._log_monitoring_config(phase_type, config)
+        self._log_monitoring_config(phase_type, config, correlation_id)
 
-        return await self._execute_repeg_monitoring_loop(phase_type, orders, config, time.time())
+        return await self._execute_repeg_monitoring_loop(
+            phase_type, orders, config, time.time(), correlation_id
+        )
 
     def _get_repeg_monitoring_config(self) -> dict[str, int]:
         """Get configuration parameters for repeg monitoring.
@@ -104,10 +112,13 @@ class OrderMonitor:
 
         return config
 
-    def _log_monitoring_config(self, phase_type: str, config: dict[str, int]) -> None:
+    def _log_monitoring_config(
+        self, phase_type: str, config: dict[str, int], correlation_id: str | None = None
+    ) -> None:
         """Log the monitoring configuration parameters."""
+        log_prefix = f"[{correlation_id}]" if correlation_id else ""
         logger.debug(
-            f"{phase_type} re-peg monitoring: max_repegs={config['max_repegs']}, "
+            f"{log_prefix} {phase_type} re-peg monitoring: max_repegs={config['max_repegs']}, "
             f"fill_wait_seconds={config['fill_wait_seconds']}, max_total_wait={config['max_total_wait']}s"
         )
 
@@ -117,6 +128,7 @@ class OrderMonitor:
         orders: list[OrderResult],
         config: dict[str, int],
         start_time: float,
+        correlation_id: str | None = None,
     ) -> list[OrderResult]:
         """Execute the re-pegging monitoring loop.
 
@@ -125,12 +137,13 @@ class OrderMonitor:
             orders: List of orders to monitor
             config: Monitoring configuration
             start_time: Start time of monitoring
-            correlation_id: Optional correlation ID
+            correlation_id: Optional correlation ID for tracking
 
         Returns:
             Updated list of orders
 
         """
+        log_prefix = f"[{correlation_id}]" if correlation_id else ""
         attempts = 0
         replacement_map: dict[str, str] = {}
 
@@ -140,7 +153,9 @@ class OrderMonitor:
             elapsed_total = time.time() - start_time
 
             # Early termination check
-            if self._should_terminate_early(elapsed_total, config["max_total_wait"], phase_type):
+            if self._should_terminate_early(
+                elapsed_total, config["max_total_wait"], phase_type, correlation_id
+            ):
                 break
 
             try:
@@ -150,37 +165,53 @@ class OrderMonitor:
                 repeg_results = await self.smart_strategy.check_and_repeg_orders()
 
                 replacement_map.update(
-                    self._process_repeg_results(phase_type, repeg_results, attempts, elapsed_total)
+                    self._process_repeg_results(
+                        phase_type, repeg_results, attempts, elapsed_total, correlation_id
+                    )
                 )
 
                 # Wait for fills after re-pegging
                 await asyncio.sleep(config["fill_wait_seconds"])
 
             except Exception as exc:
-                logger.warning(f"⚠️ {phase_type} phase re-peg attempt {attempts} failed: {exc}")
+                logger.warning(
+                    f"{log_prefix} ⚠️ {phase_type} phase re-peg attempt {attempts} failed: {exc}"
+                )
 
-        self._log_monitoring_completion(phase_type, attempts, time.time() - start_time)
+        self._log_monitoring_completion(
+            phase_type, attempts, time.time() - start_time, correlation_id
+        )
 
         # Apply replacements to orders
         updated_orders = self._replace_order_ids(orders, replacement_map)
 
         # Final safeguard: escalate any remaining active orders to market
-        replacement_after_escalation = await self._final_escalation_if_active_orders(phase_type)
+        replacement_after_escalation = await self._final_escalation_if_active_orders(
+            phase_type, correlation_id
+        )
         if replacement_after_escalation:
             updated_orders = self._replace_order_ids(updated_orders, replacement_after_escalation)
 
         return updated_orders
 
-    async def _final_escalation_if_active_orders(self, phase_type: str) -> dict[str, str]:
+    async def _final_escalation_if_active_orders(
+        self, phase_type: str, correlation_id: str | None = None
+    ) -> dict[str, str]:
         """Escalate any remaining active orders to market and return replacement map.
 
         This prevents scenarios where the final order stays as a limit order
         after monitoring attempts are exhausted.
 
+        Args:
+            phase_type: Type of phase being monitored
+            correlation_id: Optional correlation ID for tracking
+
         Returns:
             Mapping from original order IDs to new market order IDs.
 
         """
+        log_prefix = f"[{correlation_id}]" if correlation_id else ""
+
         try:
             if not self.smart_strategy:
                 return {}
@@ -189,7 +220,8 @@ class OrderMonitor:
                 return {}
 
             logger.warning(
-                f"🚨 {phase_type} phase: Monitoring ended with active orders; escalating remaining to market"
+                f"{log_prefix} 🚨 {phase_type} phase: Monitoring ended with active orders; "
+                "escalating remaining to market"
             )
 
             active = self.smart_strategy.order_tracker.get_active_orders()
@@ -213,7 +245,7 @@ class OrderMonitor:
             return replacement_map
         except Exception as exc:
             logger.exception(
-                f"Error during final escalation to market in {phase_type} repeg monitoring: {exc}"
+                f"{log_prefix} Error during final escalation to market in {phase_type} repeg monitoring: {exc}"
             )
             return {}
 
@@ -223,6 +255,7 @@ class OrderMonitor:
         repeg_results: list[SmartOrderResult],
         attempts: int,
         elapsed_total: float,
+        correlation_id: str | None = None,
     ) -> dict[str, str]:
         """Process re-pegging results and extract order ID replacements.
 
@@ -231,6 +264,7 @@ class OrderMonitor:
             repeg_results: List of results from re-pegging operation
             attempts: Current attempt number
             elapsed_total: Total elapsed time
+            correlation_id: Optional correlation ID for tracking
 
         Returns:
             Dictionary mapping old order IDs to new order IDs
@@ -241,26 +275,37 @@ class OrderMonitor:
         if repeg_results:
             for repeg_result in repeg_results:
                 if repeg_result.success:
-                    self._log_repeg_status(phase_type, repeg_result)
+                    self._log_repeg_status(phase_type, repeg_result, correlation_id)
                     replacement_map.update(
                         self._build_replacement_map_from_repeg_result(repeg_result)
                     )
                 else:
-                    self._handle_failed_repeg(phase_type, repeg_result)
+                    self._handle_failed_repeg(phase_type, repeg_result, correlation_id)
         else:
-            self._log_no_repeg_activity(phase_type, attempts, elapsed_total)
+            self._log_no_repeg_activity(phase_type, attempts, elapsed_total, correlation_id)
 
         return replacement_map
 
-    def _log_no_repeg_activity(self, phase_type: str, attempts: int, elapsed_total: float) -> None:
+    def _log_no_repeg_activity(
+        self,
+        phase_type: str,
+        attempts: int,
+        elapsed_total: float,
+        correlation_id: str | None = None,
+    ) -> None:
         """Log when no re-pegging activity occurred."""
+        log_prefix = f"[{correlation_id}]" if correlation_id else ""
         logger.debug(
-            f"🔄 {phase_type} phase re-peg check #{attempts}: no unfilled orders "
+            f"{log_prefix} 🔄 {phase_type} phase re-peg check #{attempts}: no unfilled orders "
             f"(elapsed: {elapsed_total:.1f}s)"
         )
 
     def _should_terminate_early(
-        self, elapsed_total: float, max_total_wait: int, phase_type: str
+        self,
+        elapsed_total: float,
+        max_total_wait: int,
+        phase_type: str,
+        correlation_id: str | None = None,
     ) -> bool:
         """Check if monitoring should terminate early.
 
@@ -268,21 +313,27 @@ class OrderMonitor:
             elapsed_total: Total elapsed time
             max_total_wait: Maximum wait time
             phase_type: Type of phase
+            correlation_id: Optional correlation ID for tracking
 
         Returns:
             True if should terminate early
 
         """
+        log_prefix = f"[{correlation_id}]" if correlation_id else ""
         if elapsed_total > max_total_wait:
             logger.info(
-                f"⏰ {phase_type} phase: Terminating re-peg loop after {elapsed_total:.1f}s "
+                f"{log_prefix} ⏰ {phase_type} phase: Terminating re-peg loop after {elapsed_total:.1f}s "
                 f"(max: {max_total_wait}s)"
             )
             return True
         return False
 
     def _log_monitoring_completion(
-        self, phase_type: str, attempts: int, total_elapsed: float
+        self,
+        phase_type: str,
+        attempts: int,
+        total_elapsed: float,
+        correlation_id: str | None = None,
     ) -> None:
         """Log completion of monitoring phase.
 
@@ -290,22 +341,27 @@ class OrderMonitor:
             phase_type: Type of phase
             attempts: Number of attempts made
             total_elapsed: Total elapsed time
+            correlation_id: Optional correlation ID for tracking
 
         """
+        log_prefix = f"[{correlation_id}]" if correlation_id else ""
         logger.info(
-            f"✅ {phase_type} phase re-peg monitoring complete: "
+            f"{log_prefix} ✅ {phase_type} phase re-peg monitoring complete: "
             f"{attempts} attempts in {total_elapsed:.1f}s"
         )
 
-    def _log_repeg_status(self, phase_type: str, repeg_result: SmartOrderResult) -> None:
+    def _log_repeg_status(
+        self, phase_type: str, repeg_result: SmartOrderResult, correlation_id: str | None = None
+    ) -> None:
         """Log the status of a re-pegging operation."""
+        log_prefix = f"[{correlation_id}]" if correlation_id else ""
         strategy = getattr(repeg_result, "execution_strategy", "")
         order_id = getattr(repeg_result, "order_id", "")
         repegs_used = getattr(repeg_result, "repegs_used", 0)
 
         if "escalation" in strategy:
             logger.warning(
-                f"🚨 {phase_type} ESCALATED_TO_MARKET: {order_id} (after {repegs_used} re-pegs)"
+                f"{log_prefix} 🚨 {phase_type} ESCALATED_TO_MARKET: {order_id} (after {repegs_used} re-pegs)"
             )
         else:
             max_repegs = (
@@ -313,7 +369,9 @@ class OrderMonitor:
                 if self.execution_config
                 else 3
             )
-            logger.debug(f"✅ {phase_type} REPEG {repegs_used}/{max_repegs}: {order_id}")
+            logger.debug(
+                f"{log_prefix} ✅ {phase_type} REPEG {repegs_used}/{max_repegs}: {order_id}"
+            )
 
     def _extract_order_ids(self, repeg_result: SmartOrderResult) -> tuple[str, str]:
         """Extract old and new order IDs from repeg result for logging."""
@@ -322,9 +380,14 @@ class OrderMonitor:
         new_id = getattr(repeg_result, "order_id", None) or ""
         return original_id, new_id
 
-    def _handle_failed_repeg(self, phase_type: str, repeg_result: SmartOrderResult) -> None:
+    def _handle_failed_repeg(
+        self, phase_type: str, repeg_result: SmartOrderResult, correlation_id: str | None = None
+    ) -> None:
         """Handle failed re-pegging attempts."""
-        logger.warning(f"⚠️ {phase_type} phase re-peg failed: {repeg_result.error_message}")
+        log_prefix = f"[{correlation_id}]" if correlation_id else ""
+        logger.warning(
+            f"{log_prefix} ⚠️ {phase_type} phase re-peg failed: {repeg_result.error_message}"
+        )
 
     def _build_replacement_map_from_repeg_result(
         self, repeg_result: SmartOrderResult
