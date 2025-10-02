@@ -222,6 +222,29 @@ class StrategySettings(BaseModel):
 
         return v
 
+    @staticmethod
+    def _get_stage_profile() -> tuple[list[str], dict[str, float]]:
+        """Get DSL files and allocations for the current stage.
+
+        Returns:
+            Tuple of (dsl_files, dsl_allocations) for the environment stage
+
+        """
+        stage = (os.getenv("APP__STAGE") or os.getenv("STAGE") or "").lower()
+        if stage == "prod":
+            return list(PROD_DSL_FILES), dict(PROD_DSL_ALLOCATIONS)
+        return list(DEV_DSL_FILES), dict(DEV_DSL_ALLOCATIONS)
+
+    def _derive_files_from_allocations(self) -> None:
+        """Derive dsl_files from dsl_allocations keys."""
+        self.dsl_files = list(self.dsl_allocations.keys())
+
+    def _derive_allocations_from_files(self) -> None:
+        """Create equal-weight allocations from dsl_files."""
+        n = len(self.dsl_files) or 1
+        w = 1.0 / n
+        self.dsl_allocations = dict.fromkeys(self.dsl_files, w)
+
     @model_validator(mode="after")
     def _apply_env_profile(self) -> StrategySettings:
         """Backfill DSL defaults based on stage iff fields are empty.
@@ -232,21 +255,11 @@ class StrategySettings(BaseModel):
         - Fallbacks: derive from the other field or equal weights
         """
         if not self.dsl_files and not self.dsl_allocations:
-            stage = (os.getenv("APP__STAGE") or os.getenv("STAGE") or "").lower()
-            if stage == "prod":
-                self.dsl_files = list(PROD_DSL_FILES)
-                self.dsl_allocations = dict(PROD_DSL_ALLOCATIONS)
-            else:
-                self.dsl_files = list(DEV_DSL_FILES)
-                self.dsl_allocations = dict(DEV_DSL_ALLOCATIONS)
+            self.dsl_files, self.dsl_allocations = self._get_stage_profile()
         elif not self.dsl_files and self.dsl_allocations:
-            # Use allocation keys order
-            self.dsl_files = list(self.dsl_allocations.keys())
+            self._derive_files_from_allocations()
         elif self.dsl_files and not self.dsl_allocations:
-            # Equal-weight files
-            n = len(self.dsl_files) or 1
-            w = 1.0 / n
-            self.dsl_allocations = dict.fromkeys(self.dsl_files, w)
+            self._derive_allocations_from_files()
         return self
 
 
