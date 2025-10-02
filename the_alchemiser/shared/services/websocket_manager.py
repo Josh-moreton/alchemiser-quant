@@ -107,7 +107,9 @@ class WebSocketConnectionManager:
                 logger.info("✅ Shared real-time pricing service started successfully")
 
             self._pricing_ref_count += 1
-            logger.debug(f"📊 Pricing service reference count: {self._pricing_ref_count}")
+            logger.debug(
+                "📊 Pricing service reference count", _pricing_ref_count=self._pricing_ref_count
+            )
             return self._pricing_service
 
     def release_pricing_service(self) -> None:
@@ -117,7 +119,9 @@ class WebSocketConnectionManager:
         """
         with self._service_lock:
             self._pricing_ref_count = max(0, self._pricing_ref_count - 1)
-            logger.debug(f"📊 Pricing service reference count: {self._pricing_ref_count}")
+            logger.debug(
+                "📊 Pricing service reference count", _pricing_ref_count=self._pricing_ref_count
+            )
 
             if self._pricing_ref_count == 0 and self._pricing_service is not None:
                 logger.info("📡 Stopping shared real-time pricing service (no more references)")
@@ -157,7 +161,7 @@ class WebSocketConnectionManager:
                             if ts is not None:
                                 ts.run()
                         except Exception as exc:
-                            logger.error(f"TradingStream terminated: {exc}")
+                            logger.error("TradingStream terminated", error=str(exc))
                         finally:
                             with self._trading_lock:
                                 self._trading_ws_connected = False
@@ -170,12 +174,14 @@ class WebSocketConnectionManager:
                     logger.info("✅ Shared TradingStream started successfully")
 
                 except Exception as exc:
-                    logger.error(f"Failed to start shared TradingStream: {exc}")
+                    logger.error("Failed to start shared TradingStream", error=str(exc))
                     self._trading_ws_connected = False
                     return False
 
             self._trading_ref_count += 1
-            logger.debug(f"📊 Trading service reference count: {self._trading_ref_count}")
+            logger.debug(
+                "📊 Trading service reference count", _trading_ref_count=self._trading_ref_count
+            )
             return self._trading_ws_connected
 
     def release_trading_service(self) -> None:
@@ -185,7 +191,9 @@ class WebSocketConnectionManager:
         """
         with self._trading_lock:
             self._trading_ref_count = max(0, self._trading_ref_count - 1)
-            logger.debug(f"📊 Trading service reference count: {self._trading_ref_count}")
+            logger.debug(
+                "📊 Trading service reference count", _trading_ref_count=self._trading_ref_count
+            )
 
             if self._trading_ref_count == 0 and self._trading_stream is not None:
                 logger.info("📡 Stopping shared TradingStream (no more references)")
@@ -198,7 +206,7 @@ class WebSocketConnectionManager:
                     if stream:
                         stream.stop()
                 except Exception as e:
-                    logger.error(f"Error stopping TradingStream: {e}")
+                    logger.error("Error stopping TradingStream", error=str(e))
                 finally:
                     self._trading_callback = None
 
@@ -287,7 +295,7 @@ class WebSocketConnectionManager:
                             instance._trading_ws_connected = False
 
                     except Exception as e:
-                        logger.error(f"Error cleaning up connection manager: {e}")
+                        logger.error("Error cleaning up connection manager", error=str(e))
 
                 cls._instances.clear()
                 logger.info("📡 All WebSocket connection managers cleaned up")

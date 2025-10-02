@@ -139,7 +139,7 @@ def _execute_pnl_analysis(args: _ArgumentParsing) -> bool:
 
     except Exception as e:
         logger = get_logger(__name__)
-        logger.error(f"P&L analysis failed: {e}")
+        logger.error("P&L analysis failed", error=str(e))
         return False
 
 
@@ -157,7 +157,7 @@ def _send_error_notification() -> None:
         send_error_notification_if_needed(event_bus)
     except Exception as notification_error:  # pragma: no cover (best-effort)
         logger = get_logger(__name__)
-        logger.warning(f"Failed to send error notification: {notification_error}")
+        logger.warning("Failed to send error notification", error=str(notification_error))
 
 
 def _handle_error_with_notification(

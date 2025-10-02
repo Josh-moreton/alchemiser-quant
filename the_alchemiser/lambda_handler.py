@@ -122,7 +122,9 @@ def _handle_error(
             event_bus = container.services.event_bus()
             send_error_notification_if_needed(event_bus)
         except Exception as setup_error:
-            logger.warning(f"Failed to setup event bus for error notification: {setup_error}")
+            logger.warning(
+                "Failed to setup event bus for error notification", error=str(setup_error)
+            )
 
     except NotificationError as notification_error:
         logger.warning("Failed to send error notification: %s", notification_error)
@@ -306,7 +308,8 @@ def lambda_handler(
 
     try:
         # Log the incoming event for debugging
-        logger.info(f"Lambda invoked with event: {json.dumps(event) if event else 'None'}")
+        event_json = json.dumps(event) if event else "None"
+        logger.info("Lambda invoked with event", event_data=event_json)
 
         # Parse event to determine command arguments
         command_args = parse_event_mode(event or {})
@@ -317,7 +320,7 @@ def lambda_handler(
         # Determine trading mode based on endpoint URL
         trading_mode = _determine_trading_mode(mode)
 
-        logger.info(f"Executing command: {' '.join(command_args)}")
+        logger.info("Executing command", command=" ".join(command_args))
 
         _settings = load_settings()
         # main() loads settings internally; do not pass unsupported kwargs
@@ -337,7 +340,7 @@ def lambda_handler(
             "request_id": request_id,
         }
 
-        logger.info(f"Lambda execution completed: {response}")
+        logger.info("Lambda execution completed", response=response)
         return response
 
     except (DataProviderError, StrategyExecutionError, TradingClientError) as e:

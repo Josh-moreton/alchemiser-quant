@@ -53,7 +53,10 @@ class BuyingPowerService:
             Tuple of (is_available, actual_buying_power)
 
         """
-        logger.info(f"💰 Verifying ${expected_amount} buying power availability (with retries)")
+        logger.info(
+            "💰 Verifying $ buying power availability (with retries)",
+            expected_amount=expected_amount,
+        )
 
         for attempt in range(max_retries):
             try:
@@ -64,13 +67,19 @@ class BuyingPowerService:
                 self._wait_before_retry(attempt, max_retries, initial_wait)
 
             except Exception as e:
-                logger.error(f"Error verifying buying power on attempt {attempt + 1}: {e}")
+                logger.error(
+                    "Error verifying buying power on attempt",
+                    attempt_number=attempt + 1,
+                    error=str(e),
+                )
                 self._wait_before_retry(attempt, max_retries, initial_wait)
 
         final_buying_power = self._get_final_buying_power()
         logger.error(
-            f"❌ Buying power verification failed after {max_retries} attempts. "
-            f"Final buying power: ${final_buying_power}, needed: ${expected_amount}"
+            "❌ Buying power verification failed after retries",
+            max_retries=max_retries,
+            final_buying_power=final_buying_power,
+            expected_amount=expected_amount,
         )
         return False, final_buying_power
 
@@ -89,24 +98,32 @@ class BuyingPowerService:
         """
         buying_power = self.broker_manager.get_buying_power()
         if buying_power is None:
-            logger.warning(f"Could not retrieve buying power on attempt {attempt + 1}")
+            logger.warning("Could not retrieve buying power on attempt", attempt_number=attempt + 1)
             return None
 
         actual_buying_power = Decimal(str(buying_power))
         logger.info(
-            f"💰 Attempt {attempt + 1}: Actual buying power ${actual_buying_power}, "
-            f"needed ${expected_amount}"
+            "💰 Buying power check attempt",
+            attempt_number=attempt + 1,
+            actual_buying_power=actual_buying_power,
+            expected_amount=expected_amount,
         )
 
         if actual_buying_power >= expected_amount:
-            logger.info(f"✅ Buying power verified: ${actual_buying_power} >= ${expected_amount}")
+            logger.info(
+                "✅ Buying power verified: $ >= $",
+                actual_buying_power=actual_buying_power,
+                expected_amount=expected_amount,
+            )
             return True, actual_buying_power
 
         # Log the shortfall and continue retrying
         shortfall = expected_amount - actual_buying_power
         logger.warning(
-            f"⚠️ Buying power shortfall: ${shortfall} "
-            f"(have ${actual_buying_power}, need ${expected_amount})"
+            "⚠️ Buying power shortfall detected",
+            shortfall=shortfall,
+            actual_buying_power=actual_buying_power,
+            expected_amount=expected_amount,
         )
         return None
 
@@ -121,7 +138,9 @@ class BuyingPowerService:
         """
         if attempt < max_retries - 1:
             wait_time = initial_wait * (2**attempt)
-            logger.info(f"⏳ Waiting {wait_time:.1f}s for account state to update...")
+            logger.info(
+                "⏳ Waiting for account state to update", wait_time_seconds=f"{wait_time:.1f}"
+            )
             time.sleep(wait_time)
 
     def _get_final_buying_power(self) -> Decimal:
@@ -153,14 +172,15 @@ class BuyingPowerService:
 
             if buying_power is not None and portfolio_value is not None:
                 logger.info(
-                    f"✅ Account refreshed - Buying power: ${buying_power:,.2f}, "
-                    f"Portfolio value: ${portfolio_value:,.2f}"
+                    "✅ Account refreshed",
+                    buying_power=f"${buying_power:,.2f}",
+                    portfolio_value=f"${portfolio_value:,.2f}",
                 )
                 return True
             logger.warning("⚠️ Account refresh returned incomplete data")
             return False
         except Exception as e:
-            logger.error(f"❌ Failed to refresh account state: {e}")
+            logger.error("❌ Failed to refresh account state", error=str(e))
             return False
 
     def estimate_order_cost(
@@ -185,7 +205,7 @@ class BuyingPowerService:
                 return estimated_cost * buffer_multiplier
             return None
         except Exception as e:
-            logger.error(f"Failed to estimate order cost for {symbol}: {e}")
+            logger.error("Failed to estimate order cost for", symbol=symbol, error=str(e))
             return None
 
     def check_sufficient_buying_power(
@@ -213,13 +233,16 @@ class BuyingPowerService:
             is_sufficient = current_bp >= estimated_cost
 
             logger.info(
-                f"💰 Buying power check for {symbol}: "
-                f"estimated cost ${estimated_cost} (with {buffer_pct}% buffer), "
-                f"available ${current_bp}, sufficient: {is_sufficient}"
+                "💰 Buying power check for symbol",
+                symbol=symbol,
+                estimated_cost=estimated_cost,
+                buffer_pct=buffer_pct,
+                available=current_bp,
+                is_sufficient=is_sufficient,
             )
 
             return is_sufficient, current_bp, estimated_cost
 
         except Exception as e:
-            logger.error(f"Error checking buying power for {symbol}: {e}")
+            logger.error("Error checking buying power for", symbol=symbol, error=str(e))
             return False, Decimal("0"), None

@@ -137,13 +137,13 @@ class PnLService:
         try:
             history = self._alpaca_manager.get_portfolio_history(period=period)
             if not history:
-                logger.error(f"Failed to get portfolio history for period {period}")
+                logger.error("Failed to get portfolio history for period", period=period)
                 return PnLData(period=period, start_date="", end_date="")
 
             return self._process_history_data(history, period)
 
         except Exception as e:
-            logger.error(f"Error getting period P&L for {period}: {e}")
+            logger.error("Error getting period P&L for", period=period, error=str(e))
             return PnLData(period=period, start_date="", end_date="")
 
     def _get_period_pnl(self, period: str, start_date: str, end_date: str) -> PnLData:
@@ -164,13 +164,17 @@ class PnLService:
             )
 
             if not history:
-                logger.error(f"Failed to get portfolio history for {start_date} to {end_date}")
+                logger.error(
+                    "Failed to get portfolio history for to",
+                    start_date=start_date,
+                    end_date=end_date,
+                )
                 return PnLData(period=period, start_date=start_date, end_date=end_date)
 
             return self._process_history_data(history, period, start_date, end_date)
 
         except Exception as e:
-            logger.error(f"Error getting P&L for {period}: {e}")
+            logger.error("Error getting P&L for", period=period, error=str(e))
             return PnLData(period=period, start_date=start_date, end_date=end_date)
 
     def _process_history_data(
@@ -199,7 +203,7 @@ class PnLService:
             profit_loss_pct = history.get("profit_loss_pct", [])
 
             if not timestamps or not equity_values:
-                logger.warning(f"No data found for period {period}")
+                logger.warning("No data found for period", period=period)
                 return PnLData(period=period, start_date=start_date, end_date=end_date)
 
             start_value, end_value, total_pnl, total_pnl_pct = self._calculate_totals(equity_values)
@@ -219,7 +223,7 @@ class PnLService:
             )
 
         except Exception as e:
-            logger.error(f"Error processing history data: {e}")
+            logger.error("Error processing history data", error=str(e))
             return PnLData(period=period, start_date=start_date, end_date=end_date)
 
     def _calculate_totals(
