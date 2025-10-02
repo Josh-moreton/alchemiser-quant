@@ -71,7 +71,9 @@ class NotificationService:
             elif isinstance(event, SystemNotificationRequested):
                 self._handle_system_notification(event)
             else:
-                self.logger.debug(f"NotificationService ignoring event type: {event.event_type}")
+                self.logger.debug(
+                    f"NotificationService ignoring event type: {event.event_type}"
+                )
 
         except Exception as e:
             self.logger.error(
@@ -143,7 +145,9 @@ class NotificationService:
             event: The trading notification event
 
         """
-        self.logger.info(f"Sending trading notification: success={event.trading_success}")
+        self.logger.info(
+            f"Sending trading notification: success={event.trading_success}"
+        )
 
         try:
             if event.trading_success:
@@ -151,14 +155,16 @@ class NotificationService:
                 try:
                     # Create a result adapter for the enhanced template
                     class EventResultAdapter:
-                        def __init__(self, event_data: TradingNotificationRequested) -> None:
+                        def __init__(
+                            self, event_data: TradingNotificationRequested
+                        ) -> None:
                             self.success = True
-                            self.orders_executed: list[
-                                Any
-                            ] = []  # Event data doesn't have detailed order info
-                            self.strategy_signals: dict[
-                                str, Any
-                            ] = {}  # Event data doesn't have signal details
+                            self.orders_executed: list[Any] = (
+                                []
+                            )  # Event data doesn't have detailed order info
+                            self.strategy_signals: dict[str, Any] = (
+                                {}
+                            )  # Event data doesn't have signal details
                             self.correlation_id = event_data.correlation_id
                             # Add execution data for template access
                             self._execution_data = event_data.execution_data
@@ -168,13 +174,17 @@ class NotificationService:
                             return self._execution_data.get(name, None)
 
                     result_adapter = EventResultAdapter(event)
-                    html_content = MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
-                        result_adapter,
-                        event.trading_mode,
+                    html_content = (
+                        MultiStrategyReportBuilder.build_multi_strategy_report_neutral(
+                            result_adapter,
+                            event.trading_mode,
+                        )
                     )
                 except Exception as template_error:
                     # Fallback to basic template if enhanced template fails
-                    self.logger.warning(f"Enhanced template failed, using basic: {template_error}")
+                    self.logger.warning(
+                        f"Enhanced template failed, using basic: {template_error}"
+                    )
                     html_content = f"""
                     <h2>Trading Execution Report - {event.trading_mode.upper()}</h2>
                     <p><strong>Status:</strong> Success</p>
@@ -197,7 +207,9 @@ class NotificationService:
 
                 # Add failed symbols if available in execution data
                 if event.execution_data and event.execution_data.get("failed_symbols"):
-                    context["Failed Symbols"] = ", ".join(event.execution_data["failed_symbols"])
+                    context["Failed Symbols"] = ", ".join(
+                        event.execution_data["failed_symbols"]
+                    )
 
                 html_content = EmailTemplates.failed_trading_run(
                     error_details=error_message,
@@ -210,9 +222,7 @@ class NotificationService:
             if not event.trading_success and event.error_code:
                 subject = f"[{status_tag}][{event.error_code}] The Alchemiser - {event.trading_mode.upper()} Trading Report"
             else:
-                subject = (
-                    f"[{status_tag}] The Alchemiser - {event.trading_mode.upper()} Trading Report"
-                )
+                subject = f"[{status_tag}] The Alchemiser - {event.trading_mode.upper()} Trading Report"
 
             # Send notification
             success = send_email_notification(
