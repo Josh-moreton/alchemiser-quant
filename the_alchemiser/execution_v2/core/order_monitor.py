@@ -240,35 +240,9 @@ class OrderMonitor:
             # CRITICAL: Also check orders that may have been removed from tracking
             # but still need market fallback (e.g., cancelled/expired with unfilled qty)
             if orders:
-                for order in orders:
-                    if not order.order_id or not order.success:
-                        continue
-                    
-                    # Check if this order was removed from tracking but still unfilled
-                    if order.order_id not in active:
-                        order_status = self.smart_strategy.alpaca_manager._check_order_completion_status(order.order_id)
-                        if order_status in ["CANCELED", "EXPIRED", "REJECTED"]:
-                            # Order was cancelled/expired - check if it has unfilled quantity
-                            try:
-                                order_result = self.smart_strategy.alpaca_manager.get_order_execution_result(order.order_id)
-                                filled_qty = getattr(order_result, "filled_qty", 0) or 0
-                                if filled_qty < float(order.shares):
-                                    # Has unfilled quantity - need to place market order
-                                    remaining_qty = order.shares - Decimal(str(filled_qty))
-                                    logger.warning(
-                                        f"{log_prefix} 🚨 Order {order.order_id} was {order_status} with "
-                                        f"{remaining_qty} unfilled ({order.symbol} {order.action}); escalating to market"
-                                    )
-                                    # Create request for the remaining quantity
-                                    request = SmartOrderRequest(
-                                        symbol=order.symbol,
-                                        side=order.action,
-                                        quantity=remaining_qty,
-                                        correlation_id=correlation_id or "",
-                                    )
-                                    orders_to_escalate[order.order_id] = (request, f"{order_status.lower()}_unfilled")
-                            except Exception as e:
-                                logger.debug(f"Could not check order {order.order_id}: {e}")
+                self._check_cancelled_orders_for_escalation(
+                    orders, active, orders_to_escalate, log_prefix, correlation_id
+                )
 
             if not orders_to_escalate:
                 logger.debug(f"{log_prefix} {phase_type} phase: No orders need market escalation")
@@ -301,6 +275,68 @@ class OrderMonitor:
                 f"{log_prefix} Error during final escalation to market in {phase_type} repeg monitoring: {exc}"
             )
             return {}
+
+    def _check_cancelled_orders_for_escalation(
+        self,
+        orders: list[OrderResult],
+        active: dict[str, SmartOrderRequest],
+        orders_to_escalate: dict[str, tuple[SmartOrderRequest, str]],
+        log_prefix: str,
+        correlation_id: str | None,
+    ) -> None:
+        """Check cancelled/expired orders for unfilled quantities that need escalation.
+
+        Args:
+            orders: List of placed orders to check
+            active: Dictionary of currently active orders
+            orders_to_escalate: Dictionary to populate with orders needing escalation
+            log_prefix: Logging prefix for correlation
+            correlation_id: Optional correlation ID
+
+        """
+        if not self.smart_strategy:
+            return
+
+        for order in orders:
+            if not order.order_id or not order.success:
+                continue
+            
+            # Skip if order is still in active tracking (already handled)
+            if order.order_id in active:
+                continue
+            
+            order_status = self.smart_strategy.alpaca_manager._check_order_completion_status(order.order_id)
+            # Check if order was cancelled/expired/rejected but with potential unfilled quantity
+            # Status list mirrors the centralized check in utils.is_order_completed
+            if not order_status or order_status not in ["CANCELED", "EXPIRED", "REJECTED"]:
+                continue
+            
+            # Order was cancelled/expired - check if it has unfilled quantity
+            try:
+                order_result = self.smart_strategy.alpaca_manager.get_order_execution_result(order.order_id)
+                filled_qty_raw = getattr(order_result, "filled_qty", 0) or 0
+                filled_qty = Decimal(str(filled_qty_raw))
+                
+                # Use Decimal comparison to avoid float precision issues
+                if filled_qty < order.shares:
+                    # Has unfilled quantity - need to place market order
+                    remaining_qty = order.shares - filled_qty
+                    logger.warning(
+                        f"{log_prefix} 🚨 Order {order.order_id} was {order_status} with "
+                        f"{remaining_qty} unfilled ({order.symbol} {order.action}); escalating to market"
+                    )
+                    # Create request for the remaining quantity
+                    request = SmartOrderRequest(
+                        symbol=order.symbol,
+                        side=order.action,
+                        quantity=remaining_qty,
+                        correlation_id=correlation_id or "",
+                    )
+                    orders_to_escalate[order.order_id] = (request, f"{order_status.lower()}_unfilled")
+            except (AttributeError, ValueError, TypeError) as e:
+                logger.debug(f"Could not check order {order.order_id}: {e}")
+            except Exception as e:
+                logger.warning(f"Unexpected error checking order {order.order_id}: {e}", exc_info=True)
 
     def _process_repeg_results(
         self,
