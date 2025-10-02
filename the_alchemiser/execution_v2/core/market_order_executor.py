@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
 from the_alchemiser.execution_v2.utils.execution_validator import (
@@ -18,9 +17,6 @@ from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.logging import get_logger, log_order_flow
 from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
 from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
-
-if TYPE_CHECKING:
-    pass
 
 logger = get_logger(__name__)
 
