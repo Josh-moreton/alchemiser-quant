@@ -154,9 +154,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 api_key=api_key, secret_key=secret_key, paper=paper
             )
 
-            self._data_client = StockHistoricalDataClient(
-                api_key=api_key, secret_key=secret_key
-            )
+            self._data_client = StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
 
             logger.debug(f"AlpacaManager initialized - Paper: {paper}")
 
@@ -256,9 +254,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Get position for a specific symbol."""
         return self._account_service.get_position(symbol)
 
-    def place_order(
-        self, order_request: LimitOrderRequest | MarketOrderRequest
-    ) -> ExecutedOrder:
+    def place_order(self, order_request: LimitOrderRequest | MarketOrderRequest) -> ExecutedOrder:
         """Place an order and return execution details."""
         return self._get_trading_service().place_order(order_request)
 
@@ -561,9 +557,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         return self._asset_metadata_service.is_market_open()
 
-    def get_market_calendar(
-        self, _start_date: str, _end_date: str
-    ) -> list[dict[str, Any]]:
+    def get_market_calendar(self, _start_date: str, _end_date: str) -> list[dict[str, Any]]:
         """Get market calendar information.
 
         Args:
@@ -636,9 +630,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             WebSocketResult with completion status and completed order IDs
 
         """
-        return self._get_trading_service().wait_for_order_completion(
-            order_ids, max_wait_seconds
-        )
+        return self._get_trading_service().wait_for_order_completion(order_ids, max_wait_seconds)
 
     def _check_order_completion_status(self, order_id: str) -> str | None:
         """Check if a single order has reached a final state (delegates to TradingService).
@@ -666,15 +658,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             try:
                 for instance in cls._instances.values():
                     try:
-                        if (
-                            hasattr(instance, "_trading_service")
-                            and instance._trading_service
-                        ):
+                        if hasattr(instance, "_trading_service") and instance._trading_service:
                             instance._trading_service.cleanup()
-                        if (
-                            hasattr(instance, "_websocket_manager")
-                            and instance._websocket_manager
-                        ):
+                        if hasattr(instance, "_websocket_manager") and instance._websocket_manager:
                             instance._websocket_manager.release_trading_service()
                     except Exception as e:
                         logger.error(f"Error cleaning up AlpacaManager instance: {e}")
@@ -713,6 +699,4 @@ def create_alpaca_manager(
     This function provides a clean way to create AlpacaManager instances
     and can be easily extended with additional configuration options.
     """
-    return AlpacaManager(
-        api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url
-    )
+    return AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url)
