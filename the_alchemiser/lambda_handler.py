@@ -306,7 +306,7 @@ def lambda_handler(
 
     try:
         # Log the incoming event for debugging
-        event_json = json.dumps(event) if event else 'None'
+        event_json = json.dumps(event) if event else "None"
         logger.info("Lambda invoked with event", event_data=event_json)
 
         # Parse event to determine command arguments
@@ -318,7 +318,7 @@ def lambda_handler(
         # Determine trading mode based on endpoint URL
         trading_mode = _determine_trading_mode(mode)
 
-        logger.info("Executing command", command=' '.join(command_args))
+        logger.info("Executing command", command=" ".join(command_args))
 
         _settings = load_settings()
         # main() loads settings internally; do not pass unsupported kwargs
