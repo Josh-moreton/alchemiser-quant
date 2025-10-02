@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from the_alchemiser.execution_v2.core.smart_execution_strategy import SmartOrderResult
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
@@ -246,36 +246,72 @@ class RepegMonitoringService:
         """
         try:
             if self.smart_strategy:
-                # Get active orders once (avoids redundant API call)
-                active = self.smart_strategy.order_tracker.get_active_orders()
-                if active:
-                    logger.warning(
-                        f"🚨 {phase_type} phase: Monitoring window ended with active orders; escalating remaining to market"
-                    )
-                    # Explicitly escalate remaining active orders to market and update order IDs
-                    tasks = [
-                        self.smart_strategy.repeg_manager._escalate_to_market(oid, req)
-                        for oid, req in active.items()
-                    ]
-                    # Use return_exceptions=True for better fault tolerance
-                    gather_results = await asyncio.gather(*tasks, return_exceptions=True)
-                    results: list[SmartOrderResult] = []
-                    for idx, result in enumerate(gather_results):
-                        if isinstance(result, Exception):
-                            order_id = list(active.keys())[idx]
-                            logger.error(f"Error escalating order {order_id}: {result}")
-                            continue
-                        if result is not None:
-                            # Type narrowing: at this point result is SmartOrderResult, not Exception
-                            results.append(cast(SmartOrderResult, result))
-
-                    if results:
-                        # Process as if they were standard repeg results (will replace order IDs)
-                        orders = self._process_repeg_results(phase_type, orders, results)
+                orders = await self._escalate_orders_to_market(phase_type, orders)
         except Exception:
             logger.exception("Error during final escalation to market in repeg monitoring loop")
 
         return orders
+
+    async def _escalate_orders_to_market(
+        self, phase_type: str, orders: list[OrderResult]
+    ) -> list[OrderResult]:
+        """Execute market escalation for active orders.
+
+        Args:
+            phase_type: Type of phase ("SELL" or "BUY")
+            orders: Current list of orders
+
+        Returns:
+            Updated list of orders with escalated order IDs
+
+        """
+        # Type guard: smart_strategy must exist at this point
+        if self.smart_strategy is None:
+            return orders
+        active = self.smart_strategy.order_tracker.get_active_orders()
+        if not active:
+            return orders
+
+        logger.warning(
+            f"🚨 {phase_type} phase: Monitoring window ended with active orders; escalating remaining to market"
+        )
+
+        # Escalate all active orders to market
+        tasks = [
+            self.smart_strategy.repeg_manager._escalate_to_market(oid, req)
+            for oid, req in active.items()
+        ]
+        gather_results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Filter and process successful escalations
+        results = self._filter_successful_escalations(gather_results, list(active.keys()))
+        if results:
+            orders = self._process_repeg_results(phase_type, orders, results)
+
+        return orders
+
+    def _filter_successful_escalations(
+        self, gather_results: list[SmartOrderResult | BaseException], order_ids: list[str]
+    ) -> list[SmartOrderResult]:
+        """Filter successful escalations from gather results.
+
+        Args:
+            gather_results: Results from asyncio.gather with return_exceptions=True
+            order_ids: List of order IDs for error logging
+
+        Returns:
+            List of successful SmartOrderResult objects
+
+        """
+        results: list[SmartOrderResult] = []
+        for idx, result in enumerate(gather_results):
+            if isinstance(result, BaseException):
+                order_id = order_ids[idx]
+                logger.error(f"Error escalating order {order_id}: {result}")
+                continue
+            if result is not None:
+                results.append(result)
+
+        return results
 
     def _log_repeg_status(self, phase_type: str, repeg_result: SmartOrderResult) -> None:
         """Log repeg status with appropriate message for escalation or standard repeg."""
