@@ -519,26 +519,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             True if successful, False otherwise.
 
         """
-        try:
-            if symbol:
-                # Get orders for specific symbol and cancel them
-                orders = self.get_orders(status="open")
-                symbol_orders = [
-                    order for order in orders if getattr(order, "symbol", None) == symbol
-                ]
-                for order in symbol_orders:
-                    order_id = getattr(order, "id", None)
-                    if order_id:
-                        self.cancel_order(str(order_id))
-            else:
-                # Cancel all open orders
-                self._trading_client.cancel_orders()
-
-            logger.info("Successfully cancelled orders" + (f" for {symbol}" if symbol else ""))
-            return True
-        except Exception as e:
-            logger.error(f"Failed to cancel orders: {e}")
-            return False
+        return self._get_trading_service().cancel_all_orders(symbol)
 
     def liquidate_position(self, symbol: str) -> str | None:
         """Liquidate entire position using close_position API (delegates to TradingService).
