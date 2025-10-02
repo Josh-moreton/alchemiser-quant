@@ -82,6 +82,10 @@ class ExecutionConfig:
         default_factory=lambda: {"BTAL", "UVXY", "TECL", "KMLM"}
     )
 
+    # Market-on-exhaust fallback configuration
+    market_on_exhaust_enabled: bool = False
+    market_on_exhaust_max_notional_usd: Decimal | None = None
+
 
 @dataclass
 class SmartOrderRequest:
