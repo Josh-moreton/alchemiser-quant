@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from the_alchemiser.execution_v2.core.smart_execution_strategy import SmartOrderResult
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
@@ -176,22 +176,34 @@ class RepegMonitoringService:
 
         """
         try:
-            if self.smart_strategy and self.smart_strategy.get_active_order_count() > 0:
-                logger.warning(
-                    f"🚨 {phase_type} phase: Monitoring window ended with active orders; escalating remaining to market"
-                )
-                # Explicitly escalate remaining active orders to market and update order IDs
+            if self.smart_strategy:
+                # Get active orders once (avoids redundant API call)
                 active = self.smart_strategy.order_tracker.get_active_orders()
                 if active:
+                    logger.warning(
+                        f"🚨 {phase_type} phase: Monitoring window ended with active orders; escalating remaining to market"
+                    )
+                    # Explicitly escalate remaining active orders to market and update order IDs
                     tasks = [
                         self.smart_strategy.repeg_manager._escalate_to_market(oid, req)
                         for oid, req in active.items()
                     ]
-                    results = [r for r in await asyncio.gather(*tasks) if r]
+                    # Use return_exceptions=True for better fault tolerance
+                    gather_results = await asyncio.gather(*tasks, return_exceptions=True)
+                    results: list[SmartOrderResult] = []
+                    for idx, result in enumerate(gather_results):
+                        if isinstance(result, Exception):
+                            order_id = list(active.keys())[idx]
+                            logger.error(f"Error escalating order {order_id}: {result}")
+                            continue
+                        if result is not None:
+                            # Type narrowing: at this point result is SmartOrderResult, not Exception
+                            results.append(cast(SmartOrderResult, result))
+                    
                     if results:
                         # Process as if they were standard repeg results (will replace order IDs)
                         orders = self._process_repeg_results(phase_type, orders, results)
-        except Exception as _err:
+        except Exception:
             logger.exception("Error during final escalation to market in repeg monitoring loop")
 
         return orders
