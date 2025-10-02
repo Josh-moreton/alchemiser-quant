@@ -87,36 +87,38 @@ class StrategySettings(BaseModel):
     @staticmethod
     def _try_parse_json_files(s: str) -> list[str] | None:
         """Try to parse files from JSON string format.
-        
+
         Args:
             s: JSON string like '["A.clj","B.clj"]'
-            
+
         Returns:
             Parsed list[str] or None if parsing fails
+
         """
         if not (s.startswith("[") and s.endswith("]")):
             return None
-        
+
         import json
-        
+
         try:
             parsed = json.loads(s)
             if isinstance(parsed, list):
                 return [str(x) for x in parsed]
         except Exception as exc:  # pragma: no cover - defensive logging
             logging.debug("Failed to parse DSL files as JSON: %s", exc)
-        
+
         return None
 
     @staticmethod
     def _parse_csv_files(s: str) -> list[str]:
         """Parse files from CSV format.
-        
+
         Args:
             s: CSV string like 'A.clj,B.clj' (supports newlines)
-            
+
         Returns:
             Parsed list[str]
+
         """
         parts = [p.strip().strip("\"'") for p in s.replace("\n", ",").split(",")]
         return [p for p in parts if p]
@@ -133,7 +135,7 @@ class StrategySettings(BaseModel):
         """
         if isinstance(v, list):
             return [str(x) for x in v]
-        
+
         if isinstance(v, str):
             s = v.strip()
             # Try JSON first, then fall back to CSV
@@ -141,56 +143,58 @@ class StrategySettings(BaseModel):
             if json_result is not None:
                 return json_result
             return cls._parse_csv_files(s)
-        
+
         return v
 
     @staticmethod
     def _try_parse_json_allocations(s: str) -> dict[str, float] | None:
         """Try to parse allocations from JSON string format.
-        
+
         Args:
             s: JSON string like '{"A.clj":0.6,"B.clj":0.4}'
-            
+
         Returns:
             Parsed dict[str, float] or None if parsing fails
+
         """
         if not (s.startswith("{") and s.endswith("}")):
             return None
-        
+
         import json
-        
+
         try:
             parsed = json.loads(s)
             if isinstance(parsed, dict):
                 return {str(k): float(vv) for k, vv in parsed.items()}
         except Exception as exc:  # pragma: no cover - defensive logging
             logging.debug("Failed to parse DSL allocations as JSON: %s", exc)
-        
+
         return None
 
     @staticmethod
     def _parse_csv_allocations(s: str) -> dict[str, float]:
         """Parse allocations from CSV key=value format.
-        
+
         Args:
             s: CSV string like 'A.clj=0.6,B.clj=0.4' (supports newlines)
-            
+
         Returns:
             Parsed dict[str, float]
+
         """
         items: dict[str, float] = {}
         for token in s.replace("\n", ",").split(","):
             token = token.strip()
             if not token or "=" not in token:
                 continue
-            
+
             k, val = token.split("=", 1)
             k = k.strip().strip("\"'")
             try:
                 items[k] = float(val.strip())
             except ValueError:
                 continue
-        
+
         return items
 
     @field_validator("dsl_allocations", mode="before")
@@ -205,7 +209,7 @@ class StrategySettings(BaseModel):
         """
         if isinstance(v, dict):
             return {str(k): float(vv) for k, vv in v.items()}
-        
+
         if isinstance(v, str):
             s = v.strip()
             # Try JSON first, then fall back to CSV
@@ -213,7 +217,7 @@ class StrategySettings(BaseModel):
             if json_result is not None:
                 return json_result
             return cls._parse_csv_allocations(s)
-        
+
         return v
 
     @model_validator(mode="after")
