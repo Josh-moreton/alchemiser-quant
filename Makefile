@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all
+.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all release
 
 # Default target
 help:
@@ -37,6 +37,8 @@ help:
 	@echo ""
 	@echo "Deployment:"
 	@echo "  deploy          Deploy to AWS Lambda"
+	@echo "  release         Create and push a GitHub release (uses version from pyproject.toml)"
+	@echo "  release VERSION=x.y.z  Create release with specific version number"
 
 # Setup & Installation
 install:
@@ -135,3 +137,47 @@ clean:
 deploy:
 	@echo "🚀 Deploying to AWS Lambda..."
 	bash scripts/deploy.sh
+
+release:
+	@echo "🏷️ Creating GitHub release..."
+	@if [ -n "$(VERSION)" ]; then \
+		VERSION_TO_USE="$(VERSION)"; \
+		echo "📋 Using specified version: $$VERSION_TO_USE"; \
+	else \
+		VERSION_TO_USE=$$(poetry version -s); \
+		echo "📋 Using version from pyproject.toml: $$VERSION_TO_USE"; \
+	fi; \
+	TAG="v$$VERSION_TO_USE"; \
+	echo "🏷️ Tag: $$TAG"; \
+	echo ""; \
+	if git tag | grep -q "^$$TAG$$"; then \
+		echo "❌ Tag $$TAG already exists!"; \
+		echo "💡 Use a different version or delete the existing tag"; \
+		exit 1; \
+	fi; \
+	if ! command -v gh >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI (gh) is not installed!"; \
+		echo "💡 Install with: brew install gh"; \
+		exit 1; \
+	fi; \
+	if ! gh auth status >/dev/null 2>&1; then \
+		echo "❌ GitHub CLI is not authenticated!"; \
+		echo "💡 Run: gh auth login"; \
+		exit 1; \
+	fi; \
+	echo "🔍 Checking for uncommitted changes..."; \
+	if ! git diff --quiet || ! git diff --cached --quiet; then \
+		echo "❌ You have uncommitted changes!"; \
+		echo "💡 Please commit or stash your changes first"; \
+		exit 1; \
+	fi; \
+	echo "📝 Creating tag $$TAG..."; \
+	git tag -a "$$TAG" -m "Release $$TAG"; \
+	echo "📤 Pushing tag to origin..."; \
+	git push origin "$$TAG"; \
+	echo "🚀 Creating GitHub release..."; \
+	gh release create "$$TAG" \
+		--title "Release $$TAG" \
+		--notes "Release $$TAG of The Alchemiser" \
+		--latest; \
+	echo "✅ Release $$TAG created successfully!"
