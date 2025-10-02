@@ -17,8 +17,6 @@ from __future__ import annotations
 
 import threading
 import time
-from datetime import UTC, datetime
-from decimal import Decimal
 from typing import Any, ClassVar
 
 # Type checking imports to avoid circular dependencies
@@ -320,28 +318,6 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             )
 
         return qty
-
-    def _create_error_result(
-        self,
-        order_id: str,
-        symbol: str,
-        side: str,
-        qty: float | None,
-        error_message: str,
-    ) -> ExecutedOrder:
-        """Create error ExecutedOrder for failed orders."""
-        return ExecutedOrder(
-            order_id=order_id,
-            symbol=symbol.upper() if symbol else "UNKNOWN",
-            action=side.upper() if side and side.upper() in ["BUY", "SELL"] else "BUY",
-            quantity=Decimal(str(qty)) if qty and qty > 0 else Decimal("0.01"),
-            filled_quantity=Decimal("0"),
-            price=Decimal("0.01"),
-            total_value=Decimal("0.01"),  # Must be > 0
-            status="REJECTED",
-            execution_timestamp=datetime.now(UTC),
-            error_message=error_message,
-        )
 
     def place_market_order(
         self,

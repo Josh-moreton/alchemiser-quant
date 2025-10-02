@@ -53,7 +53,10 @@ class BuyingPowerService:
             Tuple of (is_available, actual_buying_power)
 
         """
-        logger.info("💰 Verifying $ buying power availability (with retries)", expected_amount=expected_amount)
+        logger.info(
+            "💰 Verifying $ buying power availability (with retries)",
+            expected_amount=expected_amount,
+        )
 
         for attempt in range(max_retries):
             try:
@@ -64,7 +67,11 @@ class BuyingPowerService:
                 self._wait_before_retry(attempt, max_retries, initial_wait)
 
             except Exception as e:
-                logger.error("Error verifying buying power on attempt", attempt_number=attempt + 1, error=str(e))
+                logger.error(
+                    "Error verifying buying power on attempt",
+                    attempt_number=attempt + 1,
+                    error=str(e),
+                )
                 self._wait_before_retry(attempt, max_retries, initial_wait)
 
         final_buying_power = self._get_final_buying_power()
@@ -103,7 +110,11 @@ class BuyingPowerService:
         )
 
         if actual_buying_power >= expected_amount:
-            logger.info("✅ Buying power verified: $ >= $", actual_buying_power=actual_buying_power, expected_amount=expected_amount)
+            logger.info(
+                "✅ Buying power verified: $ >= $",
+                actual_buying_power=actual_buying_power,
+                expected_amount=expected_amount,
+            )
             return True, actual_buying_power
 
         # Log the shortfall and continue retrying
@@ -127,7 +138,9 @@ class BuyingPowerService:
         """
         if attempt < max_retries - 1:
             wait_time = initial_wait * (2**attempt)
-            logger.info("⏳ Waiting for account state to update", wait_time_seconds=f"{wait_time:.1f}")
+            logger.info(
+                "⏳ Waiting for account state to update", wait_time_seconds=f"{wait_time:.1f}"
+            )
             time.sleep(wait_time)
 
     def _get_final_buying_power(self) -> Decimal:

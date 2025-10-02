@@ -119,7 +119,9 @@ class AssetMetadataService:
         """
         asset_info = self.get_asset_info(symbol)
         if asset_info is None:
-            logger.warning("Could not determine fractionability for , defaulting to True", symbol=symbol)
+            logger.warning(
+                "Could not determine fractionability for , defaulting to True", symbol=symbol
+            )
             return True
         return asset_info.fractionable
 

@@ -606,23 +606,6 @@ class AlpacaTradingService:
             error_message=str(error),
         )
 
-    def _create_error_result(
-        self, order_id: str, symbol: str, side: str, qty: float | None, error: str
-    ) -> ExecutedOrder:
-        """Create error ExecutedOrder for validation failures."""
-        return ExecutedOrder(
-            order_id=order_id,
-            symbol=symbol,
-            action=side.upper(),
-            quantity=Decimal(str(qty)) if qty else Decimal("0.01"),
-            filled_quantity=Decimal("0"),
-            price=Decimal("0.01"),
-            total_value=Decimal("0.01"),
-            status="REJECTED",
-            execution_timestamp=datetime.now(UTC),
-            error_message=error,
-        )
-
     def _alpaca_order_to_execution_result(
         self, order: Order | dict[str, Any]
     ) -> OrderExecutionResult:

@@ -107,7 +107,9 @@ class WebSocketConnectionManager:
                 logger.info("✅ Shared real-time pricing service started successfully")
 
             self._pricing_ref_count += 1
-            logger.debug("📊 Pricing service reference count", _pricing_ref_count=self._pricing_ref_count)
+            logger.debug(
+                "📊 Pricing service reference count", _pricing_ref_count=self._pricing_ref_count
+            )
             return self._pricing_service
 
     def release_pricing_service(self) -> None:
@@ -117,7 +119,9 @@ class WebSocketConnectionManager:
         """
         with self._service_lock:
             self._pricing_ref_count = max(0, self._pricing_ref_count - 1)
-            logger.debug("📊 Pricing service reference count", _pricing_ref_count=self._pricing_ref_count)
+            logger.debug(
+                "📊 Pricing service reference count", _pricing_ref_count=self._pricing_ref_count
+            )
 
             if self._pricing_ref_count == 0 and self._pricing_service is not None:
                 logger.info("📡 Stopping shared real-time pricing service (no more references)")
@@ -175,7 +179,9 @@ class WebSocketConnectionManager:
                     return False
 
             self._trading_ref_count += 1
-            logger.debug("📊 Trading service reference count", _trading_ref_count=self._trading_ref_count)
+            logger.debug(
+                "📊 Trading service reference count", _trading_ref_count=self._trading_ref_count
+            )
             return self._trading_ws_connected
 
     def release_trading_service(self) -> None:
@@ -185,7 +191,9 @@ class WebSocketConnectionManager:
         """
         with self._trading_lock:
             self._trading_ref_count = max(0, self._trading_ref_count - 1)
-            logger.debug("📊 Trading service reference count", _trading_ref_count=self._trading_ref_count)
+            logger.debug(
+                "📊 Trading service reference count", _trading_ref_count=self._trading_ref_count
+            )
 
             if self._trading_ref_count == 0 and self._trading_stream is not None:
                 logger.info("📡 Stopping shared TradingStream (no more references)")

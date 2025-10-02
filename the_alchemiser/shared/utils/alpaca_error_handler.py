@@ -268,9 +268,9 @@ class AlpacaErrorHandler:
         """
         from datetime import UTC, datetime
 
-        status: Literal[
-            "accepted", "filled", "partially_filled", "rejected", "canceled"
-        ] = "rejected"
+        status: Literal["accepted", "filled", "partially_filled", "rejected", "canceled"] = (
+            "rejected"
+        )
 
         return OrderExecutionResult(
             success=False,
@@ -371,9 +371,7 @@ class AlpacaErrorHandler:
                 "INVALID", symbol, side, qty, str(e)
             )
         except Exception as e:
-            logger.error(
-                "Failed to place market order for", symbol=symbol, error=str(e)
-            )
+            logger.error("Failed to place market order for", symbol=symbol, error=str(e))
             return AlpacaErrorHandler.create_executed_order_error_result(
                 "FAILED", symbol, side, qty, str(e)
             )
@@ -419,9 +417,7 @@ def alpaca_retry_context(
             if not transient or attempt == max_retries:
                 # Non-transient error or final attempt
                 summary = AlpacaErrorHandler.sanitize_error_message(e)
-                error_msg = (
-                    f"{operation_name} failed after {attempt} attempts: {summary}"
-                )
+                error_msg = f"{operation_name} failed after {attempt} attempts: {summary}"
                 logger.error(error_msg)
                 raise RuntimeError(error_msg) from e
 

@@ -164,7 +164,11 @@ class PnLService:
             )
 
             if not history:
-                logger.error("Failed to get portfolio history for to", start_date=start_date, end_date=end_date)
+                logger.error(
+                    "Failed to get portfolio history for to",
+                    start_date=start_date,
+                    end_date=end_date,
+                )
                 return PnLData(period=period, start_date=start_date, end_date=end_date)
 
             return self._process_history_data(history, period, start_date, end_date)

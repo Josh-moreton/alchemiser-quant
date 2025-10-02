@@ -122,7 +122,9 @@ def _handle_error(
             event_bus = container.services.event_bus()
             send_error_notification_if_needed(event_bus)
         except Exception as setup_error:
-            logger.warning("Failed to setup event bus for error notification", error=str(setup_error))
+            logger.warning(
+                "Failed to setup event bus for error notification", error=str(setup_error)
+            )
 
     except NotificationError as notification_error:
         logger.warning("Failed to send error notification: %s", notification_error)
