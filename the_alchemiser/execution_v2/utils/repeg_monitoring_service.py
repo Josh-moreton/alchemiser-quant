@@ -282,7 +282,6 @@ class RepegMonitoringService:
             for oid, req in active.items()
         ]
         gather_results = await asyncio.gather(*tasks, return_exceptions=True)
-        
         # Filter and process successful escalations
         results = self._filter_successful_escalations(gather_results, list(active.keys()))
         if results:
