@@ -8,10 +8,10 @@ scenarios, allowing us to test all possible market states.
 
 from __future__ import annotations
 
+import sys
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
-import sys
 
 # Add parent directories to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))

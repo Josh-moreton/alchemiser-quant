@@ -14,7 +14,7 @@ import time
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import ClassVar
 from unittest.mock import patch
 
 # Add parent directory to path for imports
@@ -25,9 +25,9 @@ from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
 from the_alchemiser.shared.logging import get_logger
 
-from .models import MarketCondition, StressTestResult, PortfolioState, PortfolioTransition
-from .mocking import MockIndicatorService
 from .analysis import StressTestReporter
+from .mocking import MockIndicatorService
+from .models import MarketCondition, PortfolioState, PortfolioTransition, StressTestResult
 
 logger = get_logger(__name__)
 
@@ -593,11 +593,10 @@ class StressTestRunner:
 
             # In liquidation mode, liquidate positions before each scenario
             # In stateful mode, skip liquidation to maintain portfolio state
-            if not self.stateful_mode:
-                if not self.liquidate_all_positions():
-                    self.logger.warning(
-                        f"Failed to liquidate positions before scenario {condition.scenario_id}"
-                    )
+            if not self.stateful_mode and not self.liquidate_all_positions():
+                self.logger.warning(
+                    f"Failed to liquidate positions before scenario {condition.scenario_id}"
+                )
 
             # Capture portfolio state before scenario (for stateful mode)
             if self.stateful_mode:

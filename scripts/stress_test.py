@@ -37,11 +37,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent))  # Add scripts dir to path
 
-from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
-from the_alchemiser.shared.logging import configure_application_logging
-
 # Import from modular stress_test package
 from stress_test.runner import StressTestRunner
+
+from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+from the_alchemiser.shared.logging import configure_application_logging
 
 # Configure logging
 configure_application_logging()

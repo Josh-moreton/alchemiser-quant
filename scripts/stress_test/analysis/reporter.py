@@ -8,8 +8,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from ..models.results import StressTestResult
 from ..models.portfolio_state import PortfolioState, PortfolioTransition
+from ..models.results import StressTestResult
 
 
 class StressTestReporter:
@@ -18,9 +18,9 @@ class StressTestReporter:
     def __init__(
         self,
         results: list[StressTestResult],
-        quick_mode: bool = False,
-        dry_run: bool = False,
-        stateful_mode: bool = False,
+        quick_mode: bool = False,  # noqa: FBT001, FBT002
+        dry_run: bool = False,  # noqa: FBT001, FBT002
+        stateful_mode: bool = False,  # noqa: FBT001, FBT002
         portfolio_states: list[PortfolioState] | None = None,
         transitions: list[PortfolioTransition] | None = None,
     ) -> None:
