@@ -303,7 +303,6 @@ class RepegMonitoringService:
 
         """
         results: list[SmartOrderResult] = []
-        
         for idx, result in enumerate(gather_results):
             if isinstance(result, BaseException):
                 order_id = order_ids[idx]
