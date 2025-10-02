@@ -10,9 +10,14 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import QuoteModel
+
+if TYPE_CHECKING:
+    from the_alchemiser.execution_v2.core.smart_execution_strategy.quotes import QuoteProvider
+    from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 
 logger = get_logger(__name__)
 
@@ -164,8 +169,8 @@ def ensure_minimum_price(price: Decimal, min_price: Decimal = Decimal("0.01")) -
 def fetch_price_for_notional_check(
     symbol: str,
     side: str,
-    quote_provider: object,
-    alpaca_manager: object,
+    quote_provider: QuoteProvider,
+    alpaca_manager: AlpacaManager,
 ) -> Decimal | None:
     """Fetch best available price for notional value calculation.
 
@@ -182,7 +187,7 @@ def fetch_price_for_notional_check(
     price: Decimal | None = None
     try:
         # Prefer streaming quote if available via QuoteProvider
-        validated = quote_provider.get_quote_with_validation(symbol)  # type: ignore[attr-defined]
+        validated = quote_provider.get_quote_with_validation(symbol)
         if validated:
             quote, _ = validated
             # Use ask for BUY, bid for SELL to compute conservative notional
@@ -191,7 +196,7 @@ def fetch_price_for_notional_check(
             else:
                 price = Decimal(str(quote.bid_price))
         else:
-            current_price = alpaca_manager.get_current_price(symbol)  # type: ignore[attr-defined]
+            current_price = alpaca_manager.get_current_price(symbol)
             if current_price is not None and current_price > 0:
                 price = Decimal(str(current_price))
     except Exception:
@@ -224,7 +229,8 @@ def is_remaining_quantity_too_small(
             remaining_notional = (remaining_qty * price).quantize(Decimal("0.01"))
             return remaining_notional < min_notional
     else:
-        # For non-fractionable or unknown, if rounding down yields zero shares, consider complete
+        # For non-fractionable or unknown assets, check if quantity rounds to zero
+        # Uses Decimal.quantize which applies default ROUND_HALF_EVEN rounding mode
         return remaining_qty.quantize(Decimal("1")) <= 0
 
     return False
