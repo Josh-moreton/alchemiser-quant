@@ -185,7 +185,9 @@ class StrategySettings(BaseModel):
         items: dict[str, float] = {}
         for token in s.replace("\n", ",").split(","):
             token = token.strip()
-            if not token or "=" not in token:
+            if not token:
+                continue
+            if "=" not in token:
                 continue
 
             k, val = token.split("=", 1)
