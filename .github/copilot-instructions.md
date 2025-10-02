@@ -6,6 +6,11 @@
 - **Typing:** Enforce strict typing (`mypy --config-file=pyproject.toml`). No `Any` in domain logic. DTOs are frozen.
 - **Idempotency & traceability:** Event handlers must be idempotent; propagate `correlation_id` and `causation_id`; tolerate replays.
 - **Tooling:** Use Poetry for everything. Example: `poetry run python -m the_alchemiser` (no system Python).
+- **Version Management (MANDATORY):** AI agents MUST update version numbers for every code change using semantic versioning:
+  - **PATCH** (`make bump-patch`): Bug fixes, documentation updates, minor refactoring, test additions
+  - **MINOR** (`make bump-minor`): New features, new modules, significant refactoring, API additions (backward compatible)
+  - **MAJOR** (`make bump-major`): Breaking changes, API changes, architectural overhauls, removed features
+  - Always run the appropriate bump command BEFORE creating commits. No exceptions.
 
 ## Python Coding Rules for AI Agents
 
@@ -96,6 +101,11 @@
 - Import boundaries: `poetry run importlinter --config pyproject.toml`.
 - Local trading: `poetry run python -m the_alchemiser` (paper/live via config).
 - Deploy (AWS Lambda): `make deploy` → `scripts/deploy.sh`.
+- **Version management**: Always bump version before committing code changes:
+  - `make bump-patch` for bug fixes and minor changes
+  - `make bump-minor` for new features and enhancements
+  - `make bump-major` for breaking changes
+- **Releases**: Create releases with `make release` (auto-version) or `make release v=x.y.z` (custom version).
 
 ## Observability
 - Use `shared.logging` for structured JSON logs; include `module`, `event_id`, `correlation_id`, and key business facts (symbol, qty, price).

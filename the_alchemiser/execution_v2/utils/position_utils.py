@@ -6,15 +6,11 @@ Position and pricing utilities extracted from the main executor.
 from __future__ import annotations
 
 from decimal import ROUND_DOWN, Decimal
-from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
-
-if TYPE_CHECKING:
-    pass
 
 logger = get_logger(__name__)
 

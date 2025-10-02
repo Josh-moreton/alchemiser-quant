@@ -10,9 +10,14 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import QuoteModel
+
+if TYPE_CHECKING:
+    from the_alchemiser.execution_v2.core.smart_execution_strategy.quotes import QuoteProvider
+    from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 
 logger = get_logger(__name__)
 
@@ -159,3 +164,73 @@ def ensure_minimum_price(price: Decimal, min_price: Decimal = Decimal("0.01")) -
         logger.warning(f"Invalid price {price}, using minimum price {min_price}")
         return min_price
     return max(price, min_price)
+
+
+def fetch_price_for_notional_check(
+    symbol: str,
+    side: str,
+    quote_provider: QuoteProvider,
+    alpaca_manager: AlpacaManager,
+) -> Decimal | None:
+    """Fetch best available price for notional value calculation.
+
+    Args:
+        symbol: Trading symbol
+        side: Order side ("BUY" or "SELL")
+        quote_provider: Quote provider with get_quote_with_validation method
+        alpaca_manager: Alpaca manager with get_current_price method
+
+    Returns:
+        Price as Decimal, or None if unavailable
+
+    """
+    price: Decimal | None = None
+    try:
+        # Prefer streaming quote if available via QuoteProvider
+        validated = quote_provider.get_quote_with_validation(symbol)
+        if validated:
+            quote, _ = validated
+            # Use ask for BUY, bid for SELL to compute conservative notional
+            if side.upper() == "BUY":
+                price = Decimal(str(quote.ask_price))
+            else:
+                price = Decimal(str(quote.bid_price))
+        else:
+            current_price = alpaca_manager.get_current_price(symbol)
+            if current_price is not None and current_price > 0:
+                price = Decimal(str(current_price))
+    except Exception:
+        price = None
+
+    return price
+
+
+def is_remaining_quantity_too_small(
+    remaining_qty: Decimal,
+    asset_info: object | None,
+    price: Decimal | None,
+    min_notional: Decimal,
+) -> bool:
+    """Check if remaining quantity is too small to pursue.
+
+    Args:
+        remaining_qty: Remaining quantity to check
+        asset_info: Asset info with fractionable attribute, or None
+        price: Current price for notional calculation, or None
+        min_notional: Minimum notional value required
+
+    Returns:
+        True if remaining is too small and should be considered complete
+
+    """
+    if asset_info is not None and getattr(asset_info, "fractionable", False):
+        # For fractionable assets, skip if remaining notional is below broker minimum
+        if price is not None:
+            remaining_notional = (remaining_qty * price).quantize(Decimal("0.01"))
+            return remaining_notional < min_notional
+    else:
+        # For non-fractionable or unknown assets, check if quantity rounds to zero
+        # Uses Decimal.quantize which applies default ROUND_HALF_EVEN rounding mode
+        return remaining_qty.quantize(Decimal("1")) <= 0
+
+    return False

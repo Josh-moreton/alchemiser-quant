@@ -231,6 +231,46 @@ class PhaseExecutor:
             timestamp=datetime.now(UTC),
         )
 
+    def _calculate_liquidation_shares(self, symbol: str) -> Decimal:
+        """Calculate shares for liquidation (full position sell).
+
+        Args:
+            symbol: Stock symbol
+
+        Returns:
+            Number of shares to sell
+
+        """
+        if not self.position_utils:
+            return Decimal("0")
+
+        raw_shares = self.position_utils.get_position_quantity(symbol)
+        return self.position_utils.adjust_quantity_for_fractionability(symbol, raw_shares)
+
+    def _calculate_shares_from_amount(self, symbol: str, trade_amount: Decimal) -> Decimal:
+        """Calculate shares from trade amount using estimated price.
+
+        Args:
+            symbol: Stock symbol
+            trade_amount: Dollar amount to trade
+
+        Returns:
+            Number of shares to trade
+
+        """
+        price = (
+            self.position_utils.get_price_for_estimation(symbol) if self.position_utils else None
+        )
+
+        if price is None or price <= Decimal("0"):
+            logger.warning(f"⚠️ Price unavailable for {symbol}; defaulting to 1 share")
+            return Decimal("1")
+
+        raw_shares = abs(trade_amount) / price
+        if self.position_utils:
+            return self.position_utils.adjust_quantity_for_fractionability(symbol, raw_shares)
+        return raw_shares.quantize(Decimal("1"), rounding=ROUND_DOWN)
+
     async def _execute_single_item(self, item: RebalancePlanItem) -> OrderResult:
         """Execute a single rebalance plan item.
 
@@ -241,46 +281,21 @@ class PhaseExecutor:
             OrderResult with execution results
 
         """
+        import asyncio
         from datetime import UTC, datetime
 
         try:
+            # Yield control to event loop for proper async behavior
+            await asyncio.sleep(0)
+
             # Determine quantity (shares) to trade
             if item.action == "SELL" and item.target_weight == Decimal("0.0"):
-                # For liquidation (0% target), use actual position quantity
-                raw_shares = (
-                    self.position_utils.get_position_quantity(item.symbol)
-                    if self.position_utils
-                    else Decimal("0")
-                )
-                shares = (
-                    self.position_utils.adjust_quantity_for_fractionability(item.symbol, raw_shares)
-                    if self.position_utils
-                    else raw_shares.quantize(Decimal("1"), rounding=ROUND_DOWN)
-                )
+                shares = self._calculate_liquidation_shares(item.symbol)
                 logger.info(
                     f"📊 Liquidating {item.symbol}: selling {shares} shares (full position)"
                 )
             else:
-                # Estimate shares from trade amount using best available price
-                price = (
-                    self.position_utils.get_price_for_estimation(item.symbol)
-                    if self.position_utils
-                    else None
-                )
-                if price is None or price <= Decimal("0"):
-                    # Safety fallback to 1 share if price discovery fails
-                    shares = Decimal("1")
-                    logger.warning(f"⚠️ Price unavailable for {item.symbol}; defaulting to 1 share")
-                else:
-                    raw_shares = abs(item.trade_amount) / price
-                    shares = (
-                        self.position_utils.adjust_quantity_for_fractionability(
-                            item.symbol, raw_shares
-                        )
-                        if self.position_utils
-                        else raw_shares.quantize(Decimal("1"), rounding=ROUND_DOWN)
-                    )
-
+                shares = self._calculate_shares_from_amount(item.symbol, item.trade_amount)
                 amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
                 logger.info(
                     f"📊 Executing {item.action} for {item.symbol}: "

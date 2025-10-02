@@ -637,9 +637,7 @@ class PortfolioAnalysisHandler:
             )
 
             self.logger.info(
-                "⚖️ Final rebalance plan: %s trades | total value $%.2f",
-                trade_count,
-                total_trade_value,
+                f"⚖️ Final rebalance plan: {trade_count} trades | total value ${total_trade_value:.2f}"
             )
 
             for item in rebalance_plan.items:
@@ -649,16 +647,11 @@ class PortfolioAnalysisHandler:
                 )
 
                 self.logger.debug(
-                    "  • %s %s | $%.2f | target %.2f%% vs current %.2f%%",
-                    action,
-                    symbol,
-                    trade_amount,
-                    target_weight,
-                    current_weight,
+                    f"  • {action} {symbol} | ${trade_amount:.2f} | target {target_weight:.2f}% vs current {current_weight:.2f}%"
                 )
 
         except Exception as exc:  # pragma: no cover - defensive logging
-            self.logger.warning("Failed to log final rebalance plan summary: %s", exc)
+            self.logger.warning(f"Failed to log final rebalance plan summary: {exc}")
 
     def _emit_workflow_failure(self, original_event: BaseEvent, error_message: str) -> None:
         """Emit WorkflowFailed event when portfolio analysis fails.

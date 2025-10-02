@@ -372,7 +372,7 @@ class SignalGenerationHandler:
                 continue
 
             detail = self._format_signal_detail(raw_name, data)
-            self.logger.info("  • %s", detail)
+            self.logger.info(f"  • {detail}")
 
     def _format_signal_detail(self, raw_name: str, data: dict[str, Any]) -> str:
         """Format individual signal detail for logging."""
@@ -411,7 +411,7 @@ class SignalGenerationHandler:
         self.logger.info("🎯 Target Portfolio Allocations:")
         for symbol, allocation in allocations.items():
             percent = self._safe_convert_to_percentage(allocation)
-            self.logger.info("  • %s: %.2f%%", symbol, percent)
+            self.logger.info(f"  • {symbol}: {percent:.2f}%")
 
     def _safe_convert_to_percentage(self, allocation: float | int | str | Decimal) -> float:
         """Safely convert allocation to percentage."""
