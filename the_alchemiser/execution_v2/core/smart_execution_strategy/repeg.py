@@ -475,7 +475,9 @@ class RepegManager:
 
         """
         # Check if placement succeeded and order_id looks valid (UUID)
-        if not (getattr(executed_order, "success", False) and getattr(executed_order, "order_id", None)):
+        if not (
+            getattr(executed_order, "success", False) and getattr(executed_order, "order_id", None)
+        ):
             logger.error(f"❌ Re-peg failed for {request.symbol}: no valid order ID returned")
             return SmartOrderResult(
                 success=False,
