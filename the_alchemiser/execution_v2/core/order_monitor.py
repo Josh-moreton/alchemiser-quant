@@ -347,9 +347,9 @@ class OrderMonitor:
             if self._should_skip_order(order, active):
                 continue
 
-            # Type narrowing: order_id is guaranteed to be str after _should_skip_order check
+            # Note: _should_skip_order filters out falsy order_id, but order_id may still be None or empty.
             order_id = order.order_id
-            if not order_id:  # Additional guard for type checker
+            if not order_id:  # Additional guard is necessary to ensure order_id is a non-empty string.
                 continue
 
             order_status = self._get_order_status(order_id)
