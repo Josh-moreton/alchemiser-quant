@@ -213,9 +213,11 @@ class EventDrivenOrchestrator:
         event_bus = self.event_bus
 
         # Event types that should check workflow state before processing
+        # Note: TradeExecuted added to prevent post-failure execution events
         state_checked_events = [
             "SignalGenerated",
             "RebalancePlanned",
+            "TradeExecuted",
         ]
 
         for event_type in state_checked_events:
@@ -300,6 +302,9 @@ class EventDrivenOrchestrator:
                 # Clean up stored results to prevent memory leaks
                 self.workflow_results.pop(correlation_id, None)
 
+                # Clean up workflow state to prevent memory leaks
+                self.cleanup_workflow_state(correlation_id)
+
                 return {
                     "success": True,
                     "correlation_id": correlation_id,
@@ -320,6 +325,7 @@ class EventDrivenOrchestrator:
 
         # Clean up on timeout
         self.workflow_results.pop(correlation_id, None)
+        self.cleanup_workflow_state(correlation_id)
 
         return {
             "success": False,
@@ -685,13 +691,26 @@ class EventDrivenOrchestrator:
             event: The WorkflowCompleted event
 
         """
-        self.logger.info(f"✅ Workflow completed successfully: {event.workflow_type}")
+        self.logger.info(
+            f"✅ Workflow completed successfully: {event.workflow_type}",
+            extra={
+                "correlation_id": event.correlation_id,
+                "workflow_type": event.workflow_type,
+                "workflow_state": WorkflowState.COMPLETED.value,
+            },
+        )
 
         # Calculate and log workflow duration
         start_time = self.workflow_state["workflow_start_times"].get(event.correlation_id)
         if start_time:
             duration_ms = (event.timestamp - start_time).total_seconds() * 1000
-            self.logger.info(f"📊 Workflow duration: {duration_ms:.0f}ms")
+            self.logger.info(
+                f"📊 Workflow duration: {duration_ms:.0f}ms",
+                extra={
+                    "correlation_id": event.correlation_id,
+                    "duration_ms": duration_ms,
+                },
+            )
 
         # Update workflow state
         self.workflow_state["last_successful_workflow"] = event.workflow_type
@@ -714,7 +733,13 @@ class EventDrivenOrchestrator:
 
         # Set workflow state to COMPLETED
         self._set_workflow_state(event.correlation_id, WorkflowState.COMPLETED)
-        self.logger.info(f"✅ Workflow {event.correlation_id} marked as COMPLETED")
+        self.logger.info(
+            f"✅ Workflow {event.correlation_id} marked as COMPLETED",
+            extra={
+                "correlation_id": event.correlation_id,
+                "workflow_state": WorkflowState.COMPLETED.value,
+            },
+        )
 
     def _handle_workflow_failed(self, event: WorkflowFailed) -> None:
         """Handle WorkflowFailed event for error handling and recovery.
@@ -728,7 +753,11 @@ class EventDrivenOrchestrator:
         # Set workflow state to FAILED to prevent further event processing
         self._set_workflow_state(event.correlation_id, WorkflowState.FAILED)
         self.logger.info(
-            f"🚫 Workflow {event.correlation_id} marked as FAILED - future events will be skipped"
+            f"🚫 Workflow {event.correlation_id} marked as FAILED - future events will be skipped",
+            extra={
+                "correlation_id": event.correlation_id,
+                "workflow_state": WorkflowState.FAILED.value,
+            },
         )
 
         # Update workflow state
@@ -764,10 +793,28 @@ class EventDrivenOrchestrator:
             Dictionary containing workflow state information
 
         """
+        # Calculate state metrics
+        with self.workflow_states_lock:
+            state_counts = {
+                "running": 0,
+                "failed": 0,
+                "completed": 0,
+            }
+            for state in self.workflow_states.values():
+                state_counts[state.value] += 1
+
+            workflow_states_copy = self.workflow_states.copy()
+
         return {
             "workflow_state": self.workflow_state.copy(),
             "event_bus_stats": self.event_bus.get_stats(),
             "orchestrator_active": True,
+            "workflow_state_metrics": {
+                "total_tracked": len(workflow_states_copy),
+                "by_state": state_counts,
+                "active_workflows": len(self.workflow_state["active_correlations"]),
+                "completed_workflows": len(self.workflow_state["completed_correlations"]),
+            },
         }
 
     def is_workflow_failed(self, correlation_id: str) -> bool:
@@ -795,6 +842,41 @@ class EventDrivenOrchestrator:
         """
         with self.workflow_states_lock:
             return self.workflow_states.get(correlation_id) == WorkflowState.RUNNING
+
+    def get_workflow_state(self, correlation_id: str) -> WorkflowState | None:
+        """Get the current workflow state for a given correlation ID.
+
+        Args:
+            correlation_id: The workflow correlation ID to check
+
+        Returns:
+            The current WorkflowState, or None if workflow not tracked
+
+        """
+        with self.workflow_states_lock:
+            return self.workflow_states.get(correlation_id)
+
+    def cleanup_workflow_state(self, correlation_id: str) -> bool:
+        """Clean up workflow state for a given correlation ID.
+
+        This should be called after workflow results have been retrieved to prevent
+        memory leaks from accumulating workflow states.
+
+        Args:
+            correlation_id: The workflow correlation ID to clean up
+
+        Returns:
+            True if state was cleaned up, False if correlation_id not found
+
+        """
+        with self.workflow_states_lock:
+            if correlation_id in self.workflow_states:
+                state = self.workflow_states.pop(correlation_id)
+                self.logger.debug(
+                    f"🧹 Cleaned up workflow state for {correlation_id} (was {state.value})"
+                )
+                return True
+            return False
 
     def _set_workflow_state(self, correlation_id: str, state: WorkflowState) -> None:
         """Set the workflow state for a given correlation ID.

@@ -224,38 +224,137 @@ from the_alchemiser.orchestration import EventDrivenOrchestrator, WorkflowState
 # Create orchestrator
 orchestrator = EventDrivenOrchestrator(container)
 
-# Check workflow state
+# Check workflow state (boolean checks)
 if orchestrator.is_workflow_failed(correlation_id):
     print("Workflow has failed - skipping processing")
 elif orchestrator.is_workflow_active(correlation_id):
     print("Workflow is running - continue processing")
 
-# Get current state
-state = orchestrator.workflow_states.get(correlation_id)
-print(f"Workflow state: {state.value if state else 'unknown'}")
+# Get exact workflow state (new in this update)
+state = orchestrator.get_workflow_state(correlation_id)
+if state:
+    print(f"Workflow state: {state.value}")  # "running", "failed", or "completed"
+
+# Get workflow metrics (new in this update)
+status = orchestrator.get_workflow_status()
+metrics = status['workflow_state_metrics']
+print(f"Total workflows tracked: {metrics['total_tracked']}")
+print(f"Running: {metrics['by_state']['running']}")
+print(f"Failed: {metrics['by_state']['failed']}")
+print(f"Completed: {metrics['by_state']['completed']}")
+
+# Clean up workflow state after processing (new in this update)
+orchestrator.cleanup_workflow_state(correlation_id)
 ```
+
+## Enhancements in This Update
+
+Building on PR #1438, the following improvements have been implemented:
+
+### 1. Extended Event Coverage ✅
+
+Added `TradeExecuted` to state-checked events:
+
+```python
+state_checked_events = [
+    "SignalGenerated",
+    "RebalancePlanned", 
+    "TradeExecuted",  # NEW: Prevents post-failure execution events
+]
+```
+
+**Benefit**: More comprehensive failure prevention across all workflow stages.
+
+### 2. Automatic State Cleanup ✅
+
+Implemented automatic cleanup to prevent memory leaks:
+
+```python
+def cleanup_workflow_state(self, correlation_id: str) -> bool:
+    """Clean up workflow state for a given correlation ID.
+    
+    Returns:
+        True if state was cleaned up, False if correlation_id not found
+    """
+```
+
+- Automatically called in `wait_for_workflow_completion()`
+- Can be called manually when needed
+- Prevents unbounded memory growth
+
+**Benefit**: Production-ready memory management.
+
+### 3. Enhanced State Introspection ✅
+
+New method to get exact workflow state:
+
+```python
+def get_workflow_state(self, correlation_id: str) -> WorkflowState | None:
+    """Get the current workflow state for a given correlation ID.
+    
+    Returns:
+        The current WorkflowState, or None if workflow not tracked
+    """
+```
+
+**Benefit**: Direct state access without boolean checks.
+
+### 4. Workflow State Metrics ✅
+
+Enhanced `get_workflow_status()` with detailed metrics:
+
+```python
+{
+    "workflow_state_metrics": {
+        "total_tracked": 3,
+        "by_state": {
+            "running": 1,
+            "failed": 1, 
+            "completed": 1
+        },
+        "active_workflows": 1,
+        "completed_workflows": 2
+    }
+}
+```
+
+**Benefit**: Better observability and monitoring capabilities.
+
+### 5. Improved Structured Logging ✅
+
+All state transitions now include structured metadata:
+
+```python
+self.logger.info(
+    f"🚀 Workflow {correlation_id} marked as RUNNING",
+    extra={
+        "correlation_id": correlation_id,
+        "workflow_state": WorkflowState.RUNNING.value,
+    },
+)
+```
+
+**Benefit**: Better log analysis and monitoring integration.
 
 ## Future Enhancements
 
 Potential improvements for future iterations:
 
-1. **State Cleanup**: Implement automatic cleanup of old workflow states
-   ```python
-   def cleanup_workflow_state(self, correlation_id: str, delay_minutes: int = 60):
-       """Clean up workflow state after delay to prevent memory leaks"""
-   ```
+1. ~~**State Cleanup**: Implement automatic cleanup of old workflow states~~ ✅ **COMPLETED**
+   
+2. ~~**State Metrics**: Track and expose metrics about workflow states~~ ✅ **COMPLETED**
 
-2. **State Persistence**: Persist workflow states for recovery after restarts
-
-3. **State Metrics**: Track and expose metrics about workflow states
-   - Number of failed vs successful workflows
-   - Average workflow duration by state
-   - Most common failure reasons
+3. **State Persistence**: Persist workflow states for recovery after restarts
 
 4. **State Callbacks**: Allow registration of callbacks for state transitions
    ```python
    orchestrator.on_workflow_failed(callback_function)
    ```
+
+5. **Advanced Metrics**: Track workflow performance metrics
+   - Average workflow duration by state
+   - Most common failure reasons
+   - Failure rate by workflow type
 
 ## Conclusion
 
@@ -268,5 +367,9 @@ This implementation successfully solves the race condition problem where handler
 - ✅ Requires no handler modifications
 - ✅ Is fully tested and documented
 - ✅ Is backward compatible
+- ✅ **NEW**: Includes automatic state cleanup for memory management
+- ✅ **NEW**: Provides comprehensive metrics for monitoring
+- ✅ **NEW**: Enhanced logging with structured metadata
+- ✅ **NEW**: Extended event coverage including TradeExecuted
 
-The handler wrapper pattern ensures clean separation of concerns while providing the necessary failure prevention mechanism.
+The handler wrapper pattern ensures clean separation of concerns while providing the necessary failure prevention mechanism. The additional enhancements make the system production-ready with proper resource management and observability.
