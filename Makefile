@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all release
+.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all release bump-patch bump-minor bump-major version
 
 # Default target
 help:
@@ -39,6 +39,12 @@ help:
 	@echo "  deploy          Deploy to AWS Lambda"
 	@echo "  release         Create and push a GitHub release (uses version from pyproject.toml)"
 	@echo "  release v=x.y.z Create release with specific version number"
+	@echo ""
+	@echo "Version Management:"
+	@echo "  bump-patch      Bump patch version (x.y.z -> x.y.z+1)"
+	@echo "  bump-minor      Bump minor version (x.y.z -> x.y+1.0)"
+	@echo "  bump-major      Bump major version (x.y.z -> x+1.0.0)"
+	@echo "  version         Show current version"
 
 # Setup & Installation
 install:
@@ -181,3 +187,34 @@ release:
 		--notes "Release $$TAG of The Alchemiser" \
 		--latest; \
 	echo "✅ Release $$TAG created successfully!"
+
+# Version Management
+version:
+	@echo "📋 Current version: $$(poetry version -s)"
+
+bump-patch:
+	@echo "🔢 Bumping patch version..."
+	@OLD_VERSION=$$(poetry version -s); \
+	poetry version patch; \
+	NEW_VERSION=$$(poetry version -s); \
+	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
+	git add pyproject.toml; \
+	git commit -m "Bump version to $$NEW_VERSION"
+
+bump-minor:
+	@echo "🔢 Bumping minor version..."
+	@OLD_VERSION=$$(poetry version -s); \
+	poetry version minor; \
+	NEW_VERSION=$$(poetry version -s); \
+	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
+	git add pyproject.toml; \
+	git commit -m "Bump version to $$NEW_VERSION"
+
+bump-major:
+	@echo "🔢 Bumping major version..."
+	@OLD_VERSION=$$(poetry version -s); \
+	poetry version major; \
+	NEW_VERSION=$$(poetry version -s); \
+	echo "📋 Version bumped: $$OLD_VERSION -> $$NEW_VERSION"; \
+	git add pyproject.toml; \
+	git commit -m "Bump version to $$NEW_VERSION"
