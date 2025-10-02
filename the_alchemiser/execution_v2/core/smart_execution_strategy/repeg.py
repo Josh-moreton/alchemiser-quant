@@ -540,7 +540,11 @@ class RepegManager:
             min_notional: Minimum notional value
 
         """
-        if asset_info is not None and getattr(asset_info, "fractionable", False) and price is not None:
+        if (
+            asset_info is not None
+            and getattr(asset_info, "fractionable", False)
+            and price is not None
+        ):
             remaining_notional = (remaining_qty * price).quantize(Decimal("0.01"))
             logger.info(
                 f"✅ Order {order_id} remaining notional ${remaining_notional} < "
