@@ -254,8 +254,10 @@ def github_request(method: str, url: str, **kwargs: object) -> requests.Response
             try:
                 reset_ts = int(reset)
                 sleep_for = max(0, reset_ts - int(time.time()) + 2)
-                time.sleep(sleep_for)
-                resp = SESSION.request(method, url, headers=headers, **kwargs)
+                if sleep_for > 0:
+                    logging.info("Rate limited, sleeping for %d seconds", sleep_for)
+                    time.sleep(sleep_for)
+                    resp = SESSION.request(method, url, headers=headers, **kwargs)
             except Exception as exc:
                 logging.exception("GitHub rate limit backoff failed: %s", exc)
     resp.raise_for_status()
@@ -415,17 +417,16 @@ def create_or_update_issue(
     *,
     dry_run: bool = False,
 ) -> None:
-    """Create or update a GitHub issue for the given Sonar issue, idempotent by key."""
+    """Create a GitHub issue for the given Sonar issue if one doesn't already exist."""
     title = issue_title(si)
     body = issue_body(si)
     if dry_run:
-        print(f"Would create or update issue: {title}")
+        print(f"Would create issue: {title}")
         return
 
     existing = find_existing_issue(owner, repo, si.key)
     if existing:
-        url = f"https://api.github.com/repos/{owner}/{repo}/issues/{existing}"
-        github_request("PATCH", url, json={"title": title, "body": body})
+        logging.info("Issue already exists for SonarQube key '%s' (GitHub issue #%d), skipping", si.key, existing)
         return
 
     url = f"https://api.github.com/repos/{owner}/{repo}/issues"
@@ -435,6 +436,7 @@ def create_or_update_issue(
     if assignee:
         data["assignees"] = [assignee]
     github_request("POST", url, json=data)
+    logging.info("Created new issue for SonarQube key '%s': %s", si.key, title)
 
 
 def create_or_update_file_issue(
@@ -449,17 +451,16 @@ def create_or_update_file_issue(
     *,
     dry_run: bool = False,
 ) -> None:
-    """Create or update one GitHub issue per file (component), listing all findings."""
+    """Create a GitHub issue per file (component) if one doesn't already exist."""
     title = file_issue_title(component, issues)
     body = file_issue_body(component, project, host, issues)
     if dry_run:
-        print(f"Would create or update file issue: {title}")
+        print(f"Would create file issue: {title}")
         return
 
     existing = find_existing_file_issue(owner, repo, component)
     if existing:
-        url = f"https://api.github.com/repos/{owner}/{repo}/issues/{existing}"
-        github_request("PATCH", url, json={"title": title, "body": body})
+        logging.info("File issue already exists for component '%s' (GitHub issue #%d), skipping", component, existing)
         return
 
     url = f"https://api.github.com/repos/{owner}/{repo}/issues"
@@ -469,6 +470,7 @@ def create_or_update_file_issue(
     if assignee:
         data["assignees"] = [assignee]
     github_request("POST", url, json=data)
+    logging.info("Created new file issue for component '%s': %s", component, title)
 
 
 def main() -> int:
