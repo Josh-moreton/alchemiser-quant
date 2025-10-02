@@ -200,7 +200,10 @@ class OrderMonitor:
         return updated_orders
 
     async def _final_escalation_if_active_orders(
-        self, phase_type: str, correlation_id: str | None = None, orders: list[OrderResult] | None = None
+        self,
+        phase_type: str,
+        correlation_id: str | None = None,
+        orders: list[OrderResult] | None = None,
     ) -> dict[str, str]:
         """Escalate any remaining unfilled orders to market and return replacement map.
 
@@ -225,10 +228,12 @@ class OrderMonitor:
 
             # First check: active orders still in tracking
             active = self.smart_strategy.order_tracker.get_active_orders()
-            
+
             # Second check: verify broker status for all placed orders to catch cancelled/expired orders
-            orders_to_escalate: dict[str, tuple[SmartOrderRequest, str]] = {}  # order_id -> (request, reason)
-            
+            orders_to_escalate: dict[
+                str, tuple[SmartOrderRequest, str]
+            ] = {}  # order_id -> (request, reason)
+
             if active:
                 logger.warning(
                     f"{log_prefix} 🚨 {phase_type} phase: {len(active)} active orders in tracking; "
@@ -236,7 +241,7 @@ class OrderMonitor:
                 )
                 for order_id, request in active.items():
                     orders_to_escalate[order_id] = (request, "active_unfilled")
-            
+
             # CRITICAL: Also check orders that may have been removed from tracking
             # but still need market fallback (e.g., cancelled/expired with unfilled qty)
             if orders:
@@ -247,7 +252,7 @@ class OrderMonitor:
             if not orders_to_escalate:
                 logger.debug(f"{log_prefix} {phase_type} phase: No orders need market escalation")
                 return {}
-            
+
             logger.warning(
                 f"{log_prefix} 🚨 {phase_type} phase: Escalating {len(orders_to_escalate)} orders to market"
             )
@@ -300,23 +305,27 @@ class OrderMonitor:
         for order in orders:
             if not order.order_id or not order.success:
                 continue
-            
+
             # Skip if order is still in active tracking (already handled)
             if order.order_id in active:
                 continue
-            
-            order_status = self.smart_strategy.alpaca_manager._check_order_completion_status(order.order_id)
+
+            order_status = self.smart_strategy.alpaca_manager._check_order_completion_status(
+                order.order_id
+            )
             # Check if order was cancelled/expired/rejected but with potential unfilled quantity
             # Status list mirrors the centralized check in utils.is_order_completed
             if not order_status or order_status not in ["CANCELED", "EXPIRED", "REJECTED"]:
                 continue
-            
+
             # Order was cancelled/expired - check if it has unfilled quantity
             try:
-                order_result = self.smart_strategy.alpaca_manager.get_order_execution_result(order.order_id)
+                order_result = self.smart_strategy.alpaca_manager.get_order_execution_result(
+                    order.order_id
+                )
                 filled_qty_raw = getattr(order_result, "filled_qty", 0) or 0
                 filled_qty = Decimal(str(filled_qty_raw))
-                
+
                 # Use Decimal comparison to avoid float precision issues
                 if filled_qty < order.shares:
                     # Has unfilled quantity - need to place market order
@@ -332,11 +341,16 @@ class OrderMonitor:
                         quantity=remaining_qty,
                         correlation_id=correlation_id or "",
                     )
-                    orders_to_escalate[order.order_id] = (request, f"{order_status.lower()}_unfilled")
+                    orders_to_escalate[order.order_id] = (
+                        request,
+                        f"{order_status.lower()}_unfilled",
+                    )
             except (AttributeError, ValueError, TypeError) as e:
                 logger.debug(f"Could not check order {order.order_id}: {e}")
             except Exception as e:
-                logger.warning(f"Unexpected error checking order {order.order_id}: {e}", exc_info=True)
+                logger.warning(
+                    f"Unexpected error checking order {order.order_id}: {e}", exc_info=True
+                )
 
     def _process_repeg_results(
         self,
