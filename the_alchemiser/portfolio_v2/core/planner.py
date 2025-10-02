@@ -7,13 +7,12 @@ Core rebalance plan calculator for translating strategy allocations into trade p
 
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.config.config import load_settings
-from the_alchemiser.shared.logging import get_logger, log_with_context
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
     RebalancePlanItem,
@@ -61,9 +60,7 @@ class RebalancePlanCalculator:
             PortfolioError: If plan cannot be calculated
 
         """
-        log_with_context(
-            logger,
-            logging.INFO,
+        logger.info(
             "Building rebalance plan",
             module=MODULE_NAME,
             action="build_plan",
@@ -138,9 +135,7 @@ class RebalancePlanCalculator:
                 },
             )
 
-            log_with_context(
-                logger,
-                logging.INFO,
+            logger.info(
                 "Rebalance plan built successfully",
                 module=MODULE_NAME,
                 action="build_plan",
@@ -152,9 +147,7 @@ class RebalancePlanCalculator:
             return plan
 
         except Exception as e:
-            log_with_context(
-                logger,
-                logging.ERROR,
+            logger.error(
                 f"Failed to build rebalance plan: {e}",
                 module=MODULE_NAME,
                 action="build_plan",
