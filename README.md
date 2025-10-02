@@ -243,13 +243,106 @@ PAPER_TRADING=true  # Default for local runs
 
 ### AWS Deployment
 
+#### Automated Deployment via GitHub Releases (Recommended)
+
+The system automatically deploys to AWS Lambda when you create a GitHub Release:
+
+**Production Deployment:**
 ```bash
-# Deploy to Lambda
+# Create a production release tag
+git tag v1.0.0
+git push origin v1.0.0
+
+# Then create a GitHub Release from this tag
+# GitHub Actions will automatically:
+# 1. Build the Lambda package with SAM
+# 2. Deploy to production using OIDC authentication
+# 3. Use secrets: PROD_ALPACA_KEY, PROD_ALPACA_SECRET, PROD_ALPACA_ENDPOINT
+```
+
+**Development Deployment:**
+```bash
+# Create a dev release tag (with -dev or -beta suffix)
+git tag v1.0.0-dev
+git push origin v1.0.0-dev
+
+# Create a GitHub Release from this tag
+# Deploys to dev stack using ALPACA_KEY, ALPACA_SECRET, ALPACA_ENDPOINT secrets
+```
+
+**Required GitHub Secrets:**
+- `AWS_DEPLOY_ROLE_ARN`: IAM role ARN for OIDC authentication (e.g., `arn:aws:iam::123456789012:role/GitHubDeployRole`)
+- `ALPACA_KEY`: Alpaca API key for dev/paper trading
+- `ALPACA_SECRET`: Alpaca API secret for dev/paper trading
+- `ALPACA_ENDPOINT`: (Optional) Alpaca API endpoint for dev (defaults to paper API)
+- `PROD_ALPACA_KEY`: Alpaca API key for production/live trading
+- `PROD_ALPACA_SECRET`: Alpaca API secret for production/live trading
+- `PROD_ALPACA_ENDPOINT`: (Optional) Alpaca API endpoint for prod (defaults to live API)
+- `PROD_EMAIL_PASSWORD`: (Optional) SMTP password for production email notifications
+
+**Required GitHub Variables:**
+- `AWS_REGION`: (Optional) AWS region for deployment (defaults to `us-east-1`)
+
+#### Manual Local Deployment
+
+For manual deployments during development:
+
+```bash
+# Deploy to dev (paper trading)
 make deploy
 
-# Production credentials are passed via environment variables
-# Set PROD_ALPACA_KEY, PROD_ALPACA_SECRET before deploying to prod
+# Or directly with the script
+./scripts/deploy.sh dev
+
+# Deploy to production (requires LIVE_* credentials in .env)
+./scripts/deploy.sh prod
 ```
+
+#### Setting Up OIDC Authentication
+
+To enable automated deployments, configure AWS IAM OIDC for GitHub Actions:
+
+1. **Create OIDC Identity Provider in AWS IAM:**
+   - Provider URL: `https://token.actions.githubusercontent.com`
+   - Audience: `sts.amazonaws.com`
+
+2. **Create IAM Role for GitHub Actions:**
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Principal": {
+           "Federated": "arn:aws:iam::YOUR_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+         },
+         "Action": "sts:AssumeRoleWithWebIdentity",
+         "Condition": {
+           "StringEquals": {
+             "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+           },
+           "StringLike": {
+             "token.actions.githubusercontent.com:sub": "repo:YOUR_GITHUB_ORG/alchemiser-quant:*"
+           }
+         }
+       }
+     ]
+   }
+   ```
+
+3. **Attach required policies to the role:**
+   - `AWSCloudFormationFullAccess` (or scoped down)
+   - `AWSLambda_FullAccess` (or scoped down)
+   - `IAMFullAccess` (for creating Lambda execution roles)
+   - `AmazonS3FullAccess` (for SAM deployment artifacts)
+   - `CloudWatchLogsFullAccess` (for log groups)
+   - `AmazonEventBridgeFullAccess` (for schedulers)
+
+4. **Add the role ARN to GitHub Secrets:**
+   - Name: `AWS_DEPLOY_ROLE_ARN`
+   - Value: `arn:aws:iam::YOUR_ACCOUNT_ID:role/GitHubDeployRole`
+
+For detailed OIDC setup instructions, see: https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services
 
 ## Observability
 

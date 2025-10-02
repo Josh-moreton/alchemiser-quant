@@ -1,0 +1,118 @@
+---
+name: Deploy Lambda via SAM
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  id-token: write   # Required for OIDC authentication
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: |
+          pip install -U pip
+          pip install poetry
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Install AWS SAM CLI
+        run: pip install aws-sam-cli
+
+      - name: Determine deployment environment
+        id: env
+        run: |
+          # Determine environment from release tag
+          # Tags starting with 'v' followed by version (e.g., v1.0.0) deploy to prod
+          # Tags with '-dev' or '-beta' suffixes deploy to dev
+          TAG="${{ github.event.release.tag_name }}"
+          if [[ "$TAG" =~ -dev$ ]] || [[ "$TAG" =~ -beta$ ]]; then
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "Deploying to DEV environment"
+          else
+            echo "environment=prod" >> $GITHUB_OUTPUT
+            echo "Deploying to PROD environment"
+          fi
+
+      - name: Export dependencies with Poetry
+        run: |
+          echo "📦 Exporting dependencies for Lambda layer..."
+          mkdir -p dependencies
+          poetry export --only=main -f requirements.txt --without-hashes -o dependencies/requirements.txt
+          # Strip AWS-managed SDKs to rely on Lambda's built-in boto3/botocore
+          sed -i.bak '/^boto3[<=>]/d;/^botocore[<=>]/d' dependencies/requirements.txt && rm -f dependencies/requirements.txt.bak || true
+          # Remove pydantic-core pin if present
+          sed -i.bak '/^pydantic-core==/d' dependencies/requirements.txt && rm -f dependencies/requirements.txt.bak
+          echo "✅ Dependencies exported: $(wc -l < dependencies/requirements.txt) packages"
+
+      - name: Build Lambda with SAM
+        run: |
+          echo "🔨 Building SAM application..."
+          sam build --parallel --config-env "${{ steps.env.outputs.environment }}"
+          echo "📦 Built package sizes:"
+          if [ -d ".aws-sam/build/DependenciesLayer" ]; then
+            echo "   Dependencies layer: $(du -sh .aws-sam/build/DependenciesLayer 2>/dev/null | cut -f1 || echo 'N/A')"
+          fi
+          if [ -d ".aws-sam/build/TradingSystemFunction" ]; then
+            echo "   Function code: $(du -sh .aws-sam/build/TradingSystemFunction 2>/dev/null | cut -f1 || echo 'N/A')"
+          fi
+
+      - name: Deploy to DEV with SAM
+        if: steps.env.outputs.environment == 'dev'
+        run: |
+          echo "🚀 Deploying to DEV environment..."
+          sam deploy \
+            --no-fail-on-empty-changeset \
+            --resolve-s3 \
+            --config-env dev \
+            --parameter-overrides \
+              Stage=dev \
+              AlpacaKey="${{ secrets.ALPACA_KEY }}" \
+              AlpacaSecret="${{ secrets.ALPACA_SECRET }}" \
+              AlpacaEndpoint="${{ secrets.ALPACA_ENDPOINT || 'https://paper-api.alpaca.markets/v2' }}"
+
+      - name: Deploy to PROD with SAM
+        if: steps.env.outputs.environment == 'prod'
+        run: |
+          echo "🚀 Deploying to PROD environment..."
+          echo "⚠️  WARNING: Using LIVE trading keys - real money will be traded!"
+          sam deploy \
+            --no-fail-on-empty-changeset \
+            --resolve-s3 \
+            --config-env prod \
+            --parameter-overrides \
+              Stage=prod \
+              ProdAlpacaKey="${{ secrets.PROD_ALPACA_KEY }}" \
+              ProdAlpacaSecret="${{ secrets.PROD_ALPACA_SECRET }}" \
+              ProdAlpacaEndpoint="${{ secrets.PROD_ALPACA_ENDPOINT || 'https://api.alpaca.markets' }}" \
+              ProdEmailPassword="${{ secrets.PROD_EMAIL_PASSWORD || '' }}"
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo ""
+          echo "✅ Deployment complete!"
+          echo ""
+          echo "📊 Environment: ${{ steps.env.outputs.environment }}"
+          echo "🏷️  Release Tag: ${{ github.event.release.tag_name }}"
+          echo "📦 Stack Name: the-alchemiser-v2${{ steps.env.outputs.environment == 'dev' && '-dev' || '' }}"
+          echo ""
+          echo "🔗 To view logs:"
+          echo "   aws logs tail /aws/lambda/the-alchemiser-v2-lambda-${{ steps.env.outputs.environment }} --follow"
