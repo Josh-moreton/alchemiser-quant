@@ -602,7 +602,10 @@ class EventDrivenOrchestrator:
             error_message = None
             error_code = None
             if not success:
-                error_message = event.metadata.get("error_message") or "Unknown error"
+                # Use failure_reason from TradeExecuted event if available
+                error_message = (
+                    event.failure_reason or event.metadata.get("error_message") or "Unknown error"
+                )
                 if hasattr(event, "error_code"):
                     error_code = event.error_code
 
