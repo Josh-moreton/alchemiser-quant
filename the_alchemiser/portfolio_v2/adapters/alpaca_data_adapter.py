@@ -8,7 +8,6 @@ for portfolio-specific data access.
 
 from __future__ import annotations
 
-import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING
 

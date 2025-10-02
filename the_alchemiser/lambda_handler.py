@@ -26,7 +26,6 @@ from the_alchemiser.shared.errors.error_handler import (
 from the_alchemiser.shared.logging import (
     generate_request_id,
     get_logger,
-    log_error_with_context,
     set_request_id,
 )
 from the_alchemiser.shared.schemas import LambdaEvent
@@ -70,7 +69,11 @@ def _build_response_message(trading_mode: str, *, result: bool) -> str:
 
     """
     mode_str = trading_mode.title()
-    return f"{mode_str} trading completed successfully" if result else f"{mode_str} trading failed"
+    return (
+        f"{mode_str} trading completed successfully"
+        if result
+        else f"{mode_str} trading failed"
+    )
 
 
 ## Monthly summary path removed intentionally. Use CLI scripts/send_monthly_summary.py for any
@@ -123,7 +126,9 @@ def _handle_error(
             event_bus = container.services.event_bus()
             send_error_notification_if_needed(event_bus)
         except Exception as setup_error:
-            logger.warning(f"Failed to setup event bus for error notification: {setup_error}")
+            logger.warning(
+                f"Failed to setup event bus for error notification: {setup_error}"
+            )
 
     except NotificationError as notification_error:
         logger.warning("Failed to send error notification: %s", notification_error)
@@ -174,7 +179,9 @@ def _handle_critical_error(
         command_args: Parsed command arguments (optional)
 
     """
-    _handle_error(error, event, request_id, " - unexpected error", command_args, is_critical=True)
+    _handle_error(
+        error, event, request_id, " - unexpected error", command_args, is_critical=True
+    )
 
 
 def parse_event_mode(event: LambdaEvent | dict[str, Any]) -> list[str]:
@@ -204,7 +211,10 @@ def parse_event_mode(event: LambdaEvent | dict[str, Any]) -> list[str]:
         )
 
     # P&L analysis action
-    if isinstance(event_obj, LambdaEvent) and getattr(event_obj, "action", None) == "pnl_analysis":
+    if (
+        isinstance(event_obj, LambdaEvent)
+        and getattr(event_obj, "action", None) == "pnl_analysis"
+    ):
         logger.info("Parsed event to action: pnl_analysis")
         command_args = ["pnl"]
 
@@ -307,7 +317,9 @@ def lambda_handler(
 
     try:
         # Log the incoming event for debugging
-        logger.info(f"Lambda invoked with event: {json.dumps(event) if event else 'None'}")
+        logger.info(
+            f"Lambda invoked with event: {json.dumps(event) if event else 'None'}"
+        )
 
         # Parse event to determine command arguments
         command_args = parse_event_mode(event or {})
@@ -348,15 +360,16 @@ def lambda_handler(
         parsed_command_args = locals().get("command_args")  # type: list[str] | None
 
         error_message = f"Lambda execution error ({type(e).__name__}): {e!s}"
-        log_error_with_context(
-            logger,
-            e,
-            "lambda_execution",
-            function="lambda_handler",
+        logger.error(
+            "Lambda execution error",
+            error_message=error_message,
             error_type=type(e).__name__,
+            operation="lambda_execution",
+            function="lambda_handler",
             mode=mode,
             trading_mode=trading_mode,
             request_id=request_id,
+            exc_info=True,
         )
         logger.error(error_message, exc_info=True)
 
@@ -374,14 +387,15 @@ def lambda_handler(
         critical_command_args = locals().get("command_args")  # type: list[str] | None
 
         error_message = f"Lambda execution critical error: {e!s}"
-        log_error_with_context(
-            logger,
-            e,
-            "lambda_execution",
-            function="lambda_handler",
+        logger.error(
+            "Lambda execution critical error",
+            error_message=error_message,
             error_type="unexpected_critical_error",
             original_error=type(e).__name__,
+            operation="lambda_execution",
+            function="lambda_handler",
             request_id=request_id,
+            exc_info=True,
         )
         logger.error(error_message, exc_info=True)
 

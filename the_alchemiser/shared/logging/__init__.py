@@ -11,6 +11,21 @@ This package provides structlog-based structured logging infrastructure with:
 """
 
 # Structlog configuration - now the primary logging system
+# Legacy configuration functions (kept for compatibility with existing config)
+from .config import (
+    configure_application_logging,
+    configure_production_logging,
+    configure_test_logging,
+)
+
+# Context management (still using contextvars)
+from .context import (
+    generate_request_id,
+    get_error_id,
+    get_request_id,
+    set_error_id,
+    set_request_id,
+)
 from .structlog_config import configure_structlog, get_structlog_logger
 
 # Structlog trading-specific helpers
@@ -22,42 +37,26 @@ from .structlog_trading import (
     log_trade_event,
 )
 
-# Context management (still using contextvars)
-from .context import (
-    generate_request_id,
-    get_error_id,
-    get_request_id,
-    set_error_id,
-    set_request_id,
-)
-
-# Legacy configuration functions (kept for compatibility with existing config)
-from .config import (
-    configure_application_logging,
-    configure_production_logging,
-    configure_test_logging,
-)
-
 __all__ = [
-    # Structlog primary functions
-    "configure_structlog",
-    "get_structlog_logger",
     # Trading-specific helpers
     "bind_trading_context",
-    "log_data_integrity_checkpoint",
-    "log_order_flow",
-    "log_repeg_operation",
-    "log_trade_event",
+    # Legacy configuration (transitional)
+    "configure_application_logging",
+    "configure_production_logging",
+    # Structlog primary functions
+    "configure_structlog",
+    "configure_test_logging",
     # Context management
     "generate_request_id",
     "get_error_id",
     "get_request_id",
+    "get_structlog_logger",
+    "log_data_integrity_checkpoint",
+    "log_order_flow",
+    "log_repeg_operation",
+    "log_trade_event",
     "set_error_id",
     "set_request_id",
-    # Legacy configuration (transitional)
-    "configure_application_logging",
-    "configure_production_logging",
-    "configure_test_logging",
 ]
 
 # Backward compatibility alias - get_logger now returns structlog logger

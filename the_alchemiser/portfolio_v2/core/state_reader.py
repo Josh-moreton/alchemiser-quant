@@ -7,7 +7,6 @@ Portfolio state reader for building immutable snapshots from live data.
 
 from __future__ import annotations
 
-import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING
 

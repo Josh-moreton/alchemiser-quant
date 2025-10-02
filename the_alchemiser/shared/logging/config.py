@@ -45,13 +45,13 @@ def configure_production_logging(
 
 def configure_application_logging() -> None:
     """Configure application logging with structlog.
-    
+
     Automatically selects appropriate configuration based on environment.
     Production uses JSON format, development uses console format.
     """
     # Determine if we're in production (Lambda environment)
     is_production = bool(os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
-    
+
     if is_production:
         configure_production_logging(log_level=logging.INFO)
     else:

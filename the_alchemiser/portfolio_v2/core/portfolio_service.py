@@ -7,7 +7,6 @@ Portfolio service V2 - orchestration facade for rebalance plan creation.
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.logging import get_logger

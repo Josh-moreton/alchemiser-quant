@@ -1,4 +1,4 @@
-"""Business Unit: utilities; Status: deprecated.
+"""Business Unit: shared | Status: deprecated.
 
 DEPRECATED: This module has been replaced by structlog-based logging.
 

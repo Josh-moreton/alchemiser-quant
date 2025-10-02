@@ -7,7 +7,6 @@ Core rebalance plan calculator for translating strategy allocations into trade p
 
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
