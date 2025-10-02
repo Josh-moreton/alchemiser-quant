@@ -107,9 +107,7 @@ def configure_structlog(
 
     file_handler = logging.FileHandler(file_path)
     file_handler.setLevel(file_level)
-    file_handler.setFormatter(
-        logging.Formatter("%(message)s")
-    )  # Structlog handles formatting
+    file_handler.setFormatter(logging.Formatter("%(message)s"))  # Structlog handles formatting
     root_logger.addHandler(file_handler)
 
     # Configure structlog processors
