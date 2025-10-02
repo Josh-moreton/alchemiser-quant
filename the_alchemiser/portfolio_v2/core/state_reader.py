@@ -82,16 +82,42 @@ class PortfolioStateReader:
             # Step 4: Get cash balance
             cash = self._data_adapter.get_account_cash()
 
-            # Check for negative or zero cash balance - graceful exit condition
+            # Check for negative or zero cash balance - liquidate and exit
             if cash <= Decimal("0"):
                 log_with_context(
                     logger,
                     logging.ERROR,
-                    f"Account has non-positive cash balance: ${cash}. Trading cannot proceed.",
+                    f"Account has non-positive cash balance: ${cash}. Attempting to liquidate all positions.",
                     module=MODULE_NAME,
                     action="build_snapshot",
                     cash_balance=str(cash),
                 )
+                
+                # Attempt to liquidate all positions
+                liquidation_success = self._data_adapter.liquidate_all_positions()
+                
+                if liquidation_success:
+                    log_with_context(
+                        logger,
+                        logging.INFO,
+                        "Liquidation completed. Re-checking cash balance...",
+                        module=MODULE_NAME,
+                        action="build_snapshot",
+                    )
+                    
+                    # Re-check cash balance after liquidation
+                    cash = self._data_adapter.get_account_cash()
+                    
+                    if cash <= Decimal("0"):
+                        log_with_context(
+                            logger,
+                            logging.ERROR,
+                            f"Cash balance still non-positive after liquidation: ${cash}",
+                            module=MODULE_NAME,
+                            action="build_snapshot",
+                            cash_balance=str(cash),
+                        )
+                
                 raise NegativeCashBalanceError(
                     f"Account cash balance is ${cash}. Trading requires positive cash balance.",
                     cash_balance=str(cash),

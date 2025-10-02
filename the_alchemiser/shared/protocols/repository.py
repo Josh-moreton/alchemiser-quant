@@ -180,6 +180,20 @@ class TradingRepository(Protocol):
         """
         ...
 
+    def close_all_positions(self, cancel_orders: bool = True) -> list[dict[str, Any]]:
+        """Liquidate all positions for an account.
+
+        Places an order for each open position to liquidate.
+
+        Args:
+            cancel_orders: If True, cancel all open orders before liquidating positions
+
+        Returns:
+            List of responses from each closed position containing status and order info
+
+        """
+        ...
+
     def validate_connection(self) -> bool:
         """Validate connection to trading service.
 
