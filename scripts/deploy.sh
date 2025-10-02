@@ -82,6 +82,15 @@ fi
 
 echo "✅ Dependencies exported: $(wc -l < dependencies/requirements.txt) packages"
 
+# Extract version from pyproject.toml for Lambda metadata
+echo "📋 Extracting version from pyproject.toml..."
+APP_VERSION=$(python3 scripts/get_version.py)
+if [ -z "$APP_VERSION" ]; then
+    echo "❌ Error: Failed to extract version from pyproject.toml"
+    exit 1
+fi
+echo "📌 Application version: $APP_VERSION"
+
 # Build the SAM application
 echo "🔨 Building SAM application..."
 sam build --parallel --config-env "$ENVIRONMENT"
@@ -125,6 +134,7 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         --config-env "$ENVIRONMENT" \
         --parameter-overrides \
             Stage=dev \
+            AppVersion="$APP_VERSION" \
             AlpacaKey="$ALPACA_KEY" \
             AlpacaSecret="$ALPACA_SECRET" \
             AlpacaEndpoint="$ALPACA_ENDPOINT_PARAM"
@@ -170,6 +180,7 @@ else
     # Build parameter overrides, conditionally including optional email password
     PARAMS=(
         "Stage=prod"
+        "AppVersion=$APP_VERSION"
         "ProdAlpacaKey=$LIVE_ALPACA_KEY"
         "ProdAlpacaSecret=$LIVE_ALPACA_SECRET"
         "ProdAlpacaEndpoint=$LIVE_ALPACA_ENDPOINT_PARAM"

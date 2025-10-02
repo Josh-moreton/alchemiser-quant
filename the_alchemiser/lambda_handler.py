@@ -14,6 +14,7 @@ modes based on the event payload.
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
 from the_alchemiser.main import main
@@ -38,6 +39,16 @@ from the_alchemiser.shared.types.exceptions import (
 
 # Set up logging
 logger = get_logger(__name__)
+
+
+def _get_app_version() -> str:
+    """Get application version from environment variable.
+
+    Returns:
+        Application version string, or 'unknown' if not set.
+
+    """
+    return os.environ.get("APP__VERSION", "unknown")
 
 
 def _determine_trading_mode(mode: str) -> str:
@@ -253,7 +264,8 @@ def lambda_handler(
                 "mode": str,                    # The executed mode
                 "trading_mode": str,            # The trading mode (if applicable)
                 "message": str,                 # Human-readable status message
-                "request_id": str               # Lambda request ID (if available)
+                "request_id": str,              # Lambda request ID (if available)
+                "version": str                  # Application version from pyproject.toml
             }
 
     Examples:
@@ -266,7 +278,8 @@ def lambda_handler(
             "mode": "trade",
             "trading_mode": "paper",
             "message": "Paper trading completed successfully",
-            "request_id": "12345-abcde"
+            "request_id": "12345-abcde",
+            "version": "2.2.4"
         }
 
         Live trading event (default):
@@ -278,7 +291,8 @@ def lambda_handler(
             "mode": "trade",
             "trading_mode": "live",
             "message": "Live trading completed successfully",
-            "request_id": "12345-abcde"
+            "request_id": "12345-abcde",
+            "version": "2.2.4"
         }
 
         Signals only event:
@@ -290,7 +304,8 @@ def lambda_handler(
             "mode": "bot",
             "trading_mode": "n/a",
             "message": "Signal analysis completed successfully",
-            "request_id": "12345-abcde"
+            "request_id": "12345-abcde",
+            "version": "2.2.4"
         }
 
     Backward Compatibility:
@@ -307,6 +322,10 @@ def lambda_handler(
     set_request_id(correlation_id)
 
     try:
+        # Get and log application version
+        app_version = _get_app_version()
+        logger.info("Lambda invoked", version=app_version, request_id=request_id)
+
         # Log the incoming event for debugging
         event_json = json.dumps(event) if event else "None"
         logger.info("Lambda invoked with event", event_data=event_json)
@@ -332,12 +351,16 @@ def lambda_handler(
         # Build response message
         message = _build_response_message(trading_mode, result=result_ok)
 
+        # Get application version
+        app_version = _get_app_version()
+
         response = {
             "status": "success" if result_ok else "failed",
             "mode": mode,
             "trading_mode": trading_mode,
             "message": message,
             "request_id": request_id,
+            "version": app_version,
         }
 
         logger.info("Lambda execution completed", response=response)
@@ -371,6 +394,7 @@ def lambda_handler(
             "trading_mode": trading_mode,
             "message": error_message,
             "request_id": request_id,
+            "version": _get_app_version(),
         }
     except (ImportError, AttributeError, ValueError, KeyError, TypeError, OSError) as e:
         critical_command_args = locals().get("command_args")  # type: list[str] | None
@@ -397,4 +421,5 @@ def lambda_handler(
             "trading_mode": "unknown",
             "message": error_message,
             "request_id": request_id,
+            "version": _get_app_version(),
         }
