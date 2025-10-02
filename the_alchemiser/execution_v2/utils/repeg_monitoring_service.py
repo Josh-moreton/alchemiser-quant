@@ -55,30 +55,52 @@ class RepegMonitoringService:
 
         while (time.time() - start_time) < config["max_total_wait"]:
             elapsed_total = time.time() - start_time
-
-            # Give existing orders time to fill before checking
             await asyncio.sleep(config["wait_between_checks"])
 
-            repeg_results = []
-            if self.smart_strategy:
-                repeg_results = await self.smart_strategy.check_and_repeg_orders()
-
-            if repeg_results:
-                last_repeg_action_time = time.time()
-                orders = self._process_repeg_results(phase_type, orders, repeg_results)
-            else:
-                self._log_no_repeg_activity(phase_type, attempts, elapsed_total)
-
+            last_repeg_action_time, orders = await self._check_and_process_repegs(
+                phase_type, orders, attempts, elapsed_total, last_repeg_action_time
+            )
             attempts += 1
 
-            # Check if we should break early based on termination conditions
             if self._should_terminate_early(last_repeg_action_time, config["fill_wait_seconds"]):
                 break
 
         orders = await self._escalate_remaining_orders(phase_type, orders)
-
         self._log_monitoring_completion(phase_type, start_time)
         return orders
+
+    async def _check_and_process_repegs(
+        self,
+        phase_type: str,
+        orders: list[OrderResult],
+        attempts: int,
+        elapsed_total: float,
+        last_repeg_action_time: float,
+    ) -> tuple[float, list[OrderResult]]:
+        """Check for and process any repeg operations.
+
+        Args:
+            phase_type: Type of phase ("SELL" or "BUY")
+            orders: Current list of orders
+            attempts: Current attempt number
+            elapsed_total: Total elapsed time
+            last_repeg_action_time: Time of last repeg action
+
+        Returns:
+            Tuple of (updated last_repeg_action_time, updated orders)
+
+        """
+        repeg_results = []
+        if self.smart_strategy:
+            repeg_results = await self.smart_strategy.check_and_repeg_orders()
+
+        if repeg_results:
+            last_repeg_action_time = time.time()
+            orders = self._process_repeg_results(phase_type, orders, repeg_results)
+        else:
+            self._log_no_repeg_activity(phase_type, attempts, elapsed_total)
+
+        return last_repeg_action_time, orders
 
     def _process_repeg_results(
         self,
