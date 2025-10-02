@@ -7,6 +7,7 @@ Portfolio state reader for building immutable snapshots from live data.
 
 from __future__ import annotations
 
+import time
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -63,6 +64,73 @@ class PortfolioStateReader:
 
         return cash, positions
 
+    def _wait_for_settlement(
+        self, max_wait_seconds: int = 30
+    ) -> tuple[Decimal, dict[str, Decimal]]:
+        """Wait for position liquidation to settle with polling and retry.
+
+        Settlement can take time as positions need to be sold and cash needs
+        to appear in the account balance. This method polls the account
+        periodically to wait for the cash balance to become positive.
+
+        Args:
+            max_wait_seconds: Maximum time to wait for settlement
+
+        Returns:
+            Tuple of (updated_cash, updated_positions) after settlement
+
+        """
+        logger.info(
+            f"Waiting up to {max_wait_seconds}s for liquidation settlement...",
+            module=MODULE_NAME,
+            action="wait_for_settlement",
+        )
+
+        start_time = time.time()
+        poll_interval = 2.0  # Poll every 2 seconds
+        attempt = 1
+
+        while (time.time() - start_time) < max_wait_seconds:
+            positions = self._data_adapter.get_positions()
+            cash = self._data_adapter.get_account_cash()
+
+            logger.debug(
+                f"Settlement check #{attempt}: cash=${cash}, positions={len(positions)}",
+                module=MODULE_NAME,
+                action="wait_for_settlement",
+                cash_balance=str(cash),
+                position_count=len(positions),
+                elapsed_seconds=round(time.time() - start_time, 1),
+            )
+
+            if cash > Decimal("0"):
+                logger.info(
+                    f"Settlement completed: cash balance recovered to ${cash} after {round(time.time() - start_time, 1)}s",
+                    module=MODULE_NAME,
+                    action="wait_for_settlement",
+                    cash_balance=str(cash),
+                    settlement_time_seconds=round(time.time() - start_time, 1),
+                )
+                return cash, positions
+
+            attempt += 1
+            time.sleep(poll_interval)
+
+        # Timeout reached - get final state
+        positions = self._data_adapter.get_positions()
+        cash = self._data_adapter.get_account_cash()
+
+        logger.warning(
+            f"Settlement timeout after {max_wait_seconds}s: cash=${cash}, positions={len(positions)}",
+            module=MODULE_NAME,
+            action="wait_for_settlement",
+            cash_balance=str(cash),
+            position_count=len(positions),
+            timeout_seconds=max_wait_seconds,
+        )
+
+        return cash, positions
+
     def _handle_negative_cash_balance(
         self, cash: Decimal, positions: dict[str, Decimal]
     ) -> tuple[Decimal, dict[str, Decimal]]:
@@ -96,8 +164,8 @@ class PortfolioStateReader:
                 module=MODULE_NAME,
             )
 
-        # Re-check account state after liquidation
-        cash, positions = self._liquidate_and_recheck()
+        # Re-check account state after liquidation with settlement waiting
+        cash, positions = self._wait_for_settlement(max_wait_seconds=30)
 
         if cash > Decimal("0"):
             logger.info(
