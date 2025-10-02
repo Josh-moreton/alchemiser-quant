@@ -226,28 +226,9 @@ class OrderMonitor:
             if not self.smart_strategy:
                 return {}
 
-            # First check: active orders still in tracking
-            active = self.smart_strategy.order_tracker.get_active_orders()
-
-            # Second check: verify broker status for all placed orders to catch cancelled/expired orders
-            orders_to_escalate: dict[
-                str, tuple[SmartOrderRequest, str]
-            ] = {}  # order_id -> (request, reason)
-
-            if active:
-                logger.warning(
-                    f"{log_prefix} 🚨 {phase_type} phase: {len(active)} active orders in tracking; "
-                    "checking for escalation"
-                )
-                for order_id, request in active.items():
-                    orders_to_escalate[order_id] = (request, "active_unfilled")
-
-            # CRITICAL: Also check orders that may have been removed from tracking
-            # but still need market fallback (e.g., cancelled/expired with unfilled qty)
-            if orders:
-                self._check_cancelled_orders_for_escalation(
-                    orders, active, orders_to_escalate, log_prefix, correlation_id
-                )
+            orders_to_escalate = self._collect_orders_for_escalation(
+                phase_type, orders, log_prefix, correlation_id
+            )
 
             if not orders_to_escalate:
                 logger.debug(f"{log_prefix} {phase_type} phase: No orders need market escalation")
@@ -257,29 +238,89 @@ class OrderMonitor:
                 f"{log_prefix} 🚨 {phase_type} phase: Escalating {len(orders_to_escalate)} orders to market"
             )
 
-            tasks = [
-                self.smart_strategy.repeg_manager._escalate_to_market(oid, req)
-                for oid, (req, _) in orders_to_escalate.items()
-            ]
-            results = [r for r in await asyncio.gather(*tasks) if r]
-
-            replacement_map: dict[str, str] = {}
-            for r in results:
-                meta = getattr(r, "metadata", None) or {}
-                original_id = str(meta.get("original_order_id")) if isinstance(meta, dict) else ""
-                new_id = getattr(r, "order_id", None) or ""
-                if getattr(r, "success", False) and original_id and new_id:
-                    replacement_map[original_id] = new_id
-                    logger.info(
-                        f"{log_prefix} ✅ Market escalation successful: {original_id} -> {new_id}"
-                    )
-
-            return replacement_map
+            return await self._execute_escalation_and_build_replacement_map(
+                orders_to_escalate, log_prefix
+            )
         except Exception as exc:
             logger.exception(
                 f"{log_prefix} Error during final escalation to market in {phase_type} repeg monitoring: {exc}"
             )
             return {}
+
+    def _collect_orders_for_escalation(
+        self,
+        phase_type: str,
+        orders: list[OrderResult] | None,
+        log_prefix: str,
+        correlation_id: str | None,
+    ) -> dict[str, tuple[SmartOrderRequest, str]]:
+        """Collect orders that need escalation to market.
+
+        Args:
+            phase_type: Type of phase being monitored
+            orders: Original orders list to check
+            log_prefix: Logging prefix for correlation
+            correlation_id: Optional correlation ID
+
+        Returns:
+            Dictionary mapping order IDs to (request, reason) tuples.
+
+        """
+        if not self.smart_strategy:
+            return {}
+
+        # First check: active orders still in tracking
+        active = self.smart_strategy.order_tracker.get_active_orders()
+        orders_to_escalate: dict[str, tuple[SmartOrderRequest, str]] = {}
+
+        if active:
+            logger.warning(
+                f"{log_prefix} 🚨 {phase_type} phase: {len(active)} active orders in tracking; "
+                "checking for escalation"
+            )
+            for order_id, request in active.items():
+                orders_to_escalate[order_id] = (request, "active_unfilled")
+
+        # Second check: verify broker status for cancelled/expired orders
+        if orders:
+            self._check_cancelled_orders_for_escalation(
+                orders, active, orders_to_escalate, log_prefix, correlation_id
+            )
+
+        return orders_to_escalate
+
+    async def _execute_escalation_and_build_replacement_map(
+        self, orders_to_escalate: dict[str, tuple[SmartOrderRequest, str]], log_prefix: str
+    ) -> dict[str, str]:
+        """Execute market escalation and build replacement map.
+
+        Args:
+            orders_to_escalate: Orders to escalate
+            log_prefix: Logging prefix for correlation
+
+        Returns:
+            Dictionary mapping original order IDs to new order IDs.
+
+        """
+        if not self.smart_strategy:
+            return {}
+
+        tasks = [
+            self.smart_strategy.repeg_manager._escalate_to_market(oid, req)
+            for oid, (req, _) in orders_to_escalate.items()
+        ]
+        results = [r for r in await asyncio.gather(*tasks) if r]
+
+        replacement_map: dict[str, str] = {}
+        for r in results:
+            meta = getattr(r, "metadata", None) or {}
+            original_id = str(meta.get("original_order_id")) if isinstance(meta, dict) else ""
+            new_id = getattr(r, "order_id", None) or ""
+            if getattr(r, "success", False) and original_id and new_id:
+                replacement_map[original_id] = new_id
+                logger.info(f"{log_prefix} ✅ Market escalation successful: {original_id} -> {new_id}")
+
+        return replacement_map
 
     def _check_cancelled_orders_for_escalation(
         self,
@@ -303,54 +344,160 @@ class OrderMonitor:
             return
 
         for order in orders:
-            if not order.order_id or not order.success:
+            if self._should_skip_order(order, active):
                 continue
 
-            # Skip if order is still in active tracking (already handled)
-            if order.order_id in active:
+            # Note: _should_skip_order filters out falsy order_id, but order_id may still be None or empty.
+            order_id = order.order_id
+            if not order_id:  # Additional guard is necessary to ensure order_id is a non-empty string.
                 continue
 
-            order_status = self.smart_strategy.alpaca_manager._check_order_completion_status(
-                order.order_id
+            order_status = self._get_order_status(order_id)
+            if not self._is_cancelled_status(order_status):
+                continue
+
+            # Note: _is_cancelled_status only returns a boolean and does not guarantee order_status is a string.
+            # The guard below is necessary for runtime safety, not just type checking.
+            if not order_status:
+                continue
+
+            self._check_and_add_unfilled_order(
+                order, order_id, order_status, orders_to_escalate, log_prefix, correlation_id
             )
-            # Check if order was cancelled/expired/rejected but with potential unfilled quantity
-            # Status list mirrors the centralized check in utils.is_order_completed
-            if not order_status or order_status not in ["CANCELED", "EXPIRED", "REJECTED"]:
-                continue
 
-            # Order was cancelled/expired - check if it has unfilled quantity
-            try:
-                order_result = self.smart_strategy.alpaca_manager.get_order_execution_result(
-                    order.order_id
-                )
-                filled_qty_raw = getattr(order_result, "filled_qty", 0) or 0
-                filled_qty = Decimal(str(filled_qty_raw))
+    def _should_skip_order(self, order: OrderResult, active: dict[str, SmartOrderRequest]) -> bool:
+        """Check if order should be skipped for escalation.
 
-                # Use Decimal comparison to avoid float precision issues
-                if filled_qty < order.shares:
-                    # Has unfilled quantity - need to place market order
-                    remaining_qty = order.shares - filled_qty
-                    logger.warning(
-                        f"{log_prefix} 🚨 Order {order.order_id} was {order_status} with "
-                        f"{remaining_qty} unfilled ({order.symbol} {order.action}); escalating to market"
-                    )
-                    # Create request for the remaining quantity
-                    request = SmartOrderRequest(
-                        symbol=order.symbol,
-                        side=order.action,
-                        quantity=remaining_qty,
-                        correlation_id=correlation_id or "",
-                    )
-                    orders_to_escalate[order.order_id] = (
-                        request,
-                        f"{order_status.lower()}_unfilled",
-                    )
-            except (AttributeError, ValueError, TypeError) as e:
-                logger.debug(f"Could not check order {order.order_id}: {e}")
-            except Exception as e:
-                logger.warning(
-                    f"Unexpected error checking order {order.order_id}: {e}", exc_info=True
+        Args:
+            order: Order to check
+            active: Dictionary of active orders
+
+        Returns:
+            True if order should be skipped.
+
+        """
+        if not order.order_id or not order.success:
+            return True
+        # Skip if order is still in active tracking (already handled)
+        return order.order_id in active
+
+    def _get_order_status(self, order_id: str) -> str | None:
+        """Get order status from broker.
+
+        Args:
+            order_id: Order ID to check
+
+        Returns:
+            Order status or None if not available.
+
+        """
+        if not self.smart_strategy:
+            return None
+        return self.smart_strategy.alpaca_manager._check_order_completion_status(order_id)
+
+    def _is_cancelled_status(self, order_status: str | None) -> bool:
+        """Check if order status indicates cancellation.
+
+        Args:
+            order_status: Order status to check
+
+        Returns:
+            True if order was cancelled/expired/rejected.
+
+        """
+        # Status list mirrors the centralized check in utils.is_order_completed
+        return bool(order_status and order_status in ["CANCELED", "EXPIRED", "REJECTED"])
+
+    def _check_and_add_unfilled_order(
+        self,
+        order: OrderResult,
+        order_id: str,
+        order_status: str,
+        orders_to_escalate: dict[str, tuple[SmartOrderRequest, str]],
+        log_prefix: str,
+        correlation_id: str | None,
+    ) -> None:
+        """Check for unfilled quantity and add to escalation list if needed.
+
+        Args:
+            order: Order to check
+            order_id: Order ID (guaranteed non-None)
+            order_status: Current order status
+            orders_to_escalate: Dictionary to populate with orders needing escalation
+            log_prefix: Logging prefix for correlation
+            correlation_id: Optional correlation ID
+
+        """
+        if not self.smart_strategy:
+            return
+
+        try:
+            filled_qty = self._get_filled_quantity(order_id)
+            if filled_qty is None:
+                return
+
+            # Use Decimal comparison to avoid float precision issues
+            if filled_qty < order.shares:
+                self._add_order_to_escalation(
+                    order, order_id, order_status, filled_qty, orders_to_escalate, log_prefix, correlation_id
                 )
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.debug(f"Could not check order {order_id}: {e}")
+        except Exception as e:
+            logger.warning(f"Unexpected error checking order {order_id}: {e}", exc_info=True)
+
+    def _get_filled_quantity(self, order_id: str) -> Decimal | None:
+        """Get filled quantity for an order.
+
+        Args:
+            order_id: Order ID to check
+
+        Returns:
+            Filled quantity as Decimal, or None if not available.
+
+        """
+        if not self.smart_strategy:
+            return None
+
+        order_result = self.smart_strategy.alpaca_manager.get_order_execution_result(order_id)
+        filled_qty_raw = getattr(order_result, "filled_qty", 0) or 0
+        return Decimal(str(filled_qty_raw))
+
+    def _add_order_to_escalation(
+        self,
+        order: OrderResult,
+        order_id: str,
+        order_status: str,
+        filled_qty: Decimal,
+        orders_to_escalate: dict[str, tuple[SmartOrderRequest, str]],
+        log_prefix: str,
+        correlation_id: str | None,
+    ) -> None:
+        """Add order with unfilled quantity to escalation list.
+
+        Args:
+            order: Order to escalate
+            order_id: Order ID (guaranteed non-None)
+            order_status: Current order status
+            filled_qty: Filled quantity
+            orders_to_escalate: Dictionary to populate
+            log_prefix: Logging prefix
+            correlation_id: Optional correlation ID
+
+        """
+        remaining_qty = order.shares - filled_qty
+        logger.warning(
+            f"{log_prefix} 🚨 Order {order_id} was {order_status} with "
+            f"{remaining_qty} unfilled ({order.symbol} {order.action}); escalating to market"
+        )
+        # Create request for the remaining quantity
+        request = SmartOrderRequest(
+            symbol=order.symbol,
+            side=order.action,
+            quantity=remaining_qty,
+            correlation_id=correlation_id or "",
+        )
+        orders_to_escalate[order_id] = (request, f"{order_status.lower()}_unfilled")
 
     def _process_repeg_results(
         self,
