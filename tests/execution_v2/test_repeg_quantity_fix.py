@@ -62,7 +62,6 @@ def execution_config():
     return ExecutionConfig(
         max_repegs_per_order=5,
         fill_wait_seconds=30,
-        escalation_enabled=True,
     )
 
 
@@ -91,6 +90,7 @@ async def test_repeg_uses_remaining_quantity_after_partial_fill(repeg_manager, m
         symbol="TECL",
         side="SELL",
         quantity=original_qty,
+        correlation_id="test-correlation-id",
         is_complete_exit=False,
     )
     
@@ -104,6 +104,7 @@ async def test_repeg_uses_remaining_quantity_after_partial_fill(repeg_manager, m
     
     # Mock order execution result with partial fill
     mock_order_result = OrderExecutionResult(
+        success=True,
         order_id=order_id,
         status="partially_filled",
         filled_qty=filled_qty,
@@ -145,6 +146,7 @@ async def test_repeg_handles_insufficient_quantity_error(repeg_manager, mock_alp
         symbol="TECL",
         side="SELL", 
         quantity=original_qty,
+        correlation_id="test-correlation-id",
         is_complete_exit=False,
     )
     
@@ -158,6 +160,7 @@ async def test_repeg_handles_insufficient_quantity_error(repeg_manager, mock_alp
     
     # Mock order execution result with large partial fill
     mock_order_result = OrderExecutionResult(
+        success=True,
         order_id=order_id,
         status="partially_filled",
         filled_qty=filled_qty,
@@ -205,6 +208,7 @@ async def test_repeg_completes_order_when_remaining_quantity_too_small(repeg_man
         symbol="TECL",
         side="SELL",
         quantity=original_qty,
+        correlation_id="test-correlation-id",
         is_complete_exit=False,
     )
     
@@ -218,6 +222,7 @@ async def test_repeg_completes_order_when_remaining_quantity_too_small(repeg_man
     
     # Mock order execution result with almost complete fill
     mock_order_result = OrderExecutionResult(
+        success=True,
         order_id=order_id,
         status="partially_filled",
         filled_qty=filled_qty,
@@ -245,6 +250,7 @@ def test_order_tracker_remaining_quantity_calculation(order_tracker):
         symbol="TECL",
         side="SELL",
         quantity=original_qty,
+        correlation_id="test-correlation-id",
         is_complete_exit=False,
     )
     
