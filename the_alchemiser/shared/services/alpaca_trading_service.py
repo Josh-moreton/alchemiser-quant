@@ -166,7 +166,7 @@ class AlpacaTradingService:
             ExecutedOrder with execution details
 
         """
-        try:
+        def _place_order() -> ExecutedOrder:
             # Validation
             normalized_symbol, side_normalized = self._validate_market_order_params(
                 symbol, side, qty, notional
@@ -195,13 +195,10 @@ class AlpacaTradingService:
             )
 
             return self.place_order(order_request)
-
-        except ValueError as e:
-            logger.error("Invalid order parameters", error=str(e))
-            return self._create_error_result("INVALID", symbol, side, qty, str(e))
-        except Exception as e:
-            logger.error("Failed to place market order for", symbol=symbol, error=str(e))
-            return self._create_error_result("FAILED", symbol, side, qty, str(e))
+        
+        return AlpacaErrorHandler.handle_market_order_errors(
+            symbol, side, qty, _place_order
+        )
 
     def place_limit_order(
         self,

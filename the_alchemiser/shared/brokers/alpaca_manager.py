@@ -48,6 +48,7 @@ from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountS
 from the_alchemiser.shared.services.alpaca_trading_service import AlpacaTradingService
 from the_alchemiser.shared.services.asset_metadata_service import AssetMetadataService
 from the_alchemiser.shared.types.quote import QuoteModel
+from the_alchemiser.shared.utils.alpaca_error_handler import AlpacaErrorHandler
 
 # Import Alpaca exceptions for proper error handling with type safety
 _RetryExcImported: type[Exception]
@@ -344,7 +345,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         is_complete_exit: bool = False,
     ) -> ExecutedOrder:
         """Place a market order with validation and execution result return."""
-        try:
+        def _place_order() -> ExecutedOrder:
             # Validation
             normalized_symbol, side_normalized = self._validate_market_order_params(
                 symbol, side, qty, notional
@@ -366,13 +367,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 notional,
                 is_complete_exit=is_complete_exit,
             )
-
-        except ValueError as e:
-            logger.error("Invalid order parameters", error=str(e))
-            return self._create_error_result("INVALID", symbol, side, qty, str(e))
-        except Exception as e:
-            logger.error("Failed to place market order for", symbol=symbol, error=str(e))
-            return self._create_error_result("FAILED", symbol, side, qty, str(e))
+        
+        return AlpacaErrorHandler.handle_market_order_errors(
+            symbol, side, qty, _place_order
+        )
 
     def place_limit_order(
         self,

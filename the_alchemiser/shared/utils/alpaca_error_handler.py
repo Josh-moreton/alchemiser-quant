@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 import time
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from decimal import Decimal
 from secrets import randbelow
@@ -19,6 +19,7 @@ from typing import Any, Literal
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.broker import OrderExecutionResult
+from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
 from the_alchemiser.shared.schemas.operations import TerminalOrderError
 
 # Import exceptions for error handling with type safety
@@ -298,6 +299,82 @@ class AlpacaErrorHandler:
         if isinstance(error, (RetryException, HTTPError, RequestException)):
             return f"Market data API error for {symbol}: {summary}"
         return f"Unexpected error for {symbol}: {summary}"
+
+    @staticmethod
+    def create_executed_order_error_result(
+        order_id: str,
+        symbol: str,
+        side: str,
+        qty: float | None,
+        error_message: str,
+    ) -> ExecutedOrder:
+        """Create error ExecutedOrder for failed orders.
+        
+        This provides a standardized way to create ExecutedOrder objects for error cases,
+        ensuring consistent error handling across AlpacaManager and AlpacaTradingService.
+
+        Args:
+            order_id: Order identifier (usually error type like "INVALID", "FAILED")
+            symbol: Stock symbol
+            side: Trading side ("buy" or "sell")
+            qty: Order quantity (can be None)
+            error_message: Error description
+
+        Returns:
+            ExecutedOrder object with error details
+
+        """
+        from datetime import UTC, datetime
+        from decimal import Decimal
+        
+        return ExecutedOrder(
+            order_id=order_id,
+            symbol=symbol.upper() if symbol else "UNKNOWN",
+            action=side.upper() if side and side.upper() in ["BUY", "SELL"] else "BUY",
+            quantity=Decimal(str(qty)) if qty and qty > 0 else Decimal("0.01"),
+            filled_quantity=Decimal("0"),
+            price=Decimal("0.01"),
+            total_value=Decimal("0.01"),  # Must be > 0
+            status="REJECTED",
+            execution_timestamp=datetime.now(UTC),
+            error_message=error_message,
+        )
+
+    @staticmethod
+    def handle_market_order_errors(
+        symbol: str, 
+        side: str, 
+        qty: float | None, 
+        operation_func: Callable[[], ExecutedOrder]
+    ) -> ExecutedOrder:
+        """Handle common error patterns in market order operations.
+        
+        This function provides a standardized way to handle ValueError and Exception
+        errors that occur during market order placement, eliminating code duplication
+        between AlpacaManager and AlpacaTradingService.
+
+        Args:
+            symbol: Stock symbol for error context
+            side: Trading side ("buy" or "sell") for error context
+            qty: Order quantity for error context
+            operation_func: Function that performs the actual order operation
+
+        Returns:
+            ExecutedOrder from successful operation or error result
+
+        """
+        try:
+            return operation_func()
+        except ValueError as e:
+            logger.error("Invalid order parameters", error=str(e))
+            return AlpacaErrorHandler.create_executed_order_error_result(
+                "INVALID", symbol, side, qty, str(e)
+            )
+        except Exception as e:
+            logger.error("Failed to place market order for", symbol=symbol, error=str(e))
+            return AlpacaErrorHandler.create_executed_order_error_result(
+                "FAILED", symbol, side, qty, str(e)
+            )
 
 
 @contextmanager
