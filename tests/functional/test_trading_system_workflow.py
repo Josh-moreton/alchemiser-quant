@@ -64,7 +64,7 @@ def mock_alpaca_manager():
 
 
 @pytest.fixture
-def mock_container():
+def mock_container(mock_alpaca_manager):
     """Create a mock ApplicationContainer with proper configuration."""
     container = Mock()
     
@@ -79,7 +79,7 @@ def mock_container():
     
     # Mock infrastructure
     infrastructure = Mock()
-    infrastructure.alpaca_manager = mock_alpaca_manager()
+    infrastructure.alpaca_manager = mock_alpaca_manager
     container.infrastructure = infrastructure
     
     return container
