@@ -7,11 +7,10 @@ Portfolio state reader for building immutable snapshots from live data.
 
 from __future__ import annotations
 
-import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.logging import get_logger, log_with_context
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.exceptions import NegativeCashBalanceError
 
 if TYPE_CHECKING:
@@ -43,7 +42,9 @@ class PortfolioStateReader:
         """
         self._data_adapter = data_adapter
 
-    def build_portfolio_snapshot(self, symbols: set[str] | None = None) -> PortfolioSnapshot:
+    def build_portfolio_snapshot(
+        self, symbols: set[str] | None = None
+    ) -> PortfolioSnapshot:
         """Build current portfolio snapshot with positions, prices, and cash.
 
         Args:
@@ -57,9 +58,7 @@ class PortfolioStateReader:
             Exception: If snapshot cannot be built due to data errors
 
         """
-        log_with_context(
-            logger,
-            logging.DEBUG,
+        logger.debug(
             "Building portfolio snapshot",
             module=MODULE_NAME,
             action="build_snapshot",
@@ -72,7 +71,9 @@ class PortfolioStateReader:
 
             # Step 2: Determine which symbols we need prices for
             position_symbols = set(positions.keys())
-            price_symbols = position_symbols if symbols is None else symbols.union(position_symbols)
+            price_symbols = (
+                position_symbols if symbols is None else symbols.union(position_symbols)
+            )
 
             # Step 3: Get current prices for all required symbols
             prices = {}
@@ -84,18 +85,16 @@ class PortfolioStateReader:
 
             # Check for negative or zero cash balance - liquidate and retry
             if cash <= Decimal("0"):
-                log_with_context(
-                    logger,
-                    logging.ERROR,
-                    f"Account has non-positive cash balance: ${cash}. Attempting to liquidate all positions.",
+                logger.error(
+                    f"Account has non-positive cash balance: ${cash}. Trading cannot proceed.",
                     module=MODULE_NAME,
                     action="build_snapshot",
                     cash_balance=str(cash),
                 )
-                
+
                 # Attempt to liquidate all positions
                 liquidation_success = self._data_adapter.liquidate_all_positions()
-                
+
                 if liquidation_success:
                     log_with_context(
                         logger,
@@ -104,13 +103,13 @@ class PortfolioStateReader:
                         module=MODULE_NAME,
                         action="build_snapshot",
                     )
-                    
+
                     # Re-fetch positions (should be empty after liquidation)
                     positions = self._data_adapter.get_positions()
-                    
+
                     # Re-check cash balance after liquidation
                     cash = self._data_adapter.get_account_cash()
-                    
+
                     if cash > Decimal("0"):
                         log_with_context(
                             logger,
@@ -161,19 +160,17 @@ class PortfolioStateReader:
 
             # Validate snapshot consistency
             if not snapshot.validate_total_value():
-                log_with_context(
-                    logger,
-                    logging.WARNING,
+                logger.warning(
                     "Snapshot total value validation failed - continuing anyway",
                     module=MODULE_NAME,
                     action="build_snapshot",
-                    calculated_total=str(snapshot.get_total_position_value() + snapshot.cash),
+                    calculated_total=str(
+                        snapshot.get_total_position_value() + snapshot.cash
+                    ),
                     snapshot_total=str(snapshot.total_value),
                 )
 
-            log_with_context(
-                logger,
-                logging.DEBUG,
+            logger.debug(
                 "Portfolio snapshot built successfully",
                 module=MODULE_NAME,
                 action="build_snapshot",
@@ -187,9 +184,7 @@ class PortfolioStateReader:
             return snapshot
 
         except Exception as e:
-            log_with_context(
-                logger,
-                logging.ERROR,
+            logger.error(
                 f"Failed to build portfolio snapshot: {e}",
                 module=MODULE_NAME,
                 action="build_snapshot",

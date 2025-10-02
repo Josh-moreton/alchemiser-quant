@@ -64,8 +64,7 @@ class DslStrategyEngine:
 
         configured_dsl_files = self.settings.strategy.dsl_files or [self.strategy_file]
         self.logger.info(
-            "DSL Strategy Engine initialized with files: %s",
-            ", ".join(configured_dsl_files),
+            f"DSL Strategy Engine initialized with files: {', '.join(configured_dsl_files)}"
         )
 
     def generate_signals(

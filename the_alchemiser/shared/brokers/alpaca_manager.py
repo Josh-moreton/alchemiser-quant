@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import threading
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, ClassVar
 
@@ -519,69 +519,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             True if successful, False otherwise.
 
         """
-        try:
-            if symbol:
-                # Get orders for specific symbol and cancel them
-                orders = self.get_orders(status="open")
-                symbol_orders = [
-                    order for order in orders if getattr(order, "symbol", None) == symbol
-                ]
-                for order in symbol_orders:
-                    order_id = getattr(order, "id", None)
-                    if order_id:
-                        self.cancel_order(str(order_id))
-            else:
-                # Cancel all open orders
-                self._trading_client.cancel_orders()
-
-            logger.info("Successfully cancelled orders" + (f" for {symbol}" if symbol else ""))
-            return True
-        except Exception as e:
-            logger.error(f"Failed to cancel orders: {e}")
-            return False
-
-    def cancel_stale_orders(self, timeout_minutes: int = 30) -> dict[str, Any]:
-        """Cancel orders older than the specified timeout.
-
-        Args:
-            timeout_minutes: Orders older than this many minutes will be cancelled
-
-        Returns:
-            Dictionary containing cancelled_count, errors, and cancelled_orders
-
-        """
-        try:
-            cutoff_time = datetime.now(UTC) - timedelta(minutes=timeout_minutes)
-            open_orders = self.get_orders(status="open")
-            cancelled_orders = []
-            errors = []
-
-            for order in open_orders:
-                try:
-                    submitted_at = getattr(order, "submitted_at", None)
-                    if submitted_at and submitted_at < cutoff_time:
-                        order_id = str(getattr(order, "id", "unknown"))
-                        if self.cancel_order(order_id):
-                            cancelled_orders.append(order_id)
-                        else:
-                            errors.append(f"Failed to cancel order {order_id}")
-                except Exception as e:
-                    errors.append(f"Error processing order: {e}")
-
-            if cancelled_orders:
-                logger.info(f"✅ Cancelled {len(cancelled_orders)} stale orders")
-            return {
-                "cancelled_count": len(cancelled_orders),
-                "errors": errors,
-                "cancelled_orders": cancelled_orders,
-            }
-        except Exception as e:
-            logger.error(f"Failed to cancel stale orders: {e}")
-            return {
-                "cancelled_count": 0,
-                "errors": [str(e)],
-                "cancelled_orders": [],
-            }
+        return self._get_trading_service().cancel_all_orders(symbol)
 
     def liquidate_position(self, symbol: str) -> str | None:
         """Liquidate entire position using close_position API (delegates to TradingService).
