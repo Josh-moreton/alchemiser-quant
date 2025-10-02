@@ -131,9 +131,7 @@ class PortfolioStateReader:
 
         return cash, positions
 
-    def _handle_negative_cash_balance(
-        self, cash: Decimal
-    ) -> tuple[Decimal, dict[str, Decimal]]:
+    def _handle_negative_cash_balance(self, cash: Decimal) -> tuple[Decimal, dict[str, Decimal]]:
         """Handle negative cash balance through liquidation.
 
         Args:
