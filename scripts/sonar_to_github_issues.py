@@ -426,7 +426,11 @@ def create_or_update_issue(
 
     existing = find_existing_issue(owner, repo, si.key)
     if existing:
-        logging.info("Issue already exists for SonarQube key '%s' (GitHub issue #%d), skipping", si.key, existing)
+        logging.info(
+            "Issue already exists for SonarQube key '%s' (GitHub issue #%d), skipping",
+            si.key,
+            existing,
+        )
         return
 
     url = f"https://api.github.com/repos/{owner}/{repo}/issues"
@@ -460,7 +464,11 @@ def create_or_update_file_issue(
 
     existing = find_existing_file_issue(owner, repo, component)
     if existing:
-        logging.info("File issue already exists for component '%s' (GitHub issue #%d), skipping", component, existing)
+        logging.info(
+            "File issue already exists for component '%s' (GitHub issue #%d), skipping",
+            component,
+            existing,
+        )
         return
 
     url = f"https://api.github.com/repos/{owner}/{repo}/issues"
