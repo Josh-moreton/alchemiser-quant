@@ -258,7 +258,9 @@ class PhaseExecutor:
             Number of shares to trade
 
         """
-        price = self.position_utils.get_price_for_estimation(symbol) if self.position_utils else None
+        price = (
+            self.position_utils.get_price_for_estimation(symbol) if self.position_utils else None
+        )
 
         if price is None or price <= Decimal("0"):
             logger.warning(f"⚠️ Price unavailable for {symbol}; defaulting to 1 share")
@@ -285,7 +287,7 @@ class PhaseExecutor:
         try:
             # Yield control to event loop for proper async behavior
             await asyncio.sleep(0)
-            
+
             # Determine quantity (shares) to trade
             if item.action == "SELL" and item.target_weight == Decimal("0.0"):
                 shares = self._calculate_liquidation_shares(item.symbol)
