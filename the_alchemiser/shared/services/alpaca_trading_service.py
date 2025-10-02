@@ -133,9 +133,7 @@ class AlpacaTradingService:
             result = [response] if isinstance(response, dict) else []
         return result
 
-    def place_order(
-        self, order_request: LimitOrderRequest | MarketOrderRequest
-    ) -> ExecutedOrder:
+    def place_order(self, order_request: LimitOrderRequest | MarketOrderRequest) -> ExecutedOrder:
         """Place an order and return execution details."""
         try:
             self._ensure_trading_stream()
@@ -199,9 +197,7 @@ class AlpacaTradingService:
 
             return self.place_order(order_request)
 
-        return AlpacaErrorHandler.handle_market_order_errors(
-            symbol, side, qty, _place_order
-        )
+        return AlpacaErrorHandler.handle_market_order_errors(symbol, side, qty, _place_order)
 
     def place_limit_order(
         self,
@@ -286,9 +282,7 @@ class AlpacaTradingService:
             )
         except Exception as e:
             # Check if order is already in a terminal state (filled, cancelled, etc.)
-            is_terminal, terminal_error = (
-                AlpacaErrorHandler.is_order_already_in_terminal_state(e)
-            )
+            is_terminal, terminal_error = AlpacaErrorHandler.is_order_already_in_terminal_state(e)
 
             if is_terminal and terminal_error:
                 # This is not really an error - the order already reached a final state
@@ -325,9 +319,7 @@ class AlpacaTradingService:
                 # Get orders for specific symbol and cancel them
                 orders = self.get_orders(status="open")
                 symbol_orders = [
-                    order
-                    for order in orders
-                    if getattr(order, "symbol", None) == symbol
+                    order for order in orders if getattr(order, "symbol", None) == symbol
                 ]
                 for order in symbol_orders:
                     order_id = getattr(order, "id", None)
@@ -337,9 +329,7 @@ class AlpacaTradingService:
                 # Cancel all open orders
                 self._trading_client.cancel_orders()
 
-            logger.info(
-                "Successfully cancelled orders" + (f" for {symbol}" if symbol else "")
-            )
+            logger.info("Successfully cancelled orders" + (f" for {symbol}" if symbol else ""))
             return True
         except Exception as e:
             logger.error("Failed to cancel orders", error=str(e))
@@ -359,16 +349,12 @@ class AlpacaTradingService:
 
         """
         try:
-            updated_order = self._trading_client.replace_order_by_id(
-                order_id, order_data
-            )
+            updated_order = self._trading_client.replace_order_by_id(order_id, order_data)
             logger.info("Replaced order", order_id=order_id)
             return self._alpaca_order_to_execution_result(updated_order)
         except Exception as e:
             logger.error("Failed to replace order", order_id=order_id, error=str(e))
-            return AlpacaErrorHandler.create_error_result(
-                e, "Order replacement", order_id
-            )
+            return AlpacaErrorHandler.create_error_result(e, "Order replacement", order_id)
 
     def get_orders(self, status: str | None = None) -> list[Any]:
         """Get orders filtered by status.
@@ -413,9 +399,7 @@ class AlpacaTradingService:
                 order_id=order_id,
                 error=str(e),
             )
-            return AlpacaErrorHandler.create_error_result(
-                e, "Order status fetch", order_id
-            )
+            return AlpacaErrorHandler.create_error_result(e, "Order status fetch", order_id)
 
     def place_smart_sell_order(self, symbol: str, qty: float) -> str | None:
         """Place a smart sell order using execution logic.
@@ -459,19 +443,13 @@ class AlpacaTradingService:
         try:
             order = self._trading_client.close_position(symbol)
             order_id = str(getattr(order, "id", "unknown"))
-            logger.info(
-                "Successfully liquidated position for", symbol=symbol, order_id=order_id
-            )
+            logger.info("Successfully liquidated position for", symbol=symbol, order_id=order_id)
             return order_id
         except Exception as e:
-            logger.error(
-                "Failed to liquidate position for", symbol=symbol, error=str(e)
-            )
+            logger.error("Failed to liquidate position for", symbol=symbol, error=str(e))
             return None
 
-    def close_all_positions(
-        self, *, cancel_orders: bool = True
-    ) -> list[dict[str, Any]]:
+    def close_all_positions(self, *, cancel_orders: bool = True) -> list[dict[str, Any]]:
         """Liquidate all positions for an account.
 
         Places an order for each open position to liquidate.
@@ -485,9 +463,7 @@ class AlpacaTradingService:
         """
         try:
             logger.info(f"Closing all positions (cancel_orders={cancel_orders})...")
-            response = self._trading_client.close_all_positions(
-                cancel_orders=cancel_orders
-            )
+            response = self._trading_client.close_all_positions(cancel_orders=cancel_orders)
 
             # Convert response to list of dicts for consistent interface
             result = self._normalize_response_to_dict_list(response)
@@ -525,18 +501,14 @@ class AlpacaTradingService:
                 local_start = time.time()
                 while remaining and (time.time() - local_start) < time_left:
                     self._process_pending_orders(remaining, completed_orders)
-                    remaining = [
-                        oid for oid in remaining if oid not in completed_orders
-                    ]
+                    remaining = [oid for oid in remaining if oid not in completed_orders]
                     if remaining:
                         time.sleep(0.3)
 
             success = len(completed_orders) == len(order_ids)
 
             return WebSocketResult(
-                status=(
-                    WebSocketStatus.COMPLETED if success else WebSocketStatus.TIMEOUT
-                ),
+                status=(WebSocketStatus.COMPLETED if success else WebSocketStatus.TIMEOUT),
                 message=f"Completed {len(completed_orders)}/{len(order_ids)} orders",
                 completed_order_ids=completed_orders,
                 metadata={"total_wait_time": time.time() - start_time},
@@ -567,9 +539,7 @@ class AlpacaTradingService:
         )
 
         # Calculate price and total value
-        price = self._calculate_order_price(
-            order_data["filled_avg_price"], order_request
-        )
+        price = self._calculate_order_price(order_data["filled_avg_price"], order_request)
         total_value = self._calculate_total_value(
             order_data["filled_qty_decimal"], order_data["order_qty_decimal"], price
         )
@@ -637,9 +607,7 @@ class AlpacaTradingService:
             # Map status to our expected values
             status_mapping: dict[
                 str,
-                Literal[
-                    "accepted", "filled", "partially_filled", "rejected", "canceled"
-                ],
+                Literal["accepted", "filled", "partially_filled", "rejected", "canceled"],
             ] = {
                 "new": "accepted",
                 "accepted": "accepted",
@@ -673,9 +641,7 @@ class AlpacaTradingService:
 
     # --- Helper Methods ---
 
-    def _extract_order_attributes(
-        self, order: Order | dict[str, Any]
-    ) -> dict[str, Any]:
+    def _extract_order_attributes(self, order: Order | dict[str, Any]) -> dict[str, Any]:
         """Extract attributes from order object safely."""
         order_id = str(getattr(order, "id", ""))
         order_symbol = str(getattr(order, "symbol", ""))
@@ -701,11 +667,7 @@ class AlpacaTradingService:
 
     def _extract_enum_value(self, enum_obj: object) -> str:
         """Extract string value from enum object safely."""
-        return (
-            enum_obj.value.upper()
-            if hasattr(enum_obj, "value")
-            else str(enum_obj).upper()
-        )
+        return enum_obj.value.upper() if hasattr(enum_obj, "value") else str(enum_obj).upper()
 
     def _calculate_order_price(
         self,
@@ -769,9 +731,7 @@ class AlpacaTradingService:
 
     # --- WebSocket Integration Methods ---
 
-    def _wait_for_orders_via_ws(
-        self, order_ids: list[str], timeout: float
-    ) -> list[str]:
+    def _wait_for_orders_via_ws(self, order_ids: list[str], timeout: float) -> list[str]:
         """Wait for orders to complete using WebSocket updates."""
         try:
             self._ensure_trading_stream()
@@ -849,9 +809,7 @@ class AlpacaTradingService:
             # Use the websocket manager to get trading stream with order update callback
             if self._websocket_manager.get_trading_service(self._on_trading_update):
                 self._trading_service_active = True
-                logger.info(
-                    "✅ TradingStream service activated via WebSocketConnectionManager"
-                )
+                logger.info("✅ TradingStream service activated via WebSocketConnectionManager")
             else:
                 logger.error("❌ Failed to activate TradingStream service")
                 self._trading_service_active = False
@@ -877,9 +835,7 @@ class AlpacaTradingService:
                 return
 
             # Update order tracking
-            self._order_tracker.update_order_status(
-                order_id, status or event_type or ""
-            )
+            self._order_tracker.update_order_status(order_id, status or event_type or "")
 
             # Signal completion for terminal events
             if self._is_terminal_trading_event(event_type, status):
@@ -888,9 +844,7 @@ class AlpacaTradingService:
         except Exception as e:
             logger.error("Error in trading stream update", error=str(e))
 
-    def _extract_trading_update_info(
-        self, data: object
-    ) -> tuple[str, str | None, str | None]:
+    def _extract_trading_update_info(self, data: object) -> tuple[str, str | None, str | None]:
         """Extract event type, order ID, and status from trading update data."""
         try:
             # Handle SDK model objects
@@ -922,17 +876,11 @@ class AlpacaTradingService:
         terminal_events = {"fill", "canceled", "rejected", "expired"}
         terminal_statuses = {"filled", "canceled", "rejected", "expired"}
 
-        return event_type in terminal_events or (
-            status is not None and status in terminal_statuses
-        )
+        return event_type in terminal_events or (status is not None and status in terminal_statuses)
 
-    def _process_pending_orders(
-        self, order_ids: list[str], completed_orders: list[str]
-    ) -> None:
+    def _process_pending_orders(self, order_ids: list[str], completed_orders: list[str]) -> None:
         """Check pending orders for completion via polling."""
-        for order_id in order_ids[
-            :
-        ]:  # Create copy to avoid modification during iteration
+        for order_id in order_ids[:]:  # Create copy to avoid modification during iteration
             try:
                 status = self._check_order_completion_status(order_id)
                 if status:
@@ -953,7 +901,5 @@ class AlpacaTradingService:
             return None
 
         except Exception as e:
-            logger.error(
-                "Failed to check order status", order_id=order_id, error=str(e)
-            )
+            logger.error("Failed to check order status", order_id=order_id, error=str(e))
             return None

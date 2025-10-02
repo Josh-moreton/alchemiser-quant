@@ -205,6 +205,14 @@ class TradingExecutionHandler:
 
         """
         try:
+            # Build failure details if execution was not successful
+            failure_reason = None
+            failed_symbols: list[str] = []
+            if not success:
+                failure_reason = self._build_failure_reason(execution_result)
+                failed_orders = [order for order in execution_result.orders if not order.success]
+                failed_symbols = [order.symbol for order in failed_orders]
+
             event = TradeExecuted(
                 correlation_id=execution_result.correlation_id,
                 causation_id=execution_result.correlation_id,  # This is the continuation of the workflow
@@ -228,6 +236,8 @@ class TradingExecutionHandler:
                     "execution_timestamp": datetime.now(UTC).isoformat(),
                     "source": "event_driven_handler",
                 },
+                failure_reason=failure_reason,
+                failed_symbols=failed_symbols,
             )
 
             self.event_bus.publish(event)
