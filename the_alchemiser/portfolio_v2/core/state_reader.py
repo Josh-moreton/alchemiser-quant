@@ -64,7 +64,9 @@ class PortfolioStateReader:
 
         return cash, positions
 
-    def _wait_for_settlement(self, max_wait_seconds: int = 30) -> tuple[Decimal, dict[str, Decimal]]:
+    def _wait_for_settlement(
+        self, max_wait_seconds: int = 30
+    ) -> tuple[Decimal, dict[str, Decimal]]:
         """Wait for position liquidation to settle with polling and retry.
 
         Settlement can take time as positions need to be sold and cash needs
