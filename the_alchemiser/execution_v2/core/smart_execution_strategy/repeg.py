@@ -306,6 +306,108 @@ class RepegManager:
                 f"✅ Order {order_id} cancellation confirmed, proceeding with market escalation"
             )
 
+    def _is_market_escalation_successful(self, executed_order: ExecutedOrder) -> bool:
+        """Check if market escalation was successful.
+
+        Args:
+            executed_order: Market order execution result
+
+        Returns:
+            True if escalation was successful
+
+        """
+        return bool(
+            executed_order.order_id
+            and executed_order.status not in ["REJECTED", "CANCELED"]
+        )
+
+    def _create_market_escalation_metadata(
+        self,
+        order_id: str,
+        executed_order: ExecutedOrder,
+        original_anchor: Decimal | None,
+    ) -> LiquidityMetadata:
+        """Create metadata dict for successful market escalation.
+
+        Args:
+            order_id: Original order ID
+            executed_order: Market order execution result
+            original_anchor: Original anchor price
+
+        Returns:
+            LiquidityMetadata dictionary
+
+        """
+        return {
+            "original_order_id": order_id,
+            "original_price": (float(original_anchor) if original_anchor is not None else None),
+            "new_price": (
+                float(executed_order.price) if executed_order.price is not None else 0.0
+            ),
+        }
+
+    def _build_successful_market_escalation_result(
+        self,
+        order_id: str,
+        executed_order: ExecutedOrder,
+        original_anchor: Decimal | None,
+    ) -> SmartOrderResult:
+        """Build result for successful market escalation.
+
+        Args:
+            order_id: Original order ID
+            executed_order: Market order execution result
+            original_anchor: Original anchor price
+
+        Returns:
+            SmartOrderResult indicating success
+
+        """
+        metadata = self._create_market_escalation_metadata(
+            order_id, executed_order, original_anchor
+        )
+        logger.info(
+            f"✅ Market escalation successful: new order {executed_order.order_id} "
+            f"(escalated from {order_id} after {self.config.max_repegs_per_order} re-pegs)"
+        )
+        return SmartOrderResult(
+            success=True,
+            order_id=executed_order.order_id,
+            final_price=(executed_order.price if executed_order.price is not None else None),
+            anchor_price=original_anchor,
+            repegs_used=self.config.max_repegs_per_order,
+            execution_strategy="market_escalation",
+            placement_timestamp=executed_order.execution_timestamp,
+            metadata=metadata,
+        )
+
+    def _build_failed_market_escalation_result(
+        self,
+        executed_order: ExecutedOrder,
+        request: SmartOrderRequest,
+    ) -> SmartOrderResult:
+        """Build result for failed market escalation.
+
+        Args:
+            executed_order: Market order execution result
+            request: Original order request
+
+        Returns:
+            SmartOrderResult indicating failure
+
+        """
+        logger.error(
+            f"❌ Market escalation failed for {request.symbol}: status={executed_order.status}"
+        )
+        return SmartOrderResult(
+            success=False,
+            order_id=executed_order.order_id,
+            error_message=getattr(executed_order, "error_message", None)
+            or "Market escalation placement failed",
+            execution_strategy="market_escalation_failed",
+            placement_timestamp=executed_order.execution_timestamp,
+        )
+
     def _build_market_escalation_result(
         self,
         order_id: str,
@@ -325,44 +427,12 @@ class RepegManager:
             SmartOrderResult with success or failure status
 
         """
-        if executed_order.order_id and executed_order.status not in [
-            "REJECTED",
-            "CANCELED",
-        ]:
-            metadata: LiquidityMetadata = {
-                "original_order_id": order_id,
-                "original_price": (float(original_anchor) if original_anchor is not None else None),
-                "new_price": (
-                    float(executed_order.price) if executed_order.price is not None else 0.0
-                ),
-            }
-            logger.info(
-                f"✅ Market escalation successful: new order {executed_order.order_id} "
-                f"(escalated from {order_id} after {self.config.max_repegs_per_order} re-pegs)"
-            )
-            return SmartOrderResult(
-                success=True,
-                order_id=executed_order.order_id,
-                final_price=(executed_order.price if executed_order.price is not None else None),
-                anchor_price=original_anchor,
-                repegs_used=self.config.max_repegs_per_order,
-                execution_strategy="market_escalation",
-                placement_timestamp=executed_order.execution_timestamp,
-                metadata=metadata,
+        if self._is_market_escalation_successful(executed_order):
+            return self._build_successful_market_escalation_result(
+                order_id, executed_order, original_anchor
             )
 
-        # Placement failed
-        logger.error(
-            f"❌ Market escalation failed for {request.symbol}: status={executed_order.status}"
-        )
-        return SmartOrderResult(
-            success=False,
-            order_id=executed_order.order_id,
-            error_message=getattr(executed_order, "error_message", None)
-            or "Market escalation placement failed",
-            execution_strategy="market_escalation_failed",
-            placement_timestamp=executed_order.execution_timestamp,
-        )
+        return self._build_failed_market_escalation_result(executed_order, request)
 
     async def _escalate_to_market(
         self, order_id: str, request: SmartOrderRequest
@@ -419,6 +489,40 @@ class RepegManager:
                 execution_strategy="market_escalation_error",
             )
 
+    def _create_repeg_metadata(
+        self,
+        order_id: str,
+        original_anchor: Decimal | None,
+        new_price: Decimal,
+        quote: QuoteModel | None,
+    ) -> LiquidityMetadata:
+        """Create metadata dictionary for repeg operation.
+
+        Args:
+            order_id: Original order ID
+            original_anchor: Original anchor price
+            new_price: New limit price
+            quote: Quote data used for pricing
+
+        Returns:
+            LiquidityMetadata dictionary
+
+        """
+        # Use cast to satisfy type checkers; quote is non-None when new_price exists
+        from typing import cast as _cast
+
+        q = _cast(QuoteModel, quote)
+        return {
+            "original_order_id": order_id,
+            "original_price": (float(original_anchor) if original_anchor else None),
+            "new_price": float(new_price),
+            "bid_price": q.bid_price,
+            "ask_price": q.ask_price,
+            "spread_percent": (q.ask_price - q.bid_price) / q.bid_price * 100,
+            "bid_size": q.bid_size,
+            "ask_size": q.ask_size,
+        }
+
     def _build_repeg_success_result(
         self,
         order_id: str,
@@ -465,20 +569,10 @@ class RepegManager:
             max_repegs=self.config.max_repegs_per_order,
         )
 
-        # Use cast to satisfy type checkers; quote is non-None when new_price exists
-        from typing import cast as _cast
-
-        q = _cast(QuoteModel, quote)
-        metadata_dict: LiquidityMetadata = {
-            "original_order_id": order_id,
-            "original_price": (float(original_anchor) if original_anchor else None),
-            "new_price": float(new_price),
-            "bid_price": q.bid_price,
-            "ask_price": q.ask_price,
-            "spread_percent": (q.ask_price - q.bid_price) / q.bid_price * 100,
-            "bid_size": q.bid_size,
-            "ask_size": q.ask_size,
-        }
+        metadata_dict = self._create_repeg_metadata(
+            order_id, original_anchor, new_price, quote
+        )
+        
         return SmartOrderResult(
             success=True,
             order_id=executed_order.order_id,
