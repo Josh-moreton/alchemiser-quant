@@ -6,15 +6,20 @@ Execution service providers for dependency injection.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING
 
 from dependency_injector import containers, providers
 
 from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
 from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
 
+if TYPE_CHECKING:
+    from the_alchemiser.shared.config.config import ExecutionSettings
 
-def _create_execution_config_from_settings(execution_settings: Any) -> ExecutionConfig:
+
+def _create_execution_config_from_settings(
+    execution_settings: ExecutionSettings,
+) -> ExecutionConfig:
     """Create ExecutionConfig from ExecutionSettings.
 
     Args:
