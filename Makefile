@@ -38,7 +38,7 @@ help:
 	@echo "Deployment:"
 	@echo "  deploy          Deploy to AWS Lambda"
 	@echo "  release         Create and push a GitHub release (uses version from pyproject.toml)"
-	@echo "  release VERSION=x.y.z  Create release with specific version number"
+	@echo "  release v=x.y.z Create release with specific version number"
 
 # Setup & Installation
 install:
