@@ -43,16 +43,41 @@ The script generates market conditions by combining:
 
 ### Requirements
 
-1. Alpaca Paper API credentials must be set:
-   ```bash
-   export ALPACA_KEY=your_paper_api_key
-   export ALPACA_SECRET=your_paper_secret_key
-   export ALPACA_ENDPOINT=https://paper-api.alpaca.markets/v2
-   ```
+1. **Alpaca Paper API credentials** - The script automatically loads credentials using the system's configuration:
+   - **Option A**: Use a `.env` file in the project root (recommended for development):
+     ```bash
+     # .env file
+     ALPACA_KEY=your_paper_api_key
+     ALPACA_SECRET=your_paper_secret_key
+     ALPACA_ENDPOINT=https://paper-api.alpaca.markets
+     ```
+   - **Option B**: Set environment variables manually:
+     ```bash
+     export ALPACA_KEY=your_paper_api_key
+     export ALPACA_SECRET=your_paper_secret_key
+     export ALPACA_ENDPOINT=https://paper-api.alpaca.markets
+     ```
+   - **Option C**: Use Pydantic nested format:
+     ```bash
+     export ALPACA__KEY=your_paper_api_key
+     export ALPACA__SECRET=your_paper_secret_key
+     export ALPACA__ENDPOINT=https://paper-api.alpaca.markets
+     ```
 
-2. The script uses real Alpaca Paper endpoints (no real money at risk)
+2. **No manual credential export needed** - The script uses the same credential system as the main trading application
+
+3. **Automatic paper trading mode** - If no `ALPACA_ENDPOINT` is specified, defaults to paper trading automatically
+
+4. The script uses real Alpaca Paper endpoints (no real money at risk)
 
 ### Running the Test
+
+#### Test Your Setup First
+```bash
+poetry run python -c "from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys; print('✅ Credentials loaded successfully' if get_alpaca_keys()[0] else '❌ Credentials not found')"
+```
+
+This quick test verifies your credentials are properly configured before running the full stress test.
 
 #### Dry Run (Show Plan Only)
 ```bash
@@ -198,8 +223,20 @@ Runtime depends on:
 
 ## Troubleshooting
 
-### "ALPACA_KEY not set"
-Set your Alpaca Paper credentials in environment variables.
+### "Missing required Alpaca credentials" or "ALPACA_KEY not set"
+The script couldn't find your Alpaca Paper credentials. Try:
+1. **Check your `.env` file** (recommended): Create/verify `.env` file in project root with:
+   ```bash
+   ALPACA_KEY=your_paper_api_key
+   ALPACA_SECRET=your_paper_secret_key
+   ALPACA_ENDPOINT=https://paper-api.alpaca.markets
+   ```
+2. **Set environment variables manually**:
+   ```bash
+   export ALPACA_KEY=your_paper_api_key
+   export ALPACA_SECRET=your_paper_secret_key
+   ```
+3. **Check credential format**: Both `ALPACA_KEY` and `ALPACA__KEY` (nested) formats are supported
 
 ### "Failed to liquidate positions"
 Check Alpaca API status and credentials. The script continues even if liquidation fails.

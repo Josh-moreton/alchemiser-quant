@@ -29,7 +29,6 @@ from __future__ import annotations
 import argparse
 import itertools
 import json
-import os
 import sys
 import time
 from dataclasses import dataclass, field
@@ -43,11 +42,11 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from the_alchemiser.main import main
-from the_alchemiser.shared.config.config import load_settings
+from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
 from the_alchemiser.shared.logging import configure_application_logging, get_logger
 from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest
 from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicator
-from the_alchemiser.shared.services.alpaca_trading_service import AlpacaTradingService
 
 # Configure logging
 configure_application_logging()
@@ -130,17 +129,21 @@ class MockIndicatorService:
         base_price = 100.0 + (symbol_hash % 50)
         current_price = base_price * self.market_condition.price_multiplier
 
+        # Common timestamp and base structure
+        timestamp = datetime.now(UTC)
+        current_price_decimal = Decimal(str(current_price))
+
         # Create indicator based on type
         if indicator_type == "rsi":
             window = int(parameters.get("window", 14))
             return TechnicalIndicator(
                 symbol=symbol,
-                timestamp=datetime.now(UTC),
+                timestamp=timestamp,
                 rsi_14=rsi_value if window == 14 else None,
                 rsi_10=rsi_value if window == 10 else None,
                 rsi_20=rsi_value if window == 20 else None,
                 rsi_21=rsi_value if window == 21 else None,
-                current_price=Decimal(str(current_price)),
+                current_price=current_price_decimal,
                 data_source="stress_test_mock",
                 metadata={
                     "value": rsi_value,
@@ -152,8 +155,8 @@ class MockIndicatorService:
         if indicator_type == "current_price":
             return TechnicalIndicator(
                 symbol=symbol,
-                timestamp=datetime.now(UTC),
-                current_price=Decimal(str(current_price)),
+                timestamp=timestamp,
+                current_price=current_price_decimal,
                 data_source="stress_test_mock",
                 metadata={
                     "value": current_price,
@@ -161,11 +164,150 @@ class MockIndicatorService:
                 },
             )
 
+        if indicator_type == "moving_average":
+            window = int(parameters.get("window", 200))
+            # Generate realistic MA value relative to current price
+            ma_offset = (symbol_hash % 10) - 5  # +/- 5% variation
+            ma_value = current_price * (1 + ma_offset / 100)
+
+            return TechnicalIndicator(
+                symbol=symbol,
+                timestamp=timestamp,
+                current_price=current_price_decimal,
+                ma_20=ma_value if window == 20 else None,
+                ma_50=ma_value if window == 50 else None,
+                ma_200=ma_value if window == 200 else None,
+                data_source="stress_test_mock",
+                metadata={
+                    "value": ma_value,
+                    "window": window,
+                    "scenario": self.market_condition.scenario_id,
+                },
+            )
+
+        if indicator_type == "cumulative_return":
+            window = int(parameters.get("window", 60))
+            # Generate return based on market condition (-50% to +150% scaled down)
+            base_return = (
+                self.market_condition.price_multiplier - 1
+            ) * 100  # Convert to percentage
+            # Add symbol-specific variation
+            return_variation = (symbol_hash % 20) - 10  # +/- 10%
+            cumulative_return_value = base_return + return_variation
+
+            return TechnicalIndicator(
+                symbol=symbol,
+                timestamp=timestamp,
+                current_price=current_price_decimal,
+                cum_return_60=cumulative_return_value if window == 60 else None,
+                data_source="stress_test_mock",
+                metadata={
+                    "value": cumulative_return_value,
+                    "window": window,
+                    "scenario": self.market_condition.scenario_id,
+                },
+            )
+
+        if indicator_type == "moving_average_return":
+            window = int(parameters.get("window", 21))
+            # Generate smaller return values (typical daily returns)
+            base_return = (
+                self.market_condition.price_multiplier - 1
+            ) * 10  # Scale down for MA return
+            return_variation = (symbol_hash % 6) - 3  # +/- 3%
+            ma_return_value = base_return + return_variation
+
+            return TechnicalIndicator(
+                symbol=symbol,
+                timestamp=timestamp,
+                current_price=current_price_decimal,
+                ma_return_90=ma_return_value if window == 90 else None,
+                data_source="stress_test_mock",
+                metadata={
+                    "value": ma_return_value,
+                    "window": window,
+                    "scenario": self.market_condition.scenario_id,
+                },
+            )
+
+        if indicator_type == "exponential_moving_average_price":
+            window = int(parameters.get("window", 12))
+            # EMA should be closer to current price than SMA
+            ema_offset = (symbol_hash % 6) - 3  # +/- 3% variation
+            ema_value = current_price * (1 + ema_offset / 100)
+
+            return TechnicalIndicator(
+                symbol=symbol,
+                timestamp=timestamp,
+                current_price=current_price_decimal,
+                ema_12=ema_value if window == 12 else None,
+                ema_26=ema_value if window == 26 else None,
+                data_source="stress_test_mock",
+                metadata={
+                    "value": ema_value,
+                    "window": window,
+                    "scenario": self.market_condition.scenario_id,
+                },
+            )
+
+        if indicator_type == "stdev_return":
+            window = int(parameters.get("window", 6))
+            # Generate volatility measure (always positive)
+            base_volatility = (
+                15.0
+                if self.market_condition.volatility_regime == "high"
+                else (
+                    10.0 if self.market_condition.volatility_regime == "medium" else 5.0
+                )
+            )
+            volatility_variation = symbol_hash % 10  # 0-10% additional variation
+            stdev_value = base_volatility + volatility_variation
+
+            return TechnicalIndicator(
+                symbol=symbol,
+                timestamp=timestamp,
+                current_price=current_price_decimal,
+                stdev_return_6=stdev_value if window == 6 else None,
+                data_source="stress_test_mock",
+                metadata={
+                    "value": stdev_value,
+                    "window": window,
+                    "scenario": self.market_condition.scenario_id,
+                },
+            )
+
+        if indicator_type == "max_drawdown":
+            window = int(parameters.get("window", 60))
+            # Generate drawdown (negative value representing max loss)
+            base_drawdown = (
+                -20.0
+                if self.market_condition.volatility_regime == "high"
+                else (
+                    -10.0
+                    if self.market_condition.volatility_regime == "medium"
+                    else -5.0
+                )
+            )
+            drawdown_variation = -(symbol_hash % 10)  # Additional 0-10% drawdown
+            max_drawdown_value = base_drawdown + drawdown_variation
+
+            return TechnicalIndicator(
+                symbol=symbol,
+                timestamp=timestamp,
+                current_price=current_price_decimal,
+                data_source="stress_test_mock",
+                metadata={
+                    "value": max_drawdown_value,
+                    "window": window,
+                    "scenario": self.market_condition.scenario_id,
+                },
+            )
+
         # For other indicators, return reasonable defaults
         return TechnicalIndicator(
             symbol=symbol,
-            timestamp=datetime.now(UTC),
-            current_price=Decimal(str(current_price)),
+            timestamp=timestamp,
+            current_price=current_price_decimal,
             data_source="stress_test_mock",
             metadata={"scenario": self.market_condition.scenario_id},
         )
@@ -332,9 +474,10 @@ class StressTestRunner:
         ]
 
         # Generate combinations
-        for scenario_num, ((rsi_name, rsi_range), (price_name, multiplier, volatility)) in enumerate(
-            itertools.product(rsi_regimes, price_scenarios), start=1
-        ):
+        for scenario_num, (
+            (rsi_name, rsi_range),
+            (price_name, multiplier, volatility),
+        ) in enumerate(itertools.product(rsi_regimes, price_scenarios), start=1):
             conditions.append(
                 MarketCondition(
                     scenario_id=f"scenario_{scenario_num:03d}",
@@ -350,51 +493,55 @@ class StressTestRunner:
             )
 
         # Add edge case scenarios
-        conditions.extend([
-            MarketCondition(
-                scenario_id="edge_all_oversold_crash",
-                description="All symbols oversold + market crash (extreme bearish)",
-                rsi_range=(0, 20),
-                price_multiplier=0.3,
-                volatility_regime="extreme",
-                metadata={"edge_case": True, "type": "extreme_bearish"},
-            ),
-            MarketCondition(
-                scenario_id="edge_all_overbought_boom",
-                description="All symbols overbought + market boom (extreme bullish)",
-                rsi_range=(85, 100),
-                price_multiplier=2.0,
-                volatility_regime="extreme",
-                metadata={"edge_case": True, "type": "extreme_bullish"},
-            ),
-            MarketCondition(
-                scenario_id="edge_threshold_79",
-                description="All symbols at RSI 79 threshold (decision boundary)",
-                rsi_range=(78, 80),
-                price_multiplier=1.0,
-                volatility_regime="medium",
-                metadata={"edge_case": True, "type": "threshold_79"},
-            ),
-            MarketCondition(
-                scenario_id="edge_threshold_75",
-                description="All symbols at RSI 75 threshold (decision boundary)",
-                rsi_range=(74, 76),
-                price_multiplier=1.0,
-                volatility_regime="medium",
-                metadata={"edge_case": True, "type": "threshold_75"},
-            ),
-        ])
+        conditions.extend(
+            [
+                MarketCondition(
+                    scenario_id="edge_all_oversold_crash",
+                    description="All symbols oversold + market crash (extreme bearish)",
+                    rsi_range=(0, 20),
+                    price_multiplier=0.3,
+                    volatility_regime="extreme",
+                    metadata={"edge_case": True, "type": "extreme_bearish"},
+                ),
+                MarketCondition(
+                    scenario_id="edge_all_overbought_boom",
+                    description="All symbols overbought + market boom (extreme bullish)",
+                    rsi_range=(85, 100),
+                    price_multiplier=2.0,
+                    volatility_regime="extreme",
+                    metadata={"edge_case": True, "type": "extreme_bullish"},
+                ),
+                MarketCondition(
+                    scenario_id="edge_threshold_79",
+                    description="All symbols at RSI 79 threshold (decision boundary)",
+                    rsi_range=(78, 80),
+                    price_multiplier=1.0,
+                    volatility_regime="medium",
+                    metadata={"edge_case": True, "type": "threshold_79"},
+                ),
+                MarketCondition(
+                    scenario_id="edge_threshold_75",
+                    description="All symbols at RSI 75 threshold (decision boundary)",
+                    rsi_range=(74, 76),
+                    price_multiplier=1.0,
+                    volatility_regime="medium",
+                    metadata={"edge_case": True, "type": "threshold_75"},
+                ),
+            ]
+        )
 
         if self.quick_mode:
             # In quick mode, sample every 3rd scenario plus all edge cases
-            regular_scenarios = [c for c in conditions if not c.metadata.get("edge_case")]
+            regular_scenarios = [
+                c for c in conditions if not c.metadata.get("edge_case")
+            ]
             edge_scenarios = [c for c in conditions if c.metadata.get("edge_case")]
             conditions = regular_scenarios[::3] + edge_scenarios
 
         return conditions
 
     def liquidate_all_positions(self) -> bool:
-        """Liquidate all positions using AlpacaTradingService.
+        """Liquidate all positions using AlpacaManager.
 
         Returns:
             True if liquidation successful or no positions, False on error
@@ -406,28 +553,25 @@ class StressTestRunner:
 
         try:
             self.logger.info("Liquidating all positions before scenario run")
-            settings = load_settings()
 
-            # Create trading service directly
-            from alpaca.trading.client import TradingClient
+            # Use proper credential loading
+            api_key, secret_key, endpoint = get_alpaca_keys()
+            if not api_key or not secret_key:
+                self.logger.error("Alpaca credentials not found in environment")
+                return False
 
-            trading_client = TradingClient(
-                api_key=settings.alpaca.key or "",
-                secret_key=settings.alpaca.secret or "",
-                paper=settings.alpaca.paper_trading,
+            # Determine if paper trading from endpoint
+            paper_trading = "paper" in (endpoint or "").lower()
+
+            # Create AlpacaManager which handles proper service initialization
+            alpaca_manager = AlpacaManager(
+                api_key=api_key,
+                secret_key=secret_key,
+                paper=paper_trading,
             )
 
-            # For stress test, we don't need real websocket manager
-            from unittest.mock import Mock
-
-            mock_websocket_manager = Mock()
-
-            trading_service = AlpacaTradingService(
-                trading_client=trading_client,
-                websocket_manager=mock_websocket_manager,
-                paper_trading=settings.alpaca.paper_trading,
-            )
-            result = trading_service.close_all_positions(cancel_orders=True)
+            # Use the trading service from AlpacaManager
+            result = alpaca_manager.close_all_positions(cancel_orders=True)
 
             if result:
                 self.logger.info(
@@ -723,10 +867,16 @@ def main_cli() -> int:
     args = parser.parse_args()
 
     # Verify environment
-    if not args.dry_run and not os.getenv("ALPACA_KEY") and not os.getenv("ALPACA_API_KEY"):
-        print("ERROR: ALPACA_KEY or ALPACA_API_KEY environment variable not set")
-        print("Please set your Alpaca Paper API credentials")
-        return 1
+    if not args.dry_run:
+        try:
+            api_key, secret_key, _ = get_alpaca_keys()
+            if not api_key or not secret_key:
+                print("ERROR: Alpaca API credentials not found in environment")
+                print("Please set ALPACA_KEY and ALPACA_SECRET environment variables")
+                return 1
+        except Exception as e:
+            print(f"ERROR: Failed to load Alpaca credentials: {e}")
+            return 1
 
     # Run stress test
     runner = StressTestRunner(quick_mode=args.quick, dry_run=args.dry_run)

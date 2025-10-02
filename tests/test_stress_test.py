@@ -10,17 +10,11 @@ Tests the core components of the stress test script including:
 
 from __future__ import annotations
 
-import sys
 from decimal import Decimal
-from pathlib import Path
 
 import pytest
 
-# Add scripts directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-
-from stress_test import MarketCondition, MockIndicatorService, StressTestRunner
-
+from scripts.stress_test import MarketCondition, MockIndicatorService, StressTestRunner
 from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest
 
 
