@@ -8,7 +8,6 @@ including order flow logging, repeg operations, and data integrity checkpoints.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -34,7 +33,6 @@ def log_trade_event(
         "Trading event",
         event_type=event_type,
         symbol=symbol,
-        timestamp=datetime.now(UTC).isoformat() + "Z",
         **details,
     )
 

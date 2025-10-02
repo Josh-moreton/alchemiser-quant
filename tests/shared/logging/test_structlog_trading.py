@@ -23,17 +23,21 @@ from the_alchemiser.shared.logging.structlog_trading import (
 )
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def _setup_structlog() -> None:
-    """Set up structlog for all tests."""
-    configure_structlog(structured_format=True, log_level=logging.DEBUG)
+    """Set up structlog for tests that need it outside of patching.
+    
+    Note: Most tests should configure structlog inside the patch context manager
+    to ensure output is captured correctly.
+    """
+    configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
 
 
 def test_log_trade_event_basic() -> None:
     """Test that log_trade_event logs with proper structure."""
-    logger = get_structlog_logger(__name__)
-
     with patch("sys.stdout", new=StringIO()) as fake_out:
+        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        logger = get_structlog_logger(__name__)
         log_trade_event(logger, "order_placed", "AAPL", quantity=100, price=Decimal("150.25"))
 
         output = fake_out.getvalue()
@@ -49,9 +53,9 @@ def test_log_trade_event_basic() -> None:
 
 def test_log_order_flow_with_all_fields() -> None:
     """Test log_order_flow with all optional fields."""
-    logger = get_structlog_logger(__name__)
-
     with patch("sys.stdout", new=StringIO()) as fake_out:
+        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        logger = get_structlog_logger(__name__)
         log_order_flow(
             logger,
             stage="filled",
@@ -76,9 +80,9 @@ def test_log_order_flow_with_all_fields() -> None:
 
 def test_log_order_flow_without_optional_fields() -> None:
     """Test log_order_flow without optional fields."""
-    logger = get_structlog_logger(__name__)
-
     with patch("sys.stdout", new=StringIO()) as fake_out:
+        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        logger = get_structlog_logger(__name__)
         log_order_flow(logger, stage="submission", symbol="GOOG", quantity=Decimal("25"))
 
         output = fake_out.getvalue()
@@ -94,9 +98,9 @@ def test_log_order_flow_without_optional_fields() -> None:
 
 def test_log_repeg_operation() -> None:
     """Test log_repeg_operation with price improvement calculation."""
-    logger = get_structlog_logger(__name__)
-
     with patch("sys.stdout", new=StringIO()) as fake_out:
+        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        logger = get_structlog_logger(__name__)
         log_repeg_operation(
             logger,
             operation="replace_order",
@@ -124,16 +128,17 @@ def test_log_repeg_operation() -> None:
 
 def test_bind_trading_context_all_fields() -> None:
     """Test bind_trading_context with all fields."""
-    logger = get_structlog_logger(__name__)
-    bound_logger = bind_trading_context(
-        logger,
-        symbol="MSFT",
-        strategy="momentum",
-        portfolio="tech",
-        order_id="ord-456",
-    )
-
     with patch("sys.stdout", new=StringIO()) as fake_out:
+        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        logger = get_structlog_logger(__name__)
+        bound_logger = bind_trading_context(
+            logger,
+            symbol="MSFT",
+            strategy="momentum",
+            portfolio="tech",
+            order_id="ord-456",
+        )
+
         bound_logger.info("test event")
 
         output = fake_out.getvalue()
@@ -148,10 +153,11 @@ def test_bind_trading_context_all_fields() -> None:
 
 def test_bind_trading_context_partial_fields() -> None:
     """Test bind_trading_context with only some fields."""
-    logger = get_structlog_logger(__name__)
-    bound_logger = bind_trading_context(logger, symbol="AMZN", strategy="value")
-
     with patch("sys.stdout", new=StringIO()) as fake_out:
+        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        logger = get_structlog_logger(__name__)
+        bound_logger = bind_trading_context(logger, symbol="AMZN", strategy="value")
+
         bound_logger.info("partial context")
 
         output = fake_out.getvalue()
@@ -165,10 +171,11 @@ def test_bind_trading_context_partial_fields() -> None:
 
 def test_log_data_integrity_checkpoint_with_valid_data() -> None:
     """Test log_data_integrity_checkpoint with valid data."""
-    logger = get_structlog_logger(__name__)
     data = {"AAPL": 0.3, "MSFT": 0.3, "GOOG": 0.4}
 
     with patch("sys.stdout", new=StringIO()) as fake_out:
+        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        logger = get_structlog_logger(__name__)
         log_data_integrity_checkpoint(
             logger, stage="portfolio_allocation", data=data, context="rebalance"
         )
@@ -180,15 +187,15 @@ def test_log_data_integrity_checkpoint_with_valid_data() -> None:
         assert log_entry["stage"] == "portfolio_allocation"
         assert log_entry["context"] == "rebalance"
         assert log_entry["data_count"] == 3
-        assert log_entry["data_checksum"] == 1.0
+        assert log_entry["data_checksum"] == pytest.approx(1.0, rel=0, abs=1e-6)
         assert log_entry["data_sample"] == {"AAPL": 0.3, "MSFT": 0.3, "GOOG": 0.4}
 
 
 def test_log_data_integrity_checkpoint_with_null_data() -> None:
     """Test log_data_integrity_checkpoint with null data."""
-    logger = get_structlog_logger(__name__)
-
     with patch("sys.stdout", new=StringIO()) as fake_out:
+        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        logger = get_structlog_logger(__name__)
         log_data_integrity_checkpoint(logger, stage="data_fetch", data=None, context="API call")
 
         output = fake_out.getvalue()
@@ -202,10 +209,11 @@ def test_log_data_integrity_checkpoint_with_null_data() -> None:
 
 def test_log_data_integrity_checkpoint_warns_on_empty_data() -> None:
     """Test log_data_integrity_checkpoint warns on empty data."""
-    logger = get_structlog_logger(__name__)
     data: dict[str, float] = {}
 
     with patch("sys.stdout", new=StringIO()) as fake_out:
+        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        logger = get_structlog_logger(__name__)
         log_data_integrity_checkpoint(logger, stage="processing", data=data)
 
         output = fake_out.getvalue()
@@ -213,7 +221,7 @@ def test_log_data_integrity_checkpoint_warns_on_empty_data() -> None:
 
         # First line is checkpoint, subsequent lines are warnings
         # Empty data triggers both empty warning and allocation warning (sum is 0.0, not 1.0)
-        assert len(lines) >= 2
+        assert len(lines) >= 2, f"Expected at least 2 log lines, got {len(lines)}"
 
         checkpoint = json.loads(lines[0])
         warning = json.loads(lines[1])
@@ -225,11 +233,12 @@ def test_log_data_integrity_checkpoint_warns_on_empty_data() -> None:
 
 def test_log_data_integrity_checkpoint_warns_on_allocation_anomaly() -> None:
     """Test log_data_integrity_checkpoint warns on portfolio allocation anomaly."""
-    logger = get_structlog_logger(__name__)
     # Sum is 0.8, not close to 1.0
     data = {"AAPL": 0.3, "MSFT": 0.5}
 
     with patch("sys.stdout", new=StringIO()) as fake_out:
+        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        logger = get_structlog_logger(__name__)
         log_data_integrity_checkpoint(logger, stage="allocation", data=data)
 
         output = fake_out.getvalue()
@@ -242,15 +251,14 @@ def test_log_data_integrity_checkpoint_warns_on_allocation_anomaly() -> None:
         warning = json.loads(lines[1])
 
         assert checkpoint["event"] == "Data transfer checkpoint"
-        assert checkpoint["data_checksum"] == 0.8
+        assert checkpoint["data_checksum"] == pytest.approx(0.8, rel=0, abs=1e-6)
         assert warning["event"] == "Portfolio allocation anomaly"
-        assert warning["allocation_sum"] == 0.8
+        assert warning["allocation_sum"] == pytest.approx(0.8, rel=0, abs=1e-6)
         assert warning["expected_sum"] == 1.0
 
 
 def test_log_data_integrity_checkpoint_with_decimal_values() -> None:
     """Test log_data_integrity_checkpoint with Decimal values."""
-    logger = get_structlog_logger(__name__)
     data = {
         "AAPL": Decimal("0.33"),
         "MSFT": Decimal("0.33"),
@@ -258,6 +266,8 @@ def test_log_data_integrity_checkpoint_with_decimal_values() -> None:
     }
 
     with patch("sys.stdout", new=StringIO()) as fake_out:
+        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        logger = get_structlog_logger(__name__)
         log_data_integrity_checkpoint(logger, stage="allocation", data=data)
 
         output = fake_out.getvalue()

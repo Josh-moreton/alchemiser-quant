@@ -358,7 +358,6 @@ def lambda_handler(
             request_id=request_id,
             exc_info=True,
         )
-        logger.error(error_message, exc_info=True)
 
         # Enhanced error handling with detailed reporting
         _handle_trading_error(e, event, request_id, parsed_command_args)
