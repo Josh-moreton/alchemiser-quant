@@ -255,25 +255,14 @@ class Executor:
             "(enhanced settlement-aware)"
         )
 
-        # Check for stale orders to free up buying power
-        logger.debug("About to check for stale orders...")
+        # Cancel all orders to ensure clean order book at start
+        logger.info("🧹 Cancelling all open orders to ensure clean order book...")
+        cancel_success = self.alpaca_manager.cancel_all_orders()
 
-        # Cancel any stale orders to free up buying power
-        stale_timeout_minutes = 30  # Default timeout
-        if self.execution_config:
-            stale_timeout_minutes = self.execution_config.stale_order_timeout_minutes
-            logger.debug(f"Using execution_config timeout: {stale_timeout_minutes}")
+        if cancel_success:
+            logger.info("✅ All open orders cancelled successfully")
         else:
-            logger.debug("No execution_config found, using default timeout")
-
-        logger.info(f"🧹 Checking for stale orders (older than {stale_timeout_minutes} minutes)...")
-        stale_result = self.alpaca_manager.cancel_stale_orders(stale_timeout_minutes)
-        logger.debug(f"Stale order result: {stale_result}")
-
-        if stale_result["cancelled_count"] > 0:
-            logger.info(f"🗑️ Cancelled {stale_result['cancelled_count']} stale orders")
-        if stale_result["errors"]:
-            logger.warning(f"⚠️ Errors during stale order cancellation: {stale_result['errors']}")
+            logger.warning("⚠️ Failed to cancel all orders")
 
         # Extract all symbols upfront for bulk subscription
         all_symbols = self._extract_all_symbols(plan)
@@ -359,7 +348,7 @@ class Executor:
             orders_succeeded=orders_succeeded,
             total_trade_value=total_trade_value,
             execution_timestamp=datetime.now(UTC),
-            metadata={"stale_orders_cancelled": stale_result["cancelled_count"]},
+            metadata={},
         )
 
         # Enhanced logging with status classification
