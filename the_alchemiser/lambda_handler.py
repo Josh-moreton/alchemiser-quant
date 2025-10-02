@@ -14,7 +14,8 @@ modes based on the event payload.
 from __future__ import annotations
 
 import json
-import os
+import tomllib
+from pathlib import Path
 from typing import Any
 
 from the_alchemiser.main import main
@@ -40,15 +41,37 @@ from the_alchemiser.shared.types.exceptions import (
 # Set up logging
 logger = get_logger(__name__)
 
+# Cache version to avoid repeated file reads
+_cached_version: str | None = None
+
 
 def _get_app_version() -> str:
-    """Get application version from environment variable.
+    """Get application version from pyproject.toml.
+
+    Reads version directly from pyproject.toml file included in the Lambda package.
+    This ensures a single source of truth without build-time injection.
 
     Returns:
-        Application version string, or 'unknown' if not set.
+        Application version string, or 'unknown' if version cannot be read.
 
     """
-    return os.environ.get("APP__VERSION", "unknown")
+    global _cached_version
+    if _cached_version is not None:
+        return _cached_version
+
+    try:
+        # pyproject.toml is at the root of the Lambda package
+        pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
+        if pyproject_path.exists():
+            with pyproject_path.open("rb") as f:
+                data = tomllib.load(f)
+                _cached_version = data["tool"]["poetry"]["version"]
+                return _cached_version
+    except Exception as e:
+        logger.warning("Failed to read version from pyproject.toml", error=str(e))
+
+    _cached_version = "unknown"
+    return _cached_version
 
 
 def _determine_trading_mode(mode: str) -> str:
@@ -322,10 +345,6 @@ def lambda_handler(
     set_request_id(correlation_id)
 
     try:
-        # Get and log application version
-        app_version = _get_app_version()
-        logger.info("Lambda invoked", version=app_version, request_id=request_id)
-
         # Log the incoming event for debugging
         event_json = json.dumps(event) if event else "None"
         logger.info("Lambda invoked with event", event_data=event_json)
@@ -339,7 +358,9 @@ def lambda_handler(
         # Determine trading mode based on endpoint URL
         trading_mode = _determine_trading_mode(mode)
 
-        logger.info("Executing command", command=" ".join(command_args))
+        # Get application version
+        app_version = _get_app_version()
+        logger.info("Executing command", command=" ".join(command_args), version=app_version)
 
         _settings = load_settings()
         # main() loads settings internally; do not pass unsupported kwargs
@@ -350,9 +371,6 @@ def lambda_handler(
 
         # Build response message
         message = _build_response_message(trading_mode, result=result_ok)
-
-        # Get application version
-        app_version = _get_app_version()
 
         response = {
             "status": "success" if result_ok else "failed",

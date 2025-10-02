@@ -14,11 +14,6 @@ Parameters:
       - prod
     Description: Deployment stage (dev or prod)
 
-  AppVersion:
-    Type: String
-    Default: "unknown"
-    Description: Application version from pyproject.toml (injected at build time)
-
   AlpacaKey:
     Type: String
     Default: ""
@@ -71,8 +66,6 @@ Globals:
     MemorySize: 512
     Environment:
       Variables:
-        # Application version
-        APP__VERSION: !Ref AppVersion
         # Logging
         LOGGING__LEVEL: INFO
         # Stage awareness for code-level profiles
@@ -164,7 +157,6 @@ Resources:
           - .editorconfig
           - .pre-commit-config.yaml
           - poetry.lock
-          - pyproject.toml
           - pytest.ini
           - sonar-project.properties
 
@@ -295,7 +287,3 @@ Outputs:
   DeploymentStage:
     Description: "Deployed stage"
     Value: !Ref Stage
-
-  ApplicationVersion:
-    Description: "Application version from pyproject.toml"
-    Value: !Ref AppVersion
