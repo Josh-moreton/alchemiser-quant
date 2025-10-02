@@ -106,6 +106,33 @@ class AlpacaTradingService:
         """Check if this is paper trading."""
         return self._paper_trading
 
+    def _normalize_response_to_dict_list(
+        self, response: list[object] | dict[str, object] | object
+    ) -> list[dict[str, Any]]:
+        """Normalize various response formats to consistent list of dicts.
+
+        Args:
+            response: Response from Alpaca API (can be list or dict)
+
+        Returns:
+            List of dictionaries with normalized response data
+
+        """
+        result = []
+        if isinstance(response, list):
+            for item in response:
+                if hasattr(item, "__dict__"):
+                    result.append(vars(item))
+                elif isinstance(item, dict):
+                    result.append(item)
+                else:
+                    # Fallback: convert to dict representation
+                    result.append({"response": str(item)})
+        else:
+            # Handle dict response
+            result = [response] if isinstance(response, dict) else []
+        return result
+
     def place_order(self, order_request: LimitOrderRequest | MarketOrderRequest) -> ExecutedOrder:
         """Place an order and return execution details."""
         try:
@@ -417,6 +444,31 @@ class AlpacaTradingService:
         except Exception as e:
             logger.error("Failed to liquidate position for", symbol=symbol, error=str(e))
             return None
+
+    def close_all_positions(self, *, cancel_orders: bool = True) -> list[dict[str, Any]]:
+        """Liquidate all positions for an account.
+
+        Places an order for each open position to liquidate.
+
+        Args:
+            cancel_orders: If True, cancel all open orders before liquidating positions
+
+        Returns:
+            List of responses from each closed position containing status and order info
+
+        """
+        try:
+            logger.info(f"Closing all positions (cancel_orders={cancel_orders})...")
+            response = self._trading_client.close_all_positions(cancel_orders=cancel_orders)
+
+            # Convert response to list of dicts for consistent interface
+            result = self._normalize_response_to_dict_list(response)
+
+            logger.info(f"Successfully closed {len(result)} positions")
+            return result
+        except Exception as e:
+            logger.error(f"Failed to close all positions: {e}")
+            return []
 
     def wait_for_order_completion(
         self, order_ids: list[str], max_wait_seconds: int = 30

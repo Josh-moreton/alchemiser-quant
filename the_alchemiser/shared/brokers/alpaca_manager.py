@@ -539,6 +539,20 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         return self._get_trading_service().liquidate_position(symbol)
 
+    def close_all_positions(self, *, cancel_orders: bool = True) -> list[dict[str, Any]]:
+        """Liquidate all positions for an account (delegates to TradingService).
+
+        Places an order for each open position to liquidate.
+
+        Args:
+            cancel_orders: If True, cancel all open orders before liquidating positions
+
+        Returns:
+            List of responses from each closed position containing status and order info
+
+        """
+        return self._get_trading_service().close_all_positions(cancel_orders=cancel_orders)
+
     def get_asset_info(self, symbol: str) -> AssetInfo | None:
         """Get asset information with caching."""
         return self._asset_metadata_service.get_asset_info(symbol)
