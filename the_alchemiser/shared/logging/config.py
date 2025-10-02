@@ -19,7 +19,8 @@ def configure_test_logging(log_level: int = logging.WARNING) -> None:
     """Configure structlog for test environments with human-readable output."""
     configure_structlog(
         structured_format=False,  # Console format for readability in tests
-        log_level=log_level,
+        console_level=log_level,
+        file_level=log_level,
     )
 
 
@@ -37,9 +38,12 @@ def configure_production_logging(
         console_level: Override for console handler level (kept for API compatibility).
 
     """
+    effective_console_level = console_level if console_level is not None else log_level
     configure_structlog(
         structured_format=True,  # JSON format for production
-        log_level=log_level,
+        console_level=effective_console_level,
+        file_level=log_level,
+        file_path=log_file,
     )
 
 
@@ -47,7 +51,7 @@ def configure_application_logging() -> None:
     """Configure application logging with structlog.
 
     Automatically selects appropriate configuration based on environment.
-    Production uses JSON format, development uses console format.
+    Production uses JSON format, development uses console format with clean terminal output.
     """
     # Determine if we're in production (Lambda environment)
     is_production = bool(os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
@@ -55,8 +59,9 @@ def configure_application_logging() -> None:
     if is_production:
         configure_production_logging(log_level=logging.INFO)
     else:
-        # Development environment - use console format
+        # Development environment - clean console, detailed file
         configure_structlog(
             structured_format=False,  # Human-readable for development
-            log_level=logging.DEBUG,
+            console_level=logging.INFO,  # Clean console (no debug spam)
+            file_level=logging.DEBUG,  # File captures everything for debugging
         )
