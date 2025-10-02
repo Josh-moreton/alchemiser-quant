@@ -11,12 +11,9 @@ from __future__ import annotations
 
 import traceback
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from .error_types import ErrorCategory
-
-if TYPE_CHECKING:
-    pass
 
 # Import exceptions
 try:
