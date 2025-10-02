@@ -356,8 +356,9 @@ class OrderMonitor:
             if not self._is_cancelled_status(order_status):
                 continue
 
-            # Type narrowing: order_status is guaranteed to be str after _is_cancelled_status check
-            if not order_status:  # Additional guard for type checker
+            # Note: _is_cancelled_status only returns a boolean and does not guarantee order_status is a string.
+            # The guard below is necessary for runtime safety, not just type checking.
+            if not order_status:
                 continue
 
             self._check_and_add_unfilled_order(
