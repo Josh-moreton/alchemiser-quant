@@ -120,10 +120,10 @@ from the_alchemiser.shared.logging import configure_structlog
 import logging
 
 # JSON output (production)
-configure_structlog(structured_format=True, log_level=logging.INFO)
+configure_structlog(structured_format=True, console_level=logging.INFO, file_level=logging.INFO)
 
 # Console output (development)
-configure_structlog(structured_format=False, log_level=logging.DEBUG)
+configure_structlog(structured_format=False, console_level=logging.DEBUG, file_level=logging.DEBUG)
 ```
 
 ### Application Logging

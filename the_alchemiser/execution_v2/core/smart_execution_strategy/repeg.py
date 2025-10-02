@@ -397,7 +397,7 @@ class RepegManager:
                         logger,
                         operation="replace_order",
                         symbol=request.symbol,
-                        old_price=(original_anchor if original_anchor is not None else None),
+                        old_price=original_anchor,
                         new_price=new_price,
                         quantity=remaining_qty,
                         reason="unfilled_order",

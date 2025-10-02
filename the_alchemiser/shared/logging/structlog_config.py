@@ -9,6 +9,7 @@ Alchemiser-specific context, Decimal serialization, and both JSON and console ou
 from __future__ import annotations
 
 import logging
+import sys
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -92,7 +93,7 @@ def configure_structlog(
     root_logger.handlers.clear()  # Clear any existing handlers
 
     # Console handler (INFO+ only for clean terminal)
-    console_handler = logging.StreamHandler()
+    console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(console_level)
     console_handler.setFormatter(logging.Formatter("%(message)s"))  # Just the message
     root_logger.addHandler(console_handler)

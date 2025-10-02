@@ -34,7 +34,6 @@ def log_trade_event(
         "Trading event",
         event_type=event_type,
         symbol=symbol,
-        timestamp=datetime.now(UTC).isoformat() + "Z",
         **details,
     )
 

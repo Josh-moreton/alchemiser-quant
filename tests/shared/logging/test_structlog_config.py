@@ -71,7 +71,7 @@ def test_add_alchemiser_context_includes_error_id() -> None:
 
 def test_configure_structlog_json_format() -> None:
     """Test that configure_structlog sets up JSON output."""
-    configure_structlog(structured_format=True, log_level=logging.INFO)
+    configure_structlog(structured_format=True, console_level=logging.INFO, file_level=logging.INFO)
 
     logger = get_structlog_logger(__name__)
     assert logger is not None
@@ -79,7 +79,7 @@ def test_configure_structlog_json_format() -> None:
 
 def test_configure_structlog_console_format() -> None:
     """Test that configure_structlog sets up console output."""
-    configure_structlog(structured_format=False, log_level=logging.DEBUG)
+    configure_structlog(structured_format=False, console_level=logging.DEBUG, file_level=logging.DEBUG)
 
     logger = get_structlog_logger(__name__)
     assert logger is not None
@@ -87,7 +87,7 @@ def test_configure_structlog_console_format() -> None:
 
 def test_get_structlog_logger_returns_logger() -> None:
     """Test that get_structlog_logger returns a logger instance."""
-    configure_structlog(structured_format=True, log_level=logging.INFO)
+    configure_structlog(structured_format=True, console_level=logging.INFO, file_level=logging.INFO)
 
     logger = get_structlog_logger(__name__)
     assert logger is not None
@@ -98,10 +98,9 @@ def test_get_structlog_logger_returns_logger() -> None:
 
 def test_structlog_handles_decimal_in_json() -> None:
     """Test that structlog correctly serializes Decimal values in JSON output."""
-    configure_structlog(structured_format=True, log_level=logging.DEBUG)
-
-    # Capture output
+    # Capture output - configure structlog AFTER patching stdout so handlers use patched stream
     with patch("sys.stdout", new=StringIO()) as fake_out:
+        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
         logger = get_structlog_logger(__name__)
         logger.info("test", price=Decimal("150.25"), quantity=Decimal("100"))
 
@@ -118,13 +117,12 @@ def test_structlog_handles_decimal_in_json() -> None:
 
 def test_structlog_includes_context_vars() -> None:
     """Test that structlog includes context variables in output."""
-    configure_structlog(structured_format=True, log_level=logging.DEBUG)
-
     context.set_request_id("ctx-123")
     context.set_error_id("err-456")
 
     try:
         with patch("sys.stdout", new=StringIO()) as fake_out:
+            configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
             logger = get_structlog_logger(__name__)
             logger.info("test event")
 
@@ -141,12 +139,11 @@ def test_structlog_includes_context_vars() -> None:
 
 def test_structlog_logger_bind() -> None:
     """Test that structlog logger supports bind for context."""
-    configure_structlog(structured_format=True, log_level=logging.DEBUG)
-
-    logger = get_structlog_logger(__name__)
-    bound_logger = logger.bind(symbol="AAPL", strategy="momentum")
-
     with patch("sys.stdout", new=StringIO()) as fake_out:
+        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        logger = get_structlog_logger(__name__)
+        bound_logger = logger.bind(symbol="AAPL", strategy="momentum")
+
         bound_logger.info("trade signal")
 
         output = fake_out.getvalue()
