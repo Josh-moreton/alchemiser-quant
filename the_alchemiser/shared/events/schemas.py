@@ -17,7 +17,7 @@ from typing import Any
 
 from pydantic import Field
 
-from ..constants import EVENT_TYPE_DESCRIPTION
+from ..constants import EVENT_TYPE_DESCRIPTION, RECIPIENT_OVERRIDE_DESCRIPTION
 from ..schemas.common import AllocationComparison
 from ..schemas.portfolio_state import PortfolioState
 from ..schemas.rebalance_plan import RebalancePlan
@@ -299,9 +299,7 @@ class ErrorNotificationRequested(BaseEvent):
     error_code: str | None = Field(
         default=None, description="Optional error code for categorization"
     )
-    recipient_override: str | None = Field(
-        default=None, description="Optional recipient email override"
-    )
+    recipient_override: str | None = Field(default=None, description=RECIPIENT_OVERRIDE_DESCRIPTION)
 
 
 class TradingNotificationRequested(BaseEvent):
@@ -324,9 +322,7 @@ class TradingNotificationRequested(BaseEvent):
     execution_data: dict[str, Any] = Field(..., description="Detailed execution data")
     error_message: str | None = Field(default=None, description="Error message if trading failed")
     error_code: str | None = Field(default=None, description="Optional error code")
-    recipient_override: str | None = Field(
-        default=None, description="Optional recipient email override"
-    )
+    recipient_override: str | None = Field(default=None, description=RECIPIENT_OVERRIDE_DESCRIPTION)
 
 
 class SystemNotificationRequested(BaseEvent):
@@ -345,6 +341,4 @@ class SystemNotificationRequested(BaseEvent):
     subject: str = Field(..., description="Email subject line")
     html_content: str = Field(..., description="HTML email content")
     text_content: str | None = Field(default=None, description="Optional plain text content")
-    recipient_override: str | None = Field(
-        default=None, description="Optional recipient email override"
-    )
+    recipient_override: str | None = Field(default=None, description=RECIPIENT_OVERRIDE_DESCRIPTION)

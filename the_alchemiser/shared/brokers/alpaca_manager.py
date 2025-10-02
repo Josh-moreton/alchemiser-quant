@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import threading
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, ClassVar
 
@@ -154,7 +154,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 api_key=api_key, secret_key=secret_key, paper=paper
             )
 
-            self._data_client = StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
+            self._data_client = StockHistoricalDataClient(
+                api_key=api_key, secret_key=secret_key
+            )
 
             logger.debug(f"AlpacaManager initialized - Paper: {paper}")
 
@@ -254,7 +256,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Get position for a specific symbol."""
         return self._account_service.get_position(symbol)
 
-    def place_order(self, order_request: LimitOrderRequest | MarketOrderRequest) -> ExecutedOrder:
+    def place_order(
+        self, order_request: LimitOrderRequest | MarketOrderRequest
+    ) -> ExecutedOrder:
         """Place an order and return execution details."""
         return self._get_trading_service().place_order(order_request)
 
@@ -525,76 +529,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             True if successful, False otherwise.
 
         """
-        try:
-            if symbol:
-                # Get orders for specific symbol and cancel them
-                orders = self.get_orders(status="open")
-                symbol_orders = [
-                    order for order in orders if getattr(order, "symbol", None) == symbol
-                ]
-                for order in symbol_orders:
-                    order_id = getattr(order, "id", None)
-                    if order_id:
-                        cancel_result = self.cancel_order(str(order_id))
-                        if not cancel_result.success:
-                            logger.warning(
-                                f"Failed to cancel order {order_id}: {cancel_result.error}"
-                            )
-            else:
-                # Cancel all open orders
-                self._trading_client.cancel_orders()
-
-            logger.info("Successfully cancelled orders" + (f" for {symbol}" if symbol else ""))
-            return True
-        except Exception as e:
-            logger.error(f"Failed to cancel orders: {e}")
-            return False
-
-    def cancel_stale_orders(self, timeout_minutes: int = 30) -> dict[str, Any]:
-        """Cancel orders older than the specified timeout.
-
-        Args:
-            timeout_minutes: Orders older than this many minutes will be cancelled
-
-        Returns:
-            Dictionary containing cancelled_count, errors, and cancelled_orders
-
-        """
-        try:
-            cutoff_time = datetime.now(UTC) - timedelta(minutes=timeout_minutes)
-            open_orders = self.get_orders(status="open")
-            cancelled_orders = []
-            errors = []
-
-            for order in open_orders:
-                try:
-                    submitted_at = getattr(order, "submitted_at", None)
-                    if submitted_at and submitted_at < cutoff_time:
-                        order_id = str(getattr(order, "id", "unknown"))
-                        cancel_result = self.cancel_order(order_id)
-                        if cancel_result.success:
-                            cancelled_orders.append(order_id)
-                        else:
-                            errors.append(
-                                f"Failed to cancel order {order_id}: {cancel_result.error}"
-                            )
-                except Exception as e:
-                    errors.append(f"Error processing order: {e}")
-
-            if cancelled_orders:
-                logger.info(f"✅ Cancelled {len(cancelled_orders)} stale orders")
-            return {
-                "cancelled_count": len(cancelled_orders),
-                "errors": errors,
-                "cancelled_orders": cancelled_orders,
-            }
-        except Exception as e:
-            logger.error(f"Failed to cancel stale orders: {e}")
-            return {
-                "cancelled_count": 0,
-                "errors": [str(e)],
-                "cancelled_orders": [],
-            }
+        return self._get_trading_service().cancel_all_orders(symbol)
 
     def liquidate_position(self, symbol: str) -> str | None:
         """Liquidate entire position using close_position API (delegates to TradingService).
@@ -626,7 +561,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         return self._asset_metadata_service.is_market_open()
 
-    def get_market_calendar(self, _start_date: str, _end_date: str) -> list[dict[str, Any]]:
+    def get_market_calendar(
+        self, _start_date: str, _end_date: str
+    ) -> list[dict[str, Any]]:
         """Get market calendar information.
 
         Args:
@@ -699,7 +636,9 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             WebSocketResult with completion status and completed order IDs
 
         """
-        return self._get_trading_service().wait_for_order_completion(order_ids, max_wait_seconds)
+        return self._get_trading_service().wait_for_order_completion(
+            order_ids, max_wait_seconds
+        )
 
     def _check_order_completion_status(self, order_id: str) -> str | None:
         """Check if a single order has reached a final state (delegates to TradingService).
@@ -727,9 +666,15 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             try:
                 for instance in cls._instances.values():
                     try:
-                        if hasattr(instance, "_trading_service") and instance._trading_service:
+                        if (
+                            hasattr(instance, "_trading_service")
+                            and instance._trading_service
+                        ):
                             instance._trading_service.cleanup()
-                        if hasattr(instance, "_websocket_manager") and instance._websocket_manager:
+                        if (
+                            hasattr(instance, "_websocket_manager")
+                            and instance._websocket_manager
+                        ):
                             instance._websocket_manager.release_trading_service()
                     except Exception as e:
                         logger.error(f"Error cleaning up AlpacaManager instance: {e}")
@@ -768,4 +713,6 @@ def create_alpaca_manager(
     This function provides a clean way to create AlpacaManager instances
     and can be easily extended with additional configuration options.
     """
-    return AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url)
+    return AlpacaManager(
+        api_key=api_key, secret_key=secret_key, paper=paper, base_url=base_url
+    )
