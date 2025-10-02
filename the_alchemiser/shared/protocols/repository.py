@@ -94,7 +94,9 @@ class TradingRepository(Protocol):
         """
         ...
 
-    def place_order(self, order_request: LimitOrderRequest | MarketOrderRequest) -> ExecutedOrder:
+    def place_order(
+        self, order_request: LimitOrderRequest | MarketOrderRequest
+    ) -> ExecutedOrder:
         """Place an order.
 
         Args:
@@ -177,6 +179,22 @@ class TradingRepository(Protocol):
 
         Returns:
             Order ID if successful, None if failed.
+
+        """
+        ...
+
+    def close_all_positions(
+        self, *, cancel_orders: bool = True
+    ) -> list[dict[str, Any]]:
+        """Liquidate all positions for an account.
+
+        Places an order for each open position to liquidate.
+
+        Args:
+            cancel_orders: If True, cancel all open orders before liquidating positions
+
+        Returns:
+            List of responses from each closed position containing status and order info
 
         """
         ...
