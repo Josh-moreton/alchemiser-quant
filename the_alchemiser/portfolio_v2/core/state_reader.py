@@ -82,7 +82,7 @@ class PortfolioStateReader:
             # Step 4: Get cash balance
             cash = self._data_adapter.get_account_cash()
 
-            # Check for negative or zero cash balance - liquidate and exit
+            # Check for negative or zero cash balance - liquidate and retry
             if cash <= Decimal("0"):
                 log_with_context(
                     logger,
@@ -100,15 +100,28 @@ class PortfolioStateReader:
                     log_with_context(
                         logger,
                         logging.INFO,
-                        "Liquidation completed. Re-checking cash balance...",
+                        "Liquidation completed. Re-checking cash balance and positions...",
                         module=MODULE_NAME,
                         action="build_snapshot",
                     )
                     
+                    # Re-fetch positions (should be empty after liquidation)
+                    positions = self._data_adapter.get_positions()
+                    
                     # Re-check cash balance after liquidation
                     cash = self._data_adapter.get_account_cash()
                     
-                    if cash <= Decimal("0"):
+                    if cash > Decimal("0"):
+                        log_with_context(
+                            logger,
+                            logging.INFO,
+                            f"Cash balance recovered after liquidation: ${cash}. Continuing with trading.",
+                            module=MODULE_NAME,
+                            action="build_snapshot",
+                            cash_balance=str(cash),
+                        )
+                        # Continue with normal flow - positions should be empty, cash is positive
+                    else:
                         log_with_context(
                             logger,
                             logging.ERROR,
@@ -117,12 +130,18 @@ class PortfolioStateReader:
                             action="build_snapshot",
                             cash_balance=str(cash),
                         )
-                
-                raise NegativeCashBalanceError(
-                    f"Account cash balance is ${cash}. Trading requires positive cash balance.",
-                    cash_balance=str(cash),
-                    module=MODULE_NAME,
-                )
+                        raise NegativeCashBalanceError(
+                            f"Account cash balance is ${cash} after liquidation. Trading cannot proceed.",
+                            cash_balance=str(cash),
+                            module=MODULE_NAME,
+                        )
+                else:
+                    # Liquidation failed, raise error
+                    raise NegativeCashBalanceError(
+                        f"Account cash balance is ${cash} and liquidation failed. Trading cannot proceed.",
+                        cash_balance=str(cash),
+                        module=MODULE_NAME,
+                    )
 
             # Step 5: Calculate total portfolio value
             position_value = Decimal("0")

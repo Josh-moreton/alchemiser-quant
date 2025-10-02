@@ -2,7 +2,7 @@
 
 ## Overview
 
-This feature automatically liquidates all positions when the portfolio detects a negative or zero cash balance. This is a safety mechanism to prevent further trading when the account is in an unsustainable state.
+This feature automatically liquidates all positions when the portfolio detects a negative or zero cash balance. After liquidation, if the cash balance becomes positive, the system continues with normal trading operations. If cash remains negative, trading is prevented.
 
 ## Implementation
 
@@ -10,8 +10,10 @@ This feature automatically liquidates all positions when the portfolio detects a
 
 1. **Detection**: The `PortfolioStateReader.build_portfolio_snapshot()` method checks the cash balance
 2. **Liquidation**: If cash ≤ 0, it calls `liquidate_all_positions()` to close all open positions
-3. **Re-check**: After liquidation, the cash balance is checked again
-4. **Prevention**: The system still raises `NegativeCashBalanceError` to prevent further trading
+3. **Re-check**: After liquidation, positions and cash balance are re-fetched
+4. **Decision**: 
+   - If cash > 0: Continue with normal trading (snapshot creation proceeds)
+   - If cash ≤ 0: Raise `NegativeCashBalanceError` to prevent further trading
 
 ### API Chain
 
@@ -74,8 +76,9 @@ Location: `the_alchemiser/portfolio_v2/core/state_reader.py`
 Orchestrates the liquidation:
 - Detects negative/zero cash balance
 - Calls `liquidate_all_positions()`
-- Re-checks cash balance after liquidation
-- Raises `NegativeCashBalanceError` regardless to prevent trading
+- Re-fetches positions and cash balance after liquidation
+- If cash > 0: Continues with snapshot creation (allows trading)
+- If cash ≤ 0: Raises `NegativeCashBalanceError` to prevent trading
 
 ## Behavior
 
@@ -84,8 +87,10 @@ Orchestrates the liquidation:
 1. **Log Error**: "Account has non-positive cash balance: ${cash}. Attempting to liquidate all positions."
 2. **Call Liquidation API**: Alpaca's `close_all_positions(cancel_orders=True)`
 3. **Log Result**: Success or failure of liquidation
-4. **Re-check Cash**: Fetch updated cash balance
-5. **Raise Error**: Always raise `NegativeCashBalanceError` to prevent further trading
+4. **Re-fetch Data**: Get updated positions and cash balance
+5. **Decision Point**:
+   - **Cash > 0**: Log success message and continue with trading
+   - **Cash ≤ 0**: Raise `NegativeCashBalanceError` to prevent further trading
 
 ### Parameters
 
@@ -95,18 +100,19 @@ Orchestrates the liquidation:
 ### Edge Cases Handled
 
 1. **No Positions**: API returns empty list, handled gracefully
-2. **API Failure**: Exception caught and logged, returns False
-3. **Still Negative After**: Logs warning and still raises error
-4. **Positive Cash**: Skips liquidation entirely
+2. **API Failure**: Exception caught and logged, raises error
+3. **Still Negative After**: Logs warning and raises error
+4. **Positive Cash After Liquidation**: Continues with normal trading flow
+5. **Positive Cash Initially**: Skips liquidation entirely
 
 ## Testing
 
 ### Test Coverage
 
 1. **test_negative_cash_liquidation.py** (Portfolio Module)
-   - Negative cash triggers liquidation
-   - Zero cash triggers liquidation
-   - Liquidation with successful recovery
+   - Negative cash triggers liquidation and continues if recovery succeeds
+   - Zero cash triggers liquidation and continues if recovery succeeds
+   - Liquidation with cash still negative raises error
    - Liquidation with API failures
    - No positions to liquidate
    - Positive cash skips liquidation
@@ -130,15 +136,27 @@ python -m pytest tests/portfolio_v2/test_negative_cash_liquidation.py -v
 
 ## Example Logs
 
-### Successful Liquidation
+### Successful Liquidation with Recovery
 
 ```
 2024-10-02 10:30:00 - ERROR - Account has non-positive cash balance: $-100.50. Attempting to liquidate all positions.
 2024-10-02 10:30:01 - INFO - Closing all positions (cancel_orders=True)...
 2024-10-02 10:30:02 - INFO - Successfully closed 2 positions
 2024-10-02 10:30:02 - INFO - Successfully liquidated 2 positions
-2024-10-02 10:30:02 - INFO - Liquidation completed. Re-checking cash balance...
-2024-10-02 10:30:03 - ERROR - Account cash balance is $50.00. Trading requires positive cash balance.
+2024-10-02 10:30:02 - INFO - Liquidation completed. Re-checking cash balance and positions...
+2024-10-02 10:30:03 - INFO - Cash balance recovered after liquidation: $50.00. Continuing with trading.
+```
+
+### Liquidation with Cash Still Negative
+
+```
+2024-10-02 10:30:00 - ERROR - Account has non-positive cash balance: $-100.50. Attempting to liquidate all positions.
+2024-10-02 10:30:01 - INFO - Closing all positions (cancel_orders=True)...
+2024-10-02 10:30:02 - INFO - Successfully closed 2 positions
+2024-10-02 10:30:02 - INFO - Successfully liquidated 2 positions
+2024-10-02 10:30:02 - INFO - Liquidation completed. Re-checking cash balance and positions...
+2024-10-02 10:30:03 - ERROR - Cash balance still non-positive after liquidation: $-10.00
+2024-10-02 10:30:03 - ERROR - Account cash balance is $-10.00 after liquidation. Trading cannot proceed.
 ```
 
 ### Failed Liquidation
@@ -147,15 +165,16 @@ python -m pytest tests/portfolio_v2/test_negative_cash_liquidation.py -v
 2024-10-02 10:30:00 - ERROR - Account has non-positive cash balance: $-100.50. Attempting to liquidate all positions.
 2024-10-02 10:30:01 - ERROR - Failed to close all positions: API Error
 2024-10-02 10:30:01 - ERROR - Failed to liquidate all positions: API Error
-2024-10-02 10:30:01 - ERROR - Account cash balance is $-100.50. Trading requires positive cash balance.
+2024-10-02 10:30:01 - ERROR - Account cash balance is $-100.50 and liquidation failed. Trading cannot proceed.
 ```
 
 ## Safety Guarantees
 
-1. **Always Prevents Trading**: Even if liquidation succeeds and cash becomes positive, the error is still raised
-2. **Idempotent**: Can be called multiple times safely
-3. **Traceable**: All actions logged with correlation IDs
-4. **Non-Blocking**: If liquidation fails, the error is still raised to prevent further damage
+1. **Continues Trading After Recovery**: If liquidation succeeds and cash becomes positive, trading continues normally
+2. **Prevents Trading on Failure**: If cash remains negative after liquidation, trading is prevented
+3. **Idempotent**: Can be called multiple times safely
+4. **Traceable**: All actions logged with correlation IDs
+5. **Non-Blocking**: If liquidation fails, the error is raised to prevent further damage
 
 ## Compliance with Copilot Instructions
 
