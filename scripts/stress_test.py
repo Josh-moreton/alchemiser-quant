@@ -412,12 +412,21 @@ class StressTestRunner:
             from alpaca.trading.client import TradingClient
 
             trading_client = TradingClient(
-                api_key=settings.alpaca.api_key,
-                secret_key=settings.alpaca.secret_key,
+                api_key=settings.alpaca.key or "",
+                secret_key=settings.alpaca.secret or "",
                 paper=settings.alpaca.paper_trading,
             )
 
-            trading_service = AlpacaTradingService(trading_client=trading_client)
+            # For stress test, we don't need real websocket manager
+            from unittest.mock import Mock
+
+            mock_websocket_manager = Mock()
+
+            trading_service = AlpacaTradingService(
+                trading_client=trading_client,
+                websocket_manager=mock_websocket_manager,
+                paper_trading=settings.alpaca.paper_trading,
+            )
             result = trading_service.close_all_positions(cancel_orders=True)
 
             if result:
