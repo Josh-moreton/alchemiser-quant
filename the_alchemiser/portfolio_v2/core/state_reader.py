@@ -280,24 +280,31 @@ class PortfolioStateReader:
         )
 
         try:
-            # Step 1: Get current positions
-            positions = self._data_adapter.get_positions()
-
-            # Step 2: Determine which symbols we need prices for
-            position_symbols = set(positions.keys())
-            price_symbols = position_symbols if symbols is None else symbols.union(position_symbols)
-
-            # Step 3: Get current prices for all required symbols
-            prices = {}
-            if price_symbols:
-                prices = self._data_adapter.get_current_prices(list(price_symbols))
-
-            # Step 4: Get cash balance
+            # Step 1: Get cash balance first
             cash = self._data_adapter.get_account_cash()
 
             # Check for negative or zero cash balance - liquidate and retry
             if cash <= Decimal("0"):
                 cash, positions = self._handle_negative_cash_balance(cash)
+                # After liquidation, positions should be empty, so no prices needed
+                # But we still need to fetch prices for any requested symbols
+                prices = {}
+                if symbols:
+                    prices = self._data_adapter.get_current_prices(list(symbols))
+            else:
+                # Step 2: Get current positions
+                positions = self._data_adapter.get_positions()
+
+                # Step 3: Determine which symbols we need prices for
+                position_symbols = set(positions.keys())
+                price_symbols = (
+                    position_symbols if symbols is None else symbols.union(position_symbols)
+                )
+
+                # Step 4: Get current prices for all required symbols
+                prices = {}
+                if price_symbols:
+                    prices = self._data_adapter.get_current_prices(list(price_symbols))
 
             # Step 5: Calculate total portfolio value
             total_value = self._calculate_portfolio_value(positions, prices, cash)
