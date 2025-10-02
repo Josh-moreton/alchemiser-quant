@@ -154,7 +154,8 @@ class MarketOrderExecutor:
             if "Insufficient buying power" in str(exc):
                 raise  # Re-raise buying power errors
             logger.warning(f"⚠️ Could not verify buying power for {symbol}: {exc}")
-            # Continue with order placement - broker will reject if insufficient funds
+            # Skip buying power validation - broker will reject if insufficient funds
+            return
 
     def _place_market_order_with_broker(
         self, symbol: str, side: str, quantity: Decimal
