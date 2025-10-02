@@ -33,29 +33,47 @@ except ImportError:
     class AlchemiserError(Exception):  # type: ignore[no-redef]
         """Fallback AlchemiserError."""
 
+        pass  # noqa: PIE790
+
     class ConfigurationError(AlchemiserError):  # type: ignore[no-redef]
         """Fallback ConfigurationError."""
+
+        pass  # noqa: PIE790
 
     class DataProviderError(AlchemiserError):  # type: ignore[no-redef]
         """Fallback DataProviderError."""
 
+        pass  # noqa: PIE790
+
     class InsufficientFundsError(AlchemiserError):  # type: ignore[no-redef]
         """Fallback InsufficientFundsError."""
+
+        pass  # noqa: PIE790
 
     class MarketDataError(AlchemiserError):  # type: ignore[no-redef]
         """Fallback MarketDataError."""
 
+        pass  # noqa: PIE790
+
     class NotificationError(AlchemiserError):  # type: ignore[no-redef]
         """Fallback NotificationError."""
+
+        pass  # noqa: PIE790
 
     class OrderExecutionError(AlchemiserError):  # type: ignore[no-redef]
         """Fallback OrderExecutionError."""
 
+        pass  # noqa: PIE790
+
     class PositionValidationError(AlchemiserError):  # type: ignore[no-redef]
         """Fallback PositionValidationError."""
 
+        pass  # noqa: PIE790
+
     class TradingClientError(AlchemiserError):  # type: ignore[no-redef]
         """Fallback TradingClientError."""
+
+        pass  # noqa: PIE790
 
 
 def _is_strategy_execution_error(err: Exception) -> bool:
