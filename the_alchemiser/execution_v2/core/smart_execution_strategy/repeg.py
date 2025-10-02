@@ -27,6 +27,7 @@ from .models import (
 from .pricing import PricingCalculator
 from .quotes import QuoteProvider
 from .tracking import OrderTracker
+from .utils import fetch_price_for_notional_check, is_remaining_quantity_too_small
 
 logger = get_logger(__name__)
 
@@ -482,50 +483,74 @@ class RepegManager:
             f"original={request.quantity}, filled={filled_qty}, remaining={remaining_qty}"
         )
 
-        # Determine if remaining is too small to pursue based on fractionability and notional
+        # Check if remaining is too small to pursue
+        if self._should_remove_due_to_small_remaining(order_id, request, remaining_qty):
+            return None
+
+        return remaining_qty
+
+    def _should_remove_due_to_small_remaining(
+        self, order_id: str, request: SmartOrderRequest, remaining_qty: Decimal
+    ) -> bool:
+        """Check if remaining quantity is too small and order should be removed.
+
+        Args:
+            order_id: Order ID for logging
+            request: Original order request
+            remaining_qty: Remaining quantity to check
+
+        Returns:
+            True if order should be removed from tracking due to small remaining
+
+        """
         try:
             asset_info = self.alpaca_manager.get_asset_info(request.symbol)
-            # Get best available price for notional check
-            price: Decimal | None = None
-            try:
-                # Prefer streaming midpoint if available via QuoteProvider
-                validated = self.quote_provider.get_quote_with_validation(request.symbol)
-                if validated:
-                    quote, _ = validated
-                    # Use ask for BUY, bid for SELL to compute conservative notional
-                    if request.side.upper() == "BUY":
-                        price = Decimal(str(quote.ask_price))
-                    else:
-                        price = Decimal(str(quote.bid_price))
-                else:
-                    current_price = self.alpaca_manager.get_current_price(request.symbol)
-                    if current_price is not None and current_price > 0:
-                        price = Decimal(str(current_price))
-            except Exception:
-                price = None
-
+            price = fetch_price_for_notional_check(
+                request.symbol, request.side, self.quote_provider, self.alpaca_manager
+            )
             min_notional = getattr(self.config, "min_fractional_notional_usd", Decimal("1.00"))
 
-            if asset_info is not None and asset_info.fractionable:
-                # For fractionable assets, skip if remaining notional is below broker minimum
-                if price is not None:
-                    remaining_notional = (remaining_qty * price).quantize(Decimal("0.01"))
-                    if remaining_notional < min_notional:
-                        logger.info(
-                            f"✅ Order {order_id} remaining notional ${remaining_notional} < ${min_notional}, considering complete"
-                        )
-                        return None
-            else:
-                # For non-fractionable or unknown, if rounding down yields zero shares, consider complete
-                if remaining_qty.quantize(Decimal("1")) <= 0:
-                    logger.info(
-                        f"✅ Order {order_id} remaining non-fractionable quantity rounds to 0, considering complete"
-                    )
-                    return None
+            if is_remaining_quantity_too_small(remaining_qty, asset_info, price, min_notional):
+                self._log_small_remaining_removal(
+                    order_id, request, remaining_qty, asset_info, price, min_notional
+                )
+                return True
         except Exception as _small_e:
             logger.debug(f"Minimal-remaining evaluation fallback due to error: {_small_e}")
 
-        return remaining_qty
+        return False
+
+    def _log_small_remaining_removal(
+        self,
+        order_id: str,
+        request: SmartOrderRequest,
+        remaining_qty: Decimal,
+        asset_info: object | None,
+        price: Decimal | None,
+        min_notional: Decimal,
+    ) -> None:
+        """Log removal of order due to small remaining quantity.
+
+        Args:
+            order_id: Order ID
+            request: Original order request
+            remaining_qty: Remaining quantity
+            asset_info: Asset info with fractionable attribute
+            price: Current price
+            min_notional: Minimum notional value
+
+        """
+        if asset_info is not None and getattr(asset_info, "fractionable", False) and price is not None:
+            remaining_notional = (remaining_qty * price).quantize(Decimal("0.01"))
+            logger.info(
+                f"✅ Order {order_id} remaining notional ${remaining_notional} < "
+                f"${min_notional}, considering complete"
+            )
+        else:
+            logger.info(
+                f"✅ Order {order_id} remaining non-fractionable quantity rounds to 0, "
+                f"considering complete"
+            )
 
     async def _cancel_for_repeg(self, order_id: str) -> bool:
         """Cancel the existing order and wait until cancellation is confirmed.
