@@ -17,15 +17,17 @@ from the_alchemiser.execution_v2.core.smart_execution_strategy.models import (
 from the_alchemiser.execution_v2.core.smart_execution_strategy.repeg import RepegManager
 from the_alchemiser.execution_v2.core.smart_execution_strategy.tracking import OrderTracker
 from the_alchemiser.shared.schemas.broker import OrderExecutionResult
+from the_alchemiser.shared.schemas.operations import OrderCancellationResult
 
 
 @pytest.fixture
 def mock_alpaca_manager():
     """Mock Alpaca manager for testing."""
     manager = Mock()
-    manager.cancel_order = Mock(return_value=True)
+    manager.cancel_order = Mock(return_value=OrderCancellationResult(success=True))
     manager.place_limit_order = Mock()
     manager.get_order_execution_result = Mock()
+    manager._check_order_completion_status = Mock(return_value="CANCELED")
     return manager
 
 
@@ -114,9 +116,14 @@ async def test_repeg_uses_remaining_quantity_after_partial_fill(repeg_manager, m
     mock_alpaca_manager.get_order_execution_result.return_value = mock_order_result
     
     # Mock successful order placement
-    new_order = Mock()
-    new_order.success = True
-    new_order.order_id = "new-order-456"
+    new_order = OrderExecutionResult(
+        success=True,
+        order_id="550e8400-e29b-41d4-a716-446655440000",  # Valid UUID
+        status="accepted",
+        filled_qty=Decimal("0"),
+        avg_fill_price=None,
+        submitted_at=datetime.now(UTC),
+    )
     mock_alpaca_manager.place_limit_order.return_value = new_order
     
     # Execute repeg
@@ -130,8 +137,8 @@ async def test_repeg_uses_remaining_quantity_after_partial_fill(repeg_manager, m
     assert call_args[1]["quantity"] == float(remaining_qty)
     assert result.success is True
     
-    # Verify filled quantity was tracked
-    assert order_tracker.get_filled_quantity("new-order-456") == filled_qty
+    # Verify filled quantity was tracked for the NEW order
+    assert order_tracker.get_filled_quantity("550e8400-e29b-41d4-a716-446655440000") == filled_qty
 
 
 @pytest.mark.asyncio 
@@ -176,9 +183,14 @@ async def test_repeg_handles_insufficient_quantity_error(repeg_manager, mock_alp
     )
     
     # Mock successful retry with available quantity
-    successful_order = Mock()
-    successful_order.success = True  
-    successful_order.order_id = "retry-order-789"
+    successful_order = OrderExecutionResult(
+        success=True,
+        order_id="660e8400-e29b-41d4-a716-446655440001",  # Valid UUID
+        status="accepted",
+        filled_qty=Decimal("0"),
+        avg_fill_price=None,
+        submitted_at=datetime.now(UTC),
+    )
     
     # Configure mock to fail first, succeed second
     mock_alpaca_manager.place_limit_order.side_effect = [insufficient_error, successful_order]
