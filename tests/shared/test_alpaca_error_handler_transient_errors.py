@@ -6,8 +6,6 @@ This test validates the error classification logic that determines
 whether errors should be retried.
 """
 
-import pytest
-
 from the_alchemiser.shared.utils.alpaca_error_handler import AlpacaErrorHandler
 
 
