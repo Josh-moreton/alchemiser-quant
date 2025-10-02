@@ -271,6 +271,30 @@ class PhaseExecutor:
             return self.position_utils.adjust_quantity_for_fractionability(symbol, raw_shares)
         return raw_shares.quantize(Decimal("1"), rounding=ROUND_DOWN)
 
+    def _determine_shares_to_trade(self, item: RebalancePlanItem) -> Decimal:
+        """Determine the number of shares to trade for a given item.
+
+        Args:
+            item: RebalancePlanItem to process
+
+        Returns:
+            Number of shares to trade
+
+        """
+        if item.action == "SELL" and item.target_weight == Decimal("0.0"):
+            shares = self._calculate_liquidation_shares(item.symbol)
+            logger.info(
+                f"📊 Liquidating {item.symbol}: selling {shares} shares (full position)"
+            )
+        else:
+            shares = self._calculate_shares_from_amount(item.symbol, item.trade_amount)
+            amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
+            logger.info(
+                f"📊 Executing {item.action} for {item.symbol}: "
+                f"${amount_fmt} (estimated {shares} shares)"
+            )
+        return shares
+
     async def _execute_single_item(self, item: RebalancePlanItem) -> OrderResult:
         """Execute a single rebalance plan item.
 
@@ -289,18 +313,7 @@ class PhaseExecutor:
             await asyncio.sleep(0)
 
             # Determine quantity (shares) to trade
-            if item.action == "SELL" and item.target_weight == Decimal("0.0"):
-                shares = self._calculate_liquidation_shares(item.symbol)
-                logger.info(
-                    f"📊 Liquidating {item.symbol}: selling {shares} shares (full position)"
-                )
-            else:
-                shares = self._calculate_shares_from_amount(item.symbol, item.trade_amount)
-                amount_fmt = Decimal(str(abs(item.trade_amount))).quantize(Decimal("0.01"))
-                logger.info(
-                    f"📊 Executing {item.action} for {item.symbol}: "
-                    f"${amount_fmt} (estimated {shares} shares)"
-                )
+            shares = self._determine_shares_to_trade(item)
 
             # This would need to be passed in as a callback in real usage
             # For now, create a simple fallback result
