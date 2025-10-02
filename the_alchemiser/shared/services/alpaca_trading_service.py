@@ -105,6 +105,33 @@ class AlpacaTradingService:
         """Check if this is paper trading."""
         return self._paper_trading
 
+    def _normalize_response_to_dict_list(
+        self, response: Any
+    ) -> list[dict[str, Any]]:
+        """Normalize various response formats to consistent list of dicts.
+
+        Args:
+            response: Response from Alpaca API (can be list or dict)
+
+        Returns:
+            List of dictionaries with normalized response data
+
+        """
+        result = []
+        if isinstance(response, list):
+            for item in response:
+                if hasattr(item, "__dict__"):
+                    result.append(vars(item))
+                elif isinstance(item, dict):
+                    result.append(item)
+                else:
+                    # Fallback: convert to dict representation
+                    result.append({"response": str(item)})
+        else:
+            # Handle dict response
+            result = [response] if isinstance(response, dict) else []
+        return result
+
     def place_order(self, order_request: LimitOrderRequest | MarketOrderRequest) -> ExecutedOrder:
         """Place an order and return execution details."""
         try:
@@ -410,19 +437,7 @@ class AlpacaTradingService:
             response = self._trading_client.close_all_positions(cancel_orders=cancel_orders)
             
             # Convert response to list of dicts for consistent interface
-            result = []
-            if isinstance(response, list):
-                for item in response:
-                    if hasattr(item, '__dict__'):
-                        result.append(vars(item))
-                    elif isinstance(item, dict):
-                        result.append(item)
-                    else:
-                        # Fallback: convert to dict representation
-                        result.append({"response": str(item)})
-            else:
-                # Handle dict response
-                result = [response] if isinstance(response, dict) else []
+            result = self._normalize_response_to_dict_list(response)
             
             logger.info(f"Successfully closed {len(result)} positions")
             return result
