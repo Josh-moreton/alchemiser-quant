@@ -68,12 +68,12 @@ class AssetMetadataService:
             if symbol_upper in self._asset_cache:
                 cache_time = self._asset_cache_timestamps.get(symbol_upper, 0)
                 if current_time - cache_time < self._asset_cache_ttl:
-                    logger.debug(f"📋 Asset cache hit for {symbol_upper}")
+                    logger.debug("📋 Asset cache hit for", symbol_upper=symbol_upper)
                     return self._asset_cache[symbol_upper]
                 # Cache expired, remove
                 self._asset_cache.pop(symbol_upper, None)
                 self._asset_cache_timestamps.pop(symbol_upper, None)
-                logger.debug(f"🗑️ Asset cache expired for {symbol_upper}")
+                logger.debug("🗑️ Asset cache expired for", symbol_upper=symbol_upper)
 
         try:
             asset = self._trading_client.get_asset(symbol_upper)
@@ -103,7 +103,7 @@ class AssetMetadataService:
             return asset_info
 
         except Exception as e:
-            logger.error(f"Failed to get asset info for {symbol_upper}: {e}")
+            logger.error("Failed to get asset info for", symbol_upper=symbol_upper, error=str(e))
             return None
 
     def is_fractionable(self, symbol: str) -> bool:
@@ -119,7 +119,7 @@ class AssetMetadataService:
         """
         asset_info = self.get_asset_info(symbol)
         if asset_info is None:
-            logger.warning(f"Could not determine fractionability for {symbol}, defaulting to True")
+            logger.warning("Could not determine fractionability for , defaulting to True", symbol=symbol)
             return True
         return asset_info.fractionable
 
@@ -134,7 +134,7 @@ class AssetMetadataService:
             clock = self._trading_client.get_clock()
             return getattr(clock, "is_open", False)
         except Exception as e:
-            logger.error(f"Failed to get market status: {e}")
+            logger.error("Failed to get market status", error=str(e))
             return False
 
     def get_market_calendar(self, _start_date: str, _end_date: str) -> list[dict[str, Any]]:
@@ -161,7 +161,7 @@ class AssetMetadataService:
                 for day in calendar
             ]
         except Exception as e:
-            logger.error(f"Failed to get market calendar: {e}")
+            logger.error("Failed to get market calendar", error=str(e))
             return []
 
     def clear_cache(self) -> None:

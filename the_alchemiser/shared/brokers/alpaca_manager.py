@@ -156,10 +156,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
 
             self._data_client = StockHistoricalDataClient(api_key=api_key, secret_key=secret_key)
 
-            logger.debug(f"AlpacaManager initialized - Paper: {paper}")
+            logger.debug("AlpacaManager initialized - Paper", paper=paper)
 
         except Exception as e:
-            logger.error(f"Failed to initialize Alpaca clients: {e}")
+            logger.error("Failed to initialize Alpaca clients", error=str(e))
             raise
 
         # Initialize WebSocket manager for centralized WebSocket management
@@ -308,7 +308,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                 if available_qty:
                     return float(available_qty)
         except Exception as e:
-            logger.warning(f"Failed to get position for complete exit of {symbol}: {e}")
+            logger.warning("Failed to get position for complete exit of", symbol=symbol, error=str(e))
 
         return qty
 
@@ -368,10 +368,10 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             )
 
         except ValueError as e:
-            logger.error(f"Invalid order parameters: {e}")
+            logger.error("Invalid order parameters", error=str(e))
             return self._create_error_result("INVALID", symbol, side, qty, str(e))
         except Exception as e:
-            logger.error(f"Failed to place market order for {symbol}: {e}")
+            logger.error("Failed to place market order for", symbol=symbol, error=str(e))
             return self._create_error_result("FAILED", symbol, side, qty, str(e))
 
     def place_limit_order(
@@ -663,7 +663,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
                         if hasattr(instance, "_websocket_manager") and instance._websocket_manager:
                             instance._websocket_manager.release_trading_service()
                     except Exception as e:
-                        logger.error(f"Error cleaning up AlpacaManager instance: {e}")
+                        logger.error("Error cleaning up AlpacaManager instance", error=str(e))
                 cls._instances.clear()
                 logger.info("All AlpacaManager instances cleaned up")
             finally:
