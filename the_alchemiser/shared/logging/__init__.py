@@ -2,24 +2,23 @@
 
 Centralized logging system for the Alchemiser trading platform.
 
-This package provides a comprehensive logging infrastructure with:
-- Core logging setup and configuration
+This package provides structlog-based structured logging infrastructure with:
+- Structlog configuration with Alchemiser-specific processors
 - Context management for request/error tracking
-- Custom formatters including JSON structured logging
-- Handler management for console, file, and S3 logging
-- Trading-specific logging helpers
+- Trading-specific logging helpers (order flow, repeg operations, data integrity)
 - Environment-specific configuration (production, test, development)
+- Decimal serialization for precise financial data
 """
 
-# Core logging functions
-# Configuration functions
+# Structlog configuration - now the primary logging system
+# Legacy configuration functions (kept for compatibility with existing config)
 from .config import (
     configure_application_logging,
     configure_production_logging,
     configure_test_logging,
 )
 
-# Context management
+# Context management (still using contextvars)
 from .context import (
     generate_request_id,
     get_error_id,
@@ -27,52 +26,38 @@ from .context import (
     set_error_id,
     set_request_id,
 )
-from .core import (
-    configure_quiet_logging,
-    get_logger,
-    get_service_logger,
-    log_with_context,
-    restore_logging,
-    setup_logging,
-)
+from .structlog_config import configure_structlog, get_structlog_logger
 
-# Custom formatters and adapters (for advanced use)
-from .formatters import AlchemiserLoggerAdapter, StructuredFormatter
-
-# Trading-specific logging
-from .trading import (
-    get_trading_logger,
-    log_data_transfer_checkpoint,
-    log_error_with_context,
+# Structlog trading-specific helpers
+from .structlog_trading import (
+    bind_trading_context,
+    log_data_integrity_checkpoint,
+    log_order_flow,
+    log_repeg_operation,
     log_trade_event,
-    log_trade_expectation_vs_reality,
 )
 
 __all__ = [
-    # Advanced
-    "AlchemiserLoggerAdapter",
-    "StructuredFormatter",
-    # Configuration
+    # Trading-specific helpers
+    "bind_trading_context",
+    # Legacy configuration (transitional)
     "configure_application_logging",
     "configure_production_logging",
-    "configure_quiet_logging",
+    # Structlog primary functions
+    "configure_structlog",
     "configure_test_logging",
+    # Context management
     "generate_request_id",
     "get_error_id",
-    # Core functions
-    "get_logger",
     "get_request_id",
-    "get_service_logger",
-    "get_trading_logger",
-    "log_data_transfer_checkpoint",
-    "log_error_with_context",
-    # Trading-specific
+    "get_structlog_logger",
+    "log_data_integrity_checkpoint",
+    "log_order_flow",
+    "log_repeg_operation",
     "log_trade_event",
-    "log_trade_expectation_vs_reality",
-    "log_with_context",
-    "restore_logging",
     "set_error_id",
-    # Context management
     "set_request_id",
-    "setup_logging",
 ]
+
+# Backward compatibility alias - get_logger now returns structlog logger
+get_logger = get_structlog_logger

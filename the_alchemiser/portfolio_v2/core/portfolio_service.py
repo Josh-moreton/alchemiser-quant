@@ -7,10 +7,9 @@ Portfolio service V2 - orchestration facade for rebalance plan creation.
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
-from the_alchemiser.shared.logging import get_logger, log_with_context
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
 from the_alchemiser.shared.types.exceptions import PortfolioError
 
@@ -68,9 +67,7 @@ class PortfolioServiceV2:
             PortfolioError: If rebalance plan cannot be created
 
         """
-        log_with_context(
-            logger,
-            logging.INFO,
+        logger.info(
             "Creating rebalance plan",
             module=MODULE_NAME,
             action="create_rebalance_plan",
@@ -86,9 +83,7 @@ class PortfolioServiceV2:
             # Include all symbols from strategy target weights to ensure we have prices
             target_symbols = set(strategy.target_weights.keys())
 
-            log_with_context(
-                logger,
-                logging.DEBUG,
+            logger.debug(
                 "Building portfolio snapshot",
                 module=MODULE_NAME,
                 action="build_snapshot",
@@ -99,9 +94,7 @@ class PortfolioServiceV2:
             snapshot = self._state_reader.build_portfolio_snapshot(symbols=target_symbols)
 
             # Step 2: Calculate rebalance plan
-            log_with_context(
-                logger,
-                logging.DEBUG,
+            logger.debug(
                 "Calculating rebalance plan",
                 module=MODULE_NAME,
                 action="calculate_plan",
@@ -117,9 +110,7 @@ class PortfolioServiceV2:
             trade_count = len([item for item in plan.items if item.action != "HOLD"])
             hold_count = len([item for item in plan.items if item.action == "HOLD"])
 
-            log_with_context(
-                logger,
-                logging.INFO,
+            logger.info(
                 "Rebalance plan created successfully",
                 module=MODULE_NAME,
                 action="create_rebalance_plan",
@@ -133,9 +124,7 @@ class PortfolioServiceV2:
             return plan
 
         except Exception as e:
-            log_with_context(
-                logger,
-                logging.ERROR,
+            logger.error(
                 f"Failed to create rebalance plan: {e}",
                 module=MODULE_NAME,
                 action="create_rebalance_plan",
