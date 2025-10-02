@@ -216,14 +216,6 @@ class OrderMonitor:
             if not self.smart_strategy:
                 return {}
 
-            # Check if market-on-exhaust is enabled
-            if not self._is_market_on_exhaust_enabled():
-                logger.debug(
-                    f"{log_prefix} {phase_type} phase: Market-on-exhaust disabled; "
-                    "skipping final escalation"
-                )
-                return {}
-
             if self.smart_strategy.get_active_order_count() <= 0:
                 return {}
 
@@ -256,17 +248,6 @@ class OrderMonitor:
                 f"{log_prefix} Error during final escalation to market in {phase_type} repeg monitoring: {exc}"
             )
             return {}
-
-    def _is_market_on_exhaust_enabled(self) -> bool:
-        """Check if market-on-exhaust fallback is enabled in config.
-
-        Returns:
-            True if market-on-exhaust is enabled
-
-        """
-        if not self.execution_config:
-            return False
-        return getattr(self.execution_config, "market_on_exhaust_enabled", False)
 
     def _process_repeg_results(
         self,

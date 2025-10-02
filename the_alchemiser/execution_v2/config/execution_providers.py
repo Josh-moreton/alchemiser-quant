@@ -5,41 +5,10 @@ Execution service providers for dependency injection.
 
 from __future__ import annotations
 
-from decimal import Decimal
-from typing import TYPE_CHECKING
-
 from dependency_injector import containers, providers
 
 from the_alchemiser.execution_v2.core.execution_manager import ExecutionManager
 from the_alchemiser.execution_v2.core.smart_execution_strategy import ExecutionConfig
-
-if TYPE_CHECKING:
-    from the_alchemiser.shared.config.config import ExecutionSettings
-
-
-def _create_execution_config_from_settings(
-    execution_settings: ExecutionSettings,
-) -> ExecutionConfig:
-    """Create ExecutionConfig from ExecutionSettings.
-
-    Args:
-        execution_settings: ExecutionSettings from global config
-
-    Returns:
-        ExecutionConfig with settings applied
-
-    """
-    config = ExecutionConfig()
-    
-    # Apply market-on-exhaust settings from global config
-    if hasattr(execution_settings, "market_on_exhaust_enabled"):
-        config.market_on_exhaust_enabled = execution_settings.market_on_exhaust_enabled
-    if hasattr(execution_settings, "market_on_exhaust_max_notional_usd"):
-        max_notional = execution_settings.market_on_exhaust_max_notional_usd
-        if max_notional is not None:
-            config.market_on_exhaust_max_notional_usd = Decimal(str(max_notional))
-    
-    return config
 
 
 class ExecutionProviders(containers.DeclarativeContainer):
@@ -53,8 +22,5 @@ class ExecutionProviders(containers.DeclarativeContainer):
     execution_manager = providers.Factory(
         ExecutionManager,
         alpaca_manager=infrastructure.alpaca_manager,
-        execution_config=providers.Factory(
-            _create_execution_config_from_settings,
-            execution_settings=config.execution,
-        ),
+        execution_config=providers.Factory(ExecutionConfig),
     )

@@ -309,9 +309,6 @@ class ExecutionSettings(BaseModel):
     )
     # Control whether partial execution outcomes should be treated as workflow failures
     treat_partial_execution_as_failure: bool = True
-    # Market-on-exhaust fallback configuration
-    market_on_exhaust_enabled: bool = False
-    market_on_exhaust_max_notional_usd: float | None = None
 
 
 class Settings(BaseSettings):

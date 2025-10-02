@@ -138,41 +138,10 @@ config = ExecutionConfig(
     initial_aggressiveness=0.3,      # Start 30% toward bid/ask
     final_aggressiveness=0.9,        # End 90% toward bid/ask
     min_liquidity_ratio=0.05,        # Minimum 5% of avg volume
-    market_on_exhaust_enabled=False, # Market fallback when monitoring exhausts
-    market_on_exhaust_max_notional_usd=None,  # Optional notional cap for fallback
 )
 
 execution_manager = ExecutionManager(alpaca_manager, execution_config=config)
 ```
-
-#### Market-On-Exhaust Fallback
-
-When `market_on_exhaust_enabled=True`, the system will automatically place a market order for any remaining unfilled quantity after monitoring time/repeg attempts are exhausted. This prevents missed buys/sells due to stale quotes or insufficient liquidity.
-
-**Configuration:**
-- `market_on_exhaust_enabled`: Enable/disable fallback (default: `False`)
-- `market_on_exhaust_max_notional_usd`: Optional maximum notional value to prevent large slippage
-
-**Behavior:**
-- Triggers when: monitoring exhausted AND remaining quantity > 0 AND venue is open
-- Applies to: both BUY and SELL orders across all execution paths
-- Idempotent: terminal state checks prevent duplicate market orders on replay
-- Traceability: emits `MarketFallbackTriggered` event with rationale and metrics
-
-**Example:**
-```python
-# Enable market fallback with optional notional cap
-config = ExecutionConfig(
-    market_on_exhaust_enabled=True,
-    market_on_exhaust_max_notional_usd=50000,  # Skip fallback if notional > $50k
-)
-```
-
-**Risk Controls:**
-- Honors global kill-switch and per-symbol blocks
-- Checks venue status before market order
-- Optional notional cap to prevent excessive slippage
-- Only triggers after all smart execution attempts exhausted
 
 ### Execution Flow
 

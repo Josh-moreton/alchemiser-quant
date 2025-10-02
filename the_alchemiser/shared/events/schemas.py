@@ -97,13 +97,6 @@ class TradeExecuted(BaseEvent):
     metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional execution metadata"
     )
-    # Failure details (populated when success=False)
-    failure_reason: str | None = Field(
-        default=None, description="Detailed failure reason when execution fails"
-    )
-    failed_symbols: list[str] = Field(
-        default_factory=list, description="List of symbols that failed execution"
-    )
 
 
 class TradeExecutionStarted(BaseEvent):
@@ -281,46 +274,6 @@ class WorkflowFailed(BaseEvent):
     failure_step: str = Field(..., description="Step where the workflow failed")
     error_details: dict[str, Any] = Field(
         default_factory=dict, description="Detailed error information"
-    )
-
-
-class MarketFallbackTriggered(BaseEvent):
-    """Event emitted when market-on-exhaust fallback is triggered.
-
-    Contains rationale and metrics for the market fallback decision.
-    """
-
-    # Override event_type with default
-    event_type: str = Field(default="MarketFallbackTriggered", description=EVENT_TYPE_DESCRIPTION)
-
-    # Fallback context fields
-    symbol: str = Field(..., description="Symbol for which fallback was triggered")
-    side: str = Field(..., description="Order side (BUY or SELL)")
-    remaining_quantity: Decimal = Field(..., description="Remaining unfilled quantity")
-    original_order_id: str | None = Field(
-        default=None, description="Original limit order ID (if any)"
-    )
-    
-    # Monitoring metrics
-    time_waited_seconds: float = Field(..., description="Total time spent monitoring")
-    repeg_attempts: int = Field(..., description="Number of re-peg attempts made")
-    
-    # Market data at trigger
-    last_bid: Decimal | None = Field(default=None, description="Last known bid price")
-    last_ask: Decimal | None = Field(default=None, description="Last known ask price")
-    quote_confidence: float | None = Field(
-        default=None, description="Quote confidence score (0-1)"
-    )
-    quote_source: str | None = Field(
-        default=None, description="Source of quote data (streaming/REST/fallback)"
-    )
-    
-    # Decision rationale
-    trigger_reason: str = Field(
-        ..., description="Reason for triggering fallback (e.g., 'monitoring_exhausted', 'max_repegs_reached')"
-    )
-    estimated_notional_usd: Decimal | None = Field(
-        default=None, description="Estimated notional value of market order"
     )
 
 
