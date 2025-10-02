@@ -369,7 +369,7 @@ class RepegManager:
 
     async def _escalate_to_market(
         self, order_id: str, request: SmartOrderRequest
-    ) -> SmartOrderResult | None:
+    ) -> SmartOrderResult:
         """Cancel current limit order and place a market order (final escalation).
 
         Args:
@@ -377,7 +377,7 @@ class RepegManager:
             request: Original smart order request details
 
         Returns:
-            SmartOrderResult describing the escalation outcome, or None if cancel failed
+            SmartOrderResult describing the escalation outcome
 
         """
         try:
