@@ -58,6 +58,99 @@ class AlpacaErrorHandler:
     """
 
     @staticmethod
+    def _check_filled_state(msg: str) -> tuple[bool, TerminalOrderError | None]:
+        """Check if error indicates order is already filled.
+
+        Args:
+            msg: Lowercase error message string
+
+        Returns:
+            Tuple of (is_filled, error_type) if filled, else (False, None)
+
+        """
+        if "42210000" in msg or 'order is already in "filled" state' in msg:
+            return True, TerminalOrderError.ALREADY_FILLED
+        return False, None
+
+    @staticmethod
+    def _check_cancelled_state(msg: str) -> tuple[bool, TerminalOrderError | None]:
+        """Check if error indicates order is already cancelled.
+
+        Args:
+            msg: Lowercase error message string
+
+        Returns:
+            Tuple of (is_cancelled, error_type) if cancelled, else (False, None)
+
+        """
+        if (
+            'order is already in "canceled" state' in msg
+            or 'order is already in "cancelled" state' in msg
+        ):
+            return True, TerminalOrderError.ALREADY_CANCELLED
+        return False, None
+
+    @staticmethod
+    def _check_rejected_state(msg: str) -> tuple[bool, TerminalOrderError | None]:
+        """Check if error indicates order is already rejected.
+
+        Args:
+            msg: Lowercase error message string
+
+        Returns:
+            Tuple of (is_rejected, error_type) if rejected, else (False, None)
+
+        """
+        if 'order is already in "rejected" state' in msg:
+            return True, TerminalOrderError.ALREADY_REJECTED
+        return False, None
+
+    @staticmethod
+    def _check_expired_state(msg: str) -> tuple[bool, TerminalOrderError | None]:
+        """Check if error indicates order is already expired.
+
+        Args:
+            msg: Lowercase error message string
+
+        Returns:
+            Tuple of (is_expired, error_type) if expired, else (False, None)
+
+        """
+        if 'order is already in "expired" state' in msg:
+            return True, TerminalOrderError.ALREADY_EXPIRED
+        return False, None
+
+    @staticmethod
+    def _check_generic_terminal_state(msg: str) -> tuple[bool, TerminalOrderError | None]:
+        """Check for generic terminal state pattern and extract state name.
+
+        Args:
+            msg: Lowercase error message string
+
+        Returns:
+            Tuple of (is_terminal, error_type) if terminal state found, else (False, None)
+
+        """
+        if "already in" not in msg or "state" not in msg:
+            return False, None
+
+        match = re.search(r'already in ["\']?(\w+)["\']? state', msg)
+        if not match:
+            return False, None
+
+        state = match.group(1).lower()
+        if state == "filled":
+            return True, TerminalOrderError.ALREADY_FILLED
+        if state in ["canceled", "cancelled"]:
+            return True, TerminalOrderError.ALREADY_CANCELLED
+        if state == "rejected":
+            return True, TerminalOrderError.ALREADY_REJECTED
+        if state == "expired":
+            return True, TerminalOrderError.ALREADY_EXPIRED
+
+        return False, None
+
+    @staticmethod
     def is_order_already_in_terminal_state(
         error: Exception,
     ) -> tuple[bool, TerminalOrderError | None]:
@@ -83,38 +176,17 @@ class AlpacaErrorHandler:
         """
         msg = str(error).lower()
 
-        # Alpaca error code 42210000: "order is already in \"filled\" state"
-        # This is the primary case from the issue
-        if "42210000" in msg or 'order is already in "filled" state' in msg:
-            return True, TerminalOrderError.ALREADY_FILLED
-
-        # Other terminal state patterns
-        if (
-            'order is already in "canceled" state' in msg
-            or 'order is already in "cancelled" state' in msg
-        ):
-            return True, TerminalOrderError.ALREADY_CANCELLED
-
-        if 'order is already in "rejected" state' in msg:
-            return True, TerminalOrderError.ALREADY_REJECTED
-
-        if 'order is already in "expired" state' in msg:
-            return True, TerminalOrderError.ALREADY_EXPIRED
-
-        # Generic terminal state check
-        if "already in" in msg and "state" in msg:
-            # Try to extract the state
-            match = re.search(r'already in ["\']?(\w+)["\']? state', msg)
-            if match:
-                state = match.group(1).lower()
-                if state == "filled":
-                    return True, TerminalOrderError.ALREADY_FILLED
-                if state in ["canceled", "cancelled"]:
-                    return True, TerminalOrderError.ALREADY_CANCELLED
-                if state == "rejected":
-                    return True, TerminalOrderError.ALREADY_REJECTED
-                if state == "expired":
-                    return True, TerminalOrderError.ALREADY_EXPIRED
+        # Check each terminal state using dedicated helper methods
+        for check_method in [
+            AlpacaErrorHandler._check_filled_state,
+            AlpacaErrorHandler._check_cancelled_state,
+            AlpacaErrorHandler._check_rejected_state,
+            AlpacaErrorHandler._check_expired_state,
+            AlpacaErrorHandler._check_generic_terminal_state,
+        ]:
+            is_terminal, terminal_error = check_method(msg)
+            if is_terminal:
+                return True, terminal_error
 
         return False, None
 

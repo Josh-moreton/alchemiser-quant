@@ -150,22 +150,69 @@ class RepegMonitoringService:
 
         # If smart strategy is not available, use the old logic
         if self.smart_strategy is None:
-            return time_since_last_action > fill_wait_seconds * 2
+            return self._check_termination_without_strategy(
+                time_since_last_action, fill_wait_seconds
+            )
 
         active_order_count = self.smart_strategy.get_active_order_count()
 
         # If no active orders, use a short grace window instead of full 2x wait
         if active_order_count == 0:
-            grace_window_seconds = 5  # Short grace period for zero active orders
-            terminate_early = time_since_last_action > grace_window_seconds
-            if terminate_early:
-                logger.debug(
-                    f"🔄 Early termination: No active orders for {time_since_last_action:.1f}s "
-                    f"(grace window: {grace_window_seconds}s)"
-                )
-            return terminate_early
+            return self._check_termination_no_active_orders(time_since_last_action)
 
         # Active orders present, use extended window
+        return self._check_termination_with_active_orders(
+            time_since_last_action, fill_wait_seconds, active_order_count
+        )
+
+    def _check_termination_without_strategy(
+        self, time_since_last_action: float, fill_wait_seconds: int
+    ) -> bool:
+        """Check termination when smart strategy is not available.
+
+        Args:
+            time_since_last_action: Time since last repeg action
+            fill_wait_seconds: Fill wait time configuration
+
+        Returns:
+            True if should terminate early.
+
+        """
+        return time_since_last_action > fill_wait_seconds * 2
+
+    def _check_termination_no_active_orders(self, time_since_last_action: float) -> bool:
+        """Check termination when no active orders exist.
+
+        Args:
+            time_since_last_action: Time since last repeg action
+
+        Returns:
+            True if should terminate early.
+
+        """
+        grace_window_seconds = 5  # Short grace period for zero active orders
+        terminate_early = time_since_last_action > grace_window_seconds
+        if terminate_early:
+            logger.debug(
+                f"🔄 Early termination: No active orders for {time_since_last_action:.1f}s "
+                f"(grace window: {grace_window_seconds}s)"
+            )
+        return terminate_early
+
+    def _check_termination_with_active_orders(
+        self, time_since_last_action: float, fill_wait_seconds: int, active_order_count: int
+    ) -> bool:
+        """Check termination when active orders exist.
+
+        Args:
+            time_since_last_action: Time since last repeg action
+            fill_wait_seconds: Fill wait time configuration
+            active_order_count: Number of active orders
+
+        Returns:
+            True if should terminate early.
+
+        """
         extended_wait = fill_wait_seconds * 2
         terminate_early = time_since_last_action > extended_wait
         if terminate_early:

@@ -23,7 +23,6 @@ from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.notifications.client import send_email_notification
 from the_alchemiser.shared.notifications.templates import (
     EmailTemplates,
-    build_error_email_html,
 )
 from the_alchemiser.shared.notifications.templates.multi_strategy import (
     MultiStrategyReportBuilder,
@@ -186,11 +185,24 @@ class NotificationService:
                     <p><strong>Timestamp:</strong> {event.timestamp}</p>
                     """
             else:
-                # Use error template for failed trading
+                # Use enhanced failed trading template with execution context
                 error_message = event.error_message or "Unknown trading error"
-                html_content = build_error_email_html(
-                    "Trading Execution Failed",
-                    f"Trading workflow failed: {error_message}",
+
+                # Build context information for the failure email
+                context: dict[str, object] = {
+                    "Orders Placed": event.orders_placed,
+                    "Orders Succeeded": event.orders_succeeded,
+                    "Correlation ID": event.correlation_id,
+                }
+
+                # Add failed symbols if available in execution data
+                if event.execution_data and event.execution_data.get("failed_symbols"):
+                    context["Failed Symbols"] = ", ".join(event.execution_data["failed_symbols"])
+
+                html_content = EmailTemplates.failed_trading_run(
+                    error_details=error_message,
+                    mode=event.trading_mode,
+                    context=context,
                 )
 
             # Build subject
