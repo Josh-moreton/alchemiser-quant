@@ -17,7 +17,11 @@ from the_alchemiser.shared.value_objects.symbol import Symbol
 def test_structlog_serializes_symbol_value_object() -> None:
     """Ensure Symbol instances in logs are rendered as simple strings."""
     with patch("sys.stdout", new=StringIO()) as fake_out:
-        configure_structlog(structured_format=True, console_level=logging.DEBUG, file_level=logging.DEBUG)
+        configure_structlog(
+            structured_format=True,
+            console_level=logging.DEBUG,
+            file_level=logging.DEBUG,
+        )
         logger = get_structlog_logger(__name__)
 
         sym = Symbol("TQQQ")
