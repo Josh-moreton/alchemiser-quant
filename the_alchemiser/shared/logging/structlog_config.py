@@ -143,9 +143,7 @@ def configure_structlog(
 
             file_handler = logging.FileHandler(resolved_file_path)
             file_handler.setLevel(file_level)
-            file_handler.setFormatter(
-                logging.Formatter("%(message)s")
-            )  # Structlog formats
+            file_handler.setFormatter(logging.Formatter("%(message)s"))  # Structlog formats
             root_logger.addHandler(file_handler)
     except OSError:
         # Fall back to console-only if file logging setup fails (e.g., read-only FS)
@@ -163,8 +161,7 @@ def configure_structlog(
         structlog.processors.add_log_level,
         # Add caller info for debugging
         structlog.processors.StackInfoRenderer(),
-        # Add exception info
-        structlog.processors.format_exc_info,
+        # Pretty exceptions are handled by renderers; include exc_info via logger when needed
     ]
 
     if structured_format:

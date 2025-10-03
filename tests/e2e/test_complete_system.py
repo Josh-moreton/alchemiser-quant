@@ -139,9 +139,11 @@ class TestCompleteSystemE2E:
             # Import and call the module's run function
             from the_alchemiser.__main__ import run
             
-            # This should not raise an exception
-            with pytest.raises(SystemExit) as excinfo:
-                run()
+            # Ensure pytest's argv (e.g., -q) doesn't leak into module args; force default path
+            with patch('sys.argv', ['python']):
+                # This should not raise an exception
+                with pytest.raises(SystemExit) as excinfo:
+                    run()
             
             # Should exit with code 0 for success
             assert excinfo.value.code == 0
@@ -288,35 +290,4 @@ class TestCompleteSystemE2E:
             assert result.processing_time_ms == 3000
             assert result.log_entries_created == 12
     
-    @pytest.mark.skip(reason="Requires actual subprocess execution - enable for full E2E validation")
-    def test_actual_subprocess_execution(self, test_environment):
-        """Test actual subprocess execution of the application.
-        
-        This test is skipped by default as it requires actual subprocess execution.
-        Enable this test for complete E2E validation in CI/CD environments.
-        """
-        # Set environment for subprocess
-        env = os.environ.copy()
-        env.update(test_environment)
-        
-        # Run the application as subprocess
-        cmd = ["python", "-m", "the_alchemiser"]
-        
-        try:
-            result = subprocess.run(
-                cmd,
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=30,  # 30 second timeout
-                cwd=Path(__file__).parent.parent.parent
-            )
-            
-            # Verify subprocess execution
-            assert result.returncode == 0, f"Subprocess failed: {result.stderr}"
-            assert "completed" in result.stdout.lower() or "success" in result.stdout.lower()
-            
-        except subprocess.TimeoutExpired:
-            pytest.fail("E2E subprocess execution timed out")
-        except Exception as e:
-            pytest.fail(f"E2E subprocess execution failed: {e}")
+    

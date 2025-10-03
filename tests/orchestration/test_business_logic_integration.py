@@ -14,7 +14,10 @@ from unittest.mock import Mock
 import pytest
 
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
-from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan, RebalancePlanItem
+from the_alchemiser.shared.schemas.rebalance_plan import (
+    RebalancePlan,
+    RebalancePlanItem,
+)
 
 
 class TestBusinessLogicIntegration:
@@ -32,15 +35,17 @@ class TestBusinessLogicIntegration:
             as_of=datetime.now(UTC),
             constraints={"strategy_id": "test_strategy"},
         )
-        
+
         # Verify strategy allocation properties
         assert sum(strategy_allocation.target_weights.values()) == Decimal("1.0")
         assert strategy_allocation.correlation_id is not None
         assert strategy_allocation.constraints["strategy_id"] == "test_strategy"
-        
+
         # This would be input to portfolio module
         assert len(strategy_allocation.target_weights) == 2
-        assert all(weight >= 0 for weight in strategy_allocation.target_weights.values())
+        assert all(
+            weight >= 0 for weight in strategy_allocation.target_weights.values()
+        )
 
     def test_portfolio_to_execution_data_flow(self):
         """Test data flow from portfolio plan to execution."""
@@ -77,20 +82,20 @@ class TestBusinessLogicIntegration:
                 ),
             ],
         )
-        
+
         # Verify rebalance plan properties
         assert rebalance_plan.plan_id is not None
         assert len(rebalance_plan.items) == 2
-        
+
         # Verify actions make business sense
         aapl_item = next(item for item in rebalance_plan.items if item.symbol == "AAPL")
         assert aapl_item.action == "BUY"
         assert aapl_item.target_weight > aapl_item.current_weight
-        
+
         msft_item = next(item for item in rebalance_plan.items if item.symbol == "MSFT")
         assert msft_item.action == "SELL"
         assert msft_item.target_weight < msft_item.current_weight
-        
+
         # This would be input to execution module
         total_target_value = sum(item.target_value for item in rebalance_plan.items)
         assert total_target_value == Decimal("3750.00")
@@ -108,14 +113,16 @@ class TestBusinessLogicIntegration:
             as_of=datetime.now(UTC),
             constraints={"strategy_id": "balanced_growth"},
         )
-        
+
         # Verify strategy output is valid
-        assert abs(sum(strategy_allocation.target_weights.values()) - Decimal("1.0")) < Decimal("0.0001")
-        
+        assert abs(
+            sum(strategy_allocation.target_weights.values()) - Decimal("1.0")
+        ) < Decimal("0.0001")
+
         # Phase 2: Portfolio creates rebalance plan (simulated)
         total_portfolio_value = Decimal("10000.00")
         rebalance_items = []
-        
+
         for symbol, target_weight in strategy_allocation.target_weights.items():
             target_value = total_portfolio_value * target_weight
             rebalance_items.append(
@@ -131,7 +138,7 @@ class TestBusinessLogicIntegration:
                     priority=1,
                 )
             )
-        
+
         rebalance_plan = RebalancePlan(
             plan_id=str(uuid.uuid4()),
             correlation_id=strategy_allocation.correlation_id,
@@ -141,14 +148,14 @@ class TestBusinessLogicIntegration:
             total_trade_value=sum(item.trade_amount for item in rebalance_items),
             items=rebalance_items,
         )
-        
+
         # Verify portfolio plan matches strategy allocation
         assert rebalance_plan.correlation_id == strategy_allocation.correlation_id
         assert len(rebalance_plan.items) == len(strategy_allocation.target_weights)
-        
+
         plan_total_value = sum(item.target_value for item in rebalance_plan.items)
         assert abs(plan_total_value - total_portfolio_value) < Decimal("0.01")
-        
+
         # Phase 3: Execution processes plan (simulated)
         execution_summary = {
             "orders_placed": len(rebalance_plan.items),
@@ -156,7 +163,7 @@ class TestBusinessLogicIntegration:
             "correlation_id": rebalance_plan.correlation_id,
             "success": True,
         }
-        
+
         # Verify execution summary
         assert execution_summary["orders_placed"] == 3
         assert execution_summary["total_value"] == total_portfolio_value
@@ -166,7 +173,7 @@ class TestBusinessLogicIntegration:
     def test_correlation_id_propagation(self):
         """Test that correlation IDs propagate through the business logic flow."""
         correlation_id = str(uuid.uuid4())
-        
+
         # Strategy phase
         strategy_allocation = StrategyAllocation(
             target_weights={"AAPL": Decimal("1.0")},
@@ -174,7 +181,7 @@ class TestBusinessLogicIntegration:
             as_of=datetime.now(UTC),
             constraints={},
         )
-        
+
         # Portfolio phase
         rebalance_plan = RebalancePlan(
             plan_id=str(uuid.uuid4()),
@@ -197,13 +204,13 @@ class TestBusinessLogicIntegration:
                 ),
             ],
         )
-        
+
         # Execution phase (simulated)
         execution_result = {
             "correlation_id": rebalance_plan.correlation_id,
             "success": True,
         }
-        
+
         # Verify correlation ID maintained throughout
         assert strategy_allocation.correlation_id == correlation_id
         assert rebalance_plan.correlation_id == correlation_id
@@ -222,7 +229,7 @@ class TestBusinessLogicIntegration:
                 as_of=datetime.now(UTC),
                 constraints={},
             )
-        
+
         # Test valid allocation
         valid_allocation = StrategyAllocation(
             target_weights={
@@ -233,8 +240,10 @@ class TestBusinessLogicIntegration:
             as_of=datetime.now(UTC),
             constraints={},
         )
-        
-        assert abs(sum(valid_allocation.target_weights.values()) - Decimal("1.0")) < Decimal("0.0001")
+
+        assert abs(
+            sum(valid_allocation.target_weights.values()) - Decimal("1.0")
+        ) < Decimal("0.0001")
 
     def test_decimal_precision_handling(self):
         """Test that decimal precision is maintained throughout business logic."""
@@ -249,18 +258,20 @@ class TestBusinessLogicIntegration:
             as_of=datetime.now(UTC),
             constraints={},
         )
-        
+
         # Verify precision is maintained
         total_weight = sum(strategy_allocation.target_weights.values())
         assert total_weight == Decimal("1.0")
-        
+
         # Portfolio calculations with precision
         portfolio_value = Decimal("10000.00")
         for symbol, weight in strategy_allocation.target_weights.items():
             target_value = portfolio_value * weight
             # Should maintain decimal precision
             assert isinstance(target_value, Decimal)
-            assert target_value.quantize(Decimal("0.01")) == target_value.quantize(Decimal("0.01"))
+            assert target_value.quantize(Decimal("0.01")) == target_value.quantize(
+                Decimal("0.01")
+            )
 
     def test_error_handling_integration(self):
         """Test error handling across business logic modules."""
@@ -272,7 +283,7 @@ class TestBusinessLogicIntegration:
                 as_of=datetime.now(UTC),
                 constraints={},
             )
-        
+
         # Test invalid rebalance plan item
         with pytest.raises(ValueError):
             RebalancePlanItem(
@@ -292,21 +303,21 @@ class TestBusinessLogicIntegration:
         # Large strategy allocation (100 symbols)
         target_weights = {}
         weight_per_symbol = Decimal("0.01")  # 1% each
-        
+
         for i in range(100):
             target_weights[f"SYMBOL_{i:03d}"] = weight_per_symbol
-        
+
         strategy_allocation = StrategyAllocation(
             target_weights=target_weights,
             correlation_id=str(uuid.uuid4()),
             as_of=datetime.now(UTC),
             constraints={"strategy_id": "diversified_100"},
         )
-        
+
         # Should handle large allocations
         assert len(strategy_allocation.target_weights) == 100
         assert sum(strategy_allocation.target_weights.values()) == Decimal("1.0")
-        
+
         # Should be able to create corresponding rebalance plan
         rebalance_items = []
         for symbol, weight in strategy_allocation.target_weights.items():
@@ -323,7 +334,7 @@ class TestBusinessLogicIntegration:
                     priority=1,
                 )
             )
-        
+
         rebalance_plan = RebalancePlan(
             plan_id=str(uuid.uuid4()),
             correlation_id=strategy_allocation.correlation_id,
@@ -333,7 +344,7 @@ class TestBusinessLogicIntegration:
             total_trade_value=sum(item.trade_amount for item in rebalance_items),
             items=rebalance_items,
         )
-        
+
         # Should handle large plans efficiently
         assert len(rebalance_plan.items) == 100
         total_value = sum(item.target_value for item in rebalance_plan.items)
