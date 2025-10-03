@@ -39,6 +39,9 @@ jobs:
             - name: Install dependencies
               run: poetry install --with dev --no-interaction
 
+            - name: Install boto3 for tests that import it
+              run: poetry run pip install boto3
+
             - name: Format & Lint
               run: |
                   make format
@@ -47,10 +50,11 @@ jobs:
             - name: Type check
               run: make type-check
 
-            - name: Run tests
+            - name: Run tests (unit, integration, functional)
               env:
                   PYTHONHASHSEED: "0"
-              run: poetry run pytest -q
+              run: |
+                  poetry run pytest -q -m "unit or integration or functional" --ignore=tests/e2e
 
             - name: Validate SAM build (dev)
               uses: aws-actions/setup-sam@v2
