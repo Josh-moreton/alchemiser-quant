@@ -102,8 +102,7 @@ jobs:
           LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
           ALCHEMISER_DSL_PARALLELISM: ${{ vars.ALCHEMISER_DSL_PARALLELISM }}
           ALCHEMISER_DSL_MAX_WORKERS: ${{ vars.ALCHEMISER_DSL_MAX_WORKERS }}
-          STRATEGY__DSL_FILES: ${{ vars.STRATEGY__DSL_FILES }}
-          STRATEGY__DSL_ALLOCATIONS: ${{ vars.STRATEGY__DSL_ALLOCATIONS }}
+          # Strategy config now packaged with code; no JSON vars required
         run: |
           echo "Exporting dev ALPACA_* env vars for deploy.sh"
           echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
@@ -113,23 +112,7 @@ jobs:
           if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
           if [ -n "$ALCHEMISER_DSL_PARALLELISM" ]; then echo "ALCHEMISER_DSL_PARALLELISM=$ALCHEMISER_DSL_PARALLELISM" >> $GITHUB_ENV; fi
           if [ -n "$ALCHEMISER_DSL_MAX_WORKERS" ]; then echo "ALCHEMISER_DSL_MAX_WORKERS=$ALCHEMISER_DSL_MAX_WORKERS" >> $GITHUB_ENV; fi
-          # Validate/compact JSON to single-line to avoid parsing issues
-          if [ -n "$STRATEGY__DSL_FILES" ]; then
-            if command -v jq >/dev/null 2>&1; then
-              DSL_FILES_MIN=$(printf '%s' "$STRATEGY__DSL_FILES" | jq -c .) || { echo "Invalid JSON in STRATEGY__DSL_FILES"; exit 1; }
-              echo "STRATEGY__DSL_FILES=$DSL_FILES_MIN" >> $GITHUB_ENV
-            else
-              echo "STRATEGY__DSL_FILES=$(echo "$STRATEGY__DSL_FILES" | tr -d '\n')" >> $GITHUB_ENV
-            fi
-          fi
-          if [ -n "$STRATEGY__DSL_ALLOCATIONS" ]; then
-            if command -v jq >/dev/null 2>&1; then
-              DSL_ALLOCS_MIN=$(printf '%s' "$STRATEGY__DSL_ALLOCATIONS" | jq -c .) || { echo "Invalid JSON in STRATEGY__DSL_ALLOCATIONS"; exit 1; }
-              echo "STRATEGY__DSL_ALLOCATIONS=$DSL_ALLOCS_MIN" >> $GITHUB_ENV
-            else
-              echo "STRATEGY__DSL_ALLOCATIONS=$(echo "$STRATEGY__DSL_ALLOCATIONS" | tr -d '\n')" >> $GITHUB_ENV
-            fi
-          fi
+          # No strategy DSL JSON to export; handled by packaged config files
 
       - name: Prepare environment variables (prod)
         if: steps.target.outputs.env == 'prod'
@@ -141,8 +124,7 @@ jobs:
           LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
           ALCHEMISER_DSL_PARALLELISM: ${{ vars.ALCHEMISER_DSL_PARALLELISM }}
           ALCHEMISER_DSL_MAX_WORKERS: ${{ vars.ALCHEMISER_DSL_MAX_WORKERS }}
-          STRATEGY__DSL_FILES: ${{ vars.STRATEGY__DSL_FILES }}
-          STRATEGY__DSL_ALLOCATIONS: ${{ vars.STRATEGY__DSL_ALLOCATIONS }}
+          # Strategy config now packaged with code; no JSON vars required
         run: |
           echo "Exporting prod ALPACA_* env vars for deploy.sh"
           echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
@@ -153,23 +135,7 @@ jobs:
           if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
           if [ -n "$ALCHEMISER_DSL_PARALLELISM" ]; then echo "ALCHEMISER_DSL_PARALLELISM=$ALCHEMISER_DSL_PARALLELISM" >> $GITHUB_ENV; fi
           if [ -n "$ALCHEMISER_DSL_MAX_WORKERS" ]; then echo "ALCHEMISER_DSL_MAX_WORKERS=$ALCHEMISER_DSL_MAX_WORKERS" >> $GITHUB_ENV; fi
-          # Validate/compact JSON to single-line to avoid parsing issues
-          if [ -n "$STRATEGY__DSL_FILES" ]; then
-            if command -v jq >/dev/null 2>&1; then
-              DSL_FILES_MIN=$(printf '%s' "$STRATEGY__DSL_FILES" | jq -c .) || { echo "Invalid JSON in STRATEGY__DSL_FILES"; exit 1; }
-              echo "STRATEGY__DSL_FILES=$DSL_FILES_MIN" >> $GITHUB_ENV
-            else
-              echo "STRATEGY__DSL_FILES=$(echo "$STRATEGY__DSL_FILES" | tr -d '\n')" >> $GITHUB_ENV
-            fi
-          fi
-          if [ -n "$STRATEGY__DSL_ALLOCATIONS" ]; then
-            if command -v jq >/dev/null 2>&1; then
-              DSL_ALLOCS_MIN=$(printf '%s' "$STRATEGY__DSL_ALLOCATIONS" | jq -c .) || { echo "Invalid JSON in STRATEGY__DSL_ALLOCATIONS"; exit 1; }
-              echo "STRATEGY__DSL_ALLOCATIONS=$DSL_ALLOCS_MIN" >> $GITHUB_ENV
-            else
-              echo "STRATEGY__DSL_ALLOCATIONS=$(echo "$STRATEGY__DSL_ALLOCATIONS" | tr -d '\n')" >> $GITHUB_ENV
-            fi
-          fi
+          # No strategy DSL JSON to export; handled by packaged config files
 
       - name: Deploy
         run: |

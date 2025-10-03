@@ -118,9 +118,7 @@ if [ "$ENVIRONMENT" = "dev" ]; then
             AlpacaEndpoint="$ALPACA_ENDPOINT_PARAM" \
             LoggingLevel="${LOGGING__LEVEL:-INFO}" \
             DslParallelism="${ALCHEMISER_DSL_PARALLELISM:-threads}" \
-            DslMaxWorkers="${ALCHEMISER_DSL_MAX_WORKERS:-7}" \
-            StrategyDslFiles="${STRATEGY__DSL_FILES:-}" \
-            StrategyDslAllocations="${STRATEGY__DSL_ALLOCATIONS:-}"
+            DslMaxWorkers="${ALCHEMISER_DSL_MAX_WORKERS:-7}"
 else
     # Production: use the same ALPACA_* variables, mapped to Prod* parameters
     if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then
@@ -138,8 +136,6 @@ else
         "LoggingLevel=${LOGGING__LEVEL:-INFO}"
         "DslParallelism=${ALCHEMISER_DSL_PARALLELISM:-threads}"
         "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
-        "StrategyDslFiles=${STRATEGY__DSL_FILES:-}"
-        "StrategyDslAllocations=${STRATEGY__DSL_ALLOCATIONS:-}"
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("ProdEmailPassword=$EMAIL_PASSWORD_PARAM")

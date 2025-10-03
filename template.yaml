@@ -47,15 +47,6 @@ Parameters:
     Default: "7"
     Description: ALCHEMISER_DSL_MAX_WORKERS (string to align with Lambda env var type)
 
-  StrategyDslFiles:
-    Type: String
-    Default: ""
-    Description: STRATEGY__DSL_FILES as a JSON array string
-
-  StrategyDslAllocations:
-    Type: String
-    Default: ""
-    Description: STRATEGY__DSL_ALLOCATIONS as a JSON object string
 
   # Production-only parameters (only used when Stage=prod)
   ProdAlpacaKey:
@@ -115,9 +106,7 @@ Globals:
         ALCHEMISER_DSL_PARALLELISM: !Ref DslParallelism
         ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
 
-        # Strategy configuration (optional overrides provided via parameters)
-        STRATEGY__DSL_FILES: !Ref StrategyDslFiles
-        STRATEGY__DSL_ALLOCATIONS: !Ref StrategyDslAllocations
+  # Strategy configuration now packaged with code; env overrides optional
 
   # (no additional Globals keys)
 
