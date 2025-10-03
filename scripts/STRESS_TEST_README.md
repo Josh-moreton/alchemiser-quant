@@ -65,9 +65,15 @@ The script generates market conditions by combining:
      export ALPACA__ENDPOINT=https://paper-api.alpaca.markets
      ```
 
-2. **No manual credential export needed** - The script uses the same credential system as the main trading application
+2. **No manual credential export needed** - The script uses the same credential system as the main trading application. You can also set dedicated stress-test credentials:
+   - Optional dedicated variables (override at runtime):
+     ```bash
+     STRESS_TEST_KEY=your_paper_api_key
+     STRESS_TEST_SECRET=your_paper_secret_key
+     ```
+     When present, the stress test automatically uses these and forces the endpoint to paper.
 
-3. **Automatic paper trading mode** - If no `ALPACA_ENDPOINT` is specified, defaults to paper trading automatically
+3. **Paper mode is always forced** - The stress test always forces the Alpaca endpoint to paper (`https://paper-api.alpaca.markets/v2`) to prevent accidental live testing.
 
 4. The script uses real Alpaca Paper endpoints (no real money at risk)
 
@@ -118,7 +124,7 @@ poetry run python scripts/stress_test.py --dry-run --stateful --quick
 poetry run python -c "from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys; print('✅ Credentials loaded successfully' if get_alpaca_keys()[0] else '❌ Credentials not found')"
 ```
 
-This quick test verifies your credentials are properly configured before running the full stress test.
+This quick test verifies your credentials are properly configured before running the full stress test. If `STRESS_TEST_KEY/SECRET` are set, those will be used.
 
 #### Custom Output File
 ```bash

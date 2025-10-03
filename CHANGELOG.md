@@ -1,3 +1,12 @@
+## 2.5.16 - 2025-10-03
+
+### Changed
+- Stress test now supports dedicated `STRESS_TEST_KEY`/`STRESS_TEST_SECRET` environment variables. When present, these override standard Alpaca credentials for the session.
+- The stress test unconditionally forces `ALPACA_ENDPOINT` to `https://paper-api.alpaca.markets/v2` to prevent accidental live trading during stress runs.
+
+### Notes
+- Docs updated in `scripts/STRESS_TEST_README.md` to explain the new env vars and paper-mode safety.
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
