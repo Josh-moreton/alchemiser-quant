@@ -11,11 +11,10 @@ from __future__ import annotations
 
 import os
 import uuid
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Literal, cast
 
 from the_alchemiser.shared.config.config import Settings
 from the_alchemiser.shared.logging import get_logger
@@ -71,29 +70,26 @@ class DslStrategyEngine:
         self,
         timestamp: datetime,
         *,
-        parallelism: Literal["none", "threads", "processes"] = "none",
         max_workers: int | None = None,
     ) -> list[StrategySignal]:
-        """Generate strategy signals using DSL engine with optional parallelism."""
+        """Generate strategy signals using DSL engine with thread-based parallelism."""
         try:
             correlation_id = str(uuid.uuid4())
             dsl_files, normalized_file_weights = self._resolve_dsl_files_and_weights()
-            parallelism, effective_max_workers = self._get_parallelism_and_workers(
-                parallelism, max_workers, len(dsl_files)
-            )
+            effective_max_workers = self._get_max_workers(max_workers, len(dsl_files))
 
             self.logger.info(f"Generating DSL signals from {len(dsl_files)} files")
             self.logger.debug(
-                f"DSL evaluation details: parallelism={parallelism}, max_workers={effective_max_workers}",
+                f"DSL evaluation details: parallelism=threads, max_workers={effective_max_workers}",
                 extra={
                     "correlation_id": correlation_id,
                     "timestamp": timestamp.isoformat(),
-                    "parallelism": parallelism,
+                    "parallelism": "threads",
                     "max_workers": effective_max_workers,
                 },
             )
 
-            if parallelism == "none" or len(dsl_files) <= 1:
+            if len(dsl_files) <= 1:
                 file_results = self._evaluate_files_sequential(
                     dsl_files, correlation_id, normalized_file_weights
                 )
@@ -102,7 +98,6 @@ class DslStrategyEngine:
                     dsl_files,
                     correlation_id,
                     normalized_file_weights,
-                    parallelism,
                     effective_max_workers,
                 )
 
@@ -129,41 +124,26 @@ class DslStrategyEngine:
             self.logger.error(f"DSL strategy error: {e}")
             return self._create_fallback_signals(timestamp)
 
-    def _get_parallelism_and_workers(
+    def _get_max_workers(
         self,
-        parallelism: Literal["none", "threads", "processes"],
         max_workers: int | None,
         num_files: int,
-    ) -> tuple[Literal["none", "threads", "processes"], int]:
-        """Get parallelism mode and worker count, applying environment overrides.
+    ) -> int:
+        """Get worker count, applying environment overrides.
 
         Args:
-            parallelism: Requested parallelism mode
             max_workers: Requested max workers
             num_files: Number of DSL files to process
 
         Returns:
-            Tuple of (effective_parallelism, effective_max_workers)
+            Effective max workers count
 
         """
-        # Check environment overrides
-        env_parallelism = os.getenv("ALCHEMISER_DSL_PARALLELISM")
-        allowed_parallelism: tuple[Literal["none", "threads", "processes"], ...] = (
-            "none",
-            "threads",
-            "processes",
-        )
-        if env_parallelism in allowed_parallelism:
-            parallelism = cast(Literal["none", "threads", "processes"], env_parallelism)
-
         env_max_workers = os.getenv("ALCHEMISER_DSL_MAX_WORKERS")
         if env_max_workers and env_max_workers.isdigit():
             max_workers = int(env_max_workers)
 
-        effective_max_workers = (
-            max_workers if max_workers is not None else min(num_files, os.cpu_count() or 4)
-        )
-        return parallelism, effective_max_workers
+        return max_workers if max_workers is not None else min(num_files, os.cpu_count() or 4)
 
     def _accumulate_results(
         self,
@@ -352,25 +332,21 @@ class DslStrategyEngine:
         dsl_files: list[str],
         correlation_id: str,
         normalized_file_weights: dict[str, float],
-        parallelism: Literal["threads", "processes"],
         max_workers: int,
     ) -> list[tuple[dict[str, float] | None, str, float, float]]:
-        """Evaluate DSL files in parallel while preserving deterministic order.
+        """Evaluate DSL files in parallel using threads while preserving deterministic order.
 
         Args:
             dsl_files: List of DSL files to evaluate
             correlation_id: Correlation ID for tracing
             normalized_file_weights: Precomputed normalized file weights
-            parallelism: Either "threads" or "processes"
-            max_workers: Maximum number of worker threads/processes
+            max_workers: Maximum number of worker threads
 
         Returns:
             List of evaluation results for each file (preserves input order)
 
         """
-        executor_class = ThreadPoolExecutor if parallelism == "threads" else ProcessPoolExecutor
-
-        with executor_class(max_workers=max_workers) as executor:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Use executor.map to preserve deterministic ordering
             return list(
                 executor.map(
