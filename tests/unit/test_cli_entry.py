@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
@@ -156,9 +157,10 @@ class TestCLIIntegration:
     @pytest.mark.integration
     def test_cli_help_via_subprocess(self) -> None:
         """Test CLI help message via subprocess."""
+        repo_root = Path(__file__).resolve().parents[2]
         result = subprocess.run(
             [sys.executable, "-m", "the_alchemiser", "--help"],
-            cwd="/home/runner/work/alchemiser-quant/alchemiser-quant",
+            cwd=str(repo_root),
             capture_output=True,
             text=True,
             timeout=5,
@@ -173,9 +175,10 @@ class TestCLIIntegration:
     @pytest.mark.integration
     def test_cli_short_help_via_subprocess(self) -> None:
         """Test CLI short help (-h) message via subprocess."""
+        repo_root = Path(__file__).resolve().parents[2]
         result = subprocess.run(
             [sys.executable, "-m", "the_alchemiser", "-h"],
-            cwd="/home/runner/work/alchemiser-quant/alchemiser-quant",
+            cwd=str(repo_root),
             capture_output=True,
             text=True,
             timeout=5,
