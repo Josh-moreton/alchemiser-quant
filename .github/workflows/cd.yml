@@ -113,16 +113,22 @@ jobs:
           if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
           if [ -n "$ALCHEMISER_DSL_PARALLELISM" ]; then echo "ALCHEMISER_DSL_PARALLELISM=$ALCHEMISER_DSL_PARALLELISM" >> $GITHUB_ENV; fi
           if [ -n "$ALCHEMISER_DSL_MAX_WORKERS" ]; then echo "ALCHEMISER_DSL_MAX_WORKERS=$ALCHEMISER_DSL_MAX_WORKERS" >> $GITHUB_ENV; fi
-          # Use heredoc to safely handle JSON content in GitHub vars
+          # Validate/compact JSON to single-line to avoid parsing issues
           if [ -n "$STRATEGY__DSL_FILES" ]; then
-            echo "STRATEGY__DSL_FILES<<EOF" >> $GITHUB_ENV
-            echo "$STRATEGY__DSL_FILES" >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
+            if command -v jq >/dev/null 2>&1; then
+              DSL_FILES_MIN=$(printf '%s' "$STRATEGY__DSL_FILES" | jq -c .) || { echo "Invalid JSON in STRATEGY__DSL_FILES"; exit 1; }
+              echo "STRATEGY__DSL_FILES=$DSL_FILES_MIN" >> $GITHUB_ENV
+            else
+              echo "STRATEGY__DSL_FILES=$(echo "$STRATEGY__DSL_FILES" | tr -d '\n')" >> $GITHUB_ENV
+            fi
           fi
           if [ -n "$STRATEGY__DSL_ALLOCATIONS" ]; then
-            echo "STRATEGY__DSL_ALLOCATIONS<<EOF" >> $GITHUB_ENV
-            echo "$STRATEGY__DSL_ALLOCATIONS" >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
+            if command -v jq >/dev/null 2>&1; then
+              DSL_ALLOCS_MIN=$(printf '%s' "$STRATEGY__DSL_ALLOCATIONS" | jq -c .) || { echo "Invalid JSON in STRATEGY__DSL_ALLOCATIONS"; exit 1; }
+              echo "STRATEGY__DSL_ALLOCATIONS=$DSL_ALLOCS_MIN" >> $GITHUB_ENV
+            else
+              echo "STRATEGY__DSL_ALLOCATIONS=$(echo "$STRATEGY__DSL_ALLOCATIONS" | tr -d '\n')" >> $GITHUB_ENV
+            fi
           fi
 
       - name: Prepare environment variables (prod)
@@ -147,16 +153,22 @@ jobs:
           if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
           if [ -n "$ALCHEMISER_DSL_PARALLELISM" ]; then echo "ALCHEMISER_DSL_PARALLELISM=$ALCHEMISER_DSL_PARALLELISM" >> $GITHUB_ENV; fi
           if [ -n "$ALCHEMISER_DSL_MAX_WORKERS" ]; then echo "ALCHEMISER_DSL_MAX_WORKERS=$ALCHEMISER_DSL_MAX_WORKERS" >> $GITHUB_ENV; fi
-          # Use heredoc to safely handle JSON content in GitHub vars
+          # Validate/compact JSON to single-line to avoid parsing issues
           if [ -n "$STRATEGY__DSL_FILES" ]; then
-            echo "STRATEGY__DSL_FILES<<EOF" >> $GITHUB_ENV
-            echo "$STRATEGY__DSL_FILES" >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
+            if command -v jq >/dev/null 2>&1; then
+              DSL_FILES_MIN=$(printf '%s' "$STRATEGY__DSL_FILES" | jq -c .) || { echo "Invalid JSON in STRATEGY__DSL_FILES"; exit 1; }
+              echo "STRATEGY__DSL_FILES=$DSL_FILES_MIN" >> $GITHUB_ENV
+            else
+              echo "STRATEGY__DSL_FILES=$(echo "$STRATEGY__DSL_FILES" | tr -d '\n')" >> $GITHUB_ENV
+            fi
           fi
           if [ -n "$STRATEGY__DSL_ALLOCATIONS" ]; then
-            echo "STRATEGY__DSL_ALLOCATIONS<<EOF" >> $GITHUB_ENV
-            echo "$STRATEGY__DSL_ALLOCATIONS" >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
+            if command -v jq >/dev/null 2>&1; then
+              DSL_ALLOCS_MIN=$(printf '%s' "$STRATEGY__DSL_ALLOCATIONS" | jq -c .) || { echo "Invalid JSON in STRATEGY__DSL_ALLOCATIONS"; exit 1; }
+              echo "STRATEGY__DSL_ALLOCATIONS=$DSL_ALLOCS_MIN" >> $GITHUB_ENV
+            else
+              echo "STRATEGY__DSL_ALLOCATIONS=$(echo "$STRATEGY__DSL_ALLOCATIONS" | tr -d '\n')" >> $GITHUB_ENV
+            fi
           fi
 
       - name: Deploy
