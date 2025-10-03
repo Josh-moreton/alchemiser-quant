@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all release bump-patch bump-minor bump-major version stress-test stress-test-quick stress-test-stateful stress-test-stateful-quick stress-test-dry-run
+.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all test-coverage release bump-patch bump-minor bump-major version stress-test stress-test-quick stress-test-stateful stress-test-stateful-quick stress-test-dry-run
 
 # Default target
 help:
@@ -33,6 +33,7 @@ help:
 	@echo "  test-functional Run functional tests only"
 	@echo "  test-e2e        Run end-to-end tests only"
 	@echo "  test-all        Run comprehensive test suite with coverage"
+	@echo "  test-coverage   Run tests with coverage report (XML for SonarCloud)"
 	@echo "  stress-test     Run comprehensive trading system stress test"
 	@echo "  stress-test-quick Run quick stress test (subset of scenarios)"
 	@echo "  stress-test-dry-run Run stress test dry run (show plan only)"
@@ -90,6 +91,17 @@ test-all:
 	@echo "🧪 Running comprehensive test suite..."
 	python -m pytest tests/ -v --tb=short
 	@echo "✅ Test suite completed!"
+
+test-coverage:
+	@echo "📊 Running tests with coverage report for SonarCloud..."
+	@# Ensure pytest-cov is available (installed via dev dependencies)
+	@poetry run python -c "import pytest_cov" >/dev/null 2>&1 || { \
+		echo "❌ pytest-cov not found in the Poetry env."; \
+		echo "💡 Run: poetry install --with dev"; \
+		exit 1; \
+	}
+	poetry run pytest --cov=the_alchemiser --cov-report=xml --cov-report=term --ignore=tests/e2e -v tests/
+	@echo "✅ Coverage report generated: coverage.xml"
 
 # Stress Testing Commands
 
