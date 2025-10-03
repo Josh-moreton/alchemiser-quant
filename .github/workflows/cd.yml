@@ -1,0 +1,79 @@
+name: CD
+
+on:
+  push:
+    branches: [ main ]
+  release:
+    types: [ published ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Which environment to deploy
+        required: true
+        default: dev
+        type: choice
+        options: [ dev, prod ]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_PAGER: ""
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'release' && 'prod' || (github.event_name == 'workflow_dispatch' && inputs.environment || 'dev') }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Decide target environment
+        id: target
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "env=prod" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "env=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+          else
+            echo "env=dev" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.8.3
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Cache venv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Install SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: Build (matching target env)
+        run: sam build --parallel --config-env "${{ steps.target.outputs.env }}"
+
+      - name: Deploy
+        run: |
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh "${{ steps.target.outputs.env }}"
