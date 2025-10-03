@@ -1,6 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
+.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all release bump-patch bump-minor bump-major version stress-test stress-test-quick stress-test-stateful stress-test-stateful-quick stress-test-dry-run
 .PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all stress-test stress-test-quick stress-test-dry backtest-download backtest backtest-range release bump-patch bump-minor bump-major version
 
 # Default target
@@ -24,6 +25,13 @@ help:
 	@echo "  backtest        Run backtest (default 1 year)"
 	@echo "  backtest-range  Run backtest on custom date range"
 	@echo ""
+	@echo "Stress Testing Commands:"
+	@echo "  stress-test              Run full stress test (~34 scenarios, liquidation mode)"
+	@echo "  stress-test-quick        Run quick stress test (~14 scenarios, liquidation mode)"
+	@echo "  stress-test-stateful     Run full stress test in stateful mode (maintains portfolio)"
+	@echo "  stress-test-stateful-quick Run quick stress test in stateful mode"
+	@echo "  stress-test-dry-run      Show stress test plan without executing"
+	@echo ""
 	@echo "Testing Commands:"
 	@echo "  test            Run all tests"
 	@echo "  test-unit       Run unit tests only"
@@ -33,7 +41,7 @@ help:
 	@echo "  test-all        Run comprehensive test suite with coverage"
 	@echo "  stress-test     Run comprehensive trading system stress test"
 	@echo "  stress-test-quick Run quick stress test (subset of scenarios)"
-	@echo "  stress-test-dry Run stress test dry run (show plan only)"
+	@echo "  stress-test-dry-run Run stress test dry run (show plan only)"
 	@echo ""
 	@echo "Development:"
 	@echo "  format          Format code with Ruff (formatter + fixes)"
@@ -90,19 +98,6 @@ test-all:
 	@echo "✅ Test suite completed!"
 
 # Stress Testing Commands
-stress-test:
-	@echo "🔥 Running comprehensive stress test (all 34 scenarios)..."
-	@echo "⚠️  This will take 1-2 hours with real Paper API calls"
-	poetry run python scripts/stress_test.py
-
-stress-test-quick:
-	@echo "🔥 Running quick stress test (~14 scenarios)..."
-	@echo "⚠️  This will take 15-30 minutes with real Paper API calls"
-	poetry run python scripts/stress_test.py --quick
-
-stress-test-dry:
-	@echo "🔥 Running stress test dry run (show execution plan)..."
-	poetry run python scripts/stress_test.py --dry-run
 
 # Trading Commands (using the CLI)
 # run-signals command removed - signal analysis is now integrated into run-trade
@@ -142,6 +137,27 @@ backtest-range:
 		exit 1; \
 	fi
 	poetry run python scripts/backtest_cli.py run --start=$(start) --end=$(end)
+
+# Stress Testing Commands
+stress-test:
+	@echo "🔥 Running full stress test (liquidation mode)..."
+	poetry run python scripts/stress_test.py
+
+stress-test-quick:
+	@echo "🔥 Running quick stress test (liquidation mode)..."
+	poetry run python scripts/stress_test.py --quick
+
+stress-test-stateful:
+	@echo "🔥 Running full stress test (stateful mode - maintains portfolio)..."
+	poetry run python scripts/stress_test.py --stateful
+
+stress-test-stateful-quick:
+	@echo "🔥 Running quick stress test (stateful mode - maintains portfolio)..."
+	poetry run python scripts/stress_test.py --stateful --quick
+
+stress-test-dry-run:
+	@echo "🔥 Showing stress test execution plan..."
+	poetry run python scripts/stress_test.py --dry-run
 
 # Status command removed - use programmatic access via TradingSystem class
 

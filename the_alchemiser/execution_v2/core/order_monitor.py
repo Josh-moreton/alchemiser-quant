@@ -318,7 +318,9 @@ class OrderMonitor:
             new_id = getattr(r, "order_id", None) or ""
             if getattr(r, "success", False) and original_id and new_id:
                 replacement_map[original_id] = new_id
-                logger.info(f"{log_prefix} ✅ Market escalation successful: {original_id} -> {new_id}")
+                logger.info(
+                    f"{log_prefix} ✅ Market escalation successful: {original_id} -> {new_id}"
+                )
 
         return replacement_map
 
@@ -349,7 +351,9 @@ class OrderMonitor:
 
             # Note: _should_skip_order filters out falsy order_id, but order_id may still be None or empty.
             order_id = order.order_id
-            if not order_id:  # Additional guard is necessary to ensure order_id is a non-empty string.
+            if (
+                not order_id
+            ):  # Additional guard is necessary to ensure order_id is a non-empty string.
                 continue
 
             order_status = self._get_order_status(order_id)
@@ -439,7 +443,13 @@ class OrderMonitor:
             # Use Decimal comparison to avoid float precision issues
             if filled_qty < order.shares:
                 self._add_order_to_escalation(
-                    order, order_id, order_status, filled_qty, orders_to_escalate, log_prefix, correlation_id
+                    order,
+                    order_id,
+                    order_status,
+                    filled_qty,
+                    orders_to_escalate,
+                    log_prefix,
+                    correlation_id,
                 )
         except (AttributeError, ValueError, TypeError) as e:
             logger.debug(f"Could not check order {order_id}: {e}")

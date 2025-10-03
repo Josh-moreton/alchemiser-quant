@@ -10,11 +10,15 @@ from __future__ import annotations
 
 import logging
 import sys
+from dataclasses import asdict, is_dataclass
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 import structlog
+
+from the_alchemiser.shared.value_objects.symbol import Symbol
 
 from .context import error_id_context, request_id_context
 
@@ -51,20 +55,45 @@ def add_alchemiser_context(
 
 
 def decimal_serializer(obj: Any) -> Any:  # noqa: ANN401
-    """Serialize Decimal objects for JSON output.
+    """Provide default JSON serialization for structlog JSONRenderer.
 
-    Args:
-        obj: Object to serialize
+    Supports common domain types used in The Alchemiser so logging never crashes:
+    - Decimal -> str (preserve precision)
+    - Symbol (dataclass) -> underlying string value
+    - Dataclass instances -> asdict conversion
+    - Pydantic-like models (model_dump) -> dumped dict
+    - Sets/Tuples -> list
+    - datetime -> ISO 8601 string
 
-    Returns:
-        String representation of Decimal, or raises TypeError for unsupported types
-
-    Raises:
-        TypeError: If object type is not JSON serializable
-
+    For unknown types, raise TypeError to let json detect unsupported objects (maintains tests).
     """
+    # Precise numbers
     if isinstance(obj, Decimal):
         return str(obj)
+
+    # Domain value objects
+    if isinstance(obj, Symbol):
+        return obj.value
+
+    # Dataclasses
+    if is_dataclass(obj) and not isinstance(obj, type):
+        return asdict(obj)
+
+    # Pydantic-like objects without importing pydantic directly
+    model_dump = getattr(obj, "model_dump", None)
+    if callable(model_dump):
+        try:
+            return model_dump()
+        except Exception:  # pragma: no cover - defensive
+            return str(obj)
+
+    # Common container/temporal types
+    if isinstance(obj, (set, tuple)):
+        return list(obj)
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+
+    # Keep strict behavior for unsupported types
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
@@ -99,16 +128,28 @@ def configure_structlog(
     root_logger.addHandler(console_handler)
 
     # File handler (DEBUG+ for detailed logs)
-    if file_path is None:
-        file_path = "logs/trade_run.log"
+    # In AWS Lambda, the filesystem is read-only except for /tmp. Avoid creating files unless
+    # a writable path is explicitly provided via environment or caller.
+    try:
+        resolved_file_path: str | None = file_path
+        if resolved_file_path is None:
+            # Default to None in Lambda to avoid read-only FS issues; use /tmp if explicitly set
+            resolved_file_path = None
 
-    log_path = Path(file_path)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
+        if resolved_file_path:
+            log_path = Path(resolved_file_path)
+            # Only attempt to create dirs if parent is writable
+            log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    file_handler = logging.FileHandler(file_path)
-    file_handler.setLevel(file_level)
-    file_handler.setFormatter(logging.Formatter("%(message)s"))  # Structlog handles formatting
-    root_logger.addHandler(file_handler)
+            file_handler = logging.FileHandler(resolved_file_path)
+            file_handler.setLevel(file_level)
+            file_handler.setFormatter(
+                logging.Formatter("%(message)s")
+            )  # Structlog formats
+            root_logger.addHandler(file_handler)
+    except OSError:
+        # Fall back to console-only if file logging setup fails (e.g., read-only FS)
+        pass
 
     # Configure structlog processors
     processors: list[Any] = [

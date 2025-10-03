@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+from importlib import resources as importlib_resources
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import (
@@ -226,11 +228,38 @@ class StrategySettings(BaseModel):
     def _get_stage_profile() -> tuple[list[str], dict[str, float]]:
         """Get DSL files and allocations for the current stage.
 
+        Resolution order:
+        1) Per-stage JSON file bundled with the package (recommended):
+           the_alchemiser/config/strategy.<stage>.json
+        2) Fallback to in-code defaults (DEV_DSL_* / PROD_DSL_*)
+
         Returns:
             Tuple of (dsl_files, dsl_allocations) for the environment stage
 
         """
-        stage = (os.getenv("APP__STAGE") or os.getenv("STAGE") or "").lower()
+        stage = (os.getenv("APP__STAGE") or os.getenv("STAGE") or "dev").lower()
+        filename = "strategy.prod.json" if stage == "prod" else "strategy.dev.json"
+        package = "the_alchemiser.config"
+
+        # Try packaged JSON config first
+        try:
+            cfg_path = importlib_resources.files(package).joinpath(filename)
+            with cfg_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            files_raw = data.get("files", [])
+            allocs_raw = data.get("allocations", {})
+            files = [str(x) for x in files_raw] if isinstance(files_raw, list) else []
+            allocs = (
+                {str(k): float(v) for k, v in allocs_raw.items()}
+                if isinstance(allocs_raw, dict)
+                else {}
+            )
+            if files and allocs:
+                return files, allocs
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logging.debug("Strategy config file load failed (%s): %s", filename, exc)
+
+        # Fallback to existing in-code profiles
         if stage == "prod":
             return list(PROD_DSL_FILES), dict(PROD_DSL_ALLOCATIONS)
         return list(DEV_DSL_FILES), dict(DEV_DSL_ALLOCATIONS)
