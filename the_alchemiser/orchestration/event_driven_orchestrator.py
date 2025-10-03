@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from logging import Logger
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Protocol, cast
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
@@ -41,14 +41,22 @@ class WorkflowState(Enum):
     COMPLETED = "completed"
 
 
-class EventHandlerProtocol(Protocol):
-    """Structural type for event handlers registered on the EventBus."""
+try:
+    # Prefer the shared EventHandler Protocol for structural typing
+    from the_alchemiser.shared.events.handlers import EventHandler as EventHandlerProtocol
+except Exception:  # pragma: no cover - fallback for type checking contexts
+    @runtime_checkable
+    class EventHandlerProtocol(Protocol):  # type: ignore[no-redef]
+        """Fallback structural typing protocol for event handlers."""
 
-    def handle_event(self, event: BaseEvent) -> None:
-        """Process a single event."""
+        def handle_event(self, event: BaseEvent) -> None:
+            """Process a single event."""
 
-    def can_handle(self, event_type: str) -> bool:
-        """Return True if this handler supports the given event type."""
+        def can_handle(self, event_type: str) -> bool:
+            """Return True if this handler supports the given event type."""
+
+
+WrappedHandler = EventHandlerProtocol | TypingCallable[[BaseEvent], None]
 
 
 class StateCheckingHandlerWrapper:
@@ -60,7 +68,7 @@ class StateCheckingHandlerWrapper:
 
     def __init__(
         self,
-        wrapped_handler: EventHandlerProtocol,
+    wrapped_handler: WrappedHandler,
         orchestrator: EventDrivenOrchestrator,
         event_type: str,
         logger: Logger,
@@ -74,7 +82,7 @@ class StateCheckingHandlerWrapper:
             logger: Logger instance
 
         """
-        self.wrapped_handler: EventHandlerProtocol = wrapped_handler
+        self.wrapped_handler: WrappedHandler = wrapped_handler
         self.orchestrator: EventDrivenOrchestrator = orchestrator
         self.event_type: str = event_type
         self.logger: Logger = logger
@@ -95,7 +103,10 @@ class StateCheckingHandlerWrapper:
             return
 
         # Delegate to actual handler
-        self.wrapped_handler.handle_event(event)
+        if isinstance(self.wrapped_handler, EventHandlerProtocol):
+            self.wrapped_handler.handle_event(event)
+        else:
+            self.wrapped_handler(event)
 
     def can_handle(self, event_type: str) -> bool:
         """Check if wrapped handler can handle event type.
@@ -107,7 +118,7 @@ class StateCheckingHandlerWrapper:
             True if the wrapped handler can handle this event type
 
         """
-        if hasattr(self.wrapped_handler, "can_handle"):
+        if isinstance(self.wrapped_handler, EventHandlerProtocol):
             return self.wrapped_handler.can_handle(event_type)
         return True
 

@@ -1,8 +1,12 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all release bump-patch bump-minor bump-major version stress-test stress-test-quick stress-test-stateful stress-test-stateful-quick stress-test-dry-run
-.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all stress-test stress-test-quick stress-test-dry backtest-download backtest backtest-range release bump-patch bump-minor bump-major version
+.PHONY: help install dev clean run-trade deploy format lint type-check import-check migration-check \
+	test test-unit test-integration test-functional test-e2e test-all \
+	stress-test stress-test-quick stress-test-stateful stress-test-stateful-quick stress-test-dry-run \
+	backtest-download backtest backtest-range \
+	release bump-patch bump-minor bump-major version \
+	run-pnl-weekly run-pnl-monthly run-pnl-detailed
 
 # Default target
 help:
@@ -39,9 +43,6 @@ help:
 	@echo "  test-functional Run functional tests only"
 	@echo "  test-e2e        Run end-to-end tests only"
 	@echo "  test-all        Run comprehensive test suite with coverage"
-	@echo "  stress-test     Run comprehensive trading system stress test"
-	@echo "  stress-test-quick Run quick stress test (subset of scenarios)"
-	@echo "  stress-test-dry-run Run stress test dry run (show plan only)"
 	@echo ""
 	@echo "Development:"
 	@echo "  format          Format code with Ruff (formatter + fixes)"
