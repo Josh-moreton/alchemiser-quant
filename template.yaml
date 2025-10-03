@@ -31,6 +31,32 @@ Parameters:
     Default: https://paper-api.alpaca.markets/v2
     Description: Alpaca API endpoint; defaults to paper for dev, live is used for prod
 
+  # Runtime configuration parameters (override via CD for each environment)
+  LoggingLevel:
+    Type: String
+    Default: INFO
+    Description: LOGGING__LEVEL for application logging
+
+  DslParallelism:
+    Type: String
+    Default: threads
+    Description: ALCHEMISER_DSL_PARALLELISM (e.g., threads, processes)
+
+  DslMaxWorkers:
+    Type: String
+    Default: "7"
+    Description: ALCHEMISER_DSL_MAX_WORKERS (string to align with Lambda env var type)
+
+  StrategyDslFiles:
+    Type: String
+    Default: ""
+    Description: STRATEGY__DSL_FILES as a JSON array string
+
+  StrategyDslAllocations:
+    Type: String
+    Default: ""
+    Description: STRATEGY__DSL_ALLOCATIONS as a JSON object string
+
   # Production-only parameters (only used when Stage=prod)
   ProdAlpacaKey:
     Type: String
@@ -67,7 +93,7 @@ Globals:
     Environment:
       Variables:
         # Logging
-        LOGGING__LEVEL: INFO
+        LOGGING__LEVEL: !Ref LoggingLevel
         # Stage awareness for code-level profiles
         APP__STAGE: !If [ IsDev, "dev", "prod" ]
         # Alpaca Configuration
@@ -85,9 +111,13 @@ Globals:
         # STRATEGY__DSL_FILES: '["1-KMLM.clj","2-Nuclear.clj","5-Coin.clj","6-TQQQ-FLT.clj"]'
         # STRATEGY__DSL_ALLOCATIONS: '{"1-KMLM.clj":0.4,"2-Nuclear.clj":0.25,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.25}'
 
-        # DSL parallelism configuration
-        ALCHEMISER_DSL_PARALLELISM: threads
-        ALCHEMISER_DSL_MAX_WORKERS: 7
+  # DSL parallelism configuration
+  ALCHEMISER_DSL_PARALLELISM: !Ref DslParallelism
+  ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
+
+  # Strategy configuration (optional overrides provided via parameters)
+  STRATEGY__DSL_FILES: !Ref StrategyDslFiles
+  STRATEGY__DSL_ALLOCATIONS: !Ref StrategyDslAllocations
 
 Resources:
   # Lambda Layer for dependencies
