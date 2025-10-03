@@ -121,7 +121,9 @@ class AlpacaErrorHandler:
         return False, None
 
     @staticmethod
-    def _check_generic_terminal_state(msg: str) -> tuple[bool, TerminalOrderError | None]:
+    def _check_generic_terminal_state(
+        msg: str,
+    ) -> tuple[bool, TerminalOrderError | None]:
         """Check for generic terminal state pattern and extract state name.
 
         Args:
@@ -503,7 +505,11 @@ def _handle_retry_failure(error: Exception, operation_name: str, attempt: int) -
 
 
 def _log_retry_attempt(
-    operation_name: str, reason: str, attempt: int, max_retries: int, sleep_duration: float
+    operation_name: str,
+    reason: str,
+    attempt: int,
+    max_retries: int,
+    sleep_duration: float,
 ) -> None:
     """Log retry attempt with details.
 
