@@ -78,28 +78,26 @@ jobs:
         env:
           ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
           ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
-          ALPACA_ENDPOINT: ${{ secrets.ALPACA_ENDPOINT }}
+          ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
         run: |
           echo "Exporting dev ALPACA_* env vars for deploy.sh"
           echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
           echo "ALPACA_SECRET=$ALPACA_SECRET" >> $GITHUB_ENV
           if [ -n "$ALPACA_ENDPOINT" ]; then echo "ALPACA_ENDPOINT=$ALPACA_ENDPOINT" >> $GITHUB_ENV; fi
 
-      - name: Prepare environment file (prod)
+      - name: Prepare environment variables (prod)
         if: steps.target.outputs.env == 'prod'
         env:
-          LIVE_ALPACA_KEY: ${{ secrets.LIVE_ALPACA_KEY }}
-          LIVE_ALPACA_SECRET: ${{ secrets.LIVE_ALPACA_SECRET }}
-          LIVE_ALPACA_ENDPOINT: ${{ secrets.LIVE_ALPACA_ENDPOINT }}
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
+          ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
           EMAIL__PASSWORD: ${{ secrets.EMAIL__PASSWORD }}
         run: |
-          echo "Writing .env for prod (values redacted)"
-          {
-            echo "LIVE_ALPACA_KEY=$LIVE_ALPACA_KEY"
-            echo "LIVE_ALPACA_SECRET=$LIVE_ALPACA_SECRET"
-            [ -n "$LIVE_ALPACA_ENDPOINT" ] && echo "LIVE_ALPACA_ENDPOINT=$LIVE_ALPACA_ENDPOINT" || true
-            [ -n "$EMAIL__PASSWORD" ] && echo "EMAIL__PASSWORD=$EMAIL__PASSWORD" || true
-          } > .env
+          echo "Exporting prod ALPACA_* env vars for deploy.sh"
+          echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
+          echo "ALPACA_SECRET=$ALPACA_SECRET" >> $GITHUB_ENV
+          if [ -n "$ALPACA_ENDPOINT" ]; then echo "ALPACA_ENDPOINT=$ALPACA_ENDPOINT" >> $GITHUB_ENV; fi
+          if [ -n "$EMAIL__PASSWORD" ]; then echo "EMAIL__PASSWORD=$EMAIL__PASSWORD" >> $GITHUB_ENV; fi
 
       - name: Deploy
         run: |

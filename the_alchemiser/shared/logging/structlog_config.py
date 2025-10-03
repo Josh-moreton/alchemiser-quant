@@ -114,9 +114,7 @@ def configure_structlog(
 
             file_handler = logging.FileHandler(resolved_file_path)
             file_handler.setLevel(file_level)
-            file_handler.setFormatter(
-                logging.Formatter("%(message)s")
-            )  # Structlog formats
+            file_handler.setFormatter(logging.Formatter("%(message)s"))  # Structlog formats
             root_logger.addHandler(file_handler)
     except OSError:
         # Fall back to console-only if file logging setup fails (e.g., read-only FS)

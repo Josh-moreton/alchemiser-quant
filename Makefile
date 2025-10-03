@@ -35,7 +35,7 @@ help:
 	@echo "  test-all        Run comprehensive test suite with coverage"
 	@echo "  stress-test     Run comprehensive trading system stress test"
 	@echo "  stress-test-quick Run quick stress test (subset of scenarios)"
-	@echo "  stress-test-dry Run stress test dry run (show plan only)"
+	@echo "  stress-test-dry-run Run stress test dry run (show plan only)"
 	@echo ""
 	@echo "Development:"
 	@echo "  format          Format code with Ruff (formatter + fixes)"
@@ -92,19 +92,6 @@ test-all:
 	@echo "✅ Test suite completed!"
 
 # Stress Testing Commands
-stress-test:
-	@echo "🔥 Running comprehensive stress test (all 34 scenarios)..."
-	@echo "⚠️  This will take 1-2 hours with real Paper API calls"
-	poetry run python scripts/stress_test.py
-
-stress-test-quick:
-	@echo "🔥 Running quick stress test (~14 scenarios)..."
-	@echo "⚠️  This will take 15-30 minutes with real Paper API calls"
-	poetry run python scripts/stress_test.py --quick
-
-stress-test-dry:
-	@echo "🔥 Running stress test dry run (show execution plan)..."
-	poetry run python scripts/stress_test.py --dry-run
 
 # Trading Commands (using the CLI)
 # run-signals command removed - signal analysis is now integrated into run-trade

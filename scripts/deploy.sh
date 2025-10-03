@@ -101,20 +101,8 @@ echo ""
 echo "🚀 Deploying to AWS..."
 
 if [ "$ENVIRONMENT" = "dev" ]; then
-    # Load Alpaca creds from common dotenv files (best-effort)
-    load_from_file() {
-        local f="$1"
-        [[ -f "$f" ]] || return 0
-        [[ -z "${ALPACA_KEY:-}" ]] && ALPACA_KEY="$(grep -E '^ALPACA_KEY=' "$f" | tail -n1 | sed -E 's/^ALPACA_KEY=(.*)$/\1/')" || true
-        [[ -z "${ALPACA_SECRET:-}" ]] && ALPACA_SECRET="$(grep -E '^ALPACA_SECRET=' "$f" | tail -n1 | sed -E 's/^ALPACA_SECRET=(.*)$/\1/')" || true
-        [[ -z "${ALPACA_ENDPOINT:-}" ]] && ALPACA_ENDPOINT="$(grep -E '^ALPACA_ENDPOINT=' "$f" | tail -n1 | sed -E 's/^ALPACA_ENDPOINT=(.*)$/\1/')" || true
-    }
-    for SECRETS_FILE in scripts/dev.secrets .env.dev .env.local .env; do
-        load_from_file "$SECRETS_FILE"
-    done
-
     if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then
-        echo "❌ ALPACA_KEY and ALPACA_SECRET must be set for dev deploy (env or .env)." >&2
+        echo "❌ ALPACA_KEY and ALPACA_SECRET must be set for dev deploy (env)." >&2
         exit 1
     fi
     ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://paper-api.alpaca.markets/v2"}
@@ -129,50 +117,19 @@ if [ "$ENVIRONMENT" = "dev" ]; then
             AlpacaSecret="$ALPACA_SECRET" \
             AlpacaEndpoint="$ALPACA_ENDPOINT_PARAM"
 else
-    # Production deployment - load LIVE_* credentials from .env file
-    echo "📋 Loading production credentials from .env file..."
-
-    # Load LIVE_* variables from .env file
-    load_live_from_file() {
-        local f="$1"
-        [[ -f "$f" ]] || return 0
-        [[ -z "${LIVE_ALPACA_KEY:-}" ]] && LIVE_ALPACA_KEY="$(grep -E '^LIVE_ALPACA_KEY=' "$f" | tail -n1 | sed -E 's/^LIVE_ALPACA_KEY=(.*)$/\1/')" || true
-        [[ -z "${LIVE_ALPACA_SECRET:-}" ]] && LIVE_ALPACA_SECRET="$(grep -E '^LIVE_ALPACA_SECRET=' "$f" | tail -n1 | sed -E 's/^LIVE_ALPACA_SECRET=(.*)$/\1/')" || true
-        [[ -z "${LIVE_ALPACA_ENDPOINT:-}" ]] && LIVE_ALPACA_ENDPOINT="$(grep -E '^LIVE_ALPACA_ENDPOINT=' "$f" | tail -n1 | sed -E 's/^LIVE_ALPACA_ENDPOINT=(.*)$/\1/')" || true
-        # Prefer EMAIL__PASSWORD (double underscore) to match app config; fallback to EMAIL_PASSWORD
-        if [[ -z "${EMAIL_PASSWORD:-}" ]]; then
-            EMAIL_PASSWORD="$(grep -E '^EMAIL__PASSWORD=' "$f" | tail -n1 | sed -E 's/^EMAIL__PASSWORD=(.*)$/\1/')"
-            if [[ -z "$EMAIL_PASSWORD" ]]; then
-                EMAIL_PASSWORD="$(grep -E '^EMAIL_PASSWORD=' "$f" | tail -n1 | sed -E 's/^EMAIL_PASSWORD=(.*)$/\1/')"
-            fi
-        fi
-    }
-
-    for SECRETS_FILE in .env; do
-        load_live_from_file "$SECRETS_FILE"
-    done
-
-    # Check required production credentials
-    if [[ -z "${LIVE_ALPACA_KEY:-}" || -z "${LIVE_ALPACA_SECRET:-}" ]]; then
-        echo "❌ Error: LIVE_ALPACA_KEY and LIVE_ALPACA_SECRET must be set in .env file for production deployment." >&2
-        echo "   Please add them to your .env file with the LIVE_ prefix." >&2
+    # Production: use the same ALPACA_* variables, mapped to Prod* parameters
+    if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then
+        echo "❌ ALPACA_KEY and ALPACA_SECRET must be set for prod deploy (env)." >&2
         exit 1
     fi
+    PROD_ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://api.alpaca.markets"}
+    EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
 
-    # Set defaults for optional parameters
-    LIVE_ALPACA_ENDPOINT_PARAM=${LIVE_ALPACA_ENDPOINT:-"https://api.alpaca.markets"}
-    EMAIL_PASSWORD_PARAM=${EMAIL_PASSWORD:-""}
-
-    echo "✅ Production credentials loaded from .env"
-    echo "⚠️  WARNING: Using LIVE trading keys - real money will be traded!"
-    echo ""
-
-    # Build parameter overrides, conditionally including optional email password
     PARAMS=(
         "Stage=prod"
-        "ProdAlpacaKey=$LIVE_ALPACA_KEY"
-        "ProdAlpacaSecret=$LIVE_ALPACA_SECRET"
-        "ProdAlpacaEndpoint=$LIVE_ALPACA_ENDPOINT_PARAM"
+        "ProdAlpacaKey=$ALPACA_KEY"
+        "ProdAlpacaSecret=$ALPACA_SECRET"
+        "ProdAlpacaEndpoint=$PROD_ALPACA_ENDPOINT_PARAM"
     )
     if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
         PARAMS+=("ProdEmailPassword=$EMAIL_PASSWORD_PARAM")
