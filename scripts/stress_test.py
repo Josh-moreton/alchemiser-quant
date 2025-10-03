@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -40,11 +41,39 @@ sys.path.insert(0, str(Path(__file__).parent))  # Add scripts dir to path
 # Import from modular stress_test package
 from stress_test.runner import StressTestRunner
 
+from the_alchemiser.shared.config import (
+    env_loader,
+)  # noqa: F401  # Load .env as side-effect
 from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
 from the_alchemiser.shared.logging import configure_application_logging
 
 # Configure logging
 configure_application_logging()
+
+# Constant: always force paper endpoint for stress testing to avoid live trades
+PAPER_ENDPOINT = "https://paper-api.alpaca.markets/v2"
+
+
+def _ensure_stress_test_credentials() -> bool:
+    """If STRESS_TEST_KEY/SECRET are set, override runtime Alpaca env vars.
+
+    Returns:
+        True if stress-test credentials were applied, False otherwise.
+
+    Notes:
+        - Endpoint is always forced to Alpaca paper to prevent accidental live usage.
+        - Secrets are not logged.
+
+    """
+    key = os.getenv("STRESS_TEST_KEY")
+    secret = os.getenv("STRESS_TEST_SECRET")
+    if key and secret:
+        # Override standard environment variables consumed by the app
+        os.environ["ALPACA_KEY"] = key
+        os.environ["ALPACA_SECRET"] = secret
+        os.environ["ALPACA_ENDPOINT"] = PAPER_ENDPOINT
+        return True
+    return False
 
 
 def main_cli() -> int:
@@ -80,6 +109,11 @@ def main_cli() -> int:
 
     args = parser.parse_args()
 
+    # Prefer dedicated stress-test credentials if provided
+    used_stress_creds = _ensure_stress_test_credentials()
+    # Always force paper endpoint for stress testing (even if regular ALPACA_KEY/SECRET are used)
+    os.environ["ALPACA_ENDPOINT"] = PAPER_ENDPOINT
+
     # Verify environment
     if not args.dry_run:
         try:
@@ -104,6 +138,12 @@ def main_cli() -> int:
     print(f"Portfolio Mode: {'STATEFUL' if args.stateful else 'LIQUIDATION'}")
     print(f"Scenarios: {'Quick (~14)' if args.quick else 'Full (~34)'}")
     print(f"Output: {args.output}")
+    if used_stress_creds:
+        print("Credentials: using STRESS_TEST_KEY/SECRET (paper endpoint forced)")
+    else:
+        print(
+            "Credentials: using ALPACA_KEY/SECRET from environment (paper endpoint forced)"
+        )
     print("\n" + "=" * 80 + "\n")
 
     if args.dry_run:
