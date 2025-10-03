@@ -135,6 +135,10 @@ class TestBusinessLogicIntegration:
         rebalance_plan = RebalancePlan(
             plan_id=str(uuid.uuid4()),
             correlation_id=strategy_allocation.correlation_id,
+            causation_id=str(uuid.uuid4()),
+            timestamp=datetime.now(UTC),
+            total_portfolio_value=total_portfolio_value,
+            total_trade_value=sum(item.trade_amount for item in rebalance_items),
             items=rebalance_items,
         )
         
@@ -175,6 +179,10 @@ class TestBusinessLogicIntegration:
         rebalance_plan = RebalancePlan(
             plan_id=str(uuid.uuid4()),
             correlation_id=strategy_allocation.correlation_id,
+            causation_id=str(uuid.uuid4()),
+            timestamp=datetime.now(UTC),
+            total_portfolio_value=Decimal("1000.00"),
+            total_trade_value=Decimal("1000.00"),
             items=[
                 RebalancePlanItem(
                     symbol="AAPL",
@@ -319,6 +327,10 @@ class TestBusinessLogicIntegration:
         rebalance_plan = RebalancePlan(
             plan_id=str(uuid.uuid4()),
             correlation_id=strategy_allocation.correlation_id,
+            causation_id=str(uuid.uuid4()),
+            timestamp=datetime.now(UTC),
+            total_portfolio_value=Decimal("100.00"),
+            total_trade_value=sum(item.trade_amount for item in rebalance_items),
             items=rebalance_items,
         )
         

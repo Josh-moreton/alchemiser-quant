@@ -71,7 +71,7 @@ class TestTradingBusinessRules:
         # Inverted spread should be suspicious
         is_suspicious, reasons = detect_suspicious_quote_prices(Decimal("100.52"), Decimal("100.50"))
         assert is_suspicious
-        assert any("spread inverted" in reason.lower() for reason in reasons)
+        assert any("inverted spread" in reason.lower() for reason in reasons)
         
         # Very wide spread should be suspicious
         is_suspicious, reasons = detect_suspicious_quote_prices(Decimal("100.00"), Decimal("120.00"))
@@ -182,6 +182,7 @@ class TestTradingBusinessRules:
         allocation = StrategyAllocation(
             target_weights={
                 "AAPL": Decimal("0.95"),  # 95% invested
+                "CASH": Decimal("0.05"),
             },
             correlation_id=str(uuid.uuid4()),
             as_of=datetime.now(UTC),

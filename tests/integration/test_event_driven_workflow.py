@@ -1,4 +1,4 @@
-"""Business Unit: shared Status: current.
+"""Business Unit: shared | Status: current.
 
 Integration tests for event-driven workflow across modules.
 
@@ -11,7 +11,7 @@ import pytest
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
 from typing import Dict, List, Any
 
 # Test imports with proper path setup
@@ -25,9 +25,11 @@ try:
         TradeExecuted,
         WorkflowCompleted,
         WorkflowFailed,
-        WorkflowStarted
+        WorkflowStarted,
     )
+    from the_alchemiser.shared.schemas.common import AllocationComparison
     from the_alchemiser.shared.schemas.consolidated_portfolio import ConsolidatedPortfolio
+    from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan, RebalancePlanItem
     EVENTS_AVAILABLE = True
 except ImportError as e:
     EVENTS_AVAILABLE = False
@@ -64,33 +66,48 @@ class MockPortfolioHandler:
         self.called = True
         
         # Simulate portfolio analysis and emit RebalancePlanned
-        from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
-        from the_alchemiser.shared.schemas.common import AllocationComparison
-        
-        # Create mock rebalance plan and allocation comparison
+        rebalance_items = [
+            RebalancePlanItem(
+                symbol="AAPL",
+                current_weight=Decimal("0.3"),
+                target_weight=Decimal("0.5"),
+                weight_diff=Decimal("0.2"),
+                current_value=Decimal("40000.00"),
+                target_value=Decimal("50000.00"),
+                trade_amount=Decimal("10000.00"),
+                action="BUY",
+                priority=1,
+            )
+        ]
+
         mock_rebalance_plan = RebalancePlan(
-            trades=[],  # Empty for testing
-            allocation_deltas={},
-            metadata={"test": True}
+            plan_id=f"plan-{uuid.uuid4()}",
+            correlation_id=event.correlation_id,
+            causation_id=event.event_id,
+            timestamp=datetime.now(UTC),
+            total_portfolio_value=Decimal("100000.00"),
+            total_trade_value=Decimal("10000.00"),
+            items=rebalance_items,
+            metadata={"test": True},
         )
-        
+
         mock_allocation_comparison = AllocationComparison(
-            current_allocations={},
-            target_allocations={"AAPL": Decimal("0.5")},
-            allocation_deltas={"AAPL": Decimal("0.5")},
-            timestamp=datetime.now(UTC)
+            target_values={"AAPL": Decimal("50000.00")},
+            current_values={"AAPL": Decimal("40000.00")},
+            deltas={"AAPL": Decimal("10000.00")},
         )
-        
+
         rebalance_event = RebalancePlanned(
             rebalance_plan=mock_rebalance_plan,
             allocation_comparison=mock_allocation_comparison,
             trades_required=True,
+            metadata={"source": "integration-test"},
             correlation_id=event.correlation_id,
             causation_id=event.event_id,
             event_id=f"rebalance-{uuid.uuid4()}",
             timestamp=datetime.now(UTC),
             source_module="portfolio_v2",
-            schema_version="1.0"
+            source_component="MockPortfolioHandler",
         )
         
         self.event_bus.publish(rebalance_event)
@@ -116,31 +133,44 @@ class MockExecutionHandler:
         
         # Simulate trade execution
         trade_event = TradeExecuted(
-            order_id="test-order-123",
-            symbol="AAPL",
-            shares=Decimal("10"),
-            price=Decimal("150.00"),
-            total_value=Decimal("1500.00"),
+            execution_data={
+                "orders": [
+                    {
+                        "symbol": "AAPL",
+                        "shares": "10",
+                        "price": "150.00",
+                    }
+                ],
+                "total_value": "1500.00",
+            },
+            success=True,
+            orders_placed=1,
+            orders_succeeded=1,
+            metadata={"source": "integration-test"},
             correlation_id=event.correlation_id,
             causation_id=event.event_id,
             event_id=f"trade-{uuid.uuid4()}",
             timestamp=datetime.now(UTC),
-            source_module="execution_v2"
+            source_module="execution_v2",
+            source_component="MockExecutionHandler",
         )
-        
+
         self.event_bus.publish(trade_event)
-        
+
         # Emit workflow completion
         completion_event = WorkflowCompleted(
+            workflow_type="event_chain",
+            workflow_duration_ms=2500,
             success=True,
-            summary="Test workflow completed successfully",
+            summary={"message": "Test workflow completed successfully", "orders": 1},
             correlation_id=event.correlation_id,
             causation_id=event.event_id,
             event_id=f"completion-{uuid.uuid4()}",
             timestamp=datetime.now(UTC),
-            source_module="execution_v2"
+            source_module="execution_v2",
+            source_component="MockExecutionHandler",
         )
-        
+
         self.event_bus.publish(completion_event)
     
     def can_handle(self, event_type: str) -> bool:
@@ -162,6 +192,9 @@ class TestEventDrivenWorkflow:
         
         # Subscribe to all event types for monitoring using the global handler
         self.event_bus.subscribe_global(self.event_collector)
+
+        # Convenience alias for assertions
+        self.events_received = self.event_collector.events_received
         
         # Test data
         self.correlation_id = f"test-correlation-{uuid.uuid4()}"
@@ -188,15 +221,20 @@ class TestEventDrivenWorkflow:
         )
         
         signal_event = SignalGenerated(
-            signals_data={"strategy_name": "test_strategy", "generated_at": self.timestamp.isoformat()},
+            signals_data={
+                "strategy_name": "test_strategy",
+                "generated_at": self.timestamp.isoformat(),
+                "allocations": {k: str(v) for k, v in target_allocations.items()},
+            },
             consolidated_portfolio=consolidated_portfolio.model_dump(),
-            signal_count=1,
+            signal_count=len(target_allocations),
+            metadata={"source": "integration-test"},
             correlation_id=self.correlation_id,
             causation_id=self.causation_id,
             event_id=f"signal-{uuid.uuid4()}",
             timestamp=self.timestamp,
             source_module="strategy_v2",
-            schema_version="1.0"
+            source_component="MockStrategy",
         )
         
         # Publish the event
@@ -235,13 +273,20 @@ class TestEventDrivenWorkflow:
         )
         
         signal_event = SignalGenerated(
-            consolidated_portfolio=consolidated_portfolio,
+            signals_data={
+                "strategy_name": "test_strategy",
+                "generated_at": self.timestamp.isoformat(),
+                "allocations": {k: str(v) for k, v in target_allocations.items()},
+            },
+            consolidated_portfolio=consolidated_portfolio.model_dump(),
+            signal_count=len(target_allocations),
+            metadata={"source": "integration-test"},
             correlation_id=self.correlation_id,
             causation_id=self.causation_id,
             event_id=f"signal-{uuid.uuid4()}",
             timestamp=self.timestamp,
             source_module="strategy_v2",
-            schema_version="1.0"
+            source_component="MockStrategy",
         )
         
         # Trigger the workflow
@@ -252,15 +297,19 @@ class TestEventDrivenWorkflow:
         assert execution_handler.called, "Execution handler should have been called"
         
         # Verify event sequence
-        assert len(self.event_collector.events_received) == 4  # Signal + Rebalance + Trade + Completion
+        assert len(self.events_received) == 4  # Signal + Rebalance + Trade + Completion
         
-        # Verify event types in order
-        event_types = [type(event).__name__ for event in self.event_collector.events_received]
+    # Verify event types in chronological order. EventBus stores events in LIFO order
+    # when using a global handler, so sort by timestamp to assert publishing sequence.
+        event_types = [
+            type(event).__name__
+            for event in sorted(self.events_received, key=lambda evt: evt.timestamp)
+        ]
         expected_types = ["SignalGenerated", "RebalancePlanned", "TradeExecuted", "WorkflowCompleted"]
         assert event_types == expected_types, f"Expected {expected_types}, got {event_types}"
         
         # Verify correlation ID propagation
-        for event in self.event_collector.events_received:
+        for event in self.events_received:
             assert event.correlation_id == self.correlation_id, f"Correlation ID not propagated to {type(event).__name__}"
     
     def test_workflow_failure_scenario(self):
@@ -274,13 +323,17 @@ class TestEventDrivenWorkflow:
             
             # Simulate portfolio analysis failure
             failure_event = WorkflowFailed(
-                error_message="Portfolio analysis failed - insufficient data",
-                error_code="PORTFOLIO_ANALYSIS_ERROR",
+                workflow_type="portfolio_analysis",
+                failure_reason="Portfolio analysis failed - insufficient data",
+                failure_step="portfolio_signal_validation",
+                error_details={"error_code": "PORTFOLIO_ANALYSIS_ERROR"},
+                metadata={"scenario": "failure"},
                 correlation_id=event.correlation_id,
                 causation_id=event.event_id,
                 event_id=f"failure-{uuid.uuid4()}",
                 timestamp=datetime.now(UTC),
-                source_module="portfolio_v2"
+                source_module="portfolio_v2",
+                source_component="MockPortfolioHandler",
             )
             
             self.event_bus.publish(failure_event)
@@ -300,13 +353,20 @@ class TestEventDrivenWorkflow:
         )
         
         signal_event = SignalGenerated(
-            consolidated_portfolio=consolidated_portfolio,
+            signals_data={
+                "strategy_name": "test_strategy",
+                "generated_at": self.timestamp.isoformat(),
+                "allocations": {k: str(v) for k, v in target_allocations.items()},
+            },
+            consolidated_portfolio=consolidated_portfolio.model_dump(),
+            signal_count=len(target_allocations),
+            metadata={"scenario": "failure"},
             correlation_id=self.correlation_id,
             causation_id=self.causation_id,
             event_id=f"signal-{uuid.uuid4()}",
             timestamp=self.timestamp,
             source_module="strategy_v2",
-            schema_version="1.0"
+            source_component="MockStrategy",
         )
         
         # Trigger the workflow
@@ -316,11 +376,12 @@ class TestEventDrivenWorkflow:
         assert failure_handler_called, "Failure handler should have been called"
         assert len(self.events_received) == 2  # Signal + Failure
         
-        # Verify WorkflowFailed event
-        failure_event = self.events_received[1]
-        assert isinstance(failure_event, WorkflowFailed)
+        # Verify WorkflowFailed event regardless of delivery order
+        failure_event = next(
+            event for event in self.events_received if isinstance(event, WorkflowFailed)
+        )
         assert failure_event.correlation_id == self.correlation_id
-        assert "Portfolio analysis failed" in failure_event.error_message
+        assert "Portfolio analysis failed" in failure_event.failure_reason
     
     def test_event_idempotency_replay_scenario(self):
         """Test event idempotency by replaying duplicate events."""
@@ -346,13 +407,20 @@ class TestEventDrivenWorkflow:
         )
         
         signal_event = SignalGenerated(
-            consolidated_portfolio=consolidated_portfolio,
+            signals_data={
+                "strategy_name": "test_strategy",
+                "generated_at": self.timestamp.isoformat(),
+                "allocations": {k: str(v) for k, v in target_allocations.items()},
+            },
+            consolidated_portfolio=consolidated_portfolio.model_dump(),
+            signal_count=len(target_allocations),
+            metadata={"scenario": "replay"},
             correlation_id=self.correlation_id,
             causation_id=self.causation_id,
             event_id=event_id,
             timestamp=self.timestamp,
             source_module="strategy_v2",
-            schema_version="1.0"
+            source_component="MockStrategy",
         )
         
         # Publish the same event multiple times (replay scenario)

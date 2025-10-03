@@ -1,4 +1,4 @@
-"""Business Unit: portfolio | Status: current
+"""Business Unit: portfolio | Status: current.
 
 Test negative cash balance liquidation in portfolio state reader.
 
@@ -7,7 +7,7 @@ negative or zero cash balances, then re-checks before raising exceptions.
 """
 
 from decimal import Decimal
-from unittest.mock import Mock, call
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -24,7 +24,9 @@ class TestNegativeCashLiquidation:
     @pytest.fixture
     def mock_alpaca_manager(self):
         """Create mock Alpaca manager."""
-        return Mock()
+        manager = Mock()
+        manager.close_all_positions.return_value = []
+        return manager
 
     @pytest.fixture
     def data_adapter(self, mock_alpaca_manager):
@@ -38,29 +40,23 @@ class TestNegativeCashLiquidation:
 
     def test_negative_cash_triggers_liquidation_and_continues(self, state_reader, mock_alpaca_manager):
         """Test that negative cash balance triggers automatic liquidation and continues trading."""
-        # Setup mock to return negative cash, then positive cash after liquidation
-        mock_alpaca_manager.get_account.side_effect = [
-            {"cash": "-100.50"},  # First call - negative
-            {"cash": "500.00"},   # Second call after liquidation - positive
-        ]
-        # Positions should be called twice: once initially, once after liquidation
-        mock_alpaca_manager.get_positions.side_effect = [
-            [],  # Initial positions (before cash check)
-            [],  # After liquidation (should be empty)
-        ]
+        # Setup mock to return negative cash initially
+        mock_alpaca_manager.get_account.return_value = {"cash": "-100.50"}
         mock_alpaca_manager.close_all_positions.return_value = [
             {"symbol": "AAPL", "status": "closed"},
             {"symbol": "MSFT", "status": "closed"},
         ]
 
-        # Should succeed and return snapshot since liquidation recovers cash
-        snapshot = state_reader.build_portfolio_snapshot()
+        with patch.object(
+            state_reader,
+            "_wait_for_settlement",
+            return_value=(Decimal("500.00"), {}),
+        ):
+            # Should succeed and return snapshot since liquidation recovers cash
+            snapshot = state_reader.build_portfolio_snapshot()
 
         # Verify that close_all_positions was called
         mock_alpaca_manager.close_all_positions.assert_called_once_with(cancel_orders=True)
-        
-        # Verify that get_account was called twice (before and after liquidation)
-        assert mock_alpaca_manager.get_account.call_count == 2
         
         # Verify snapshot was created successfully
         assert snapshot is not None
@@ -70,49 +66,42 @@ class TestNegativeCashLiquidation:
         self, state_reader, mock_alpaca_manager
     ):
         """Test that exception is raised when cash remains negative after liquidation."""
-        # Setup mock to return negative cash both times
-        mock_alpaca_manager.get_account.side_effect = [
-            {"cash": "-100.50"},  # First call - negative
-            {"cash": "-50.00"},   # Second call after liquidation - still negative
-        ]
-        mock_alpaca_manager.get_positions.side_effect = [
-            [],  # Initial positions
-            [],  # After liquidation
-        ]
+        # Setup mock to return negative cash
+        mock_alpaca_manager.get_account.return_value = {"cash": "-100.50"}
         mock_alpaca_manager.close_all_positions.return_value = [
             {"symbol": "AAPL", "status": "closed"},
         ]
 
-        # Should raise exception because cash is still negative
-        with pytest.raises(NegativeCashBalanceError) as exc_info:
-            state_reader.build_portfolio_snapshot()
+        with patch.object(
+            state_reader,
+            "_wait_for_settlement",
+            return_value=(Decimal("-50.00"), {}),
+        ):
+            # Should raise exception because cash is still negative
+            with pytest.raises(NegativeCashBalanceError) as exc_info:
+                state_reader.build_portfolio_snapshot()
 
         # Verify liquidation was attempted
         mock_alpaca_manager.close_all_positions.assert_called_once_with(cancel_orders=True)
-        
-        # Verify that get_account was called twice
-        assert mock_alpaca_manager.get_account.call_count == 2
-        
+
         # Exception should contain the final cash balance
         assert "-50.00" in str(exc_info.value.cash_balance)
 
     def test_zero_cash_triggers_liquidation_and_continues(self, state_reader, mock_alpaca_manager):
         """Test that zero cash balance triggers liquidation and continues if recovery succeeds."""
-        # Setup mock to return zero cash, then positive cash after liquidation
-        mock_alpaca_manager.get_account.side_effect = [
-            {"cash": "0.00"},     # First call - zero
-            {"cash": "100.00"},   # Second call after liquidation - positive
-        ]
-        mock_alpaca_manager.get_positions.side_effect = [
-            [],  # Initial positions
-            [],  # After liquidation
-        ]
+        # Setup mock to return zero cash initially
+        mock_alpaca_manager.get_account.return_value = {"cash": "0.00"}
         mock_alpaca_manager.close_all_positions.return_value = [
             {"symbol": "TSLA", "status": "closed"},
         ]
 
-        # Should succeed and return snapshot
-        snapshot = state_reader.build_portfolio_snapshot()
+        with patch.object(
+            state_reader,
+            "_wait_for_settlement",
+            return_value=(Decimal("100.00"), {}),
+        ):
+            # Should succeed and return snapshot
+            snapshot = state_reader.build_portfolio_snapshot()
 
         # Verify that close_all_positions was called
         mock_alpaca_manager.close_all_positions.assert_called_once()
@@ -124,10 +113,7 @@ class TestNegativeCashLiquidation:
     def test_liquidation_api_failure_handled(self, state_reader, mock_alpaca_manager):
         """Test that liquidation API failures are handled gracefully."""
         # Setup mock to return negative cash
-        mock_alpaca_manager.get_account.side_effect = [
-            {"cash": "-100.50"},  # First call - negative
-            {"cash": "-100.50"},  # Second call after failed liquidation - still negative
-        ]
+        mock_alpaca_manager.get_account.return_value = {"cash": "-100.50"}
         mock_alpaca_manager.get_positions.return_value = []
         # Simulate API failure
         mock_alpaca_manager.close_all_positions.side_effect = Exception("API Error")
@@ -142,10 +128,7 @@ class TestNegativeCashLiquidation:
     def test_no_positions_to_liquidate(self, state_reader, mock_alpaca_manager):
         """Test behavior when there are no positions to liquidate."""
         # Setup mock to return negative cash with no positions
-        mock_alpaca_manager.get_account.side_effect = [
-            {"cash": "-50.00"},   # First call - negative
-            {"cash": "-50.00"},   # Second call after liquidation - still negative
-        ]
+        mock_alpaca_manager.get_account.return_value = {"cash": "-50.00"}
         mock_alpaca_manager.get_positions.return_value = []
         # Empty result when no positions to close
         mock_alpaca_manager.close_all_positions.return_value = []

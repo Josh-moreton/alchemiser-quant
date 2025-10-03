@@ -12,6 +12,7 @@ from unittest.mock import Mock, patch
 import uuid
 
 import pytest
+from pydantic import ValidationError
 
 from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
@@ -200,15 +201,13 @@ class TestTradesRequiredLogic:
 
     def test_trades_required_false_with_empty_plan(self):
         """Test that trades_required=False when plan has no items."""
-        plan = RebalancePlan(
-            plan_id=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
-            causation_id=str(uuid.uuid4()),
-            timestamp=datetime.now(UTC),
-            total_portfolio_value=Decimal("10000.00"),
-            total_trade_value=Decimal("0.00"),
-            items=[],
-        )
-
-        trades_required = any(item.action in ["BUY", "SELL"] for item in plan.items)
-        assert trades_required is False, "Should be False when no items present"
+        with pytest.raises(ValidationError):
+            RebalancePlan(
+                plan_id=str(uuid.uuid4()),
+                correlation_id=str(uuid.uuid4()),
+                causation_id=str(uuid.uuid4()),
+                timestamp=datetime.now(UTC),
+                total_portfolio_value=Decimal("10000.00"),
+                total_trade_value=Decimal("0.00"),
+                items=[],
+            )

@@ -10,7 +10,7 @@ import pytest
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 from typing import Dict, List, Any
 
 # Test imports
@@ -97,27 +97,52 @@ class TestTradingSystemWorkflow:
         self.correlation_id = f"func-test-{uuid.uuid4()}"
         self.test_timestamp = datetime.now(UTC)
     
-    @patch('the_alchemiser.shared.config.container.ApplicationContainer.create_for_testing')
-    def test_trading_system_initialization(self, mock_container_factory):
+    @patch('the_alchemiser.orchestration.system.TradingSystem._initialize_event_orchestration')
+    @patch('the_alchemiser.shared.utils.service_factory.ServiceFactory.initialize')
+    @patch('the_alchemiser.orchestration.system.ApplicationContainer')
+    @patch('the_alchemiser.orchestration.system.load_settings')
+    def test_trading_system_initialization(
+        self,
+        mock_load_settings,
+        mock_application_container,
+        mock_service_factory_initialize,
+        mock_event_init,
+        mock_container,
+    ):
         """Test TradingSystem initialization with mocked dependencies."""
-        # Setup mock container
-        mock_container_instance = mock_container()
-        mock_container_factory.return_value = mock_container_instance
+        mock_settings = Mock()
+        mock_settings.alpaca = Mock(paper_trading=True)
+        mock_load_settings.return_value = mock_settings
+        mock_application_container.return_value = mock_container
         
         # Initialize trading system
         trading_system = TradingSystem()
         
         # Verify initialization
         assert trading_system is not None
-        mock_container_factory.assert_called_once()
+        assert trading_system.container is mock_container
+        mock_application_container.assert_called_once()
+        mock_service_factory_initialize.assert_called_once_with(mock_container)
+        mock_event_init.assert_called_once()
     
-    @patch('the_alchemiser.orchestration.system.TradingSystem._initialize_event_driven_orchestrator')
-    @patch('the_alchemiser.shared.config.container.ApplicationContainer.create_for_testing')
-    def test_trading_execution_with_mocked_dependencies(self, mock_container_factory, mock_orchestrator_init):
+    @patch('the_alchemiser.orchestration.system.TradingSystem._initialize_event_orchestration')
+    @patch('the_alchemiser.shared.utils.service_factory.ServiceFactory.initialize')
+    @patch('the_alchemiser.orchestration.system.ApplicationContainer')
+    @patch('the_alchemiser.orchestration.system.load_settings')
+    def test_trading_execution_with_mocked_dependencies(
+        self,
+        mock_load_settings,
+        mock_application_container,
+        mock_service_factory_initialize,
+        mock_event_init,
+        mock_container,
+    ):
         """Test complete trading execution with all dependencies mocked."""
-        # Setup mock container
-        mock_container_instance = mock_container()
-        mock_container_factory.return_value = mock_container_instance
+        mock_settings = Mock()
+        mock_settings.alpaca = Mock(paper_trading=True)
+        mock_load_settings.return_value = mock_settings
+        mock_application_container.return_value = mock_container
+        mock_event_init.side_effect = lambda *args, **kwargs: None
         
         # Setup mock orchestrator
         mock_orchestrator = Mock()
@@ -127,10 +152,9 @@ class TestTradingSystemWorkflow:
             "total_value": 50000.0,
             "correlation_id": self.correlation_id
         }
-        mock_orchestrator_init.return_value = mock_orchestrator
-        
-        # Initialize and execute trading system
+        # Initialize trading system and inject orchestrator
         trading_system = TradingSystem()
+        trading_system.event_driven_orchestrator = mock_orchestrator
         
         # Mock the execute_trading method to avoid complex orchestration
         with patch.object(trading_system, 'execute_trading') as mock_execute:

@@ -114,7 +114,7 @@ class TestTradingScenarios:
                 "PG": Decimal("0.15"),    # Consumer defensive
                 "KO": Decimal("0.15"),    # Consumer defensive
                 "WMT": Decimal("0.15"),   # Consumer defensive
-                "XOM": Decimal("0.13"),   # Energy
+                "XOM": Decimal("0.15"),   # Energy
             },
             correlation_id=str(uuid.uuid4()),
             as_of=datetime.now(UTC),
@@ -226,7 +226,7 @@ class TestTradingScenarios:
                 "VTI": Decimal("0.3"),   # Reduce equity from 60% to 30%
                 "BND": Decimal("0.4"),   # Increase bonds from 20% to 40%
                 "VMOT": Decimal("0.2"),  # Add treasury bills
-                "Cash": Decimal("0.1"),  # Hold more cash
+                "CASH": Decimal("0.1"),  # Hold more cash
             },
             correlation_id=str(uuid.uuid4()),
             as_of=datetime.now(UTC),
@@ -241,7 +241,9 @@ class TestTradingScenarios:
         # Business validation - more conservative allocation
         equity_allocation = defensive_targets["VTI"] / post_drop_value
         bond_allocation = defensive_targets["BND"] / post_drop_value
-        cash_allocation = (defensive_targets["VMOT"] + defensive_targets["Cash"]) / post_drop_value
+        cash_allocation = (
+            defensive_targets["VMOT"] + defensive_targets["CASH"]
+        ) / post_drop_value
         
         assert equity_allocation == Decimal("0.3")  # 30% equity
         assert bond_allocation == Decimal("0.4")    # 40% bonds
@@ -339,7 +341,7 @@ class TestTradingScenarios:
         # Reinvest dividends proportionally
         reinvestment_allocation = {}
         for symbol, weight in current_allocation.target_weights.items():
-            if symbol != "Cash":  # Don't reinvest into cash
+            if symbol != "CASH":  # Don't reinvest into cash
                 reinvestment_allocation[symbol] = total_dividends * weight
         
         # Business validation

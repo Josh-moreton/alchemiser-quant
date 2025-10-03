@@ -24,7 +24,9 @@ class TestNegativeCashHandling:
     @pytest.fixture
     def mock_alpaca_manager(self):
         """Create mock Alpaca manager."""
-        return Mock()
+        manager = Mock()
+        manager.close_all_positions.return_value = []
+        return manager
 
     @pytest.fixture
     def data_adapter(self, mock_alpaca_manager):
@@ -106,7 +108,7 @@ class TestNegativeCashHandling:
 
         # Verify the exception has correct details
         assert exc_info.value.cash_balance == "-50.00"
-        assert "trading requires positive cash balance" in str(exc_info.value).lower()
+        assert "trading cannot proceed" in str(exc_info.value).lower()
 
     def test_very_small_positive_cash_succeeds(self, state_reader, mock_alpaca_manager):
         """Test that very small positive cash (e.g., $0.01) succeeds."""
@@ -136,6 +138,6 @@ class TestNegativeCashHandling:
             state_reader.build_portfolio_snapshot()
 
         error_message = str(exc_info.value)
-        # Message should mention the specific amount and requirement
+        # Message should mention the specific amount and liquidation failure
         assert "-250.75" in error_message
-        assert "positive cash balance" in error_message.lower()
+        assert "liquidation failed" in error_message.lower()

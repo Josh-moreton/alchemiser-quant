@@ -7,7 +7,7 @@ idempotency, correlation tracking, and business rule validation in events.
 """
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import Mock
 
@@ -90,7 +90,7 @@ class TestEventBusinessLogic:
         rebalance_event.correlation_id = correlation_id
         rebalance_event.causation_id = signal_event.event_id
         rebalance_event.event_id = str(uuid.uuid4())
-        rebalance_event.timestamp = base_time.replace(second=base_time.second + 1)
+        rebalance_event.timestamp = base_time + timedelta(seconds=1)
         rebalance_event.event_type = "RebalancePlanned"
         rebalance_event.sequence_number = 2
         
@@ -98,7 +98,7 @@ class TestEventBusinessLogic:
         execution_event.correlation_id = correlation_id
         execution_event.causation_id = rebalance_event.event_id
         execution_event.event_id = str(uuid.uuid4())
-        execution_event.timestamp = base_time.replace(second=base_time.second + 2)
+        execution_event.timestamp = base_time + timedelta(seconds=2)
         execution_event.event_type = "TradeExecuted"
         execution_event.sequence_number = 3
         
