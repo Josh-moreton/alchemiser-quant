@@ -73,6 +73,34 @@ jobs:
             - name: Build (matching target env)
               run: sam build --parallel --config-env "${{ steps.target.outputs.env }}"
 
+            - name: Prepare environment variables (dev)
+              if: steps.target.outputs.env == 'dev'
+              env:
+                ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+                ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
+                ALPACA_ENDPOINT: ${{ secrets.ALPACA_ENDPOINT }}
+              run: |
+                echo "Exporting dev ALPACA_* env vars for deploy.sh"
+                echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
+                echo "ALPACA_SECRET=$ALPACA_SECRET" >> $GITHUB_ENV
+                if [ -n "$ALPACA_ENDPOINT" ]; then echo "ALPACA_ENDPOINT=$ALPACA_ENDPOINT" >> $GITHUB_ENV; fi
+
+            - name: Prepare environment file (prod)
+              if: steps.target.outputs.env == 'prod'
+              env:
+                LIVE_ALPACA_KEY: ${{ secrets.LIVE_ALPACA_KEY }}
+                LIVE_ALPACA_SECRET: ${{ secrets.LIVE_ALPACA_SECRET }}
+                LIVE_ALPACA_ENDPOINT: ${{ secrets.LIVE_ALPACA_ENDPOINT }}
+                EMAIL__PASSWORD: ${{ secrets.EMAIL__PASSWORD }}
+              run: |
+                echo "Writing .env for prod (values redacted)"
+                {
+                  echo "LIVE_ALPACA_KEY=$LIVE_ALPACA_KEY"
+                  echo "LIVE_ALPACA_SECRET=$LIVE_ALPACA_SECRET"
+                  [ -n "$LIVE_ALPACA_ENDPOINT" ] && echo "LIVE_ALPACA_ENDPOINT=$LIVE_ALPACA_ENDPOINT" || true
+                  [ -n "$EMAIL__PASSWORD" ] && echo "EMAIL__PASSWORD=$EMAIL__PASSWORD" || true
+                } > .env
+
             - name: Deploy
               run: |
                   chmod +x scripts/deploy.sh
