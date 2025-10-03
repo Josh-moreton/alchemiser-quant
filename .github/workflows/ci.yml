@@ -1,57 +1,57 @@
 name: CI
 
 on:
-  pull_request:
-    branches: [ main ]
-  push:
-    branches: [ main ]
+    pull_request:
+        branches: [main]
+    push:
+        branches: [main]
 
 permissions:
-  contents: read
+    contents: read
 
 env:
-  AWS_PAGER: ""
+    AWS_PAGER: ""
 
 jobs:
-  ci:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    ci:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: 1.8.3
-          virtualenvs-create: true
-          virtualenvs-in-project: true
+            - name: Install Poetry
+              uses: snok/install-poetry@v1
+              with:
+                  version: 1.8.3
+                  virtualenvs-create: true
+                  virtualenvs-in-project: true
 
-      - name: Cache venv
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+            - name: Cache venv
+              uses: actions/cache@v4
+              with:
+                  path: .venv
+                  key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
 
-      - name: Install dependencies
-        run: poetry install --with dev --no-interaction
+            - name: Install dependencies
+              run: poetry install --with dev --no-interaction
 
-      - name: Format & Lint
-        run: |
-          make format
-          make lint
+            - name: Format & Lint
+              run: |
+                  make format
+                  make lint
 
-      - name: Type check
-        run: make type-check
+            - name: Type check
+              run: make type-check
 
-      - name: Run tests
-        env:
-          PYTHONHASHSEED: "0"
-        run: poetry run pytest -q
+            - name: Run tests
+              env:
+                  PYTHONHASHSEED: "0"
+              run: poetry run pytest -q
 
-      - name: Validate SAM build (dev)
-        uses: aws-actions/setup-sam@v2
-      - run: sam build --parallel --config-env dev
+            - name: Validate SAM build (dev)
+              uses: aws-actions/setup-sam@v2
+            - run: sam build --parallel --config-env dev
