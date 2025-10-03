@@ -30,6 +30,7 @@ from the_alchemiser.shared.events import (
     WorkflowFailed,
     WorkflowStarted,
 )
+from the_alchemiser.shared.events.handlers import EventHandler as SharedEventHandler
 from the_alchemiser.shared.logging import get_logger
 
 
@@ -60,7 +61,7 @@ class StateCheckingHandlerWrapper:
 
     def __init__(
         self,
-        wrapped_handler: EventHandlerProtocol,
+        wrapped_handler: SharedEventHandler,
         orchestrator: EventDrivenOrchestrator,
         event_type: str,
         logger: Logger,
@@ -74,7 +75,7 @@ class StateCheckingHandlerWrapper:
             logger: Logger instance
 
         """
-        self.wrapped_handler: EventHandlerProtocol = wrapped_handler
+        self.wrapped_handler: SharedEventHandler = wrapped_handler
         self.orchestrator: EventDrivenOrchestrator = orchestrator
         self.event_type: str = event_type
         self.logger: Logger = logger
@@ -226,10 +227,14 @@ class EventDrivenOrchestrator:
                 event_bus._handlers[event_type].clear()
 
                 for handler in original_handlers:
-                    wrapped_handler = StateCheckingHandlerWrapper(
-                        handler, self, event_type, self.logger
-                    )
-                    event_bus._handlers[event_type].append(wrapped_handler)
+                    # Only wrap real EventHandler implementations; pass through plain callables
+                    if isinstance(handler, SharedEventHandler):
+                        wrapped_handler = StateCheckingHandlerWrapper(
+                            handler, self, event_type, self.logger
+                        )
+                        event_bus._handlers[event_type].append(wrapped_handler)
+                    else:
+                        event_bus._handlers[event_type].append(handler)
 
     def start_trading_workflow(self, *, correlation_id: str | None = None) -> str:
         """Start a complete trading workflow via event-driven coordination.

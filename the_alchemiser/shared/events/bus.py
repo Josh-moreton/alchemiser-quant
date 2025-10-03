@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Callable
-from inspect import signature
 from typing import Any, Protocol
 
 from ..logging import get_logger
@@ -41,8 +40,8 @@ class EventBus:
     def __init__(self) -> None:
         """Initialize the event bus."""
         self.logger = get_logger(__name__)
-        self._handlers: dict[str, list[EventHandler | Callable[[BaseEvent], None]]] = (
-            defaultdict(list)
+        self._handlers: dict[str, list[EventHandler | Callable[[BaseEvent], None]]] = defaultdict(
+            list
         )
         self._global_handlers: list[EventHandler | Callable[[BaseEvent], None]] = []
         self._event_count = 0
@@ -68,16 +67,12 @@ class EventBus:
 
         # Accept either an EventHandler implementation or a plain callable(event)
         if not (isinstance(handler, EventHandler) or callable(handler)):
-            raise ValueError(
-                "Handler must implement EventHandler protocol or be a callable(event)"
-            )
+            raise ValueError("Handler must implement EventHandler protocol or be a callable(event)")
 
         self._handlers[event_type].append(handler)
         self.logger.debug(f"Subscribed handler to event type: {event_type}")
 
-    def subscribe_global(
-        self, handler: EventHandler | Callable[[BaseEvent], None]
-    ) -> None:
+    def subscribe_global(self, handler: EventHandler | Callable[[BaseEvent], None]) -> None:
         """Subscribe a handler to all events.
 
         Args:
@@ -88,9 +83,7 @@ class EventBus:
 
         """
         if not (isinstance(handler, EventHandler) or callable(handler)):
-            raise ValueError(
-                "Handler must implement EventHandler protocol or be a callable(event)"
-            )
+            raise ValueError("Handler must implement EventHandler protocol or be a callable(event)")
 
         self._global_handlers.append(handler)
         self.logger.debug("Subscribed global event handler")
@@ -159,16 +152,13 @@ class EventBus:
 
         for handler in handlers_to_notify:
             try:
-                # Check if handler can handle this event type (EventHandler only)
-                if hasattr(handler, "can_handle"):
+                if isinstance(handler, EventHandler):
+                    # Check if this handler wants this event type
                     try:
-                        # type: ignore[attr-defined]
-                        if not handler.can_handle(
-                            event_type
-                        ):  # pragma: no cover - structural
+                        if not handler.can_handle(event_type):  # pragma: no cover - structural
                             continue
                     except Exception as exc:
-                        # If can_handle is present but fails, proceed to attempt handling but log
+                        # If can_handle raises, proceed but log
                         self.logger.warning(
                             "can_handle() raised exception; proceeding to handle",
                             extra={
@@ -178,21 +168,8 @@ class EventBus:
                             },
                         )
 
-                # Resolve callable to invoke
-                if hasattr(handler, "handle_event") and callable(handler.handle_event):
-                    method = handler.handle_event  # type: ignore[attr-defined]
-                    # Some tests provide a function without self bound; detect expected params
-                    func = getattr(method, "__func__", method)
-                    try:
-                        if len(signature(func).parameters) == 1:
-                            # Function expects only (event)
-                            func(event)
-                        else:
-                            # Bound method expects (self, event)
-                            method(event)  # type: ignore[misc]
-                    except ValueError:
-                        # Fallback if signature inspection fails
-                        method(event)  # type: ignore[misc]
+                    # Delegate to handler implementation
+                    handler.handle_event(event)
                 elif callable(handler):
                     # Plain callable passed directly to subscribe
                     handler(event)
@@ -266,16 +243,13 @@ class EventBus:
             "total_events_published": self._event_count,
             "event_types_registered": list(self._handlers.keys()),
             "handlers_by_type": {
-                event_type: len(handlers)
-                for event_type, handlers in self._handlers.items()
+                event_type: len(handlers) for event_type, handlers in self._handlers.items()
             },
             "global_handlers": len(self._global_handlers),
             "total_handlers": self.get_handler_count(),
         }
 
-    def set_workflow_state_checker(
-        self, state_checker: WorkflowStateChecker | None
-    ) -> None:
+    def set_workflow_state_checker(self, state_checker: WorkflowStateChecker | None) -> None:
         """Set the workflow state checker (orchestrator).
 
         Args:
@@ -296,15 +270,11 @@ class EventBus:
 
         """
         if self._workflow_state_checker is None:
-            self.logger.debug(
-                f"🔍 No workflow state checker available for {correlation_id}"
-            )
+            self.logger.debug(f"🔍 No workflow state checker available for {correlation_id}")
             return False
 
         result = self._workflow_state_checker.is_workflow_failed(correlation_id)
-        self.logger.debug(
-            f"🔍 Workflow state check result: {correlation_id} -> failed={result}"
-        )
+        self.logger.debug(f"🔍 Workflow state check result: {correlation_id} -> failed={result}")
         return result
 
     def is_workflow_active(self, correlation_id: str) -> bool:
