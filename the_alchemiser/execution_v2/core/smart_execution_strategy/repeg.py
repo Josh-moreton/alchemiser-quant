@@ -317,8 +317,7 @@ class RepegManager:
 
         """
         return bool(
-            executed_order.order_id
-            and executed_order.status not in ["REJECTED", "CANCELED"]
+            executed_order.order_id and executed_order.status not in ["REJECTED", "CANCELED"]
         )
 
     def _create_market_escalation_metadata(
@@ -341,9 +340,7 @@ class RepegManager:
         return {
             "original_order_id": order_id,
             "original_price": (float(original_anchor) if original_anchor is not None else None),
-            "new_price": (
-                float(executed_order.price) if executed_order.price is not None else 0.0
-            ),
+            "new_price": (float(executed_order.price) if executed_order.price is not None else 0.0),
         }
 
     def _build_successful_market_escalation_result(
@@ -569,10 +566,8 @@ class RepegManager:
             max_repegs=self.config.max_repegs_per_order,
         )
 
-        metadata_dict = self._create_repeg_metadata(
-            order_id, original_anchor, new_price, quote
-        )
-        
+        metadata_dict = self._create_repeg_metadata(order_id, original_anchor, new_price, quote)
+
         return SmartOrderResult(
             success=True,
             order_id=executed_order.order_id,

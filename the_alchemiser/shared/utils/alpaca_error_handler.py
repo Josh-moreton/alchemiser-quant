@@ -449,9 +449,7 @@ class AlpacaErrorHandler:
             )
 
 
-def _calculate_retry_delay(
-    base_delay: float, backoff_factor: float, attempt: int
-) -> float:
+def _calculate_retry_delay(base_delay: float, backoff_factor: float, attempt: int) -> float:
     """Calculate retry delay with exponential backoff and jitter.
 
     Args:
@@ -468,7 +466,9 @@ def _calculate_retry_delay(
 
 
 def _should_raise_error(
-    transient: bool, attempt: int, max_retries: int  # noqa: FBT001
+    transient: bool,  # noqa: FBT001
+    attempt: int,
+    max_retries: int,
 ) -> bool:
     """Determine if error should be raised or retry should continue.
 
@@ -484,9 +484,7 @@ def _should_raise_error(
     return not transient or attempt == max_retries
 
 
-def _handle_retry_failure(
-    error: Exception, operation_name: str, attempt: int
-) -> None:
+def _handle_retry_failure(error: Exception, operation_name: str, attempt: int) -> None:
     """Handle final retry failure by logging and raising RuntimeError.
 
     Args:
