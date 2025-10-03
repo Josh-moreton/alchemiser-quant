@@ -12,6 +12,7 @@ from alpaca.data.timeframe import TimeFrame
 
 from scripts.backtest.storage.data_store import DataStore
 from scripts.backtest.storage.providers.alpaca_historical import AlpacaHistoricalProvider
+from the_alchemiser.shared.config import env_loader  # noqa: F401  # auto-load .env
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
@@ -38,8 +39,12 @@ class DataManager:
             storage_path: Path for data storage
 
         """
-        api_key = alpaca_api_key or os.getenv("ALPACA_API_KEY")
-        secret_key = alpaca_secret_key or os.getenv("ALPACA_SECRET_KEY")
+        # Support both ALPACA_API_KEY/ALPACA_SECRET_KEY (backtest convention)
+        # and ALPACA_KEY/ALPACA_SECRET (shared secrets convention)
+        api_key = alpaca_api_key or os.getenv("ALPACA_API_KEY") or os.getenv("ALPACA_KEY")
+        secret_key = (
+            alpaca_secret_key or os.getenv("ALPACA_SECRET_KEY") or os.getenv("ALPACA_SECRET")
+        )
 
         if not api_key or not secret_key:
             raise ValueError(
