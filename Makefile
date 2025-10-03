@@ -26,6 +26,9 @@ help:
 	@echo "  stress-test-stateful-quick Run quick stress test in stateful mode"
 	@echo "  stress-test-dry-run      Show stress test plan without executing"
 	@echo ""
+	@echo "Backtesting Commands:"
+	@echo "  backtest-download        Download historical data for backtesting"
+	@echo ""
 	@echo "Testing Commands:"
 	@echo "  test            Run all tests"
 	@echo "  test-unit       Run unit tests only"
@@ -145,6 +148,11 @@ stress-test-stateful-quick:
 stress-test-dry-run:
 	@echo "🔥 Showing stress test execution plan..."
 	poetry run python scripts/stress_test.py --dry-run
+
+# Backtesting Commands
+backtest-download:
+	@echo "📊 Downloading historical data for backtesting..."
+	poetry run python scripts/backtest_download.py
 
 # Status command removed - use programmatic access via TradingSystem class
 
