@@ -40,8 +40,8 @@ class EventBus:
     def __init__(self) -> None:
         """Initialize the event bus."""
         self.logger = get_logger(__name__)
-        self._handlers: dict[str, list[EventHandler | Callable[[BaseEvent], None]]] = (
-            defaultdict(list)
+        self._handlers: dict[str, list[EventHandler | Callable[[BaseEvent], None]]] = defaultdict(
+            list
         )
         self._global_handlers: list[EventHandler | Callable[[BaseEvent], None]] = []
         self._event_count = 0
@@ -67,16 +67,12 @@ class EventBus:
 
         # Accept either an EventHandler implementation or a plain callable(event)
         if not (isinstance(handler, EventHandler) or callable(handler)):
-            raise ValueError(
-                "Handler must implement EventHandler protocol or be a callable(event)"
-            )
+            raise ValueError("Handler must implement EventHandler protocol or be a callable(event)")
 
         self._handlers[event_type].append(handler)
         self.logger.debug(f"Subscribed handler to event type: {event_type}")
 
-    def subscribe_global(
-        self, handler: EventHandler | Callable[[BaseEvent], None]
-    ) -> None:
+    def subscribe_global(self, handler: EventHandler | Callable[[BaseEvent], None]) -> None:
         """Subscribe a handler to all events.
 
         Args:
@@ -87,9 +83,7 @@ class EventBus:
 
         """
         if not (isinstance(handler, EventHandler) or callable(handler)):
-            raise ValueError(
-                "Handler must implement EventHandler protocol or be a callable(event)"
-            )
+            raise ValueError("Handler must implement EventHandler protocol or be a callable(event)")
 
         self._global_handlers.append(handler)
         self.logger.debug("Subscribed global event handler")
@@ -122,6 +116,115 @@ class EventBus:
         except ValueError:
             self.logger.warning("Global handler not found")
 
+    def _collect_handlers(
+        self, event_type: str
+    ) -> list[EventHandler | Callable[[BaseEvent], None]]:
+        """Collect all handlers that should receive an event.
+
+        Args:
+            event_type: The type of event being published
+
+        Returns:
+            List of handlers to notify
+
+        """
+        handlers_to_notify: list[EventHandler | Callable[[BaseEvent], None]] = []
+
+        # Add specific handlers for this event type
+        if event_type in self._handlers:
+            handlers_to_notify.extend(self._handlers[event_type])
+
+        # Add global handlers
+        handlers_to_notify.extend(self._global_handlers)
+
+        return handlers_to_notify
+
+    def _invoke_handler(
+        self, handler: EventHandler | Callable[[BaseEvent], None], event: BaseEvent
+    ) -> tuple[bool, bool]:
+        """Invoke a single handler with an event.
+
+        Args:
+            handler: The handler to invoke
+            event: The event to pass to the handler
+
+        Returns:
+            Tuple of (was_invoked, had_error) where:
+            - was_invoked: True if handler was called, False if skipped (e.g., can_handle=False)
+            - had_error: True if handler raised an exception, False otherwise
+
+        """
+        event_type = event.event_type
+
+        try:
+            if isinstance(handler, EventHandler):
+                # Check if this handler wants this event type
+                if not self._can_handle_event(handler, event_type):
+                    return (False, False)  # Skipped, no error
+
+                # Delegate to handler implementation
+                handler.handle_event(event)
+            elif callable(handler):
+                # Plain callable passed directly to subscribe
+                handler(event)
+            else:
+                # Unknown handler type
+                raise TypeError("Unsupported handler type")
+            return (True, False)  # Successfully invoked, no error
+
+        except Exception as e:
+            self._log_handler_failure(handler, event, e)
+            return (True, True)  # Was invoked but had error
+
+    def _can_handle_event(self, handler: EventHandler, event_type: str) -> bool:
+        """Check if handler can handle an event type.
+
+        Args:
+            handler: The handler to check
+            event_type: The event type to check
+
+        Returns:
+            True if handler can handle the event, False otherwise
+
+        """
+        try:
+            return handler.can_handle(event_type)  # pragma: no cover - structural
+        except Exception as exc:
+            # If can_handle raises, proceed but log
+            self.logger.warning(
+                "can_handle() raised exception; proceeding to handle",
+                extra={
+                    "event_type": event_type,
+                    "handler": type(handler).__name__,
+                    "error": str(exc),
+                },
+            )
+            return True
+
+    def _log_handler_failure(
+        self,
+        handler: EventHandler | Callable[[BaseEvent], None],
+        event: BaseEvent,
+        error: Exception,
+    ) -> None:
+        """Log handler failure.
+
+        Args:
+            handler: The handler that failed
+            event: The event that was being processed
+            error: The exception that was raised
+
+        """
+        self.logger.error(
+            f"Handler {type(handler).__name__} failed to process event {event.event_id}: {error}",
+            extra={
+                "event_id": event.event_id,
+                "event_type": event.event_type,
+                "handler": type(handler).__name__,
+                "correlation_id": event.correlation_id,
+            },
+        )
+
     def publish(self, event: BaseEvent) -> None:
         """Publish an event to all relevant handlers.
 
@@ -143,61 +246,19 @@ class EventBus:
         )
 
         # Collect all handlers for this event type
-        handlers_to_notify: list[EventHandler | Callable[[BaseEvent], None]] = []
-
-        # Add specific handlers for this event type
-        if event_type in self._handlers:
-            handlers_to_notify.extend(self._handlers[event_type])
-
-        # Add global handlers
-        handlers_to_notify.extend(self._global_handlers)
+        handlers_to_notify = self._collect_handlers(event_type)
 
         # Notify all handlers
         successful_deliveries = 0
         failed_deliveries = 0
 
         for handler in handlers_to_notify:
-            try:
-                if isinstance(handler, EventHandler):
-                    # Check if this handler wants this event type
-                    try:
-                        if not handler.can_handle(
-                            event_type
-                        ):  # pragma: no cover - structural
-                            continue
-                    except Exception as exc:
-                        # If can_handle raises, proceed but log
-                        self.logger.warning(
-                            "can_handle() raised exception; proceeding to handle",
-                            extra={
-                                "event_type": event_type,
-                                "handler": type(handler).__name__,
-                                "error": str(exc),
-                            },
-                        )
-
-                    # Delegate to handler implementation
-                    handler.handle_event(event)
-                elif callable(handler):
-                    # Plain callable passed directly to subscribe
-                    handler(event)
+            was_invoked, had_error = self._invoke_handler(handler, event)
+            if was_invoked:
+                if had_error:
+                    failed_deliveries += 1
                 else:
-                    # Unknown handler type
-                    raise TypeError("Unsupported handler type")
-                successful_deliveries += 1
-
-            except Exception as e:
-                failed_deliveries += 1
-                self.logger.error(
-                    f"Handler {type(handler).__name__} failed to process event "
-                    f"{event.event_id}: {e}",
-                    extra={
-                        "event_id": event.event_id,
-                        "event_type": event_type,
-                        "handler": type(handler).__name__,
-                        "correlation_id": event.correlation_id,
-                    },
-                )
+                    successful_deliveries += 1
 
         self.logger.debug(
             f"Event {event.event_id} delivered to {successful_deliveries} handlers, "
@@ -251,16 +312,13 @@ class EventBus:
             "total_events_published": self._event_count,
             "event_types_registered": list(self._handlers.keys()),
             "handlers_by_type": {
-                event_type: len(handlers)
-                for event_type, handlers in self._handlers.items()
+                event_type: len(handlers) for event_type, handlers in self._handlers.items()
             },
             "global_handlers": len(self._global_handlers),
             "total_handlers": self.get_handler_count(),
         }
 
-    def set_workflow_state_checker(
-        self, state_checker: WorkflowStateChecker | None
-    ) -> None:
+    def set_workflow_state_checker(self, state_checker: WorkflowStateChecker | None) -> None:
         """Set the workflow state checker (orchestrator).
 
         Args:
@@ -281,15 +339,11 @@ class EventBus:
 
         """
         if self._workflow_state_checker is None:
-            self.logger.debug(
-                f"🔍 No workflow state checker available for {correlation_id}"
-            )
+            self.logger.debug(f"🔍 No workflow state checker available for {correlation_id}")
             return False
 
         result = self._workflow_state_checker.is_workflow_failed(correlation_id)
-        self.logger.debug(
-            f"🔍 Workflow state check result: {correlation_id} -> failed={result}"
-        )
+        self.logger.debug(f"🔍 Workflow state check result: {correlation_id} -> failed={result}")
         return result
 
     def is_workflow_active(self, correlation_id: str) -> bool:
