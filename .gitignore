@@ -57,8 +57,7 @@ pytest_cache/
 .pytest_cache/
 .hypothesis/
 test-results/
-coverage.xml
-.coverage.*
+
 
 # Build artifacts
 build/
