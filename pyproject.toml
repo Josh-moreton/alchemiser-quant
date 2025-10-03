@@ -17,6 +17,10 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 packages = [{include = "the_alchemiser"}]
+include = [
+    { path = "the_alchemiser/config/*.json", format = "sdist" },
+    { path = "the_alchemiser/config/*.json", format = "wheel" }
+]
 
 [tool.poetry.dependencies]
 python = ">=3.12,<4.0.0"
