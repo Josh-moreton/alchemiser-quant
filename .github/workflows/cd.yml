@@ -1,10 +1,15 @@
 name: CD
 
 on:
-  push:
+  # Gate dev deployment on CI success for main
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
+  # Allow prod deployments on release publish
   release:
     types: [published]
+  # Allow manual deploys for either environment
   workflow_dispatch:
     inputs:
       environment:
@@ -25,14 +30,29 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'release' && 'prod' || (github.event_name == 'workflow_dispatch' && inputs.environment || 'dev') }}
+    # Ensure only one deploy per environment runs at a time
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref || inputs.environment }}
+      cancel-in-progress: true
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout correct commit
+        uses: actions/checkout@v4
+        with:
+          # For workflow_run, use the commit from the CI run; else default to HEAD
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
 
       - name: Decide target environment
         id: target
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            # Only proceed if CI concluded successfully
+            if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
+              echo "CI did not succeed; skipping CD.";
+              exit 1;
+            fi
+            echo "env=dev" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "release" ]; then
             echo "env=prod" >> $GITHUB_OUTPUT
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "env=${{ inputs.environment }}" >> $GITHUB_OUTPUT
