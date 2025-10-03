@@ -22,6 +22,7 @@ from the_alchemiser.execution_v2.models.execution_result import (
     ExecutionStatus,
     OrderResult,
 )
+from the_alchemiser.execution_v2.services.trade_ledger import TradeLedgerService
 from the_alchemiser.execution_v2.utils.execution_validator import (
     ExecutionValidator,
 )
@@ -88,6 +89,9 @@ class Executor:
         self._order_finalizer: OrderFinalizer
         self._position_utils: PositionUtils
         self._phase_executor: PhaseExecutor
+
+        # Initialize trade ledger service
+        self.trade_ledger = TradeLedgerService()
 
         # Initialize smart execution if enabled
         try:
@@ -334,6 +338,9 @@ class Executor:
         # Clean up subscriptions after execution
         self._cleanup_subscriptions(all_symbols)
 
+        # Record filled orders to trade ledger
+        self._record_orders_to_ledger(orders, plan)
+
         # Classify execution status
         success, status = ExecutionResult.classify_execution_status(orders_placed, orders_succeeded)
 
@@ -565,6 +572,26 @@ class Executor:
     ) -> tuple[list[OrderResult], int, Decimal]:
         """Wait for placed orders to complete and rebuild results based on final status."""
         return self._order_finalizer.finalize_phase_orders(orders, items, phase_type)
+
+    def _record_orders_to_ledger(
+        self, orders: list[OrderResult], plan: RebalancePlan
+    ) -> None:
+        """Record filled orders to trade ledger.
+
+        Args:
+            orders: List of order results to record
+            plan: Rebalance plan with strategy attribution metadata
+
+        """
+        for order in orders:
+            if order.success and order.order_id:
+                # Record order to ledger (quote data not available in this context)
+                self.trade_ledger.record_filled_order(
+                    order_result=order,
+                    correlation_id=plan.correlation_id,
+                    rebalance_plan=plan,
+                    quote_at_fill=None,  # Quote data not available in current flow
+                )
 
     def shutdown(self) -> None:
         """Shutdown the executor and cleanup resources."""
