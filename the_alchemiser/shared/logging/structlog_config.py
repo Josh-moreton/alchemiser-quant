@@ -10,11 +10,15 @@ from __future__ import annotations
 
 import logging
 import sys
+from dataclasses import asdict, is_dataclass
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 import structlog
+
+from the_alchemiser.shared.value_objects.symbol import Symbol
 
 from .context import error_id_context, request_id_context
 
@@ -51,20 +55,45 @@ def add_alchemiser_context(
 
 
 def decimal_serializer(obj: Any) -> Any:  # noqa: ANN401
-    """Serialize Decimal objects for JSON output.
+    """Provide default JSON serialization for structlog JSONRenderer.
 
-    Args:
-        obj: Object to serialize
+    Supports common domain types used in The Alchemiser so logging never crashes:
+    - Decimal -> str (preserve precision)
+    - Symbol (dataclass) -> underlying string value
+    - Dataclass instances -> asdict conversion
+    - Pydantic-like models (model_dump) -> dumped dict
+    - Sets/Tuples -> list
+    - datetime -> ISO 8601 string
 
-    Returns:
-        String representation of Decimal, or raises TypeError for unsupported types
-
-    Raises:
-        TypeError: If object type is not JSON serializable
-
+    For unknown types, raise TypeError to let json detect unsupported objects (maintains tests).
     """
+    # Precise numbers
     if isinstance(obj, Decimal):
         return str(obj)
+
+    # Domain value objects
+    if isinstance(obj, Symbol):
+        return obj.value
+
+    # Dataclasses
+    if is_dataclass(obj) and not isinstance(obj, type):
+        return asdict(obj)
+
+    # Pydantic-like objects without importing pydantic directly
+    model_dump = getattr(obj, "model_dump", None)
+    if callable(model_dump):
+        try:
+            return model_dump()
+        except Exception:  # pragma: no cover - defensive
+            return str(obj)
+
+    # Common container/temporal types
+    if isinstance(obj, (set, tuple)):
+        return list(obj)
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+
+    # Keep strict behavior for unsupported types
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 

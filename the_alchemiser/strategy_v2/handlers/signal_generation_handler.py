@@ -161,6 +161,19 @@ class SignalGenerationHandler:
             signals
         )
 
+        # Instrumentation and fail-fast check for empty allocations
+        allocation_count = len(consolidated_portfolio_dict)
+        self.logger.info(
+            f"Built consolidated portfolio with {allocation_count} allocations",
+            extra={
+                "symbols": list(consolidated_portfolio_dict.keys())[:10],
+                "total_allocations": allocation_count,
+            },
+        )
+        if allocation_count == 0:
+            # Avoid constructing DTO with empty payload; surface actionable error
+            raise DataProviderError("No positive target allocations produced by strategy signals")
+
         # Create ConsolidatedPortfolio
         consolidated_portfolio = ConsolidatedPortfolio.from_dict_allocation(
             allocation_dict=consolidated_portfolio_dict,
