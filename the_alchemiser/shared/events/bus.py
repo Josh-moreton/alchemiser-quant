@@ -191,7 +191,9 @@ class EventBus:
         try:
             # Some dynamically-created handlers may define can_handle without 'self';
             # use a robust invocation that works for both styles.
-            return bool(self._safe_call_method(handler, "can_handle", event_type))  # pragma: no cover - structural
+            return bool(
+                self._safe_call_method(handler, "can_handle", event_type)
+            )  # pragma: no cover - structural
         except Exception as exc:
             # If can_handle raises, proceed but log
             self.logger.warning(
@@ -366,7 +368,9 @@ class EventBus:
 
     # --- Internal utilities -------------------------------------------------
 
-    def _safe_call_method(self, obj: object, method_name: str, *args: object, **kwargs: object) -> object:
+    def _safe_call_method(
+        self, obj: object, method_name: str, *args: object, **kwargs: object
+    ) -> object:
         """Safely call a method on an object, tolerating missing 'self' in signature.
 
         Some test handlers are created dynamically with methods defined as functions
@@ -408,7 +412,12 @@ class EventBus:
                     # than the bound method would expect (i.e., defined without 'self'),
                     # call it directly with provided args to avoid implicit 'self'.
                     sig = signature(underlying)
-                    params = [p for p in sig.parameters.values() if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD) and p.default is p.empty]
+                    params = [
+                        p
+                        for p in sig.parameters.values()
+                        if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+                        and p.default is p.empty
+                    ]
                     if len(params) <= len(args):
                         return underlying(*args, **kwargs)
                 except Exception as exc:
