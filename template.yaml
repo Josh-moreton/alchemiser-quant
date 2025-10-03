@@ -37,11 +37,6 @@ Parameters:
     Default: INFO
     Description: LOGGING__LEVEL for application logging
 
-  DslParallelism:
-    Type: String
-    Default: threads
-    Description: ALCHEMISER_DSL_PARALLELISM (e.g., threads, processes)
-
   DslMaxWorkers:
     Type: String
     Default: "7"
@@ -103,7 +98,6 @@ Globals:
         # STRATEGY__DSL_ALLOCATIONS: '{"1-KMLM.clj":0.4,"2-Nuclear.clj":0.25,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.25}'
 
         # DSL parallelism configuration
-        ALCHEMISER_DSL_PARALLELISM: !Ref DslParallelism
         ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
 
   # Strategy configuration now packaged with code; env overrides optional
