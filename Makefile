@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all stress-test stress-test-quick stress-test-dry release bump-patch bump-minor bump-major version
+.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all stress-test stress-test-quick stress-test-dry backtest-download backtest backtest-range release bump-patch bump-minor bump-major version
 
 # Default target
 help:
@@ -18,6 +18,11 @@ help:
 	@echo "  run-pnl-weekly  Show weekly P&L report"
 	@echo "  run-pnl-monthly Show monthly P&L report"
 	@echo "  run-pnl-detailed Show detailed monthly P&L report"
+	@echo ""
+	@echo "Backtesting Commands:"
+	@echo "  backtest-download Download historical data for backtesting"
+	@echo "  backtest        Run backtest (default 1 year)"
+	@echo "  backtest-range  Run backtest on custom date range"
 	@echo ""
 	@echo "Testing Commands:"
 	@echo "  test            Run all tests"
@@ -118,6 +123,25 @@ run-pnl-monthly:
 run-pnl-detailed:
 	@echo "📊 Running detailed monthly P&L analysis..."
 	python -m the_alchemiser pnl --monthly --detailed
+
+# Backtesting Commands
+backtest-download:
+	@echo "📥 Downloading historical data for backtesting..."
+	poetry run python scripts/backtest_cli.py download
+
+backtest:
+	@echo "📈 Running backtest (1 year)..."
+	poetry run python scripts/backtest_cli.py run
+
+backtest-range:
+	@echo "📈 Running backtest with custom date range..."
+	@echo "Usage: make backtest-range start=YYYY-MM-DD end=YYYY-MM-DD"
+	@if [ -z "$(start)" ] || [ -z "$(end)" ]; then \
+		echo "❌ Error: Both 'start' and 'end' parameters required"; \
+		echo "Example: make backtest-range start=2023-01-01 end=2023-12-31"; \
+		exit 1; \
+	fi
+	poetry run python scripts/backtest_cli.py run --start=$(start) --end=$(end)
 
 # Status command removed - use programmatic access via TradingSystem class
 
