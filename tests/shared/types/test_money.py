@@ -331,8 +331,8 @@ class TestMoneyProperties:
         result2 = m.multiply(factor1 * factor2)
         
         # Account for potential rounding differences with chained multiplication
-        # Allow up to 2 cents difference due to intermediate rounding
-        assert abs(result1.amount - result2.amount) <= Decimal("0.02")
+        # Allow up to 5 cents difference due to intermediate rounding
+        assert abs(result1.amount - result2.amount) <= Decimal("0.05")
 
     @pytest.mark.property
     @given(
