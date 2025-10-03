@@ -121,7 +121,9 @@ class AlpacaErrorHandler:
         return False, None
 
     @staticmethod
-    def _check_generic_terminal_state(msg: str) -> tuple[bool, TerminalOrderError | None]:
+    def _check_generic_terminal_state(
+        msg: str,
+    ) -> tuple[bool, TerminalOrderError | None]:
         """Check for generic terminal state pattern and extract state name.
 
         Args:
@@ -449,9 +451,7 @@ class AlpacaErrorHandler:
             )
 
 
-def _calculate_retry_delay(
-    base_delay: float, backoff_factor: float, attempt: int
-) -> float:
+def _calculate_retry_delay(base_delay: float, backoff_factor: float, attempt: int) -> float:
     """Calculate retry delay with exponential backoff and jitter.
 
     Args:
@@ -468,7 +468,9 @@ def _calculate_retry_delay(
 
 
 def _should_raise_error(
-    transient: bool, attempt: int, max_retries: int  # noqa: FBT001
+    transient: bool,  # noqa: FBT001
+    attempt: int,
+    max_retries: int,
 ) -> bool:
     """Determine if error should be raised or retry should continue.
 
@@ -484,9 +486,7 @@ def _should_raise_error(
     return not transient or attempt == max_retries
 
 
-def _handle_retry_failure(
-    error: Exception, operation_name: str, attempt: int
-) -> None:
+def _handle_retry_failure(error: Exception, operation_name: str, attempt: int) -> None:
     """Handle final retry failure by logging and raising RuntimeError.
 
     Args:
@@ -505,7 +505,11 @@ def _handle_retry_failure(
 
 
 def _log_retry_attempt(
-    operation_name: str, reason: str, attempt: int, max_retries: int, sleep_duration: float
+    operation_name: str,
+    reason: str,
+    attempt: int,
+    max_retries: int,
+    sleep_duration: float,
 ) -> None:
     """Log retry attempt with details.
 

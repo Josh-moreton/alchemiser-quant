@@ -1,0 +1,36 @@
+name: Test AWS OIDC Connection
+
+on:
+    workflow_dispatch:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+permissions:
+    id-token: write # This is required for requesting the JWT
+    contents: read # This is required for actions/checkout
+
+jobs:
+    test-aws-connection:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v5
+
+            - name: Configure AWS credentials using OIDC
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+                  aws-region: ${{ secrets.AWS_REGION }}
+
+            - name: Test AWS connection
+              run: |
+                  echo "Testing AWS connection..."
+                  aws sts get-caller-identity
+                  echo "✅ Successfully authenticated with AWS using OIDC!"
+
+            - name: List S3 buckets (optional test)
+              run: |
+                  echo "Testing S3 access..."
+                  aws s3 ls || echo "No S3 access or no buckets found"

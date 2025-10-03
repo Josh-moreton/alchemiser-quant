@@ -1,7 +1,7 @@
 # The Alchemiser Makefile
 # Quick commands for development and deployment
 
-.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all stress-test stress-test-quick stress-test-dry release bump-patch bump-minor bump-major version
+.PHONY: help install dev clean run-trade status deploy format lint type-check import-check migration-check test test-unit test-integration test-functional test-e2e test-all release bump-patch bump-minor bump-major version stress-test stress-test-quick stress-test-stateful stress-test-stateful-quick stress-test-dry-run
 
 # Default target
 help:
@@ -18,6 +18,13 @@ help:
 	@echo "  run-pnl-weekly  Show weekly P&L report"
 	@echo "  run-pnl-monthly Show monthly P&L report"
 	@echo "  run-pnl-detailed Show detailed monthly P&L report"
+	@echo ""
+	@echo "Stress Testing Commands:"
+	@echo "  stress-test              Run full stress test (~34 scenarios, liquidation mode)"
+	@echo "  stress-test-quick        Run quick stress test (~14 scenarios, liquidation mode)"
+	@echo "  stress-test-stateful     Run full stress test in stateful mode (maintains portfolio)"
+	@echo "  stress-test-stateful-quick Run quick stress test in stateful mode"
+	@echo "  stress-test-dry-run      Show stress test plan without executing"
 	@echo ""
 	@echo "Testing Commands:"
 	@echo "  test            Run all tests"
@@ -118,6 +125,27 @@ run-pnl-monthly:
 run-pnl-detailed:
 	@echo "📊 Running detailed monthly P&L analysis..."
 	python -m the_alchemiser pnl --monthly --detailed
+
+# Stress Testing Commands
+stress-test:
+	@echo "🔥 Running full stress test (liquidation mode)..."
+	poetry run python scripts/stress_test.py
+
+stress-test-quick:
+	@echo "🔥 Running quick stress test (liquidation mode)..."
+	poetry run python scripts/stress_test.py --quick
+
+stress-test-stateful:
+	@echo "🔥 Running full stress test (stateful mode - maintains portfolio)..."
+	poetry run python scripts/stress_test.py --stateful
+
+stress-test-stateful-quick:
+	@echo "🔥 Running quick stress test (stateful mode - maintains portfolio)..."
+	poetry run python scripts/stress_test.py --stateful --quick
+
+stress-test-dry-run:
+	@echo "🔥 Showing stress test execution plan..."
+	poetry run python scripts/stress_test.py --dry-run
 
 # Status command removed - use programmatic access via TradingSystem class
 
