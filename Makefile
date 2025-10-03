@@ -28,6 +28,8 @@ help:
 	@echo ""
 	@echo "Backtesting Commands:"
 	@echo "  backtest-download        Download historical data for backtesting"
+	@echo "  backtest                 Run backtest (default 90 days)"
+	@echo "  backtest-range           Run backtest with custom date range"
 	@echo ""
 	@echo "Testing Commands:"
 	@echo "  test            Run all tests"
@@ -153,6 +155,15 @@ stress-test-dry-run:
 backtest-download:
 	@echo "📊 Downloading historical data for backtesting..."
 	poetry run python scripts/backtest_download.py
+
+backtest:
+	@echo "📊 Running backtest (default 90 days)..."
+	poetry run python scripts/backtest_run.py
+
+backtest-range:
+	@echo "📊 Running backtest with custom date range..."
+	@echo "Usage: make backtest-range ARGS='--start-date 2023-01-01 --end-date 2023-12-31'"
+	poetry run python scripts/backtest_run.py $(ARGS)
 
 # Status command removed - use programmatic access via TradingSystem class
 
