@@ -169,7 +169,9 @@ def _get_fallback_value_for_metric(data: pd.Series, metric: str) -> float:
     return handler() if handler else 0.0
 
 
-def calculate_rolling_metric(data: pd.Series, window: int, metric: str = "mean") -> float:
+def calculate_rolling_metric(
+    data: pd.Series, window: int, metric: str = "mean"
+) -> float:
     """Calculate a rolling statistical metric with error handling.
 
     Args:
@@ -214,7 +216,11 @@ def safe_division(numerator: float, denominator: float, fallback: float = 0.0) -
 
 
 def normalize_to_range(
-    value: float, min_val: float, max_val: float, target_min: float = 0.0, target_max: float = 1.0
+    value: float,
+    min_val: float,
+    max_val: float,
+    target_min: float = 0.0,
+    target_max: float = 1.0,
 ) -> float:
     """Normalize a value from one range to another.
 
