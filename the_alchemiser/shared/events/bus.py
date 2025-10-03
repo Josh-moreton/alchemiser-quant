@@ -12,8 +12,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable
 from inspect import signature
-from typing import Protocol, TypeVar
-from typing import ParamSpec
+from typing import Protocol
 
 from ..logging import get_logger
 from .base import BaseEvent
@@ -305,7 +304,7 @@ class EventBus:
         self._global_handlers.clear()
         self.logger.debug("Cleared all event handlers")
 
-    def get_stats(self) -> dict[str, Any]:
+    def get_stats(self) -> dict[str, int | list[str] | dict[str, int]]:
         """Get event bus statistics.
 
         Returns:
@@ -367,10 +366,7 @@ class EventBus:
 
     # --- Internal utilities -------------------------------------------------
 
-    P = ParamSpec("P")
-    R = TypeVar("R")
-
-    def _safe_call_method(self, obj: object, method_name: str, *args: P.args, **kwargs: P.kwargs) -> R:
+    def _safe_call_method(self, obj: object, method_name: str, *args: object, **kwargs: object) -> object:
         """Safely call a method on an object, tolerating missing 'self' in signature.
 
         Some test handlers are created dynamically with methods defined as functions
@@ -394,6 +390,7 @@ class EventBus:
         Raises:
             AttributeError: If the method does not exist on the object.
             Exception: Propagates any exception from the underlying call if retries fail.
+
         """
         method = getattr(obj, method_name, None)
         if method is None:
@@ -401,7 +398,7 @@ class EventBus:
 
         # First attempt: normal bound call
         try:
-            return method(*args, **kwargs)  # type: ignore[misc]
+            return method(*args, **kwargs)
         except TypeError as e:
             # Inspect the underlying function if available and retry without 'self'
             underlying = getattr(method, "__func__", None)
@@ -413,7 +410,7 @@ class EventBus:
                     sig = signature(underlying)
                     params = [p for p in sig.parameters.values() if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD) and p.default is p.empty]
                     if len(params) <= len(args):
-                        return underlying(*args, **kwargs)  # type: ignore[misc]
+                        return underlying(*args, **kwargs)
                 except Exception as exc:
                     # Log and fall through to re-raise original TypeError
                     self.logger.debug(

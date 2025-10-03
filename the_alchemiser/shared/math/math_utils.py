@@ -15,6 +15,8 @@ Functions include:
 
 from __future__ import annotations
 
+from math import isclose
+
 import pandas as pd
 
 from the_alchemiser.shared.logging import get_logger
@@ -264,6 +266,18 @@ def calculate_ensemble_score(
     try:
         weighted_sum = sum(m * w for m, w in zip(metrics, weights, strict=False))
         total_weight = sum(weights)
-        return weighted_sum / total_weight if total_weight > 0 else 0.0
+        if total_weight <= 0:
+            return 0.0
+
+        result = weighted_sum / total_weight
+
+        # Clamp to within [min(metrics), max(metrics)] allowing for floating point tolerances
+        min_val = min(metrics)
+        max_val = max(metrics)
+        if result < min_val and isclose(result, min_val, rel_tol=1e-12, abs_tol=1e-12):
+            return min_val
+        if result > max_val and isclose(result, max_val, rel_tol=1e-12, abs_tol=1e-12):
+            return max_val
+        return result
     except Exception:
         return 0.0
