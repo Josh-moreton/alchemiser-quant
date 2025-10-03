@@ -27,7 +27,12 @@ from the_alchemiser.shared.logging import get_logger
 
 from .analysis import StressTestReporter
 from .mocking import MockIndicatorService
-from .models import MarketCondition, PortfolioState, PortfolioTransition, StressTestResult
+from .models import (
+    MarketCondition,
+    PortfolioState,
+    PortfolioTransition,
+    StressTestResult,
+)
 
 logger = get_logger(__name__)
 
@@ -284,13 +289,13 @@ class StressTestRunner:
             self.logger.info("Liquidating all positions before scenario run")
 
             # Use proper credential loading
-            api_key, secret_key, endpoint = get_alpaca_keys()
+            api_key, secret_key, _ = get_alpaca_keys()
             if not api_key or not secret_key:
                 self.logger.error("Alpaca credentials not found in environment")
                 return False
 
-            # Determine if paper trading from endpoint
-            paper_trading = "paper" in (endpoint or "").lower()
+            # Stress test always uses paper trading to avoid live execution
+            paper_trading = True
 
             # Create AlpacaManager which handles proper service initialization
             alpaca_manager = AlpacaManager(
@@ -346,10 +351,11 @@ class StressTestRunner:
         try:
             # Get current account and positions
             if not alpaca_manager:
-                api_key, secret_key, endpoint = get_alpaca_keys()
+                api_key, secret_key, _ = get_alpaca_keys()
                 if not api_key or not secret_key:
                     raise ValueError("Alpaca credentials not available")
-                paper_trading = "paper" in (endpoint or "").lower()
+                # Stress test always uses paper trading to avoid live execution
+                paper_trading = True
                 alpaca_manager = AlpacaManager(
                     api_key=api_key,
                     secret_key=secret_key,
@@ -359,7 +365,7 @@ class StressTestRunner:
             account = alpaca_manager.get_account_object()
             if not account:
                 raise ValueError("Failed to get account")
-                
+
             positions_list = alpaca_manager.get_positions()
 
             # Build positions dict
@@ -442,7 +448,9 @@ class StressTestRunner:
         # Calculate rebalance percentage (portfolio turnover)
         total_changed_value = Decimal("0")
         for symbol in symbols_removed:
-            total_changed_value += abs(from_state.market_values.get(symbol, Decimal("0")))
+            total_changed_value += abs(
+                from_state.market_values.get(symbol, Decimal("0"))
+            )
         for symbol in symbols_added:
             total_changed_value += abs(to_state.market_values.get(symbol, Decimal("0")))
         for symbol in symbols_adjusted:
