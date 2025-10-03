@@ -94,7 +94,13 @@ test-all:
 
 test-coverage:
 	@echo "📊 Running tests with coverage report for SonarCloud..."
-	poetry run pytest -m unit --cov=the_alchemiser --cov-report=xml --cov-report=term --ignore=tests/e2e
+	@# Ensure pytest-cov is available (installed via dev dependencies)
+	@poetry run python -c "import pytest_cov" >/dev/null 2>&1 || { \
+		echo "❌ pytest-cov not found in the Poetry env."; \
+		echo "💡 Run: poetry install --with dev"; \
+		exit 1; \
+	}
+	poetry run pytest --cov=the_alchemiser --cov-report=xml --cov-report=term --ignore=tests/e2e -v tests/
 	@echo "✅ Coverage report generated: coverage.xml"
 
 # Stress Testing Commands
