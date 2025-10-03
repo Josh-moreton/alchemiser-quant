@@ -2,7 +2,8 @@
 
 Backtesting execution engine.
 
-Runs the full trading pipeline with historical data and mocked portfolio/execution.
+Runs the full trading pipeline with historical data using real Strategy_v2 DSL engine
+and mocked portfolio/execution layers.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ if "/home/runner/work/alchemiser-quant/alchemiser-quant" not in sys.path:
 
 from scripts.backtest.analysis.performance_metrics import PerformanceMetrics
 from scripts.backtest.fill_simulator import FillSimulator
+from scripts.backtest.historical_market_data_port import HistoricalMarketDataPort
 from scripts.backtest.models.backtest_result import BacktestConfig, BacktestResult
 from scripts.backtest.models.market_data import DailyBar
 from scripts.backtest.models.portfolio_snapshot import (
@@ -28,6 +30,7 @@ from scripts.backtest.models.portfolio_snapshot import (
 )
 from scripts.backtest.storage.data_store import DataStore
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import DslStrategyEngine
 
 logger = get_logger(__name__)
@@ -43,17 +46,20 @@ class BacktestRunner:
         self,
         data_store: DataStore | None = None,
         fill_simulator: FillSimulator | None = None,
+        strategy_files: list[str] | None = None,
     ) -> None:
         """Initialize backtest runner.
 
         Args:
             data_store: Optional DataStore instance
             fill_simulator: Optional FillSimulator instance
+            strategy_files: Optional list of strategy files to use
 
         """
         self.data_store = data_store or DataStore()
         self.fill_simulator = fill_simulator or FillSimulator()
-        logger.info("BacktestRunner initialized")
+        self.strategy_files = strategy_files or ["KLM.clj"]
+        logger.info(f"BacktestRunner initialized with strategies: {self.strategy_files}")
 
     def run_backtest(self, config: BacktestConfig) -> BacktestResult:
         """Run a complete backtest.
@@ -70,7 +76,11 @@ class BacktestRunner:
             start_date=config.start_date.isoformat(),
             end_date=config.end_date.isoformat(),
             initial_capital=str(config.initial_capital),
+            strategy_files=config.strategy_files,
         )
+
+        # Store strategy files from config
+        self.strategy_files = config.strategy_files
 
         # Initialize result
         result = BacktestResult(
@@ -89,10 +99,9 @@ class BacktestRunner:
         )
         result.portfolio_snapshots.append(current_portfolio)
 
-        # Initialize strategy engine with mock market data port
-        # For now, we'll use a simple implementation that generates signals
-        # In future iterations, this will integrate with real DSL engine
-        logger.info("Initializing strategy engine for backtesting")
+        logger.info(
+            f"Using real Strategy_v2 DSL engine with files: {', '.join(config.strategy_files)}"
+        )
 
         # Iterate through each trading day
         current_date = config.start_date
@@ -195,7 +204,7 @@ class BacktestRunner:
     def _generate_signals(
         self, symbols: list[str], bars: dict[str, DailyBar], date: datetime
     ) -> dict[str, Decimal]:
-        """Generate trading signals (mocked strategy_v2).
+        """Generate trading signals using real Strategy_v2 DSL engine.
 
         Args:
             symbols: List of symbols
@@ -206,13 +215,53 @@ class BacktestRunner:
             Dictionary mapping symbol to target allocation weight
 
         """
-        # Simple mock: Equal weight allocation to all available symbols
-        # In real implementation, this would use DslEngine
         if not bars:
             return {}
 
-        weight = Decimal("1.0") / len(bars)
-        return {symbol: weight for symbol in bars.keys()}
+        try:
+            # Create historical market data port for this date
+            market_data_port = HistoricalMarketDataPort(self.data_store, date)
+
+            # Initialize DSL strategy engine with historical data
+            strategy_engine = DslStrategyEngine(
+                market_data_port=market_data_port,
+                strategy_file=self.strategy_files[0] if self.strategy_files else "KLM.clj",
+            )
+
+            # Generate signals using real strategy
+            strategy_signals = strategy_engine.generate_signals(timestamp=date)
+
+            # Convert StrategySignal list to symbol -> weight dict
+            signals: dict[str, Decimal] = {}
+            total_allocation = Decimal("0")
+
+            for signal in strategy_signals:
+                if signal.target_allocation is not None and signal.target_allocation > 0:
+                    symbol_str = str(signal.symbol)
+                    signals[symbol_str] = signal.target_allocation
+                    total_allocation += signal.target_allocation
+
+            # Normalize allocations to sum to 1.0 if needed
+            if total_allocation > Decimal("1.0"):
+                for symbol in signals:
+                    signals[symbol] = signals[symbol] / total_allocation
+
+            logger.info(
+                f"Generated {len(signals)} signals from Strategy_v2",
+                date=date.date(),
+                symbols=list(signals.keys()),
+            )
+
+            return signals
+
+        except Exception as e:
+            logger.error(
+                f"Failed to generate signals from Strategy_v2: {e}",
+                error=str(e),
+                date=date.date(),
+            )
+            # Fallback to empty signals rather than mocked equal-weight
+            return {}
 
     def _generate_rebalance_plan(
         self,

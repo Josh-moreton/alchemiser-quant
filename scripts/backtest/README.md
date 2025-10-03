@@ -94,7 +94,13 @@ poetry run python scripts/backtest_run.py \
 
 ### Strategy Integration
 
-The backtesting system runs the actual strategy code (DSL engine) with historical data. For MVP, it uses a simple equal-weight allocation mock, but can be extended to use real strategy evaluation.
+The backtesting system runs the **real Strategy_v2 DSL engine** with historical data. The DSL strategies are evaluated using a `HistoricalMarketDataPort` that provides bars and quotes from stored Parquet files.
+
+**Key features:**
+- Real DSL strategy evaluation (not mocked)
+- Historical market data port implementation
+- Full indicator calculation with historical bars
+- Multiple strategy file support
 
 ### Portfolio Mocking
 

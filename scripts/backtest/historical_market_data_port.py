@@ -1,0 +1,179 @@
+"""Business Unit: scripts | Status: current.
+
+Historical market data adapter for backtesting.
+
+Provides MarketDataPort interface using stored historical data.
+"""
+
+from __future__ import annotations
+
+import sys
+from datetime import datetime, timedelta, timezone
+
+# Add project root to path for imports
+if "/home/runner/work/alchemiser-quant/alchemiser-quant" not in sys.path:
+    sys.path.insert(
+        0, "/home/runner/work/alchemiser-quant/alchemiser-quant"
+    )
+
+from scripts.backtest.models.market_data import DailyBar
+from scripts.backtest.storage.data_store import DataStore
+from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.types.market_data import BarModel
+from the_alchemiser.shared.types.quote import QuoteModel
+from the_alchemiser.shared.value_objects.symbol import Symbol
+
+logger = get_logger(__name__)
+
+
+class HistoricalMarketDataPort:
+    """Market data port that serves historical data for backtesting.
+
+    Implements MarketDataPort interface using stored Parquet data.
+    """
+
+    def __init__(self, data_store: DataStore, current_date: datetime) -> None:
+        """Initialize historical market data port.
+
+        Args:
+            data_store: DataStore instance with historical data
+            current_date: Current date in backtest iteration
+
+        """
+        self.data_store = data_store
+        self.current_date = current_date
+        logger.debug(f"HistoricalMarketDataPort initialized for {current_date.date()}")
+
+    def get_bars(self, symbol: Symbol, period: str, timeframe: str) -> list[BarModel]:
+        """Get historical bars for a symbol.
+
+        Args:
+            symbol: Symbol to fetch
+            period: Period string (e.g., "1Y", "6M")
+            timeframe: Timeframe string (e.g., "1Day")
+
+        Returns:
+            List of BarModel objects
+
+        """
+        # Parse period to determine start date
+        period_days = self._parse_period(period)
+        start_date = self.current_date - timedelta(days=period_days)
+        end_date = self.current_date
+
+        # Load bars from data store
+        try:
+            daily_bars = self.data_store.load_bars(str(symbol), start_date, end_date)
+
+            # Convert DailyBar to BarModel
+            bar_models: list[BarModel] = []
+            for bar in daily_bars:
+                bar_model = BarModel(
+                    symbol=str(symbol),
+                    timestamp=bar.date,
+                    open=float(bar.open),
+                    high=float(bar.high),
+                    low=float(bar.low),
+                    close=float(bar.close),
+                    volume=bar.volume,
+                )
+                bar_models.append(bar_model)
+
+            logger.debug(
+                f"Loaded {len(bar_models)} bars for {symbol}",
+                symbol=str(symbol),
+                bar_count=len(bar_models),
+            )
+
+            return bar_models
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to load bars for {symbol}: {e}",
+                symbol=str(symbol),
+                error=str(e),
+            )
+            return []
+
+    def get_latest_quote(self, symbol: Symbol) -> QuoteModel | None:
+        """Get latest quote (simulated from current day's bar).
+
+        Args:
+            symbol: Symbol to fetch
+
+        Returns:
+            QuoteModel with bid/ask from Open price, or None
+
+        """
+        from decimal import Decimal
+
+        # Load current day's bar
+        try:
+            bars = self.data_store.load_bars(
+                str(symbol),
+                self.current_date,
+                self.current_date,
+            )
+
+            if not bars:
+                return None
+
+            bar = bars[0]
+            # Simulate bid/ask from open price with small spread
+            mid_price = bar.open
+            spread = mid_price * Decimal("0.0001")  # 0.01% spread
+
+            return QuoteModel(
+                ts=bar.date,
+                bid=mid_price - spread,
+                ask=mid_price + spread,
+            )
+
+        except Exception as e:
+            logger.debug(
+                f"Could not get quote for {symbol}: {e}",
+                symbol=str(symbol),
+                error=str(e),
+            )
+            return None
+
+    def get_mid_price(self, symbol: Symbol) -> float | None:
+        """Get mid price from current day's bar.
+
+        Args:
+            symbol: Symbol to fetch
+
+        Returns:
+            Mid price as float, or None
+
+        """
+        quote = self.get_latest_quote(symbol)
+        if quote:
+            return float(quote.mid)
+        return None
+
+    def _parse_period(self, period: str) -> int:
+        """Parse period string to number of days.
+
+        Args:
+            period: Period string like "1Y", "6M", "1D"
+
+        Returns:
+            Number of days
+
+        """
+        period = period.upper().strip()
+
+        # Extract number and unit
+        if period[-1] == "Y":
+            years = int(period[:-1])
+            return years * 365
+        elif period[-1] == "M":
+            months = int(period[:-1])
+            return months * 30
+        elif period[-1] == "D":
+            days = int(period[:-1])
+            return days
+        else:
+            # Default to 252 trading days (1 year)
+            return 252
