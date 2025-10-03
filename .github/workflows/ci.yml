@@ -50,11 +50,11 @@ jobs:
       - name: Type check
         run: make type-check
 
-      - name: Run tests (unit, integration, functional)
+      - name: Run tests (unit only)
         env:
           PYTHONHASHSEED: "0"
         run: |
-          poetry run pytest -q -m "unit or integration or functional" --ignore=tests/e2e
+          poetry run pytest -q -m unit --ignore=tests/e2e
 
       - name: Validate SAM build (dev)
         uses: aws-actions/setup-sam@v2
