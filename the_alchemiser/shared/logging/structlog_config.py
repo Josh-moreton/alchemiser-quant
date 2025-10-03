@@ -99,16 +99,28 @@ def configure_structlog(
     root_logger.addHandler(console_handler)
 
     # File handler (DEBUG+ for detailed logs)
-    if file_path is None:
-        file_path = "logs/trade_run.log"
+    # In AWS Lambda, the filesystem is read-only except for /tmp. Avoid creating files unless
+    # a writable path is explicitly provided via environment or caller.
+    try:
+        resolved_file_path: str | None = file_path
+        if resolved_file_path is None:
+            # Default to None in Lambda to avoid read-only FS issues; use /tmp if explicitly set
+            resolved_file_path = None
 
-    log_path = Path(file_path)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
+        if resolved_file_path:
+            log_path = Path(resolved_file_path)
+            # Only attempt to create dirs if parent is writable
+            log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    file_handler = logging.FileHandler(file_path)
-    file_handler.setLevel(file_level)
-    file_handler.setFormatter(logging.Formatter("%(message)s"))  # Structlog handles formatting
-    root_logger.addHandler(file_handler)
+            file_handler = logging.FileHandler(resolved_file_path)
+            file_handler.setLevel(file_level)
+            file_handler.setFormatter(
+                logging.Formatter("%(message)s")
+            )  # Structlog formats
+            root_logger.addHandler(file_handler)
+    except OSError:
+        # Fall back to console-only if file logging setup fails (e.g., read-only FS)
+        pass
 
     # Configure structlog processors
     processors: list[Any] = [

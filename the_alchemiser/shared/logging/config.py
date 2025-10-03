@@ -39,11 +39,13 @@ def configure_production_logging(
 
     """
     effective_console_level = console_level if console_level is not None else log_level
+    # In Lambda, avoid file logging by default. Allow opt-in via LOG_FILE_PATH env var
+    effective_log_file = log_file or os.getenv("LOG_FILE_PATH")
     configure_structlog(
         structured_format=True,  # JSON format for production
         console_level=effective_console_level,
         file_level=log_level,
-        file_path=log_file,
+        file_path=effective_log_file,
     )
 
 
@@ -60,8 +62,10 @@ def configure_application_logging() -> None:
         configure_production_logging(log_level=logging.INFO)
     else:
         # Development environment - clean console, detailed file
+        # Default to local file logging for development only
         configure_structlog(
             structured_format=False,  # Human-readable for development
             console_level=logging.INFO,  # Clean console (no debug spam)
             file_level=logging.DEBUG,  # File captures everything for debugging
+            file_path="logs/trade_run.log",
         )
