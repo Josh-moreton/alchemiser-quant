@@ -59,11 +59,11 @@ print()
 print(f"🌐 Making API call to Alpaca...")
 try:
     bars_dict = client.get_stock_bars(request)
-    
+
     print(f"✅ API call successful!")
     print(f"   Response type: {type(bars_dict)}")
     print(f"   String repr: {str(bars_dict)[:200]}")
-    
+
     # Check various attributes
     attrs_to_check = ["data", "df", "dict", "__dict__", "bars"]
     for attr in attrs_to_check:
@@ -73,10 +73,10 @@ try:
             if isinstance(val, dict):
                 print(f"      Keys: {list(val.keys())[:5]}")
     print()
-    
+
     # Try different ways to access the data
     bars = None
-    
+
     # Try direct dict access (this is what the current code does)
     try:
         if symbol in bars_dict:
@@ -86,7 +86,7 @@ try:
             print(f"   ✗ Direct dict access failed: {symbol} not in bars_dict")
     except (KeyError, TypeError) as e:
         print(f"   ✗ Direct dict access error: {e}")
-    
+
     # Try .data attribute
     if bars is None and hasattr(bars_dict, "data"):
         try:
@@ -95,12 +95,12 @@ try:
                 bars = bars_dict.data[symbol]
         except Exception as e:
             print(f"   ✗ .data access error: {e}")
-    
+
     if bars:
         print(f"📈 Data for {symbol}:")
         print(f"   Type: {type(bars)}")
         print(f"   Length: {len(bars) if hasattr(bars, '__len__') else 'N/A'}")
-        
+
         if bars and len(bars) > 0:
             print(f"\n   First bar:")
             first_bar = bars[0]
@@ -110,7 +110,7 @@ try:
             print(f"      Low: {first_bar.low}")
             print(f"      Close: {first_bar.close}")
             print(f"      Volume: {first_bar.volume}")
-            
+
             print(f"\n   Last bar:")
             last_bar = bars[-1]
             print(f"      Timestamp: {last_bar.timestamp}")
@@ -123,12 +123,13 @@ try:
             print(f"   ⚠️  No bars returned!")
     else:
         print(f"❌ No bars found for symbol '{symbol}'!")
-    
+
 except Exception as e:
     print(f"❌ API call failed!")
     print(f"   Error type: {type(e).__name__}")
     print(f"   Error message: {str(e)}")
     import traceback
+
     print(f"\n   Full traceback:")
     traceback.print_exc()
 

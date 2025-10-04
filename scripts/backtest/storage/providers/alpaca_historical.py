@@ -97,7 +97,7 @@ class AlpacaHistoricalProvider:
             if not bars:
                 logger.warning(f"Empty bar list returned for {symbol}")
                 return []
-                
+
             daily_bars: list[DailyBar] = []
 
             for bar in bars:
