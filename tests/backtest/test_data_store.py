@@ -12,11 +12,11 @@ from pathlib import Path
 
 import pytest
 
-# Add project root to path
-if "/home/runner/work/alchemiser-quant/alchemiser-quant" not in sys.path:
-    sys.path.insert(
-        0, "/home/runner/work/alchemiser-quant/alchemiser-quant"
-    )
+# Add project root to path dynamically
+project_root = Path(__file__).resolve().parents[2]
+project_root_str = str(project_root)
+if project_root_str not in sys.path:
+    sys.path.insert(0, project_root_str)
 
 from scripts.backtest.models.market_data import DailyBar
 from scripts.backtest.storage.data_store import DataStore
