@@ -10,16 +10,20 @@ from __future__ import annotations
 import math
 import sys
 from decimal import Decimal
+from pathlib import Path
 
 # Add project root to path for imports
-if "/home/runner/work/alchemiser-quant/alchemiser-quant" not in sys.path:
-    sys.path.insert(
-        0, "/home/runner/work/alchemiser-quant/alchemiser-quant"
-    )
+_project_root = Path(__file__).resolve().parents[3]
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
 
 from scripts.backtest.models.backtest_result import BacktestResult
 from scripts.backtest.models.portfolio_snapshot import PortfolioSnapshot
 from the_alchemiser.shared.logging import get_logger
+
+# Constants
+TRADING_DAYS_PER_YEAR = 252
+DEFAULT_RISK_FREE_RATE = Decimal("0.02")  # 2% annual risk-free rate
 
 logger = get_logger(__name__)
 
@@ -29,7 +33,7 @@ class PerformanceMetrics:
 
     @staticmethod
     def calculate_sharpe_ratio(
-        portfolio_snapshots: list[PortfolioSnapshot], risk_free_rate: Decimal = Decimal("0.02")
+        portfolio_snapshots: list[PortfolioSnapshot], risk_free_rate: Decimal = DEFAULT_RISK_FREE_RATE
     ) -> Decimal:
         """Calculate Sharpe ratio.
 
@@ -65,11 +69,9 @@ class PerformanceMetrics:
             return Decimal("0")
 
         # Annualize (assuming ~252 trading days)
-        daily_rf_rate = risk_free_rate / Decimal("252")
+        daily_rf_rate = risk_free_rate / Decimal(str(TRADING_DAYS_PER_YEAR))
         excess_return = mean_return - daily_rf_rate
-        sharpe = (excess_return / std_return) * Decimal(str(math.sqrt(252)))
-
-        return sharpe
+        return (excess_return / std_return) * Decimal(str(math.sqrt(TRADING_DAYS_PER_YEAR)))
 
     @staticmethod
     def calculate_max_drawdown(portfolio_snapshots: list[PortfolioSnapshot]) -> Decimal:
@@ -92,9 +94,10 @@ class PerformanceMetrics:
             if snapshot.total_value > max_value:
                 max_value = snapshot.total_value
 
-            drawdown = (max_value - snapshot.total_value) / max_value * 100
-            if drawdown > max_drawdown:
-                max_drawdown = drawdown
+            if max_value > 0:
+                drawdown = (max_value - snapshot.total_value) / max_value * 100
+                if drawdown > max_drawdown:
+                    max_drawdown = drawdown
 
         return max_drawdown
 
@@ -133,21 +136,27 @@ class PerformanceMetrics:
         # Calculate win rate from trades
         if result.trades:
             winning_trades = 0
-            for i, trade in enumerate(result.trades):
-                if trade.side == "SELL":
-                    # Find corresponding buy
-                    buy_price = None
-                    for j in range(i - 1, -1, -1):
-                        if result.trades[j].symbol == trade.symbol and result.trades[j].side == "BUY":
-                            buy_price = result.trades[j].price
-                            break
+            sell_count = 0
+            # Track buy positions for each symbol (FIFO)
+            positions: dict[str, list[Decimal]] = {}
 
-                    if buy_price and trade.price > buy_price:
-                        winning_trades += 1
+            for trade in result.trades:
+                if trade.side == "BUY":
+                    # Add buy price to position stack
+                    if trade.symbol not in positions:
+                        positions[trade.symbol] = []
+                    positions[trade.symbol].append(trade.price)
+                elif trade.side == "SELL":
+                    # Pop corresponding buy price and check if profitable
+                    sell_count += 1
+                    symbol_positions = positions.get(trade.symbol, [])
+                    if symbol_positions:
+                        buy_price = symbol_positions.pop(0)  # FIFO
+                        if trade.price > buy_price:
+                            winning_trades += 1
 
-            sell_trades = len([t for t in result.trades if t.side == "SELL"])
-            if sell_trades > 0:
-                result.win_rate = Decimal(winning_trades) / Decimal(sell_trades) * 100
+            if sell_count > 0:
+                result.win_rate = Decimal(winning_trades) / Decimal(sell_count) * 100
             else:
                 result.win_rate = Decimal("0")
 

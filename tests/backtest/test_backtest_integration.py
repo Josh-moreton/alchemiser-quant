@@ -12,11 +12,10 @@ from pathlib import Path
 
 import pytest
 
-# Add project root to path
-if "/home/runner/work/alchemiser-quant/alchemiser-quant" not in sys.path:
-    sys.path.insert(
-        0, "/home/runner/work/alchemiser-quant/alchemiser-quant"
-    )
+# Add project root to path dynamically
+project_root = str(Path(__file__).resolve().parents[2])
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 from scripts.backtest.backtest_runner import BacktestRunner
 from scripts.backtest.models.backtest_result import BacktestConfig
@@ -36,22 +35,38 @@ def sample_test_data(tmp_path: Path) -> DataStore:
     """Create sample test data for backtesting."""
     data_store = DataStore(base_path=str(tmp_path / "backtest_data"))
 
-    # Create 10 days of data for two symbols
-    base_date = datetime(2024, 1, 1, tzinfo=timezone.utc)
-    symbols = ["SPY", "QQQ"]
+    # Create data for all symbols required by DSL strategies
+    # Need at least 252 days (1 year) before backtest date for indicators like 200-day MA
+    # Backtest runs from 2024-01-01 to 2024-01-05, so create data from 2023-01-01 to 2024-12-31
+    base_date = datetime(2023, 1, 1, tzinfo=timezone.utc)
+    
+    # Symbol base prices matching realistic market values
+    symbol_prices = {
+        "SPY": Decimal("400"),
+        "QQQ": Decimal("350"),
+        "QQQE": Decimal("50"),
+        "BITO": Decimal("15"),
+        "BIL": Decimal("91.50"),
+        "FXI": Decimal("25"),
+        "FCG": Decimal("20"),
+        "IOO": Decimal("80"),
+        "UVXY": Decimal("10"),
+    }
 
-    for symbol in symbols:
+    for symbol, base_price in symbol_prices.items():
         bars = []
-        for i in range(10):
-            price = Decimal("100") if symbol == "SPY" else Decimal("200")
+        # Create 730 days of data (covers 2023 and 2024, ~2 years)
+        for i in range(730):
+            # Add some realistic price movement
+            price_variation = Decimal(i * 0.1)
             bar = DailyBar(
                 date=base_date + timedelta(days=i),
-                open=price + Decimal(i),
-                high=price + Decimal(i) + Decimal("5"),
-                low=price + Decimal(i) - Decimal("5"),
-                close=price + Decimal(i) + Decimal("2"),
+                open=base_price + price_variation,
+                high=base_price + price_variation + Decimal("2"),
+                low=base_price + price_variation - Decimal("2"),
+                close=base_price + price_variation + Decimal("1"),
                 volume=1000000 + (i * 10000),
-                adjusted_close=price + Decimal(i) + Decimal("2"),
+                adjusted_close=base_price + price_variation + Decimal("1"),
             )
             bars.append(bar)
         data_store.save_bars(symbol, bars)
@@ -122,13 +137,16 @@ def test_backtest_trade_generation(sample_test_data: DataStore, tmp_path: Path) 
     """Test that trades are generated during backtest."""
     runner = BacktestRunner(data_store=sample_test_data)
 
+    # Include all symbols that DSL strategies might trade
+    all_symbols = ["SPY", "QQQ", "QQQE", "BITO", "BIL", "FXI", "FCG", "IOO", "UVXY"]
+    
     config = BacktestConfig(
         strategy_files=["test.clj"],
         start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
         end_date=datetime(2024, 1, 5, tzinfo=timezone.utc),
         initial_capital=Decimal("100000"),
         commission_per_trade=Decimal("1.00"),
-        symbols=["SPY", "QQQ"],
+        symbols=all_symbols,
     )
 
     result = runner.run_backtest(config)
@@ -138,7 +156,7 @@ def test_backtest_trade_generation(sample_test_data: DataStore, tmp_path: Path) 
 
     # Verify trade structure
     for trade in result.trades:
-        assert trade.symbol in ["SPY", "QQQ"]
+        assert trade.symbol in all_symbols
         assert trade.side in ["BUY", "SELL"]
         assert trade.quantity > 0
         assert trade.price > 0

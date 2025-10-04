@@ -15,13 +15,15 @@ from pathlib import Path
 import pandas as pd
 
 # Add project root to path for imports
-if "/home/runner/work/alchemiser-quant/alchemiser-quant" not in sys.path:
-    sys.path.insert(
-        0, "/home/runner/work/alchemiser-quant/alchemiser-quant"
-    )
+_project_root = Path(__file__).resolve().parents[3]
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
 
 from scripts.backtest.models.market_data import DailyBar, MarketDataMetadata
 from the_alchemiser.shared.logging import get_logger
+
+# Constants
+GAP_DETECTION_THRESHOLD = 0.7  # Heuristic: expect at least 70% of calendar days to be trading days
 
 logger = get_logger(__name__)
 
@@ -231,7 +233,7 @@ class DataStore:
 
         # Check for gaps (simple check: compare row count to date range)
         expected_trading_days = (end_date - start_date).days
-        has_gaps = bar_count < (expected_trading_days * 0.7)  # Rough heuristic
+        has_gaps = bar_count < (expected_trading_days * GAP_DETECTION_THRESHOLD)
 
         return MarketDataMetadata(
             symbol=symbol,

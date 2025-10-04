@@ -10,12 +10,12 @@ from __future__ import annotations
 import sys
 from datetime import datetime
 from decimal import Decimal
+from pathlib import Path
 
 # Add project root to path for imports
-if "/home/runner/work/alchemiser-quant/alchemiser-quant" not in sys.path:
-    sys.path.insert(
-        0, "/home/runner/work/alchemiser-quant/alchemiser-quant"
-    )
+_project_root = Path(__file__).resolve().parents[2]
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
 
 from scripts.backtest.models.market_data import DailyBar
 from scripts.backtest.models.portfolio_snapshot import TradeRecord

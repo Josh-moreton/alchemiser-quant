@@ -9,14 +9,14 @@ and mocked portfolio/execution layers.
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 
 # Add project root to path for imports
-if "/home/runner/work/alchemiser-quant/alchemiser-quant" not in sys.path:
-    sys.path.insert(
-        0, "/home/runner/work/alchemiser-quant/alchemiser-quant"
-    )
+_project_root = Path(__file__).resolve().parents[2]
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
 
 from scripts.backtest.analysis.performance_metrics import PerformanceMetrics
 from scripts.backtest.fill_simulator import FillSimulator
@@ -30,8 +30,10 @@ from scripts.backtest.models.portfolio_snapshot import (
 )
 from scripts.backtest.storage.data_store import DataStore
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import DslStrategyEngine
+
+# Constants
+MIN_POSITION_SIZE = Decimal("0.01")  # Minimum trade size in shares
 
 logger = get_logger(__name__)
 
@@ -300,7 +302,7 @@ class BacktestRunner:
 
             delta = target_qty - current_qty
 
-            if abs(delta) > Decimal("0.01"):  # Minimum trade size
+            if abs(delta) > MIN_POSITION_SIZE:
                 side = "BUY" if delta > 0 else "SELL"
                 orders.append((symbol, side, abs(delta)))
 
@@ -392,7 +394,7 @@ class BacktestRunner:
                     pos = new_positions[trade.symbol]
                     new_qty = pos.quantity - trade.quantity
 
-                    if new_qty > Decimal("0.01"):
+                    if new_qty > MIN_POSITION_SIZE:
                         # Update position
                         new_positions[trade.symbol] = PositionSnapshot(
                             symbol=trade.symbol,

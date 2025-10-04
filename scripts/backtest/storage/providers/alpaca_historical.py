@@ -10,6 +10,7 @@ from __future__ import annotations
 import sys
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from pathlib import Path
 
 import pandas as pd
 from alpaca.data.historical import StockHistoricalDataClient
@@ -17,10 +18,9 @@ from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 
 # Add project root to path for imports
-if "/home/runner/work/alchemiser-quant/alchemiser-quant" not in sys.path:
-    sys.path.insert(
-        0, "/home/runner/work/alchemiser-quant/alchemiser-quant"
-    )
+_project_root = Path(__file__).resolve().parents[4]
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
 
 from scripts.backtest.models.market_data import DailyBar
 from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys

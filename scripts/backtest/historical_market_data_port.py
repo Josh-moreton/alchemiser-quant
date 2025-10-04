@@ -8,20 +8,24 @@ Provides MarketDataPort interface using stored historical data.
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+from decimal import Decimal
+from pathlib import Path
 
 # Add project root to path for imports
-if "/home/runner/work/alchemiser-quant/alchemiser-quant" not in sys.path:
-    sys.path.insert(
-        0, "/home/runner/work/alchemiser-quant/alchemiser-quant"
-    )
+_project_root = Path(__file__).resolve().parents[2]
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
 
-from scripts.backtest.models.market_data import DailyBar
 from scripts.backtest.storage.data_store import DataStore
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import BarModel
 from the_alchemiser.shared.types.quote import QuoteModel
 from the_alchemiser.shared.value_objects.symbol import Symbol
+
+# Constants
+BID_ASK_SPREAD_PCT = Decimal("0.0001")  # 0.01% spread for simulated quotes
+DEFAULT_PERIOD_DAYS = 252  # Default period for historical data (1 trading year)
 
 logger = get_logger(__name__)
 
@@ -37,9 +41,16 @@ class HistoricalMarketDataPort:
 
         Args:
             data_store: DataStore instance with historical data
-            current_date: Current date in backtest iteration
+            current_date: Current date in backtest iteration (must be timezone-aware)
+
+        Raises:
+            ValueError: If current_date is not timezone-aware
 
         """
+        if current_date.tzinfo is None:
+            error_msg = "current_date must be timezone-aware"
+            raise ValueError(error_msg)
+        
         self.data_store = data_store
         self.current_date = current_date
         logger.debug(f"HistoricalMarketDataPort initialized for {current_date.date()}")
@@ -105,8 +116,6 @@ class HistoricalMarketDataPort:
             QuoteModel with bid/ask from Open price, or None
 
         """
-        from decimal import Decimal
-
         # Load current day's bar
         try:
             bars = self.data_store.load_bars(
@@ -121,7 +130,7 @@ class HistoricalMarketDataPort:
             bar = bars[0]
             # Simulate bid/ask from open price with small spread
             mid_price = bar.open
-            spread = mid_price * Decimal("0.0001")  # 0.01% spread
+            spread = mid_price * BID_ASK_SPREAD_PCT
 
             return QuoteModel(
                 ts=bar.date,
@@ -168,12 +177,11 @@ class HistoricalMarketDataPort:
         if period[-1] == "Y":
             years = int(period[:-1])
             return years * 365
-        elif period[-1] == "M":
+        if period[-1] == "M":
             months = int(period[:-1])
             return months * 30
-        elif period[-1] == "D":
-            days = int(period[:-1])
-            return days
-        else:
-            # Default to 252 trading days (1 year)
-            return 252
+        if period[-1] == "D":
+            return int(period[:-1])
+        
+        # Default to 1 trading year
+        return DEFAULT_PERIOD_DAYS
