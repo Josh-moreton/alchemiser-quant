@@ -378,6 +378,9 @@ class Executor:
                 f"⚠️ Partial execution: {len(failed_orders)} orders failed for symbols: {failed_symbols}"
             )
 
+        # Persist trade ledger to S3
+        self.trade_ledger.persist_to_s3(correlation_id=plan.correlation_id)
+
         return execution_result
 
     def _extract_all_symbols(self, plan: RebalancePlan) -> list[str]:

@@ -320,6 +320,13 @@ class TrackingSettings(BaseModel):
     order_history_limit: int = 1000
 
 
+class TradeLedgerSettings(BaseModel):
+    """Trade ledger persistence configuration."""
+
+    bucket_name: str = ""  # S3 bucket name for trade ledger storage
+    enabled: bool = True  # Enable/disable S3 persistence
+
+
 class ExecutionSettings(BaseModel):
     """Trading execution parameters and safe defaults."""
 
@@ -351,6 +358,7 @@ class Settings(BaseSettings):
     email: EmailSettings = EmailSettings()
     data: DataSettings = DataSettings()
     tracking: TrackingSettings = TrackingSettings()
+    trade_ledger: TradeLedgerSettings = TradeLedgerSettings()
     execution: ExecutionSettings = ExecutionSettings()
 
     model_config = SettingsConfigDict(

@@ -328,6 +328,16 @@ The execution module includes a trade ledger service that records all filled ord
 - **Order Type**: MARKET, LIMIT, etc.
 - **Strategy Attribution**: Which strategies contributed to the order
 
+### Persistence
+
+Trade ledger entries are automatically persisted to S3 after each execution run for historical analysis and audit purposes. The ledger is stored in JSON format with the following structure:
+
+**S3 Location**: `s3://the-alchemiser-v2-trade-ledger-{stage}/trade-ledgers/{date}/{timestamp}-{ledger_id}-{correlation_id}.json`
+
+**Retention**: 365 days (configurable in CloudFormation template)
+
+**Format**: JSON with one file per execution run containing all trades from that run
+
 ### Strategy Attribution
 
 The trade ledger supports multi-strategy attribution where multiple strategies suggest the same symbol. Strategy attribution is stored in the rebalance plan metadata:
@@ -377,5 +387,16 @@ The trade ledger is designed to handle cases where data may not be fully availab
 - Missing order type: Defaults to "MARKET"
 - Missing strategy attribution: Empty lists/None
 - Failed orders: Not recorded (only successful fills are tracked)
+
+### Configuration
+
+The trade ledger S3 persistence can be configured via environment variables:
+
+```bash
+TRADE_LEDGER__BUCKET_NAME=the-alchemiser-v2-trade-ledger-dev  # S3 bucket name
+TRADE_LEDGER__ENABLED=true  # Enable/disable S3 persistence (default: true)
+```
+
+These are automatically set by the CloudFormation template for Lambda deployments.
 - ⏳ Multi-venue execution support
 - ⏳ Execution cost analysis and reporting

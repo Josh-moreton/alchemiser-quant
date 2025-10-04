@@ -5,15 +5,19 @@ Trade ledger service for recording filled orders.
 This service captures trade execution details including fill price, bid/ask spreads,
 quantities, and strategy attribution. It handles cases where market data may not be
 fully available without blocking the recording of core trade information.
+
+Trade ledger entries are persisted to S3 for historical analysis and audit purposes.
 """
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.trade_ledger import TradeLedger, TradeLedgerEntry
 
@@ -31,12 +35,16 @@ class TradeLedgerService:
     Captures order execution details with strategy attribution and market data
     when available. Supports multi-strategy aggregation where multiple strategies
     suggest the same symbol.
+    
+    Persists trade ledger entries to S3 for historical analysis and audit purposes.
     """
 
     def __init__(self) -> None:
         """Initialize the trade ledger service."""
         self._ledger_id = str(uuid.uuid4())
         self._entries: list[TradeLedgerEntry] = []
+        self._settings = load_settings()
+        self._s3_client = None  # Lazy initialization
 
     def record_filled_order(
         self,
@@ -218,3 +226,82 @@ class TradeLedgerService:
     def total_entries(self) -> int:
         """Get total number of entries recorded."""
         return len(self._entries)
+
+    def _get_s3_client(self):
+        """Get or create S3 client (lazy initialization)."""
+        if self._s3_client is None:
+            try:
+                import boto3
+
+                self._s3_client = boto3.client("s3")
+            except Exception as e:
+                logger.error(f"Failed to initialize S3 client: {e}")
+                # Set to False to prevent repeated initialization attempts
+                self._s3_client = False
+        return self._s3_client if self._s3_client is not False else None
+
+    def persist_to_s3(self, correlation_id: str | None = None) -> bool:
+        """Persist the trade ledger to S3.
+
+        Args:
+            correlation_id: Optional correlation ID for the execution run
+
+        Returns:
+            True if persistence was successful, False otherwise
+
+        """
+        if not self._settings.trade_ledger.enabled:
+            logger.debug("Trade ledger S3 persistence is disabled")
+            return False
+
+        if not self._settings.trade_ledger.bucket_name:
+            logger.warning("Trade ledger bucket name not configured, skipping S3 persistence")
+            return False
+
+        if not self._entries:
+            logger.debug("No trade ledger entries to persist")
+            return True
+
+        s3_client = self._get_s3_client()
+        if s3_client is None:
+            logger.error("S3 client not available, cannot persist trade ledger")
+            return False
+
+        try:
+            # Create ledger with all entries
+            ledger = self.get_ledger()
+
+            # Generate S3 key with timestamp and correlation ID
+            timestamp = datetime.now(UTC).strftime("%Y/%m/%d/%H%M%S")
+            correlation_suffix = f"-{correlation_id}" if correlation_id else ""
+            s3_key = f"trade-ledgers/{timestamp}-{self._ledger_id}{correlation_suffix}.json"
+
+            # Convert ledger to JSON (handle Decimal serialization)
+            ledger_data = json.loads(
+                ledger.model_dump_json()
+            )  # Pydantic handles Decimal -> str conversion
+
+            # Upload to S3
+            s3_client.put_object(
+                Bucket=self._settings.trade_ledger.bucket_name,
+                Key=s3_key,
+                Body=json.dumps(ledger_data, indent=2),
+                ContentType="application/json",
+            )
+
+            logger.info(
+                f"Trade ledger persisted to S3",
+                bucket=self._settings.trade_ledger.bucket_name,
+                key=s3_key,
+                entries=ledger.total_entries,
+                ledger_id=self._ledger_id,
+            )
+            return True
+
+        except Exception as e:
+            logger.error(
+                f"Failed to persist trade ledger to S3: {e}",
+                ledger_id=self._ledger_id,
+                entries=len(self._entries),
+            )
+            return False

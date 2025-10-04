@@ -5,6 +5,7 @@ Tests for trade ledger service.
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -291,3 +292,61 @@ class TestTradeLedgerService:
         assert len(ledger.entries) == 3
         assert ledger.total_buy_value == Decimal("3000.00")
         assert ledger.total_sell_value == Decimal("0")
+
+    @patch("the_alchemiser.execution_v2.services.trade_ledger.boto3")
+    def test_persist_to_s3_success(self, mock_boto3):
+        """Test successful S3 persistence."""
+        # Mock S3 client
+        mock_s3_client = MagicMock()
+        mock_boto3.client.return_value = mock_s3_client
+
+        service = TradeLedgerService()
+        # Override settings for test
+        service._settings.trade_ledger.enabled = True
+        service._settings.trade_ledger.bucket_name = "test-bucket"
+
+        # Record an order
+        order_result = OrderResult(
+            symbol="TEST",
+            action="BUY",
+            trade_amount=Decimal("1000.00"),
+            shares=Decimal("10"),
+            price=Decimal("100.00"),
+            order_id="order-123",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+        )
+        service.record_filled_order(
+            order_result=order_result,
+            correlation_id="test-corr-123",
+            rebalance_plan=None,
+            quote_at_fill=None,
+        )
+
+        # Persist to S3
+        result = service.persist_to_s3(correlation_id="test-corr-123")
+
+        assert result is True
+        mock_s3_client.put_object.assert_called_once()
+        call_kwargs = mock_s3_client.put_object.call_args[1]
+        assert call_kwargs["Bucket"] == "test-bucket"
+        assert "trade-ledgers/" in call_kwargs["Key"]
+        assert call_kwargs["ContentType"] == "application/json"
+
+    def test_persist_to_s3_disabled(self):
+        """Test that S3 persistence can be disabled."""
+        service = TradeLedgerService()
+        service._settings.trade_ledger.enabled = False
+
+        result = service.persist_to_s3(correlation_id="test-corr")
+        assert result is False
+
+    def test_persist_to_s3_no_entries(self):
+        """Test S3 persistence with no entries."""
+        service = TradeLedgerService()
+        service._settings.trade_ledger.enabled = True
+        service._settings.trade_ledger.bucket_name = "test-bucket"
+
+        result = service.persist_to_s3(correlation_id="test-corr")
+        assert result is True  # Returns True but doesn't actually persist

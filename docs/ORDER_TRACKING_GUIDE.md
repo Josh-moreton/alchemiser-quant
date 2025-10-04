@@ -8,6 +8,8 @@ The order tracking feature provides a trade ledger that records all filled order
 - Timestamp of fill
 - Strategy attribution (which strategies contributed to each order)
 
+**Persistence**: Trade ledger entries are automatically saved to S3 after each execution run in JSON format for historical analysis and audit purposes.
+
 ## Basic Usage
 
 ### Automatic Recording
@@ -168,9 +170,62 @@ The trade ledger is designed to work seamlessly with existing code:
 ## Performance Notes
 
 - **Minimal overhead**: Recording happens after order execution
-- **Memory efficient**: Only successful fills are stored
+- **Memory efficient**: Only successful fills are stored in-memory during execution
+- **S3 persistence**: Ledger is written to S3 once at the end of execution
 - **No I/O blocking**: Recording doesn't block execution flow
 - **Thread safe**: Service can be safely accessed from multiple contexts
+
+## S3 Storage
+
+Trade ledger entries are automatically persisted to S3 for long-term storage and analysis:
+
+### Storage Structure
+
+```
+s3://the-alchemiser-v2-trade-ledger-{stage}/
+  └── trade-ledgers/
+      └── 2024/
+          └── 01/
+              └── 15/
+                  └── 143052-{ledger-id}-{correlation-id}.json
+```
+
+### Retention
+
+- Default retention: 365 days
+- Configurable via CloudFormation template (`LifecycleConfiguration`)
+- Automatic cleanup of old ledger files
+
+### Configuration
+
+Set via environment variables (automatically configured in Lambda):
+
+```bash
+TRADE_LEDGER__BUCKET_NAME=the-alchemiser-v2-trade-ledger-dev
+TRADE_LEDGER__ENABLED=true  # Set to false to disable S3 persistence
+```
+
+### Accessing Historical Data
+
+```python
+# Ledgers are stored as JSON files in S3
+# Example: Download and analyze past executions
+import boto3
+import json
+
+s3 = boto3.client('s3')
+bucket = 'the-alchemiser-v2-trade-ledger-prod'
+
+# List all ledger files for a specific date
+response = s3.list_objects_v2(
+    Bucket=bucket,
+    Prefix='trade-ledgers/2024/01/15/'
+)
+
+# Download and parse a specific ledger
+obj = s3.get_object(Bucket=bucket, Key='trade-ledgers/2024/01/15/143052-abc123-xyz789.json')
+ledger_data = json.loads(obj['Body'].read())
+```
 
 ## Examples
 
