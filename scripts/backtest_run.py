@@ -47,7 +47,7 @@ def main() -> None:
     parser.add_argument(
         "--end-date",
         help="End date (YYYY-MM-DD)",
-        default=None,
+        default="2025-10-02",
     )
     parser.add_argument(
         "--capital",
