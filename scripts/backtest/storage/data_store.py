@@ -23,7 +23,9 @@ from scripts.backtest.models.market_data import DailyBar, MarketDataMetadata
 from the_alchemiser.shared.logging import get_logger
 
 # Constants
-GAP_DETECTION_THRESHOLD = 0.7  # Heuristic: expect at least 70% of calendar days to be trading days
+GAP_DETECTION_THRESHOLD = (
+    0.7  # Heuristic: expect at least 70% of calendar days to be trading days
+)
 
 logger = get_logger(__name__)
 
@@ -71,7 +73,9 @@ class DataStore:
             logger.warning(f"No bars to save for {symbol}")
             return
 
-        logger.info(f"Saving {len(bars)} bars for {symbol}", symbol=symbol, bar_count=len(bars))
+        logger.info(
+            f"Saving {len(bars)} bars for {symbol}", symbol=symbol, bar_count=len(bars)
+        )
 
         # Group bars by year
         bars_by_year: dict[int, list[DailyBar]] = {}
@@ -148,7 +152,9 @@ class DataStore:
         for year in years:
             file_path = self._get_file_path(symbol, year)
             if not file_path.exists():
-                logger.warning(f"No data file for {symbol} year {year}", symbol=symbol, year=year)
+                logger.warning(
+                    f"No data file for {symbol} year {year}", symbol=symbol, year=year
+                )
                 continue
 
             df = pd.read_parquet(file_path, engine="pyarrow")
@@ -174,7 +180,9 @@ class DataStore:
                 if date_dt.tzinfo is None:
                     date_dt = date_dt.replace(tzinfo=timezone.utc)
             else:
-                date_dt = date.replace(tzinfo=timezone.utc) if date.tzinfo is None else date
+                date_dt = (
+                    date.replace(tzinfo=timezone.utc) if date.tzinfo is None else date
+                )
 
             bar = DailyBar(
                 date=date_dt,
@@ -187,7 +195,9 @@ class DataStore:
             )
             bars.append(bar)
 
-        logger.info(f"Loaded {len(bars)} bars for {symbol}", symbol=symbol, bar_count=len(bars))
+        logger.info(
+            f"Loaded {len(bars)} bars for {symbol}", symbol=symbol, bar_count=len(bars)
+        )
 
         return bars
 

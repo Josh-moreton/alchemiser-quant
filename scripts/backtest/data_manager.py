@@ -17,7 +17,9 @@ if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
 from scripts.backtest.storage.data_store import DataStore
-from scripts.backtest.storage.providers.alpaca_historical import AlpacaHistoricalProvider
+from scripts.backtest.storage.providers.alpaca_historical import (
+    AlpacaHistoricalProvider,
+)
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
@@ -41,7 +43,12 @@ class DataManager:
         logger.info("DataManager initialized")
 
     def download_data(
-        self, symbols: list[str], start_date: datetime, end_date: datetime, *, force: bool = False
+        self,
+        symbols: list[str],
+        start_date: datetime,
+        end_date: datetime,
+        *,
+        force: bool = False,
     ) -> dict[str, bool]:
         """Download historical data for symbols.
 
@@ -77,7 +84,11 @@ class DataManager:
                 # Check if data already exists
                 if not force:
                     metadata = self.data_store.get_metadata(symbol)
-                    if metadata and metadata.start_date <= start_date and metadata.end_date >= end_date:
+                    if (
+                        metadata
+                        and metadata.start_date <= start_date
+                        and metadata.end_date >= end_date
+                    ):
                         logger.info(
                             f"Data already exists for {symbol}, skipping",
                             symbol=symbol,

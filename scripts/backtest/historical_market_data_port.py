@@ -50,7 +50,7 @@ class HistoricalMarketDataPort:
         if current_date.tzinfo is None:
             error_msg = "current_date must be timezone-aware"
             raise ValueError(error_msg)
-        
+
         self.data_store = data_store
         self.current_date = current_date
         logger.debug(f"HistoricalMarketDataPort initialized for {current_date.date()}")
@@ -182,6 +182,6 @@ class HistoricalMarketDataPort:
             return months * 30
         if period[-1] == "D":
             return int(period[:-1])
-        
+
         # Default to 1 trading year
         return DEFAULT_PERIOD_DAYS

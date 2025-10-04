@@ -39,7 +39,7 @@ def sample_test_data(tmp_path: Path) -> DataStore:
     # Need at least 252 days (1 year) before backtest date for indicators like 200-day MA
     # Backtest runs from 2024-01-01 to 2024-01-05, so create data from 2023-01-01 to 2024-12-31
     base_date = datetime(2023, 1, 1, tzinfo=timezone.utc)
-    
+
     # Symbol base prices matching realistic market values
     symbol_prices = {
         "SPY": Decimal("400"),
@@ -102,7 +102,9 @@ def test_run_simple_backtest(sample_test_data: DataStore, tmp_path: Path) -> Non
     assert result.final_value is not None
 
 
-def test_backtest_portfolio_evolution(sample_test_data: DataStore, tmp_path: Path) -> None:
+def test_backtest_portfolio_evolution(
+    sample_test_data: DataStore, tmp_path: Path
+) -> None:
     """Test that portfolio state evolves across days."""
     runner = BacktestRunner(data_store=sample_test_data)
 
@@ -139,7 +141,7 @@ def test_backtest_trade_generation(sample_test_data: DataStore, tmp_path: Path) 
 
     # Include all symbols that DSL strategies might trade
     all_symbols = ["SPY", "QQQ", "QQQE", "BITO", "BIL", "FXI", "FCG", "IOO", "UVXY"]
-    
+
     config = BacktestConfig(
         strategy_files=["test.clj"],
         start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
@@ -162,7 +164,9 @@ def test_backtest_trade_generation(sample_test_data: DataStore, tmp_path: Path) 
         assert trade.price > 0
 
 
-def test_backtest_metrics_calculation(sample_test_data: DataStore, tmp_path: Path) -> None:
+def test_backtest_metrics_calculation(
+    sample_test_data: DataStore, tmp_path: Path
+) -> None:
     """Test that performance metrics are calculated."""
     runner = BacktestRunner(data_store=sample_test_data)
 
@@ -205,7 +209,9 @@ def test_backtest_empty_date_range(temp_backtest_runner: BacktestRunner) -> None
     assert len(result.trades) == 0
 
 
-def test_backtest_commission_impact(sample_test_data: DataStore, tmp_path: Path) -> None:
+def test_backtest_commission_impact(
+    sample_test_data: DataStore, tmp_path: Path
+) -> None:
     """Test that commissions are tracked in trades."""
     # Create runners with different commission rates
     from scripts.backtest.fill_simulator import FillSimulator

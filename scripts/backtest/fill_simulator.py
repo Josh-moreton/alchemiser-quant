@@ -42,7 +42,9 @@ class FillSimulator:
 
         """
         self.commission_per_trade = commission_per_trade
-        logger.info(f"FillSimulator initialized with commission: {commission_per_trade}")
+        logger.info(
+            f"FillSimulator initialized with commission: {commission_per_trade}"
+        )
 
     def simulate_fill(
         self,

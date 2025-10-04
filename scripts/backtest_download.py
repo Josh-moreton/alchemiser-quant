@@ -24,7 +24,9 @@ logger = get_logger(__name__)
 
 def main() -> None:
     """Main entry point for data download."""
-    parser = argparse.ArgumentParser(description="Download historical data for backtesting")
+    parser = argparse.ArgumentParser(
+        description="Download historical data for backtesting"
+    )
     parser.add_argument(
         "--symbols",
         nargs="+",
@@ -75,7 +77,9 @@ def main() -> None:
     for symbol in successful:
         info = data_manager.get_available_data(symbol)
         if info:
-            print(f"  {symbol}: {info['bar_count']} bars from {info['start_date'][:10]} to {info['end_date'][:10]}")
+            print(
+                f"  {symbol}: {info['bar_count']} bars from {info['start_date'][:10]} to {info['end_date'][:10]}"
+            )
 
     if failed:
         print(f"\n❌ Failed to download data for {len(failed)} symbols:")

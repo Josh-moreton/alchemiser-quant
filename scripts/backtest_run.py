@@ -72,7 +72,9 @@ def main() -> None:
 
     # Parse dates
     if args.start_date and args.end_date:
-        start_date = datetime.fromisoformat(args.start_date).replace(tzinfo=timezone.utc)
+        start_date = datetime.fromisoformat(args.start_date).replace(
+            tzinfo=timezone.utc
+        )
         end_date = datetime.fromisoformat(args.end_date).replace(tzinfo=timezone.utc)
     else:
         end_date = datetime.now(timezone.utc)
@@ -105,13 +107,31 @@ def main() -> None:
     print(f"\nStrategy: {result.strategy_name}")
     print(f"Period: {result.start_date.date()} to {result.end_date.date()}")
     print(f"Initial Capital: ${result.initial_capital:,.2f}")
-    print(f"Final Value: ${result.final_value:,.2f}" if result.final_value else "Final Value: N/A")
-    print(f"Total Return: {result.total_return:.2f}%" if result.total_return else "Total Return: N/A")
+    print(
+        f"Final Value: ${result.final_value:,.2f}"
+        if result.final_value
+        else "Final Value: N/A"
+    )
+    print(
+        f"Total Return: {result.total_return:.2f}%"
+        if result.total_return
+        else "Total Return: N/A"
+    )
     print(f"Total Trades: {result.total_trades}")
     print(f"\nPerformance Metrics:")
-    print(f"  Sharpe Ratio: {result.sharpe_ratio:.2f}" if result.sharpe_ratio else "  Sharpe Ratio: N/A")
-    print(f"  Max Drawdown: {result.max_drawdown:.2f}%" if result.max_drawdown else "  Max Drawdown: N/A")
-    print(f"  Win Rate: {result.win_rate:.2f}%" if result.win_rate else "  Win Rate: N/A")
+    print(
+        f"  Sharpe Ratio: {result.sharpe_ratio:.2f}"
+        if result.sharpe_ratio
+        else "  Sharpe Ratio: N/A"
+    )
+    print(
+        f"  Max Drawdown: {result.max_drawdown:.2f}%"
+        if result.max_drawdown
+        else "  Max Drawdown: N/A"
+    )
+    print(
+        f"  Win Rate: {result.win_rate:.2f}%" if result.win_rate else "  Win Rate: N/A"
+    )
     print(f"\nPortfolio Snapshots: {len(result.portfolio_snapshots)}")
 
     if result.portfolio_snapshots:
@@ -120,7 +140,9 @@ def main() -> None:
         print(f"  Cash: ${final_snapshot.cash:,.2f}")
         print(f"  Positions: {len(final_snapshot.positions)}")
         for symbol, position in final_snapshot.positions.items():
-            print(f"    {symbol}: {position.quantity:.2f} shares @ ${position.current_price:.2f}")
+            print(
+                f"    {symbol}: {position.quantity:.2f} shares @ ${position.current_price:.2f}"
+            )
             print(f"      Market Value: ${position.market_value:,.2f}")
             print(f"      Unrealized P&L: ${position.unrealized_pnl:,.2f}")
 

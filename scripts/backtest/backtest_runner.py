@@ -61,7 +61,9 @@ class BacktestRunner:
         self.data_store = data_store or DataStore()
         self.fill_simulator = fill_simulator or FillSimulator()
         self.strategy_files = strategy_files or ["KLM.clj"]
-        logger.info(f"BacktestRunner initialized with strategies: {self.strategy_files}")
+        logger.info(
+            f"BacktestRunner initialized with strategies: {self.strategy_files}"
+        )
 
     def run_backtest(self, config: BacktestConfig) -> BacktestResult:
         """Run a complete backtest.
@@ -227,7 +229,9 @@ class BacktestRunner:
             # Initialize DSL strategy engine with historical data
             strategy_engine = DslStrategyEngine(
                 market_data_port=market_data_port,
-                strategy_file=self.strategy_files[0] if self.strategy_files else "KLM.clj",
+                strategy_file=(
+                    self.strategy_files[0] if self.strategy_files else "KLM.clj"
+                ),
             )
 
             # Generate signals using real strategy
@@ -238,7 +242,10 @@ class BacktestRunner:
             total_allocation = Decimal("0")
 
             for signal in strategy_signals:
-                if signal.target_allocation is not None and signal.target_allocation > 0:
+                if (
+                    signal.target_allocation is not None
+                    and signal.target_allocation > 0
+                ):
                     symbol_str = str(signal.symbol)
                     signals[symbol_str] = signal.target_allocation
                     total_allocation += signal.target_allocation
@@ -365,7 +372,9 @@ class BacktestRunner:
                     old_qty = pos.quantity
                     old_value = pos.avg_entry_price * old_qty
                     new_qty = old_qty + trade.quantity
-                    new_avg_price = (old_value + (trade.price * trade.quantity)) / new_qty
+                    new_avg_price = (
+                        old_value + (trade.price * trade.quantity)
+                    ) / new_qty
 
                     new_positions[trade.symbol] = PositionSnapshot(
                         symbol=trade.symbol,
@@ -402,7 +411,8 @@ class BacktestRunner:
                             avg_entry_price=pos.avg_entry_price,
                             current_price=trade.price,
                             market_value=new_qty * trade.price,
-                            unrealized_pnl=(trade.price - pos.avg_entry_price) * new_qty,
+                            unrealized_pnl=(trade.price - pos.avg_entry_price)
+                            * new_qty,
                         )
                     else:
                         # Close position
@@ -418,7 +428,8 @@ class BacktestRunner:
                     avg_entry_price=position.avg_entry_price,
                     current_price=current_price,
                     market_value=position.quantity * current_price,
-                    unrealized_pnl=(current_price - position.avg_entry_price) * position.quantity,
+                    unrealized_pnl=(current_price - position.avg_entry_price)
+                    * position.quantity,
                 )
 
         # Calculate total value
