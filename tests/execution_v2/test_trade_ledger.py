@@ -11,7 +11,10 @@ import pytest
 
 from the_alchemiser.execution_v2.models.execution_result import OrderResult
 from the_alchemiser.execution_v2.services.trade_ledger import TradeLedgerService
-from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan, RebalancePlanItem
+from the_alchemiser.shared.schemas.rebalance_plan import (
+    RebalancePlan,
+    RebalancePlanItem,
+)
 from the_alchemiser.shared.types.quote import QuoteModel
 
 
@@ -293,14 +296,14 @@ class TestTradeLedgerService:
         assert ledger.total_buy_value == Decimal("3000.00")
         assert ledger.total_sell_value == Decimal("0")
 
-    @patch("the_alchemiser.execution_v2.services.trade_ledger.boto3")
-    def test_persist_to_s3_success(self, mock_boto3):
+    def test_persist_to_s3_success(self):
         """Test successful S3 persistence."""
-        # Mock S3 client
-        mock_s3_client = MagicMock()
-        mock_boto3.client.return_value = mock_s3_client
-
         service = TradeLedgerService()
+
+        # Mock S3 client directly on the service instance
+        mock_s3_client = MagicMock()
+        service._s3_client = mock_s3_client
+
         # Override settings for test
         service._settings.trade_ledger.enabled = True
         service._settings.trade_ledger.bucket_name = "test-bucket"

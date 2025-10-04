@@ -576,9 +576,7 @@ class Executor:
         """Wait for placed orders to complete and rebuild results based on final status."""
         return self._order_finalizer.finalize_phase_orders(orders, items, phase_type)
 
-    def _record_orders_to_ledger(
-        self, orders: list[OrderResult], plan: RebalancePlan
-    ) -> None:
+    def _record_orders_to_ledger(self, orders: list[OrderResult], plan: RebalancePlan) -> None:
         """Record filled orders to trade ledger.
 
         Args:
@@ -588,12 +586,14 @@ class Executor:
         """
         for order in orders:
             if order.success and order.order_id:
-                # Record order to ledger (quote data not available in this context)
+                # Record order to ledger
+                # TODO: Consider fetching quote data from pricing_service if available
+                # for more complete market context at fill time
                 self.trade_ledger.record_filled_order(
                     order_result=order,
                     correlation_id=plan.correlation_id,
                     rebalance_plan=plan,
-                    quote_at_fill=None,  # Quote data not available in current flow
+                    quote_at_fill=None,  # Quote data not currently captured in execution flow
                 )
 
     def shutdown(self) -> None:

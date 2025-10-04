@@ -155,30 +155,31 @@ plan = portfolio_service.create_rebalance_plan(strategy, "corr-123")
 
 ### Multi-Strategy Aggregation
 
-When multiple strategies suggest the same symbols and you aggregate their weights, include strategy attribution:
+When multiple strategies suggest the same symbols and you aggregate their weights, include strategy attribution in the rebalance plan metadata:
 
 ```python
 # Example: Aggregate signals from two strategies
 # Strategy 1 wants 30% AAPL, Strategy 2 wants 20% AAPL
 # Combined target: 50% AAPL (30% from strategy1, 20% from strategy2)
 
+# Create the allocation
 strategy = StrategyAllocation(
     target_weights={"AAPL": Decimal("0.5")},
     correlation_id="corr-123",
-    constraints={
-        "strategy_attribution": {
-            "AAPL": {
-                "momentum_strategy": 0.6,  # 30/50 = 60% contribution
-                "mean_reversion_strategy": 0.4,  # 20/50 = 40% contribution
-            }
-        }
-    }
 )
 
-# Pass attribution to rebalance plan metadata
+# Build the rebalance plan
 plan = portfolio_service.create_rebalance_plan(strategy, "corr-123")
-# Then manually add to metadata if not automatically propagated:
-# plan.metadata = {"strategy_attribution": strategy.constraints.get("strategy_attribution")}
+
+# Add strategy attribution to plan metadata
+plan.metadata = {
+    "strategy_attribution": {
+        "AAPL": {
+            "momentum_strategy": 0.6,  # 30/50 = 60% contribution
+            "mean_reversion_strategy": 0.4,  # 20/50 = 40% contribution
+        }
+    }
+}
 ```
 
 The execution module will use this metadata to record which strategies contributed to each filled order in the trade ledger.

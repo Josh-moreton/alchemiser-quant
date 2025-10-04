@@ -35,7 +35,7 @@ class TradeLedgerService:
     Captures order execution details with strategy attribution and market data
     when available. Supports multi-strategy aggregation where multiple strategies
     suggest the same symbol.
-    
+
     Persists trade ledger entries to S3 for historical analysis and audit purposes.
     """
 
@@ -44,7 +44,7 @@ class TradeLedgerService:
         self._ledger_id = str(uuid.uuid4())
         self._entries: list[TradeLedgerEntry] = []
         self._settings = load_settings()
-        self._s3_client = None  # Lazy initialization
+        self._s3_client: object | None = None  # Lazy initialization, type: boto3 client or None
 
     def record_filled_order(
         self,
@@ -92,21 +92,30 @@ class TradeLedgerService:
         bid_at_fill = quote_at_fill.bid if quote_at_fill else None
         ask_at_fill = quote_at_fill.ask if quote_at_fill else None
 
-        # Determine order type from context (default to MARKET if not in plan metadata)
-        order_type = self._determine_order_type(order_result.symbol, rebalance_plan)
+        # Order type defaults to MARKET (future: could extract from broker order details)
+        order_type: str = "MARKET"
+
+        # Validate action is BUY or SELL
+        if order_result.action not in ("BUY", "SELL"):
+            logger.warning(
+                f"Invalid order action: {order_result.action}, skipping ledger recording",
+                symbol=order_result.symbol,
+                order_id=order_result.order_id,
+            )
+            return None
 
         try:
             entry = TradeLedgerEntry(
                 order_id=order_result.order_id,
                 correlation_id=correlation_id,
                 symbol=order_result.symbol,
-                direction=order_result.action,  # Already "BUY" or "SELL"
+                direction=order_result.action,  # type: ignore[arg-type]  # Validated above as BUY or SELL
                 filled_qty=order_result.shares,
                 fill_price=order_result.price,
                 bid_at_fill=bid_at_fill,
                 ask_at_fill=ask_at_fill,
                 fill_timestamp=order_result.timestamp,
-                order_type=order_type,
+                order_type=order_type,  # type: ignore[arg-type]  # Always MARKET in current implementation
                 strategy_names=strategy_names,
                 strategy_weights=strategy_weights,
             )
@@ -164,27 +173,6 @@ class TradeLedgerService:
 
         return strategy_names, strategy_weights
 
-    def _determine_order_type(
-        self, symbol: str, rebalance_plan: RebalancePlan | None
-    ) -> str:
-        """Determine order type from rebalance plan metadata.
-
-        Args:
-            symbol: Trading symbol
-            rebalance_plan: Optional rebalance plan with order type metadata
-
-        Returns:
-            Order type string (MARKET, LIMIT, etc.)
-
-        """
-        if not rebalance_plan or not rebalance_plan.metadata:
-            return "MARKET"
-
-        # Check for order type in metadata
-        # Format: {"order_types": {"SYMBOL": "LIMIT"}}
-        order_types = rebalance_plan.metadata.get("order_types", {})
-        return order_types.get(symbol, "MARKET")
-
     def get_ledger(self) -> TradeLedger:
         """Get the current trade ledger.
 
@@ -227,8 +215,13 @@ class TradeLedgerService:
         """Get total number of entries recorded."""
         return len(self._entries)
 
-    def _get_s3_client(self):
-        """Get or create S3 client (lazy initialization)."""
+    def _get_s3_client(self) -> object | None:
+        """Get or create S3 client (lazy initialization).
+
+        Returns:
+            boto3 S3 client instance or None if initialization failed
+
+        """
         if self._s3_client is None:
             try:
                 import boto3
@@ -236,9 +229,14 @@ class TradeLedgerService:
                 self._s3_client = boto3.client("s3")
             except Exception as e:
                 logger.error(f"Failed to initialize S3 client: {e}")
-                # Set to False to prevent repeated initialization attempts
-                self._s3_client = False
-        return self._s3_client if self._s3_client is not False else None
+                # Set to object() sentinel to prevent repeated initialization attempts
+                self._s3_client = object()
+        # Return None if initialization failed (sentinel object)
+        return (
+            self._s3_client
+            if not isinstance(self._s3_client, object) or hasattr(self._s3_client, "put_object")
+            else None
+        )
 
     def persist_to_s3(self, correlation_id: str | None = None) -> bool:
         """Persist the trade ledger to S3.
@@ -282,7 +280,7 @@ class TradeLedgerService:
             )  # Pydantic handles Decimal -> str conversion
 
             # Upload to S3
-            s3_client.put_object(
+            s3_client.put_object(  # type: ignore[attr-defined]  # boto3 client duck-typing
                 Bucket=self._settings.trade_ledger.bucket_name,
                 Key=s3_key,
                 Body=json.dumps(ledger_data, indent=2),
@@ -290,7 +288,7 @@ class TradeLedgerService:
             )
 
             logger.info(
-                f"Trade ledger persisted to S3",
+                "Trade ledger persisted to S3",
                 bucket=self._settings.trade_ledger.bucket_name,
                 key=s3_key,
                 entries=ledger.total_entries,
