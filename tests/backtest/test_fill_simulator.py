@@ -8,14 +8,14 @@ from __future__ import annotations
 import sys
 from datetime import datetime, timezone
 from decimal import Decimal
-
+from pathlib import Path
 import pytest
 
-# Add project root to path
-if "/home/runner/work/alchemiser-quant/alchemiser-quant" not in sys.path:
-    sys.path.insert(
-        0, "/home/runner/work/alchemiser-quant/alchemiser-quant"
-    )
+# Dynamically add project root to path
+project_root = Path(__file__).resolve().parents[2]
+project_root_str = str(project_root)
+if project_root_str not in sys.path:
+    sys.path.insert(0, project_root_str)
 
 from scripts.backtest.fill_simulator import FillSimulator
 from scripts.backtest.models.market_data import DailyBar
