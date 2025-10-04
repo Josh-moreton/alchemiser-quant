@@ -133,6 +133,16 @@ class BacktestRunner:
             # Generate signals (mocked for now)
             signals = self._generate_signals(symbols, bars, current_date)
 
+            # Load bars for all symbols in signals (if not already loaded)
+            if signals:
+                signal_symbols = list(signals.keys())
+                for signal_symbol in signal_symbols:
+                    if signal_symbol not in bars:
+                        signal_bars = self._load_bars_for_date(
+                            [signal_symbol], current_date
+                        )
+                        bars.update(signal_bars)
+
             # Generate rebalance plan (mocked portfolio_v2)
             rebalance_plan = self._generate_rebalance_plan(
                 current_portfolio, signals, bars
