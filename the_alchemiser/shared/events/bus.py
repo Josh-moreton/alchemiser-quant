@@ -11,7 +11,8 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Callable
-from typing import Any, Protocol
+from inspect import signature
+from typing import Protocol
 
 from ..logging import get_logger
 from .base import BaseEvent
@@ -162,8 +163,8 @@ class EventBus:
                 if not self._can_handle_event(handler, event_type):
                     return (False, False)  # Skipped, no error
 
-                # Delegate to handler implementation
-                handler.handle_event(event)
+                # Delegate to handler implementation with robust calling
+                self._safe_call_method(handler, "handle_event", event)
             elif callable(handler):
                 # Plain callable passed directly to subscribe
                 handler(event)
@@ -188,7 +189,11 @@ class EventBus:
 
         """
         try:
-            return handler.can_handle(event_type)  # pragma: no cover - structural
+            # Some dynamically-created handlers may define can_handle without 'self';
+            # use a robust invocation that works for both styles.
+            return bool(
+                self._safe_call_method(handler, "can_handle", event_type)
+            )  # pragma: no cover - structural
         except Exception as exc:
             # If can_handle raises, proceed but log
             self.logger.warning(
@@ -301,7 +306,7 @@ class EventBus:
         self._global_handlers.clear()
         self.logger.debug("Cleared all event handlers")
 
-    def get_stats(self) -> dict[str, Any]:
+    def get_stats(self) -> dict[str, int | list[str] | dict[str, int]]:
         """Get event bus statistics.
 
         Returns:
@@ -360,3 +365,70 @@ class EventBus:
             return True  # Assume active if no state checker
 
         return self._workflow_state_checker.is_workflow_active(correlation_id)
+
+    # --- Internal utilities -------------------------------------------------
+
+    def _safe_call_method(
+        self, obj: object, method_name: str, *args: object, **kwargs: object
+    ) -> object:
+        """Safely call a method on an object, tolerating missing 'self' in signature.
+
+        Some test handlers are created dynamically with methods defined as functions
+        that only accept the domain argument (e.g., event) and not 'self'. When these
+        are attached to a class, Python will bind them and implicitly pass 'self',
+        which leads to a "takes 1 positional argument but 2 were given" TypeError.
+
+        This helper first tries a normal bound call. If that fails with a TypeError,
+        it attempts to call the underlying function (method.__func__) with the same
+        arguments, which omits 'self'. If both fail, the original error is raised.
+
+        Args:
+            obj: The object containing the method.
+            method_name: The method name to invoke.
+            *args: Positional arguments for the call.
+            **kwargs: Keyword arguments for the call.
+
+        Returns:
+            The return value of the method call.
+
+        Raises:
+            AttributeError: If the method does not exist on the object.
+            Exception: Propagates any exception from the underlying call if retries fail.
+
+        """
+        method = getattr(obj, method_name, None)
+        if method is None:
+            raise AttributeError(f"Object {type(obj).__name__} has no attribute '{method_name}'")
+
+        # First attempt: normal bound call
+        try:
+            return method(*args, **kwargs)
+        except TypeError as e:
+            # Inspect the underlying function if available and retry without 'self'
+            underlying = getattr(method, "__func__", None)
+            if underlying is not None:
+                try:
+                    # Heuristic: If the underlying function has fewer positional parameters
+                    # than the bound method would expect (i.e., defined without 'self'),
+                    # call it directly with provided args to avoid implicit 'self'.
+                    sig = signature(underlying)
+                    params = [
+                        p
+                        for p in sig.parameters.values()
+                        if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+                        and p.default is p.empty
+                    ]
+                    if len(params) <= len(args):
+                        return underlying(*args, **kwargs)
+                except Exception as exc:
+                    # Log and fall through to re-raise original TypeError
+                    self.logger.debug(
+                        "Fallback to underlying function failed",
+                        extra={
+                            "method": method_name,
+                            "object": type(obj).__name__,
+                            "error": str(exc),
+                        },
+                    )
+            # Re-raise the original error if we can't safely recover
+            raise e

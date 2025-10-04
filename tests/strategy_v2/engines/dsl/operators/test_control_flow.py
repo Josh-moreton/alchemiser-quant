@@ -1,0 +1,279 @@
+"""Business Unit: strategy | Status: current.
+
+Test DSL control flow operators.
+
+Tests if conditionals, defsymphony, and control flow branching logic.
+"""
+
+from datetime import UTC, datetime
+from unittest.mock import Mock
+
+import pytest
+
+from the_alchemiser.shared.schemas.ast_node import ASTNode
+from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
+from the_alchemiser.shared.schemas.trace import Trace
+from the_alchemiser.strategy_v2.engines.dsl.context import DslContext
+from the_alchemiser.strategy_v2.engines.dsl.operators.control_flow import (
+    create_indicator_with_symbol,
+    defsymphony,
+    if_condition,
+    register_control_flow_operators,
+)
+from the_alchemiser.strategy_v2.engines.dsl.types import DslEvaluationError
+
+
+@pytest.mark.unit
+@pytest.mark.dsl
+class TestControlFlowOperators:
+    """Test control flow operators."""
+
+    @pytest.fixture
+    def mock_event_publisher(self):
+        """Create mock event publisher."""
+        publisher = Mock()
+        publisher.publish_decision_evaluated = Mock()
+        return publisher
+
+    @pytest.fixture
+    def context(self, mock_event_publisher):
+        """Create mock context."""
+        evaluations = {}
+        
+        def evaluate_node(node, corr_id, trace):
+            # Handle atoms
+            if node.is_atom():
+                val = node.get_atom_value()
+                if val == "true":
+                    return True
+                if val == "false":
+                    return False
+                return val
+            
+            # Handle symbols
+            if node.is_symbol():
+                name = node.get_symbol_name()
+                return evaluations.get(name, name)
+            
+            # Handle lists
+            if node.is_list() and node.children:
+                return evaluations.get(str(node), None)
+            
+            return None
+        
+        trace = Trace(
+            trace_id="test-trace-id",
+            correlation_id="test-corr-id",
+            strategy_id="test-strategy",
+            started_at=datetime.now(UTC),
+            entries=[],
+        )
+        ctx = DslContext(
+            indicator_service=Mock(),
+            event_publisher=mock_event_publisher,
+            correlation_id="test-corr-id",
+            trace=trace,
+            evaluate_node=evaluate_node,
+        )
+        ctx.evaluations = evaluations
+        return ctx
+
+    def test_defsymphony_evaluates_body(self, context):
+        """Test defsymphony evaluates the strategy body."""
+        name = ASTNode.atom("test-strategy")
+        config = ASTNode.list_node([])
+        body = ASTNode.atom("result-value")
+        
+        args = [name, config, body]
+        result = defsymphony(args, context)
+        
+        assert result == "result-value"
+
+    def test_defsymphony_wrong_arg_count(self, context):
+        """Test defsymphony with wrong number of arguments."""
+        with pytest.raises(DslEvaluationError, match="requires at least 3 arguments"):
+            defsymphony([], context)
+        
+        with pytest.raises(DslEvaluationError, match="requires at least 3 arguments"):
+            defsymphony([ASTNode.atom("name"), ASTNode.atom("config")], context)
+
+    def test_if_condition_true_branch(self, context):
+        """Test if takes then branch when condition is True."""
+        condition = ASTNode.atom("true")
+        then_expr = ASTNode.atom("then-result")
+        else_expr = ASTNode.atom("else-result")
+        
+        args = [condition, then_expr, else_expr]
+        result = if_condition(args, context)
+        
+        assert result == "then-result"
+
+    def test_if_condition_false_branch(self, context):
+        """Test if takes else branch when condition is False."""
+        condition = ASTNode.atom("false")
+        then_expr = ASTNode.atom("then-result")
+        else_expr = ASTNode.atom("else-result")
+        
+        args = [condition, then_expr, else_expr]
+        result = if_condition(args, context)
+        
+        assert result == "else-result"
+
+    def test_if_condition_no_else_returns_none(self, context):
+        """Test if returns None when no else clause and condition is False."""
+        condition = ASTNode.atom("false")
+        then_expr = ASTNode.atom("then-result")
+        
+        args = [condition, then_expr]
+        result = if_condition(args, context)
+        
+        assert result is None
+
+    def test_if_condition_publishes_event(self, context, mock_event_publisher):
+        """Test if publishes decision evaluated event."""
+        condition = ASTNode.atom("true")
+        then_expr = ASTNode.atom("result")
+        
+        args = [condition, then_expr]
+        if_condition(args, context)
+        
+        mock_event_publisher.publish_decision_evaluated.assert_called_once()
+        call_kwargs = mock_event_publisher.publish_decision_evaluated.call_args[1]
+        assert call_kwargs["condition_result"] is True
+        assert call_kwargs["branch_taken"] == "then"
+
+    def test_if_condition_publishes_event_else_branch(self, context, mock_event_publisher):
+        """Test if publishes decision evaluated event for else branch."""
+        condition = ASTNode.atom("false")
+        then_expr = ASTNode.atom("then")
+        else_expr = ASTNode.atom("else")
+        
+        args = [condition, then_expr, else_expr]
+        if_condition(args, context)
+        
+        mock_event_publisher.publish_decision_evaluated.assert_called_once()
+        call_kwargs = mock_event_publisher.publish_decision_evaluated.call_args[1]
+        assert call_kwargs["condition_result"] is False
+        assert call_kwargs["branch_taken"] == "else"
+
+    def test_if_condition_wrong_arg_count(self, context):
+        """Test if with wrong number of arguments."""
+        with pytest.raises(DslEvaluationError, match="requires at least 2 arguments"):
+            if_condition([], context)
+        
+        with pytest.raises(DslEvaluationError, match="requires at least 2 arguments"):
+            if_condition([ASTNode.atom("condition")], context)
+
+    def test_if_condition_with_truthy_values(self, context):
+        """Test if with various truthy values."""
+        # Non-zero number is truthy
+        context.evaluations["x"] = 42
+        condition = ASTNode.symbol("x")
+        then_expr = ASTNode.atom("then")
+        else_expr = ASTNode.atom("else")
+        
+        args = [condition, then_expr, else_expr]
+        result = if_condition(args, context)
+        
+        assert result == "then"
+
+    def test_if_condition_with_falsy_values(self, context):
+        """Test if with various falsy values."""
+        # Zero is falsy
+        context.evaluations["x"] = 0
+        condition = ASTNode.symbol("x")
+        then_expr = ASTNode.atom("then")
+        else_expr = ASTNode.atom("else")
+        
+        args = [condition, then_expr, else_expr]
+        result = if_condition(args, context)
+        
+        assert result == "else"
+
+    def test_if_condition_with_portfolio_fragment(self, context, mock_event_publisher):
+        """Test if publishes PortfolioFragment in event when branch returns one."""
+        condition = ASTNode.atom("true")
+        then_expr = ASTNode.symbol("portfolio")
+        
+        fragment = PortfolioFragment(
+            fragment_id="test-id",
+            source_step="test",
+            weights={"AAPL": 1.0},
+        )
+        context.evaluations["portfolio"] = fragment
+        
+        args = [condition, then_expr]
+        result = if_condition(args, context)
+        
+        assert result is fragment
+        call_kwargs = mock_event_publisher.publish_decision_evaluated.call_args[1]
+        assert call_kwargs["branch_result"] is fragment
+
+    def test_register_control_flow_operators(self):
+        """Test registering all control flow operators."""
+        from the_alchemiser.strategy_v2.engines.dsl.dispatcher import DslDispatcher
+        
+        dispatcher = DslDispatcher()
+        register_control_flow_operators(dispatcher)
+        
+        assert dispatcher.is_registered("defsymphony")
+        assert dispatcher.is_registered("if")
+
+    def test_create_indicator_with_symbol_rsi(self):
+        """Test create_indicator_with_symbol for RSI."""
+        indicator_expr = ASTNode.list_node([
+            ASTNode.symbol("rsi"),
+            ASTNode.list_node([
+                ASTNode.symbol(":window"),
+                ASTNode.atom("14"),
+            ], metadata={"node_subtype": "map"}),
+        ])
+        
+        result = create_indicator_with_symbol(indicator_expr, "AAPL")
+        
+        assert result.is_list()
+        assert len(result.children) >= 2
+        assert result.children[0].get_symbol_name() == "rsi"
+        assert result.children[1].get_atom_value() == "AAPL"
+
+    def test_create_indicator_with_symbol_moving_average(self):
+        """Test create_indicator_with_symbol for moving-average-price."""
+        indicator_expr = ASTNode.list_node([
+            ASTNode.symbol("moving-average-price"),
+        ])
+        
+        result = create_indicator_with_symbol(indicator_expr, "GOOGL")
+        
+        assert result.is_list()
+        assert result.children[0].get_symbol_name() == "moving-average-price"
+        assert result.children[1].get_atom_value() == "GOOGL"
+
+    def test_create_indicator_with_symbol_non_list(self):
+        """Test create_indicator_with_symbol with non-list returns unchanged."""
+        atom = ASTNode.atom("42")
+        result = create_indicator_with_symbol(atom, "AAPL")
+        assert result is atom
+
+    def test_create_indicator_with_symbol_empty_list(self):
+        """Test create_indicator_with_symbol with empty list returns unchanged."""
+        empty = ASTNode.list_node([])
+        result = create_indicator_with_symbol(empty, "AAPL")
+        assert result is empty
+
+    def test_create_indicator_with_symbol_unsupported(self):
+        """Test create_indicator_with_symbol with unsupported function."""
+        expr = ASTNode.list_node([ASTNode.symbol("unsupported-func")])
+        result = create_indicator_with_symbol(expr, "AAPL")
+        # Should return unchanged
+        assert result is expr
+
+    def test_create_indicator_with_symbol_adds_default_window(self):
+        """Test create_indicator_with_symbol adds default window when missing."""
+        indicator_expr = ASTNode.list_node([ASTNode.symbol("rsi")])
+        
+        result = create_indicator_with_symbol(indicator_expr, "AAPL")
+        
+        assert result.is_list()
+        assert len(result.children) == 3
+        # Should have added default window parameter
+        assert result.children[2].is_list()
