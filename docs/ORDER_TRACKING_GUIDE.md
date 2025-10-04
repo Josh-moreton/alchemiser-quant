@@ -192,9 +192,9 @@ s3://the-alchemiser-v2-trade-ledger-{stage}/
 
 ### Retention
 
-- Default retention: 365 days
-- Configurable via CloudFormation template (`LifecycleConfiguration`)
-- Automatic cleanup of old ledger files
+- Indefinite retention: Trade ledger data is stored permanently for audit purposes
+- No automatic cleanup
+- Manual deletion can be performed if needed via AWS console or CLI
 
 ### Configuration
 

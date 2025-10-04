@@ -115,11 +115,6 @@ Resources:
       BucketName: !Sub "the-alchemiser-v2-trade-ledger-${Stage}"
       VersioningConfiguration:
         Status: Enabled
-      LifecycleConfiguration:
-        Rules:
-          - Id: DeleteOldLedgers
-            Status: Enabled
-            ExpirationInDays: 365  # Retain ledger data for 1 year
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true

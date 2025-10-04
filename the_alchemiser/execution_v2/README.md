@@ -334,7 +334,7 @@ Trade ledger entries are automatically persisted to S3 after each execution run 
 
 **S3 Location**: `s3://the-alchemiser-v2-trade-ledger-{stage}/trade-ledgers/{date}/{timestamp}-{ledger_id}-{correlation_id}.json`
 
-**Retention**: 365 days (configurable in CloudFormation template)
+**Retention**: Indefinite (stored permanently for audit purposes)
 
 **Format**: JSON with one file per execution run containing all trades from that run
 
