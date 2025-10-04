@@ -16,24 +16,22 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install Poetry
-        uses: snok/install-poetry@6caa5fcf36ba4622337f8c8d78d14aee0d20abee # v1.4.1
+        uses: snok/install-poetry@v1
         with:
           version: 1.8.3
           virtualenvs-create: true
           virtualenvs-in-project: true
 
       - name: Cache venv
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.2.0
+        uses: actions/cache@v4
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
@@ -43,20 +41,6 @@ jobs:
 
       - name: Install boto3 for tests that import it
         run: poetry run pip install boto3
-
-      - name: "Security: Dependency vulnerability scan"
-        run: |
-          poetry run pip-audit --desc --fix-dryrun || true
-          # TODO: Enable blocking on HIGH/CRITICAL after baseline established
-
-      - name: "Security: IaC validation"
-        run: |
-          pip install cfn-lint checkov --quiet
-          echo "Running CloudFormation linting..."
-          cfn-lint template.yaml --format parseable || true
-          echo "Running Checkov security scan..."
-          checkov -f template.yaml --framework cloudformation --quiet --compact || true
-          # TODO: Enable blocking after fixing existing issues
 
       - name: Format & Lint
         run: |
@@ -72,23 +56,20 @@ jobs:
         run: |
           poetry run pytest -q -m unit --ignore=tests/e2e
 
-      - name: Generate SBOM
+      - name: Security scan - Dependency vulnerabilities
         run: |
-          echo "Generating Software Bill of Materials..."
-          poetry export -f requirements.txt --output /tmp/sbom-requirements.txt --without-hashes
-          pip install cyclonedx-bom --quiet
-          cyclonedx-py requirements /tmp/sbom-requirements.txt -o sbom.json --format json
-          echo "SBOM generated: sbom.json"
+          poetry run pip-audit --desc --fix-dryrun || true
+          echo "ℹ️  pip-audit runs in advisory mode. Review findings above."
 
-      - name: Upload SBOM artifact
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.4.3
-        with:
-          name: sbom-${{ github.sha }}
-          path: sbom.json
-          retention-days: 90
+      - name: Security scan - Infrastructure (IaC)
+        run: |
+          pip install cfn-lint checkov --quiet
+          echo "Running CloudFormation linting..."
+          cfn-lint template.yaml --format parseable || true
+          echo "Running Checkov security scan..."
+          checkov -f template.yaml --framework cloudformation --quiet --compact || true
+          echo "ℹ️  IaC scans run in advisory mode. Review findings above."
 
       - name: Validate SAM build (dev)
-        uses: aws-actions/setup-sam@05534f4b5aa0c8f0ec54c31c48afa97e8dd9a3d5 # v2.0.1
-      
-      - name: Build SAM application
-        run: sam build --parallel --config-env dev
+        uses: aws-actions/setup-sam@v2
+      - run: sam build --parallel --config-env dev

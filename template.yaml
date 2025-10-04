@@ -129,18 +129,6 @@ Resources:
       Role: !GetAtt TradingSystemExecutionRole.Arn
       Layers:
         - !Ref DependenciesLayer
-      # Enable versioning and alias for safe deployments
-      AutoPublishAlias: live
-      # Reserved concurrency to prevent concurrent invocations (trading should run once)
-      ReservedConcurrentExecutions: 1
-      # Gradual deployment with automatic rollback on errors
-      DeploymentPreference:
-        Type: Canary10Percent5Minutes
-        Alarms:
-          - !Ref LambdaErrorAlarm
-          - !Ref LambdaDurationAlarm
-          - !Ref LambdaThrottleAlarm
-        # Optional: Add PreTraffic/PostTraffic hooks for smoke tests in future
     Metadata:
       BuildMethod: python3.12
       BuildProperties:
@@ -196,75 +184,6 @@ Resources:
       MessageRetentionPeriod: 1209600 # 14 days
       VisibilityTimeout: 60
 
-  # CloudWatch Alarms for deployment health and auto-rollback
-  LambdaErrorAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmName: !Sub "the-alchemiser-errors-${Stage}"
-      AlarmDescription: Alert on Lambda execution errors (triggers deployment rollback)
-      MetricName: Errors
-      Namespace: AWS/Lambda
-      Statistic: Sum
-      Period: 60
-      EvaluationPeriods: 1
-      Threshold: 1
-      ComparisonOperator: GreaterThanThreshold
-      Dimensions:
-        - Name: FunctionName
-          Value: !Ref TradingSystemFunction
-      TreatMissingData: notBreaching
-
-  LambdaDurationAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmName: !Sub "the-alchemiser-duration-${Stage}"
-      AlarmDescription: Alert on excessive Lambda duration (> 10 minutes indicates stuck execution)
-      MetricName: Duration
-      Namespace: AWS/Lambda
-      Statistic: Maximum
-      Period: 300
-      EvaluationPeriods: 1
-      Threshold: 600000  # 10 minutes in milliseconds
-      ComparisonOperator: GreaterThanThreshold
-      Dimensions:
-        - Name: FunctionName
-          Value: !Ref TradingSystemFunction
-      TreatMissingData: notBreaching
-
-  LambdaThrottleAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmName: !Sub "the-alchemiser-throttles-${Stage}"
-      AlarmDescription: Alert on Lambda throttles (concurrency limit reached)
-      MetricName: Throttles
-      Namespace: AWS/Lambda
-      Statistic: Sum
-      Period: 60
-      EvaluationPeriods: 1
-      Threshold: 0
-      ComparisonOperator: GreaterThanThreshold
-      Dimensions:
-        - Name: FunctionName
-          Value: !Ref TradingSystemFunction
-      TreatMissingData: notBreaching
-
-  DLQDepthAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmName: !Sub "the-alchemiser-dlq-depth-${Stage}"
-      AlarmDescription: Alert when messages appear in DLQ (indicates Lambda failures)
-      MetricName: ApproximateNumberOfMessagesVisible
-      Namespace: AWS/SQS
-      Statistic: Sum
-      Period: 300
-      EvaluationPeriods: 1
-      Threshold: 0
-      ComparisonOperator: GreaterThanThreshold
-      Dimensions:
-        - Name: QueueName
-          Value: !GetAtt TradingSystemDLQ.QueueName
-      TreatMissingData: notBreaching
-
   # EventBridge Scheduler with proper timezone support and reduced retry policy
   TradingSystemSchedule:
     Type: AWS::Scheduler::Schedule
@@ -276,7 +195,7 @@ Resources:
       FlexibleTimeWindow:
         Mode: "OFF"
       Target:
-        Arn: !Sub "${TradingSystemFunction.Arn}:live"  # Target the alias for traffic shifting
+        Arn: !GetAtt TradingSystemFunction.Arn
         RoleArn: !GetAtt SchedulerExecutionRole.Arn
         Input: |
           {
@@ -299,7 +218,7 @@ Resources:
       FlexibleTimeWindow:
         Mode: "OFF"
       Target:
-        Arn: !Sub "${TradingSystemFunction.Arn}:live"  # Target the alias for traffic shifting
+        Arn: !GetAtt TradingSystemFunction.Arn
         RoleArn: !GetAtt SchedulerExecutionRole.Arn
         Input: |
           {
@@ -330,9 +249,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - lambda:InvokeFunction
-                Resource:
-                  - !GetAtt TradingSystemFunction.Arn
-                  - !Sub "${TradingSystemFunction.Arn}:live"  # Allow invocation of alias
+                Resource: !GetAtt TradingSystemFunction.Arn
               - Effect: Allow
                 Action:
                   - sqs:SendMessage
@@ -356,14 +273,15 @@ Resources:
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
-              # CloudWatch Logs (scoped to this function's log group)
+              # CloudWatch Logs (enhanced logging)
               - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource:
-                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/the-alchemiser-v2-lambda-${Stage}:*"
+                  - logs:DescribeLogStreams
+                  - logs:DescribeLogGroups
+                Resource: "*"
 
 
   # CloudWatch Log Group with retention
@@ -385,23 +303,3 @@ Outputs:
   DeploymentStage:
     Description: "Deployed stage"
     Value: !Ref Stage
-
-  LambdaAliasArn:
-    Description: "Lambda alias ARN for traffic shifting"
-    Value: !Sub "${TradingSystemFunction.Arn}:live"
-
-  ErrorAlarmName:
-    Description: "CloudWatch alarm for Lambda errors"
-    Value: !Ref LambdaErrorAlarm
-
-  DurationAlarmName:
-    Description: "CloudWatch alarm for Lambda duration"
-    Value: !Ref LambdaDurationAlarm
-
-  ThrottleAlarmName:
-    Description: "CloudWatch alarm for Lambda throttles"
-    Value: !Ref LambdaThrottleAlarm
-
-  DLQAlarmName:
-    Description: "CloudWatch alarm for DLQ depth"
-    Value: !Ref DLQDepthAlarm

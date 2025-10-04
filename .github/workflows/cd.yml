@@ -37,9 +37,8 @@ jobs:
 
     steps:
       - name: Checkout correct commit
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v4
         with:
-          persist-credentials: false
           # For workflow_run, use the commit from the CI run; else default to HEAD
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
 
@@ -62,25 +61,25 @@ jobs:
           fi
 
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Set up Python
-        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install Poetry
-        uses: snok/install-poetry@6caa5fcf36ba4622337f8c8d78d14aee0d20abee # v1.4.1
+        uses: snok/install-poetry@v1
         with:
           version: 1.8.3
           virtualenvs-create: true
           virtualenvs-in-project: true
 
       - name: Cache venv
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.2.0
+        uses: actions/cache@v4
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
@@ -89,7 +88,7 @@ jobs:
         run: poetry install --no-interaction
 
       - name: Install SAM CLI
-        uses: aws-actions/setup-sam@05534f4b5aa0c8f0ec54c31c48afa97e8dd9a3d5 # v2.0.1
+        uses: aws-actions/setup-sam@v2
 
       - name: Build (matching target env)
         run: sam build --parallel --config-env "${{ steps.target.outputs.env }}"
