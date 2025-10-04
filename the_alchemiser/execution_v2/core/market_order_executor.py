@@ -108,6 +108,8 @@ class MarketOrderExecutor:
             success=False,
             error_message=error_msg,
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default order type
+            filled_at=None,  # Not filled since validation failed
         )
 
     def _log_validation_warnings(self, validation_result: OrderValidationResult) -> None:
@@ -216,6 +218,8 @@ class MarketOrderExecutor:
             success=True,
             error_message=None,
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # This is a market order
+            filled_at=datetime.now(UTC) if avg_fill_price else None,  # Set filled_at if executed
         )
 
     def _handle_market_order_exception(
@@ -246,4 +250,6 @@ class MarketOrderExecutor:
             success=False,
             error_message=error_msg,
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default order type
+            filled_at=None,  # Not filled due to error
         )

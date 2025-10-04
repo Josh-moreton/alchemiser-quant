@@ -42,6 +42,8 @@ def sample_orders():
             success=True,
             error_message=None,
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default to MARKET for tests
+            filled_at=datetime.now(UTC),  # Set filled_at for successful order
         )
     ]
 

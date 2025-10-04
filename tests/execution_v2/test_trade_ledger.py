@@ -35,6 +35,8 @@ class TestTradeLedgerService:
             success=True,
             error_message=None,
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default to MARKET for tests
+            filled_at=datetime.now(UTC),  # Set filled_at for successful order
         )
 
         entry = service.record_filled_order(
@@ -67,6 +69,8 @@ class TestTradeLedgerService:
             success=True,
             error_message=None,
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default to MARKET for tests
+            filled_at=datetime.now(UTC),  # Set filled_at for successful order
         )
 
         quote = QuoteModel(
@@ -131,6 +135,8 @@ class TestTradeLedgerService:
             success=True,
             error_message=None,
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default to MARKET for tests
+            filled_at=datetime.now(UTC),  # Set filled_at for successful order
         )
 
         entry = service.record_filled_order(
@@ -162,6 +168,8 @@ class TestTradeLedgerService:
             success=False,
             error_message="Order failed",
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default to MARKET for tests
+            filled_at=None,  # Not filled for unsuccessful order
         )
 
         entry = service.record_filled_order(
@@ -190,6 +198,8 @@ class TestTradeLedgerService:
                 success=True,
                 error_message=None,
                 timestamp=datetime.now(UTC),
+                order_type="MARKET",  # Default to MARKET for tests
+                filled_at=datetime.now(UTC),  # Set filled_at for successful order
             )
             service.record_filled_order(
                 order_result=order_result,
@@ -250,6 +260,8 @@ class TestTradeLedgerService:
             success=True,
             error_message=None,
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default to MARKET for tests
+            filled_at=datetime.now(UTC),  # Set filled_at for successful order
         )
 
         service.record_filled_order(
@@ -282,6 +294,8 @@ class TestTradeLedgerService:
                 success=True,
                 error_message=None,
                 timestamp=datetime.now(UTC),
+                order_type="MARKET",  # Default to MARKET for tests
+                filled_at=datetime.now(UTC),  # Set filled_at for successful order
             )
             service.record_filled_order(
                 order_result=order_result,
@@ -319,6 +333,8 @@ class TestTradeLedgerService:
             success=True,
             error_message=None,
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default to MARKET for tests
+            filled_at=datetime.now(UTC),  # Set filled_at for successful order
         )
         service.record_filled_order(
             order_result=order_result,

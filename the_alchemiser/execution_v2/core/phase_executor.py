@@ -229,6 +229,8 @@ class PhaseExecutor:
             success=False,
             error_message="Skipped: estimated notional below minimum",
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default to MARKET for skipped orders
+            filled_at=None,  # Not filled since order was skipped
         )
 
     def _calculate_liquidation_shares(self, symbol: str) -> Decimal:
@@ -326,6 +328,8 @@ class PhaseExecutor:
                 success=False,
                 error_message="No execution callback provided",
                 timestamp=datetime.now(UTC),
+                order_type="MARKET",  # Default to MARKET for fallback
+                filled_at=None,  # Not filled due to missing callback
             )
 
         except Exception as e:
@@ -341,4 +345,6 @@ class PhaseExecutor:
                 success=False,
                 error_message=str(e),
                 timestamp=datetime.now(UTC),
+                order_type="MARKET",  # Default to MARKET for error cases
+                filled_at=None,  # Not filled due to error
             )

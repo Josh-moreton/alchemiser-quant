@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -39,6 +39,10 @@ class OrderResult(BaseModel):
     success: bool = Field(..., description="Order success flag")
     error_message: str | None = Field(default=None, description="Error message if failed")
     timestamp: datetime = Field(..., description="Order execution timestamp")
+    order_type: Literal["MARKET", "LIMIT", "STOP", "STOP_LIMIT"] = Field(
+        default="MARKET", description="Order type"
+    )
+    filled_at: datetime | None = Field(default=None, description="Fill timestamp")
 
 
 class ExecutionResult(BaseModel):
