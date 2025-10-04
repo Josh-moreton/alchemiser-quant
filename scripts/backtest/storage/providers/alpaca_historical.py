@@ -88,12 +88,16 @@ class AlpacaHistoricalProvider:
             # Fetch data from Alpaca
             bars_dict = self._client.get_stock_bars(request)
 
-            # Convert to list of DailyBar
-            if symbol not in bars_dict or bars_dict[symbol] is None:
+            # Access data from BarSet object (has .data attribute with dict)
+            if not hasattr(bars_dict, "data") or symbol not in bars_dict.data:
                 logger.warning(f"No data returned for {symbol}")
                 return []
 
-            bars = bars_dict[symbol]
+            bars = bars_dict.data[symbol]
+            if not bars:
+                logger.warning(f"Empty bar list returned for {symbol}")
+                return []
+                
             daily_bars: list[DailyBar] = []
 
             for bar in bars:

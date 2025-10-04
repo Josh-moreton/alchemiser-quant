@@ -48,7 +48,11 @@ def main() -> None:
     args = parser.parse_args()
 
     # Calculate date range
-    end_date = datetime.now(timezone.utc)
+    # Set end_date to yesterday to avoid Alpaca subscription limitations
+    # (free tier cannot query current day or last 15 minutes of SIP data)
+    end_date = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ) - timedelta(days=1)
     start_date = end_date - timedelta(days=args.days)
 
     logger.info(
