@@ -34,7 +34,9 @@ class TradeLedgerEntry(BaseModel):
 
     # Core trade identification
     order_id: str = Field(..., min_length=1, description="Broker order ID")
-    correlation_id: str = Field(..., min_length=1, description="Correlation ID for traceability")
+    correlation_id: str = Field(
+        ..., min_length=1, description="Correlation ID for traceability"
+    )
 
     # Asset and direction
     symbol: str = Field(..., min_length=1, max_length=10, description="Trading symbol")
@@ -45,8 +47,12 @@ class TradeLedgerEntry(BaseModel):
     fill_price: Decimal = Field(..., gt=0, description="Average fill price")
 
     # Market data at time of fill (optional)
-    bid_at_fill: Decimal | None = Field(default=None, gt=0, description="Bid price at fill time")
-    ask_at_fill: Decimal | None = Field(default=None, gt=0, description="Ask price at fill time")
+    bid_at_fill: Decimal | None = Field(
+        default=None, gt=0, description="Bid price at fill time"
+    )
+    ask_at_fill: Decimal | None = Field(
+        default=None, gt=0, description="Ask price at fill time"
+    )
 
     # Timing
     fill_timestamp: datetime = Field(..., description="Time and date of fill")
@@ -83,7 +89,9 @@ class TradeLedgerEntry(BaseModel):
 
     @field_validator("strategy_weights")
     @classmethod
-    def validate_strategy_weights(cls, v: dict[str, Decimal] | None) -> dict[str, Decimal] | None:
+    def validate_strategy_weights(
+        cls, v: dict[str, Decimal] | None
+    ) -> dict[str, Decimal] | None:
         """Validate strategy weights sum to approximately 1.0."""
         if v is None:
             return None
