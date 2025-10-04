@@ -274,17 +274,18 @@ class BacktestRunner:
 
             except (DslEvaluationError, DslEngineError) as e:
                 error_msg = str(e)
-                
+
                 # Check if it's a missing data error
                 if "No market data available for symbol" in error_msg:
                     # Extract symbol from error message
                     # Format: "Error getting indicator X for SYMBOL: No market data available for symbol SYMBOL"
                     import re
+
                     match = re.search(r"for symbol ([A-Z]+)", error_msg)
-                    
+
                     if match:
                         missing_symbol = match.group(1)
-                        
+
                         # Avoid infinite loops - only try to download each symbol once
                         if missing_symbol in self._missing_symbols_cache:
                             logger.error(
@@ -292,27 +293,27 @@ class BacktestRunner:
                                 symbol=missing_symbol,
                             )
                             return {}
-                        
+
                         self._missing_symbols_cache.add(missing_symbol)
-                        
+
                         logger.warning(
                             f"Missing data for {missing_symbol}, downloading automatically",
                             symbol=missing_symbol,
                             retry=retry_count + 1,
                         )
-                        
+
                         # Download missing data
                         try:
                             # Use a 2-year window to ensure we have enough historical data
                             download_start = date - timedelta(days=730)
                             download_end = date + timedelta(days=1)
-                            
+
                             results = self.data_manager.download_data(
                                 symbols=[missing_symbol],
                                 start_date=download_start,
                                 end_date=download_end,
                             )
-                            
+
                             if results.get(missing_symbol):
                                 logger.info(
                                     f"Successfully downloaded data for {missing_symbol}, retrying",
@@ -320,7 +321,7 @@ class BacktestRunner:
                                 )
                                 retry_count += 1
                                 continue  # Retry the signal generation
-                            
+
                             logger.error(
                                 f"Failed to download data for {missing_symbol}",
                                 symbol=missing_symbol,
@@ -333,7 +334,7 @@ class BacktestRunner:
                                 error=str(download_error),
                             )
                             return {}
-                
+
                 # If not a missing data error or couldn't extract symbol, fail
                 logger.error(
                     f"DSL evaluation error: {error_msg}",
@@ -341,7 +342,7 @@ class BacktestRunner:
                     date=date.date(),
                 )
                 return {}
-            
+
             except Exception as e:
                 logger.error(
                     f"Failed to generate signals from Strategy_v2: {e}",
