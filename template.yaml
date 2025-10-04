@@ -140,9 +140,7 @@ Resources:
           - !Ref LambdaErrorAlarm
           - !Ref LambdaDurationAlarm
           - !Ref LambdaThrottleAlarm
-        Hooks:
-          # Optional: Add PreTraffic hook for smoke tests
-          # PreTraffic: !Ref PreTrafficValidationFunction
+        # Optional: Add PreTraffic/PostTraffic hooks for smoke tests in future
     Metadata:
       BuildMethod: python3.12
       BuildProperties:

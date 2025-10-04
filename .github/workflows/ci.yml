@@ -44,12 +44,12 @@ jobs:
       - name: Install boto3 for tests that import it
         run: poetry run pip install boto3
 
-      - name: Security: Dependency vulnerability scan
+      - name: "Security: Dependency vulnerability scan"
         run: |
           poetry run pip-audit --desc --fix-dryrun || true
           # TODO: Enable blocking on HIGH/CRITICAL after baseline established
 
-      - name: Security: IaC validation
+      - name: "Security: IaC validation"
         run: |
           pip install cfn-lint checkov --quiet
           echo "Running CloudFormation linting..."
