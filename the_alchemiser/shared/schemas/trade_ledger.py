@@ -136,16 +136,22 @@ class TradeLedger(BaseModel):
     def total_buy_value(self) -> Decimal:
         """Calculate total value of BUY trades."""
         return sum(
-            entry.filled_qty * entry.fill_price
-            for entry in self.entries
-            if entry.direction == "BUY"
+            (
+                entry.filled_qty * entry.fill_price
+                for entry in self.entries
+                if entry.direction == "BUY"
+            ),
+            Decimal("0"),
         )
 
     @property
     def total_sell_value(self) -> Decimal:
         """Calculate total value of SELL trades."""
         return sum(
-            entry.filled_qty * entry.fill_price
-            for entry in self.entries
-            if entry.direction == "SELL"
+            (
+                entry.filled_qty * entry.fill_price
+                for entry in self.entries
+                if entry.direction == "SELL"
+            ),
+            Decimal("0"),
         )
