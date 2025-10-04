@@ -136,3 +136,50 @@ All operations include structured logging with correlation IDs:
 ```
 2024-01-01 10:00:00 - INFO - Building rebalance plan [correlation_id=abc123] [module=portfolio_v2.core.planner]
 ```
+
+## Strategy Attribution Metadata
+
+When creating rebalance plans, you can include strategy attribution metadata to track which strategies contributed to each order. This metadata is consumed by the execution module's trade ledger for recording filled orders.
+
+### Single Strategy
+
+For a single strategy, no special metadata is needed:
+
+```python
+strategy = StrategyAllocation(
+    target_weights={"AAPL": Decimal("0.5"), "TSLA": Decimal("0.5")},
+    correlation_id="corr-123",
+)
+plan = portfolio_service.create_rebalance_plan(strategy, "corr-123")
+```
+
+### Multi-Strategy Aggregation
+
+When multiple strategies suggest the same symbols and you aggregate their weights, include strategy attribution in the rebalance plan metadata:
+
+```python
+# Example: Aggregate signals from two strategies
+# Strategy 1 wants 30% AAPL, Strategy 2 wants 20% AAPL
+# Combined target: 50% AAPL (30% from strategy1, 20% from strategy2)
+
+# Create the allocation
+strategy = StrategyAllocation(
+    target_weights={"AAPL": Decimal("0.5")},
+    correlation_id="corr-123",
+)
+
+# Build the rebalance plan
+plan = portfolio_service.create_rebalance_plan(strategy, "corr-123")
+
+# Add strategy attribution to plan metadata
+plan.metadata = {
+    "strategy_attribution": {
+        "AAPL": {
+            "momentum_strategy": 0.6,  # 30/50 = 60% contribution
+            "mean_reversion_strategy": 0.4,  # 20/50 = 40% contribution
+        }
+    }
+}
+```
+
+The execution module will use this metadata to record which strategies contributed to each filled order in the trade ledger.

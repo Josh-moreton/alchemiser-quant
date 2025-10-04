@@ -62,11 +62,16 @@ def __getattr__(name: str) -> object:
         from .models.execution_result import ExecutionResult as _ExecutionResult
 
         return _ExecutionResult
+    if name == "TradeLedgerService":
+        from .services.trade_ledger import TradeLedgerService as _TradeLedgerService
+
+        return _TradeLedgerService
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = [
     "ExecutionManager",
     "ExecutionResult",
+    "TradeLedgerService",
     "register_execution_handlers",
 ]
