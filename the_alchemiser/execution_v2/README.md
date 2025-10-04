@@ -35,6 +35,8 @@ execution_v2/
 │       ├── repeg.py              # Repricing logic
 │       ├── quotes.py             # Quote data access
 │       └── tracking.py           # Order tracking
+├── services/                      # Business services
+│   └── trade_ledger.py           # Trade recording service
 ├── models/                        # Data models
 │   └── execution_result.py       # Execution result DTO
 ├── utils/                         # Utilities
@@ -309,9 +311,92 @@ Execution_v2 is fully operational and is the current execution implementation.
 - ✅ Comprehensive error handling
 - ✅ Liquidity analysis
 - ✅ Position validation
+- ✅ Trade ledger for order tracking with strategy attribution
 
 ### Future Enhancements
 - ⏳ Support for additional order types (stop-loss, trailing stop)
 - ⏳ Advanced execution algorithms (VWAP, TWAP)
+
+## Trade Ledger
+
+The execution module includes a trade ledger service that records all filled orders with comprehensive details:
+
+### Recorded Information
+- **Order Details**: Order ID, symbol, direction (BUY/SELL), quantity, fill price
+- **Market Data**: Bid/ask spreads at fill time (when available)
+- **Timing**: Timestamp of fill
+- **Order Type**: MARKET, LIMIT, etc.
+- **Strategy Attribution**: Which strategies contributed to the order
+
+### Persistence
+
+Trade ledger entries are automatically persisted to S3 after each execution run for historical analysis and audit purposes. The ledger is stored in JSON format with the following structure:
+
+**S3 Location**: `s3://the-alchemiser-v2-trade-ledger-{stage}/trade-ledgers/{date}/{timestamp}-{ledger_id}-{correlation_id}.json`
+
+**Retention**: Indefinite (stored permanently for audit purposes)
+
+**Format**: JSON with one file per execution run containing all trades from that run
+
+### Strategy Attribution
+
+The trade ledger supports multi-strategy attribution where multiple strategies suggest the same symbol. Strategy attribution is stored in the rebalance plan metadata:
+
+```python
+# Example: Two strategies both suggest AAPL
+plan = RebalancePlan(
+    # ... other fields ...
+    metadata={
+        "strategy_attribution": {
+            "AAPL": {
+                "momentum_strategy": 0.6,  # 60% weight
+                "mean_reversion_strategy": 0.4,  # 40% weight
+            }
+        }
+    }
+)
+```
+
+### Usage
+
+The trade ledger is automatically populated during execution:
+
+```python
+executor = Executor(alpaca_manager, execution_config)
+
+# Execute rebalance plan (ledger recording happens automatically)
+result = await executor.execute_rebalance_plan(plan)
+
+# Access the ledger
+ledger = executor.trade_ledger.get_ledger()
+print(f"Total trades: {ledger.total_entries}")
+print(f"Total buy value: ${ledger.total_buy_value}")
+print(f"Total sell value: ${ledger.total_sell_value}")
+
+# Filter by symbol
+aapl_trades = executor.trade_ledger.get_entries_for_symbol("AAPL")
+
+# Filter by strategy
+strategy_trades = executor.trade_ledger.get_entries_for_strategy("momentum_strategy")
+```
+
+### Missing Data Handling
+
+The trade ledger is designed to handle cases where data may not be fully available:
+- Missing bid/ask data: Fields set to `None`
+- Missing order type: Defaults to "MARKET"
+- Missing strategy attribution: Empty lists/None
+- Failed orders: Not recorded (only successful fills are tracked)
+
+### Configuration
+
+The trade ledger S3 persistence can be configured via environment variables:
+
+```bash
+TRADE_LEDGER__BUCKET_NAME=the-alchemiser-v2-trade-ledger-dev  # S3 bucket name
+TRADE_LEDGER__ENABLED=true  # Enable/disable S3 persistence (default: true)
+```
+
+These are automatically set by the CloudFormation template for Lambda deployments.
 - ⏳ Multi-venue execution support
 - ⏳ Execution cost analysis and reporting

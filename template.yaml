@@ -100,11 +100,27 @@ Globals:
         # DSL parallelism configuration
         ALCHEMISER_DSL_MAX_WORKERS: !Ref DslMaxWorkers
 
+        # Trade ledger S3 bucket
+        TRADE_LEDGER__BUCKET_NAME: !Ref TradeLedgerBucket
+
   # Strategy configuration now packaged with code; env overrides optional
 
   # (no additional Globals keys)
 
 Resources:
+  # S3 Bucket for trade ledger persistence
+  TradeLedgerBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "the-alchemiser-v2-trade-ledger-${Stage}"
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
   # Lambda Layer for dependencies
   DependenciesLayer:
     Type: AWS::Serverless::LayerVersion
@@ -282,6 +298,16 @@ Resources:
                   - logs:DescribeLogStreams
                   - logs:DescribeLogGroups
                 Resource: "*"
+              
+              # S3 access for trade ledger
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt TradeLedgerBucket.Arn
+                  - !Sub "${TradeLedgerBucket.Arn}/*"
 
 
   # CloudWatch Log Group with retention
@@ -299,6 +325,10 @@ Outputs:
   TradingSystemLogGroupName:
     Description: "CloudWatch Log Group for monitoring"
     Value: !Sub "/aws/lambda/the-alchemiser-v2-lambda-${Stage}"
+
+  TradeLedgerBucketName:
+    Description: "S3 bucket for trade ledger persistence"
+    Value: !Ref TradeLedgerBucket
 
   DeploymentStage:
     Description: "Deployed stage"
