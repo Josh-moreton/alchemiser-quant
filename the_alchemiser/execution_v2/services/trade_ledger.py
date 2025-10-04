@@ -7,6 +7,20 @@ quantities, and strategy attribution. It handles cases where market data may not
 fully available without blocking the recording of core trade information.
 
 Trade ledger entries are persisted to S3 for historical analysis and audit purposes.
+
+CURRENT LIMITATIONS:
+====================
+- Order type detection: Always records "MARKET" regardless of actual order type
+  (requires extracting order type from broker API responses)
+- Fill timestamp: Uses order_result.timestamp which may be placement time
+  (requires extracting filled_at from broker API responses)
+
+FEATURES IMPLEMENTED:
+=====================
+- Quote data capture: Integrated with pricing_service when available
+- Strategy attribution: Multi-strategy aggregation support
+- Validation: Zero quantity, invalid actions, price checks
+- S3 persistence: Automatic ledger archival with graceful degradation
 """
 
 from __future__ import annotations
@@ -45,6 +59,7 @@ class TradeLedgerService:
         self._entries: list[TradeLedgerEntry] = []
         self._settings = load_settings()
         self._s3_client: object | None = None  # Lazy initialization, type: boto3 client or None
+        self._s3_init_failed: bool = False  # Track S3 initialization failures
 
     def record_filled_order(
         self,
@@ -80,6 +95,16 @@ class TradeLedgerService:
                 "Skipping ledger recording - no valid fill price",
                 symbol=order_result.symbol,
                 order_id=order_result.order_id,
+            )
+            return None
+
+        # Only record if we have valid quantity
+        if order_result.shares <= 0:
+            logger.debug(
+                "Skipping ledger recording - invalid quantity",
+                symbol=order_result.symbol,
+                order_id=order_result.order_id,
+                shares=str(order_result.shares),
             )
             return None
 
@@ -222,30 +247,28 @@ class TradeLedgerService:
             boto3 S3 client instance or None if initialization failed
 
         """
-        if self._s3_client is None:
+        if self._s3_client is None and not self._s3_init_failed:
             try:
                 import boto3
 
                 self._s3_client = boto3.client("s3")
             except Exception as e:
                 logger.error(f"Failed to initialize S3 client: {e}")
-                # Set to object() sentinel to prevent repeated initialization attempts
-                self._s3_client = object()
-        # Return None if initialization failed (sentinel object)
-        return (
-            self._s3_client
-            if not isinstance(self._s3_client, object) or hasattr(self._s3_client, "put_object")
-            else None
-        )
+                self._s3_init_failed = True
+        return self._s3_client
 
     def persist_to_s3(self, correlation_id: str | None = None) -> bool:
         """Persist the trade ledger to S3.
+
+        Note: Returns True when there are no entries to persist (nothing to do).
+        This is considered a success case as there's no error condition.
 
         Args:
             correlation_id: Optional correlation ID for the execution run
 
         Returns:
-            True if persistence was successful, False otherwise
+            True if persistence was successful or there were no entries to persist,
+            False if an error occurred during persistence
 
         """
         if not self._settings.trade_ledger.enabled:
