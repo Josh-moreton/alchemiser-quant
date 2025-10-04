@@ -22,7 +22,8 @@ from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.strategy_value_objects import (
     StrategySignal,
 )
-from the_alchemiser.strategy_v2.engines.dsl.engine import DslEngine
+from the_alchemiser.strategy_v2.engines.dsl.engine import DslEngine, DslEngineError
+from the_alchemiser.strategy_v2.engines.dsl.types import DslEvaluationError
 
 
 class DslStrategyEngine:
@@ -120,6 +121,9 @@ class DslStrategyEngine:
 
             return signals
 
+        except (DslEvaluationError, DslEngineError):
+            # Re-raise DSL errors so backtest runner can auto-download missing data
+            raise
         except Exception as e:
             self.logger.error(f"DSL strategy error: {e}")
             return self._create_fallback_signals(timestamp)
@@ -377,6 +381,9 @@ class DslStrategyEngine:
         """
         try:
             return self._evaluate_file(filename, correlation_id, normalized_file_weights)
+        except (DslEvaluationError, DslEngineError):
+            # Re-raise DSL errors so auto-download can catch them
+            raise
         except Exception as e:  # pragma: no cover - safety net
             self.logger.error(
                 f"DSL evaluation failed for {filename}: {e}",

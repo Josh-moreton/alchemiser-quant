@@ -19,6 +19,7 @@ if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
 from scripts.backtest.analysis.performance_metrics import PerformanceMetrics
+from scripts.backtest.data_manager import DataManager
 from scripts.backtest.fill_simulator import FillSimulator
 from scripts.backtest.historical_market_data_port import HistoricalMarketDataPort
 from scripts.backtest.models.backtest_result import BacktestConfig, BacktestResult
@@ -30,7 +31,9 @@ from scripts.backtest.models.portfolio_snapshot import (
 )
 from scripts.backtest.storage.data_store import DataStore
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.strategy_v2.engines.dsl.engine import DslEngineError
 from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import DslStrategyEngine
+from the_alchemiser.strategy_v2.engines.dsl.types import DslEvaluationError
 
 # Constants
 MIN_POSITION_SIZE = Decimal("0.01")  # Minimum trade size in shares
@@ -61,6 +64,8 @@ class BacktestRunner:
         self.data_store = data_store or DataStore()
         self.fill_simulator = fill_simulator or FillSimulator()
         self.strategy_files = strategy_files or ["KLM.clj"]
+        self.data_manager = DataManager(self.data_store)
+        self._missing_symbols_cache: set[str] = set()
         logger.info(
             f"BacktestRunner initialized with strategies: {self.strategy_files}"
         )
@@ -222,55 +227,135 @@ class BacktestRunner:
         if not bars:
             return {}
 
-        try:
-            # Create historical market data port for this date
-            market_data_port = HistoricalMarketDataPort(self.data_store, date)
+        max_retries = 3
+        retry_count = 0
 
-            # Initialize DSL strategy engine with historical data
-            strategy_engine = DslStrategyEngine(
-                market_data_port=market_data_port,
-                strategy_file=(
-                    self.strategy_files[0] if self.strategy_files else "KLM.clj"
-                ),
-            )
+        while retry_count < max_retries:
+            try:
+                # Create historical market data port for this date
+                market_data_port = HistoricalMarketDataPort(self.data_store, date)
 
-            # Generate signals using real strategy
-            strategy_signals = strategy_engine.generate_signals(timestamp=date)
+                # Initialize DSL strategy engine with historical data
+                strategy_engine = DslStrategyEngine(
+                    market_data_port=market_data_port,
+                    strategy_file=(
+                        self.strategy_files[0] if self.strategy_files else "KLM.clj"
+                    ),
+                )
 
-            # Convert StrategySignal list to symbol -> weight dict
-            signals: dict[str, Decimal] = {}
-            total_allocation = Decimal("0")
+                # Generate signals using real strategy
+                strategy_signals = strategy_engine.generate_signals(timestamp=date)
 
-            for signal in strategy_signals:
-                if (
-                    signal.target_allocation is not None
-                    and signal.target_allocation > 0
-                ):
-                    symbol_str = str(signal.symbol)
-                    signals[symbol_str] = signal.target_allocation
-                    total_allocation += signal.target_allocation
+                # Convert StrategySignal list to symbol -> weight dict
+                signals: dict[str, Decimal] = {}
+                total_allocation = Decimal("0")
 
-            # Normalize allocations to sum to 1.0 if needed
-            if total_allocation > Decimal("1.0"):
-                for symbol in signals:
-                    signals[symbol] = signals[symbol] / total_allocation
+                for signal in strategy_signals:
+                    if (
+                        signal.target_allocation is not None
+                        and signal.target_allocation > 0
+                    ):
+                        symbol_str = str(signal.symbol)
+                        signals[symbol_str] = signal.target_allocation
+                        total_allocation += signal.target_allocation
 
-            logger.info(
-                f"Generated {len(signals)} signals from Strategy_v2",
-                date=date.date(),
-                symbols=list(signals.keys()),
-            )
+                # Normalize allocations to sum to 1.0 if needed
+                if total_allocation > Decimal("1.0"):
+                    for symbol in signals:
+                        signals[symbol] = signals[symbol] / total_allocation
 
-            return signals
+                logger.info(
+                    f"Generated {len(signals)} signals from Strategy_v2",
+                    date=date.date(),
+                    symbols=list(signals.keys()),
+                )
 
-        except Exception as e:
-            logger.error(
-                f"Failed to generate signals from Strategy_v2: {e}",
-                error=str(e),
-                date=date.date(),
-            )
-            # Fallback to empty signals rather than mocked equal-weight
-            return {}
+                return signals
+
+            except (DslEvaluationError, DslEngineError) as e:
+                error_msg = str(e)
+                
+                # Check if it's a missing data error
+                if "No market data available for symbol" in error_msg:
+                    # Extract symbol from error message
+                    # Format: "Error getting indicator X for SYMBOL: No market data available for symbol SYMBOL"
+                    import re
+                    match = re.search(r"for symbol ([A-Z]+)", error_msg)
+                    
+                    if match:
+                        missing_symbol = match.group(1)
+                        
+                        # Avoid infinite loops - only try to download each symbol once
+                        if missing_symbol in self._missing_symbols_cache:
+                            logger.error(
+                                f"Already attempted to download {missing_symbol}, skipping retry",
+                                symbol=missing_symbol,
+                            )
+                            return {}
+                        
+                        self._missing_symbols_cache.add(missing_symbol)
+                        
+                        logger.warning(
+                            f"Missing data for {missing_symbol}, downloading automatically",
+                            symbol=missing_symbol,
+                            retry=retry_count + 1,
+                        )
+                        
+                        # Download missing data
+                        try:
+                            # Use a 2-year window to ensure we have enough historical data
+                            download_start = date - timedelta(days=730)
+                            download_end = date + timedelta(days=1)
+                            
+                            results = self.data_manager.download_data(
+                                symbols=[missing_symbol],
+                                start_date=download_start,
+                                end_date=download_end,
+                            )
+                            
+                            if results.get(missing_symbol):
+                                logger.info(
+                                    f"Successfully downloaded data for {missing_symbol}, retrying",
+                                    symbol=missing_symbol,
+                                )
+                                retry_count += 1
+                                continue  # Retry the signal generation
+                            
+                            logger.error(
+                                f"Failed to download data for {missing_symbol}",
+                                symbol=missing_symbol,
+                            )
+                            return {}
+                        except Exception as download_error:
+                            logger.error(
+                                f"Error downloading data for {missing_symbol}: {download_error}",
+                                symbol=missing_symbol,
+                                error=str(download_error),
+                            )
+                            return {}
+                
+                # If not a missing data error or couldn't extract symbol, fail
+                logger.error(
+                    f"DSL evaluation error: {error_msg}",
+                    error=error_msg,
+                    date=date.date(),
+                )
+                return {}
+            
+            except Exception as e:
+                logger.error(
+                    f"Failed to generate signals from Strategy_v2: {e}",
+                    error=str(e),
+                    date=date.date(),
+                )
+                # Fallback to empty signals rather than mocked equal-weight
+                return {}
+
+        logger.error(
+            f"Max retries ({max_retries}) exceeded for signal generation",
+            date=date.date(),
+        )
+        return {}
 
     def _generate_rebalance_plan(
         self,
