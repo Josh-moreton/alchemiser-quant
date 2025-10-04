@@ -99,24 +99,23 @@ class PortfolioBuilder:
     def _get_order_action_info(side: str) -> tuple[str, str]:
         side_upper = side.upper()
         if side_upper == "BUY":
-            return "#10B981", "📈"
+            return "#10B981", "BUY"
         if side_upper == "SELL":
-            return "#EF4444", "📉"
-        return "#6B7280", "📊"
+            return "#EF4444", "SELL"
+        return "#6B7280", side_upper
 
     @staticmethod
     def _get_order_status_info(status: str) -> tuple[str, str]:
         status_upper = status.upper()
         if status_upper in ("FILLED", "COMPLETE"):
-            return "#10B981", f"✅ {status_upper}"
+            return "#10B981", "Filled"
         if status_upper in ("PARTIAL", "PARTIALLY_FILLED"):
-            return "#F59E0B", f"🔄 {status_upper}"
+            return "#F59E0B", "Partial Fill"
         if status_upper in ("PENDING", "NEW", "ACCEPTED", "PENDING_NEW"):
-            return "#3B82F6", f"⏳ {status_upper}"
+            return "#3B82F6", "Pending"
         if status_upper in ("CANCELLED", "CANCELED", "REJECTED"):
-            return "#EF4444", f"❌ {status_upper}"
-        # Use ASCII 'i' instead of the info symbol to avoid ambiguous unicode lint warning
-        return "#6B7280", f"i {status_upper}"
+            return "#EF4444", "Cancelled"
+        return "#6B7280", status_upper
 
     @staticmethod
     def _format_quantity_display(qty: Any) -> str:  # noqa: ANN401
@@ -146,14 +145,14 @@ class PortfolioBuilder:
         except (TypeError, ValueError):  # pragma: no cover - defensive
             deployed_pct = 0.0
         if deployed_pct >= 95:
-            deploy_color, deploy_emoji = "#10B981", "🟢"
+            deploy_color, deploy_label = "#10B981", "High"
         elif deployed_pct >= 80:
-            deploy_color, deploy_emoji = "#F59E0B", "🟡"
+            deploy_color, deploy_label = "#F59E0B", "Moderate"
         else:
-            deploy_color, deploy_emoji = "#EF4444", "🔴"
+            deploy_color, deploy_label = "#EF4444", "Low"
         status_color = "#10B981" if status == "ACTIVE" else "#EF4444"
         return f"""
-        <table style=\"width:100%;border-collapse:collapse;background-color:white;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);margin:16px 0;\">\n            <tbody>\n                <tr>\n                    <td style=\"padding:16px 20px;border-bottom:1px solid #E5E7EB;\"><span style=\"font-weight:600;font-size:14px;\">Account Status:</span></td>\n                    <td style=\"padding:16px 20px;border-bottom:1px solid #E5E7EB;text-align:right;color:{status_color};font-weight:600;font-size:14px;\">{status}</td>\n                </tr>\n                <tr>\n                    <td style=\"padding:16px 20px;border-bottom:1px solid #E5E7EB;\"><span style=\"font-weight:600;font-size:14px;\">Day Trades Used:</span></td>\n                    <td style=\"padding:16px 20px;border-bottom:1px solid #E5E7EB;text-align:right;font-size:14px;\">{used_str}</td>\n                </tr>\n                <tr>\n                    <td style=\"padding:16px 20px;border-bottom:1px solid #E5E7EB;\"><span style=\"font-weight:600;font-size:14px;\">Portfolio Deployed:</span></td>\n                    <td style=\"padding:16px 20px;border-bottom:1px solid #E5E7EB;text-align:right;color:{deploy_color};font-weight:600;font-size:14px;\">{deploy_emoji} {deployed_pct:.1f}%</td>\n                </tr>\n            </tbody>\n        </table>\n        """
+        <table style=\"width:100%;border-collapse:collapse;background-color:white;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);margin:16px 0;\">\n            <tbody>\n                <tr>\n                    <td style=\"padding:16px 20px;border-bottom:1px solid #E5E7EB;\"><span style=\"font-weight:600;font-size:14px;color:#374151;\">Account Status:</span></td>\n                    <td style=\"padding:16px 20px;border-bottom:1px solid #E5E7EB;text-align:right;color:{status_color};font-weight:600;font-size:14px;\">{status}</td>\n                </tr>\n                <tr>\n                    <td style=\"padding:16px 20px;border-bottom:1px solid #E5E7EB;\"><span style=\"font-weight:600;font-size:14px;color:#374151;\">Day Trades Used:</span></td>\n                    <td style=\"padding:16px 20px;border-bottom:1px solid #E5E7EB;text-align:right;font-size:14px;color:#1F2937;\">{used_str}</td>\n                </tr>\n                <tr>\n                    <td style=\"padding:16px 20px;border-bottom:1px solid #E5E7EB;\"><span style=\"font-weight:600;font-size:14px;color:#374151;\">Capital Deployment:</span></td>\n                    <td style=\"padding:16px 20px;border-bottom:1px solid #E5E7EB;text-align:right;color:{deploy_color};font-weight:600;font-size:14px;\">{deploy_label} ({deployed_pct:.1f}%)</td>\n                </tr>\n            </tbody>\n        </table>\n        """
 
     @staticmethod
     def build_portfolio_rebalancing_table(result: ExecutionLike) -> str:
@@ -242,14 +241,14 @@ class PortfolioBuilder:
             status = str(order.get("status", "unknown"))
 
             # Use helper methods for formatting
-            action_color, action_emoji = PortfolioBuilder._get_order_action_info(side)
+            action_color, action_label = PortfolioBuilder._get_order_action_info(side)
             status_color, status_display = PortfolioBuilder._get_order_status_info(status)
             qty_display = PortfolioBuilder._format_quantity_display(qty)
 
             table_html += f"""
                 <tr>
                     <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; font-weight: 600; color: {action_color};">
-                        {action_emoji} {side.upper()}
+                        {action_label}
                     </td>
                     <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; font-weight: 600; color: #1F2937;">
                         {symbol}

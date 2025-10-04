@@ -101,13 +101,13 @@ class MonthlySummaryEmailBuilder:
             # Determine color based on P&L
             if abs_change > 0:
                 pnl_color = "#10B981"  # Green
-                pnl_icon = "📈"
+                pnl_label = "+"
             elif abs_change < 0:
                 pnl_color = "#EF4444"  # Red
-                pnl_icon = "📉"
+                pnl_label = ""
             else:
                 pnl_color = "#6B7280"  # Gray
-                pnl_icon = "-"
+                pnl_label = ""
 
             # Format percentage display
             pct_display = f" ({pct_change:+.2f}%)" if pct_change is not None else ""
@@ -129,13 +129,13 @@ class MonthlySummaryEmailBuilder:
                     <div style="text-align: center; padding: 16px; background-color: #F9FAFB; border-radius: 8px;">
                         <p style="margin: 0; font-size: 14px; color: #6B7280;">Change</p>
                         <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: {pnl_color};">
-                            {pnl_icon} ${abs_change:+,.2f}{pct_display}
+                            {pnl_label}${abs_change:,.2f}{pct_display}
                         </p>
                     </div>
                 </div>
             """
 
-        return BaseEmailTemplate.create_section("💰 Portfolio P&L", content)
+        return BaseEmailTemplate.create_section("Portfolio P&L", content)
 
     @staticmethod
     def _build_strategy_section(summary: MonthlySummaryDTO) -> str:
@@ -180,7 +180,7 @@ class MonthlySummaryEmailBuilder:
 
             content = BaseEmailTemplate.create_table(headers, rows, "strategy-performance")
 
-        return BaseEmailTemplate.create_section("📊 Realized P&L by Strategy", content)
+        return BaseEmailTemplate.create_section("Realized P&L by Strategy", content)
 
     @staticmethod
     def _build_methodology_footer(month_label: str) -> str:

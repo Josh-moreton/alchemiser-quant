@@ -83,8 +83,8 @@ class SignalsBuilder:
         try:
             return f"""
             <div style="margin: 24px 0; padding: 16px; background-color: #FEF3C7; border-left: 4px solid #F59E0B; border-radius: 8px;">
-                <h3 style="margin: 0 0 8px 0; color: #92400E; font-size: 16px; font-weight: 600;">📈 Signal Information</h3>
-                <p style="margin: 0; color: #92400E;">
+                <h3 style="margin: 0 0 8px 0; color: #92400E; font-size: 15px; font-weight: 600; letter-spacing: 0.3px;">Signal Information</h3>
+                <p style="margin: 0; color: #92400E; line-height: 1.6;">
                     <strong>{signal.action} {signal.symbol}</strong>
                     {f" - {signal.reason}" if hasattr(signal, "reason") and signal.reason else ""}
                 </p>
@@ -146,7 +146,7 @@ class SignalsBuilder:
 
         return f"""
         <div style="margin: 24px 0;">
-            <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">📊 Technical Indicators</h3>
+            <h3 style="margin: 0 0 14px 0; color: #1F2937; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">Technical Indicators</h3>
             {indicators_html}
         </div>
         """
@@ -177,15 +177,15 @@ class SignalsBuilder:
             if action == "BUY":
                 action_color = "#10B981"
                 action_bg = "#D1FAE5"
-                action_emoji = "📈"
+                action_label = "BUY"
             elif action == "SELL":
                 action_color = "#EF4444"
                 action_bg = "#FEE2E2"
-                action_emoji = "📉"
+                action_label = "SELL"
             else:
                 action_color = "#6B7280"
                 action_bg = "#F3F4F6"
-                action_emoji = "⏸️"
+                action_label = "HOLD"
 
             # Format reason text (truncate if too long)
             formatted_reason = reason[:300] + "..." if len(reason) > 300 else reason
@@ -195,7 +195,7 @@ class SignalsBuilder:
             <div style="margin-bottom: 20px; padding: 20px; background-color: white; border-radius: 12px; border-left: 4px solid {action_color}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <div>
-                        <h4 style="margin: 0; color: #1F2937; font-size: 18px; font-weight: 600;">
+                        <h4 style="margin: 0; color: #1F2937; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">
                             {strategy_name} Strategy
                         </h4>
                         <div style="margin-top: 4px;">
@@ -204,8 +204,8 @@ class SignalsBuilder:
                             {f'<span style="color: #6B7280; font-size: 14px; margin-left: 16px;">Allocation: </span><span style="font-weight: 600; color: #1F2937;">{allocation:.1%}</span>' if allocation > 0 else ""}
                         </div>
                     </div>
-                    <div style="background-color: {action_bg}; color: {action_color}; padding: 8px 16px; border-radius: 20px; font-size: 16px; font-weight: 600;">
-                        {action_emoji} {action}
+                    <div style="background-color: {action_bg}; color: {action_color}; padding: 8px 16px; border-radius: 20px; font-size: 15px; font-weight: 600;">
+                        {action_label}
                     </div>
                 </div>
                 <div style="background-color: #F8FAFC; padding: 16px; border-radius: 8px; margin-bottom: 12px;">
@@ -220,7 +220,7 @@ class SignalsBuilder:
 
         return f"""
         <div style="margin: 24px 0;">
-            <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">🎯 Strategy Signals</h3>
+            <h3 style="margin: 0 0 14px 0; color: #1F2937; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">Strategy Signals</h3>
             {signals_html}
         </div>
         """
@@ -249,15 +249,13 @@ class SignalsBuilder:
 
         # Determine market regime
         if current_price > ma_200:
-            regime = "BULL MARKET"
+            regime = "Bullish Trend"
             regime_color = "#10B981"
             regime_bg = "#D1FAE5"
-            regime_emoji = "🐂"
         else:
-            regime = "BEAR MARKET"
+            regime = "Bearish Trend"
             regime_color = "#EF4444"
             regime_bg = "#FEE2E2"
-            regime_emoji = "🐻"
 
         # RSI analysis
         rsi_status = ""
@@ -273,12 +271,12 @@ class SignalsBuilder:
 
         return f"""
         <div style="margin: 24px 0;">
-            <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">🌊 Market Regime Analysis</h3>
+            <h3 style="margin: 0 0 14px 0; color: #1F2937; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">Market Regime Analysis</h3>
             <div style="background-color: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <h4 style="margin: 0; color: #1F2937; font-size: 16px; font-weight: 600;">SPY Market Analysis</h4>
-                    <div style="background-color: {regime_bg}; color: {regime_color}; padding: 6px 12px; border-radius: 20px; font-size: 14px; font-weight: 600;">
-                        {regime_emoji} {regime}
+                    <h4 style="margin: 0; color: #1F2937; font-size: 15px; font-weight: 600; letter-spacing: 0.3px;">SPY Market Analysis</h4>
+                    <div style="background-color: {regime_bg}; color: {regime_color}; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;">
+                        {regime}
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
@@ -340,13 +338,13 @@ class SignalsBuilder:
             # Color coding for actions
             if action == "BUY":
                 action_color = "#10B981"
-                action_emoji = "📈"
+                action_label = "BUY"
             elif action == "SELL":
                 action_color = "#EF4444"
-                action_emoji = "📉"
+                action_label = "SELL"
             else:
                 action_color = "#6B7280"
-                action_emoji = "⏸️"
+                action_label = "HOLD"
 
             # Truncate reason for display
             display_reason = reason[:100] + "..." if len(reason) > 100 else reason
@@ -358,7 +356,7 @@ class SignalsBuilder:
                         {strategy_display_name}
                     </td>
                     <td style="padding: 16px; border-bottom: 1px solid #E5E7EB; text-align: center; font-weight: 600; color: {action_color};">
-                        {action_emoji} {action}
+                        {action_label}
                     </td>
                     <td style="padding: 16px; border-bottom: 1px solid #E5E7EB; text-align: center; font-weight: 600; color: #374151;">
                         {symbol}

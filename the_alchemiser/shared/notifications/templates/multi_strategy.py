@@ -26,13 +26,13 @@ class MultiStrategyReportBuilder:
         """Build a neutral multi-strategy email report without financial values."""
         # Determine success status
         success = getattr(result, "success", True)
-        status_color = "#10B981" if success else "#EF4444"
+        status_color = "#059669" if success else "#DC2626"
         status_emoji = "✅" if success else "❌"
-        status_text = "Success" if success else "Failed"
+        status_text = "Completed Successfully" if success else "Execution Failed"
 
         # Build content sections
         combined_header = BaseEmailTemplate.get_combined_header_status(
-            f"{mode.upper()} Multi-Strategy Report",
+            f"{mode.upper()} Multi-Strategy Execution Report",
             status_text,
             status_color,
             status_emoji,
@@ -44,9 +44,25 @@ class MultiStrategyReportBuilder:
         # Build content sections (neutral mode - no financial data)
         content_sections = []
 
-        # Portfolio rebalancing table (percentages only)
+        # Add execution summary box if successful
+        if success:
+            orders = getattr(result, "orders_executed", [])
+            orders_count = len(orders) if orders else 0
+            summary_html = f"""
+            <div style="margin: 0 0 28px 0; padding: 18px; background-color: #ECFDF5; border-left: 4px solid #059669; border-radius: 8px;">
+                <h3 style="margin: 0 0 10px 0; color: #065F46; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">
+                    Execution Summary
+                </h3>
+                <p style="margin: 0; color: #065F46; line-height: 1.6; font-size: 14px;">
+                    Portfolio rebalancing completed successfully. {orders_count} order{"s" if orders_count != 1 else ""} executed as per strategy allocation targets.
+                </p>
+            </div>
+            """
+            content_sections.append(summary_html)
+
+        # Portfolio rebalancing table (percentages only) - with improved header
         rebalancing_html = BaseEmailTemplate.create_section(
-            "🔄 Portfolio Rebalancing",
+            "Portfolio Rebalancing Plan",
             PortfolioBuilder.build_portfolio_rebalancing_table(result),
         )
         content_sections.append(rebalancing_html)
@@ -61,26 +77,35 @@ class MultiStrategyReportBuilder:
             neutral_signals_html = SignalsBuilder.build_strategy_signals_neutral(strategy_signals)
             content_sections.append(neutral_signals_html)
 
-        # Orders executed (detailed table, no values)
+        # Orders executed (detailed table, no values) - with improved header
         orders = getattr(result, "orders_executed", [])
         if orders:
             orders_table_html = PortfolioBuilder.build_orders_table_neutral(orders)
             neutral_orders_html = BaseEmailTemplate.create_section(
-                "📋 Trading Activity", orders_table_html
+                "Order Execution Details", orders_table_html
             )
             content_sections.append(neutral_orders_html)
         else:
-            neutral_orders_html = BaseEmailTemplate.create_section(
-                "📋 Trading Activity",
-                "<p>No orders executed - portfolio already balanced</p>",
-            )
+            neutral_orders_html = """
+            <div style="margin: 24px 0;">
+                <h3 style="margin: 0 0 14px 0; color: #1F2937; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">Order Execution Details</h3>
+                <p style="margin: 0; color: #6B7280; font-size: 14px; line-height: 1.6;">No rebalancing orders required. Current portfolio allocation matches target strategy parameters.</p>
+            </div>
+            """
             content_sections.append(neutral_orders_html)
 
         # Error section if needed
         if not success:
-            error_html = BaseEmailTemplate.create_alert_box(
-                "⚠️ Check logs for error details", "error"
-            )
+            error_html = """
+            <div style="margin: 24px 0; padding: 18px; background-color: #FEE2E2; border-left: 4px solid #DC2626; border-radius: 8px;">
+                <h3 style="margin: 0 0 10px 0; color: #991B1B; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">
+                    Execution Error
+                </h3>
+                <p style="margin: 0; color: #991B1B; line-height: 1.6; font-size: 14px;">
+                    Review system logs for detailed error information and correlation ID for troubleshooting.
+                </p>
+            </div>
+            """
             content_sections.append(error_html)
 
         footer = BaseEmailTemplate.get_footer()
@@ -90,7 +115,7 @@ class MultiStrategyReportBuilder:
         content = f"""
         {combined_header}
         <tr>
-            <td style="padding: 32px 24px; background-color: white;">
+            <td style="padding: 32px 24px; background-color: #F9FAFB;">
                 {main_content}
             </td>
         </tr>
@@ -98,5 +123,5 @@ class MultiStrategyReportBuilder:
         """
 
         return BaseEmailTemplate.wrap_content(
-            content, f"{APPLICATION_NAME} - Multi-Strategy Report (Neutral)"
+            content, f"{APPLICATION_NAME} - {mode.upper()} Multi-Strategy Execution Report"
         )
