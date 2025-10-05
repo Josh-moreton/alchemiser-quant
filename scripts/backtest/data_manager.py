@@ -42,6 +42,25 @@ class DataManager:
         self.data_store = data_store or DataStore()
         logger.info("DataManager initialized")
 
+    def _data_exists_for_range(self, symbol: str, start_date: datetime, end_date: datetime) -> bool:
+        """Check if data exists for the given symbol and date range.
+
+        Args:
+            symbol: Stock symbol
+            start_date: Required start date
+            end_date: Required end date
+
+        Returns:
+            True if data exists and covers the entire date range
+
+        """
+        metadata = self.data_store.get_metadata(symbol)
+        return (
+            metadata is not None
+            and metadata.start_date <= start_date
+            and metadata.end_date >= end_date
+        )
+
     def download_data(
         self,
         symbols: list[str],
@@ -82,19 +101,13 @@ class DataManager:
         for symbol in symbols:
             try:
                 # Check if data already exists
-                if not force:
-                    metadata = self.data_store.get_metadata(symbol)
-                    if (
-                        metadata
-                        and metadata.start_date <= start_date
-                        and metadata.end_date >= end_date
-                    ):
-                        logger.info(
-                            f"Data already exists for {symbol}, skipping",
-                            symbol=symbol,
-                        )
-                        results[symbol] = True
-                        continue
+                if not force and self._data_exists_for_range(symbol, start_date, end_date):
+                    logger.info(
+                        f"Data already exists for {symbol}, skipping",
+                        symbol=symbol,
+                    )
+                    results[symbol] = True
+                    continue
 
                 # Download data from Alpaca
                 bars = self.provider.fetch_daily_bars(symbol, start_date, end_date)

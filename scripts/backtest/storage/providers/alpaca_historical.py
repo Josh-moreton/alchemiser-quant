@@ -113,9 +113,7 @@ class AlpacaHistoricalProvider:
                     low=Decimal(str(bar.low)),
                     close=Decimal(str(bar.close)),
                     volume=int(bar.volume),
-                    adjusted_close=Decimal(
-                        str(bar.close)
-                    ),  # Alpaca returns adjusted prices
+                    adjusted_close=Decimal(str(bar.close)),  # Alpaca returns adjusted prices
                 )
                 daily_bars.append(daily_bar)
 

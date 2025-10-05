@@ -8,6 +8,7 @@ and mocked portfolio/execution layers.
 
 from __future__ import annotations
 
+import re
 import sys
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -66,9 +67,7 @@ class BacktestRunner:
         self.strategy_files = strategy_files or ["KLM.clj"]
         self.data_manager = DataManager(self.data_store)
         self._missing_symbols_cache: set[str] = set()
-        logger.info(
-            f"BacktestRunner initialized with strategies: {self.strategy_files}"
-        )
+        logger.info(f"BacktestRunner initialized with strategies: {self.strategy_files}")
 
     def run_backtest(self, config: BacktestConfig) -> BacktestResult:
         """Run a complete backtest.
@@ -138,15 +137,11 @@ class BacktestRunner:
                 signal_symbols = list(signals.keys())
                 for signal_symbol in signal_symbols:
                     if signal_symbol not in bars:
-                        signal_bars = self._load_bars_for_date(
-                            [signal_symbol], current_date
-                        )
+                        signal_bars = self._load_bars_for_date([signal_symbol], current_date)
                         bars.update(signal_bars)
 
             # Generate rebalance plan (mocked portfolio_v2)
-            rebalance_plan = self._generate_rebalance_plan(
-                current_portfolio, signals, bars
-            )
+            rebalance_plan = self._generate_rebalance_plan(current_portfolio, signals, bars)
 
             # Execute trades (mocked execution_v2)
             trades = self._execute_trades(rebalance_plan, bars)
@@ -181,9 +176,7 @@ class BacktestRunner:
         # For now, return common symbols
         return ["SPY", "QQQ", "TECL", "TQQQ"]
 
-    def _load_bars_for_date(
-        self, symbols: list[str], date: datetime
-    ) -> dict[str, DailyBar]:
+    def _load_bars_for_date(self, symbols: list[str], date: datetime) -> dict[str, DailyBar]:
         """Load market data bars for a specific date.
 
         Args:
@@ -248,9 +241,7 @@ class BacktestRunner:
                 # Initialize DSL strategy engine with historical data
                 strategy_engine = DslStrategyEngine(
                     market_data_port=market_data_port,
-                    strategy_file=(
-                        self.strategy_files[0] if self.strategy_files else "KLM.clj"
-                    ),
+                    strategy_file=(self.strategy_files[0] if self.strategy_files else "KLM.clj"),
                 )
 
                 # Generate signals using real strategy
@@ -261,10 +252,7 @@ class BacktestRunner:
                 total_allocation = Decimal("0")
 
                 for signal in strategy_signals:
-                    if (
-                        signal.target_allocation is not None
-                        and signal.target_allocation > 0
-                    ):
+                    if signal.target_allocation is not None and signal.target_allocation > 0:
                         symbol_str = str(signal.symbol)
                         signals[symbol_str] = signal.target_allocation
                         total_allocation += signal.target_allocation
@@ -289,8 +277,6 @@ class BacktestRunner:
                 if "No market data available for symbol" in error_msg:
                     # Extract symbol from error message
                     # Format: "Error getting indicator X for SYMBOL: No market data available for symbol SYMBOL"
-                    import re
-
                     match = re.search(r"for symbol ([A-Z]+)", error_msg)
 
                     if match:
@@ -468,9 +454,7 @@ class BacktestRunner:
                     old_qty = pos.quantity
                     old_value = pos.avg_entry_price * old_qty
                     new_qty = old_qty + trade.quantity
-                    new_avg_price = (
-                        old_value + (trade.price * trade.quantity)
-                    ) / new_qty
+                    new_avg_price = (old_value + (trade.price * trade.quantity)) / new_qty
 
                     new_positions[trade.symbol] = PositionSnapshot(
                         symbol=trade.symbol,
@@ -507,8 +491,7 @@ class BacktestRunner:
                             avg_entry_price=pos.avg_entry_price,
                             current_price=trade.price,
                             market_value=new_qty * trade.price,
-                            unrealized_pnl=(trade.price - pos.avg_entry_price)
-                            * new_qty,
+                            unrealized_pnl=(trade.price - pos.avg_entry_price) * new_qty,
                         )
                     else:
                         # Close position
@@ -524,8 +507,7 @@ class BacktestRunner:
                     avg_entry_price=position.avg_entry_price,
                     current_price=current_price,
                     market_value=position.quantity * current_price,
-                    unrealized_pnl=(current_price - position.avg_entry_price)
-                    * position.quantity,
+                    unrealized_pnl=(current_price - position.avg_entry_price) * position.quantity,
                 )
 
         # Calculate total value

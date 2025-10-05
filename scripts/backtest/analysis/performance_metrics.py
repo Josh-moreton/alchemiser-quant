@@ -63,9 +63,9 @@ class PerformanceMetrics:
 
         # Calculate mean and std of returns
         mean_return = sum(returns) / Decimal(len(returns))
-        variance = sum(
-            (r - mean_return) * (r - mean_return) for r in returns
-        ) / Decimal(len(returns))
+        variance = sum((r - mean_return) * (r - mean_return) for r in returns) / Decimal(
+            len(returns)
+        )
         std_return = Decimal(str(math.sqrt(float(variance))))
 
         if std_return == 0:
@@ -74,9 +74,7 @@ class PerformanceMetrics:
         # Annualize (assuming ~252 trading days)
         daily_rf_rate = risk_free_rate / Decimal(str(TRADING_DAYS_PER_YEAR))
         excess_return = mean_return - daily_rf_rate
-        return (excess_return / std_return) * Decimal(
-            str(math.sqrt(TRADING_DAYS_PER_YEAR))
-        )
+        return (excess_return / std_return) * Decimal(str(math.sqrt(TRADING_DAYS_PER_YEAR)))
 
     @staticmethod
     def calculate_max_drawdown(portfolio_snapshots: list[PortfolioSnapshot]) -> Decimal:
@@ -121,23 +119,17 @@ class PerformanceMetrics:
             return
 
         # Calculate Sharpe ratio
-        result.sharpe_ratio = PerformanceMetrics.calculate_sharpe_ratio(
-            result.portfolio_snapshots
-        )
+        result.sharpe_ratio = PerformanceMetrics.calculate_sharpe_ratio(result.portfolio_snapshots)
 
         # Calculate max drawdown
-        result.max_drawdown = PerformanceMetrics.calculate_max_drawdown(
-            result.portfolio_snapshots
-        )
+        result.max_drawdown = PerformanceMetrics.calculate_max_drawdown(result.portfolio_snapshots)
 
         # Calculate final value and total return
         if result.portfolio_snapshots:
             final_snapshot = result.portfolio_snapshots[-1]
             result.final_value = final_snapshot.total_value
             result.total_return = (
-                (result.final_value - result.initial_capital)
-                / result.initial_capital
-                * 100
+                (result.final_value - result.initial_capital) / result.initial_capital * 100
             )
 
         # Calculate win rate from trades
