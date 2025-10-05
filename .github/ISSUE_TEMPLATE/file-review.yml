@@ -1,0 +1,233 @@
+name: File Review
+description: Financial-grade, line-by-line audit of a single Python file
+title: "[File Review] <path/to/file.py>"
+labels: ["file-review", "audit"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # [File Review] Financial-grade, line-by-line audit
+
+        > Purpose: Conduct a rigorous, line-by-line review of a single Python file in the trading system, to institution-grade standards (correctness, controls, auditability, and safety). One issue per file.
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        ## 0) Metadata
+
+  - type: input
+    id: file_path
+    attributes:
+      label: File path
+      description: Path to the file being reviewed
+      placeholder: "e.g., the_alchemiser/execution_v2/service.py"
+    validations:
+      required: true
+
+  - type: input
+    id: commit_sha
+    attributes:
+      label: Commit SHA / Tag
+      description: Specific commit or tag being reviewed
+      placeholder: "e.g., abc1234 or v2.8.1"
+    validations:
+      required: true
+
+  - type: input
+    id: reviewers
+    attributes:
+      label: Reviewer(s)
+      description: Name(s) of reviewer(s)
+      placeholder: "e.g., @username or Full Name"
+    validations:
+      required: true
+
+  - type: input
+    id: review_date
+    attributes:
+      label: Date
+      description: Review date
+      placeholder: "YYYY-MM-DD"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: business_function
+    attributes:
+      label: Business function / Module
+      description: Which module does this file belong to?
+      options:
+        - execution_v2
+        - portfolio_v2
+        - strategy_v2
+        - orchestration
+        - shared
+        - notifications_v2
+        - other
+    validations:
+      required: true
+
+  - type: input
+    id: runtime_context
+    attributes:
+      label: Runtime context
+      description: Deployment context, region(s), timeouts, concurrency
+      placeholder: "e.g., Lambda/Container/Cron, us-east-1, 300s timeout, max 10 concurrent"
+
+  - type: dropdown
+    id: criticality
+    attributes:
+      label: Criticality
+      description: Priority level for this file
+      options:
+        - P0 (Critical)
+        - P1 (High)
+        - P2 (Medium)
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Direct dependencies (imports)
+      description: List internal and external dependencies
+      placeholder: |
+        Internal: shared.schemas, shared.brokers
+        External: pydantic, alpaca-py, pandas
+
+  - type: textarea
+    id: external_services
+    attributes:
+      label: External services touched
+      description: External services this file interacts with
+      placeholder: "e.g., Alpaca, S3, EventBridge, Secrets Manager, DB, Redis"
+
+  - type: textarea
+    id: interfaces
+    attributes:
+      label: Interfaces (DTOs/events) produced/consumed
+      description: Names and versions of DTOs/events
+      placeholder: |
+        Produced: SignalGenerated v1.0, RebalancePlanned v1.0
+        Consumed: MarketData v1.0
+
+  - type: textarea
+    id: related_docs
+    attributes:
+      label: Related docs/specs
+      description: Links to design docs, runbooks, incident playbooks
+      placeholder: "Links to relevant documentation"
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        ## 1) Scope & Objectives
+
+        - Verify the file's **single responsibility** and alignment with intended business capability.
+        - Ensure **correctness**, **numerical integrity**, **deterministic behaviour** where required.
+        - Validate **error handling**, **idempotency**, **observability**, **security**, and **compliance** controls.
+        - Confirm **interfaces/contracts** (DTOs/events) are accurate, versioned, and tested.
+        - Identify **dead code**, **complexity hotspots**, and **performance risks**.
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        ## 2) Summary of Findings (use severity labels)
+
+  - type: textarea
+    id: findings_critical
+    attributes:
+      label: Critical
+      description: Critical severity findings
+      placeholder: "List critical issues found"
+
+  - type: textarea
+    id: findings_high
+    attributes:
+      label: High
+      description: High severity findings
+      placeholder: "List high severity issues found"
+
+  - type: textarea
+    id: findings_medium
+    attributes:
+      label: Medium
+      description: Medium severity findings
+      placeholder: "List medium severity issues found"
+
+  - type: textarea
+    id: findings_low
+    attributes:
+      label: Low
+      description: Low severity findings
+      placeholder: "List low severity issues found"
+
+  - type: textarea
+    id: findings_info
+    attributes:
+      label: Info/Nits
+      description: Informational findings and minor nits
+      placeholder: "List informational items and nits"
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        ## 3) Line-by-Line Notes
+
+  - type: textarea
+    id: line_by_line
+    attributes:
+      label: Detailed Line-by-Line Analysis
+      description: Use markdown table format for line-by-line findings
+      placeholder: |
+        | Line(s) | Issue / Observation | Severity | Evidence / Excerpt | Proposed Action |
+        |---------|---------------------|----------|-------------------|-----------------|
+        | L42-45  | Missing null check  | High     | ```py<br>value = data.get("key")<br>result = value.upper()<br>``` | Add null check before calling upper() |
+      render: markdown
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        ## 4) Correctness & Contracts
+
+  - type: checkboxes
+    id: correctness_checklist
+    attributes:
+      label: Correctness Checklist
+      description: Check all items that apply
+      options:
+        - label: The file has a **clear purpose** and does not mix unrelated concerns (SRP)
+        - label: Public functions/classes have **docstrings** with inputs/outputs, pre/post-conditions, and failure modes
+        - label: "**Type hints** are complete and precise (no `Any` in domain logic; use `Literal/NewType` where helpful)"
+        - label: "**DTOs** are **frozen/immutable** and validated (e.g., Pydantic v2 models with constrained types)"
+        - label: "**Numerical correctness**: currency uses `Decimal`; floats use `math.isclose` or explicit tolerances; no `==`/`!=` on floats"
+        - label: "**Error handling**: exceptions are narrow, typed (from `shared.errors`), logged with context, and never silently caught"
+        - label: "**Idempotency**: handlers tolerate replays; side-effects are guarded by idempotency keys or checks"
+        - label: "**Determinism**: tests freeze time (`freezegun`), seed RNG; no hidden randomness in business logic"
+        - label: "**Security**: no secrets in code/logs; input validation at boundaries; no `eval`/`exec`/dynamic imports"
+        - label: "**Observability**: structured logging with `correlation_id`/`causation_id`; one log per state change; no spam in hot loops"
+        - label: "**Testing**: public APIs have tests; property-based tests for maths; coverage ≥ 80% (≥ 90% for strategy/portfolio)"
+        - label: "**Performance**: no hidden I/O in hot paths; vectorised Pandas ops; HTTP clients pooled with rate limits"
+        - label: "**Complexity**: cyclomatic ≤ 10, cognitive ≤ 15, functions ≤ 50 lines, params ≤ 5"
+        - label: "**Module size**: ≤ 500 lines (soft), split if > 800"
+        - label: "**Imports**: no `import *`; stdlib → third-party → local; no deep relative imports"
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        ## 5) Additional Notes
+
+  - type: textarea
+    id: additional_notes
+    attributes:
+      label: Additional observations, recommendations, or context
+      description: Any other relevant information about this review
+      placeholder: "Add any additional context, observations, or recommendations"
