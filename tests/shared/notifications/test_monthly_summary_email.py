@@ -42,19 +42,19 @@ class TestMonthlySummaryEmail:
         assert "<!DOCTYPE html>" in html
         assert "The Alchemiser — Monthly Summary (Aug 2025)" in html
 
-        # Verify portfolio section
-        assert "💰 Portfolio P&L" in html
+        # Verify portfolio section (no emoji)
+        assert "Portfolio P&L" in html
         assert "$10,000.00" in html  # Start value
         assert "$11,000.00" in html  # End value
-        assert "$+1,000.00" in html  # Change
-        assert "(+10.00%)" in html   # Percentage
+        assert "+$1,000.00" in html or "$+1,000.00" in html  # Change (flexible format)
+        assert "(+10.00%)" in html  # Percentage
 
-        # Verify strategy section
-        assert "📊 Realized P&L by Strategy" in html
+        # Verify strategy section (no emoji)
+        assert "Realized P&L by Strategy" in html
         assert "StrategyA" in html
         assert "StrategyB" in html
         assert "+$500.00" in html  # Positive P&L
-        assert "$-200.00" in html   # Negative P&L
+        assert "$-200.00" in html  # Negative P&L
 
     def test_handles_no_portfolio_data(self) -> None:
         """Test handling case with no portfolio data."""
@@ -107,9 +107,9 @@ class TestMonthlySummaryEmail:
 
         html = MonthlySummaryEmailBuilder.build(summary)
 
-        # Should contain message about no strategy activity
+        # Should contain message about no strategy activity (no emoji)
         assert "No strategy trading activity found" in html
-        assert "📊 Realized P&L by Strategy" in html
+        assert "Realized P&L by Strategy" in html
 
     def test_formats_positive_negative_zero_pnl(self) -> None:
         """Test proper formatting and coloring of different P&L values."""
@@ -141,15 +141,14 @@ class TestMonthlySummaryEmail:
 
         html = MonthlySummaryEmailBuilder.build(summary)
 
-        # Portfolio should show negative with appropriate icon
-        assert "📉" in html  # Negative trend icon
+        # Portfolio should show negative (no emoji, but sign)
         assert "$-500.00" in html
         assert "(-5.00%)" in html
 
         # Strategy P&L should be color-coded
-        assert 'color: #10B981' in html  # Green for positive
-        assert 'color: #EF4444' in html  # Red for negative
-        assert 'color: #6B7280' in html  # Gray for zero
+        assert "color: #10B981" in html  # Green for positive
+        assert "color: #EF4444" in html  # Red for negative
+        assert "color: #6B7280" in html  # Gray for zero
 
     def test_includes_methodology_footer(self) -> None:
         """Test that methodology footer is included."""

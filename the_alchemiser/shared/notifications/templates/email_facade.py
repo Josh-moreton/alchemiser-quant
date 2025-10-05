@@ -150,28 +150,35 @@ class EmailTemplates:
         """
         header = BaseEmailTemplate.get_header(APPLICATION_NAME)
         status_banner = BaseEmailTemplate.get_status_banner(
-            f"{mode.upper()} Trading Run Failed", "Failed", "#EF4444", "❌"
+            f"{mode.upper()} Trading Execution Failed", "Failure", "#DC2626", "❌"
         )
 
         content_sections = []
 
-        # Main error section
-        error_content = BaseEmailTemplate.create_alert_box(
-            f"<strong>Trading Execution Failed</strong><br>{error_details}", "error"
-        )
+        # Main error section with improved formatting
+        error_content = f"""
+        <div style="margin: 0 0 24px 0; padding: 18px; background-color: #FEE2E2; border-left: 4px solid #DC2626; border-radius: 8px;">
+            <h3 style="margin: 0 0 12px 0; color: #991B1B; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">
+                Execution Failure Details
+            </h3>
+            <p style="margin: 0; color: #991B1B; line-height: 1.6; font-size: 14px;">
+                {error_details}
+            </p>
+        </div>
+        """
         content_sections.append(error_content)
 
-        # Context section if provided
+        # Context section if provided - with improved table formatting
         if context:
             context_rows = ""
             for key, value in context.items():
                 if value is not None:
                     context_rows += f"""
                     <tr>
-                        <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-weight: 600;">
-                            {key.replace("_", " ").title()}:
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; font-weight: 600; color: #374151; width: 40%;">
+                            {key.replace("_", " ").title()}
                         </td>
-                        <td style="padding: 8px 12px; border-bottom: 1px solid #E5E7EB;">
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; color: #1F2937;">
                             {value}
                         </td>
                     </tr>
@@ -179,11 +186,11 @@ class EmailTemplates:
 
             if context_rows:
                 context_html = f"""
-                <div style="margin-top: 24px;">
-                    <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 18px; font-weight: 600;">
-                        📋 Execution Context
+                <div style="margin: 0 0 24px 0;">
+                    <h3 style="margin: 0 0 14px 0; color: #1F2937; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">
+                        Execution Context
                     </h3>
-                    <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
+                    <table style="width: 100%; border-collapse: collapse; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);">
                         <tbody>
                             {context_rows}
                         </tbody>
@@ -192,17 +199,22 @@ class EmailTemplates:
                 """
                 content_sections.append(context_html)
 
-        # Action items section
-        action_html = BaseEmailTemplate.create_alert_box(
-            """
-            <strong>🔧 Recommended Actions:</strong><br>
-            • Check application logs for detailed error information<br>
-            • Verify broker connectivity and account status<br>
-            • Review strategy configurations and market conditions<br>
-            • Contact support if the issue persists
-            """,
-            "warning",
-        )
+        # Enhanced action items section
+        action_html = """
+        <div style="margin: 0; padding: 18px; background-color: #FEF3C7; border-left: 4px solid #D97706; border-radius: 8px;">
+            <h3 style="margin: 0 0 12px 0; color: #78350F; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">
+                Recommended Actions
+            </h3>
+            <ul style="margin: 0; padding-left: 20px; color: #78350F; line-height: 1.8; font-size: 14px;">
+                <li><strong>Review System Logs:</strong> Check application logs for detailed error traces and stack information</li>
+                <li><strong>Verify Connectivity:</strong> Ensure broker API connectivity and validate account credentials</li>
+                <li><strong>Check Account Status:</strong> Confirm account is active, funded, and authorized for trading</li>
+                <li><strong>Validate Configuration:</strong> Review strategy parameters, position limits, and risk controls</li>
+                <li><strong>Market Conditions:</strong> Verify market hours and check for trading halts or restrictions</li>
+                <li><strong>Escalation:</strong> If issue persists, escalate to system administrator with correlation ID</li>
+            </ul>
+        </div>
+        """
         content_sections.append(action_html)
 
         footer = BaseEmailTemplate.get_footer()
@@ -221,7 +233,7 @@ class EmailTemplates:
         """
 
         return BaseEmailTemplate.wrap_content(
-            content, f"The Alchemiser - {mode.upper()} Trading Failed"
+            content, f"The Alchemiser - {mode.upper()} Trading Execution Failed"
         )
 
     @staticmethod
