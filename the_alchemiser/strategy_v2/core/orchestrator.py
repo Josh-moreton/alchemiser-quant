@@ -14,6 +14,7 @@ import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from the_alchemiser.shared.errors import EnhancedTradingError
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 
@@ -42,21 +43,24 @@ class SingleStrategyOrchestrator:
         """
         self._market_data = market_data_adapter
 
-    def run(self, strategy_id: str, context: StrategyContext) -> StrategyAllocation:
+    def run(self, strategy_id: str, context: StrategyContext, causation_id: str | None = None) -> StrategyAllocation:
         """Run strategy and return allocation schema.
 
         Args:
             strategy_id: Strategy identifier (e.g., 'nuclear', 'klm', 'tecl')
             context: Strategy execution context
+            causation_id: Optional causation ID from triggering event for correlation tracking
 
         Returns:
             Strategy allocation DTO with target weights
 
         Raises:
-            KeyError: If strategy not found
-            ValueError: If strategy execution fails
+            EnhancedTradingError: If strategy execution fails
 
         """
+        # Validate context before execution
+        self.validate_context(context)
+        
         correlation_id = str(uuid.uuid4())
 
         try:
@@ -65,6 +69,7 @@ class SingleStrategyOrchestrator:
                 extra={
                     "component": ORCHESTRATOR_COMPONENT,
                     "correlation_id": correlation_id,
+                    "causation_id": causation_id,
                     "strategy_id": strategy_id,
                     "symbols": context.symbols,
                     "timeframe": context.timeframe,
@@ -85,6 +90,7 @@ class SingleStrategyOrchestrator:
             allocation = StrategyAllocation(
                 target_weights=normalized_weights,
                 correlation_id=correlation_id,
+                causation_id=causation_id,
                 as_of=context.as_of or datetime.now(UTC),
                 constraints={
                     "strategy_id": strategy_id,
@@ -98,8 +104,10 @@ class SingleStrategyOrchestrator:
                 extra={
                     "component": ORCHESTRATOR_COMPONENT,
                     "correlation_id": correlation_id,
+                    "causation_id": causation_id,
                     "weights_sum": sum(normalized_weights.values()),
                     "symbols_count": len(normalized_weights),
+                    "target_weights": {k: str(v) for k, v in normalized_weights.items()},
                 },
             )
 
@@ -111,10 +119,21 @@ class SingleStrategyOrchestrator:
                 extra={
                     "component": ORCHESTRATOR_COMPONENT,
                     "correlation_id": correlation_id,
+                    "causation_id": causation_id,
                     "error": str(e),
+                    "error_type": type(e).__name__,
                 },
             )
-            raise ValueError(f"Strategy execution failed: {e}") from e
+            raise EnhancedTradingError(
+                f"Strategy execution failed: {e}",
+                context={
+                    "strategy_id": strategy_id,
+                    "correlation_id": correlation_id,
+                    "causation_id": causation_id,
+                    "symbols": context.symbols,
+                    "timeframe": context.timeframe,
+                },
+            ) from e
 
     def _generate_sample_allocation(self, context: StrategyContext) -> dict[str, Decimal]:
         """Generate sample allocation for testing.
@@ -156,8 +175,8 @@ class SingleStrategyOrchestrator:
 
         total = sum(weights.values())
 
-        # Handle zero or negative total
-        if total <= 0:
+        # Handle zero or negative total (use explicit Decimal comparison)
+        if total <= Decimal("0"):
             logger.warning(
                 f"Invalid total weight: {total}, using equal weights",
                 extra={"component": ORCHESTRATOR_COMPONENT},

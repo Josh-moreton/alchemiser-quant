@@ -43,6 +43,12 @@ class StrategyAllocation(BaseModel):
     correlation_id: str = Field(
         ..., min_length=1, max_length=100, description="Correlation ID for tracking"
     )
+    causation_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+        description="Optional causation ID linking to triggering event",
+    )
     as_of: datetime | None = Field(
         default=None, description="Optional timestamp when allocation was calculated"
     )
@@ -88,6 +94,17 @@ class StrategyAllocation(BaseModel):
         v = v.strip()
         if not v:
             raise ValueError("correlation_id cannot be empty")
+        return v
+
+    @field_validator("causation_id")
+    @classmethod
+    def validate_causation_id(cls, v: str | None) -> str | None:
+        """Validate causation ID format if provided."""
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            return None
         return v
 
     @field_validator("as_of")

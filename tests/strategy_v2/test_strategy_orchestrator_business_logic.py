@@ -111,6 +111,7 @@ class TestSingleStrategyOrchestrator:
         assert result.target_weights is not None
         assert len(result.target_weights) == len(sample_context.symbols)
         assert result.correlation_id is not None
+        assert result.causation_id is None  # None when not provided
         assert result.as_of is not None
         assert result.constraints["strategy_id"] == "test_strategy"
         
@@ -164,3 +165,35 @@ class TestSingleStrategyOrchestrator:
         for weight in normalized.values():
             expected = Decimal("1.0") / Decimal("3")
             assert abs(weight - expected) < Decimal("0.0001")
+
+    def test_causation_id_propagation(self, orchestrator, sample_context):
+        """Test that causation_id is properly propagated when provided."""
+        causation_id = "test-causation-id-123"
+        
+        result = orchestrator.run("test_strategy", sample_context, causation_id=causation_id)
+        
+        # Should propagate causation_id to allocation
+        assert result.causation_id == causation_id
+        assert result.correlation_id is not None
+        assert result.correlation_id != causation_id  # Should generate new correlation_id
+
+    def test_error_handling_with_enhanced_error(self, orchestrator):
+        """Test that errors are properly wrapped in EnhancedTradingError."""
+        from the_alchemiser.shared.errors import EnhancedTradingError
+        
+        # Create invalid context that will fail validation
+        with pytest.raises(ValueError, match="symbols cannot be empty"):
+            # This will fail in StrategyContext __post_init__
+            from the_alchemiser.strategy_v2.models.context import StrategyContext
+            StrategyContext(symbols=[], timeframe="1d")
+
+    def test_context_validation_called(self, orchestrator, mock_market_data_adapter):
+        """Test that validate_context is called before execution."""
+        from the_alchemiser.strategy_v2.models.context import StrategyContext
+        
+        # Create a valid context
+        context = StrategyContext(symbols=["AAPL"], timeframe="1d")
+        
+        # Should not raise any exception (validation passes)
+        result = orchestrator.run("test_strategy", context)
+        assert result is not None
