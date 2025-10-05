@@ -386,3 +386,35 @@ class StrategyExecutionError(AlchemiserError):
 
 class StrategyValidationError(StrategyExecutionError):
     """Raised when strategy validation fails."""
+
+
+class TimestampParsingError(ValidationError):
+    """Raised when timestamp parsing or conversion fails.
+
+    This error is used for timezone-related operations where invalid
+    timestamp formats or unparseable values are encountered.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        timestamp_value: str | int | float | None = None,
+        timestamp_format: str | None = None,
+    ) -> None:
+        """Initialize timestamp parsing error with context.
+
+        Args:
+            message: Human-readable error message
+            timestamp_value: The invalid timestamp value that caused the error
+            timestamp_format: Expected or attempted format (e.g., 'ISO8601', 'Unix epoch')
+
+        """
+        context: dict[str, Any] = {}
+        if timestamp_value is not None:
+            context["timestamp_value"] = str(timestamp_value)
+        if timestamp_format:
+            context["timestamp_format"] = timestamp_format
+
+        super().__init__(message)
+        self.timestamp_value = timestamp_value
+        self.timestamp_format = timestamp_format

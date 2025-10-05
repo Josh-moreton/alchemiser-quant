@@ -8,13 +8,13 @@ timezone awareness, conversion, and validation.
 
 import pytest
 from datetime import datetime, timezone, UTC
-from unittest.mock import patch
 
 from the_alchemiser.shared.utils.timezone_utils import (
     ensure_timezone_aware,
     normalize_timestamp_to_utc,
     to_iso_string,
 )
+from the_alchemiser.shared.types.exceptions import TimestampParsingError
 
 
 class TestEnsureTimezoneAware:
@@ -126,23 +126,29 @@ class TestNormalizeTimestampToUtc:
         assert result_dt.hour == 10
         assert result_dt.minute == 30
 
-    def test_invalid_string_fallback_to_current_time(self):
-        """Test that invalid string falls back to current time."""
+    def test_invalid_string_raises_error(self):
+        """Test that invalid string raises TimestampParsingError."""
         invalid_str = "not a valid datetime"
-        result_dt = normalize_timestamp_to_utc(invalid_str)
         
-        # Should fallback to a UTC datetime (current time)
-        assert result_dt.tzinfo is UTC
-        # Don't test the exact time since it's current time
+        with pytest.raises(TimestampParsingError) as exc_info:
+            normalize_timestamp_to_utc(invalid_str)
+        
+        # Verify error context
+        assert "Failed to parse timestamp string" in str(exc_info.value)
+        assert exc_info.value.timestamp_value == invalid_str
+        assert exc_info.value.timestamp_format == "ISO8601"
 
-    def test_numeric_timestamp_converted_to_string(self):
-        """Test that numeric timestamps are converted via string."""
-        # This tests the fallback to string conversion
+    def test_numeric_timestamp_raises_error(self):
+        """Test that numeric timestamps raise TimestampParsingError."""
+        # This tests numeric conversion that cannot be parsed as ISO string
         numeric_timestamp = 1673784600  # Unix timestamp
-        result_dt = normalize_timestamp_to_utc(numeric_timestamp)
         
-        # Should fall back to current time since numeric conversion isn't implemented
-        assert result_dt.tzinfo is UTC
+        with pytest.raises(TimestampParsingError) as exc_info:
+            normalize_timestamp_to_utc(numeric_timestamp)
+        
+        # Verify error context
+        assert "Failed to parse timestamp string" in str(exc_info.value) or \
+               "Failed to convert numeric timestamp" in str(exc_info.value)
 
 
 class TestToIsoString:
@@ -212,15 +218,19 @@ class TestTimezoneUtilsEdgeCases:
         assert result.month == 2
         assert result.day == 29
 
-    def test_normalize_with_exception_fallback(self):
-        """Test that normalize function handles exceptions gracefully."""
-        # Test an object that will cause an exception when converted to string
+    def test_normalize_with_unsupported_type(self):
+        """Test that normalize function raises error for unsupported types."""
+        # Test an object that will cause an error
         class BadObject:
             def __str__(self):
                 raise RuntimeError("Cannot convert to string")
         
         bad_obj = BadObject()
-        result_dt = normalize_timestamp_to_utc(bad_obj)
         
-        # Should fall back to current time
-        assert result_dt.tzinfo is UTC
+        with pytest.raises(TimestampParsingError) as exc_info:
+            normalize_timestamp_to_utc(bad_obj)
+        
+        # Verify error indicates unsupported type
+        assert "Unsupported timestamp type" in str(exc_info.value) or \
+               "Failed to convert numeric timestamp" in str(exc_info.value) or \
+               "Failed to parse timestamp string" in str(exc_info.value)

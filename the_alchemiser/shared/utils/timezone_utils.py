@@ -5,6 +5,11 @@ Centralized timezone utilities for ensuring timezone awareness across the system
 
 This module provides common timezone-related functions to eliminate duplicate
 timezone handling logic across DTOs, mappers, and other components.
+
+All functions enforce strict timezone handling for financial data integrity:
+- Invalid timestamps raise TimestampParsingError instead of silent fallbacks
+- All errors are logged with structured context for auditability
+- No silent data mutations or current-time substitutions
 """
 
 from __future__ import annotations
@@ -13,6 +18,11 @@ from datetime import UTC, datetime
 from typing import overload
 
 from ..constants import UTC_TIMEZONE_SUFFIX
+from ..logging import get_logger
+from ..types.exceptions import TimestampParsingError
+
+# Module-level logger
+logger = get_logger(__name__)
 
 
 @overload
@@ -62,13 +72,13 @@ def normalize_timestamp_to_utc(timestamp: datetime | str | int | float) -> datet
     datetime in UTC, providing a robust conversion for mapping operations.
 
     Args:
-        timestamp: Timestamp in various formats (datetime, str, etc.)
+        timestamp: Timestamp in various formats (datetime, str, int, float)
 
     Returns:
         Timezone-aware datetime in UTC
 
     Raises:
-        ValueError: If timestamp cannot be parsed
+        TimestampParsingError: If timestamp cannot be parsed or is invalid
 
     Examples:
         >>> normalize_timestamp_to_utc("2023-01-01T12:00:00")
@@ -96,16 +106,53 @@ def normalize_timestamp_to_utc(timestamp: datetime | str | int | float) -> datet
             parsed = datetime.fromisoformat(timestamp)
             # ensure_timezone_aware returns datetime for datetime input
             return ensure_timezone_aware(parsed)
-        except ValueError:
-            # Fallback to current time if parsing fails
-            return datetime.now(UTC)
+        except ValueError as e:
+            # Log error with context before raising
+            logger.error(
+                "timestamp_parsing_failed",
+                timestamp_value=timestamp,
+                timestamp_format="ISO8601",
+                error=str(e),
+            )
+            raise TimestampParsingError(
+                f"Failed to parse timestamp string: {timestamp}",
+                timestamp_value=timestamp,
+                timestamp_format="ISO8601",
+            ) from e
 
-    # For other types, try to convert to string first
+    # For numeric types, try to convert to string first
+    if isinstance(timestamp, (int, float)):
+        try:
+            timestamp_str = str(timestamp)
+            return normalize_timestamp_to_utc(timestamp_str)
+        except TimestampParsingError:
+            # Log error with context before raising
+            logger.error(
+                "timestamp_conversion_failed",
+                timestamp_value=timestamp,
+                timestamp_type=type(timestamp).__name__,
+            )
+            raise TimestampParsingError(
+                f"Failed to convert numeric timestamp: {timestamp}",
+                timestamp_value=timestamp,
+                timestamp_format="numeric",
+            ) from None
+
+    # Unsupported type - try to convert to string for error message only
     try:
-        return normalize_timestamp_to_utc(str(timestamp))
+        timestamp_str = str(timestamp)
     except Exception:
-        # Ultimate fallback to current time
-        return datetime.now(UTC)
+        timestamp_str = f"<{type(timestamp).__name__} object>"
+
+    logger.error(
+        "unsupported_timestamp_type",
+        timestamp_value=timestamp_str,
+        timestamp_type=type(timestamp).__name__,
+    )
+    raise TimestampParsingError(
+        f"Unsupported timestamp type: {type(timestamp).__name__}",
+        timestamp_value=timestamp_str,
+    )
 
 
 def to_iso_string(timestamp: datetime | None) -> str | None:
