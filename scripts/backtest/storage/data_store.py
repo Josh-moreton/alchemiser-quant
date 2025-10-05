@@ -8,7 +8,7 @@ Stores and retrieves historical market data in Parquet format.
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -19,8 +19,8 @@ _project_root = Path(__file__).resolve().parents[3]
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from scripts.backtest.models.market_data import DailyBar, MarketDataMetadata
-from the_alchemiser.shared.logging import get_logger
+from scripts.backtest.models.market_data import DailyBar, MarketDataMetadata  # noqa: E402
+from the_alchemiser.shared.logging import get_logger  # noqa: E402
 
 # Constants
 # Heuristic: In most markets, about 70% of calendar days are trading days.
@@ -139,9 +139,9 @@ class DataStore:
 
         # Ensure dates are timezone-aware (UTC)
         if start_date.tzinfo is None:
-            start_date = start_date.replace(tzinfo=timezone.utc)
+            start_date = start_date.replace(tzinfo=UTC)
         if end_date.tzinfo is None:
-            end_date = end_date.replace(tzinfo=timezone.utc)
+            end_date = end_date.replace(tzinfo=UTC)
 
         # Determine which years to load
         start_year = start_date.year
@@ -179,10 +179,10 @@ class DataStore:
             if isinstance(date, pd.Timestamp):
                 date_dt = date.to_pydatetime()
                 if date_dt.tzinfo is None:
-                    date_dt = date_dt.replace(tzinfo=timezone.utc)
+                    date_dt = date_dt.replace(tzinfo=UTC)
             else:
                 date_dt = (
-                    date.replace(tzinfo=timezone.utc) if date.tzinfo is None else date
+                    date.replace(tzinfo=UTC) if date.tzinfo is None else date
                 )
 
             bar = DailyBar(
@@ -236,9 +236,9 @@ class DataStore:
 
         # Ensure timezone-aware
         if start_date.tzinfo is None:
-            start_date = start_date.replace(tzinfo=timezone.utc)
+            start_date = start_date.replace(tzinfo=UTC)
         if end_date.tzinfo is None:
-            end_date = end_date.replace(tzinfo=timezone.utc)
+            end_date = end_date.replace(tzinfo=UTC)
 
         bar_count = len(df)
 
@@ -251,6 +251,6 @@ class DataStore:
             start_date=start_date,
             end_date=end_date,
             bar_count=bar_count,
-            last_updated=datetime.now(timezone.utc),
+            last_updated=datetime.now(UTC),
             has_gaps=has_gaps,
         )

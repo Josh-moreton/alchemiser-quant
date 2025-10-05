@@ -8,7 +8,7 @@ Coordinates data download, validation, and storage.
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Add project root to path for imports
@@ -16,11 +16,11 @@ _project_root = Path(__file__).resolve().parents[2]
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from scripts.backtest.storage.data_store import DataStore
-from scripts.backtest.storage.providers.alpaca_historical import (
+from scripts.backtest.storage.data_store import DataStore  # noqa: E402
+from scripts.backtest.storage.providers.alpaca_historical import (  # noqa: E402
     AlpacaHistoricalProvider,
 )
-from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.logging import get_logger  # noqa: E402
 
 logger = get_logger(__name__)
 
@@ -94,9 +94,9 @@ class DataManager:
 
         # Ensure dates are timezone-aware
         if start_date.tzinfo is None:
-            start_date = start_date.replace(tzinfo=timezone.utc)
+            start_date = start_date.replace(tzinfo=UTC)
         if end_date.tzinfo is None:
-            end_date = end_date.replace(tzinfo=timezone.utc)
+            end_date = end_date.replace(tzinfo=UTC)
 
         results: dict[str, bool] = {}
 
