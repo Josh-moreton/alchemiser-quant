@@ -36,6 +36,7 @@ from the_alchemiser.shared.schemas.rebalance_plan import (
 from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 from the_alchemiser.shared.services.websocket_manager import WebSocketConnectionManager
+from the_alchemiser.shared.types.quote import QuoteModel
 
 if TYPE_CHECKING:
     from the_alchemiser.execution_v2.core.smart_execution_strategy import (
@@ -590,14 +591,27 @@ class Executor:
         """
         for order in orders:
             if order.success and order.order_id:
-                # Record order to ledger
-                # TODO: Consider fetching quote data from pricing_service if available
-                # for more complete market context at fill time
+                # Attempt to fetch quote data for more complete trade records
+                quote_at_fill = None
+                if self.pricing_service:
+                    try:
+                        market_quote = self.pricing_service.get_quote_data(order.symbol)
+                        if market_quote:
+                            # Convert market_data.QuoteModel to quote.QuoteModel for ledger
+                            quote_at_fill = QuoteModel(
+                                ts=market_quote.timestamp,
+                                bid=Decimal(str(market_quote.bid_price)),
+                                ask=Decimal(str(market_quote.ask_price)),
+                            )
+                    except Exception as e:
+                        logger.debug(f"Could not fetch quote for {order.symbol}: {e}")
+
+                # Record order to ledger with quote data when available
                 self.trade_ledger.record_filled_order(
                     order_result=order,
                     correlation_id=plan.correlation_id,
                     rebalance_plan=plan,
-                    quote_at_fill=None,  # Quote data not currently captured in execution flow
+                    quote_at_fill=quote_at_fill,
                 )
 
     def shutdown(self) -> None:
