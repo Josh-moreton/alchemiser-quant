@@ -58,9 +58,11 @@ def convert_string_to_decimal(
         ValueError: If decimal string is invalid
 
     """
+    from decimal import InvalidOperation
+
     try:
         return Decimal(decimal_str)
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError, InvalidOperation) as e:
         raise ValueError(f"Invalid {field_name} value: {decimal_str}") from e
 
 
