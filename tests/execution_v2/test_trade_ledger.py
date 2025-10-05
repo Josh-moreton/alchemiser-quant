@@ -35,6 +35,8 @@ class TestTradeLedgerService:
             success=True,
             error_message=None,
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default to MARKET for tests
+            filled_at=datetime.now(UTC),  # Set filled_at for successful order
         )
 
         entry = service.record_filled_order(
@@ -67,6 +69,8 @@ class TestTradeLedgerService:
             success=True,
             error_message=None,
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default to MARKET for tests
+            filled_at=datetime.now(UTC),  # Set filled_at for successful order
         )
 
         quote = QuoteModel(
@@ -131,6 +135,8 @@ class TestTradeLedgerService:
             success=True,
             error_message=None,
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default to MARKET for tests
+            filled_at=datetime.now(UTC),  # Set filled_at for successful order
         )
 
         entry = service.record_filled_order(
@@ -162,6 +168,8 @@ class TestTradeLedgerService:
             success=False,
             error_message="Order failed",
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default to MARKET for tests
+            filled_at=None,  # Not filled for unsuccessful order
         )
 
         entry = service.record_filled_order(
@@ -190,6 +198,8 @@ class TestTradeLedgerService:
                 success=True,
                 error_message=None,
                 timestamp=datetime.now(UTC),
+                order_type="MARKET",  # Default to MARKET for tests
+                filled_at=datetime.now(UTC),  # Set filled_at for successful order
             )
             service.record_filled_order(
                 order_result=order_result,
@@ -250,6 +260,8 @@ class TestTradeLedgerService:
             success=True,
             error_message=None,
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default to MARKET for tests
+            filled_at=datetime.now(UTC),  # Set filled_at for successful order
         )
 
         service.record_filled_order(
@@ -282,6 +294,8 @@ class TestTradeLedgerService:
                 success=True,
                 error_message=None,
                 timestamp=datetime.now(UTC),
+                order_type="MARKET",  # Default to MARKET for tests
+                filled_at=datetime.now(UTC),  # Set filled_at for successful order
             )
             service.record_filled_order(
                 order_result=order_result,
@@ -319,6 +333,8 @@ class TestTradeLedgerService:
             success=True,
             error_message=None,
             timestamp=datetime.now(UTC),
+            order_type="MARKET",  # Default to MARKET for tests
+            filled_at=datetime.now(UTC),  # Set filled_at for successful order
         )
         service.record_filled_order(
             order_result=order_result,
@@ -353,3 +369,402 @@ class TestTradeLedgerService:
 
         result = service.persist_to_s3(correlation_id="test-corr")
         assert result is True  # Returns True but doesn't actually persist
+
+    def test_skip_recording_zero_quantity_order(self):
+        """Test that orders with zero quantity are not recorded."""
+        service = TradeLedgerService()
+
+        order_result = OrderResult(
+            symbol="ZERO",
+            action="BUY",
+            trade_amount=Decimal("0"),
+            shares=Decimal("0"),  # Zero quantity
+            price=Decimal("100.00"),
+            order_id="order-zero",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-zero",
+            rebalance_plan=None,
+            quote_at_fill=None,
+        )
+
+        assert entry is None
+        assert service.total_entries == 0
+
+    def test_skip_recording_negative_quantity_order(self):
+        """Test that orders with negative quantity are not recorded."""
+        service = TradeLedgerService()
+
+        order_result = OrderResult(
+            symbol="NEG",
+            action="BUY",
+            trade_amount=Decimal("0"),
+            shares=Decimal("-10"),  # Negative quantity
+            price=Decimal("100.00"),
+            order_id="order-neg",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-neg",
+            rebalance_plan=None,
+            quote_at_fill=None,
+        )
+
+        assert entry is None
+        assert service.total_entries == 0
+
+    def test_skip_recording_invalid_action(self):
+        """Test that orders with invalid action values are not recorded."""
+        service = TradeLedgerService()
+
+        order_result = OrderResult(
+            symbol="INVALID",
+            action="HOLD",  # Invalid action
+            trade_amount=Decimal("1000.00"),
+            shares=Decimal("10"),
+            price=Decimal("100.00"),
+            order_id="order-invalid",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-invalid",
+            rebalance_plan=None,
+            quote_at_fill=None,
+        )
+
+        assert entry is None
+        assert service.total_entries == 0
+
+    def test_symbol_normalization_lowercase(self):
+        """Test that lowercase symbols are normalized to uppercase."""
+        service = TradeLedgerService()
+
+        order_result = OrderResult(
+            symbol="aapl",  # Lowercase
+            action="BUY",
+            trade_amount=Decimal("1000.00"),
+            shares=Decimal("10"),
+            price=Decimal("100.00"),
+            order_id="order-lower",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-lower",
+            rebalance_plan=None,
+            quote_at_fill=None,
+        )
+
+        assert entry is not None
+        assert entry.symbol == "AAPL"  # Should be uppercase
+
+    def test_strategy_weights_validation_invalid_sum(self):
+        """Test that strategy weights not summing to ~1.0 are rejected."""
+        service = TradeLedgerService()
+
+        # Create plan with invalid strategy weights (sum != 1.0)
+        plan = RebalancePlan(
+            correlation_id="corr-invalid-weights",
+            causation_id="cause-invalid",
+            timestamp=datetime.now(UTC),
+            plan_id="plan-invalid",
+            items=[
+                RebalancePlanItem(
+                    symbol="TEST",
+                    current_weight=Decimal("0.0"),
+                    target_weight=Decimal("0.5"),
+                    weight_diff=Decimal("0.5"),
+                    target_value=Decimal("5000"),
+                    current_value=Decimal("0"),
+                    trade_amount=Decimal("5000"),
+                    action="BUY",
+                    priority=1,
+                )
+            ],
+            total_portfolio_value=Decimal("10000"),
+            total_trade_value=Decimal("5000"),
+            metadata={
+                "strategy_attribution": {
+                    "TEST": {
+                        "strategy_a": 0.3,  # Only sums to 0.3, not 1.0
+                    }
+                }
+            },
+        )
+
+        order_result = OrderResult(
+            symbol="TEST",
+            action="BUY",
+            trade_amount=Decimal("5000.00"),
+            shares=Decimal("50"),
+            price=Decimal("100.00"),
+            order_id="order-invalid-weights",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+        )
+
+        # This should fail during TradeLedgerEntry creation due to weight validation
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-invalid-weights",
+            rebalance_plan=plan,
+            quote_at_fill=None,
+        )
+
+        # Entry should be None because validation failed
+        assert entry is None
+        assert service.total_entries == 0
+
+    def test_quote_data_capture_integration(self):
+        """Test that quote data is properly captured when available."""
+        service = TradeLedgerService()
+
+        # Create quote with bid/ask spread
+        quote = QuoteModel(
+            ts=datetime.now(UTC),
+            bid=Decimal("99.50"),
+            ask=Decimal("100.50"),
+        )
+
+        order_result = OrderResult(
+            symbol="QUOTE",
+            action="BUY",
+            trade_amount=Decimal("1000.00"),
+            shares=Decimal("10"),
+            price=Decimal("100.00"),
+            order_id="order-quote",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-quote",
+            rebalance_plan=None,
+            quote_at_fill=quote,
+        )
+
+        assert entry is not None
+        assert entry.bid_at_fill == Decimal("99.50")
+        assert entry.ask_at_fill == Decimal("100.50")
+        # Spread should be 1.00 (100.50 - 99.50)
+        assert entry.ask_at_fill - entry.bid_at_fill == Decimal("1.00")
+
+    def test_quote_data_none_handled_gracefully(self):
+        """Test that None quote data is handled gracefully."""
+        service = TradeLedgerService()
+
+        order_result = OrderResult(
+            symbol="NOQUOTE",
+            action="SELL",
+            trade_amount=Decimal("2000.00"),
+            shares=Decimal("20"),
+            price=Decimal("100.00"),
+            order_id="order-noquote",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-noquote",
+            rebalance_plan=None,
+            quote_at_fill=None,  # No quote available
+        )
+
+        assert entry is not None
+        assert entry.bid_at_fill is None
+        assert entry.ask_at_fill is None
+        assert entry.symbol == "NOQUOTE"
+        assert entry.fill_price == Decimal("100.00")
+
+    def test_s3_initialization_failure_handling(self):
+        """Test graceful handling when boto3 import fails."""
+        service = TradeLedgerService()
+        service._settings.trade_ledger.enabled = True
+        service._settings.trade_ledger.bucket_name = "test-bucket"
+
+        # Simulate S3 initialization failure
+        service._s3_init_failed = True
+
+        # Record an order
+        order_result = OrderResult(
+            symbol="TEST",
+            action="BUY",
+            trade_amount=Decimal("1000.00"),
+            shares=Decimal("10"),
+            price=Decimal("100.00"),
+            order_id="order-123",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+        )
+        service.record_filled_order(
+            order_result=order_result,
+            correlation_id="test-corr-123",
+            rebalance_plan=None,
+            quote_at_fill=None,
+        )
+
+        # Attempt to persist should fail gracefully
+        result = service.persist_to_s3(correlation_id="test-corr-123")
+        assert result is False
+
+    def test_s3_client_initialization_not_retried_after_failure(self):
+        """Test that S3 client initialization is not retried after initial failure."""
+        service = TradeLedgerService()
+
+        # Simulate initialization failure
+        service._s3_init_failed = True
+
+        # First call should return None without attempting init
+        client1 = service._get_s3_client()
+        assert client1 is None
+
+        # Second call should also return None without retrying
+        client2 = service._get_s3_client()
+        assert client2 is None
+
+        # Ensure we didn't set a sentinel object
+        assert service._s3_client is None
+
+    def test_order_type_extraction_from_order_result(self):
+        """Test that order_type is properly extracted from OrderResult."""
+        service = TradeLedgerService()
+
+        # Test LIMIT order type
+        order_result = OrderResult(
+            symbol="LIMIT_TEST",
+            action="BUY",
+            trade_amount=Decimal("1000.00"),
+            shares=Decimal("10"),
+            price=Decimal("100.00"),
+            order_id="order-limit",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+            order_type="LIMIT",  # LIMIT order type
+            filled_at=datetime.now(UTC),
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-limit",
+            rebalance_plan=None,
+            quote_at_fill=None,
+        )
+
+        assert entry is not None
+        assert entry.order_type == "LIMIT"
+        assert entry.symbol == "LIMIT_TEST"
+
+    def test_order_type_market_from_order_result(self):
+        """Test that MARKET order_type is properly extracted from OrderResult."""
+        service = TradeLedgerService()
+
+        # Test MARKET order type
+        order_result = OrderResult(
+            symbol="MRKT",  # Shortened to fit max_length=10
+            action="SELL",
+            trade_amount=Decimal("2000.00"),
+            shares=Decimal("20"),
+            price=Decimal("100.00"),
+            order_id="order-market",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+            order_type="MARKET",  # MARKET order type
+            filled_at=datetime.now(UTC),
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-market",
+            rebalance_plan=None,
+            quote_at_fill=None,
+        )
+
+        assert entry is not None
+        assert entry.order_type == "MARKET"
+        assert entry.symbol == "MRKT"
+
+    def test_filled_at_timestamp_extraction(self):
+        """Test that filled_at timestamp is used when available."""
+        service = TradeLedgerService()
+
+        placement_time = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
+        fill_time = datetime(2024, 1, 1, 10, 0, 5, tzinfo=UTC)  # 5 seconds later
+
+        order_result = OrderResult(
+            symbol="FILLTIME",  # Shortened to fit max_length=10
+            action="BUY",
+            trade_amount=Decimal("1000.00"),
+            shares=Decimal("10"),
+            price=Decimal("100.00"),
+            order_id="order-filltime",
+            success=True,
+            error_message=None,
+            timestamp=placement_time,  # Order placement time
+            order_type="LIMIT",
+            filled_at=fill_time,  # Actual fill time (later)
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-filltime",
+            rebalance_plan=None,
+            quote_at_fill=None,
+        )
+
+        assert entry is not None
+        assert entry.fill_timestamp == fill_time  # Should use filled_at, not timestamp
+        assert entry.fill_timestamp != placement_time
+
+    def test_filled_at_fallback_to_timestamp(self):
+        """Test that timestamp is used as fallback when filled_at is None."""
+        service = TradeLedgerService()
+
+        placement_time = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
+
+        order_result = OrderResult(
+            symbol="FALLBACK",  # Shortened to fit max_length=10
+            action="BUY",
+            trade_amount=Decimal("1000.00"),
+            shares=Decimal("10"),
+            price=Decimal("100.00"),
+            order_id="order-fallback",
+            success=True,
+            error_message=None,
+            timestamp=placement_time,
+            order_type="MARKET",
+            filled_at=None,  # No filled_at available
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-fallback",
+            rebalance_plan=None,
+            quote_at_fill=None,
+        )
+
+        assert entry is not None
+        assert entry.fill_timestamp == placement_time  # Should fall back to timestamp
