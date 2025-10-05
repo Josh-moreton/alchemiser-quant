@@ -8,16 +8,11 @@ fully available without blocking the recording of core trade information.
 
 Trade ledger entries are persisted to S3 for historical analysis and audit purposes.
 
-CURRENT LIMITATIONS:
-====================
-- Order type detection: Always records "MARKET" regardless of actual order type
-  (requires extracting order type from broker API responses)
-- Fill timestamp: Uses order_result.timestamp which may be placement time
-  (requires extracting filled_at from broker API responses)
-
 FEATURES IMPLEMENTED:
 =====================
 - Quote data capture: Integrated with pricing_service when available
+- Order type detection: Extracts actual order type (MARKET, LIMIT, etc.) from OrderResult
+- Fill timestamp: Uses filled_at when available, falls back to order placement timestamp
 - Strategy attribution: Multi-strategy aggregation support
 - Validation: Zero quantity, invalid actions, price checks
 - S3 persistence: Automatic ledger archival with graceful degradation
@@ -117,8 +112,11 @@ class TradeLedgerService:
         bid_at_fill = quote_at_fill.bid if quote_at_fill else None
         ask_at_fill = quote_at_fill.ask if quote_at_fill else None
 
-        # Order type defaults to MARKET (future: could extract from broker order details)
-        order_type: str = "MARKET"
+        # Extract order type from OrderResult
+        order_type = order_result.order_type
+
+        # Use filled_at timestamp if available, otherwise fall back to order timestamp
+        fill_timestamp = order_result.filled_at or order_result.timestamp
 
         # Validate action is BUY or SELL
         if order_result.action not in ("BUY", "SELL"):
@@ -139,8 +137,8 @@ class TradeLedgerService:
                 fill_price=order_result.price,
                 bid_at_fill=bid_at_fill,
                 ask_at_fill=ask_at_fill,
-                fill_timestamp=order_result.timestamp,
-                order_type=order_type,  # type: ignore[arg-type]  # Always MARKET in current implementation
+                fill_timestamp=fill_timestamp,
+                order_type=order_type,
                 strategy_names=strategy_names,
                 strategy_weights=strategy_weights,
             )

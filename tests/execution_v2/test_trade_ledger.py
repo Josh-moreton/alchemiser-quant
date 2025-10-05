@@ -646,3 +646,125 @@ class TestTradeLedgerService:
 
         # Ensure we didn't set a sentinel object
         assert service._s3_client is None
+
+    def test_order_type_extraction_from_order_result(self):
+        """Test that order_type is properly extracted from OrderResult."""
+        service = TradeLedgerService()
+
+        # Test LIMIT order type
+        order_result = OrderResult(
+            symbol="LIMIT_TEST",
+            action="BUY",
+            trade_amount=Decimal("1000.00"),
+            shares=Decimal("10"),
+            price=Decimal("100.00"),
+            order_id="order-limit",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+            order_type="LIMIT",  # LIMIT order type
+            filled_at=datetime.now(UTC),
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-limit",
+            rebalance_plan=None,
+            quote_at_fill=None,
+        )
+
+        assert entry is not None
+        assert entry.order_type == "LIMIT"
+        assert entry.symbol == "LIMIT_TEST"
+
+    def test_order_type_market_from_order_result(self):
+        """Test that MARKET order_type is properly extracted from OrderResult."""
+        service = TradeLedgerService()
+
+        # Test MARKET order type
+        order_result = OrderResult(
+            symbol="MRKT",  # Shortened to fit max_length=10
+            action="SELL",
+            trade_amount=Decimal("2000.00"),
+            shares=Decimal("20"),
+            price=Decimal("100.00"),
+            order_id="order-market",
+            success=True,
+            error_message=None,
+            timestamp=datetime.now(UTC),
+            order_type="MARKET",  # MARKET order type
+            filled_at=datetime.now(UTC),
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-market",
+            rebalance_plan=None,
+            quote_at_fill=None,
+        )
+
+        assert entry is not None
+        assert entry.order_type == "MARKET"
+        assert entry.symbol == "MRKT"
+
+    def test_filled_at_timestamp_extraction(self):
+        """Test that filled_at timestamp is used when available."""
+        service = TradeLedgerService()
+
+        placement_time = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
+        fill_time = datetime(2024, 1, 1, 10, 0, 5, tzinfo=UTC)  # 5 seconds later
+
+        order_result = OrderResult(
+            symbol="FILLTIME",  # Shortened to fit max_length=10
+            action="BUY",
+            trade_amount=Decimal("1000.00"),
+            shares=Decimal("10"),
+            price=Decimal("100.00"),
+            order_id="order-filltime",
+            success=True,
+            error_message=None,
+            timestamp=placement_time,  # Order placement time
+            order_type="LIMIT",
+            filled_at=fill_time,  # Actual fill time (later)
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-filltime",
+            rebalance_plan=None,
+            quote_at_fill=None,
+        )
+
+        assert entry is not None
+        assert entry.fill_timestamp == fill_time  # Should use filled_at, not timestamp
+        assert entry.fill_timestamp != placement_time
+
+    def test_filled_at_fallback_to_timestamp(self):
+        """Test that timestamp is used as fallback when filled_at is None."""
+        service = TradeLedgerService()
+
+        placement_time = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
+
+        order_result = OrderResult(
+            symbol="FALLBACK",  # Shortened to fit max_length=10
+            action="BUY",
+            trade_amount=Decimal("1000.00"),
+            shares=Decimal("10"),
+            price=Decimal("100.00"),
+            order_id="order-fallback",
+            success=True,
+            error_message=None,
+            timestamp=placement_time,
+            order_type="MARKET",
+            filled_at=None,  # No filled_at available
+        )
+
+        entry = service.record_filled_order(
+            order_result=order_result,
+            correlation_id="corr-fallback",
+            rebalance_plan=None,
+            quote_at_fill=None,
+        )
+
+        assert entry is not None
+        assert entry.fill_timestamp == placement_time  # Should fall back to timestamp
