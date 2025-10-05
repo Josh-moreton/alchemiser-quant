@@ -233,11 +233,8 @@ class DslEvaluator:
 
         args = node.children[1:]
 
-        # Dispatch to operator function
-        try:
-            return self.dispatcher.dispatch(func_name, args, context)
-        except KeyError:
-            raise DslEvaluationError(f"Unknown function: {func_name}")
+        # Dispatch to operator function (raises DslEvaluationError if unknown)
+        return self.dispatcher.dispatch(func_name, args, context)
 
     def _evaluate_list_elements(
         self, node: ASTNode, correlation_id: str, trace: Trace
