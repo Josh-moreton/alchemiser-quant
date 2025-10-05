@@ -89,3 +89,24 @@ class MarketDataError(StrategyV2Error):
         """
         super().__init__(message, "strategy_v2.adapters.market_data_adapter", None, **kwargs)
         self.symbol = symbol
+
+
+class StrategyRegistryError(StrategyV2Error):
+    """Error in strategy registry operations."""
+
+    def __init__(
+        self,
+        message: str,
+        strategy_id: str | None = None,
+        **kwargs: str | float | int | bool | None,
+    ) -> None:
+        """Initialize strategy registry error.
+
+        Args:
+            message: Error message
+            strategy_id: Strategy identifier related to the error
+            **kwargs: Additional context
+
+        """
+        super().__init__(message, "strategy_v2.core.registry", None, **kwargs)
+        self.strategy_id = strategy_id
