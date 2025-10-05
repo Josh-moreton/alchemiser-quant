@@ -215,6 +215,8 @@ class Executor:
                         success=True,
                         error_message=None,
                         timestamp=datetime.now(UTC),
+                        order_type="LIMIT",  # Smart execution uses LIMIT orders
+                        filled_at=result.placement_timestamp,  # Use placement timestamp from smart result
                     )
                 logger.warning(f"⚠️ Smart execution failed for {symbol}: {result.error_message}")
 
@@ -565,6 +567,8 @@ class Executor:
                 success=False,
                 error_message=str(e),
                 timestamp=datetime.now(UTC),
+                order_type="MARKET",  # Default to MARKET for error cases
+                filled_at=None,  # Not filled due to error
             )
 
     def _finalize_phase_orders(
