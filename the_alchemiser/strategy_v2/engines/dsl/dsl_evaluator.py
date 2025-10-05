@@ -126,11 +126,10 @@ class DslEvaluator:
                     as_of=datetime.now(UTC),
                 )
             else:
-                # Fallback for other types
-                allocation = StrategyAllocation(
-                    target_weights={},
-                    correlation_id=correlation_id,
-                    as_of=datetime.now(UTC),
+                # Invalid result type - must be PortfolioFragment, dict, or str
+                raise DslEvaluationError(
+                    f"Evaluation produced invalid type for allocation: {type(result).__name__}. "
+                    f"Expected PortfolioFragment, dict, or str."
                 )
 
             # Add final trace entry
