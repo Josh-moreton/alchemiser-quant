@@ -19,11 +19,18 @@ _project_root = Path(__file__).resolve().parents[2]
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from scripts.backtest.analysis.performance_metrics import PerformanceMetrics  # noqa: E402
+from scripts.backtest.analysis.performance_metrics import (
+    PerformanceMetrics,
+)  # noqa: E402
 from scripts.backtest.data_manager import DataManager  # noqa: E402
 from scripts.backtest.fill_simulator import FillSimulator  # noqa: E402
-from scripts.backtest.historical_market_data_port import HistoricalMarketDataPort  # noqa: E402
-from scripts.backtest.models.backtest_result import BacktestConfig, BacktestResult  # noqa: E402
+from scripts.backtest.historical_market_data_port import (
+    HistoricalMarketDataPort,
+)  # noqa: E402
+from scripts.backtest.models.backtest_result import (
+    BacktestConfig,
+    BacktestResult,
+)  # noqa: E402
 from scripts.backtest.models.market_data import DailyBar  # noqa: E402
 from scripts.backtest.models.portfolio_snapshot import (  # noqa: E402
     PortfolioSnapshot,
@@ -33,8 +40,12 @@ from scripts.backtest.models.portfolio_snapshot import (  # noqa: E402
 from scripts.backtest.storage.data_store import DataStore  # noqa: E402
 from the_alchemiser.shared.logging import get_logger  # noqa: E402
 from the_alchemiser.strategy_v2.engines.dsl.engine import DslEngineError  # noqa: E402
-from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import DslStrategyEngine  # noqa: E402
-from the_alchemiser.strategy_v2.engines.dsl.types import DslEvaluationError  # noqa: E402
+from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import (
+    DslStrategyEngine,
+)  # noqa: E402
+from the_alchemiser.strategy_v2.engines.dsl.types import (
+    DslEvaluationError,
+)  # noqa: E402
 
 # Constants
 MIN_POSITION_SIZE = Decimal("0.01")  # Minimum trade size in shares

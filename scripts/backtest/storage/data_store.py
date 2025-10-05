@@ -19,7 +19,10 @@ _project_root = Path(__file__).resolve().parents[3]
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from scripts.backtest.models.market_data import DailyBar, MarketDataMetadata  # noqa: E402
+from scripts.backtest.models.market_data import (
+    DailyBar,
+    MarketDataMetadata,
+)  # noqa: E402
 from the_alchemiser.shared.logging import get_logger  # noqa: E402
 
 # Constants
@@ -181,9 +184,7 @@ class DataStore:
                 if date_dt.tzinfo is None:
                     date_dt = date_dt.replace(tzinfo=UTC)
             else:
-                date_dt = (
-                    date.replace(tzinfo=UTC) if date.tzinfo is None else date
-                )
+                date_dt = date.replace(tzinfo=UTC) if date.tzinfo is None else date
 
             bar = DailyBar(
                 date=date_dt,
