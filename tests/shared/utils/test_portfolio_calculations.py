@@ -6,15 +6,17 @@ This test suite provides full coverage of portfolio calculation functions includ
 allocation comparison, portfolio value calculations, and edge case handling.
 """
 
-import pytest
 from decimal import Decimal
-from unittest.mock import patch, MagicMock
-from hypothesis import given, strategies as st, assume
+from unittest.mock import MagicMock, patch
 
+import pytest
+from hypothesis import assume, given
+from hypothesis import strategies as st
+
+from the_alchemiser.shared.types.exceptions import ConfigurationError
 from the_alchemiser.shared.utils.portfolio_calculations import (
     build_allocation_comparison,
 )
-from the_alchemiser.shared.types.exceptions import ConfigurationError
 
 
 class TestBuildAllocationComparison:
@@ -25,7 +27,7 @@ class TestBuildAllocationComparison:
         self.mock_settings = MagicMock()
         self.mock_settings.alpaca.cash_reserve_pct = 0.01  # 1% cash reserve
         
-    @patch('the_alchemiser.shared.utils.portfolio_calculations.load_settings')
+    @patch("the_alchemiser.shared.utils.portfolio_calculations.load_settings")
     def test_basic_allocation_comparison(self, mock_load_settings):
         """Test basic allocation comparison calculation."""
         mock_load_settings.return_value = self.mock_settings
@@ -62,7 +64,7 @@ class TestBuildAllocationComparison:
         assert result["deltas"]["GOOGL"] == Decimal("-5300.0000")   # Need to sell
         assert result["deltas"]["MSFT"] == Decimal("-200.0000")     # Need to sell a bit
 
-    @patch('the_alchemiser.shared.utils.portfolio_calculations.load_settings')
+    @patch("the_alchemiser.shared.utils.portfolio_calculations.load_settings")
     def test_zero_portfolio_value_fallback_to_equity(self, mock_load_settings):
         """Test fallback to equity when portfolio_value is zero."""
         mock_load_settings.return_value = self.mock_settings
@@ -78,7 +80,7 @@ class TestBuildAllocationComparison:
         # Should use equity value of $50k * 0.99 = $49.5k
         assert result["target_values"]["AAPL"] == Decimal("49500.0000")
 
-    @patch('the_alchemiser.shared.utils.portfolio_calculations.load_settings')
+    @patch("the_alchemiser.shared.utils.portfolio_calculations.load_settings")
     def test_missing_portfolio_value_fallback_to_equity(self, mock_load_settings):
         """Test fallback to equity when portfolio_value is missing."""
         mock_load_settings.return_value = self.mock_settings
@@ -94,7 +96,7 @@ class TestBuildAllocationComparison:
         # Should use equity value of $75k * 0.99 = $74.25k
         assert result["target_values"]["AAPL"] == Decimal("74250.0000")
 
-    @patch('the_alchemiser.shared.utils.portfolio_calculations.load_settings')
+    @patch("the_alchemiser.shared.utils.portfolio_calculations.load_settings")
     def test_string_portfolio_value_conversion(self, mock_load_settings):
         """Test conversion of string portfolio values."""
         mock_load_settings.return_value = self.mock_settings
@@ -122,7 +124,7 @@ class TestBuildAllocationComparison:
                 consolidated_portfolio, account_dict, positions_dict
             )
 
-    @patch('the_alchemiser.shared.utils.portfolio_calculations.load_settings')
+    @patch("the_alchemiser.shared.utils.portfolio_calculations.load_settings")
     def test_empty_consolidated_portfolio_has_current_deltas(self, mock_load_settings):
         """Test handling of empty consolidated portfolio includes current position deltas."""
         mock_load_settings.return_value = self.mock_settings
@@ -155,7 +157,7 @@ class TestPropertyBasedAllocationComparison:
         portfolio_value=st.floats(min_value=1000.0, max_value=10_000_000.0),
         allocation=st.floats(min_value=0.0, max_value=1.0),
     )
-    @patch('the_alchemiser.shared.utils.portfolio_calculations.load_settings')
+    @patch("the_alchemiser.shared.utils.portfolio_calculations.load_settings")
     def test_target_value_proportional_to_portfolio_value(
         self, mock_load_settings, portfolio_value: float, allocation: float
     ):
@@ -182,7 +184,7 @@ class TestPropertyBasedAllocationComparison:
         portfolio_value=st.floats(min_value=1000.0, max_value=1_000_000.0),
         num_symbols=st.integers(min_value=1, max_value=10),
     )
-    @patch('the_alchemiser.shared.utils.portfolio_calculations.load_settings')
+    @patch("the_alchemiser.shared.utils.portfolio_calculations.load_settings")
     def test_deltas_sum_property(
         self, mock_load_settings, portfolio_value: float, num_symbols: int
     ):
@@ -192,7 +194,7 @@ class TestPropertyBasedAllocationComparison:
         # Create equal-weight portfolio
         weight = 1.0 / num_symbols
         symbols = [f"SYM{i}" for i in range(num_symbols)]
-        consolidated_portfolio = {sym: weight for sym in symbols}
+        consolidated_portfolio = dict.fromkeys(symbols, weight)
         
         account_dict = {"portfolio_value": portfolio_value}
         positions_dict = {}  # Start with empty portfolio
@@ -211,10 +213,10 @@ class TestPropertyBasedAllocationComparison:
 
     @given(
         portfolio_value=st.floats(min_value=1000.0, max_value=1_000_000.0),
-        symbol=st.text(min_size=1, max_size=5, alphabet=st.characters(whitelist_categories=('Lu',))),
+        symbol=st.text(min_size=1, max_size=5, alphabet=st.characters(whitelist_categories=("Lu",))),
         current_value=st.floats(min_value=0.0, max_value=100_000.0),
     )
-    @patch('the_alchemiser.shared.utils.portfolio_calculations.load_settings')
+    @patch("the_alchemiser.shared.utils.portfolio_calculations.load_settings")
     def test_delta_calculation_consistency(
         self, mock_load_settings, portfolio_value: float, symbol: str, current_value: float
     ):
@@ -242,7 +244,7 @@ class TestPropertyBasedAllocationComparison:
     @given(
         portfolio_value=st.floats(min_value=1000.0, max_value=1_000_000.0),
     )
-    @patch('the_alchemiser.shared.utils.portfolio_calculations.load_settings')
+    @patch("the_alchemiser.shared.utils.portfolio_calculations.load_settings")
     def test_all_symbols_included_in_output(
         self, mock_load_settings, portfolio_value: float
     ):
