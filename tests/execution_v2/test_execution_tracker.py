@@ -91,6 +91,8 @@ def _make_order_result(
         success=success,
         error_message=error_message,
         timestamp=datetime.now(UTC),
+        order_type="MARKET",  # Default to MARKET for tests
+        filled_at=datetime.now(UTC) if success and price else None,  # Set filled_at if successful
     )
 
 

@@ -7,6 +7,15 @@ quantities, and strategy attribution. It handles cases where market data may not
 fully available without blocking the recording of core trade information.
 
 Trade ledger entries are persisted to S3 for historical analysis and audit purposes.
+
+FEATURES IMPLEMENTED:
+=====================
+- Quote data capture: Integrated with pricing_service when available
+- Order type detection: Extracts actual order type (MARKET, LIMIT, etc.) from OrderResult
+- Fill timestamp: Uses filled_at when available, falls back to order placement timestamp
+- Strategy attribution: Multi-strategy aggregation support
+- Validation: Zero quantity, invalid actions, price checks
+- S3 persistence: Automatic ledger archival with graceful degradation
 """
 
 from __future__ import annotations
@@ -45,6 +54,7 @@ class TradeLedgerService:
         self._entries: list[TradeLedgerEntry] = []
         self._settings = load_settings()
         self._s3_client: object | None = None  # Lazy initialization, type: boto3 client or None
+        self._s3_init_failed: bool = False  # Track S3 initialization failures
 
     def record_filled_order(
         self,
@@ -83,6 +93,16 @@ class TradeLedgerService:
             )
             return None
 
+        # Only record if we have valid quantity
+        if order_result.shares <= 0:
+            logger.debug(
+                "Skipping ledger recording - invalid quantity",
+                symbol=order_result.symbol,
+                order_id=order_result.order_id,
+                shares=str(order_result.shares),
+            )
+            return None
+
         # Extract strategy attribution from rebalance plan metadata
         strategy_names, strategy_weights = self._extract_strategy_attribution(
             order_result.symbol, rebalance_plan
@@ -92,8 +112,11 @@ class TradeLedgerService:
         bid_at_fill = quote_at_fill.bid if quote_at_fill else None
         ask_at_fill = quote_at_fill.ask if quote_at_fill else None
 
-        # Order type defaults to MARKET (future: could extract from broker order details)
-        order_type: str = "MARKET"
+        # Extract order type from OrderResult
+        order_type = order_result.order_type
+
+        # Use filled_at timestamp if available, otherwise fall back to order timestamp
+        fill_timestamp = order_result.filled_at or order_result.timestamp
 
         # Validate action is BUY or SELL
         if order_result.action not in ("BUY", "SELL"):
@@ -114,8 +137,8 @@ class TradeLedgerService:
                 fill_price=order_result.price,
                 bid_at_fill=bid_at_fill,
                 ask_at_fill=ask_at_fill,
-                fill_timestamp=order_result.timestamp,
-                order_type=order_type,  # type: ignore[arg-type]  # Always MARKET in current implementation
+                fill_timestamp=fill_timestamp,
+                order_type=order_type,
                 strategy_names=strategy_names,
                 strategy_weights=strategy_weights,
             )
@@ -222,30 +245,28 @@ class TradeLedgerService:
             boto3 S3 client instance or None if initialization failed
 
         """
-        if self._s3_client is None:
+        if self._s3_client is None and not self._s3_init_failed:
             try:
                 import boto3
 
                 self._s3_client = boto3.client("s3")
             except Exception as e:
                 logger.error(f"Failed to initialize S3 client: {e}")
-                # Set to object() sentinel to prevent repeated initialization attempts
-                self._s3_client = object()
-        # Return None if initialization failed (sentinel object)
-        return (
-            self._s3_client
-            if not isinstance(self._s3_client, object) or hasattr(self._s3_client, "put_object")
-            else None
-        )
+                self._s3_init_failed = True
+        return self._s3_client
 
     def persist_to_s3(self, correlation_id: str | None = None) -> bool:
         """Persist the trade ledger to S3.
+
+        Note: Returns True when there are no entries to persist (nothing to do).
+        This is considered a success case as there's no error condition.
 
         Args:
             correlation_id: Optional correlation ID for the execution run
 
         Returns:
-            True if persistence was successful, False otherwise
+            True if persistence was successful or there were no entries to persist,
+            False if an error occurred during persistence
 
         """
         if not self._settings.trade_ledger.enabled:
