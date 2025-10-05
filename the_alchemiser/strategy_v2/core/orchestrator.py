@@ -18,6 +18,7 @@ from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 
 from ..adapters.market_data_adapter import StrategyMarketDataAdapter
+from ..errors import StrategyConfigurationError, StrategyExecutionError
 from ..models.context import StrategyContext
 
 logger = get_logger(__name__)
@@ -53,8 +54,8 @@ class SingleStrategyOrchestrator:
             Strategy allocation DTO with target weights
 
         Raises:
-            KeyError: If strategy not found
-            ValueError: If strategy execution fails
+            StrategyExecutionError: If strategy execution fails
+            StrategyConfigurationError: If context validation fails
 
         """
         correlation_id = str(uuid.uuid4())
@@ -105,6 +106,9 @@ class SingleStrategyOrchestrator:
 
             return allocation
 
+        except StrategyConfigurationError:
+            # Re-raise configuration errors without wrapping
+            raise
         except Exception as e:
             logger.error(
                 f"Strategy {strategy_id} execution failed: {e}",
@@ -114,7 +118,11 @@ class SingleStrategyOrchestrator:
                     "error": str(e),
                 },
             )
-            raise ValueError(f"Strategy execution failed: {e}") from e
+            raise StrategyExecutionError(
+                f"Strategy execution failed: {e}",
+                strategy_id=strategy_id,
+                correlation_id=correlation_id,
+            ) from e
 
     def _generate_sample_allocation(self, context: StrategyContext) -> dict[str, Decimal]:
         """Generate sample allocation for testing.
@@ -176,13 +184,19 @@ class SingleStrategyOrchestrator:
             context: Strategy context to validate
 
         Raises:
-            ValueError: If context is invalid
+            StrategyConfigurationError: If context is invalid
 
         """
         if not context.symbols:
-            raise ValueError("Context must have at least one symbol")
+            raise StrategyConfigurationError(
+                "Context must have at least one symbol",
+                config_key="symbols",
+            )
 
         if not context.timeframe:
-            raise ValueError("Context must specify timeframe")
+            raise StrategyConfigurationError(
+                "Context must specify timeframe",
+                config_key="timeframe",
+            )
 
         # Additional validation can be added here
