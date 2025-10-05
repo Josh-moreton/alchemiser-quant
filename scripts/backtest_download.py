@@ -25,7 +25,9 @@ logger = get_logger(__name__)
 
 def main() -> None:
     """Main entry point for data download."""
-    parser = argparse.ArgumentParser(description="Download historical data for backtesting")
+    parser = argparse.ArgumentParser(
+        description="Download historical data for backtesting"
+    )
     parser.add_argument(
         "--symbols",
         nargs="+",
