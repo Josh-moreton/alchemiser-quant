@@ -346,3 +346,24 @@ class TestDslEvaluator:
         # Should not raise
         allocation, result_trace = evaluator_no_bus.evaluate(ast, correlation_id, trace)
         assert "AAPL" in allocation.target_weights
+
+    def test_evaluate_invalid_result_type_raises_error(self, evaluator):
+        """Test that evaluation raises error for invalid result types."""
+        # Create a mock that returns an invalid type
+        # We'll use a simple integer which should trigger the error
+        ast = ASTNode.atom(Decimal("42"))
+        correlation_id = str(uuid.uuid4())
+        trace = Trace(
+            trace_id=str(uuid.uuid4()),
+            correlation_id=correlation_id,
+            strategy_id="test",
+            started_at=datetime.now(UTC),
+        )
+        
+        # Integer result cannot be converted to valid allocation
+        from the_alchemiser.strategy_v2.engines.dsl.types import DslEvaluationError
+        with pytest.raises(DslEvaluationError) as exc_info:
+            evaluator.evaluate(ast, correlation_id, trace)
+        
+        # Verify error message mentions invalid type
+        assert "invalid type" in str(exc_info.value).lower()
