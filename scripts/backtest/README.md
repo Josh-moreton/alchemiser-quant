@@ -31,6 +31,29 @@ scripts/backtest/
 - **Format**: Parquet files organized by symbol and year
 - **Path**: `data/historical/{symbol}/{year}/daily.parquet`
 - **Schema**: Date (index), Open, High, Low, Close, Volume, Adjusted_Close
+- **Auto-download**: Missing data is automatically downloaded from Alpaca when needed
+
+### Auto-Download Behavior
+
+When `DataStore.load_bars()` is called for a symbol/date range:
+
+1. **Check Local Cache**: Looks for required year files in `data/historical/{symbol}/{year}/`
+2. **Auto-Download Missing Data**: If files are missing and `data_provider` is configured:
+   - Downloads missing data from Alpaca API
+   - Caches it locally for future use
+   - Proceeds with loading the data
+3. **Fail Fast on Unavailable Data**: If data cannot be downloaded:
+   - Raises `DataUnavailableError` with clear error message
+   - Includes required date range and symbol information
+   - Never proceeds with incomplete data
+
+**Example error message:**
+```
+DataUnavailableError: Symbol 'GE' has no data available from provider for the requested date range.
+Required: 2023-01-01 to 2025-10-06.
+```
+
+This ensures backtests never run with incomplete data and provides clear feedback when symbols are unavailable.
 
 ## Usage
 
@@ -161,6 +184,15 @@ Test coverage:
 4. **Daily bars only**: No intraday data support
 5. **Cash constraints**: Must have sufficient cash for all trades
 6. **Commission model**: Flat rate only, no tiered/percentage commission
+
+## Recent Improvements
+
+### v2.10.0 - Auto-Download Missing Historical Data
+- **Automatic data fetching**: Missing historical data is now automatically downloaded from Alpaca when needed
+- **Fail-fast error handling**: Clear `DataUnavailableError` messages when data is unavailable
+- **No silent failures**: Backtests no longer proceed with incomplete data
+- **Local caching**: Downloaded data is cached for future runs
+- **Test-friendly**: Gracefully handles missing API credentials in test environments
 
 ## Dependencies
 

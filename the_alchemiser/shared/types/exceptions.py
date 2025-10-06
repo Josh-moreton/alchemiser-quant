@@ -263,6 +263,35 @@ class MarketDataError(DataProviderError):
         self.data_type = data_type
 
 
+class DataUnavailableError(MarketDataError):
+    """Raised when historical data is unavailable from provider."""
+
+    def __init__(
+        self,
+        message: str,
+        symbol: str | None = None,
+        required_start_date: str | None = None,
+        required_end_date: str | None = None,
+        available_start_date: str | None = None,
+        available_end_date: str | None = None,
+    ) -> None:
+        """Initialize data unavailable error with date range context.
+        
+        Args:
+            message: Error message
+            symbol: Stock symbol
+            required_start_date: Required start date (ISO format)
+            required_end_date: Required end date (ISO format)
+            available_start_date: Available start date from provider (ISO format)
+            available_end_date: Available end date from provider (ISO format)
+        """
+        super().__init__(message, symbol=symbol, data_type="historical")
+        self.required_start_date = required_start_date
+        self.required_end_date = required_end_date
+        self.available_start_date = available_start_date
+        self.available_end_date = available_end_date
+
+
 class ValidationError(AlchemiserError):
     """Raised when data validation fails."""
 

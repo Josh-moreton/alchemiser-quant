@@ -107,8 +107,15 @@ def test_load_nonexistent_symbol(temp_data_store: DataStore) -> None:
     start_date = datetime(2024, 1, 1, tzinfo=timezone.utc)
     end_date = datetime(2024, 1, 31, tzinfo=timezone.utc)
 
-    bars = temp_data_store.load_bars("NONEXISTENT", start_date, end_date)
-    assert bars == []
+    # Import here to avoid circular dependency
+    from the_alchemiser.shared.types.exceptions import DataUnavailableError
+
+    # Should raise DataUnavailableError since no data exists and no provider configured
+    with pytest.raises(DataUnavailableError) as exc_info:
+        temp_data_store.load_bars("NONEXISTENT", start_date, end_date)
+
+    assert "NONEXISTENT" in str(exc_info.value)
+    assert "No data provider configured" in str(exc_info.value)
 
 
 def test_bars_organized_by_year(temp_data_store: DataStore) -> None:

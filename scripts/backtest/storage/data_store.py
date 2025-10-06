@@ -41,15 +41,19 @@ class DataStore:
     Schema: Date (index), Open, High, Low, Close, Volume, Adjusted_Close
     """
 
-    def __init__(self, base_path: str = "data/historical") -> None:
+    def __init__(
+        self, base_path: str = "data/historical", data_provider=None
+    ) -> None:
         """Initialize data store.
 
         Args:
             base_path: Base directory for data storage
+            data_provider: Optional data provider for auto-downloading missing data
 
         """
         self.base_path = Path(base_path)
         self.base_path.mkdir(parents=True, exist_ok=True)
+        self.data_provider = data_provider
         logger.info(f"DataStore initialized at {self.base_path}")
 
     def _get_file_path(self, symbol: str, year: int) -> Path:
@@ -124,6 +128,9 @@ class DataStore:
     ) -> list[DailyBar]:
         """Load daily bars from Parquet files.
 
+        If data files are missing and a data provider is configured,
+        attempts to auto-download the missing data.
+
         Args:
             symbol: Stock symbol
             start_date: Start date (inclusive)
@@ -131,6 +138,9 @@ class DataStore:
 
         Returns:
             List of DailyBar objects sorted by date
+
+        Raises:
+            DataUnavailableError: When data is unavailable and cannot be downloaded
 
         """
         logger.info(
@@ -151,11 +161,89 @@ class DataStore:
         end_year = end_date.year
         years = range(start_year, end_year + 1)
 
+        # Check for missing years
+        missing_years = []
+        for year in years:
+            file_path = self._get_file_path(symbol, year)
+            if not file_path.exists():
+                missing_years.append(year)
+
+        # If we have missing years and a data provider, try to download
+        if missing_years and self.data_provider:
+            logger.info(
+                f"Missing data files for {symbol} years {missing_years}, attempting auto-download",
+                symbol=symbol,
+                missing_years=missing_years,
+            )
+            
+            try:
+                # Download data for the missing years
+                bars = self.data_provider.fetch_daily_bars(symbol, start_date, end_date)
+                
+                if not bars:
+                    # Import here to avoid circular dependency
+                    from the_alchemiser.shared.types.exceptions import DataUnavailableError
+                    
+                    error_msg = (
+                        f"Symbol '{symbol}' has no data available from provider for the requested date range. "
+                        f"Required: {start_date.date()} to {end_date.date()}."
+                    )
+                    raise DataUnavailableError(
+                        error_msg,
+                        symbol=symbol,
+                        required_start_date=start_date.isoformat(),
+                        required_end_date=end_date.isoformat(),
+                    )
+                
+                # Save the downloaded data
+                self.save_bars(symbol, bars)
+                logger.info(
+                    f"Successfully auto-downloaded and cached {len(bars)} bars for {symbol}",
+                    symbol=symbol,
+                    bar_count=len(bars),
+                )
+            except Exception as e:
+                # If it's already a DataUnavailableError, re-raise it
+                if e.__class__.__name__ == "DataUnavailableError":
+                    raise
+                
+                # Import here to avoid circular dependency
+                from the_alchemiser.shared.types.exceptions import DataUnavailableError
+                
+                # Wrap other exceptions
+                error_msg = (
+                    f"Failed to download data for '{symbol}' from provider. "
+                    f"Required: {start_date.date()} to {end_date.date()}. Error: {str(e)}"
+                )
+                raise DataUnavailableError(
+                    error_msg,
+                    symbol=symbol,
+                    required_start_date=start_date.isoformat(),
+                    required_end_date=end_date.isoformat(),
+                ) from e
+        
+        elif missing_years:
+            # No data provider configured, raise error
+            from the_alchemiser.shared.types.exceptions import DataUnavailableError
+            
+            error_msg = (
+                f"Missing data files for {symbol} years {missing_years}. "
+                f"Required: {start_date.date()} to {end_date.date()}. "
+                f"No data provider configured for auto-download."
+            )
+            raise DataUnavailableError(
+                error_msg,
+                symbol=symbol,
+                required_start_date=start_date.isoformat(),
+                required_end_date=end_date.isoformat(),
+            )
+
         # Load data from each year
         all_dfs: list[pd.DataFrame] = []
         for year in years:
             file_path = self._get_file_path(symbol, year)
             if not file_path.exists():
+                # This should not happen after auto-download above
                 logger.warning(
                     f"No data file for {symbol} year {year}", symbol=symbol, year=year
                 )
@@ -165,8 +253,15 @@ class DataStore:
             all_dfs.append(df)
 
         if not all_dfs:
-            logger.warning(f"No data found for {symbol}", symbol=symbol)
-            return []
+            from the_alchemiser.shared.types.exceptions import DataUnavailableError
+            
+            error_msg = f"No data found for {symbol} in date range {start_date.date()} to {end_date.date()}"
+            raise DataUnavailableError(
+                error_msg,
+                symbol=symbol,
+                required_start_date=start_date.isoformat(),
+                required_end_date=end_date.isoformat(),
+            )
 
         # Combine and filter by date range
         df = pd.concat(all_dfs)
