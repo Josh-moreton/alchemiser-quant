@@ -38,11 +38,26 @@ class DataManager:
             data_store: Optional DataStore instance (creates default if None)
 
         """
-        self.provider = AlpacaHistoricalProvider()
-        self.data_store = data_store or DataStore(data_provider=self.provider)
-        # If data_store was provided, ensure it has the provider
-        if data_store and not data_store.data_provider:
-            data_store.data_provider = self.provider
+        # Try to initialize provider, but don't fail if credentials are missing (e.g., in tests)
+        try:
+            self.provider = AlpacaHistoricalProvider()
+        except (ValueError, Exception) as e:
+            logger.warning(
+                f"Failed to initialize AlpacaHistoricalProvider: {e}. "
+                "Auto-download will not be available."
+            )
+            self.provider = None
+        
+        # Create or use provided data store
+        if data_store:
+            self.data_store = data_store
+            # If data_store was provided, set the provider if available
+            if self.provider and not data_store.data_provider:
+                data_store.data_provider = self.provider
+        else:
+            # Create new data store with provider if available
+            self.data_store = DataStore(data_provider=self.provider)
+        
         logger.info("DataManager initialized")
 
     def _data_exists_for_range(
@@ -86,6 +101,10 @@ class DataManager:
             Dictionary mapping symbol to success status
 
         """
+        if not self.provider:
+            logger.error("Cannot download data: provider not initialized")
+            return {symbol: False for symbol in symbols}
+        
         logger.info(
             f"Downloading data for {len(symbols)} symbols",
             symbol_count=len(symbols),
