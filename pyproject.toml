@@ -52,7 +52,7 @@ vulture = "^2.14"   # Dead code detection
 psutil = "^7.1.0"
 pydocstyle = ">=6.0.0"  # Docstring style (Ruff D rules)
 pytest = "^8.4.2"
-pytest-cov = "^6.0.0"  # Coverage reporting for SonarCloud
+pytest-cov = "^7.0.0"  # Coverage reporting for SonarCloud
 pip-audit = "^2.7.3"  # Dependency vulnerability scanning
 detect-secrets = "^1.5.0"  # Secret scanning (baseline optional)
 pyright = "^1.1.405"  # Supplemental static type analysis (optional CI/nightly)
