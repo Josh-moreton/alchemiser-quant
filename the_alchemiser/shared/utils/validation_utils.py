@@ -8,6 +8,7 @@ to eliminate the duplicate __post_init__() methods identified in Priority 2.1.
 
 from __future__ import annotations
 
+import math
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -161,6 +162,9 @@ def validate_spread_reasonable(
 ) -> bool:
     """Validate that the bid-ask spread is reasonable for trading.
 
+    Uses math.isclose for float comparison with explicit tolerance per
+    financial-grade guardrails.
+
     Args:
         bid_price: Bid price
         ask_price: Ask price
@@ -173,8 +177,14 @@ def validate_spread_reasonable(
     if bid_price <= 0 or ask_price <= 0:
         return False
 
-    spread = (ask_price - bid_price) / ask_price
-    return spread <= (max_spread_percent / 100.0)
+    spread_ratio = (ask_price - bid_price) / ask_price
+    max_ratio = max_spread_percent / 100.0
+
+    # Use math.isclose with explicit tolerance for float comparison
+    # Spread is reasonable if strictly less than max or within tolerance of max
+    return spread_ratio < max_ratio or math.isclose(
+        spread_ratio, max_ratio, rel_tol=1e-9, abs_tol=1e-9
+    )
 
 
 def detect_suspicious_quote_prices(
@@ -212,8 +222,14 @@ def detect_suspicious_quote_prices(
 
     # Check for excessive spread (may indicate stale/bad data)
     if bid_price > 0 and ask_price > 0:
-        spread_percent = ((ask_price - bid_price) / ask_price) * 100
-        if spread_percent > max_spread_percent:
+        spread_ratio = (ask_price - bid_price) / ask_price
+        spread_percent = spread_ratio * 100
+        max_percent = max_spread_percent
+
+        # Use math.isclose for comparison with explicit tolerance
+        if spread_percent > max_percent and not math.isclose(
+            spread_percent, max_percent, rel_tol=1e-9, abs_tol=1e-9
+        ):
             reasons.append(f"excessive spread: {spread_percent:.2f}% > {max_spread_percent}%")
 
     return len(reasons) > 0, reasons
