@@ -47,6 +47,7 @@ PROGRESS_DESCRIPTION_FORMAT = "[progress.description]{task.description}"
 # Business logic constants
 DECIMAL_ZERO = Decimal("0")
 MIN_TRADE_AMOUNT_USD = Decimal("5")
+MINIMUM_PRICE = Decimal("0.01")  # Minimum trading price (1 cent)
 
 # Validation constants
 CONFIDENCE_RANGE = (Decimal("0"), Decimal("1"))
@@ -73,6 +74,7 @@ __all__ = [
     "EVENT_SCHEMA_VERSION_DESCRIPTION",
     "EVENT_TYPE_DESCRIPTION",
     "EXECUTION_HANDLERS_MODULE",
+    "MINIMUM_PRICE",
     "MIN_TRADE_AMOUNT_USD",
     "NO_TRADES_REQUIRED",
     "ORDER_SIDES",
