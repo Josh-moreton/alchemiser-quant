@@ -245,7 +245,7 @@ class SignalGenerationHandler:
         self, signals: list[StrategySignal]
     ) -> tuple[dict[str, Decimal], list[str]]:
         """Build consolidated portfolio from strategy signals.
-        
+
         Returns allocations as Decimal to preserve precision per copilot instructions:
         "Money: Decimal with explicit contexts; never mix with float."
         """
@@ -264,7 +264,7 @@ class SignalGenerationHandler:
 
     def _extract_signal_allocation(self, signal: StrategySignal) -> Decimal:
         """Extract allocation percentage from signal.
-        
+
         Returns Decimal to maintain numerical precision per copilot instructions.
         """
         if signal.target_allocation is not None:

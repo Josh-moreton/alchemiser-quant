@@ -97,11 +97,11 @@ class TechnicalIndicators:
             msg = f"RSI window must be positive, got {window}"
             logger.error(msg)
             raise EnhancedDataError(msg)
-        
+
         if len(data) == 0:
             logger.warning("Empty data series provided to RSI calculation")
             return pd.Series(dtype=float)
-        
+
         if len(data) < window:
             logger.warning(
                 f"Insufficient data for RSI calculation: {len(data)} < {window}, "
@@ -122,12 +122,14 @@ class TechnicalIndicators:
             # Safe division to handle cases where avg_loss is zero
             rs = avg_gain.divide(avg_loss, fill_value=0.0)
             rsi = 100 - (100 / (1 + rs))
-            
+
             # Fill NaN values with neutral RSI
             nan_count = rsi.isna().sum()
             if nan_count > 0:
-                logger.debug(f"Filled {nan_count} NaN values in RSI with neutral value {NEUTRAL_RSI_VALUE}")
-            
+                logger.debug(
+                    f"Filled {nan_count} NaN values in RSI with neutral value {NEUTRAL_RSI_VALUE}"
+                )
+
             return rsi.fillna(NEUTRAL_RSI_VALUE)
         except (ValueError, TypeError, KeyError) as e:
             logger.error(f"Error calculating RSI: {e}", exc_info=True)
@@ -170,11 +172,11 @@ class TechnicalIndicators:
             msg = f"Moving average window must be positive, got {window}"
             logger.error(msg)
             raise EnhancedDataError(msg)
-        
+
         if len(data) == 0:
             logger.warning("Empty data series provided to moving_average calculation")
             return pd.Series(dtype=float)
-        
+
         try:
             return data.rolling(window=window, min_periods=window).mean()
         except (ValueError, TypeError, KeyError) as e:
@@ -213,11 +215,11 @@ class TechnicalIndicators:
             msg = f"EMA window must be positive, got {window}"
             logger.error(msg)
             raise EnhancedDataError(msg)
-        
+
         if len(data) == 0:
             logger.warning("Empty data series provided to exponential_moving_average calculation")
             return pd.Series(dtype=float)
-        
+
         try:
             # align behavior with SMA min_periods by masking early values
             ema = data.ewm(span=window, adjust=False).mean()
@@ -264,18 +266,18 @@ class TechnicalIndicators:
             msg = f"Moving average return window must be positive, got {window}"
             logger.error(msg)
             raise EnhancedDataError(msg)
-        
+
         if len(data) == 0:
             logger.warning("Empty data series provided to moving_average_return calculation")
             return pd.Series(dtype=float)
-        
+
         if len(data) < window:
             logger.warning(
                 f"Insufficient data for moving_average_return: {len(data)} < {window}, "
                 "returning zero series"
             )
             return pd.Series([0] * len(data), index=data.index)
-        
+
         try:
             returns = data.pct_change()
             return returns.rolling(window=window).mean() * 100
@@ -320,18 +322,18 @@ class TechnicalIndicators:
             msg = f"Cumulative return window must be positive, got {window}"
             logger.error(msg)
             raise EnhancedDataError(msg)
-        
+
         if len(data) == 0:
             logger.warning("Empty data series provided to cumulative_return calculation")
             return pd.Series(dtype=float)
-        
+
         if len(data) <= window:
             logger.warning(
                 f"Insufficient data for cumulative_return: {len(data)} <= {window}, "
                 "returning zero series"
             )
             return pd.Series([0] * len(data), index=data.index)
-        
+
         try:
             return ((data / data.shift(window)) - 1) * 100
         except (ValueError, TypeError, KeyError, ZeroDivisionError) as e:
@@ -373,24 +375,25 @@ class TechnicalIndicators:
             msg = f"Standard deviation window must be positive, got {window}"
             logger.error(msg)
             raise EnhancedDataError(msg)
-        
+
         if len(data) == 0:
             logger.warning("Empty data series provided to stdev_return calculation")
             return pd.Series(dtype=float)
-        
+
         if len(data) < window:
             logger.warning(
-                f"Insufficient data for stdev_return: {len(data)} < {window}, "
-                "returning zero series"
+                f"Insufficient data for stdev_return: {len(data)} < {window}, returning zero series"
             )
             return pd.Series([0] * len(data), index=data.index)
-        
+
         try:
             returns = data.pct_change() * 100
             return returns.rolling(window=window, min_periods=window).std()
         except (ValueError, TypeError, KeyError) as e:
             logger.error(f"Error calculating standard deviation of returns: {e}", exc_info=True)
-            raise EnhancedDataError(f"Failed to calculate standard deviation of returns: {e}") from e
+            raise EnhancedDataError(
+                f"Failed to calculate standard deviation of returns: {e}"
+            ) from e
 
     @staticmethod
     def max_drawdown(data: pd.Series, window: int) -> pd.Series:
@@ -427,31 +430,31 @@ class TechnicalIndicators:
             msg = f"Max drawdown window must be positive, got {window}"
             logger.error(msg)
             raise EnhancedDataError(msg)
-        
+
         if len(data) == 0:
             logger.warning("Empty data series provided to max_drawdown calculation")
             return pd.Series(dtype=float)
-        
+
         if len(data) < window:
             logger.warning(
-                f"Insufficient data for max_drawdown: {len(data)} < {window}, "
-                "returning zero series"
+                f"Insufficient data for max_drawdown: {len(data)} < {window}, returning zero series"
             )
             return pd.Series([0] * len(data), index=data.index)
-        
+
         try:
             # Rolling window apply; use price series
             def mdd_window(x: pd.Series) -> float:
                 """Compute max drawdown within a rolling window.
-                
+
                 Calculates the maximum peak-to-trough decline as a percentage
                 within the given window of prices.
-                
+
                 Args:
                     x: Price series within the rolling window.
-                
+
                 Returns:
                     Maximum drawdown as a positive percentage value.
+
                 """
                 # compute max drawdown within this window
                 roll_max = x.cummax()

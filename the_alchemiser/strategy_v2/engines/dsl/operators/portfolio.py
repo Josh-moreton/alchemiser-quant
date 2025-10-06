@@ -77,9 +77,7 @@ def parse_selection(sel_expr: ASTNode | None, context: DslContext) -> tuple[bool
                 int(n_val) if isinstance(n_val, (int, float)) else int(context.as_decimal(n_val))
             )
         except (ValueError, TypeError) as exc:
-            logger.warning(
-                "DSL parse_selection: Failed to parse selection limit: %s", exc
-            )
+            logger.warning("DSL parse_selection: Failed to parse selection limit: %s", exc)
             take_n = None
     return take_top, take_n
 

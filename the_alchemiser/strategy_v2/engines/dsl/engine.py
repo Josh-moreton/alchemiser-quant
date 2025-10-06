@@ -58,7 +58,7 @@ class DslEngine(EventHandler):
         self.logger = get_logger(__name__)
         self.event_bus = event_bus
         self.strategy_config_path = strategy_config_path or "."
-        
+
         # Track processed events for idempotency
         self._processed_events: set[str] = set()
 
@@ -112,10 +112,10 @@ class DslEngine(EventHandler):
                 },
             )
             return
-        
+
         # Mark event as processed
         self._processed_events.add(event.event_id)
-        
+
         if isinstance(event, StrategyEvaluationRequested):
             self._handle_evaluation_request(event)
         else:
@@ -321,7 +321,7 @@ class DslEngine(EventHandler):
         """
         if not self.event_bus:
             return
-        
+
         # Capture timestamp once for consistency
         timestamp = datetime.now(UTC)
         correlation_id = request_event.correlation_id
@@ -366,7 +366,7 @@ class DslEngine(EventHandler):
         """
         if not self.event_bus:
             return
-        
+
         # Capture timestamp once for consistency
         timestamp = datetime.now(UTC)
         correlation_id = request_event.correlation_id
@@ -404,11 +404,11 @@ class DslEngine(EventHandler):
 
 class DslEngineError(StrategyV2Error):
     """Error in DSL engine operation.
-    
+
     Typed exception for DSL engine failures with correlation tracking
     and structured context for observability.
     """
-    
+
     def __init__(
         self,
         message: str,
@@ -416,12 +416,12 @@ class DslEngineError(StrategyV2Error):
         **context: str | int | float | bool | None,
     ) -> None:
         """Initialize DSL engine error with context.
-        
+
         Args:
             message: Error message describing the failure
             correlation_id: Optional correlation ID for tracking
             **context: Additional error context (strategy_path, etc.)
-        
+
         """
         super().__init__(
             message,

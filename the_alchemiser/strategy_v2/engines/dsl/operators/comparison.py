@@ -61,11 +61,11 @@ def greater_than(args: list[ASTNode], context: DslContext) -> bool:
 
     left_v = context.evaluate_node(args[0], context.correlation_id, context.trace)
     right_v = context.evaluate_node(args[1], context.correlation_id, context.trace)
-    
+
     left_decimal = context.as_decimal(left_v)
     right_decimal = context.as_decimal(right_v)
     result = left_decimal > right_decimal
-    
+
     logger.debug(
         "DSL comparison: greater_than",
         operator=">",
@@ -74,7 +74,7 @@ def greater_than(args: list[ASTNode], context: DslContext) -> bool:
         result=result,
         correlation_id=context.correlation_id,
     )
-    
+
     return result
 
 
@@ -96,11 +96,11 @@ def less_than(args: list[ASTNode], context: DslContext) -> bool:
 
     left_v = context.evaluate_node(args[0], context.correlation_id, context.trace)
     right_v = context.evaluate_node(args[1], context.correlation_id, context.trace)
-    
+
     left_decimal = context.as_decimal(left_v)
     right_decimal = context.as_decimal(right_v)
     result = left_decimal < right_decimal
-    
+
     logger.debug(
         "DSL comparison: less_than",
         operator="<",
@@ -109,7 +109,7 @@ def less_than(args: list[ASTNode], context: DslContext) -> bool:
         result=result,
         correlation_id=context.correlation_id,
     )
-    
+
     return result
 
 
@@ -131,11 +131,11 @@ def greater_equal(args: list[ASTNode], context: DslContext) -> bool:
 
     left_v = context.evaluate_node(args[0], context.correlation_id, context.trace)
     right_v = context.evaluate_node(args[1], context.correlation_id, context.trace)
-    
+
     left_decimal = context.as_decimal(left_v)
     right_decimal = context.as_decimal(right_v)
     result = left_decimal >= right_decimal
-    
+
     logger.debug(
         "DSL comparison: greater_equal",
         operator=">=",
@@ -144,7 +144,7 @@ def greater_equal(args: list[ASTNode], context: DslContext) -> bool:
         result=result,
         correlation_id=context.correlation_id,
     )
-    
+
     return result
 
 
@@ -166,11 +166,11 @@ def less_equal(args: list[ASTNode], context: DslContext) -> bool:
 
     left_v = context.evaluate_node(args[0], context.correlation_id, context.trace)
     right_v = context.evaluate_node(args[1], context.correlation_id, context.trace)
-    
+
     left_decimal = context.as_decimal(left_v)
     right_decimal = context.as_decimal(right_v)
     result = left_decimal <= right_decimal
-    
+
     logger.debug(
         "DSL comparison: less_equal",
         operator="<=",
@@ -179,7 +179,7 @@ def less_equal(args: list[ASTNode], context: DslContext) -> bool:
         result=result,
         correlation_id=context.correlation_id,
     )
-    
+
     return result
 
 
@@ -187,7 +187,7 @@ def equal(args: list[ASTNode], context: DslContext) -> bool:
     """Evaluate = - equality comparison.
 
     Compares numeric values (int, float, Decimal) using exact Decimal equality,
-    and string values using exact string equality. Mixed-type comparisons 
+    and string values using exact string equality. Mixed-type comparisons
     (e.g., number vs string) return False.
 
     Args:
@@ -224,7 +224,7 @@ def equal(args: list[ASTNode], context: DslContext) -> bool:
 
     l_num = to_decimal_if_number(left_v)
     r_num = to_decimal_if_number(right_v)
-    
+
     # Both numeric - compare as Decimal
     if l_num is not None and r_num is not None:
         result = l_num == r_num
@@ -237,7 +237,7 @@ def equal(args: list[ASTNode], context: DslContext) -> bool:
             correlation_id=context.correlation_id,
         )
         return result
-    
+
     # Both strings - direct comparison
     if isinstance(left_v, str) and isinstance(right_v, str):
         result = left_v == right_v
@@ -250,7 +250,7 @@ def equal(args: list[ASTNode], context: DslContext) -> bool:
             correlation_id=context.correlation_id,
         )
         return result
-    
+
     # Mixed types - log warning and return False
     logger.warning(
         "DSL comparison: equal with mixed types",
