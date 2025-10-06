@@ -147,8 +147,6 @@ class PriceDataModel:
         
         Converts Decimal values from TypedDict to float for internal storage.
         """
-        from decimal import Decimal
-        
         timestamp_raw = data["timestamp"]
         timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", _UTC_TIMEZONE_SUFFIX))
 

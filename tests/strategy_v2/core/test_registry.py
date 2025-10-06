@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from the_alchemiser.strategy_v2.core.registry import (
-    StrategyEngine,
+    StrategyCallable,
     StrategyRegistry,
     get_strategy,
     list_strategies,
@@ -244,8 +244,8 @@ class TestModuleLevelFunctions:
 
 
 @pytest.mark.unit
-class TestStrategyEngineProtocol:
-    """Test StrategyEngine protocol compliance."""
+class TestStrategyCallableProtocol:
+    """Test StrategyCallable protocol compliance."""
 
     def test_callable_with_datetime_context(self):
         """Test that engine can be called with datetime context."""
@@ -264,7 +264,7 @@ class TestStrategyEngineProtocol:
                 )
 
         engine = SimpleEngine()
-        assert isinstance(engine, StrategyEngine)
+        assert isinstance(engine, StrategyCallable)
 
     def test_callable_with_market_data_port(self):
         """Test that engine can be called with MarketDataPort."""

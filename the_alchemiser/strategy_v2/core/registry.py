@@ -10,15 +10,24 @@ strategy identifiers to their corresponding engine implementations.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 
 from ...shared.types.market_data_port import MarketDataPort
 
 
-class StrategyEngine(Protocol):
-    """Protocol for strategy engine implementations."""
+@runtime_checkable
+class StrategyCallable(Protocol):
+    """Protocol for callable strategy implementations (legacy pattern).
+
+    Note: This is a legacy protocol for the registry pattern. New code should
+    use the StrategyEngine protocol from shared.types.strategy_protocol instead.
+
+    This protocol supports callable strategies that accept various context types
+    and return allocation schemas. It's maintained for backwards compatibility
+    with existing strategy implementations in the registry.
+    """
 
     def __call__(
         self, context: datetime | MarketDataPort | dict[str, datetime | MarketDataPort]
@@ -32,9 +41,9 @@ class StrategyRegistry:
 
     def __init__(self) -> None:
         """Initialize empty registry."""
-        self._strategies: dict[str, StrategyEngine] = {}
+        self._strategies: dict[str, StrategyCallable] = {}
 
-    def register(self, strategy_id: str, engine: StrategyEngine) -> None:
+    def register(self, strategy_id: str, engine: StrategyCallable) -> None:
         """Register a strategy engine.
 
         Args:
@@ -44,7 +53,7 @@ class StrategyRegistry:
         """
         self._strategies[strategy_id] = engine
 
-    def get_strategy(self, strategy_id: str) -> StrategyEngine:
+    def get_strategy(self, strategy_id: str) -> StrategyCallable:
         """Get strategy engine by ID.
 
         Args:
@@ -71,12 +80,12 @@ class StrategyRegistry:
 _registry = StrategyRegistry()
 
 
-def register_strategy(strategy_id: str, engine: StrategyEngine) -> None:
+def register_strategy(strategy_id: str, engine: StrategyCallable) -> None:
     """Register a strategy in the global registry."""
     _registry.register(strategy_id, engine)
 
 
-def get_strategy(strategy_id: str) -> StrategyEngine:
+def get_strategy(strategy_id: str) -> StrategyCallable:
     """Get strategy from global registry."""
     return _registry.get_strategy(strategy_id)
 
