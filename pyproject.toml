@@ -37,8 +37,8 @@ pydantic-settings = ">=2.0.0"
 cachetools = "^6.1.0"
 dependency-injector = "^4.48.2"
 python-dotenv = "^1.1.1"
-structlog = "^23.2.0"
-pyarrow = "^19.0.0"
+structlog = "^25.4.0"
+pyarrow = "^21.0.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = ">=0.1.0"
@@ -52,13 +52,13 @@ vulture = "^2.14"   # Dead code detection
 psutil = "^7.1.0"
 pydocstyle = ">=6.0.0"  # Docstring style (Ruff D rules)
 pytest = "^8.4.2"
-pytest-cov = "^6.0.0"  # Coverage reporting for SonarCloud
+pytest-cov = "^7.0.0"  # Coverage reporting for SonarCloud
 pip-audit = "^2.7.3"  # Dependency vulnerability scanning
 detect-secrets = "^1.5.0"  # Secret scanning (baseline optional)
-pyright = "^1.1.405"  # Supplemental static type analysis (optional CI/nightly)
+pyright = "^1.1.406"  # Supplemental static type analysis (optional CI/nightly)
 import-linter = "^2.5"  # Module dependency enforcement
 pytest-asyncio = "^1.2.0"
-hypothesis = "^6.140.2"
+hypothesis = "^6.140.3"
 
 
 
