@@ -233,3 +233,166 @@ class TestDslEventPublisher:
         
         # Verify both events were published
         assert mock_event_bus.publish.call_count == 2
+
+    def test_publish_indicator_with_negative_computation_time(self, publisher):
+        """Test that negative computation_time_ms raises ValueError."""
+        indicator = TechnicalIndicator(
+            symbol="AAPL",
+            timestamp=datetime.now(UTC),
+            current_price=Decimal("150.0"),
+        )
+        
+        with pytest.raises(ValueError, match="computation_time_ms must be non-negative"):
+            publisher.publish_indicator_computed(
+                request_id=str(uuid.uuid4()),
+                indicator=indicator,
+                computation_time_ms=-1.0,
+                correlation_id=str(uuid.uuid4()),
+            )
+
+    def test_publish_indicator_with_empty_request_id(self, publisher):
+        """Test that empty request_id raises ValueError."""
+        indicator = TechnicalIndicator(
+            symbol="AAPL",
+            timestamp=datetime.now(UTC),
+            current_price=Decimal("150.0"),
+        )
+        
+        with pytest.raises(ValueError, match="request_id must not be empty"):
+            publisher.publish_indicator_computed(
+                request_id="",
+                indicator=indicator,
+                computation_time_ms=5.0,
+                correlation_id=str(uuid.uuid4()),
+            )
+
+    def test_publish_indicator_with_whitespace_request_id(self, publisher):
+        """Test that whitespace-only request_id raises ValueError."""
+        indicator = TechnicalIndicator(
+            symbol="AAPL",
+            timestamp=datetime.now(UTC),
+            current_price=Decimal("150.0"),
+        )
+        
+        with pytest.raises(ValueError, match="request_id must not be empty"):
+            publisher.publish_indicator_computed(
+                request_id="   ",
+                indicator=indicator,
+                computation_time_ms=5.0,
+                correlation_id=str(uuid.uuid4()),
+            )
+
+    def test_publish_indicator_with_custom_event_id(self, publisher, mock_event_bus):
+        """Test publishing with custom event_id for deterministic testing."""
+        custom_event_id = "test-event-id-123"
+        indicator = TechnicalIndicator(
+            symbol="AAPL",
+            timestamp=datetime.now(UTC),
+            current_price=Decimal("150.0"),
+        )
+        
+        publisher.publish_indicator_computed(
+            request_id=str(uuid.uuid4()),
+            indicator=indicator,
+            computation_time_ms=5.0,
+            correlation_id=str(uuid.uuid4()),
+            event_id=custom_event_id,
+        )
+        
+        event = mock_event_bus.publish.call_args[0][0]
+        assert event.event_id == custom_event_id
+
+    def test_publish_indicator_with_custom_timestamp(self, publisher, mock_event_bus):
+        """Test publishing with custom timestamp for deterministic testing."""
+        custom_timestamp = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+        indicator = TechnicalIndicator(
+            symbol="AAPL",
+            timestamp=datetime.now(UTC),
+            current_price=Decimal("150.0"),
+        )
+        
+        publisher.publish_indicator_computed(
+            request_id=str(uuid.uuid4()),
+            indicator=indicator,
+            computation_time_ms=5.0,
+            correlation_id=str(uuid.uuid4()),
+            timestamp=custom_timestamp,
+        )
+        
+        event = mock_event_bus.publish.call_args[0][0]
+        assert event.timestamp == custom_timestamp
+
+    def test_publish_decision_with_custom_event_id(self, publisher, mock_event_bus):
+        """Test publishing decision with custom event_id."""
+        custom_event_id = "test-decision-id-456"
+        decision_expr = ASTNode.symbol("if")
+        
+        publisher.publish_decision_evaluated(
+            decision_expression=decision_expr,
+            condition_result=True,
+            branch_taken="then",
+            branch_result=None,
+            correlation_id=str(uuid.uuid4()),
+            event_id=custom_event_id,
+        )
+        
+        event = mock_event_bus.publish.call_args[0][0]
+        assert event.event_id == custom_event_id
+
+    def test_publish_decision_with_custom_timestamp(self, publisher, mock_event_bus):
+        """Test publishing decision with custom timestamp."""
+        custom_timestamp = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+        decision_expr = ASTNode.symbol("if")
+        
+        publisher.publish_decision_evaluated(
+            decision_expression=decision_expr,
+            condition_result=True,
+            branch_taken="then",
+            branch_result=None,
+            correlation_id=str(uuid.uuid4()),
+            timestamp=custom_timestamp,
+        )
+        
+        event = mock_event_bus.publish.call_args[0][0]
+        assert event.timestamp == custom_timestamp
+
+    def test_publish_indicator_error_handling(self, mock_event_bus):
+        """Test error handling when event bus publish fails."""
+        from the_alchemiser.strategy_v2.engines.dsl.events import EventPublishError
+        
+        # Make publish raise an exception
+        mock_event_bus.publish.side_effect = RuntimeError("Bus failure")
+        publisher = DslEventPublisher(mock_event_bus)
+        
+        indicator = TechnicalIndicator(
+            symbol="AAPL",
+            timestamp=datetime.now(UTC),
+            current_price=Decimal("150.0"),
+        )
+        
+        with pytest.raises(EventPublishError, match="Failed to publish IndicatorComputed event"):
+            publisher.publish_indicator_computed(
+                request_id=str(uuid.uuid4()),
+                indicator=indicator,
+                computation_time_ms=5.0,
+                correlation_id=str(uuid.uuid4()),
+            )
+
+    def test_publish_decision_error_handling(self, mock_event_bus):
+        """Test error handling when decision event bus publish fails."""
+        from the_alchemiser.strategy_v2.engines.dsl.events import EventPublishError
+        
+        # Make publish raise an exception
+        mock_event_bus.publish.side_effect = RuntimeError("Bus failure")
+        publisher = DslEventPublisher(mock_event_bus)
+        
+        decision_expr = ASTNode.symbol("if")
+        
+        with pytest.raises(EventPublishError, match="Failed to publish DecisionEvaluated event"):
+            publisher.publish_decision_evaluated(
+                decision_expression=decision_expr,
+                condition_result=True,
+                branch_taken="then",
+                branch_result=None,
+                correlation_id=str(uuid.uuid4()),
+            )
