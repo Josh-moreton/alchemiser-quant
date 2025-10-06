@@ -31,29 +31,37 @@ class BarModel:
 
     @classmethod
     def from_dict(cls, data: MarketDataPoint) -> BarModel:
-        """Create from MarketDataPoint TypedDict."""
+        """Create from MarketDataPoint TypedDict.
+        
+        Converts Decimal values from TypedDict to float for internal storage.
+        """
         timestamp_raw = data["timestamp"]
         timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", _UTC_TIMEZONE_SUFFIX))
 
         return cls(
             symbol=data["symbol"],
             timestamp=timestamp_parsed,
-            open=data["open"],
-            high=data["high"],
-            low=data["low"],
-            close=data["close"],
+            open=float(data["open"]),
+            high=float(data["high"]),
+            low=float(data["low"]),
+            close=float(data["close"]),
             volume=data["volume"],
         )
 
     def to_dict(self) -> MarketDataPoint:
-        """Convert to MarketDataPoint TypedDict."""
+        """Convert to MarketDataPoint TypedDict.
+        
+        Converts float values to Decimal for TypedDict compliance.
+        """
+        from decimal import Decimal
+        
         return {
             "symbol": self.symbol,
             "timestamp": self.timestamp.isoformat(),
-            "open": self.open,
-            "high": self.high,
-            "low": self.low,
-            "close": self.close,
+            "open": Decimal(str(self.open)),
+            "high": Decimal(str(self.high)),
+            "low": Decimal(str(self.low)),
+            "close": Decimal(str(self.close)),
             "volume": self.volume,
         }
 
@@ -80,26 +88,34 @@ class QuoteModel:
 
     @classmethod
     def from_dict(cls, data: QuoteData, symbol: str) -> QuoteModel:
-        """Create from QuoteData TypedDict (domain-pure)."""
+        """Create from QuoteData TypedDict (domain-pure).
+        
+        Converts Decimal values from TypedDict to float for internal storage.
+        """
         timestamp_raw = data["timestamp"]
         timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", _UTC_TIMEZONE_SUFFIX))
 
         return cls(
             symbol=symbol,
-            bid_price=data["bid_price"],
-            ask_price=data["ask_price"],
-            bid_size=data["bid_size"],
-            ask_size=data["ask_size"],
+            bid_price=float(data["bid_price"]),
+            ask_price=float(data["ask_price"]),
+            bid_size=float(data["bid_size"]),
+            ask_size=float(data["ask_size"]),
             timestamp=timestamp_parsed,
         )
 
     def to_dict(self) -> QuoteData:
-        """Convert to QuoteData TypedDict."""
+        """Convert to QuoteData TypedDict.
+        
+        Converts float values to Decimal for TypedDict compliance.
+        """
+        from decimal import Decimal
+        
         return {
-            "bid_price": self.bid_price,
-            "ask_price": self.ask_price,
-            "bid_size": self.bid_size,
-            "ask_size": self.ask_size,
+            "bid_price": Decimal(str(self.bid_price)),
+            "ask_price": Decimal(str(self.ask_price)),
+            "bid_size": Decimal(str(self.bid_size)),
+            "ask_size": Decimal(str(self.ask_size)),
             "timestamp": self.timestamp.isoformat(),
         }
 
@@ -127,27 +143,40 @@ class PriceDataModel:
 
     @classmethod
     def from_dict(cls, data: PriceData) -> PriceDataModel:
-        """Create from PriceData TypedDict."""
+        """Create from PriceData TypedDict.
+        
+        Converts Decimal values from TypedDict to float for internal storage.
+        """
+        from decimal import Decimal
+        
         timestamp_raw = data["timestamp"]
         timestamp_parsed = datetime.fromisoformat(timestamp_raw.replace("Z", _UTC_TIMEZONE_SUFFIX))
 
+        bid_val = data.get("bid")
+        ask_val = data.get("ask")
+        
         return cls(
             symbol=data["symbol"],
-            price=data["price"],
+            price=float(data["price"]),
             timestamp=timestamp_parsed,
-            bid=data.get("bid"),
-            ask=data.get("ask"),
+            bid=float(bid_val) if bid_val is not None else None,
+            ask=float(ask_val) if ask_val is not None else None,
             volume=data.get("volume"),
         )
 
     def to_dict(self) -> PriceData:
-        """Convert to PriceData TypedDict."""
+        """Convert to PriceData TypedDict.
+        
+        Converts float values to Decimal for TypedDict compliance.
+        """
+        from decimal import Decimal
+        
         return {
             "symbol": self.symbol,
-            "price": self.price,
+            "price": Decimal(str(self.price)),
             "timestamp": self.timestamp.isoformat(),
-            "bid": self.bid,
-            "ask": self.ask,
+            "bid": Decimal(str(self.bid)) if self.bid is not None else None,
+            "ask": Decimal(str(self.ask)) if self.ask is not None else None,
             "volume": self.volume,
         }
 

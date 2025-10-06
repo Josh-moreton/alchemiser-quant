@@ -38,16 +38,18 @@ class TestAccountModel:
     @pytest.mark.unit
     def test_from_dict(self):
         """Test creating AccountModel from dict."""
+        from decimal import Decimal
+        
         data = {
             "account_id": "test-456",
-            "equity": 20000.0,
-            "cash": 10000.0,
-            "buying_power": 30000.0,
+            "equity": Decimal("20000.0"),
+            "cash": Decimal("10000.0"),
+            "buying_power": Decimal("30000.0"),
             "day_trades_remaining": 2,
-            "portfolio_value": 20000.0,
-            "last_equity": 19000.0,
-            "daytrading_buying_power": 30000.0,
-            "regt_buying_power": 30000.0,
+            "portfolio_value": Decimal("20000.0"),
+            "last_equity": Decimal("19000.0"),
+            "daytrading_buying_power": Decimal("30000.0"),
+            "regt_buying_power": Decimal("30000.0"),
             "status": "ACTIVE"
         }
         
@@ -60,6 +62,8 @@ class TestAccountModel:
     @pytest.mark.unit
     def test_to_dict(self):
         """Test converting AccountModel to dict."""
+        from decimal import Decimal
+        
         account = AccountModel(
             account_id="test-789",
             equity=15000.0,
@@ -76,23 +80,25 @@ class TestAccountModel:
         result = account.to_dict()
         
         assert result["account_id"] == "test-789"
-        assert result["equity"] == 15000.0
-        assert result["cash"] == 7500.0
+        assert result["equity"] == Decimal("15000.0")
+        assert result["cash"] == Decimal("7500.0")
         assert result["status"] == "ACTIVE"
 
     @pytest.mark.unit
     def test_roundtrip_dict_conversion(self):
         """Test round-trip dict conversion."""
+        from decimal import Decimal
+        
         original = {
             "account_id": "test-999",
-            "equity": 50000.0,
-            "cash": 25000.0,
-            "buying_power": 75000.0,
+            "equity": Decimal("50000.0"),
+            "cash": Decimal("25000.0"),
+            "buying_power": Decimal("75000.0"),
             "day_trades_remaining": 0,
-            "portfolio_value": 50000.0,
-            "last_equity": 48000.0,
-            "daytrading_buying_power": 75000.0,
-            "regt_buying_power": 75000.0,
+            "portfolio_value": Decimal("50000.0"),
+            "last_equity": Decimal("48000.0"),
+            "daytrading_buying_power": Decimal("75000.0"),
+            "regt_buying_power": Decimal("75000.0"),
             "status": "ACTIVE"
         }
         
