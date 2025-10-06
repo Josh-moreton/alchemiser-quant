@@ -115,20 +115,20 @@ test-coverage:
 
 run-trade:
 	@echo "💰 Running trading (mode determined by stage)..."
-	python -m the_alchemiser
+	poetry run python -m the_alchemiser
 
 # P&L Analysis Commands
 run-pnl-weekly:
 	@echo "📊 Running weekly P&L analysis..."
-	python -m the_alchemiser pnl --weekly
+	poetry run python -m the_alchemiser pnl --weekly
 
 run-pnl-monthly:
 	@echo "📊 Running monthly P&L analysis..."
-	python -m the_alchemiser pnl --monthly
+	poetry run python -m the_alchemiser pnl --monthly
 
 run-pnl-detailed:
 	@echo "📊 Running detailed monthly P&L analysis..."
-	python -m the_alchemiser pnl --monthly --detailed
+	poetry run python -m the_alchemiser pnl --monthly --detailed
 
 # Stress Testing Commands
 stress-test:
