@@ -27,12 +27,14 @@ from .core_types import (
     StrategySignalBase,
     TradeAnalysis,
 )
+from .identifier import Identifier
 from .symbol import Symbol
 
 __all__ = [
     "AccountInfo",
     "EnrichedAccountInfo",
     "ErrorContext",
+    "Identifier",
     "IndicatorData",
     "KLMDecision",
     "MarketDataPoint",
