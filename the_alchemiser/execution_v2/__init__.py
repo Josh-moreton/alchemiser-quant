@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Business Unit: execution | Status: current.
 
 New execution module built around DTO consumption principle.
@@ -34,6 +35,11 @@ def register_execution_handlers(container: ApplicationContainer) -> None:
 
     Args:
         container: Application container for dependency injection
+
+    Example:
+        >>> from the_alchemiser.shared.config.container import ApplicationContainer
+        >>> container = ApplicationContainer.create_for_environment("development")
+        >>> register_execution_handlers(container)
 
     """
     from .handlers import TradingExecutionHandler
@@ -75,3 +81,6 @@ __all__ = [
     "TradeLedgerService",
     "register_execution_handlers",
 ]
+
+# Version for compatibility tracking
+__version__ = "2.0.0"
