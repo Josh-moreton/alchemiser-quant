@@ -42,6 +42,7 @@ class OrderError(AlchemiserError):
         >>> error = OrderError("Order rejected", order_id="xyz-789", context=context)
         >>> error.context["symbol"]
         'AAPL'
+
     """
 
     def __init__(
@@ -62,6 +63,7 @@ class OrderError(AlchemiserError):
         Note:
             If order_id is provided, it will be added to the context dict with
             key "order_id", potentially overwriting any existing value.
+
         """
         context = context or {}
         if order_id:
@@ -97,6 +99,7 @@ def classify_exception(exception: Exception) -> Literal["order_error", "alchemis
     Note:
         Classification checks are ordered by specificity. OrderError is checked
         before AlchemiserError since OrderError extends AlchemiserError.
+
     """
     if isinstance(exception, OrderError):
         return "order_error"

@@ -73,6 +73,7 @@ class TimeInForce:
         >>> tif = TimeInForce(value="gtc")  # Raises DeprecationWarning
         >>> tif.value
         'gtc'
+
     """
 
     value: Literal["day", "gtc", "ioc", "fok"]
@@ -89,6 +90,7 @@ class TimeInForce:
         Raises:
             ValueError: If value is not in the valid set
             DeprecationWarning: Always raised to warn about deprecation
+
         """
         # Emit deprecation warning
         warnings.warn(

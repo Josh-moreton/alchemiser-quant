@@ -70,6 +70,7 @@ class StrategySignal(BaseModel):
 
         Default timestamp behavior: If None provided, defaults to current UTC time.
         For deterministic testing, always provide explicit timestamp.
+
     """
 
     model_config = ConfigDict(
@@ -99,6 +100,7 @@ class StrategySignal(BaseModel):
 
         Raises:
             ValueError: If symbol validation fails
+
         """
         if isinstance(v, str):
             return Symbol(v)
@@ -120,6 +122,7 @@ class StrategySignal(BaseModel):
 
         Raises:
             ValidationError: If allocation is outside [0, 1] range
+
         """
         if v is None:
             return None
@@ -147,6 +150,7 @@ class StrategySignal(BaseModel):
 
         Raises:
             ValidationError: If datetime is timezone-naive
+
         """
         if v is None:
             v = datetime.now(UTC)
@@ -158,4 +162,4 @@ class StrategySignal(BaseModel):
         return v
 
 
-__all__ = ["StrategySignal", "ActionLiteral"]
+__all__ = ["ActionLiteral", "StrategySignal"]
