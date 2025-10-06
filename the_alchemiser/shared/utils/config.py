@@ -1,7 +1,13 @@
-"""Configuration utilities for the modular architecture.
+"""Business Unit: shared | Status: current.
+
+Configuration utilities for the modular architecture.
 
 Placeholder implementation for configuration management.
 Currently under construction - no logic implemented yet.
+
+This module provides scaffolding for runtime module-level configuration,
+distinct from application-level settings in shared/config/config.py.
+Will be enhanced in Phase 2 to provide centralized configuration management.
 """
 
 from __future__ import annotations
@@ -20,7 +26,7 @@ class ModularConfig:
         """Initialize configuration."""
         self._config: dict[str, Any] = {}
 
-    def get(self, key: str, default: object = None) -> object:
+    def get(self, key: str, default: Any = None) -> Any:  # noqa: ANN401
         """Get configuration value.
 
         Args:
@@ -33,7 +39,7 @@ class ModularConfig:
         """
         return self._config.get(key, default)
 
-    def set(self, key: str, value: object) -> None:
+    def set(self, key: str, value: Any) -> None:  # noqa: ANN401
         """Set configuration value.
 
         Args:
