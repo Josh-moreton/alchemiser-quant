@@ -18,9 +18,12 @@ from the_alchemiser.shared.events.dsl_events import (
     DecisionEvaluated,
     IndicatorComputed,
 )
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
 from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicator
+
+logger = get_logger(__name__)
 
 
 class DslEventPublisher:
@@ -70,6 +73,19 @@ class DslEventPublisher:
             indicator=indicator,
             computation_time_ms=computation_time_ms,
         )
+
+        logger.debug(
+            "Publishing IndicatorComputed event",
+            extra={
+                "correlation_id": correlation_id,
+                "causation_id": event.causation_id,
+                "event_id": event.event_id,
+                "request_id": request_id,
+                "symbol": indicator.symbol,
+                "computation_time_ms": computation_time_ms,
+            },
+        )
+
         self.event_bus.publish(event)
 
     def publish_decision_evaluated(
@@ -107,4 +123,17 @@ class DslEventPublisher:
             branch_taken=branch_taken,
             branch_result=branch_result,
         )
+
+        logger.debug(
+            "Publishing DecisionEvaluated event",
+            extra={
+                "correlation_id": correlation_id,
+                "causation_id": event.causation_id,
+                "event_id": event.event_id,
+                "condition_result": condition_result,
+                "branch_taken": branch_taken,
+                "has_branch_result": branch_result is not None,
+            },
+        )
+
         self.event_bus.publish(event)

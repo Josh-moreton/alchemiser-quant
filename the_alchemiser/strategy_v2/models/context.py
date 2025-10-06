@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from ..errors import ConfigurationError
+
 
 @dataclass(frozen=True)
 class StrategyContext:
@@ -33,17 +35,34 @@ class StrategyContext:
     """Optional strategy-specific parameters (configuration metadata)"""
 
     def __post_init__(self) -> None:
-        """Validate context after initialization."""
+        """Validate context after initialization.
+
+        Raises:
+            ConfigurationError: If validation fails (empty symbols/timeframe, duplicate symbols).
+
+        """
         if not self.symbols:
-            raise ValueError("symbols cannot be empty")
+            raise ConfigurationError(
+                "symbols cannot be empty",
+                field="symbols",
+                value=str(self.symbols),
+            )
 
         if not self.timeframe:
-            raise ValueError("timeframe cannot be empty")
+            raise ConfigurationError(
+                "timeframe cannot be empty",
+                field="timeframe",
+                value=self.timeframe,
+            )
 
         # Convert symbols to uppercase and check uniqueness
         upper_symbols = [symbol.upper() for symbol in self.symbols]
         if len(set(upper_symbols)) != len(upper_symbols):
-            raise ValueError("symbols must be unique (case-insensitive)")
+            raise ConfigurationError(
+                "symbols must be unique (case-insensitive)",
+                field="symbols",
+                value=str(self.symbols),
+            )
 
         # Replace symbols with uppercase versions, preserving order
         object.__setattr__(self, "symbols", upper_symbols)
