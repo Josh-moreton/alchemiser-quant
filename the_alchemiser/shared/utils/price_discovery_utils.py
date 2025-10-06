@@ -109,11 +109,22 @@ def calculate_midpoint_price(bid: float, ask: float) -> float | None:
         improved market depth analysis.
 
     """
+    # Tolerance for float comparisons (financial-grade: 1 basis point = 0.0001)
+    MIN_PRICE_TOLERANCE = 1e-4
+
     try:
-        if bid > 0 and ask > 0 and ask >= bid:
-            return (bid + ask) / 2.0
-        logger.warning(f"Invalid bid-ask spread: bid={bid}, ask={ask}")
-        return None
+        # Validate bid and ask are positive (using tolerance for zero comparison)
+        if not (bid > MIN_PRICE_TOLERANCE and ask > MIN_PRICE_TOLERANCE):
+            logger.warning(f"Invalid bid-ask spread: bid={bid}, ask={ask}")
+            return None
+
+        # Validate ask >= bid (no crossed market, with tolerance for spread)
+        if ask < bid - MIN_PRICE_TOLERANCE:
+            logger.warning(f"Invalid bid-ask spread: bid={bid}, ask={ask}")
+            return None
+
+        return (bid + ask) / 2.0
+
     except (TypeError, ValueError) as e:
         logger.error(f"Error calculating midpoint: {e}")
         return None
