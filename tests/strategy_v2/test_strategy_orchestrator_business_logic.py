@@ -121,13 +121,17 @@ class TestSingleStrategyOrchestrator:
     def test_context_validation_missing_symbols(self, orchestrator):
         """Test context validation with missing symbols."""
         # StrategyContext already validates this in __post_init__
-        with pytest.raises(ValueError, match="symbols cannot be empty"):
+        from the_alchemiser.strategy_v2.errors import ConfigurationError
+        
+        with pytest.raises(ConfigurationError, match="symbols cannot be empty"):
             StrategyContext(symbols=[], timeframe="1d")
 
     def test_context_validation_missing_timeframe(self, orchestrator):
         """Test context validation with missing timeframe."""
         # StrategyContext already validates this in __post_init__
-        with pytest.raises(ValueError, match="timeframe cannot be empty"):
+        from the_alchemiser.strategy_v2.errors import ConfigurationError
+        
+        with pytest.raises(ConfigurationError, match="timeframe cannot be empty"):
             StrategyContext(symbols=["AAPL"], timeframe="")
 
     def test_context_validation_valid(self, orchestrator, sample_context):
