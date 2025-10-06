@@ -3,16 +3,16 @@
 ## TL;DR
 
 **Q: Are there two parallel exception systems?**
-**A: Yes, but they're not truly "parallel" - the enhanced system extends the legacy one.**
+**A: No - there is one active exception system in `shared/types/exceptions.py`.**
 
 **Q: Which one should I use?**
-**A: Use the LEGACY system (`shared/types/exceptions.py`) for all production code.**
+**A: Use `shared/types/exceptions.py` for all production code.**
 
 ---
 
-## Import This, Not That
+## Import This
 
-### ✅ DO: Use Legacy System
+### ✅ Use This
 
 ```python
 from the_alchemiser.shared.types.exceptions import (
@@ -32,45 +32,28 @@ raise OrderExecutionError(
 )
 ```
 
-### ❌ DON'T: Use Enhanced System (Yet)
-
-```python
-# DON'T use these in production code yet
-from the_alchemiser.shared.errors.enhanced_exceptions import (
-    EnhancedAlchemiserError,
-    EnhancedTradingError,
-    EnhancedDataError,
-)
-```
-
-**Why not?**: The enhanced system is incomplete and not used anywhere in production.
-
 ---
 
-## The Two Systems
+## The Exception System
 
-### Legacy: `shared/types/exceptions.py`
-- **Status**: ✅ Active, production-ready
+### Active: `shared/types/exceptions.py`
+- **Status**: ✅ Production-ready
 - **Usage**: 17 production files 
 - **Coverage**: 25+ exception types
-- **Features**: Basic error handling with context
-
-### Enhanced: `shared/errors/enhanced_exceptions.py`  
-- **Status**: ⚠️ Implemented but unused
-- **Usage**: 0 production files
-- **Coverage**: 3 exception types
-- **Features**: Advanced (retry logic, severity levels, error IDs)
+- **Features**: Context tracking and structured logging
 
 ---
 
 ## Exception Hierarchy
 
 ```
-AlchemiserError (base - from legacy)
-├── All legacy exceptions (25+ types)
-└── EnhancedAlchemiserError (extends base)
-    ├── EnhancedTradingError
-    └── EnhancedDataError
+AlchemiserError (base)
+├── ConfigurationError
+├── DataProviderError (MarketDataError, etc.)
+├── TradingClientError (OrderExecutionError, etc.)
+├── PortfolioError
+├── StrategyExecutionError
+└── ... (25+ types total)
 ```
 
 ---
@@ -86,4 +69,4 @@ AlchemiserError (base - from legacy)
 
 ## Need More Details?
 
-See the full analysis: [docs/EXCEPTIONS_ANALYSIS.md](./EXCEPTIONS_ANALYSIS.md)
+See the full documentation: [docs/EXCEPTIONS_ANALYSIS.md](./EXCEPTIONS_ANALYSIS.md)
