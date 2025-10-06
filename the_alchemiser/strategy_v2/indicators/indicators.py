@@ -45,7 +45,9 @@ class TechnicalIndicators:
     @staticmethod
     def rsi(
         data: pd.Series, window: int = 14
-    ) -> pd.Series:  # Enhanced: Ready for IndicatorData structured output in future phases
+    ) -> (
+        pd.Series
+    ):  # Enhanced: Ready for IndicatorData structured output in future phases
         """Calculate RSI using Wilder's smoothing method.
 
         Computes the Relative Strength Index (RSI) using Wilder's smoothing
@@ -105,7 +107,8 @@ class TechnicalIndicators:
 
         Returns:
             pd.Series: Moving average values. The first (window-1) values
-                will be NaN due to insufficient data.
+                will be NaN due to insufficient data. Returns all NaN if
+                insufficient data is available.
 
         Example:
             >>> prices = pd.Series([100, 102, 101, 103, 105])
@@ -119,6 +122,11 @@ class TechnicalIndicators:
             that partial averages are not calculated.
 
         """
+        # Validate sufficient data: need at least 'window' bars
+        if len(data) < window:
+            # Return series of NaN with same index if insufficient data
+            return pd.Series([pd.NA] * len(data), index=data.index, dtype=float)
+
         return data.rolling(window=window, min_periods=window).mean()
 
     @staticmethod
@@ -228,6 +236,11 @@ class TechnicalIndicators:
         For each point, computes max peak-to-trough decline within the last
         `window` observations: max( (peak - trough) / peak ) * 100.
         """
+        # Validate sufficient data: need at least 'window' bars
+        if len(data) < window:
+            # Return series of NaN with same index if insufficient data
+            return pd.Series([pd.NA] * len(data), index=data.index, dtype=float)
+
         try:
             # Rolling window apply; use price series
             def mdd_window(x: pd.Series) -> float:
@@ -236,6 +249,8 @@ class TechnicalIndicators:
                 drawdowns = (x / roll_max) - 1.0
                 return float(-drawdowns.min() * 100.0)
 
-            return data.rolling(window=window, min_periods=window).apply(mdd_window, raw=False)
+            return data.rolling(window=window, min_periods=window).apply(
+                mdd_window, raw=False
+            )
         except Exception:
             return pd.Series([0] * len(data), index=data.index)

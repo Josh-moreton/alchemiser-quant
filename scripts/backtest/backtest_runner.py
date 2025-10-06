@@ -386,6 +386,11 @@ class BacktestRunner:
     ) -> list[tuple[str, str, Decimal]]:
         """Generate rebalance plan (mocked portfolio_v2).
 
+        Strategy: Fully deploy portfolio each day by:
+        1. Calculate all SELL orders first (positions to exit + reduces)
+        2. Calculate available cash after sells
+        3. Allocate all available cash to BUY orders proportionally
+
         Args:
             portfolio: Current portfolio state
             signals: Target allocation signals
@@ -396,35 +401,70 @@ class BacktestRunner:
 
         """
         orders: list[tuple[str, str, Decimal]] = []
+        sell_orders: list[tuple[str, str, Decimal]] = []
+        buy_targets: dict[str, Decimal] = {}  # symbol -> target weight
 
-        # Calculate target positions
-        total_value = portfolio.total_value
-        target_positions: dict[str, Decimal] = {}
+        # Step 1: Identify all sells and calculate proceeds
+        cash_from_sells = Decimal("0")
 
-        for symbol, weight in signals.items():
-            if symbol in bars:
-                target_value = total_value * weight
-                target_qty = target_value / bars[symbol].open
-                target_positions[symbol] = target_qty
-
-        # Generate orders to reach target positions
-        for symbol, target_qty in target_positions.items():
-            current_qty = Decimal("0")
-            if symbol in portfolio.positions:
-                current_qty = portfolio.positions[symbol].quantity
-
-            delta = target_qty - current_qty
-
-            if abs(delta) > MIN_POSITION_SIZE:
-                side = "BUY" if delta > 0 else "SELL"
-                orders.append((symbol, side, abs(delta)))
-
-        # Generate SELL orders for positions not in signals
+        # Sell positions not in signals or without bars
         for symbol, position in portfolio.positions.items():
             if symbol not in signals or symbol not in bars:
-                orders.append((symbol, "SELL", position.quantity))
+                sell_orders.append((symbol, "SELL", position.quantity))
+                if symbol in bars:
+                    cash_from_sells += position.quantity * bars[symbol].open
+                continue
 
-        return orders
+            # Check if we need to reduce existing position
+            target_weight = signals[symbol]
+            target_value = portfolio.total_value * target_weight
+            target_qty = target_value / bars[symbol].open
+            current_qty = position.quantity
+
+            if target_qty < current_qty and (current_qty - target_qty) > MIN_POSITION_SIZE:
+                # Reduce position
+                reduce_qty = current_qty - target_qty
+                sell_orders.append((symbol, "SELL", reduce_qty))
+                cash_from_sells += reduce_qty * bars[symbol].open
+            elif target_qty > current_qty:
+                # Mark for increase (will handle in buy phase)
+                buy_targets[symbol] = target_weight
+
+        # Identify new positions to buy
+        for symbol, weight in signals.items():
+            if symbol in bars and symbol not in portfolio.positions:
+                buy_targets[symbol] = weight
+
+        # Step 2: Calculate total available cash
+        available_cash = portfolio.cash + cash_from_sells
+
+        # Step 3: Allocate available cash to buy targets proportionally
+        # Reserve tiny buffer for rounding errors (0.01% of available cash)
+        cash_buffer = available_cash * Decimal("0.0001")
+        deployable_cash = available_cash - cash_buffer
+
+        if buy_targets and deployable_cash > MIN_POSITION_SIZE:
+            # Normalize weights for positions we're buying
+            total_buy_weight = sum(buy_targets.values())
+
+            if total_buy_weight > 0:
+                for symbol, weight in buy_targets.items():
+                    if symbol in bars:
+                        # Allocate proportional share of deployable cash (not full available)
+                        allocated_cash = deployable_cash * (weight / total_buy_weight)
+                        target_qty = allocated_cash / bars[symbol].open
+
+                        current_qty = Decimal("0")
+                        if symbol in portfolio.positions:
+                            current_qty = portfolio.positions[symbol].quantity
+
+                        buy_qty = target_qty - current_qty
+
+                        if buy_qty > MIN_POSITION_SIZE:
+                            orders.append((symbol, "BUY", buy_qty))
+
+        # Return sells first, then buys (execution order matters for cash availability)
+        return sell_orders + orders
 
     def _execute_trades(
         self,

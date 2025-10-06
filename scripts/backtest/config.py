@@ -46,6 +46,7 @@ DEFAULT_BACKTEST_SYMBOLS = [
     "FAS",
     "FCG",
     "FFAI",
+    "FNGU",
     "FTLS",
     "FTNT",
     "FXI",

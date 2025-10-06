@@ -62,7 +62,9 @@ class IndicatorService:
             rsi_10=rsi_value if window == 10 else None,
             rsi_20=rsi_value if window == 20 else None,
             rsi_21=rsi_value if window == 21 else None,
-            current_price=(Decimal(str(prices.iloc[-1])) if len(prices) > 0 else Decimal("100.0")),
+            current_price=(
+                Decimal(str(prices.iloc[-1])) if len(prices) > 0 else Decimal("100.0")
+            ),
             data_source="real_market_data",
             metadata={"value": rsi_value, "window": window},
         )
@@ -91,11 +93,20 @@ class IndicatorService:
     ) -> TechnicalIndicator:
         """Compute moving average indicator."""
         window = int(parameters.get("window", 200))
+
+        # Validate sufficient data before computation
+        if len(prices) < window:
+            raise DslEvaluationError(
+                f"Insufficient data for {symbol}: need {window} bars, have {len(prices)} bars"
+            )
+
         ma_series = self.technical_indicators.moving_average(prices, window=window)
 
         latest_ma = float(ma_series.iloc[-1]) if len(ma_series) > 0 else None
         if latest_ma is None or pd.isna(latest_ma):
-            raise DslEvaluationError(f"No moving average available for {symbol} window={window}")
+            raise DslEvaluationError(
+                f"No moving average available for {symbol} window={window} (need {window} bars, have {len(prices)})"
+            )
         return TechnicalIndicator(
             symbol=symbol,
             timestamp=datetime.now(UTC),
@@ -112,11 +123,15 @@ class IndicatorService:
     ) -> TechnicalIndicator:
         """Compute moving average return indicator."""
         window = int(parameters.get("window", 21))
-        mar_series = self.technical_indicators.moving_average_return(prices, window=window)
+        mar_series = self.technical_indicators.moving_average_return(
+            prices, window=window
+        )
 
         latest = float(mar_series.iloc[-1]) if len(mar_series) > 0 else None
         if latest is None or pd.isna(latest):
-            raise DslEvaluationError(f"No moving average return for {symbol} window={window}")
+            raise DslEvaluationError(
+                f"No moving average return for {symbol} window={window}"
+            )
         return TechnicalIndicator(
             symbol=symbol,
             timestamp=datetime.now(UTC),
@@ -135,7 +150,9 @@ class IndicatorService:
 
         latest = float(cum_series.iloc[-1]) if len(cum_series) > 0 else None
         if latest is None or pd.isna(latest):
-            raise DslEvaluationError(f"No cumulative return for {symbol} window={window}")
+            raise DslEvaluationError(
+                f"No cumulative return for {symbol} window={window}"
+            )
         return TechnicalIndicator(
             symbol=symbol,
             timestamp=datetime.now(UTC),
@@ -150,7 +167,9 @@ class IndicatorService:
     ) -> TechnicalIndicator:
         """Compute exponential moving average indicator."""
         window = int(parameters.get("window", 12))
-        ema_series = self.technical_indicators.exponential_moving_average(prices, window=window)
+        ema_series = self.technical_indicators.exponential_moving_average(
+            prices, window=window
+        )
 
         latest = float(ema_series.iloc[-1]) if len(ema_series) > 0 else None
         if latest is None or pd.isna(latest):
@@ -184,7 +203,9 @@ class IndicatorService:
             metadata={"value": latest, "window": window},
         )
 
-    def _required_bars(self, ind_type: str, params: dict[str, int | float | str]) -> int:
+    def _required_bars(
+        self, ind_type: str, params: dict[str, int | float | str]
+    ) -> int:
         """Compute required bars based on indicator type and parameters."""
         window = int(params.get("window", 0)) if params else 0
         if ind_type in {
@@ -209,9 +230,12 @@ class IndicatorService:
 
     def _period_for_bars(self, required_bars: int) -> str:
         """Convert required trading bars to calendar period string."""
-        # Use years granularity to avoid weekend/holiday gaps; add 10% safety margin
-        bars_with_buffer = math.ceil(required_bars * 1.1)
-        years = max(1, math.ceil(bars_with_buffer / 252))
+        # Use years granularity to avoid weekend/holiday gaps; add 50% safety margin
+        # for backtesting to ensure we have sufficient historical data before the backtest period
+        bars_with_buffer = math.ceil(required_bars * 1.5)
+        years = max(
+            2, math.ceil(bars_with_buffer / 252)
+        )  # Minimum 2 years for reliable indicators
         return f"{years}Y"
 
     def _compute_max_drawdown(
@@ -266,7 +290,9 @@ class IndicatorService:
             )
 
             if not bars:
-                raise DslEvaluationError(f"No market data available for symbol {symbol}")
+                raise DslEvaluationError(
+                    f"No market data available for symbol {symbol}"
+                )
 
             # Convert bars to pandas Series for technical indicators
             prices = pd.Series([float(bar.close) for bar in bars])

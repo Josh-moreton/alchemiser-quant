@@ -28,7 +28,7 @@ help:
 	@echo ""
 	@echo "Backtesting Commands:"
 	@echo "  backtest-download        Download historical data for backtesting"
-	@echo "  backtest                 Run backtest (default 90 days)"
+	@echo "  backtest                 Run backtest (default 14 days / 2 weeks)"
 	@echo "  backtest-range           Run backtest with custom date range"
 	@echo ""
 	@echo "Testing Commands:"
@@ -157,7 +157,7 @@ backtest-download:
 	poetry run python scripts/backtest_download.py
 
 backtest:
-	@echo "📊 Running backtest (default 90 days)..."
+	@echo "📊 Running backtest (default 14 days / 2 weeks)..."
 	poetry run python scripts/backtest_run.py
 
 backtest-range:

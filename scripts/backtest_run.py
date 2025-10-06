@@ -37,7 +37,7 @@ def main() -> None:
         "--days",
         type=int,
         help="Number of days to backtest",
-        default=90,
+        default=14,
     )
     parser.add_argument(
         "--start-date",
