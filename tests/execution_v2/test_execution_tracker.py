@@ -5,12 +5,10 @@ Test execution tracker functionality.
 Tests logging and health check capabilities without external dependencies.
 """
 
+import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
-import uuid
-
-import pytest
+from unittest.mock import patch
 
 from the_alchemiser.execution_v2.core.execution_tracker import ExecutionTracker
 from the_alchemiser.execution_v2.models.execution_result import (
