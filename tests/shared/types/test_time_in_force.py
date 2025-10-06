@@ -4,14 +4,10 @@ Comprehensive unit tests for TimeInForce value object.
 
 This test suite validates the TimeInForce dataclass and demonstrates
 the validation redundancy issue identified in the file review.
-"""
 
-"""Business Unit: shared | Status: current.
-
-Comprehensive unit tests for TimeInForce value object.
-
-This test suite validates the TimeInForce dataclass and demonstrates
-the validation redundancy issue identified in the file review.
+NOTE: TimeInForce is DEPRECATED as of version 2.10.7 and will be removed
+in version 3.0.0. These tests validate the deprecation warning and backwards
+compatibility during the deprecation period.
 
 NOTE: Tests import directly from module file to avoid pandas dependency
 in the package __init__.py that would break test collection.
@@ -20,6 +16,7 @@ in the package __init__.py that would break test collection.
 import sys
 import importlib.util
 from pathlib import Path
+import warnings
 
 import pytest
 
@@ -42,33 +39,64 @@ class TestTimeInForceConstruction:
     @pytest.mark.unit
     def test_create_valid_day(self):
         """Test creating TimeInForce with 'day' value."""
-        tif = TimeInForce(value="day")
-        assert tif.value == "day"
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            tif = TimeInForce(value="day")
+            assert tif.value == "day"
+            # Check deprecation warning was raised
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "deprecated" in str(w[0].message).lower()
 
     @pytest.mark.unit
     def test_create_valid_gtc(self):
         """Test creating TimeInForce with 'gtc' value."""
-        tif = TimeInForce(value="gtc")
-        assert tif.value == "gtc"
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            tif = TimeInForce(value="gtc")
+            assert tif.value == "gtc"
+            assert len(w) == 1
 
     @pytest.mark.unit
     def test_create_valid_ioc(self):
         """Test creating TimeInForce with 'ioc' value."""
-        tif = TimeInForce(value="ioc")
-        assert tif.value == "ioc"
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            tif = TimeInForce(value="ioc")
+            assert tif.value == "ioc"
+            assert len(w) == 1
 
     @pytest.mark.unit
     def test_create_valid_fok(self):
         """Test creating TimeInForce with 'fok' value."""
-        tif = TimeInForce(value="fok")
-        assert tif.value == "fok"
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            tif = TimeInForce(value="fok")
+            assert tif.value == "fok"
+            assert len(w) == 1
+
+    @pytest.mark.unit
+    def test_deprecation_warning_content(self):
+        """Test that deprecation warning contains required information."""
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            TimeInForce(value="day")
+            
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            message = str(w[0].message)
+            assert "2.10.7" in message
+            assert "3.0.0" in message
+            assert "BrokerTimeInForce" in message
 
     @pytest.mark.unit
     def test_frozen_immutable(self):
         """Test that TimeInForce is immutable (frozen)."""
-        tif = TimeInForce(value="day")
-        with pytest.raises(AttributeError):
-            tif.value = "gtc"  # type: ignore
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # Suppress deprecation warning
+            tif = TimeInForce(value="day")
+            with pytest.raises(AttributeError):
+                tif.value = "gtc"  # type: ignore
 
     @pytest.mark.unit
     def test_invalid_value_rejected_by_type_checker(self):
@@ -95,32 +123,38 @@ class TestTimeInForceEquality:
     @pytest.mark.unit
     def test_equality_same_value(self):
         """Test that two TimeInForce objects with same value are equal."""
-        tif1 = TimeInForce(value="day")
-        tif2 = TimeInForce(value="day")
-        assert tif1 == tif2
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # Suppress deprecation warning
+            tif1 = TimeInForce(value="day")
+            tif2 = TimeInForce(value="day")
+            assert tif1 == tif2
 
     @pytest.mark.unit
     def test_inequality_different_values(self):
         """Test that TimeInForce objects with different values are not equal."""
-        tif1 = TimeInForce(value="day")
-        tif2 = TimeInForce(value="gtc")
-        assert tif1 != tif2
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # Suppress deprecation warning
+            tif1 = TimeInForce(value="day")
+            tif2 = TimeInForce(value="gtc")
+            assert tif1 != tif2
 
     @pytest.mark.unit
     def test_hashable(self):
         """Test that TimeInForce can be used in sets and as dict keys."""
-        tif1 = TimeInForce(value="day")
-        tif2 = TimeInForce(value="gtc")
-        tif3 = TimeInForce(value="day")
-        
-        # Can create set
-        tif_set = {tif1, tif2, tif3}
-        assert len(tif_set) == 2  # tif1 and tif3 are equal
-        
-        # Can use as dict key
-        tif_dict = {tif1: "Day order", tif2: "GTC order"}
-        assert tif_dict[tif1] == "Day order"
-        assert tif_dict[tif3] == "Day order"  # Same key as tif1
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # Suppress deprecation warning
+            tif1 = TimeInForce(value="day")
+            tif2 = TimeInForce(value="gtc")
+            tif3 = TimeInForce(value="day")
+            
+            # Can create set
+            tif_set = {tif1, tif2, tif3}
+            assert len(tif_set) == 2  # tif1 and tif3 are equal
+            
+            # Can use as dict key
+            tif_dict = {tif1: "Day order", tif2: "GTC order"}
+            assert tif_dict[tif1] == "Day order"
+            assert tif_dict[tif3] == "Day order"  # Same key as tif1
 
 
 class TestTimeInForceRepresentation:
@@ -129,18 +163,22 @@ class TestTimeInForceRepresentation:
     @pytest.mark.unit
     def test_repr(self):
         """Test that repr shows class and value."""
-        tif = TimeInForce(value="day")
-        repr_str = repr(tif)
-        assert "TimeInForce" in repr_str
-        assert "day" in repr_str
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # Suppress deprecation warning
+            tif = TimeInForce(value="day")
+            repr_str = repr(tif)
+            assert "TimeInForce" in repr_str
+            assert "day" in repr_str
 
     @pytest.mark.unit
     def test_str_representation(self):
         """Test string representation."""
-        tif = TimeInForce(value="gtc")
-        # Dataclass default str includes all fields
-        str_repr = str(tif)
-        assert "gtc" in str_repr
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # Suppress deprecation warning
+            tif = TimeInForce(value="gtc")
+            # Dataclass default str includes all fields
+            str_repr = str(tif)
+            assert "gtc" in str_repr
 
 
 class TestTimeInForceComparisonWithBrokerEnum:
@@ -205,9 +243,11 @@ class TestTimeInForceComparisonWithBrokerEnum:
             pytest.skip("alpaca-py not installed")
         
         # TimeInForce lacks these methods
-        tif = TimeInForce(value="day")
-        assert not hasattr(tif, "from_string")
-        assert not hasattr(tif, "to_alpaca")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # Suppress deprecation warning
+            tif = TimeInForce(value="day")
+            assert not hasattr(tif, "from_string")
+            assert not hasattr(tif, "to_alpaca")
 
 
 class TestTimeInForceUsage:
@@ -216,8 +256,10 @@ class TestTimeInForceUsage:
     @pytest.mark.unit
     def test_can_be_created(self):
         """Test that TimeInForce can be created and used."""
-        tif = TimeInForce(value="day")
-        assert tif.value == "day"
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # Suppress deprecation warning
+            tif = TimeInForce(value="day")
+            assert tif.value == "day"
 
     @pytest.mark.unit
     def test_type_hints_work(self):
@@ -226,9 +268,11 @@ class TestTimeInForceUsage:
             """Example function using TimeInForce type hint."""
             return f"Order with TIF: {tif.value}"
         
-        tif = TimeInForce(value="gtc")
-        result = process_order(tif)
-        assert result == "Order with TIF: gtc"
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # Suppress deprecation warning
+            tif = TimeInForce(value="gtc")
+            result = process_order(tif)
+            assert result == "Order with TIF: gtc"
 
 
 # Property-based tests would require hypothesis, but not critical for this simple type
