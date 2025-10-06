@@ -20,7 +20,9 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
+from the_alchemiser.shared.errors import EnhancedDataError
 from the_alchemiser.strategy_v2.indicators.indicator_utils import (
+    FALLBACK_INDICATOR_VALUE,
     _extract_series,
     _last_valid_value,
     _log_insufficient_data,
@@ -58,7 +60,7 @@ class TestSafeGetIndicator:
         result = safe_get_indicator(data, mock_indicator)
         
         # Should return fallback value
-        assert result == 50.0
+        assert result == FALLBACK_INDICATOR_VALUE
 
     def test_handles_all_nan_values(self):
         """Test with Series containing only NaN values."""
@@ -70,7 +72,7 @@ class TestSafeGetIndicator:
         result = safe_get_indicator(data, mock_indicator)
         
         # Should return fallback value when no valid values exist
-        assert result == 50.0
+        assert result == FALLBACK_INDICATOR_VALUE
 
     def test_handles_indicator_exception(self):
         """Test when indicator function raises exception."""
@@ -82,7 +84,7 @@ class TestSafeGetIndicator:
         result = safe_get_indicator(data, failing_indicator)
         
         # Should return fallback value on exception
-        assert result == 50.0
+        assert result == FALLBACK_INDICATOR_VALUE
 
     def test_returns_fallback_on_error(self):
         """Test fallback value is returned on various error conditions."""
@@ -93,7 +95,7 @@ class TestSafeGetIndicator:
             return pd.Series(dtype=float)
         
         result = safe_get_indicator(data, empty_indicator)
-        assert result == 50.0
+        assert result == FALLBACK_INDICATOR_VALUE
 
     def test_extracts_from_dataframe(self):
         """Test extraction of Close column from DataFrame."""
@@ -162,7 +164,7 @@ class TestSafeGetIndicator:
         result = safe_get_indicator(data, bad_indicator)
         
         # Should return fallback value
-        assert result == 50.0
+        assert result == FALLBACK_INDICATOR_VALUE
 
     def test_extracts_last_valid_value_with_trailing_nans(self):
         """Test that last valid value is extracted even with trailing NaNs."""
@@ -179,6 +181,27 @@ class TestSafeGetIndicator:
         # Should find the last valid value before the NaN
         assert isinstance(result, float)
         assert not pd.isna(result)
+
+    def test_rejects_non_callable_indicator_func(self):
+        """Test that non-callable indicator_func returns fallback."""
+        data = pd.Series([100.0, 102.0, 101.0])
+        
+        # Pass a non-callable object
+        result = safe_get_indicator(data, "not_a_function")  # type: ignore
+        
+        # Should return fallback value
+        assert result == FALLBACK_INDICATOR_VALUE
+
+    def test_reraises_enhanced_data_error(self):
+        """Test that EnhancedDataError is re-raised with warning."""
+        data = pd.Series([100.0, 102.0, 101.0])
+        
+        def indicator_with_validation_error(series: pd.Series) -> pd.Series:
+            raise EnhancedDataError("Validation failed")
+        
+        # Should re-raise the exception
+        with pytest.raises(EnhancedDataError, match="Validation failed"):
+            safe_get_indicator(data, indicator_with_validation_error)
 
 
 @pytest.mark.unit
@@ -354,15 +377,16 @@ class TestSafeRepr:
         assert result['Close'].iloc[0] == 103.0
 
     def test_returns_input_on_exception(self):
-        """Test that input is returned unchanged on exception."""
+        """Test that safe string is returned on exception."""
         # Create mock object that raises exception on tail()
         mock_obj = Mock()
         mock_obj.tail.side_effect = RuntimeError("Cannot get tail")
         
         result = _safe_repr(mock_obj)
         
-        # Should return the original object
-        assert result is mock_obj
+        # Should return a safe string representation
+        assert isinstance(result, str)
+        assert "Unable to represent data" in result
 
     def test_returns_input_for_object_without_tail(self):
         """Test returns input for objects without tail attribute."""
