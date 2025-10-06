@@ -17,6 +17,7 @@ from .broker_enums import (
 from .market_data_port import MarketDataPort
 from .quantity import Quantity
 from .strategy_protocol import StrategyEngine
+from .strategy_types import StrategyType
 from .strategy_value_objects import StrategySignal
 
 # Import but don't export - deprecated as of 2.10.7, will be removed in 3.0.0
@@ -31,6 +32,7 @@ __all__ = [
     "Quantity",
     "StrategyEngine",
     "StrategySignal",
+    "StrategyType",
     "TimeInForceType",
     # "TimeInForce",  # DEPRECATED: Removed from exports in 2.10.7, use BrokerTimeInForce
 ]
