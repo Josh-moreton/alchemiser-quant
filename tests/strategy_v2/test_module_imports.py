@@ -8,7 +8,7 @@ event handler registration functions as expected.
 
 from __future__ import annotations
 
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -94,6 +94,8 @@ class TestStrategyV2ModuleImports:
 
         assert "has no attribute" in str(exc_info.value)
         assert "NonExistentAttribute" in str(exc_info.value)
+        # Verify improved error message includes available attributes
+        assert "Available attributes:" in str(exc_info.value)
 
     def test_all_exports_defined(self) -> None:
         """Test that __all__ is defined and contains expected exports."""
@@ -245,3 +247,56 @@ class TestRegisterStrategyHandlers:
         # Verify same handler instance used for both subscriptions
         assert len(handlers) == 2
         assert handlers[0] is handlers[1]
+
+    def test_register_strategy_handlers_validates_container(self) -> None:
+        """Test that register_strategy_handlers validates container has services attribute."""
+        from the_alchemiser.shared.errors import ConfigurationError
+
+        # Create invalid container without services attribute
+        invalid_container = Mock(spec=[])  # Empty spec means no attributes
+
+        with pytest.raises(ConfigurationError) as exc_info:
+            register_strategy_handlers(invalid_container)
+
+        assert "Container missing required 'services' attribute" in str(exc_info.value)
+
+    def test_register_strategy_handlers_handles_event_bus_error(
+        self, mock_container: Mock
+    ) -> None:
+        """Test that register_strategy_handlers handles errors from event_bus()."""
+        # Make event_bus() raise an exception
+        mock_container.services.event_bus.side_effect = RuntimeError("Event bus error")
+
+        with pytest.raises(RuntimeError) as exc_info:
+            register_strategy_handlers(mock_container)
+
+        assert "Event bus error" in str(exc_info.value)
+
+    def test_register_strategy_handlers_handles_handler_init_error(
+        self, mock_container: Mock
+    ) -> None:
+        """Test that register_strategy_handlers handles errors from handler initialization."""
+        from unittest.mock import patch
+
+        # Mock SignalGenerationHandler to raise an error
+        with patch(
+            "the_alchemiser.strategy_v2.handlers.SignalGenerationHandler",
+            side_effect=ValueError("Handler init error"),
+        ):
+            with pytest.raises(ValueError) as exc_info:
+                register_strategy_handlers(mock_container)
+
+            assert "Handler init error" in str(exc_info.value)
+
+    def test_register_strategy_handlers_handles_subscribe_error(
+        self, mock_container: Mock
+    ) -> None:
+        """Test that register_strategy_handlers handles errors from subscribe()."""
+        mock_event_bus = mock_container.services.event_bus.return_value
+        # Make subscribe() raise an exception
+        mock_event_bus.subscribe.side_effect = RuntimeError("Subscribe error")
+
+        with pytest.raises(RuntimeError) as exc_info:
+            register_strategy_handlers(mock_container)
+
+        assert "Subscribe error" in str(exc_info.value)
