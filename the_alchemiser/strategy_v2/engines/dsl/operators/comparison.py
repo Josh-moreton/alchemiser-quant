@@ -25,7 +25,7 @@ from ..types import DslEvaluationError, DSLValue
 logger = get_logger(__name__)
 
 # Binary operators require exactly 2 arguments
-BINARY_OPERATOR_ARG_COUNT = 2
+BINARY_ARG_COUNT = 2
 
 
 def _validate_binary_args(args: list[ASTNode], operator: str) -> None:
@@ -39,7 +39,7 @@ def _validate_binary_args(args: list[ASTNode], operator: str) -> None:
         DslEvaluationError: If the number of arguments is not exactly 2
 
     """
-    if len(args) != BINARY_OPERATOR_ARG_COUNT:
+    if len(args) != BINARY_ARG_COUNT:
         raise DslEvaluationError(f"{operator} requires exactly 2 arguments")
 
 
@@ -216,6 +216,15 @@ def equal(args: list[ASTNode], context: DslContext) -> bool:
     right_v = context.evaluate_node(args[1], context.correlation_id, context.trace)
 
     def to_decimal_if_number(val: DSLValue) -> Decimal | None:
+        """Convert numeric values to Decimal for exact comparison.
+
+        Args:
+            val: DSL value to potentially convert
+
+        Returns:
+            Decimal if val is numeric (Decimal, int, float), None otherwise
+
+        """
         if isinstance(val, Decimal):
             return val
         if isinstance(val, (int, float)):
