@@ -17,7 +17,6 @@ from the_alchemiser.main import main
 def run() -> None:
     """Run The Alchemiser Trading System programmatically."""
     # Parse command line arguments
-    # Use ternary to satisfy linter suggestion (SIM108)
     result = main(sys.argv[1:]) if len(sys.argv) > 1 else main(["trade"])
 
     # Handle both TradeRunResult and boolean return types
@@ -50,6 +49,7 @@ if __name__ == "__main__":
         print("  python -m the_alchemiser pnl --weekly      # Weekly P&L report")
         print("  python -m the_alchemiser pnl --monthly --detailed  # Detailed monthly P&L")
         print("  python -m the_alchemiser pnl --period 3M   # 3-month P&L")
+        sys.stdout.flush()  # Ensure help text is displayed even if output is buffered
         sys.exit(0)
 
     run()
