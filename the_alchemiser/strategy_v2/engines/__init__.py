@@ -12,7 +12,7 @@ from __future__ import annotations
 # - dsl: DSL-based strategy engine (Clojure-style strategy files)
 # Future engines (not yet implemented):
 # - nuclear: Nuclear energy trading strategy
-# - klm: KLM strategy variants  
+# - klm: KLM strategy variants
 # - tecl: TECL strategy
 
 # Empty __all__ is intentional - engines accessed via submodule imports

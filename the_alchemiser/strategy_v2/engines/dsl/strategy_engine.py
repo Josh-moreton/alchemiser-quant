@@ -23,6 +23,12 @@ from the_alchemiser.shared.types.strategy_value_objects import (
     StrategySignal,
 )
 from the_alchemiser.strategy_v2.engines.dsl.engine import DslEngine
+from the_alchemiser.strategy_v2.errors import ConfigurationError, StrategyExecutionError
+
+# Module-level constants for maintainability
+DEFAULT_STRATEGY_FILE = "KLM.clj"
+DEFAULT_MAX_WORKERS = 4
+DEFAULT_DSL_TIMEOUT_SECONDS = 300  # 5 minutes
 
 
 class DslStrategyEngine:
@@ -44,14 +50,29 @@ class DslStrategyEngine:
         self.logger = get_logger(__name__)
 
         # Default strategy file if not provided (single-file fallback)
-        self.strategy_file = strategy_file or "KLM.clj"
+        self.strategy_file = strategy_file or DEFAULT_STRATEGY_FILE
 
-        # Load settings to support multi-file execution
+        # Load settings with proper error handling
         try:
             self.settings = Settings()
-        except Exception:
-            # Minimal fallback settings if config load fails
-            self.settings = Settings(strategy=Settings().strategy)
+        except (ConfigurationError, ValueError, TypeError) as e:
+            self.logger.warning(
+                f"Settings load failed, using defaults: {e}",
+                extra={"error_type": type(e).__name__},
+            )
+            # Provide safe fallback with minimal default settings
+            from the_alchemiser.shared.config.config import StrategySettings
+
+            class MinimalSettings:
+                """Minimal fallback settings for DSL engine."""
+
+                def __init__(self) -> None:
+                    self.strategy = StrategySettings(
+                        dsl_files=[DEFAULT_STRATEGY_FILE],
+                        dsl_allocations={DEFAULT_STRATEGY_FILE: 1.0},
+                    )
+
+            self.settings = MinimalSettings()  # type: ignore[assignment]
 
         # Initialize DSL engine with strategies directory as config path and real market data
         # Resolve strategies directory relative to this module to avoid depending on repo root
@@ -120,8 +141,14 @@ class DslStrategyEngine:
 
             return signals
 
-        except Exception as e:
-            self.logger.error(f"DSL strategy error: {e}")
+        except (StrategyExecutionError, ValueError, RuntimeError) as e:
+            self.logger.error(
+                f"DSL strategy error: {e}",
+                extra={
+                    "correlation_id": correlation_id if "correlation_id" in locals() else None,
+                    "error_type": type(e).__name__,
+                },
+            )
             return self._create_fallback_signals(timestamp)
 
     def _get_max_workers(
@@ -143,7 +170,11 @@ class DslStrategyEngine:
         if env_max_workers and env_max_workers.isdigit():
             max_workers = int(env_max_workers)
 
-        return max_workers if max_workers is not None else min(num_files, os.cpu_count() or 4)
+        return (
+            max_workers
+            if max_workers is not None
+            else min(num_files, os.cpu_count() or DEFAULT_MAX_WORKERS)
+        )
 
     def _accumulate_results(
         self,
@@ -257,12 +288,36 @@ class DslStrategyEngine:
         Returns:
             A tuple of (dsl_files, normalized_file_weights)
 
+        Raises:
+            ConfigurationError: If DSL files don't exist or weights are invalid
+
         """
         dsl_files = self.settings.strategy.dsl_files or [self.strategy_file]
         dsl_allocs = self.settings.strategy.dsl_allocations or {self.strategy_file: 1.0}
-        total_alloc = sum(float(w) for w in dsl_allocs.values()) or 1.0
+
+        # Validate files exist
+        strategies_path = Path(__file__).parent.parent.parent / "strategies"
+        for f in dsl_files:
+            file_path = strategies_path / f
+            if not file_path.exists():
+                raise ConfigurationError(f"DSL file not found: {f}", file_path=str(file_path))
+
+        # Validate and normalize weights using Decimal for precision
+        for f, w in dsl_allocs.items():
+            if not isinstance(w, (int, float, Decimal)):
+                raise ConfigurationError(
+                    f"Invalid weight type for {f}: {type(w).__name__} (must be numeric)"
+                )
+            if w < 0:
+                raise ConfigurationError(f"Invalid weight for {f}: {w} (must be non-negative)")
+
+        total_alloc = sum(Decimal(str(w)) for w in dsl_allocs.values())
+        if total_alloc == 0:
+            total_alloc = Decimal("1.0")
+
+        # Normalize to floats for downstream compatibility (precision maintained in calculation)
         normalized_file_weights = {
-            f: (float(dsl_allocs.get(f, 0.0)) / total_alloc) for f in dsl_files
+            f: float(Decimal(str(dsl_allocs.get(f, 0.0))) / total_alloc) for f in dsl_files
         }
         return dsl_files, normalized_file_weights
 
@@ -322,8 +377,15 @@ class DslStrategyEngine:
             try:
                 result = self._evaluate_file(f, correlation_id, normalized_file_weights)
                 results.append(result)
-            except Exception as e:  # pragma: no cover - safety net
-                self.logger.error(f"DSL evaluation failed for {f}: {e}")
+            except (StrategyExecutionError, ValueError, RuntimeError) as e:
+                self.logger.error(
+                    f"DSL evaluation failed for {f}: {e}",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "filename": f,
+                        "error_type": type(e).__name__,
+                    },
+                )
                 results.append((None, "", 0.0, 0.0))
         return results
 
@@ -346,16 +408,34 @@ class DslStrategyEngine:
             List of evaluation results for each file (preserves input order)
 
         """
+        from concurrent.futures import TimeoutError as FuturesTimeoutError
+
+        # Get timeout from environment or use default
+        timeout_seconds = int(os.getenv("ALCHEMISER_DSL_TIMEOUT", str(DEFAULT_DSL_TIMEOUT_SECONDS)))
+
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Use executor.map to preserve deterministic ordering
-            return list(
-                executor.map(
-                    self._evaluate_file_wrapper,
-                    dsl_files,
-                    [correlation_id] * len(dsl_files),
-                    [normalized_file_weights] * len(dsl_files),
+            try:
+                # Use executor.map to preserve deterministic ordering
+                return list(
+                    executor.map(
+                        self._evaluate_file_wrapper,
+                        dsl_files,
+                        [correlation_id] * len(dsl_files),
+                        [normalized_file_weights] * len(dsl_files),
+                        timeout=timeout_seconds,
+                    )
                 )
-            )
+            except FuturesTimeoutError:
+                self.logger.error(
+                    f"DSL evaluation timeout after {timeout_seconds}s",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "file_count": len(dsl_files),
+                        "timeout_seconds": timeout_seconds,
+                    },
+                )
+                # Return None results for all files as fallback
+                return [(None, "", 0.0, 0.0) for _ in dsl_files]
 
     def _evaluate_file_wrapper(
         self,
@@ -377,19 +457,32 @@ class DslStrategyEngine:
         """
         try:
             return self._evaluate_file(filename, correlation_id, normalized_file_weights)
-        except Exception as e:  # pragma: no cover - safety net
+        except (StrategyExecutionError, ValueError, RuntimeError) as e:
             self.logger.error(
                 f"DSL evaluation failed for {filename}: {e}",
                 extra={
                     "correlation_id": correlation_id,
+                    "filename": filename,
+                    "error_type": type(e).__name__,
                 },
             )
             return (None, "", 0.0, 0.0)
 
     def _normalize_allocations(self, weights: dict[str, float]) -> dict[str, float]:
-        """Normalize a weights dict to sum to 1.0 (if possible)."""
-        total = sum(weights.values()) or 1.0
-        return {sym: w / total for sym, w in weights.items()}
+        """Normalize a weights dict to sum to 1.0 using Decimal for precision.
+
+        Args:
+            weights: Dictionary of symbol weights
+
+        Returns:
+            Normalized weights dictionary summing to 1.0
+
+        """
+        total_decimal = Decimal(str(sum(weights.values())))
+        if total_decimal == 0:
+            total_decimal = Decimal("1.0")
+
+        return {sym: float(Decimal(str(w)) / total_decimal) for sym, w in weights.items()}
 
     def _format_dsl_allocation(self, filename: str, target_weights: dict[str, Decimal]) -> str:
         """Format DSL allocation results for human-readable logging.

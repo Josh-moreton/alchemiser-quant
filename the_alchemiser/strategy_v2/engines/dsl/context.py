@@ -11,9 +11,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, DecimalException
 from typing import TYPE_CHECKING
 
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.trace import Trace
 
@@ -23,6 +24,8 @@ if TYPE_CHECKING:
     from the_alchemiser.strategy_v2.indicators.indicator_service import IndicatorService
 
     from .events import DslEventPublisher
+
+logger = get_logger(__name__)
 
 
 class DslContext:
@@ -65,17 +68,36 @@ class DslContext:
             val: Value to convert to Decimal
 
         Returns:
-            Decimal representation of the value
+            Decimal representation of the value. Returns Decimal("0") for
+            non-numeric values, invalid strings, None, or boolean values.
+
+        Raises:
+            No exceptions raised - invalid inputs return Decimal("0")
 
         """
         if isinstance(val, Decimal):
             return val
-        if isinstance(val, (int, float)):
+        # Check bool BEFORE int/float since bool is subclass of int
+        if isinstance(val, bool):
+            return Decimal("1") if val else Decimal("0")
+        if isinstance(val, int):
+            return Decimal(val)
+        if isinstance(val, float):
             return Decimal(str(val))
         if isinstance(val, str):
             try:
                 return Decimal(val)
-            except Exception:
+            except (DecimalException, ValueError) as e:
+                # Log warning for invalid string conversions with context
+                logger.warning(
+                    f"Invalid string to Decimal conversion: '{val}' - returning Decimal('0')",
+                    extra={
+                        "correlation_id": self.correlation_id,
+                        "value": val,
+                        "error": str(e),
+                        "component": "dsl_context",
+                    },
+                )
                 return Decimal("0")
         return Decimal("0")
 
@@ -86,13 +108,16 @@ class DslContext:
             val: DSL value to coerce
 
         Returns:
-            Coerced primitive value
+            Coerced primitive value. Booleans are converted to int (0 or 1),
+            None is converted to 0, single-element lists are unwrapped,
+            and other complex types are stringified.
 
         """
-        if isinstance(val, (float, int, Decimal, str)):
-            return val
+        # Check bool FIRST before other types since bool is subclass of int
         if isinstance(val, bool):
             return int(val)
+        if isinstance(val, (float, int, Decimal, str)):
+            return val
         if val is None:
             return 0
         if isinstance(val, list) and len(val) == 1:

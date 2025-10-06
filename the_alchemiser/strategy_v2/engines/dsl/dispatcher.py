@@ -11,10 +11,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+import structlog
+
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 
 from .context import DslContext
-from .types import DSLValue
+from .types import DslEvaluationError, DSLValue
+
+logger = structlog.get_logger(__name__)
 
 
 class DslDispatcher:
@@ -22,6 +26,11 @@ class DslDispatcher:
 
     Maintains a registry of DSL symbols mapped to their implementing functions
     and provides dispatch functionality for AST evaluation.
+
+    Thread Safety: This class is not thread-safe. It is designed to be
+    initialized once (registration phase) and then used for read-only
+    dispatch operations. If concurrent access is required, external
+    synchronization must be provided.
     """
 
     def __init__(self) -> None:
@@ -36,7 +45,11 @@ class DslDispatcher:
             func: Function that implements the operator
 
         """
+        if symbol in self.symbol_table:
+            logger.info("overwriting_dsl_operator", symbol=symbol)
+
         self.symbol_table[symbol] = func
+        logger.debug("registered_dsl_operator", symbol=symbol)
 
     def dispatch(self, symbol: str, args: list[ASTNode], context: DslContext) -> DSLValue:
         """Dispatch a DSL function call.
@@ -50,12 +63,23 @@ class DslDispatcher:
             Result of the function call
 
         Raises:
-            KeyError: If symbol is not registered
+            DslEvaluationError: If symbol is not registered
 
         """
         if symbol not in self.symbol_table:
-            raise KeyError(f"Unknown DSL function: {symbol}")
+            logger.warning(
+                "unknown_dsl_function",
+                symbol=symbol,
+                correlation_id=context.correlation_id,
+            )
+            raise DslEvaluationError(f"Unknown DSL function: {symbol}")
 
+        logger.debug(
+            "dispatching_dsl_function",
+            symbol=symbol,
+            correlation_id=context.correlation_id,
+            arg_count=len(args),
+        )
         return self.symbol_table[symbol](args, context)
 
     def is_registered(self, symbol: str) -> bool:
