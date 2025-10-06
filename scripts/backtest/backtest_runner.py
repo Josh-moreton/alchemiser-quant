@@ -421,7 +421,10 @@ class BacktestRunner:
             target_qty = target_value / bars[symbol].open
             current_qty = position.quantity
 
-            if target_qty < current_qty and (current_qty - target_qty) > MIN_POSITION_SIZE:
+            if (
+                target_qty < current_qty
+                and (current_qty - target_qty) > MIN_POSITION_SIZE
+            ):
                 # Reduce position
                 reduce_qty = current_qty - target_qty
                 sell_orders.append((symbol, "SELL", reduce_qty))
