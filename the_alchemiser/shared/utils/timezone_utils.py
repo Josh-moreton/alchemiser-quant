@@ -13,6 +13,10 @@ from datetime import UTC, datetime
 from typing import overload
 
 from ..constants import UTC_TIMEZONE_SUFFIX
+from ..errors import EnhancedDataError
+from ..logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @overload
@@ -68,7 +72,7 @@ def normalize_timestamp_to_utc(timestamp: datetime | str | int | float) -> datet
         Timezone-aware datetime in UTC
 
     Raises:
-        ValueError: If timestamp cannot be parsed
+        EnhancedDataError: If timestamp cannot be parsed or is invalid
 
     Examples:
         >>> normalize_timestamp_to_utc("2023-01-01T12:00:00")
@@ -83,11 +87,16 @@ def normalize_timestamp_to_utc(timestamp: datetime | str | int | float) -> datet
     """
     if isinstance(timestamp, datetime):
         # Handle datetime objects
+        logger.debug(
+            "normalizing_datetime_timestamp",
+            has_tzinfo=timestamp.tzinfo is not None,
+        )
         # ensure_timezone_aware returns datetime for datetime input
         return ensure_timezone_aware(timestamp)
 
     if isinstance(timestamp, str):
         # Handle ISO format strings
+        logger.debug("normalizing_string_timestamp", timestamp=timestamp)
         try:
             # Handle 'Z' suffix (Zulu time = UTC)
             if timestamp.endswith("Z"):
@@ -96,16 +105,43 @@ def normalize_timestamp_to_utc(timestamp: datetime | str | int | float) -> datet
             parsed = datetime.fromisoformat(timestamp)
             # ensure_timezone_aware returns datetime for datetime input
             return ensure_timezone_aware(parsed)
-        except ValueError:
-            # Fallback to current time if parsing fails
-            return datetime.now(UTC)
+        except ValueError as e:
+            logger.error(
+                "timestamp_parse_failed",
+                timestamp=timestamp,
+                error=str(e),
+                module="timezone_utils",
+            )
+            raise EnhancedDataError(
+                f"Failed to parse timestamp string: {timestamp}",
+                data_source="timezone_utils",
+                data_type="timestamp",
+                recoverable=False,
+            ) from e
 
     # For other types, try to convert to string first
+    logger.debug(
+        "attempting_timestamp_string_conversion",
+        timestamp_type=type(timestamp).__name__,
+    )
     try:
         return normalize_timestamp_to_utc(str(timestamp))
-    except Exception:
-        # Ultimate fallback to current time
-        return datetime.now(UTC)
+    except EnhancedDataError:
+        # Re-raise our own errors
+        raise
+    except Exception as e:
+        logger.error(
+            "timestamp_conversion_failed",
+            timestamp_type=type(timestamp).__name__,
+            error=str(e),
+            module="timezone_utils",
+        )
+        raise EnhancedDataError(
+            f"Failed to convert timestamp of type {type(timestamp).__name__}",
+            data_source="timezone_utils",
+            data_type="timestamp",
+            recoverable=False,
+        ) from e
 
 
 def to_iso_string(timestamp: datetime | None) -> str | None:
