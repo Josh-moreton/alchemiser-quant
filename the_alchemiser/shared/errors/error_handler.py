@@ -64,9 +64,13 @@ except ImportError:
             self.is_transient = False
             self.order_id: str | None = None
 
-    def classify_exception(exception: Exception) -> str:
+    from typing import Literal
+
+    def classify_exception(
+        exception: Exception,
+    ) -> Literal["order_error", "alchemiser_error", "general_error"]:
         """Fallback classify_exception."""
-        return exception.__class__.__name__
+        return exception.__class__.__name__  # type: ignore[return-value]
 
 
 # Import AlchemiserError for type checking

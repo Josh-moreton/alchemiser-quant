@@ -26,6 +26,7 @@ __all__ = [
     "BrokerOrderSide",
     "BrokerTimeInForce",
     "MarketDataPort",
+    "OrderError",
     "OrderSideType",
     "Quantity",
     "StrategyEngine",
