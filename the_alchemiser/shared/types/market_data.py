@@ -5,9 +5,8 @@ Market data domain models.
 This module provides immutable dataclass-based models for market data used
 throughout the trading system. Models include OHLCV bars, quotes, and price data.
 
-⚠️ KNOWN ISSUE: Uses float for financial data (see FILE_REVIEW_market_data.md)
-Current implementation uses float types for prices, which can cause precision
-issues in financial calculations. Migration to Decimal is planned.
+✅ Uses Decimal for all financial data to ensure precision in calculations,
+per Alchemiser guardrails for monetary values.
 
 Usage:
     from the_alchemiser.shared.types.market_data import BarModel, QuoteModel
@@ -15,7 +14,7 @@ Usage:
     # Convert from TypedDict (adapter layer)
     bar = BarModel.from_dict(market_data_point)
     
-    # Access OHLC data
+    # Access OHLC data with Decimal precision
     if bar.is_valid_ohlc:
         strategy.process(bar)
 """
@@ -42,17 +41,16 @@ class BarModel:
     Represents a single time period of market data with open, high, low, close
     prices and volume. Used by strategy engines for technical analysis.
     
-    ⚠️ KNOWN ISSUE: Uses float for prices instead of Decimal
-    This can cause precision issues in financial calculations. A migration to
-    Decimal types is planned but requires coordinated changes across the system.
+    ✅ Uses Decimal for all prices to ensure precision in financial calculations,
+    per Alchemiser guardrails for monetary values.
     
     Attributes:
         symbol: Trading symbol (e.g., "AAPL", "BTC/USD")
         timestamp: Bar timestamp in UTC (timezone-aware)
-        open: Opening price for the period
-        high: Highest price during the period
-        low: Lowest price during the period
-        close: Closing price for the period
+        open: Opening price for the period (Decimal)
+        high: Highest price during the period (Decimal)
+        low: Lowest price during the period (Decimal)
+        close: Closing price for the period (Decimal)
         volume: Trading volume (number of shares/units)
     
     Validation:
@@ -64,10 +62,10 @@ class BarModel:
 
     symbol: str
     timestamp: datetime
-    open: float
-    high: float
-    low: float
-    close: float
+    open: Decimal
+    high: Decimal
+    low: Decimal
+    close: Decimal
     volume: int
 
     @classmethod
@@ -130,12 +128,12 @@ class BarModel:
             )
             timestamp_parsed = timestamp_parsed.replace(tzinfo=UTC)
         
-        # Convert prices to float and validate
+        # Convert prices to Decimal and validate
         try:
-            open_price = float(data["open"])
-            high_price = float(data["high"])
-            low_price = float(data["low"])
-            close_price = float(data["close"])
+            open_price = Decimal(str(data["open"]))
+            high_price = Decimal(str(data["high"]))
+            low_price = Decimal(str(data["low"]))
+            close_price = Decimal(str(data["close"]))
         except (ValueError, TypeError) as e:
             logger.error(
                 f"Invalid price data for {symbol}",
@@ -184,23 +182,19 @@ class BarModel:
     def to_dict(self) -> MarketDataPoint:
         """Convert to MarketDataPoint TypedDict.
         
-        Converts float values to Decimal for TypedDict compliance with the
+        Returns Decimal values directly for TypedDict compliance with the
         adapter layer contract.
         
         Returns:
             MarketDataPoint TypedDict suitable for adapter layer
-            
-        Note:
-            Float→Decimal conversion may introduce representation artifacts.
-            For precise round-trips, consider using Decimal throughout the model.
         """
         return {
             "symbol": self.symbol,
             "timestamp": self.timestamp.isoformat(),
-            "open": Decimal(str(self.open)),
-            "high": Decimal(str(self.high)),
-            "low": Decimal(str(self.low)),
-            "close": Decimal(str(self.close)),
+            "open": self.open,
+            "high": self.high,
+            "low": self.low,
+            "close": self.close,
             "volume": self.volume,
         }
 
@@ -217,8 +211,7 @@ class BarModel:
             True if OHLC relationships are valid, False otherwise
             
         Note:
-            Uses direct float comparison without tolerance. For production use
-            with Decimal types, consider using explicit comparison contexts.
+            Uses Decimal comparison which is exact and suitable for financial data.
         """
         return (
             self.high >= max(self.open, self.close)
@@ -234,16 +227,15 @@ class QuoteModel:
     Represents Level 1 market data with bid/ask prices and sizes.
     Used for spread analysis and mid-price calculations.
     
-    ⚠️ KNOWN ISSUE: Uses float for prices instead of Decimal
-    This can cause precision issues in financial calculations. A migration to
-    Decimal types is planned but requires coordinated changes across the system.
+    ✅ Uses Decimal for all prices and sizes to ensure precision in financial
+    calculations, per Alchemiser guardrails for monetary values.
     
     Attributes:
         symbol: Trading symbol
-        bid_price: Best bid price
-        ask_price: Best ask price
-        bid_size: Size (shares/units) at bid price
-        ask_size: Size (shares/units) at ask price
+        bid_price: Best bid price (Decimal)
+        ask_price: Best ask price (Decimal)
+        bid_size: Size (shares/units) at bid price (Decimal)
+        ask_size: Size (shares/units) at ask price (Decimal)
         timestamp: Quote timestamp in UTC (timezone-aware)
     
     Properties:
@@ -252,10 +244,10 @@ class QuoteModel:
     """
 
     symbol: str
-    bid_price: float
-    ask_price: float
-    bid_size: float
-    ask_size: float
+    bid_price: Decimal
+    ask_price: Decimal
+    bid_size: Decimal
+    ask_size: Decimal
     timestamp: datetime
 
     @classmethod
@@ -305,12 +297,12 @@ class QuoteModel:
             )
             timestamp_parsed = timestamp_parsed.replace(tzinfo=UTC)
         
-        # Convert prices and sizes to float and validate
+        # Convert prices and sizes to Decimal and validate
         try:
-            bid_price = float(data["bid_price"])
-            ask_price = float(data["ask_price"])
-            bid_size = float(data["bid_size"])
-            ask_size = float(data["ask_size"])
+            bid_price = Decimal(str(data["bid_price"]))
+            ask_price = Decimal(str(data["ask_price"]))
+            bid_size = Decimal(str(data["bid_size"]))
+            ask_size = Decimal(str(data["ask_size"]))
         except (ValueError, TypeError) as e:
             logger.error(
                 f"Invalid quote data for {symbol}",
@@ -351,44 +343,36 @@ class QuoteModel:
     def to_dict(self) -> QuoteData:
         """Convert to QuoteData TypedDict.
         
-        Converts float values to Decimal for TypedDict compliance.
+        Returns Decimal values directly for TypedDict compliance.
         
         Returns:
             QuoteData TypedDict suitable for adapter layer
         """
         return {
-            "bid_price": Decimal(str(self.bid_price)),
-            "ask_price": Decimal(str(self.ask_price)),
-            "bid_size": Decimal(str(self.bid_size)),
-            "ask_size": Decimal(str(self.ask_size)),
+            "bid_price": self.bid_price,
+            "ask_price": self.ask_price,
+            "bid_size": self.bid_size,
+            "ask_size": self.ask_size,
             "timestamp": self.timestamp.isoformat(),
         }
 
     @property
-    def spread(self) -> float:
+    def spread(self) -> Decimal:
         """Calculate bid-ask spread.
         
         Returns:
-            Spread as (ask_price - bid_price)
-            
-        Note:
-            Uses float arithmetic. For precise financial calculations,
-            consider using Decimal types throughout.
+            Spread as (ask_price - bid_price) in Decimal
         """
         return self.ask_price - self.bid_price
 
     @property
-    def mid_price(self) -> float:
+    def mid_price(self) -> Decimal:
         """Calculate mid-point price between bid and ask.
         
         Returns:
-            Mid-price as (bid_price + ask_price) / 2
-            
-        Note:
-            Uses float arithmetic. For precise financial calculations,
-            consider using Decimal types throughout.
+            Mid-price as (bid_price + ask_price) / 2 in Decimal
         """
-        return (self.bid_price + self.ask_price) / 2
+        return (self.bid_price + self.ask_price) / Decimal("2")
 
 
 @dataclass(frozen=True)
@@ -398,16 +382,15 @@ class PriceDataModel:
     Represents current market price with optional bid/ask spread and volume.
     Used for current price lookups and market data snapshots.
     
-    ⚠️ KNOWN ISSUE: Uses float for prices instead of Decimal
-    This can cause precision issues in financial calculations. A migration to
-    Decimal types is planned but requires coordinated changes across the system.
+    ✅ Uses Decimal for all prices to ensure precision in financial calculations,
+    per Alchemiser guardrails for monetary values.
     
     Attributes:
         symbol: Trading symbol
-        price: Current market price
+        price: Current market price (Decimal)
         timestamp: Price timestamp in UTC (timezone-aware)
-        bid: Optional bid price
-        ask: Optional ask price
+        bid: Optional bid price (Decimal)
+        ask: Optional ask price (Decimal)
         volume: Optional current volume
     
     Properties:
@@ -415,10 +398,10 @@ class PriceDataModel:
     """
 
     symbol: str
-    price: float
+    price: Decimal
     timestamp: datetime
-    bid: float | None = None
-    ask: float | None = None
+    bid: Decimal | None = None
+    ask: Decimal | None = None
     volume: int | None = None
 
     @classmethod
@@ -468,9 +451,9 @@ class PriceDataModel:
             )
             timestamp_parsed = timestamp_parsed.replace(tzinfo=UTC)
         
-        # Convert price to float and validate
+        # Convert price to Decimal and validate
         try:
-            price = float(data["price"])
+            price = Decimal(str(data["price"]))
         except (ValueError, TypeError) as e:
             logger.error(
                 f"Invalid price for {symbol}",
@@ -485,14 +468,14 @@ class PriceDataModel:
         bid_val = data.get("bid")
         ask_val = data.get("ask")
         
-        bid_float: float | None = None
-        ask_float: float | None = None
+        bid_decimal: Decimal | None = None
+        ask_decimal: Decimal | None = None
         
         if bid_val is not None:
             try:
-                bid_float = float(bid_val)
-                if bid_float < 0:
-                    raise ValueError(f"Bid price cannot be negative: {bid_float}")
+                bid_decimal = Decimal(str(bid_val))
+                if bid_decimal < 0:
+                    raise ValueError(f"Bid price cannot be negative: {bid_decimal}")
             except (ValueError, TypeError) as e:
                 logger.error(
                     f"Invalid bid price for {symbol}",
@@ -502,9 +485,9 @@ class PriceDataModel:
         
         if ask_val is not None:
             try:
-                ask_float = float(ask_val)
-                if ask_float < 0:
-                    raise ValueError(f"Ask price cannot be negative: {ask_float}")
+                ask_decimal = Decimal(str(ask_val))
+                if ask_decimal < 0:
+                    raise ValueError(f"Ask price cannot be negative: {ask_decimal}")
             except (ValueError, TypeError) as e:
                 logger.error(
                     f"Invalid ask price for {symbol}",
@@ -513,13 +496,13 @@ class PriceDataModel:
                 raise ValueError(f"Invalid ask price: {e}") from e
         
         # Validate bid <= ask if both present
-        if bid_float is not None and ask_float is not None and bid_float > ask_float:
+        if bid_decimal is not None and ask_decimal is not None and bid_decimal > ask_decimal:
             logger.warning(
-                f"Inverted quote for {symbol}: bid={bid_float} > ask={ask_float}",
+                f"Inverted quote for {symbol}: bid={bid_decimal} > ask={ask_decimal}",
                 extra={
                     "symbol": symbol,
-                    "bid": bid_float,
-                    "ask": ask_float,
+                    "bid": bid_decimal,
+                    "ask": ask_decimal,
                 },
             )
         
@@ -527,25 +510,25 @@ class PriceDataModel:
             symbol=symbol,
             price=price,
             timestamp=timestamp_parsed,
-            bid=bid_float,
-            ask=ask_float,
+            bid=bid_decimal,
+            ask=ask_decimal,
             volume=data.get("volume"),
         )
 
     def to_dict(self) -> PriceData:
         """Convert to PriceData TypedDict.
         
-        Converts float values to Decimal for TypedDict compliance.
+        Returns Decimal values directly for TypedDict compliance.
         
         Returns:
             PriceData TypedDict suitable for adapter layer
         """
         return {
             "symbol": self.symbol,
-            "price": Decimal(str(self.price)),
+            "price": self.price,
             "timestamp": self.timestamp.isoformat(),
-            "bid": Decimal(str(self.bid)) if self.bid is not None else None,
-            "ask": Decimal(str(self.ask)) if self.ask is not None else None,
+            "bid": self.bid if self.bid is not None else None,
+            "ask": self.ask if self.ask is not None else None,
             "volume": self.volume,
         }
 
@@ -597,14 +580,14 @@ def dataframe_to_bars(df: pd.DataFrame, symbol: str) -> list[BarModel]:
     """Convert pandas DataFrame to list of BarModel.
     
     Converts a DataFrame with OHLCV columns to a list of BarModel instances.
-    Expects DataFrame index to be timestamps.
+    Expects DataFrame index to be timestamps. Converts price values to Decimal.
     
     Args:
         df: DataFrame with columns [Open, High, Low, Close, Volume (optional)]
         symbol: Trading symbol to assign to all bars
         
     Returns:
-        List of BarModel instances
+        List of BarModel instances with Decimal prices
         
     Note:
         Uses iterrows() which is not the most efficient for large DataFrames.
@@ -621,10 +604,10 @@ def dataframe_to_bars(df: pd.DataFrame, symbol: str) -> list[BarModel]:
             BarModel(
                 symbol=symbol,
                 timestamp=timestamp,  # type: ignore[arg-type]
-                open=row["Open"],
-                high=row["High"],
-                low=row["Low"],
-                close=row["Close"],
+                open=Decimal(str(row["Open"])),
+                high=Decimal(str(row["High"])),
+                low=Decimal(str(row["Low"])),
+                close=Decimal(str(row["Close"])),
                 volume=int(row.get("Volume", 0)),
             )
         )

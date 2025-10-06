@@ -36,14 +36,14 @@ class TestBarModel:
         bar = BarModel(
             symbol="AAPL",
             timestamp=datetime(2024, 1, 1, tzinfo=UTC),
-            open=150.0,
-            high=155.0,
-            low=149.0,
-            close=154.0,
+            open=Decimal("150.0"),
+            high=Decimal("155.0"),
+            low=Decimal("149.0"),
+            close=Decimal("154.0"),
             volume=1000000,
         )
         with pytest.raises(AttributeError):
-            bar.open = 160.0  # type: ignore
+            bar.open = Decimal("160.0")  # type: ignore
 
     def test_from_dict_creates_bar_model(self) -> None:
         """Test from_dict creates valid BarModel from TypedDict."""
@@ -59,7 +59,7 @@ class TestBarModel:
         bar = BarModel.from_dict(data)
         assert bar.symbol == "AAPL"
         assert bar.timestamp == datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
-        assert bar.open == 150.0
+        assert bar.open == Decimal("150.00")
         assert bar.volume == 1000000
 
     def test_from_dict_handles_z_suffix(self) -> None:
@@ -97,10 +97,10 @@ class TestBarModel:
         bar = BarModel(
             symbol="AAPL",
             timestamp=datetime(2024, 1, 1, tzinfo=UTC),
-            open=150.0,
-            high=155.0,
-            low=149.0,
-            close=154.0,
+            open=Decimal("150.0"),
+            high=Decimal("155.0"),
+            low=Decimal("149.0"),
+            close=Decimal("154.0"),
             volume=1000000,
         )
         assert bar.is_valid_ohlc is True
@@ -110,10 +110,10 @@ class TestBarModel:
         bar = BarModel(
             symbol="AAPL",
             timestamp=datetime(2024, 1, 1, tzinfo=UTC),
-            open=150.0,
-            high=145.0,  # Invalid: high < open
-            low=144.0,
-            close=148.0,
+            open=Decimal("150.0"),
+            high=Decimal("145.0"),  # Invalid: high < open
+            low=Decimal("144.0"),
+            close=Decimal("148.0"),
             volume=1000000,
         )
         assert bar.is_valid_ohlc is False
@@ -123,10 +123,10 @@ class TestBarModel:
         bar = BarModel(
             symbol="AAPL",
             timestamp=datetime(2024, 1, 1, tzinfo=UTC),
-            open=150.0,
-            high=155.0,
-            low=151.0,  # Invalid: low > open
-            close=154.0,
+            open=Decimal("150.0"),
+            high=Decimal("155.0"),
+            low=Decimal("151.0"),  # Invalid: low > open
+            close=Decimal("154.0"),
             volume=1000000,
         )
         assert bar.is_valid_ohlc is False
@@ -136,10 +136,10 @@ class TestBarModel:
         bar = BarModel(
             symbol="AAPL",
             timestamp=datetime(2024, 1, 1, tzinfo=UTC),
-            open=-150.0,
-            high=155.0,
-            low=149.0,
-            close=154.0,
+            open=Decimal("-150.0"),
+            high=Decimal("155.0"),
+            low=Decimal("149.0"),
+            close=Decimal("154.0"),
             volume=1000000,
         )
         assert bar.is_valid_ohlc is False
@@ -152,14 +152,14 @@ class TestQuoteModel:
         """Test that QuoteModel is immutable."""
         quote = QuoteModel(
             symbol="AAPL",
-            bid_price=149.0,
-            ask_price=150.0,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("149.0"),
+            ask_price=Decimal("150.0"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime(2024, 1, 1, tzinfo=UTC),
         )
         with pytest.raises(AttributeError):
-            quote.bid_price = 150.0  # type: ignore
+            quote.bid_price = Decimal("150.0")  # type: ignore
 
     def test_from_dict_creates_quote_model(self) -> None:
         """Test from_dict creates valid QuoteModel from TypedDict."""
@@ -172,32 +172,32 @@ class TestQuoteModel:
         }
         quote = QuoteModel.from_dict(data, "AAPL")
         assert quote.symbol == "AAPL"
-        assert quote.bid_price == 149.0
-        assert quote.ask_price == 150.0
+        assert quote.bid_price == Decimal("149.00")
+        assert quote.ask_price == Decimal("150.00")
 
     def test_spread_property(self) -> None:
         """Test spread calculation."""
         quote = QuoteModel(
             symbol="AAPL",
-            bid_price=149.0,
-            ask_price=150.0,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("149.0"),
+            ask_price=Decimal("150.0"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime(2024, 1, 1, tzinfo=UTC),
         )
-        assert quote.spread == 1.0
+        assert quote.spread == Decimal("1.0")
 
     def test_mid_price_property(self) -> None:
         """Test mid-price calculation."""
         quote = QuoteModel(
             symbol="AAPL",
-            bid_price=149.0,
-            ask_price=150.0,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("149.0"),
+            ask_price=Decimal("150.0"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime(2024, 1, 1, tzinfo=UTC),
         )
-        assert quote.mid_price == 149.5
+        assert quote.mid_price == Decimal("149.5")
 
 
 class TestPriceDataModel:
@@ -207,11 +207,11 @@ class TestPriceDataModel:
         """Test that PriceDataModel is immutable."""
         price_data = PriceDataModel(
             symbol="AAPL",
-            price=150.0,
+            price=Decimal("150.0"),
             timestamp=datetime(2024, 1, 1, tzinfo=UTC),
         )
         with pytest.raises(AttributeError):
-            price_data.price = 160.0  # type: ignore
+            price_data.price = Decimal("160.0")  # type: ignore
 
     def test_from_dict_creates_price_data_model(self) -> None:
         """Test from_dict creates valid PriceDataModel from TypedDict."""
@@ -225,9 +225,9 @@ class TestPriceDataModel:
         }
         price_data = PriceDataModel.from_dict(data)
         assert price_data.symbol == "AAPL"
-        assert price_data.price == 150.0
-        assert price_data.bid == 149.0
-        assert price_data.ask == 150.0
+        assert price_data.price == Decimal("150.00")
+        assert price_data.bid == Decimal("149.00")
+        assert price_data.ask == Decimal("150.00")
         assert price_data.volume == 1000000
 
     def test_from_dict_handles_none_values(self) -> None:
@@ -249,10 +249,10 @@ class TestPriceDataModel:
         """Test has_quote_data returns True when bid and ask present."""
         price_data = PriceDataModel(
             symbol="AAPL",
-            price=150.0,
+            price=Decimal("150.0"),
             timestamp=datetime(2024, 1, 1, tzinfo=UTC),
-            bid=149.0,
-            ask=150.0,
+            bid=Decimal("149.0"),
+            ask=Decimal("150.0"),
         )
         assert price_data.has_quote_data is True
 
@@ -260,7 +260,7 @@ class TestPriceDataModel:
         """Test has_quote_data returns False when bid or ask missing."""
         price_data = PriceDataModel(
             symbol="AAPL",
-            price=150.0,
+            price=Decimal("150.0"),
             timestamp=datetime(2024, 1, 1, tzinfo=UTC),
             bid=None,
             ask=None,
@@ -277,19 +277,19 @@ class TestDataFrameConversions:
             BarModel(
                 symbol="AAPL",
                 timestamp=datetime(2024, 1, 1, tzinfo=UTC),
-                open=150.0,
-                high=155.0,
-                low=149.0,
-                close=154.0,
+                open=Decimal("150.0"),
+                high=Decimal("155.0"),
+                low=Decimal("149.0"),
+                close=Decimal("154.0"),
                 volume=1000000,
             ),
             BarModel(
                 symbol="AAPL",
                 timestamp=datetime(2024, 1, 2, tzinfo=UTC),
-                open=154.0,
-                high=156.0,
-                low=153.0,
-                close=155.0,
+                open=Decimal("154.0"),
+                high=Decimal("156.0"),
+                low=Decimal("153.0"),
+                close=Decimal("155.0"),
                 volume=900000,
             ),
         ]
@@ -306,10 +306,10 @@ class TestDataFrameConversions:
     def test_dataframe_to_bars_creates_valid_bars(self) -> None:
         """Test dataframe_to_bars creates valid bars."""
         data = {
-            "Open": [150.0, 154.0],
-            "High": [155.0, 156.0],
-            "Low": [149.0, 153.0],
-            "Close": [154.0, 155.0],
+            "Open": [Decimal("150.0"), Decimal("154.0")],
+            "High": [Decimal("155.0"), Decimal("156.0")],
+            "Low": [Decimal("149.0"), Decimal("153.0")],
+            "Close": [Decimal("154.0"), Decimal("155.0")],
             "Volume": [1000000, 900000],
         }
         df = pd.DataFrame(
@@ -322,16 +322,16 @@ class TestDataFrameConversions:
         bars = dataframe_to_bars(df, "AAPL")
         assert len(bars) == 2
         assert bars[0].symbol == "AAPL"
-        assert bars[0].open == 150.0
-        assert bars[1].close == 155.0
+        assert bars[0].open == Decimal("150.0")
+        assert bars[1].close == Decimal("155.0")
 
     def test_dataframe_to_bars_handles_missing_volume(self) -> None:
         """Test dataframe_to_bars handles missing Volume column."""
         data = {
-            "Open": [150.0],
-            "High": [155.0],
-            "Low": [149.0],
-            "Close": [154.0],
+            "Open": [Decimal("150.0")],
+            "High": [Decimal("155.0")],
+            "Low": [Decimal("149.0")],
+            "Close": [Decimal("154.0")],
         }
         df = pd.DataFrame(data, index=[datetime(2024, 1, 1, tzinfo=UTC)])
         bars = dataframe_to_bars(df, "AAPL")
@@ -344,10 +344,10 @@ class TestDataFrameConversions:
             BarModel(
                 symbol="AAPL",
                 timestamp=datetime(2024, 1, 1, tzinfo=UTC),
-                open=150.0,
-                high=155.0,
-                low=149.0,
-                close=154.0,
+                open=Decimal("150.0"),
+                high=Decimal("155.0"),
+                low=Decimal("149.0"),
+                close=Decimal("154.0"),
                 volume=1000000,
             ),
         ]
@@ -360,16 +360,15 @@ class TestDataFrameConversions:
         assert converted_bars[0].volume == original_bars[0].volume
 
 
-class TestPrecisionIssues:
-    """Tests documenting precision issues with float usage.
+class TestPrecisionCorrectness:
+    """Tests demonstrating precision correctness with Decimal usage.
     
-    These tests demonstrate the problem with using float for financial data.
-    They document current behavior but would fail with proper Decimal usage.
+    These tests verify that Decimal types maintain precision in financial
+    calculations, as required by Alchemiser guardrails.
     """
 
-    def test_decimal_to_float_precision_loss(self) -> None:
-        """Document precision loss in Decimal→float→Decimal conversion."""
-        # This demonstrates the problem with current implementation
+    def test_decimal_preserves_precision(self) -> None:
+        """Verify Decimal preserves high precision values."""
         data: MarketDataPoint = {
             "symbol": "AAPL",
             "timestamp": "2024-01-01T10:00:00+00:00",
@@ -382,20 +381,36 @@ class TestPrecisionIssues:
         bar = BarModel.from_dict(data)
         result = bar.to_dict()
         
-        # Precision is lost through float conversion
-        # This test documents the bug, not desired behavior
-        assert result["open"] != Decimal("150.123456789")
+        # Precision is preserved with Decimal
+        assert result["open"] == Decimal("150.123456789")
+        assert result["high"] == Decimal("155.987654321")
+        assert result["low"] == Decimal("149.111111111")
+        assert result["close"] == Decimal("154.999999999")
 
-    def test_float_arithmetic_imprecision(self) -> None:
-        """Document imprecision in float arithmetic for financial calculations."""
+    def test_decimal_arithmetic_precision(self) -> None:
+        """Verify Decimal arithmetic maintains precision."""
         quote = QuoteModel(
             symbol="AAPL",
-            bid_price=0.1 + 0.2,  # Classic float precision issue
-            ask_price=0.3,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("0.1") + Decimal("0.2"),
+            ask_price=Decimal("0.3"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime(2024, 1, 1, tzinfo=UTC),
         )
-        # This demonstrates why Decimal is needed
-        assert quote.bid_price != 0.3  # Float precision issue
-        assert abs(quote.bid_price - 0.3) < 1e-10  # Requires tolerance
+        # With Decimal, 0.1 + 0.2 = 0.3 exactly
+        assert quote.bid_price == Decimal("0.3")
+        assert quote.spread == Decimal("0.0")
+
+    def test_mid_price_calculation_exact(self) -> None:
+        """Verify mid-price calculation is exact with Decimal."""
+        quote = QuoteModel(
+            symbol="AAPL",
+            bid_price=Decimal("100.111111"),
+            ask_price=Decimal("100.222222"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
+            timestamp=datetime(2024, 1, 1, tzinfo=UTC),
+        )
+        # Mid-price should be exact
+        expected = (Decimal("100.111111") + Decimal("100.222222")) / Decimal("2")
+        assert quote.mid_price == expected
