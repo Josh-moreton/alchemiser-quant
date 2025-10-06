@@ -8,10 +8,11 @@ for signal generation and market analysis.
 
 from __future__ import annotations
 
-from .indicator_utils import safe_get_indicator
+from .indicator_utils import FALLBACK_INDICATOR_VALUE, safe_get_indicator
 from .indicators import TechnicalIndicators
 
 __all__ = [
+    "FALLBACK_INDICATOR_VALUE",
     "TechnicalIndicators",
     "safe_get_indicator",
 ]
