@@ -54,6 +54,7 @@ class TestAlchemiserErrorBase:
         assert str(error) == "Test error message"
         assert error.message == "Test error message"
         assert error.context == {}
+        assert error.correlation_id is None
         assert isinstance(error.timestamp, datetime)
         assert error.timestamp.tzinfo == UTC
 
@@ -66,6 +67,25 @@ class TestAlchemiserErrorBase:
         assert error.context == context
         assert error.context["key"] == "value"
         assert error.context["count"] == 42
+        assert error.correlation_id is None
+
+    def test_initialization_with_correlation_id(self):
+        """Test error initialization with correlation_id."""
+        error = AlchemiserError("Test error", correlation_id="corr-123")
+
+        assert error.message == "Test error"
+        assert error.correlation_id == "corr-123"
+        assert error.context["correlation_id"] == "corr-123"
+
+    def test_initialization_with_context_and_correlation_id(self):
+        """Test error initialization with both context and correlation_id."""
+        context = {"key": "value"}
+        error = AlchemiserError("Test error", context=context, correlation_id="corr-456")
+
+        assert error.message == "Test error"
+        assert error.context["key"] == "value"
+        assert error.context["correlation_id"] == "corr-456"
+        assert error.correlation_id == "corr-456"
 
     def test_initialization_with_none_context(self):
         """Test error initialization with None context creates empty dict."""
@@ -209,19 +229,21 @@ class TestOrderExecutionError:
             symbol="AAPL",
             order_type="limit",
             order_id="ord-123",
-            quantity=100.0,
-            price=150.50,
+            quantity=Decimal("100.0"),
+            price=Decimal("150.50"),
             account_id="acc-456",
             retry_count=3,
+            correlation_id="corr-789",
         )
 
         assert error.symbol == "AAPL"
         assert error.order_type == "limit"
         assert error.order_id == "ord-123"
-        assert error.quantity == 100.0
-        assert error.price == 150.50
+        assert error.quantity == Decimal("100.0")
+        assert error.price == Decimal("150.50")
         assert error.account_id == "acc-456"
         assert error.retry_count == 3
+        assert error.correlation_id == "corr-789"
 
     def test_context_dict_population(self):
         """Test that context dict is properly populated."""
@@ -230,8 +252,8 @@ class TestOrderExecutionError:
             symbol="TSLA",
             order_type="market",
             order_id="ord-789",
-            quantity=50.0,
-            price=200.0,
+            quantity=Decimal("50.0"),
+            price=Decimal("200.0"),
             account_id="acc-111",
             retry_count=2,
         )
@@ -239,8 +261,8 @@ class TestOrderExecutionError:
         assert error.context["symbol"] == "TSLA"
         assert error.context["order_type"] == "market"
         assert error.context["order_id"] == "ord-789"
-        assert error.context["quantity"] == 50.0
-        assert error.context["price"] == 200.0
+        assert error.context["quantity"] == "50.0"
+        assert error.context["price"] == "200.0"
         assert error.context["account_id"] == "acc-111"
         assert error.context["retry_count"] == 2
 
@@ -279,13 +301,14 @@ class TestOrderPlacementError:
             "Order rejected",
             symbol="AAPL",
             order_type="limit",
-            quantity=100.0,
-            price=150.0,
+            quantity=Decimal("100.0"),
+            price=Decimal("150.0"),
             reason="insufficient_funds",
         )
 
         assert error.reason == "insufficient_funds"
         assert error.symbol == "AAPL"
+        assert error.context["reason"] == "insufficient_funds"
 
     def test_inherits_from_order_execution_error(self):
         """Test inheritance chain."""
@@ -543,11 +566,11 @@ class TestEdgeCases:
 
     def test_exception_with_zero_values(self):
         """Test exception with zero numeric values."""
-        error = OrderExecutionError("Test", quantity=0.0, price=0.0)
+        error = OrderExecutionError("Test", quantity=Decimal("0.0"), price=Decimal("0.0"))
 
         # Zero values should be in context (they're not None)
-        assert error.context["quantity"] == 0.0
-        assert error.context["price"] == 0.0
+        assert error.context["quantity"] == "0.0"
+        assert error.context["price"] == "0.0"
 
 
 class TestInheritanceChains:
@@ -600,7 +623,7 @@ class TestContextPropagation:
 
     def test_order_execution_error_context(self):
         """Test OrderExecutionError builds context dict."""
-        error = OrderExecutionError("Test", symbol="AAPL", quantity=100.0)
+        error = OrderExecutionError("Test", symbol="AAPL", quantity=Decimal("100.0"))
 
         assert "symbol" in error.context
         assert "quantity" in error.context
@@ -614,7 +637,9 @@ class TestContextPropagation:
 
     def test_strategy_execution_error_context(self):
         """Test StrategyExecutionError builds context dict."""
-        error = StrategyExecutionError("Test", strategy_name="momentum")
+        error = StrategyExecutionError("Test", strategy_name="momentum", correlation_id="corr-456")
 
         assert "strategy_name" in error.context
         assert error.context["strategy_name"] == "momentum"
+        assert "correlation_id" in error.context
+        assert error.context["correlation_id"] == "corr-456"
