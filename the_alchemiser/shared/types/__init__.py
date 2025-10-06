@@ -14,6 +14,7 @@ from .broker_enums import (
 from .market_data_port import MarketDataPort
 from .quantity import Quantity
 from .strategy_protocol import StrategyEngine
+from .strategy_types import StrategyType
 from .strategy_value_objects import StrategySignal
 from .time_in_force import TimeInForce
 from .trading_errors import OrderError, classify_exception
@@ -27,6 +28,7 @@ __all__ = [
     "Quantity",
     "StrategyEngine",
     "StrategySignal",
+    "StrategyType",
     "TimeInForce",
     "TimeInForceType",
     "classify_exception",
