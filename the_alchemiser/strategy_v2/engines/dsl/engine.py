@@ -413,13 +413,15 @@ class DslEngineError(StrategyV2Error):
         self,
         message: str,
         correlation_id: str | None = None,
-        **context: str | int | float | bool | None,
+        causation_id: str | None = None,
+        **context: str | float | int | bool | None,
     ) -> None:
         """Initialize DSL engine error with context.
 
         Args:
             message: Error message describing the failure
             correlation_id: Optional correlation ID for tracking
+            causation_id: Optional causation ID for event workflows
             **context: Additional error context (strategy_path, etc.)
 
         """
@@ -427,5 +429,6 @@ class DslEngineError(StrategyV2Error):
             message,
             module="strategy_v2.engines.dsl",
             correlation_id=correlation_id,
+            causation_id=causation_id,
             **context,
         )
