@@ -55,10 +55,10 @@ pytest = "^8.4.2"
 pytest-cov = "^6.0.0"  # Coverage reporting for SonarCloud
 pip-audit = "^2.7.3"  # Dependency vulnerability scanning
 detect-secrets = "^1.5.0"  # Secret scanning (baseline optional)
-pyright = "^1.1.405"  # Supplemental static type analysis (optional CI/nightly)
+pyright = "^1.1.406"  # Supplemental static type analysis (optional CI/nightly)
 import-linter = "^2.5"  # Module dependency enforcement
 pytest-asyncio = "^1.2.0"
-hypothesis = "^6.140.2"
+hypothesis = "^6.140.3"
 
 
 
