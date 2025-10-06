@@ -92,7 +92,7 @@ def test_load_bars_auto_downloads_missing_data(
 
     # Verify bars were returned
     assert len(bars) == 5
-    assert bars[0].symbol is None or bars[0].date == sample_bars[0].date
+    assert bars[0].date == sample_bars[0].date
 
 
 def test_load_bars_auto_download_empty_data_raises_error(
