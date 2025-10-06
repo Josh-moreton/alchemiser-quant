@@ -16,7 +16,7 @@
 
 **Business function / Module**: strategy_v2 - DSL Engine S-expression Parser
 
-**Runtime context**: 
+**Runtime context**:
 - Synchronous parsing of Clojure-style S-expressions from .clj strategy files
 - Called during strategy initialization/loading
 - No network I/O or external dependencies beyond file system
@@ -149,65 +149,65 @@ Output: ASTNode tree structure
 
 - [x] The file has a **clear purpose** and does not mix unrelated concerns (SRP)
   - ✅ Single responsibility: Parse S-expressions into ASTNode trees
-  
+
 - [x] Public functions/classes have **docstrings** with inputs/outputs, pre/post-conditions, and failure modes
   - ✅ All public methods documented
   - ⚠️ Internal methods (\_process\_character\_at\_position, \_consume\_string, \_match\_patterns) lack docstrings
-  
+
 - [x] **Type hints** are complete and precise (no `Any` in domain logic; use `Literal/NewType` where helpful)
   - ✅ All functions fully typed
   - ✅ No `Any` type used
   - ℹ️ Could use `Literal["LPAREN", "RPAREN", ...]` for token types
-  
+
 - [x] **DTOs** are **frozen/immutable** and validated (e.g., Pydantic v2 models with constrained types)
   - ✅ ASTNode is frozen Pydantic v2 model with strict validation
-  
+
 - [x] **Numerical correctness**: currency uses `Decimal`; floats use `math.isclose` or explicit tolerances; no `==`/`!=` on floats
   - ✅ Uses `Decimal` for all numeric parsing (lines 280-281)
   - ✅ No float comparisons in code
-  
+
 - [x] **Error handling**: exceptions are narrow, typed (from `shared.errors`), logged with context, and never silently caught
   - ✅ Custom `SexprParseError` exception with position tracking
   - ⚠️ OSError catch at line 305 is too broad
   - ❌ No logging - errors not logged before being raised
-  
+
 - [x] **Idempotency**: handlers tolerate replays; side-effects are guarded by idempotency keys or checks
   - ✅ Parser is pure/stateless - same input always produces same output
   - ✅ No side effects beyond file reading
-  
+
 - [x] **Determinism**: tests freeze time (`freezegun`), seed RNG; no hidden randomness in business logic
   - ✅ Fully deterministic - no randomness, no time dependencies
-  
+
 - [x] **Security**: no secrets in code/logs; input validation at boundaries; no `eval`/`exec`/dynamic imports
   - ✅ No eval, exec, or dynamic imports
   - ✅ Input validated through tokenization and parsing
   - ✅ Bandit security scan: No issues identified
-  
+
 - [x] **Observability**: structured logging with `correlation_id`/`causation_id`; one log per state change; no spam in hot loops
   - ❌ **No logging at all** - parser has zero observability
   - ❌ No correlation_id support
   - ❌ Parse errors not logged before raising
-  
+
 - [x] **Testing**: public APIs have tests; property-based tests for maths; coverage ≥ 80% (≥ 90% for strategy/portfolio)
   - ✅ 26 tests covering all public methods
   - ✅ Property-based tests for atoms and nesting depth
   - ✅ Tests for error conditions
   - ℹ️ Coverage not measured but appears comprehensive
-  
+
 - [x] **Performance**: no hidden I/O in hot paths; vectorised Pandas ops; HTTP clients pooled with rate limits
   - ✅ Regex patterns precompiled at init
   - ✅ Pure text processing, no hidden I/O
   - ⚠️ No timeout on file reading - large files could block
   - ℹ️ Recursive descent parsing could stack overflow on deeply nested expressions
-  
+
 - [x] **Complexity**: cyclomatic ≤ 10, cognitive ≤ 15, functions ≤ 50 lines, params ≤ 5
   - ✅ All functions ≤ 50 lines (longest: _parse_map at 38 lines)
   - ✅ All functions ≤ 3 parameters
   - ℹ️ Cyclomatic complexity not measured (radon not installed) but appears low
-  
+
 - [x] **Module size**: ≤ 500 lines (soft), split if > 800
   - ✅ 306 lines - well within limits
-  
+
 - [x] **Imports**: no `import *`; stdlib → third-party → local; no deep relative imports
   - ✅ Clean imports: stdlib (re, decimal, pathlib) → internal (ast_node)
   - ✅ Absolute imports used
@@ -231,14 +231,14 @@ Output: ASTNode tree structure
    - Cannot trace parse operations
    - Cannot debug production issues
    - No metrics on parse times or error rates
-   
+
 2. **No correlation ID support**: Cannot trace parsing through distributed system
-   
+
 3. **Broad exception handling**: `OSError` catch loses type information
-   
+
 4. **Limited escape sequences**: Only handles basic escapes (\n, \t, \r, \\, \")
-   
-5. **No resource limits**: 
+
+5. **No resource limits**:
    - No maximum nesting depth (stack overflow risk)
    - No maximum file size (memory exhaustion risk)
    - No parsing timeout (DoS risk on large files)
@@ -249,23 +249,23 @@ Output: ASTNode tree structure
 1. **Add structured logging**:
    ```python
    from the_alchemiser.shared.logging import get_logger
-   
+
    logger = get_logger(__name__)
-   
+
    def parse(self, text: str, correlation_id: str | None = None) -> ASTNode:
-       logger.info("parse_started", 
-                   correlation_id=correlation_id, 
+       logger.info("parse_started",
+                   correlation_id=correlation_id,
                    text_length=len(text))
        try:
            # ... existing logic
-           logger.info("parse_completed", 
-                      correlation_id=correlation_id, 
+           logger.info("parse_completed",
+                      correlation_id=correlation_id,
                       node_type=ast.node_type)
            return ast
        except SexprParseError as e:
-           logger.error("parse_failed", 
+           logger.error("parse_failed",
                        correlation_id=correlation_id,
-                       error=str(e), 
+                       error=str(e),
                        position=e.position)
            raise
    ```
@@ -287,10 +287,10 @@ Output: ASTNode tree structure
 #### Medium Priority
 3. **Add resource limits**:
    ```python
-   MAX_NESTING_DEPTH = 100
+   MAX_NESTING_DEPTH = 250
    MAX_FILE_SIZE_MB = 10
-   
-   def _parse_expression(self, tokens: list[tuple[str, str]], 
+
+   def _parse_expression(self, tokens: list[tuple[str, str]],
                         index: int, depth: int = 0) -> tuple[ASTNode, int]:
        if depth > self.MAX_NESTING_DEPTH:
            raise SexprParseError(f"Maximum nesting depth {self.MAX_NESTING_DEPTH} exceeded")
@@ -385,7 +385,7 @@ Primary non-compliance: Missing structured logging
 
 ---
 
-**Auto-generated**: 2025-10-05  
-**Reviewer**: Copilot Agent  
-**Review Status**: APPROVED WITH RECOMMENDATIONS  
+**Auto-generated**: 2025-10-05
+**Reviewer**: Copilot Agent
+**Review Status**: APPROVED WITH RECOMMENDATIONS
 **Next Review**: Before deploying logging enhancements

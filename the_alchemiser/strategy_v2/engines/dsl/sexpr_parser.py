@@ -41,7 +41,7 @@ class SexprParser:
     """
 
     # Resource limits to prevent DoS attacks
-    MAX_NESTING_DEPTH = 100
+    MAX_NESTING_DEPTH = 250
     MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 
     def __init__(self) -> None:
@@ -62,7 +62,10 @@ class SexprParser:
             (r"\}", "RBRACE"),  # Right brace
             # Strings with escaped quotes/backslashes
             (r'"(?:\\.|[^"\\])*"', "STRING"),
-            (r"-?\d+\.\d+", "FLOAT"),  # Floating point numbers (MUST come before INTEGER)
+            (
+                r"-?\d+\.\d+",
+                "FLOAT",
+            ),  # Floating point numbers (MUST come before INTEGER)
             (r"-?\d+", "INTEGER"),  # Integers
             (r":[a-zA-Z_][a-zA-Z0-9_-]*", "KEYWORD"),  # Keywords
             (r"[a-zA-Z_><=!?+*/-][a-zA-Z0-9_><=!?+*/-]*", "SYMBOL"),  # Symbols
@@ -70,7 +73,8 @@ class SexprParser:
 
         # Compile patterns
         self.compiled_patterns = [
-            (re.compile(pattern), token_type) for pattern, token_type in self.token_patterns
+            (re.compile(pattern), token_type)
+            for pattern, token_type in self.token_patterns
         ]
 
     def tokenize(self, text: str) -> list[tuple[str, str]]:
@@ -159,7 +163,7 @@ class SexprParser:
             correlation_id=correlation_id,
             text_length=len(text),
         )
-        
+
         try:
             tokens = self.tokenize(text)
             if not tokens:
@@ -169,7 +173,9 @@ class SexprParser:
 
             if remaining < len(tokens):
                 remaining_tokens = tokens[remaining:]
-                raise SexprParseError(f"Unexpected tokens after expression: {remaining_tokens}")
+                raise SexprParseError(
+                    f"Unexpected tokens after expression: {remaining_tokens}"
+                )
 
             logger.info(
                 "parse_completed",
@@ -209,7 +215,7 @@ class SexprParser:
             raise SexprParseError(
                 f"Maximum nesting depth {self.MAX_NESTING_DEPTH} exceeded at position {index}"
             )
-        
+
         if index >= len(tokens):
             raise SexprParseError("Unexpected end of input")
 
@@ -250,7 +256,9 @@ class SexprParser:
             if tok_type == end_token:
                 return ASTNode.list_node(children), current_index + 1
 
-            child, current_index = self._parse_expression(tokens, current_index, depth + 1)
+            child, current_index = self._parse_expression(
+                tokens, current_index, depth + 1
+            )
             children.append(child)
 
         raise SexprParseError(f"Missing closing {end_token}")
@@ -286,13 +294,17 @@ class SexprParser:
                 )
 
             # Parse key-value pairs
-            key, current_index = self._parse_expression(tokens, current_index, depth + 1)
+            key, current_index = self._parse_expression(
+                tokens, current_index, depth + 1
+            )
             children.append(key)
 
             if current_index >= len(tokens):
                 raise SexprParseError("Missing value in map")
 
-            value, current_index = self._parse_expression(tokens, current_index, depth + 1)
+            value, current_index = self._parse_expression(
+                tokens, current_index, depth + 1
+            )
             children.append(value)
 
         raise SexprParseError("Missing closing }")
@@ -341,39 +353,39 @@ class SexprParser:
 
         Raises:
             SexprParseError: If parsing fails or file operations fail
-            
+
         """
         logger.info(
             "parse_file_started",
             correlation_id=correlation_id,
             file_path=file_path,
         )
-        
+
         try:
             path = Path(file_path)
             file_size = path.stat().st_size
-            
+
             # Check file size limit to prevent memory exhaustion
             if file_size > self.MAX_FILE_SIZE_BYTES:
                 raise SexprParseError(
                     f"File size {file_size} bytes exceeds maximum "
                     f"{self.MAX_FILE_SIZE_BYTES} bytes ({self.MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB)"
                 )
-            
+
             with path.open(encoding="utf-8") as file:
                 content = file.read()
-            
+
             result = self.parse(content, correlation_id=correlation_id)
-            
+
             logger.info(
                 "parse_file_completed",
                 correlation_id=correlation_id,
                 file_path=file_path,
                 file_size=file_size,
             )
-            
+
             return result
-            
+
         except FileNotFoundError as e:
             logger.error(
                 "parse_file_failed",
