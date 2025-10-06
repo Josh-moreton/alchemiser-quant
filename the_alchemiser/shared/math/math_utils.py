@@ -169,9 +169,7 @@ def _get_fallback_value_for_metric(data: pd.Series, metric: str) -> float:
     return handler() if handler else 0.0
 
 
-def calculate_rolling_metric(
-    data: pd.Series, window: int, metric: str = "mean"
-) -> float:
+def calculate_rolling_metric(data: pd.Series, window: int, metric: str = "mean") -> float:
     """Calculate a rolling statistical metric with error handling.
 
     Args:

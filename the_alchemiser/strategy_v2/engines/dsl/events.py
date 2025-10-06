@@ -73,7 +73,7 @@ class DslEventPublisher:
             indicator=indicator,
             computation_time_ms=computation_time_ms,
         )
-        
+
         logger.debug(
             "Publishing IndicatorComputed event",
             extra={
@@ -85,7 +85,7 @@ class DslEventPublisher:
                 "computation_time_ms": computation_time_ms,
             },
         )
-        
+
         self.event_bus.publish(event)
 
     def publish_decision_evaluated(
@@ -123,7 +123,7 @@ class DslEventPublisher:
             branch_taken=branch_taken,
             branch_result=branch_result,
         )
-        
+
         logger.debug(
             "Publishing DecisionEvaluated event",
             extra={
@@ -135,5 +135,5 @@ class DslEventPublisher:
                 "has_branch_result": branch_result is not None,
             },
         )
-        
+
         self.event_bus.publish(event)

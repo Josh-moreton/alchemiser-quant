@@ -301,9 +301,7 @@ class StrategyMarketDataAdapter:
                         "correlation_id": self._correlation_id,
                     },
                 )
-                raise DataProviderError(
-                    f"Unexpected error fetching price for {symbol}: {e}"
-                ) from e
+                raise DataProviderError(f"Unexpected error fetching price for {symbol}: {e}") from e
 
         return result
 

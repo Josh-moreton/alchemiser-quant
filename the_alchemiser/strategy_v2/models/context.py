@@ -36,10 +36,10 @@ class StrategyContext:
 
     def __post_init__(self) -> None:
         """Validate context after initialization.
-        
+
         Raises:
             ConfigurationError: If validation fails (empty symbols/timeframe, duplicate symbols).
-        
+
         """
         if not self.symbols:
             raise ConfigurationError(
