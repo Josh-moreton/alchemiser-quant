@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import uuid
 
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest
 from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicator
@@ -27,6 +28,8 @@ from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicator
 from ..context import DslContext
 from ..dispatcher import DslDispatcher
 from ..types import DslEvaluationError
+
+logger = get_logger(__name__)
 
 
 def _parse_rsi_parameters(args: list[ASTNode], context: DslContext) -> int:
@@ -174,8 +177,15 @@ def moving_average_price(args: list[ASTNode], context: DslContext) -> float:
     if indicator.metadata and "value" in indicator.metadata:
         try:
             return float(indicator.metadata["value"])
-        except Exception as exc:
-            print(f"DEBUG: Failed to coerce MA metadata value: {exc}")
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "failed_to_coerce_ma_metadata",
+                symbol=symbol_val,
+                window=window,
+                metadata_value=indicator.metadata.get("value"),
+                error=str(exc),
+                correlation_id=context.correlation_id,
+            )
 
     raise DslEvaluationError(f"Moving average for {symbol_val} window={window} not available")
 
@@ -215,8 +225,15 @@ def moving_average_return(args: list[ASTNode], context: DslContext) -> float:
     if indicator.metadata and "value" in indicator.metadata:
         try:
             return float(indicator.metadata["value"])
-        except Exception as exc:
-            print(f"DEBUG: Failed to coerce MAR metadata value: {exc}")
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "failed_to_coerce_ma_return_metadata",
+                symbol=symbol_val,
+                window=window,
+                metadata_value=indicator.metadata.get("value"),
+                error=str(exc),
+                correlation_id=context.correlation_id,
+            )
 
     raise DslEvaluationError(
         f"Moving average return for {symbol_val} window={window} not available"
@@ -272,8 +289,15 @@ def cumulative_return(args: list[ASTNode], context: DslContext) -> float:
     if indicator.metadata and "value" in indicator.metadata:
         try:
             return float(indicator.metadata["value"])
-        except Exception as exc:
-            print(f"DEBUG: Failed to coerce cumulative return metadata value: {exc}")
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "failed_to_coerce_cumulative_return_metadata",
+                symbol=symbol_val,
+                window=window,
+                metadata_value=indicator.metadata.get("value"),
+                error=str(exc),
+                correlation_id=context.correlation_id,
+            )
 
     raise DslEvaluationError(f"Cumulative return for {symbol_val} window={window} not available")
 
@@ -315,8 +339,15 @@ def exponential_moving_average_price(args: list[ASTNode], context: DslContext) -
     if indicator.metadata and "value" in indicator.metadata:
         try:
             return float(indicator.metadata["value"])
-        except Exception as exc:
-            print(f"DEBUG: Failed to coerce EMA metadata value: {exc}")
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "failed_to_coerce_ema_metadata",
+                symbol=symbol_val,
+                window=window,
+                metadata_value=indicator.metadata.get("value"),
+                error=str(exc),
+                correlation_id=context.correlation_id,
+            )
 
     raise DslEvaluationError(f"EMA for {symbol_val} window={window} not available")
 
@@ -356,8 +387,15 @@ def stdev_return(args: list[ASTNode], context: DslContext) -> float:
     if indicator.metadata and "value" in indicator.metadata:
         try:
             return float(indicator.metadata["value"])
-        except Exception as exc:
-            print(f"DEBUG: Failed to coerce stdev_return metadata value: {exc}")
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "failed_to_coerce_stdev_return_metadata",
+                symbol=symbol_val,
+                window=window,
+                metadata_value=indicator.metadata.get("value"),
+                error=str(exc),
+                correlation_id=context.correlation_id,
+            )
 
     raise DslEvaluationError(f"Stdev return for {symbol_val} window={window} not available")
 
@@ -394,8 +432,15 @@ def max_drawdown(args: list[ASTNode], context: DslContext) -> float:
     if indicator.metadata and "value" in indicator.metadata:
         try:
             return float(indicator.metadata["value"])
-        except Exception as exc:
-            print(f"DEBUG: Failed to coerce MDD metadata value: {exc}")
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "failed_to_coerce_max_drawdown_metadata",
+                symbol=symbol_val,
+                window=window,
+                metadata_value=indicator.metadata.get("value"),
+                error=str(exc),
+                correlation_id=context.correlation_id,
+            )
 
     raise DslEvaluationError(f"Max drawdown for {symbol_val} window={window} not available")
 

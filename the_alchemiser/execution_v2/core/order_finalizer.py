@@ -254,7 +254,9 @@ class OrderFinalizer:
                 error_message=final_error,
                 timestamp=o.timestamp,
                 order_type=o.order_type,  # Preserve order type
-                filled_at=o.filled_at if not is_filled else (o.filled_at or o.timestamp),  # Set filled_at on success
+                filled_at=o.filled_at
+                if not is_filled
+                else (o.filled_at or o.timestamp),  # Set filled_at on success
             )
             updated_orders.append(new_o)
 
