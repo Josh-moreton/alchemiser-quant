@@ -39,7 +39,10 @@ class DataManager:
 
         """
         self.provider = AlpacaHistoricalProvider()
-        self.data_store = data_store or DataStore()
+        self.data_store = data_store or DataStore(data_provider=self.provider)
+        # If data_store was provided, ensure it has the provider
+        if data_store and not data_store.data_provider:
+            data_store.data_provider = self.provider
         logger.info("DataManager initialized")
 
     def _data_exists_for_range(

@@ -73,10 +73,11 @@ class BacktestRunner:
             strategy_files: Optional list of strategy files to use
 
         """
-        self.data_store = data_store or DataStore()
+        # Initialize data manager first (it will create data_store with provider if needed)
+        self.data_manager = DataManager(data_store)
+        self.data_store = self.data_manager.data_store
         self.fill_simulator = fill_simulator or FillSimulator()
         self.strategy_files = strategy_files or ["KLM.clj"]
-        self.data_manager = DataManager(self.data_store)
         self._missing_symbols_cache: set[str] = set()
         logger.info(
             f"BacktestRunner initialized with strategies: {self.strategy_files}"
