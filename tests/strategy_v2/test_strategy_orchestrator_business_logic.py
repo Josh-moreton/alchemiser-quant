@@ -136,8 +136,10 @@ class TestSingleStrategyOrchestrator:
 
     def test_context_validation_valid(self, orchestrator, sample_context):
         """Test context validation with valid context."""
-        # Should not raise any exception
-        orchestrator.validate_context(sample_context)
+        # StrategyContext validates on construction, so this test
+        # verifies that a valid context can be created and used
+        result = orchestrator.run("test_strategy", sample_context)
+        assert result is not None
 
     def test_strategy_execution_preserves_metadata(self, orchestrator, sample_context):
         """Test that strategy execution preserves important metadata."""
@@ -168,3 +170,34 @@ class TestSingleStrategyOrchestrator:
         for weight in normalized.values():
             expected = Decimal("1.0") / Decimal("3")
             assert abs(weight - expected) < Decimal("0.0001")
+
+    def test_correlation_id_generation(self, orchestrator, sample_context):
+        """Test that correlation_id is auto-generated if not provided."""
+        result = orchestrator.run("test_strategy", sample_context)
+        
+        # Should have a correlation_id
+        assert result.correlation_id is not None
+        assert len(result.correlation_id) > 0
+
+    def test_correlation_id_provided(self, orchestrator, sample_context):
+        """Test that provided correlation_id is preserved for idempotency."""
+        custom_correlation_id = "test-correlation-123"
+        
+        result = orchestrator.run("test_strategy", sample_context, correlation_id=custom_correlation_id)
+        
+        # Should use the provided correlation_id
+        assert result.correlation_id == custom_correlation_id
+
+    def test_exception_handling_converts_to_strategy_error(self, orchestrator, sample_context, monkeypatch):
+        """Test that exceptions are converted to StrategyExecutionError."""
+        from the_alchemiser.strategy_v2.errors import StrategyExecutionError
+        
+        # Mock _generate_sample_allocation to raise an exception
+        def mock_generate_error(context):
+            raise RuntimeError("Test error")
+        
+        monkeypatch.setattr(orchestrator, "_generate_sample_allocation", mock_generate_error)
+        
+        # Should raise StrategyExecutionError
+        with pytest.raises(StrategyExecutionError, match="Strategy execution failed"):
+            orchestrator.run("test_strategy", sample_context)
