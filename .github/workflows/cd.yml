@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout correct commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # For workflow_run, use the commit from the CI run; else default to HEAD
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
@@ -61,13 +61,13 @@ jobs:
           fi
 
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
