@@ -4,12 +4,40 @@
 Error types, categories, and type definitions.
 
 This module provides core type definitions for error handling including
-severity levels, categories, and TypedDict schemas.
+severity levels and categories. Schema classes are now re-exported from
+shared.schemas.errors for consistency.
+
+For error schemas, import from the canonical location:
+    from the_alchemiser.shared.schemas.errors import (
+        ErrorDetailInfo,
+        ErrorSummaryData,
+        ErrorReportSummary,
+        ErrorNotificationData,
+    )
 """
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+# Re-export canonical schemas from shared.schemas.errors
+from the_alchemiser.shared.schemas.errors import (
+    ErrorDetailInfo,
+    ErrorNotificationData,
+    ErrorReportSummary,
+    ErrorSummaryData,
+)
+
+# Explicit re-exports for backward compatibility
+__all__ = [
+    "ContextDict",
+    "ErrorCategory",
+    "ErrorData",
+    "ErrorDetailInfo",
+    "ErrorList",
+    "ErrorNotificationData",
+    "ErrorReportSummary",
+    "ErrorSeverity",
+    "ErrorSummaryData",
+]
 
 # Type aliases for error handler data structures
 ErrorData = dict[str, str | int | float | bool | None]
@@ -38,37 +66,6 @@ class ErrorCategory:
     WARNING = "warning"  # Non-critical issues that don't stop execution
 
 
-# Error schema types
-class ErrorDetailInfo(TypedDict):
-    """Error detail information."""
-
-    error_type: str
-    error_message: str
-
-
-class ErrorSummaryData(TypedDict):
-    """Error summary data."""
-
-    count: int
-    errors: list[dict[str, Any]]
-
-
-class ErrorReportSummary(TypedDict):
-    """Error report summary."""
-
-    critical: dict[str, Any] | None
-    trading: dict[str, Any] | None
-
-
-class ErrorNotificationData(TypedDict):
-    """Error notification data."""
-
-    severity: str
-    priority: str
-    title: str
-    error_report: str
-    html_content: str
-    success: bool
-    email_sent: bool
-    correlation_id: str | None
-    event_id: str | None
+# NOTE: Schema classes (ErrorDetailInfo, ErrorSummaryData, ErrorReportSummary,
+# ErrorNotificationData) are re-exported from shared.schemas.errors above.
+# Use those imports instead of defining duplicates here.

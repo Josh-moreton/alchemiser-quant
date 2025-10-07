@@ -13,8 +13,8 @@ import time
 from decimal import Decimal
 from typing import TypedDict
 
-from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.errors.exceptions import AlchemiserError
+from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
 

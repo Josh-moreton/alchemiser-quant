@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from the_alchemiser.shared.config.container import ApplicationContainer
 
+from the_alchemiser.shared.errors.exceptions import DataProviderError
 from the_alchemiser.shared.events import (
     BaseEvent,
     EventBus,
@@ -31,7 +32,6 @@ from the_alchemiser.shared.schemas.consolidated_portfolio import (
     ConsolidatedPortfolio,
 )
 from the_alchemiser.shared.types import StrategySignal
-from the_alchemiser.shared.errors.exceptions import DataProviderError
 from the_alchemiser.strategy_v2.engines.dsl.strategy_engine import DslStrategyEngine
 
 

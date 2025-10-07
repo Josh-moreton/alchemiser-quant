@@ -18,7 +18,9 @@ class TestErrorContextData:
         assert context.function is None
         assert context.operation is None
         assert context.correlation_id is None
-        assert context.additional_data is None
+        assert (
+            context.additional_data == {}
+        )  # Pydantic default_factory returns empty dict
 
     def test_create_context_with_all_fields(self):
         """Test creating ErrorContextData with all fields populated."""
@@ -45,7 +47,9 @@ class TestErrorContextData:
         assert context.function is None
         assert context.operation is None
         assert context.correlation_id == "corr-456"
-        assert context.additional_data is None
+        assert (
+            context.additional_data == {}
+        )  # Pydantic default_factory returns empty dict
 
     def test_correlation_id_preservation(self):
         """Test that correlation_id is preserved correctly."""
@@ -71,11 +75,15 @@ class TestErrorContextDataToDict:
         context = ErrorContextData()
         result = context.to_dict()
         assert isinstance(result, dict)
-        assert result["module"] is None
-        assert result["function"] is None
-        assert result["operation"] is None
-        assert result["correlation_id"] is None
+        # exclude_none=True means None values are omitted
+        assert "module" not in result
+        assert "function" not in result
+        assert "operation" not in result
+        assert "correlation_id" not in result
+        # But empty dict is included
         assert result["additional_data"] == {}
+        # Timestamp is always present
+        assert "timestamp" in result
 
     def test_to_dict_with_all_fields(self):
         """Test to_dict() with all fields populated."""

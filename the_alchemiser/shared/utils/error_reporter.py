@@ -17,13 +17,13 @@ from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
-from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.errors.exceptions import (
     InsufficientFundsError,
     MarketClosedError,
     OrderExecutionError,
     SecurityError,
 )
+from the_alchemiser.shared.logging import get_logger
 
 
 class NotificationManager(Protocol):  # pragma: no cover - structural typing helper

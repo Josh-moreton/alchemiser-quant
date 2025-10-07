@@ -11,8 +11,8 @@ from collections.abc import Callable
 
 import pandas as pd
 
-from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.errors.exceptions import MarketDataError
+from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
 
