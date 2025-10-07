@@ -11,61 +11,78 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any
 
 from the_alchemiser.shared.brokers.alpaca_manager import (
     AlpacaManager,
     create_alpaca_manager,
 )
 from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
+from the_alchemiser.shared.errors.exceptions import ConfigurationError, DataProviderError
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.schemas.pnl import PnLData
+from the_alchemiser.shared.schemas.pnl import DailyPnLEntry, PnLData
 from the_alchemiser.shared.types.money import Money
 
 logger = get_logger(__name__)
 
 # Constants
-PERCENTAGE_MULTIPLIER = Decimal("100")
-
-
-## Schema moved to shared/schemas/pnl.py per typing policy
+PERCENTAGE_MULTIPLIER: Decimal = Decimal("100")
 
 
 class PnLService:
     """Service for P&L analysis and reporting."""
 
-    def __init__(self, alpaca_manager: AlpacaManager | None = None) -> None:
+    def __init__(
+        self, alpaca_manager: AlpacaManager | None = None, correlation_id: str | None = None
+    ) -> None:
         """Initialize P&L service.
 
         Args:
             alpaca_manager: Alpaca manager instance. If None, creates one from config.
+            correlation_id: Optional correlation ID for observability tracing.
+
+        Raises:
+            ConfigurationError: If Alpaca API keys are not found in configuration.
 
         """
+        self._correlation_id = correlation_id or ""
         if alpaca_manager is None:
             api_key, secret_key, endpoint = get_alpaca_keys()
             if not api_key or not secret_key:
-                raise ValueError("Alpaca API keys not found in configuration")
+                raise ConfigurationError(
+                    "Alpaca API keys not found in configuration",
+                    config_key="ALPACA_KEY/ALPACA_SECRET",
+                )
 
             # Determine if this is paper trading based on endpoint (normalize variants)
-            def _is_paper_from_endpoint(ep: str | None) -> bool:
-                if not ep:
-                    return True
-                ep_norm = ep.strip().rstrip("/").lower()
-                if ep_norm.endswith("/v2"):
-                    ep_norm = ep_norm[:-3]
-                # Explicit paper host
-                if "paper-api.alpaca.markets" in ep_norm:
-                    return True
-                # Explicit live host
-                return not ("api.alpaca.markets" in ep_norm and "paper" not in ep_norm)
-
-            paper = _is_paper_from_endpoint(endpoint)
+            paper = self._is_paper_from_endpoint(endpoint)
 
             self._alpaca_manager = create_alpaca_manager(
                 api_key=api_key, secret_key=secret_key, paper=paper
             )
         else:
             self._alpaca_manager = alpaca_manager
+
+    @staticmethod
+    def _is_paper_from_endpoint(ep: str | None) -> bool:
+        """Determine if endpoint is for paper trading.
+
+        Args:
+            ep: Endpoint URL string or None.
+
+        Returns:
+            True if endpoint is for paper trading, False for live trading.
+
+        """
+        if not ep:
+            return True
+        ep_norm = ep.strip().rstrip("/").lower()
+        if ep_norm.endswith("/v2"):
+            ep_norm = ep_norm[:-3]
+        # Explicit paper host
+        if "paper-api.alpaca.markets" in ep_norm:
+            return True
+        # Explicit live host
+        return not ("api.alpaca.markets" in ep_norm and "paper" not in ep_norm)
 
     def get_weekly_pnl(self, weeks_back: int = 1) -> PnLData:
         """Get P&L for the past N weeks.
@@ -134,18 +151,48 @@ class PnLService:
         Returns:
             PnLData object with period performance
 
+        Raises:
+            DataProviderError: If Alpaca API call fails or returns invalid data.
+
         """
         try:
             history = self._alpaca_manager.get_portfolio_history(period=period)
             if not history:
-                logger.error("Failed to get portfolio history for period", period=period)
-                return PnLData(period=period, start_date="", end_date="")
+                logger.error(
+                    "Failed to get portfolio history for period",
+                    period=period,
+                    correlation_id=self._correlation_id,
+                    module="pnl_service",
+                    method="get_period_pnl",
+                )
+                raise DataProviderError(
+                    f"Alpaca returned empty history for period {period}",
+                    context={"period": period, "correlation_id": self._correlation_id},
+                )
 
             return self._process_history_data(history, period)
 
+        except DataProviderError:
+            # Re-raise our typed errors
+            raise
         except Exception as e:
-            logger.error("Error getting period P&L for", period=period, error=str(e))
-            return PnLData(period=period, start_date="", end_date="")
+            logger.error(
+                "Error getting period P&L",
+                period=period,
+                error=str(e),
+                error_type=type(e).__name__,
+                correlation_id=self._correlation_id,
+                module="pnl_service",
+                method="get_period_pnl",
+            )
+            raise DataProviderError(
+                f"Failed to retrieve P&L for period {period}: {e}",
+                context={
+                    "period": period,
+                    "error": str(e),
+                    "correlation_id": self._correlation_id,
+                },
+            ) from e
 
     def _get_period_pnl(self, period: str, start_date: str, end_date: str) -> PnLData:
         """Get P&L for a specific date range.
@@ -158,6 +205,9 @@ class PnLService:
         Returns:
             PnLData object with performance data
 
+        Raises:
+            DataProviderError: If Alpaca API call fails or returns invalid data.
+
         """
         try:
             history = self._alpaca_manager.get_portfolio_history(
@@ -166,21 +216,55 @@ class PnLService:
 
             if not history:
                 logger.error(
-                    "Failed to get portfolio history for to",
+                    "Failed to get portfolio history from start_date to end_date",
                     start_date=start_date,
                     end_date=end_date,
+                    period=period,
+                    correlation_id=self._correlation_id,
+                    module="pnl_service",
+                    method="_get_period_pnl",
                 )
-                return PnLData(period=period, start_date=start_date, end_date=end_date)
+                raise DataProviderError(
+                    f"Alpaca returned empty history for date range {start_date} to {end_date}",
+                    context={
+                        "period": period,
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "correlation_id": self._correlation_id,
+                    },
+                )
 
             return self._process_history_data(history, period, start_date, end_date)
 
+        except DataProviderError:
+            # Re-raise our typed errors
+            raise
         except Exception as e:
-            logger.error("Error getting P&L for", period=period, error=str(e))
-            return PnLData(period=period, start_date=start_date, end_date=end_date)
+            logger.error(
+                "Error getting P&L for period",
+                period=period,
+                start_date=start_date,
+                end_date=end_date,
+                error=str(e),
+                error_type=type(e).__name__,
+                correlation_id=self._correlation_id,
+                module="pnl_service",
+                method="_get_period_pnl",
+            )
+            raise DataProviderError(
+                f"Failed to retrieve P&L for {period} ({start_date} to {end_date}): {e}",
+                context={
+                    "period": period,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "error": str(e),
+                    "correlation_id": self._correlation_id,
+                },
+            ) from e
 
     def _process_history_data(
         self,
-        history: dict[str, Any],
+        history: dict[str, list[float] | list[int]],
         period: str,
         start_date: str = "",
         end_date: str = "",
@@ -188,7 +272,8 @@ class PnLService:
         """Process portfolio history data into P&L metrics.
 
         Args:
-            history: Portfolio history data from Alpaca
+            history: Portfolio history data from Alpaca with timestamp, equity, profit_loss,
+                     and profit_loss_pct arrays
             period: Period description
             start_date: Start date string
             end_date: End date string
@@ -196,15 +281,35 @@ class PnLService:
         Returns:
             PnLData object with calculated metrics
 
+        Raises:
+            DataProviderError: If history data is invalid or missing required fields.
+
         """
         try:
+            # Validate and extract required fields
             timestamps = history.get("timestamp", [])
             equity_values = history.get("equity", [])
             profit_loss = history.get("profit_loss", [])
             profit_loss_pct = history.get("profit_loss_pct", [])
 
+            # Type guard: ensure all are lists
+            if not isinstance(timestamps, list) or not isinstance(equity_values, list):
+                raise DataProviderError(
+                    "Invalid Alpaca history structure: timestamp or equity not a list",
+                    context={
+                        "period": period,
+                        "correlation_id": self._correlation_id,
+                    },
+                )
+
             if not timestamps or not equity_values:
-                logger.warning("No data found for period", period=period)
+                logger.warning(
+                    "No data found for period",
+                    period=period,
+                    correlation_id=self._correlation_id,
+                    module="pnl_service",
+                    method="_process_history_data",
+                )
                 return PnLData(period=period, start_date=start_date, end_date=end_date)
 
             start_value, end_value, total_pnl, total_pnl_pct = self._calculate_totals(equity_values)
@@ -214,8 +319,8 @@ class PnLService:
 
             return PnLData(
                 period=period,
-                start_date=start_date or (daily_data[0]["date"] if daily_data else ""),
-                end_date=end_date or (daily_data[-1]["date"] if daily_data else ""),
+                start_date=start_date or (daily_data[0].date if daily_data else ""),
+                end_date=end_date or (daily_data[-1].date if daily_data else ""),
                 start_value=start_value,
                 end_value=end_value,
                 total_pnl=total_pnl,
@@ -223,14 +328,35 @@ class PnLService:
                 daily_data=daily_data,
             )
 
+        except DataProviderError:
+            # Re-raise our typed errors
+            raise
         except Exception as e:
-            logger.error("Error processing history data", error=str(e))
-            return PnLData(period=period, start_date=start_date, end_date=end_date)
+            logger.error(
+                "Error processing history data",
+                error=str(e),
+                error_type=type(e).__name__,
+                period=period,
+                correlation_id=self._correlation_id,
+                module="pnl_service",
+                method="_process_history_data",
+            )
+            raise DataProviderError(
+                f"Failed to process portfolio history for {period}: {e}",
+                context={
+                    "period": period,
+                    "error": str(e),
+                    "correlation_id": self._correlation_id,
+                },
+            ) from e
 
     def _calculate_totals(
-        self, equity_values: list[Any]
+        self, equity_values: list[float] | list[int]
     ) -> tuple[Decimal | None, Decimal | None, Decimal | None, Decimal | None]:
         """Calculate start/end values and total P&L metrics from equity series.
+
+        Args:
+            equity_values: List of equity values from Alpaca (floats or ints).
 
         Returns:
             Tuple of (start_value, end_value, total_pnl, total_pnl_pct).
@@ -263,23 +389,31 @@ class PnLService:
 
     def _build_daily_data(
         self,
-        timestamps: list[Any],
-        equity_values: list[Any],
-        profit_loss: list[Any],
-        profit_loss_pct: list[Any],
-    ) -> list[dict[str, Any]]:
-        """Convert raw history arrays into per-day dictionaries.
+        timestamps: list[int] | list[float],
+        equity_values: list[float] | list[int],
+        profit_loss: list[float] | list[int],
+        profit_loss_pct: list[float] | list[int],
+    ) -> list[DailyPnLEntry]:
+        """Convert raw history arrays into per-day entries.
 
         Notes:
         - Compute DAILY changes directly from the equity series to avoid ambiguity,
           as some providers return profit_loss/profit_loss_pct cumulative to base value.
         - Daily P&L = equity[i] - equity[i-1] (0 for first day)
         - Daily %   = (Daily P&L / equity[i-1]) * 100 (0 for first day or if prior is 0)
-        - Keep keys as 'profit_loss' and 'profit_loss_pct' for backward-compatible formatting.
         - Uses Money for precise daily P&L calculations.
 
+        Args:
+            timestamps: Unix timestamps (seconds since epoch).
+            equity_values: Daily equity values.
+            profit_loss: Daily profit/loss values (may be unused).
+            profit_loss_pct: Daily profit/loss percentages (may be unused).
+
+        Returns:
+            List of DailyPnLEntry objects.
+
         """
-        daily: list[dict[str, Any]] = []
+        daily: list[DailyPnLEntry] = []
         eq_len = len(equity_values)
         ts_len = len(timestamps)
         n = min(eq_len, ts_len)
@@ -290,6 +424,7 @@ class PnLService:
         for i in range(n):
             ts = timestamps[i]
             curr_money = Money.from_decimal(Decimal(str(equity_values[i])), "USD")
+            # Validate timestamp is a reasonable Unix timestamp (assume UTC)
             date_str = datetime.fromtimestamp(ts, tz=UTC).date().isoformat()
 
             if prev_money is None:
@@ -310,12 +445,12 @@ class PnLService:
                 else:
                     daily_pct = Decimal("0")
 
-            entry: dict[str, Any] = {
-                "date": date_str,
-                "equity": curr_money.to_decimal(),
-                "profit_loss": daily_pnl,
-                "profit_loss_pct": daily_pct,
-            }
+            entry = DailyPnLEntry(
+                date=date_str,
+                equity=curr_money.to_decimal(),
+                profit_loss=daily_pnl,
+                profit_loss_pct=daily_pct,
+            )
             daily.append(entry)
             prev_money = curr_money
 
@@ -357,17 +492,21 @@ class PnLService:
             lines.append(f"Total P&L %: {pnl_data.total_pnl_pct:+.2f}%")
         return lines
 
-    def _format_daily_breakdown(self, daily_data: list[dict[str, Any]]) -> list[str]:
-        """Format the daily breakdown lines for the report."""
+    def _format_daily_breakdown(self, daily_data: list[DailyPnLEntry]) -> list[str]:
+        """Format the daily breakdown lines for the report.
+
+        Args:
+            daily_data: List of daily P&L entries.
+
+        Returns:
+            List of formatted string lines for the report.
+
+        """
         lines: list[str] = []
         lines.append("\nDaily Breakdown:")
         lines.append("-" * 30)
         for day_data in daily_data:
-            date_str = day_data["date"]
-            equity = day_data["equity"]
-            pnl = day_data.get("profit_loss")
-            pnl_pct = day_data.get("profit_loss_pct")
-            pnl_str = f"${pnl:+.2f}" if pnl is not None else "N/A"
-            pnl_pct_str = f"({pnl_pct:+.2f}%)" if pnl_pct is not None else ""
-            lines.append(f"{date_str}: ${equity:,.2f} | P&L: {pnl_str} {pnl_pct_str}")
+            pnl_str = f"${day_data.profit_loss:+.2f}"
+            pnl_pct_str = f"({day_data.profit_loss_pct:+.2f}%)"
+            lines.append(f"{day_data.date}: ${day_data.equity:,.2f} | P&L: {pnl_str} {pnl_pct_str}")
         return lines

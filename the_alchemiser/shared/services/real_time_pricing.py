@@ -49,11 +49,22 @@ This file now serves as the main orchestrator, delegating to these components.
 from __future__ import annotations
 
 import asyncio
+import os
+import threading
 import time
+import uuid
+import warnings
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from dotenv import load_dotenv
+
+from the_alchemiser.shared.errors.exceptions import (
+    ConfigurationError,
+    StreamingError,
+    WebSocketError,
+)
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.services.real_time_data_processor import (
     RealTimeDataProcessor,
@@ -86,6 +97,9 @@ else:
 # Both RealTimeQuote (legacy) and structured types (PriceDataModel, QuoteModel) are available
 # New implementation uses structured types with backward compatibility for RealTimeQuote
 
+# High priority offset for order placement subscriptions
+HIGH_PRIORITY_OFFSET = 1000
+
 
 class RealTimePricingService:
     """Real-time pricing service using Alpaca's WebSocket data streams.
@@ -108,6 +122,7 @@ class RealTimePricingService:
         *,
         paper_trading: bool = True,
         max_symbols: int = 30,
+        correlation_id: str | None = None,
     ) -> None:
         """Initialize real-time pricing service with WebSocket streaming.
 
@@ -116,25 +131,36 @@ class RealTimePricingService:
             secret_key: Alpaca secret key (reads from env if not provided)
             paper_trading: Whether to use paper trading endpoints
             max_symbols: Maximum number of symbols to subscribe to concurrently
+            correlation_id: Optional correlation ID for traceability
+
+        Raises:
+            ConfigurationError: If API credentials are not provided or found in environment
+            ValueError: If max_symbols is not positive
 
         """
+        # Validate max_symbols parameter
+        if max_symbols <= 0:
+            raise ValueError("max_symbols must be positive")
+
         # Load credentials from environment if not provided
         if not api_key or not secret_key:
-            import os
-
-            from dotenv import load_dotenv
-
             load_dotenv()
             api_key = api_key or os.getenv("ALPACA_KEY")
             secret_key = secret_key or os.getenv("ALPACA_SECRET")
 
         if not api_key or not secret_key:
             logger.error("❌ Alpaca credentials not provided or found in environment")
-            raise ValueError("Alpaca API credentials required")
+            raise ConfigurationError(
+                "Alpaca API credentials required",
+                config_key="ALPACA_KEY/ALPACA_SECRET"
+            )
 
         self._api_key = api_key
         self._secret_key = secret_key
         self._paper_trading = paper_trading
+
+        # Correlation ID for traceability
+        self._correlation_id = correlation_id or str(uuid.uuid4())
 
         # Initialize component modules
         self._data_processor = RealTimeDataProcessor()
@@ -144,11 +170,12 @@ class RealTimePricingService:
         # Stream manager initialized in start() with callbacks
         self._stream_manager: RealTimeStreamManager | None = None
 
-        # Statistics tracking
+        # Statistics tracking with thread safety
         self._stats: dict[str, int] = {
             "quotes_received": 0,
             "trades_received": 0,
         }
+        self._stats_lock = threading.Lock()
         self._datetime_stats: dict[str, datetime] = {}
 
         # Task tracking for async operations
@@ -158,23 +185,27 @@ class RealTimePricingService:
         self.logger = get_logger(__name__)
 
         self.logger.info(
-            f"📡 Real-time pricing service initialized ({'paper' if paper_trading else 'live'})"
+            f"📡 Real-time pricing service initialized ({'paper' if paper_trading else 'live'})",
+            extra={"correlation_id": self._correlation_id},
         )
 
     @property
-    def api_key(self) -> str:
-        """Get API key."""
-        return self._api_key
-
-    @property
-    def secret_key(self) -> str:
-        """Get secret key."""
-        return self._secret_key
+    def correlation_id(self) -> str:
+        """Get correlation ID for this service instance."""
+        return self._correlation_id
 
     @property
     def paper_trading(self) -> bool:
         """Get paper trading flag."""
         return self._paper_trading
+
+    def _get_subscribed_symbols_list(self) -> list[str]:
+        """Get list of currently subscribed symbols."""
+        return list(self._subscription_manager.get_subscribed_symbols())
+
+    def _is_stream_connected(self) -> bool:
+        """Check if stream manager is connected."""
+        return self._stream_manager.is_connected() if self._stream_manager else False
 
     def start(self) -> bool:
         """Start the real-time pricing service.
@@ -182,12 +213,17 @@ class RealTimePricingService:
         Returns:
             True if started successfully, False otherwise
 
+        Raises:
+            StreamingError: If stream fails to start
+            ConfigurationError: If configuration is invalid
+            WebSocketError: If WebSocket connection fails
+
         """
         try:
             # Initialize stream manager with callbacks
             self._stream_manager = RealTimeStreamManager(
-                api_key=self.api_key,
-                secret_key=self.secret_key,
+                api_key=self._api_key,
+                secret_key=self._secret_key,
                 feed=self._get_feed(),
                 on_quote=self._on_quote,
                 on_trade=self._on_trade,
@@ -195,46 +231,103 @@ class RealTimePricingService:
 
             # Start the stream
             result = self._stream_manager.start(
-                get_symbols_callback=lambda: list(
-                    self._subscription_manager.get_subscribed_symbols()
-                )
+                get_symbols_callback=self._get_subscribed_symbols_list
             )
 
             if result:
                 # Start cleanup thread
                 self._price_store.start_cleanup(
-                    is_connected_callback=lambda: (
-                        self._stream_manager.is_connected() if self._stream_manager else False
-                    )
+                    is_connected_callback=self._is_stream_connected
                 )
-                self.logger.info("✅ Real-time pricing service started successfully")
+                self.logger.info(
+                    "✅ Real-time pricing service started successfully",
+                    extra={"correlation_id": self._correlation_id},
+                )
                 return True
 
-            self.logger.error("❌ Failed to establish real-time pricing connection")
+            self.logger.error(
+                "❌ Failed to establish real-time pricing connection",
+                extra={"correlation_id": self._correlation_id},
+            )
             return False
 
+        except (ConnectionError, OSError, WebSocketError) as e:
+            self.logger.error(
+                "Failed to start real-time pricing service",
+                extra={
+                    "correlation_id": self._correlation_id,
+                    "error_type": type(e).__name__,
+                    "error_details": str(e),
+                },
+            )
+            raise StreamingError(f"Failed to start stream: {e}") from e
+        except ConfigurationError:
+            # Re-raise config errors
+            raise
         except Exception as e:
-            self.logger.error(f"Error starting real-time pricing service: {e}")
-            return False
+            # Unknown error - log and raise
+            self.logger.exception(
+                "Unexpected error in start()",
+                extra={"correlation_id": self._correlation_id},
+            )
+            raise StreamingError(f"Unexpected error: {e}") from e
 
-    def stop(self) -> None:
-        """Stop the real-time pricing service."""
+    async def stop(self) -> None:
+        """Stop the real-time pricing service.
+        
+        Raises:
+            StreamingError: If there are errors during shutdown
+        
+        """
         try:
             if self._stream_manager:
                 self._stream_manager.stop()
 
             self._price_store.stop_cleanup()
 
-            # Cancel any remaining background tasks
-            for task in self._background_tasks:
-                if not task.done():
-                    task.cancel()
-            self._background_tasks.clear()
+            # Cancel and await background tasks with timeout
+            if self._background_tasks:
+                for task in self._background_tasks:
+                    if not task.done():
+                        task.cancel()
 
-            self.logger.info("🛑 Real-time pricing service stopped")
+                # Wait for all tasks to complete with timeout
+                try:
+                    await asyncio.wait_for(
+                        asyncio.gather(*self._background_tasks, return_exceptions=True),
+                        timeout=5.0,
+                    )
+                except asyncio.TimeoutError:
+                    self.logger.warning(
+                        "Some background tasks did not complete within timeout",
+                        extra={"correlation_id": self._correlation_id},
+                    )
 
+                self._background_tasks.clear()
+
+            self.logger.info(
+                "🛑 Real-time pricing service stopped",
+                extra={"correlation_id": self._correlation_id},
+            )
+
+        except asyncio.TimeoutError:
+            # Already handled in nested try/except
+            pass
+        except (StreamingError, WebSocketError) as e:
+            self.logger.error(
+                "Error stopping real-time pricing service",
+                extra={
+                    "correlation_id": self._correlation_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+            raise
         except Exception as e:
-            self.logger.error(f"Error stopping real-time pricing service: {e}")
+            self.logger.exception(
+                "Unexpected error in stop()",
+                extra={"correlation_id": self._correlation_id},
+            )
+            raise StreamingError(f"Failed to stop service: {e}") from e
 
     async def _on_quote(self, data: AlpacaQuoteData) -> None:
         """Handle incoming quote data with async processing optimizations.
@@ -246,7 +339,10 @@ class RealTimePricingService:
         try:
             symbol = self._data_processor.extract_symbol_from_quote(data)
             if not symbol:
-                self.logger.warning("Received quote with no symbol")
+                self.logger.warning(
+                    "Received quote with no symbol",
+                    extra={"correlation_id": self._correlation_id},
+                )
                 return
 
             quote_values = self._data_processor.extract_quote_values(data)
@@ -268,10 +364,28 @@ class RealTimePricingService:
                     timestamp,
                 )
 
-            # Update stats
-            self._stats["quotes_received"] += 1
+            # Update stats with thread safety
+            with self._stats_lock:
+                self._stats["quotes_received"] += 1
 
+        except (StreamingError, WebSocketError) as e:
+            self.logger.error(
+                "Error processing quote",
+                extra={
+                    "correlation_id": self._correlation_id,
+                    "symbol": symbol if 'symbol' in locals() else None,
+                    "error_type": type(e).__name__,
+                },
+            )
+            await self._data_processor.handle_quote_error(e)
         except Exception as e:
+            self.logger.exception(
+                "Unexpected error processing quote",
+                extra={
+                    "correlation_id": self._correlation_id,
+                    "symbol": symbol if 'symbol' in locals() else None,
+                },
+            )
             await self._data_processor.handle_quote_error(e)
 
     async def _on_trade(self, trade: AlpacaTradeData) -> None:
@@ -279,7 +393,10 @@ class RealTimePricingService:
         try:
             symbol = self._data_processor.extract_symbol_from_trade(trade)
             if not symbol:
-                self.logger.warning("Received trade with no symbol")
+                self.logger.warning(
+                    "Received trade with no symbol",
+                    extra={"correlation_id": self._correlation_id},
+                )
                 return
 
             price, volume, timestamp = self._data_processor.extract_trade_values(trade)
@@ -294,20 +411,32 @@ class RealTimePricingService:
                     volume,
                 )
 
-                # Update stats
-                self._stats["trades_received"] += 1
-                self._datetime_stats["last_heartbeat"] = datetime.now(UTC)
+                # Update stats with thread safety
+                with self._stats_lock:
+                    self._stats["trades_received"] += 1
+                    self._datetime_stats["last_heartbeat"] = datetime.now(UTC)
 
             # Yield control to event loop
             await asyncio.sleep(0)
 
-        except Exception as e:
-            error_task = asyncio.create_task(
-                asyncio.to_thread(self.logger.error, f"Error processing trade: {e}", exc_info=True)
+        except (StreamingError, WebSocketError) as e:
+            self.logger.error(
+                "Error processing trade",
+                extra={
+                    "correlation_id": self._correlation_id,
+                    "symbol": symbol if 'symbol' in locals() else None,
+                    "error_type": type(e).__name__,
+                },
+                exc_info=True,
             )
-            self._background_tasks.add(error_task)
-            error_task.add_done_callback(self._background_tasks.discard)
-            await asyncio.sleep(0)
+        except Exception as e:
+            self.logger.exception(
+                "Unexpected error processing trade",
+                extra={
+                    "correlation_id": self._correlation_id,
+                    "symbol": symbol if 'symbol' in locals() else None,
+                },
+            )
 
     # Price retrieval methods (delegate to price store)
 
@@ -324,6 +453,11 @@ class RealTimePricingService:
             This method is deprecated. Use get_quote_data() for new code.
 
         """
+        warnings.warn(
+            "get_real_time_quote() is deprecated, use get_quote_data() instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._price_store.get_real_time_quote(symbol)
 
     def get_quote_data(self, symbol: str) -> QuoteModel | None:
@@ -350,7 +484,7 @@ class RealTimePricingService:
         """
         return self._price_store.get_price_data(symbol)
 
-    def get_real_time_price(self, symbol: str) -> Decimal | float | None:
+    def get_real_time_price(self, symbol: str) -> Decimal | None:
         """Get the best available real-time price for a symbol.
 
         Priority: mid-price > last trade > bid > ask
@@ -359,22 +493,37 @@ class RealTimePricingService:
             symbol: Stock symbol
 
         Returns:
-            Current price (Decimal from structured data or float from legacy) or None if not available
+            Current price as Decimal or None if not available
+
+        Note:
+            Always returns Decimal to ensure consistent numerical precision
+            for financial calculations.
 
         """
-        return self._price_store.get_real_time_price(symbol)
+        price = self._price_store.get_real_time_price(symbol)
+        if price is None:
+            return None
+        # Convert float to Decimal via string to avoid precision loss
+        return Decimal(str(price)) if isinstance(price, float) else price
 
-    def get_bid_ask_spread(self, symbol: str) -> tuple[Decimal | float, Decimal | float] | None:
+    def get_bid_ask_spread(self, symbol: str) -> tuple[Decimal, Decimal] | None:
         """Get current bid/ask spread for a symbol.
 
         Args:
             symbol: Stock symbol
 
         Returns:
-            Tuple of (bid, ask) - Decimal from structured data or float from legacy, or None if not available
+            Tuple of (bid, ask) as Decimal, or None if not available
 
         """
-        return self._price_store.get_bid_ask_spread(symbol)
+        spread = self._price_store.get_bid_ask_spread(symbol)
+        if spread is None:
+            return None
+        bid, ask = spread
+        # Ensure both are Decimal
+        bid_decimal = Decimal(str(bid)) if isinstance(bid, float) else bid
+        ask_decimal = Decimal(str(ask)) if isinstance(ask, float) else ask
+        return (bid_decimal, ask_decimal)
 
     def is_connected(self) -> bool:
         """Check if the real-time service is connected."""
@@ -406,11 +555,12 @@ class RealTimePricingService:
         Allows overriding via env vars `ALPACA_FEED` or `ALPACA_DATA_FEED`.
         Defaults to "iex". Use "sip" if you have the required subscription.
         """
-        import os
-
         feed = (os.getenv("ALPACA_FEED") or os.getenv("ALPACA_DATA_FEED") or "iex").lower()
         if feed not in {"iex", "sip"}:
-            self.logger.warning(f"Unknown ALPACA_FEED '{feed}', defaulting to 'iex'")
+            self.logger.warning(
+                f"Unknown ALPACA_FEED '{feed}', defaulting to 'iex'",
+                extra={"correlation_id": self._correlation_id},
+            )
             return "iex"
         return feed
 
@@ -504,10 +654,13 @@ class RealTimePricingService:
 
         """
         # Subscribe with high priority (current timestamp ensures recent priority)
-        self.subscribe_symbol(symbol, priority=time.time() + 1000)  # High priority
+        self.subscribe_symbol(symbol, priority=time.time() + HIGH_PRIORITY_OFFSET)
 
         # Log for debugging
-        self.logger.info(f"📊 Subscribed {symbol} for order placement (high priority)")
+        self.logger.info(
+            f"📊 Subscribed {symbol} for order placement (high priority)",
+            extra={"correlation_id": self._correlation_id, "symbol": symbol},
+        )
 
     def unsubscribe_after_order(self, symbol: str) -> None:
         """Optionally unsubscribe from a symbol after order placement.
@@ -520,20 +673,24 @@ class RealTimePricingService:
         # Could implement cleanup logic here if needed
         self.logger.debug(f"Keeping {symbol} subscription active for monitoring")
 
-    def get_optimized_price_for_order(self, symbol: str) -> Decimal | float | None:
+    def get_optimized_price_for_order(self, symbol: str) -> Decimal | None:
         """Get the most accurate price for order placement with temporary subscription.
 
         Args:
             symbol: Stock symbol
 
         Returns:
-            Current price optimized for order accuracy (Decimal from structured data or float from legacy)
+            Current price as Decimal optimized for order accuracy, or None if not available
 
         """
-        return self._price_store.get_optimized_price_for_order(
+        price = self._price_store.get_optimized_price_for_order(
             symbol,
             subscribe_callback=lambda s: self.subscribe_for_order_placement(s),
         )
+        if price is None:
+            return None
+        # Convert float to Decimal via string to avoid precision loss
+        return Decimal(str(price)) if isinstance(price, float) else price
 
     def get_subscribed_symbols(self) -> set[str]:
         """Get currently subscribed symbols.
