@@ -137,6 +137,22 @@ class StrategySignal(BaseModel):
 
         return v
 
+    @field_validator("reasoning", mode="before")
+    @classmethod
+    def normalize_reasoning(cls, v: str) -> str:
+        """Normalize reasoning by stripping whitespace.
+
+        Args:
+            v: Reasoning string
+
+        Returns:
+            Stripped reasoning string
+
+        """
+        if isinstance(v, str):
+            return v.strip()
+        return v
+
     @field_validator("timestamp", mode="before")
     @classmethod
     def normalize_and_validate_timestamp(cls, v: datetime | None) -> datetime:
