@@ -27,7 +27,6 @@ from .common import (
 )
 from .consolidated_portfolio import ConsolidatedPortfolio
 from .errors import (
-    ErrorContextData,
     ErrorDetailInfo,
     ErrorNotificationData,
     ErrorReportSummary,
