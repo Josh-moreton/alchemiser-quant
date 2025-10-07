@@ -54,9 +54,7 @@ class EmailConfig:
                 return None
 
             if not email_password:
-                logger.warning(
-                    "Email password not found - email notifications will be disabled"
-                )
+                logger.warning("Email password not found - email notifications will be disabled")
                 return None
 
             # Use from_email as to_email if to_email is not specified

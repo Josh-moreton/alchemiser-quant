@@ -48,9 +48,7 @@ class ReportingData(BaseModel):
 
     timestamp: str = Field(description="ISO 8601 timestamp")
     portfolio_summary: dict[str, Any] = Field(description="Portfolio state summary")
-    performance_metrics: dict[str, float] = Field(
-        description="Performance metrics dictionary"
-    )
+    performance_metrics: dict[str, float] = Field(description="Performance metrics dictionary")
     recent_trades: list[OrderDetails] = Field(
         default_factory=list, description="List of recent order details"
     )
@@ -68,9 +66,7 @@ class EmailReportData(BaseModel):
     subject: str = Field(description="Email subject line")
     html_content: str = Field(description="HTML-formatted email body")
     recipient: str = Field(description="Recipient email address")
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Additional email metadata"
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional email metadata")
 
 
 class EmailCredentials(BaseModel):
@@ -140,9 +136,7 @@ class PerformanceMetrics(BaseModel):
 
     model_config = ConfigDict(strict=True, frozen=True)
 
-    returns: list[float] = Field(
-        default_factory=list, description="Time series of returns"
-    )
+    returns: list[float] = Field(default_factory=list, description="Time series of returns")
     cumulative_return: float = Field(description="Cumulative return percentage")
     volatility: float = Field(description="Return volatility (annualized)", ge=0.0)
     sharpe_ratio: float = Field(description="Risk-adjusted return (Sharpe)")
@@ -162,9 +156,7 @@ class MonthlySummaryDTO(BaseModel):
     )
 
     # Month identification
-    month_label: str = Field(
-        ..., description="Human-readable month label (e.g., 'Aug 2025')"
-    )
+    month_label: str = Field(..., description="Human-readable month label (e.g., 'Aug 2025')")
 
     # Portfolio P&L for the month
     portfolio_first_value: Decimal | None = Field(
@@ -186,6 +178,4 @@ class MonthlySummaryDTO(BaseModel):
     )
 
     # Additional context and warnings
-    notes: list[str] = Field(
-        default_factory=list, description="Additional notes or warnings"
-    )
+    notes: list[str] = Field(default_factory=list, description="Additional notes or warnings")

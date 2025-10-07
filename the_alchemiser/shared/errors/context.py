@@ -88,9 +88,7 @@ class ErrorContextData(BaseModel):
     )
 
     # Request context (optional)
-    request_id: str | None = Field(
-        default=None, description="External request identifier"
-    )
+    request_id: str | None = Field(default=None, description="External request identifier")
     session_id: str | None = Field(default=None, description="User session identifier")
 
     # Flexible additional data

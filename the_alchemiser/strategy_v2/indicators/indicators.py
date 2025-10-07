@@ -24,8 +24,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.errors.exceptions import MarketDataError
+from the_alchemiser.shared.logging import get_logger
 
 # Module-level constants for indicator calculations
 DEFAULT_RSI_WINDOW = 14

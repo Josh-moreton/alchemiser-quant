@@ -59,9 +59,7 @@ class EmailClient:
         """
         email_config = self._get_config()
         if not email_config:
-            logger.warning(
-                "Email configuration not available - skipping email notification"
-            )
+            logger.warning("Email configuration not available - skipping email notification")
             return False
 
         smtp_server = email_config.smtp_server
@@ -97,9 +95,7 @@ class EmailClient:
                     attachment = MIMEBase(*mime_type.split("/"))
                     attachment.set_payload(content)
                     encoders.encode_base64(attachment)
-                    attachment.add_header(
-                        "Content-Disposition", f"attachment; filename={filename}"
-                    )
+                    attachment.add_header("Content-Disposition", f"attachment; filename={filename}")
                     msg.attach(attachment)
 
             # Send email

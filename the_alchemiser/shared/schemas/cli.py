@@ -34,9 +34,7 @@ class CLIOptions(BaseModel):
     verbose: bool = Field(default=False, description="Enable verbose output")
     quiet: bool = Field(default=False, description="Suppress non-essential output")
     live: bool = Field(default=False, description="Enable live trading mode")
-    force: bool = Field(
-        default=False, description="Force operation without confirmation"
-    )
+    force: bool = Field(default=False, description="Force operation without confirmation")
     no_header: bool = Field(default=False, description="Suppress header output")
 
 

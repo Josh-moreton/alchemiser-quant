@@ -13,8 +13,8 @@ from datetime import UTC, datetime
 from typing import overload
 
 from ..constants import UTC_TIMEZONE_SUFFIX
-from ..logging import get_logger
 from ..errors.exceptions import DataProviderError
+from ..logging import get_logger
 
 logger = get_logger(__name__)
 

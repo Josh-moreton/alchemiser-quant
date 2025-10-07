@@ -18,7 +18,9 @@ class TestErrorContextData:
         assert context.function is None
         assert context.operation is None
         assert context.correlation_id is None
-        assert context.additional_data == {}  # Pydantic default_factory returns empty dict
+        assert (
+            context.additional_data == {}
+        )  # Pydantic default_factory returns empty dict
 
     def test_create_context_with_all_fields(self):
         """Test creating ErrorContextData with all fields populated."""
@@ -45,7 +47,9 @@ class TestErrorContextData:
         assert context.function is None
         assert context.operation is None
         assert context.correlation_id == "corr-456"
-        assert context.additional_data == {}  # Pydantic default_factory returns empty dict
+        assert (
+            context.additional_data == {}
+        )  # Pydantic default_factory returns empty dict
 
     def test_correlation_id_preservation(self):
         """Test that correlation_id is preserved correctly."""

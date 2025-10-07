@@ -73,9 +73,7 @@ class ErrorSummaryData(BaseModel):
     model_config = ConfigDict(strict=True, frozen=True)
 
     count: int = Field(description="Number of errors", ge=0)
-    errors: list[dict[str, Any]] = Field(
-        default_factory=list, description="List of error details"
-    )
+    errors: list[dict[str, Any]] = Field(default_factory=list, description="List of error details")
 
 
 class ErrorReportSummary(BaseModel):

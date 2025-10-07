@@ -18,13 +18,13 @@ from typing import TYPE_CHECKING
 # CLI imports removed - using programmatic interface only
 from the_alchemiser.orchestration.system import TradingSystem
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
+from the_alchemiser.shared.errors.exceptions import ConfigurationError
 from the_alchemiser.shared.logging import (
     configure_application_logging,
     generate_request_id,
     get_logger,
     set_request_id,
 )
-from the_alchemiser.shared.errors.exceptions import ConfigurationError
 
 if TYPE_CHECKING:
     from the_alchemiser.shared.schemas.trade_run_result import TradeRunResult
