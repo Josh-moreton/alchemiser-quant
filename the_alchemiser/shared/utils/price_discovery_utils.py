@@ -27,7 +27,7 @@ from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.types.quote import QuoteModel
+from the_alchemiser.shared.types.market_data import QuoteModel
 
 logger = get_logger(__name__)
 
@@ -159,12 +159,21 @@ def get_current_price_from_quote(
                 bid, ask = quote
                 return calculate_midpoint_price(bid, ask)
             # Handle QuoteModel return type (preferred)
+            if hasattr(quote, "bid_price") and hasattr(quote, "ask_price"):
+                # Enhanced QuoteModel has bid_price/ask_price as Decimal, convert to float
+                bid = float(quote.bid_price)
+                ask = float(quote.ask_price)
+                return calculate_midpoint_price(bid, ask)
+            # Handle legacy QuoteModel with bid/ask fields (for backward compatibility)
             if hasattr(quote, "bid") and hasattr(quote, "ask"):
-                # QuoteModel has bid/ask as Decimal, convert to float
+                # Legacy QuoteModel has bid/ask as Decimal, convert to float
                 bid = float(quote.bid)
                 ask = float(quote.ask)
                 return calculate_midpoint_price(bid, ask)
-            # Handle QuoteModel with mid property
+            # Handle QuoteModel with mid_price property
+            if hasattr(quote, "mid_price"):
+                return float(quote.mid_price)
+            # Handle legacy mid property
             if hasattr(quote, "mid"):
                 return float(quote.mid)
 

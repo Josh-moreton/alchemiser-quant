@@ -15,9 +15,8 @@ from secrets import randbelow
 from typing import TYPE_CHECKING, Any
 
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.types.market_data import BarModel
+from the_alchemiser.shared.types.market_data import BarModel, QuoteModel
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
-from the_alchemiser.shared.types.quote import QuoteModel
 from the_alchemiser.shared.utils.alpaca_error_handler import (
     AlpacaErrorHandler,
     HTTPError,
@@ -98,12 +97,7 @@ class MarketDataService(MarketDataPort):
             symbol: Symbol to get quote for
 
         Returns:
-            Quote model or None if not available
-
-        Note: This still relies on the legacy QuoteModel from shared.types.quote. The
-        enhanced QuoteModel in shared.types.market_data offers bid_size/ask_size for
-        richer depth analytics, and migrating to it will unblock improved spread
-        calculations.
+            Quote model with bid/ask prices and sizes, or None if not available
 
         """
         try:
@@ -111,6 +105,9 @@ class MarketDataService(MarketDataPort):
             symbol_str = symbol.value if hasattr(symbol, "value") else str(symbol)
 
             # Call Alpaca API directly to avoid circular calls (AlpacaManager delegates back to us)
+            from datetime import UTC, datetime
+            from decimal import Decimal
+
             from alpaca.data.requests import StockLatestQuoteRequest
 
             request = StockLatestQuoteRequest(symbol_or_symbols=[symbol_str])
@@ -118,17 +115,46 @@ class MarketDataService(MarketDataPort):
             quote = quotes.get(symbol_str)
 
             if quote:
-                from decimal import Decimal
+                bid_price = float(getattr(quote, "bid_price", 0))
+                ask_price = float(getattr(quote, "ask_price", 0))
+                bid_size = float(getattr(quote, "bid_size", 0))
+                ask_size = float(getattr(quote, "ask_size", 0))
+                timestamp = getattr(quote, "timestamp", None)
 
-                bid = float(getattr(quote, "bid_price", 0))
-                ask = float(getattr(quote, "ask_price", 0))
+                # Ensure timestamp is timezone-aware UTC
+                if timestamp and timestamp.tzinfo is None:
+                    timestamp = timestamp.replace(tzinfo=UTC)
+                elif not timestamp:
+                    timestamp = datetime.now(UTC)
 
-                if bid > 0 and ask > 0:
-                    return QuoteModel(ts=None, bid=Decimal(str(bid)), ask=Decimal(str(ask)))
-                if bid > 0:
-                    return QuoteModel(ts=None, bid=Decimal(str(bid)), ask=Decimal(str(bid)))
-                if ask > 0:
-                    return QuoteModel(ts=None, bid=Decimal(str(ask)), ask=Decimal(str(ask)))
+                # Handle cases where bid or ask might be missing
+                if bid_price > 0 and ask_price > 0:
+                    return QuoteModel(
+                        symbol=symbol_str,
+                        bid_price=Decimal(str(bid_price)),
+                        ask_price=Decimal(str(ask_price)),
+                        bid_size=Decimal(str(bid_size)),
+                        ask_size=Decimal(str(ask_size)),
+                        timestamp=timestamp,
+                    )
+                if bid_price > 0:
+                    return QuoteModel(
+                        symbol=symbol_str,
+                        bid_price=Decimal(str(bid_price)),
+                        ask_price=Decimal(str(bid_price)),
+                        bid_size=Decimal(str(bid_size)),
+                        ask_size=Decimal(str(0)),
+                        timestamp=timestamp,
+                    )
+                if ask_price > 0:
+                    return QuoteModel(
+                        symbol=symbol_str,
+                        bid_price=Decimal(str(ask_price)),
+                        ask_price=Decimal(str(ask_price)),
+                        bid_size=Decimal(str(0)),
+                        ask_size=Decimal(str(ask_size)),
+                        timestamp=timestamp,
+                    )
 
             return None
 

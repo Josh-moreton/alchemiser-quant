@@ -33,7 +33,7 @@ from the_alchemiser.shared.schemas.trade_ledger import TradeLedger, TradeLedgerE
 if TYPE_CHECKING:
     from the_alchemiser.execution_v2.models.execution_result import OrderResult
     from the_alchemiser.shared.schemas.rebalance_plan import RebalancePlan
-    from the_alchemiser.shared.types.quote import QuoteModel
+    from the_alchemiser.shared.types.market_data import QuoteModel
 
 logger = get_logger(__name__)
 
@@ -109,8 +109,8 @@ class TradeLedgerService:
         )
 
         # Extract bid/ask from quote if available
-        bid_at_fill = quote_at_fill.bid if quote_at_fill else None
-        ask_at_fill = quote_at_fill.ask if quote_at_fill else None
+        bid_at_fill = quote_at_fill.bid_price if quote_at_fill else None
+        ask_at_fill = quote_at_fill.ask_price if quote_at_fill else None
 
         # Extract order type from OrderResult
         order_type = order_result.order_type

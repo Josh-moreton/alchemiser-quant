@@ -19,8 +19,7 @@ if str(_project_root) not in sys.path:
 
 from scripts.backtest.storage.data_store import DataStore
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.types.market_data import BarModel
-from the_alchemiser.shared.types.quote import QuoteModel
+from the_alchemiser.shared.types.market_data import BarModel, QuoteModel
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 # Constants
@@ -113,11 +112,13 @@ class HistoricalMarketDataPort:
             symbol: Symbol to fetch
 
         Returns:
-            QuoteModel with bid/ask from Open price, or None
+            Enhanced QuoteModel with bid/ask from Open price, or None
 
         """
         # Load current day's bar
         try:
+            from datetime import UTC
+
             bars = self.data_store.load_bars(
                 str(symbol),
                 self.current_date,
@@ -132,10 +133,17 @@ class HistoricalMarketDataPort:
             mid_price = bar.open
             spread = mid_price * BID_ASK_SPREAD_PCT
 
+            # Simulate bid_size and ask_size (typical market depth)
+            bid_size = Decimal("100")
+            ask_size = Decimal("100")
+
             return QuoteModel(
-                ts=bar.date,
-                bid=mid_price - spread,
-                ask=mid_price + spread,
+                symbol=str(symbol),
+                bid_price=mid_price - spread,
+                ask_price=mid_price + spread,
+                bid_size=bid_size,
+                ask_size=ask_size,
+                timestamp=bar.date.replace(tzinfo=UTC) if bar.date.tzinfo is None else bar.date,
             )
 
         except Exception as e:

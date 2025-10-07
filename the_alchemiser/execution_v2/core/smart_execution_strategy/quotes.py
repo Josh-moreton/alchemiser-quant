@@ -291,22 +291,12 @@ class QuoteProvider:
             logger.error(f"❌ No quote data available for {symbol} (streaming and REST failed)")
             return None
 
-        # Extract bid/ask from QuoteModel
-        bid_price = Decimal(str(rest_quote.bid))
-        ask_price = Decimal(str(rest_quote.ask))
-
-        # Create enhanced QuoteModel from REST data for consistent processing
-        quote = QuoteModel(
-            symbol=symbol,
-            bid_price=bid_price,
-            ask_price=ask_price,
-            bid_size=Decimal("0.0"),  # REST API doesn't provide size data
-            ask_size=Decimal("0.0"),  # REST API doesn't provide size data
-            timestamp=datetime.now(UTC),
+        # Enhanced QuoteModel is already in the correct format
+        logger.info(
+            f"✅ Got REST quote for {symbol}: "
+            f"bid=${rest_quote.bid_price:.2f}, ask=${rest_quote.ask_price:.2f}"
         )
-
-        logger.info(f"✅ Got REST quote for {symbol}: bid=${bid_price:.2f}, ask=${ask_price:.2f}")
-        return quote, True  # Used REST fallback
+        return rest_quote, True  # Used REST fallback
 
     def wait_for_quote_data(
         self, symbol: str, timeout: float | None = None
