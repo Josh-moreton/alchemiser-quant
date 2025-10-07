@@ -21,10 +21,15 @@ import warnings
 import pytest
 
 # Load TimeInForce module directly from file to avoid __init__.py dependencies
-_module_path = Path(__file__).parent.parent.parent.parent / "the_alchemiser" / "shared" / "types" / "time_in_force.py"
+_module_path = (
+    Path(__file__).parent.parent.parent.parent
+    / "the_alchemiser"
+    / "shared"
+    / "types"
+    / "time_in_force.py"
+)
 spec = importlib.util.spec_from_file_location(
-    "the_alchemiser.shared.types.time_in_force",
-    str(_module_path)
+    "the_alchemiser.shared.types.time_in_force", str(_module_path)
 )
 _time_in_force_module = importlib.util.module_from_spec(spec)
 sys.modules["the_alchemiser.shared.types.time_in_force"] = _time_in_force_module
@@ -81,7 +86,7 @@ class TestTimeInForceConstruction:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             TimeInForce(value="day")
-            
+
             assert len(w) == 1
             assert issubclass(w[0].category, DeprecationWarning)
             message = str(w[0].message)
@@ -101,17 +106,17 @@ class TestTimeInForceConstruction:
     @pytest.mark.unit
     def test_invalid_value_rejected_by_type_checker(self):
         """Test that invalid values are rejected by type checker.
-        
+
         NOTE: This test demonstrates that the Literal type constraint
         prevents invalid values at the type-checking level, making the
         __post_init__ validation unreachable in practice.
-        
+
         This test cannot actually execute the invalid code path because
         mypy would reject it. The test is included for documentation.
         """
         # The following would fail type checking:
         # tif = TimeInForce(value="invalid")  # type: ignore
-        
+
         # To test runtime validation, we'd need to bypass type checking:
         # This is why the __post_init__ validation is marked with pragma: no cover
         pass
@@ -146,11 +151,11 @@ class TestTimeInForceEquality:
             tif1 = TimeInForce(value="day")
             tif2 = TimeInForce(value="gtc")
             tif3 = TimeInForce(value="day")
-            
+
             # Can create set
             tif_set = {tif1, tif2, tif3}
             assert len(tif_set) == 2  # tif1 and tif3 are equal
-            
+
             # Can use as dict key
             tif_dict = {tif1: "Day order", tif2: "GTC order"}
             assert tif_dict[tif1] == "Day order"
@@ -195,10 +200,11 @@ class TestTimeInForceUsage:
     @pytest.mark.unit
     def test_type_hints_work(self):
         """Test that type hints work correctly with TimeInForce."""
+
         def process_order(tif: TimeInForce) -> str:
             """Example function using TimeInForce type hint."""
             return f"Order with TIF: {tif.value}"
-        
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # Suppress deprecation warning
             tif = TimeInForce(value="gtc")

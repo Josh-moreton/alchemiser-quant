@@ -2,8 +2,8 @@
 
 ## Status: DEPRECATED as of v2.10.7
 
-**Effective Date**: 2025-01-06  
-**Removal Target**: v3.0.0  
+**Effective Date**: 2025-01-06
+**Removal Target**: v3.0.0
 **Replacement**: Use Alpaca SDK enums directly (`TimeInForce` from `alpaca.trading.enums`)
 
 ---
@@ -123,5 +123,5 @@ For questions or concerns about this deprecation:
 
 ---
 
-**Last Updated**: 2025-10-07  
+**Last Updated**: 2025-10-07
 **Version**: 2.16.2
