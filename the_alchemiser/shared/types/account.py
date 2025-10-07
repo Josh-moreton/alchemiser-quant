@@ -14,88 +14,94 @@ from the_alchemiser.shared.value_objects.core_types import AccountInfo, Portfoli
 
 @dataclass(frozen=True)
 class AccountModel:
-    """Immutable account information model."""
+    """Immutable account information model.
+    
+    All monetary values use Decimal for precision per guardrails.
+    """
 
     account_id: str
-    equity: float
-    cash: float
-    buying_power: float
+    equity: Decimal
+    cash: Decimal
+    buying_power: Decimal
     day_trades_remaining: int
-    portfolio_value: float
-    last_equity: float
-    daytrading_buying_power: float
-    regt_buying_power: float
+    portfolio_value: Decimal
+    last_equity: Decimal
+    daytrading_buying_power: Decimal
+    regt_buying_power: Decimal
     status: Literal["ACTIVE", "INACTIVE"]
 
     @classmethod
     def from_dict(cls, data: AccountInfo) -> AccountModel:
         """Create from AccountInfo TypedDict.
 
-        Converts Decimal values from TypedDict to float for internal storage.
+        Stores Decimal values directly without conversion.
         """
         return cls(
             account_id=data["account_id"],
-            equity=float(data["equity"]),
-            cash=float(data["cash"]),
-            buying_power=float(data["buying_power"]),
+            equity=data["equity"],
+            cash=data["cash"],
+            buying_power=data["buying_power"],
             day_trades_remaining=data["day_trades_remaining"],
-            portfolio_value=float(data["portfolio_value"]),
-            last_equity=float(data["last_equity"]),
-            daytrading_buying_power=float(data["daytrading_buying_power"]),
-            regt_buying_power=float(data["regt_buying_power"]),
+            portfolio_value=data["portfolio_value"],
+            last_equity=data["last_equity"],
+            daytrading_buying_power=data["daytrading_buying_power"],
+            regt_buying_power=data["regt_buying_power"],
             status=data["status"],
         )
 
     def to_dict(self) -> AccountInfo:
         """Convert to AccountInfo TypedDict.
 
-        Converts float values to Decimal for TypedDict compliance.
+        Returns Decimal values directly without conversion.
         """
         return {
             "account_id": self.account_id,
-            "equity": Decimal(str(self.equity)),
-            "cash": Decimal(str(self.cash)),
-            "buying_power": Decimal(str(self.buying_power)),
+            "equity": self.equity,
+            "cash": self.cash,
+            "buying_power": self.buying_power,
             "day_trades_remaining": self.day_trades_remaining,
-            "portfolio_value": Decimal(str(self.portfolio_value)),
-            "last_equity": Decimal(str(self.last_equity)),
-            "daytrading_buying_power": Decimal(str(self.daytrading_buying_power)),
-            "regt_buying_power": Decimal(str(self.regt_buying_power)),
+            "portfolio_value": self.portfolio_value,
+            "last_equity": self.last_equity,
+            "daytrading_buying_power": self.daytrading_buying_power,
+            "regt_buying_power": self.regt_buying_power,
             "status": self.status,
         }
 
 
 @dataclass(frozen=True)
 class PortfolioHistoryModel:
-    """Immutable portfolio history model."""
+    """Immutable portfolio history model.
+    
+    All monetary values use Decimal for precision per guardrails.
+    """
 
-    profit_loss: list[float]
-    profit_loss_pct: list[float]
-    equity: list[float]
+    profit_loss: list[Decimal]
+    profit_loss_pct: list[Decimal]
+    equity: list[Decimal]
     timestamp: list[str]
 
     @classmethod
     def from_dict(cls, data: PortfolioHistoryData) -> PortfolioHistoryModel:
         """Create from PortfolioHistoryData TypedDict.
 
-        Converts Decimal values from TypedDict to float for internal storage.
+        Stores Decimal values directly without conversion.
         """
         return cls(
-            profit_loss=[float(x) for x in data.get("profit_loss", [])],
-            profit_loss_pct=[float(x) for x in data.get("profit_loss_pct", [])],
-            equity=[float(x) for x in data.get("equity", [])],
+            profit_loss=list(data.get("profit_loss", [])),
+            profit_loss_pct=list(data.get("profit_loss_pct", [])),
+            equity=list(data.get("equity", [])),
             timestamp=data.get("timestamp", []),
         )
 
     def to_dict(self) -> PortfolioHistoryData:
         """Convert to PortfolioHistoryData TypedDict.
 
-        Converts float values to Decimal for TypedDict compliance.
+        Returns Decimal values directly without conversion.
         """
         return {
-            "profit_loss": [Decimal(str(x)) for x in self.profit_loss],
-            "profit_loss_pct": [Decimal(str(x)) for x in self.profit_loss_pct],
-            "equity": [Decimal(str(x)) for x in self.equity],
+            "profit_loss": self.profit_loss,
+            "profit_loss_pct": self.profit_loss_pct,
+            "equity": self.equity,
             "timestamp": self.timestamp,
         }
 
@@ -105,11 +111,11 @@ class PortfolioHistoryModel:
         return not any([self.profit_loss, self.equity, self.timestamp])
 
     @property
-    def latest_equity(self) -> float | None:
+    def latest_equity(self) -> Decimal | None:
         """Get the latest equity value."""
         return self.equity[-1] if self.equity else None
 
     @property
-    def latest_pnl(self) -> float | None:
+    def latest_pnl(self) -> Decimal | None:
         """Get the latest P&L value."""
         return self.profit_loss[-1] if self.profit_loss else None
