@@ -19,7 +19,6 @@ from .time_in_force import TimeInForce  # noqa: F401
 
 __all__ = [
     "MarketDataPort",
-    "OrderSideType",
     "Quantity",
     "StrategyEngine",
     "StrategySignal",
