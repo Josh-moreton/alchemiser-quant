@@ -39,15 +39,18 @@ class DataManager:
 
         """
         # Try to initialize provider, but don't fail if credentials are missing (e.g., in tests)
+        provider: AlpacaHistoricalProvider | None
         try:
-            self.provider = AlpacaHistoricalProvider()
+            provider = AlpacaHistoricalProvider()
         except (ValueError, Exception) as e:
             logger.warning(
                 f"Failed to initialize AlpacaHistoricalProvider: {e}. "
                 "Auto-download will not be available."
             )
-            self.provider = None
-        
+            provider = None
+
+        self.provider = provider
+
         # Create or use provided data store
         if data_store:
             self.data_store = data_store
@@ -57,7 +60,7 @@ class DataManager:
         else:
             # Create new data store with provider if available
             self.data_store = DataStore(data_provider=self.provider)
-        
+
         logger.info("DataManager initialized")
 
     def _data_exists_for_range(
@@ -104,7 +107,7 @@ class DataManager:
         if not self.provider:
             logger.error("Cannot download data: provider not initialized")
             return {symbol: False for symbol in symbols}
-        
+
         logger.info(
             f"Downloading data for {len(symbols)} symbols",
             symbol_count=len(symbols),
