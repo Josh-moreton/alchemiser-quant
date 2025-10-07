@@ -22,7 +22,7 @@ import pytest
 from hypothesis import given, strategies as st
 
 from the_alchemiser.shared.schemas.market_bar import MarketBar
-from the_alchemiser.shared.types.exceptions import DataProviderError, MarketDataError
+from the_alchemiser.shared.errors.exceptions import DataProviderError, MarketDataError
 from the_alchemiser.strategy_v2.adapters.market_data_adapter import (
     StrategyMarketDataAdapter,
 )

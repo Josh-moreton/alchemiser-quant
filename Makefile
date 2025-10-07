@@ -26,6 +26,11 @@ help:
 	@echo "  stress-test-stateful-quick Run quick stress test in stateful mode"
 	@echo "  stress-test-dry-run      Show stress test plan without executing"
 	@echo ""
+	@echo "Backtesting Commands:"
+	@echo "  backtest-download        Download historical data for backtesting"
+	@echo "  backtest                 Run backtest (default 14 days / 2 weeks)"
+	@echo "  backtest-range           Run backtest with custom date range"
+	@echo ""
 	@echo "Testing Commands:"
 	@echo "  test            Run all tests"
 	@echo "  test-unit       Run unit tests only"
@@ -110,20 +115,20 @@ test-coverage:
 
 run-trade:
 	@echo "💰 Running trading (mode determined by stage)..."
-	python -m the_alchemiser
+	poetry run python -m the_alchemiser
 
 # P&L Analysis Commands
 run-pnl-weekly:
 	@echo "📊 Running weekly P&L analysis..."
-	python -m the_alchemiser pnl --weekly
+	poetry run python -m the_alchemiser pnl --weekly
 
 run-pnl-monthly:
 	@echo "📊 Running monthly P&L analysis..."
-	python -m the_alchemiser pnl --monthly
+	poetry run python -m the_alchemiser pnl --monthly
 
 run-pnl-detailed:
 	@echo "📊 Running detailed monthly P&L analysis..."
-	python -m the_alchemiser pnl --monthly --detailed
+	poetry run python -m the_alchemiser pnl --monthly --detailed
 
 # Stress Testing Commands
 stress-test:
@@ -145,6 +150,20 @@ stress-test-stateful-quick:
 stress-test-dry-run:
 	@echo "🔥 Showing stress test execution plan..."
 	poetry run python scripts/stress_test.py --dry-run
+
+# Backtesting Commands
+backtest-download:
+	@echo "📊 Downloading historical data for backtesting..."
+	poetry run python scripts/backtest_download.py
+
+backtest:
+	@echo "📊 Running backtest (default 14 days / 2 weeks)..."
+	poetry run python scripts/backtest_run.py
+
+backtest-range:
+	@echo "📊 Running backtest with custom date range..."
+	@echo "Usage: make backtest-range ARGS='--start-date 2023-01-01 --end-date 2023-12-31'"
+	poetry run python scripts/backtest_run.py $(ARGS)
 
 # Status command removed - use programmatic access via TradingSystem class
 

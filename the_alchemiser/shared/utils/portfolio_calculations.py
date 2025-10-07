@@ -13,8 +13,8 @@ from __future__ import annotations
 from decimal import Decimal
 
 from the_alchemiser.shared.config.config import load_settings
+from the_alchemiser.shared.errors.exceptions import ConfigurationError
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.types.exceptions import ConfigurationError
 
 logger = get_logger(__name__)
 

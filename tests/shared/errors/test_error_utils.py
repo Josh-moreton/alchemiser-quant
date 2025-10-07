@@ -15,7 +15,7 @@ from the_alchemiser.shared.errors.error_utils import (
     categorize_error_severity,
     retry_with_backoff,
 )
-from the_alchemiser.shared.types.exceptions import (
+from the_alchemiser.shared.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
     InsufficientFundsError,

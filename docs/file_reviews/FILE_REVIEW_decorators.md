@@ -22,7 +22,7 @@
 
 **Direct dependencies (imports)**:
 ```
-Internal: the_alchemiser.shared.types.exceptions
+Internal: the_alchemiser.shared.errors.exceptions
 External: functools, collections.abc
 ```
 
@@ -41,7 +41,7 @@ To: DataProviderError, MarketDataError, TradingClientError, StreamingError, Conf
 **Related docs/specs**:
 - Copilot Instructions
 - Python Coding Rules for AI Agents
-- Exception handling standards in shared.types.exceptions
+- Exception handling standards in shared.errors.exceptions
 
 ---
 

@@ -106,18 +106,25 @@ if [ "$ENVIRONMENT" = "dev" ]; then
         exit 1
     fi
     ALPACA_ENDPOINT_PARAM=${ALPACA_ENDPOINT:-"https://paper-api.alpaca.markets/v2"}
+    EMAIL_PASSWORD_PARAM=${EMAIL__PASSWORD:-""}
+
+    PARAMS=(
+        "Stage=dev"
+        "AlpacaKey=$ALPACA_KEY"
+        "AlpacaSecret=$ALPACA_SECRET"
+        "AlpacaEndpoint=$ALPACA_ENDPOINT_PARAM"
+        "LoggingLevel=${LOGGING__LEVEL:-INFO}"
+        "DslMaxWorkers=${ALCHEMISER_DSL_MAX_WORKERS:-7}"
+    )
+    if [[ -n "$EMAIL_PASSWORD_PARAM" ]]; then
+        PARAMS+=("EmailPassword=$EMAIL_PASSWORD_PARAM")
+    fi
 
     sam deploy \
         --no-fail-on-empty-changeset \
         --resolve-s3 \
         --config-env "$ENVIRONMENT" \
-        --parameter-overrides \
-            Stage=dev \
-            AlpacaKey="$ALPACA_KEY" \
-            AlpacaSecret="$ALPACA_SECRET" \
-            AlpacaEndpoint="$ALPACA_ENDPOINT_PARAM" \
-            LoggingLevel="${LOGGING__LEVEL:-INFO}" \
-            DslMaxWorkers="${ALCHEMISER_DSL_MAX_WORKERS:-7}"
+        --parameter-overrides ${PARAMS[@]}
 else
     # Production: use the same ALPACA_* variables, mapped to Prod* parameters
     if [[ -z "${ALPACA_KEY:-}" || -z "${ALPACA_SECRET:-}" ]]; then

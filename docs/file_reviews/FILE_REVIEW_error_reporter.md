@@ -24,7 +24,7 @@
 ```python
 Internal: 
   - shared.logging (get_logger)
-  - shared.types.exceptions (InsufficientFundsError, MarketClosedError, OrderExecutionError, SecurityError)
+  - shared.errors.exceptions (InsufficientFundsError, MarketClosedError, OrderExecutionError, SecurityError)
 
 External:
   - collections.defaultdict (stdlib)

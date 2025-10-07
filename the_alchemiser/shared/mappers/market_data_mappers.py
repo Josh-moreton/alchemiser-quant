@@ -44,7 +44,9 @@ def _parse_ts(value: datetime | str | int | float | None) -> datetime | None:
     return None
 
 
-def bars_to_domain(rows: Iterable[dict[str, Any]], symbol: str | None = None) -> list[BarModel]:
+def bars_to_domain(
+    rows: Iterable[dict[str, Any]], symbol: str | None = None
+) -> list[BarModel]:
     """Convert raw bar data dictionaries to domain BarModel objects.
 
     Args:
@@ -72,10 +74,10 @@ def bars_to_domain(rows: Iterable[dict[str, Any]], symbol: str | None = None) ->
                 BarModel(
                     symbol=(r.get("S") or r.get("symbol") or symbol or "UNKNOWN"),
                     timestamp=ts_parsed,
-                    open=float(r.get("o") or r.get("open") or 0),
-                    high=float(r.get("h") or r.get("high") or 0),
-                    low=float(r.get("l") or r.get("low") or 0),
-                    close=float(r.get("c") or r.get("close") or 0),
+                    open=Decimal(str(r.get("o") or r.get("open") or 0)),
+                    high=Decimal(str(r.get("h") or r.get("high") or 0)),
+                    low=Decimal(str(r.get("l") or r.get("low") or 0)),
+                    close=Decimal(str(r.get("c") or r.get("close") or 0)),
                     volume=int(r.get("v") or r.get("volume") or 0),
                 )
             )

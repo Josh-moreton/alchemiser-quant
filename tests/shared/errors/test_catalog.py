@@ -13,7 +13,7 @@ from the_alchemiser.shared.errors.catalog import (
     get_suggested_action,
     map_exception_to_error_code,
 )
-from the_alchemiser.shared.types.exceptions import (
+from the_alchemiser.shared.errors.exceptions import (
     BuyingPowerError,
     ConfigurationError,
     DataProviderError,

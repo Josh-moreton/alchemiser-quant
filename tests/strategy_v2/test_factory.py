@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from the_alchemiser.shared.types.exceptions import ConfigurationError
+from the_alchemiser.shared.errors.exceptions import ConfigurationError
 from the_alchemiser.strategy_v2.adapters.market_data_adapter import (
     StrategyMarketDataAdapter,
 )

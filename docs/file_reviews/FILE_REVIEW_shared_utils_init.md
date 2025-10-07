@@ -30,7 +30,7 @@
 **Direct dependencies (imports)**:
 ```python
 Internal:
-  - the_alchemiser.shared.types.exceptions (AlchemiserError, ConfigurationError, etc.)
+  - the_alchemiser.shared.errors.exceptions (AlchemiserError, ConfigurationError, etc.)
   - the_alchemiser.shared.utils.alpaca_error_handler (AlpacaErrorHandler, alpaca_retry_context)
   - the_alchemiser.shared.utils.error_reporter (ErrorReporter, get_error_reporter, report_error_globally)
 
@@ -78,7 +78,7 @@ Exports error handling utilities:
 - Identify **dead code**, **complexity hotspots**, and **performance risks**
 
 **File Purpose**: This `__init__.py` serves as a **facade/public API** for the `shared.utils` package, providing a clean, stable interface to:
-1. Core exception types from `shared.types.exceptions`
+1. Core exception types from `shared.errors.exceptions`
 2. Alpaca-specific error handling utilities
 3. Centralized error reporting infrastructure
 
@@ -145,7 +145,7 @@ Exports error handling utilities:
   
 - [x] ✅ **DTOs are frozen/immutable** and validated (e.g., Pydantic v2 models with constrained types)
   - **Status**: N/A - No DTOs defined in this file
-  - **Note**: DTOs are in shared.schemas, exceptions in shared.types.exceptions
+  - **Note**: DTOs are in shared.schemas, exceptions in shared.errors.exceptions
   
 - [x] ✅ **Numerical correctness**: currency uses `Decimal`; floats use `math.isclose` or explicit tolerances; no `==`/`!=` on floats
   - **Status**: N/A - No numerical operations in this file
@@ -201,7 +201,7 @@ Exports error handling utilities:
 
 ### Design Patterns
 ✅ **Facade Pattern**: This `__init__.py` implements the Facade pattern, providing a simplified interface to:
-- Exception types (from shared.types.exceptions)
+- Exception types (from shared.errors.exceptions)
 - Alpaca error handling (from shared.utils.alpaca_error_handler)
 - Error reporting (from shared.utils.error_reporter)
 

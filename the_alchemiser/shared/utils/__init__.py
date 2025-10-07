@@ -8,7 +8,7 @@ Cross-cutting utilities and error handling.
 from __future__ import annotations
 
 # Core exception types - most commonly used
-from ..types.exceptions import (
+from ..errors.exceptions import (
     AlchemiserError,
     ConfigurationError,
     DataProviderError,

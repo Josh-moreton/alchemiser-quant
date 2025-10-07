@@ -13,13 +13,13 @@ import time
 from decimal import Decimal
 from typing import TypedDict
 
-from the_alchemiser.shared.errors import EnhancedAlchemiserError
+from the_alchemiser.shared.errors.exceptions import AlchemiserError
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-class OrderTrackerError(EnhancedAlchemiserError):
+class OrderTrackerError(AlchemiserError):
     """Error raised by OrderTracker operations."""
 
 
@@ -103,7 +103,9 @@ class OrderTracker:
             if status is not None:
                 self._order_status[order_id] = str(status).lower()
                 logger.debug(
-                    "Updated order status", order_id=order_id, status=str(status).lower()
+                    "Updated order status",
+                    order_id=order_id,
+                    status=str(status).lower(),
                 )
             if avg_price is not None:
                 self._order_avg_price[order_id] = avg_price

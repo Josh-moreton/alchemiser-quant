@@ -20,7 +20,7 @@ import pandas as pd
 import pytest
 from hypothesis import given, strategies as st
 
-from the_alchemiser.shared.errors import EnhancedDataError
+from the_alchemiser.shared.errors.exceptions import MarketDataError
 from the_alchemiser.strategy_v2.indicators.indicators import (
     DEFAULT_RSI_WINDOW,
     NEUTRAL_RSI_VALUE,
@@ -82,14 +82,14 @@ class TestRSI:
         """RSI should reject negative window."""
         prices = pd.Series([100.0] * 20)
         
-        with pytest.raises(EnhancedDataError, match="must be positive"):
+        with pytest.raises(MarketDataError, match="must be positive"):
             TechnicalIndicators.rsi(prices, window=-1)
 
     def test_rsi_rejects_zero_window(self):
         """RSI should reject zero window."""
         prices = pd.Series([100.0] * 20)
         
-        with pytest.raises(EnhancedDataError, match="must be positive"):
+        with pytest.raises(MarketDataError, match="must be positive"):
             TechnicalIndicators.rsi(prices, window=0)
 
     def test_rsi_handles_empty_series(self):
@@ -132,7 +132,7 @@ class TestMovingAverage:
         """Moving average should reject negative window."""
         prices = pd.Series([100.0] * 20)
         
-        with pytest.raises(EnhancedDataError, match="must be positive"):
+        with pytest.raises(MarketDataError, match="must be positive"):
             TechnicalIndicators.moving_average(prices, window=-1)
 
     def test_moving_average_handles_empty_series(self):
@@ -164,7 +164,7 @@ class TestExponentialMovingAverage:
         """EMA should reject negative window."""
         prices = pd.Series([100.0] * 20)
         
-        with pytest.raises(EnhancedDataError, match="must be positive"):
+        with pytest.raises(MarketDataError, match="must be positive"):
             TechnicalIndicators.exponential_moving_average(prices, window=-1)
 
     def test_ema_handles_empty_series(self):
@@ -203,7 +203,7 @@ class TestMovingAverageReturn:
         """Moving average return should reject negative window."""
         prices = pd.Series([100.0] * 20)
         
-        with pytest.raises(EnhancedDataError, match="must be positive"):
+        with pytest.raises(MarketDataError, match="must be positive"):
             TechnicalIndicators.moving_average_return(prices, window=-1)
 
 
@@ -235,7 +235,7 @@ class TestCumulativeReturn:
         """Cumulative return should reject negative window."""
         prices = pd.Series([100.0] * 20)
         
-        with pytest.raises(EnhancedDataError, match="must be positive"):
+        with pytest.raises(MarketDataError, match="must be positive"):
             TechnicalIndicators.cumulative_return(prices, window=-1)
 
 
@@ -267,7 +267,7 @@ class TestStdevReturn:
         """Standard deviation return should reject negative window."""
         prices = pd.Series([100.0] * 20)
         
-        with pytest.raises(EnhancedDataError, match="must be positive"):
+        with pytest.raises(MarketDataError, match="must be positive"):
             TechnicalIndicators.stdev_return(prices, window=-1)
 
 
@@ -310,7 +310,7 @@ class TestMaxDrawdown:
         """Maximum drawdown should reject negative window."""
         prices = pd.Series([100.0] * 20)
         
-        with pytest.raises(EnhancedDataError, match="must be positive"):
+        with pytest.raises(MarketDataError, match="must be positive"):
             TechnicalIndicators.max_drawdown(prices, window=-1)
 
 
@@ -397,7 +397,7 @@ class TestInputValidation:
         ]
         
         for indicator in indicators:
-            with pytest.raises(EnhancedDataError, match="must be positive"):
+            with pytest.raises(MarketDataError, match="must be positive"):
                 indicator(prices, window=-1)
 
     def test_all_indicators_handle_empty_series(self):

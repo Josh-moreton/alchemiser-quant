@@ -25,6 +25,7 @@ Example:
     ...     )
     ... except StrategyV2Error as e:
     ...     logger.error("Strategy error", extra=e.to_dict())
+
 """
 
 from __future__ import annotations
@@ -34,7 +35,7 @@ from typing import Any
 
 class StrategyV2Error(Exception):
     """Base exception for strategy_v2 module.
-    
+
     Supports event-driven workflow patterns with correlation_id and causation_id.
     All context is preserved in the context dict for structured logging.
     """
@@ -63,6 +64,7 @@ class StrategyV2Error(Exception):
             ...     causation_id="event-456",
             ...     symbol="AAPL",
             ... )
+
         """
         super().__init__(message)
         self.message = message
@@ -73,10 +75,10 @@ class StrategyV2Error(Exception):
 
     def to_dict(self) -> dict[str, Any]:
         """Convert error to structured data for logging and reporting.
-        
+
         Returns:
             Dictionary with error type, message, module, IDs, and context.
-            
+
         Example:
             >>> error = StrategyV2Error("Test", correlation_id="123")
             >>> error.to_dict()
@@ -88,6 +90,7 @@ class StrategyV2Error(Exception):
                 'causation_id': None,
                 'context': {}
             }
+
         """
         return {
             "error_type": self.__class__.__name__,
@@ -101,7 +104,7 @@ class StrategyV2Error(Exception):
 
 class StrategyExecutionError(StrategyV2Error):
     """Error during strategy execution.
-    
+
     Raised when a strategy encounters an error during its execution phase.
     Includes strategy_id for identification and supports full traceability.
     """
@@ -130,6 +133,7 @@ class StrategyExecutionError(StrategyV2Error):
             ...     correlation_id="req-123",
             ...     symbol="SPY",
             ... )
+
         """
         super().__init__(
             message,
@@ -143,7 +147,7 @@ class StrategyExecutionError(StrategyV2Error):
 
 class ConfigurationError(StrategyV2Error):
     """Error in strategy configuration or context.
-    
+
     Raised when strategy configuration is invalid or missing required values.
     Used during strategy initialization and context validation.
     """
@@ -169,6 +173,7 @@ class ConfigurationError(StrategyV2Error):
             ...     config_key="symbols",
             ...     provided_value=[],
             ... )
+
         """
         super().__init__(
             message,
@@ -181,7 +186,7 @@ class ConfigurationError(StrategyV2Error):
 
 class MarketDataError(StrategyV2Error):
     """Error accessing or processing market data.
-    
+
     Raised when market data fetching or processing fails. Includes symbol
     for tracking which asset caused the error.
     """
@@ -210,6 +215,7 @@ class MarketDataError(StrategyV2Error):
             ...     timeframe="1Day",
             ...     correlation_id="req-123",
             ... )
+
         """
         super().__init__(
             message,

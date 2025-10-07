@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from typing import overload
 
 from ..constants import UTC_TIMEZONE_SUFFIX
-from ..errors import EnhancedDataError
+from ..errors.exceptions import DataProviderError
 from ..logging import get_logger
 
 logger = get_logger(__name__)
@@ -112,11 +112,12 @@ def normalize_timestamp_to_utc(timestamp: datetime | str | int | float) -> datet
                 error=str(e),
                 module="timezone_utils",
             )
-            raise EnhancedDataError(
+            raise DataProviderError(
                 f"Failed to parse timestamp string: {timestamp}",
-                data_source="timezone_utils",
-                data_type="timestamp",
-                recoverable=False,
+                context={
+                    "data_source": "timezone_utils",
+                    "data_type": "timestamp",
+                },
             ) from e
 
     # For other types, try to convert to string first
@@ -126,7 +127,7 @@ def normalize_timestamp_to_utc(timestamp: datetime | str | int | float) -> datet
     )
     try:
         return normalize_timestamp_to_utc(str(timestamp))
-    except EnhancedDataError:
+    except DataProviderError:
         # Re-raise our own errors
         raise
     except Exception as e:
@@ -136,11 +137,12 @@ def normalize_timestamp_to_utc(timestamp: datetime | str | int | float) -> datet
             error=str(e),
             module="timezone_utils",
         )
-        raise EnhancedDataError(
+        raise DataProviderError(
             f"Failed to convert timestamp of type {type(timestamp).__name__}",
-            data_source="timezone_utils",
-            data_type="timestamp",
-            recoverable=False,
+            context={
+                "data_source": "timezone_utils",
+                "data_type": "timestamp",
+            },
         ) from e
 
 
