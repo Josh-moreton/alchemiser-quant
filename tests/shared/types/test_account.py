@@ -17,22 +17,24 @@ class TestAccountModel:
     @pytest.mark.unit
     def test_create_account_model(self):
         """Test creating AccountModel."""
+        from decimal import Decimal
+        
         account = AccountModel(
             account_id="test-123",
-            equity=10000.0,
-            cash=5000.0,
-            buying_power=15000.0,
+            equity=Decimal("10000.0"),
+            cash=Decimal("5000.0"),
+            buying_power=Decimal("15000.0"),
             day_trades_remaining=3,
-            portfolio_value=10000.0,
-            last_equity=9500.0,
-            daytrading_buying_power=15000.0,
-            regt_buying_power=15000.0,
+            portfolio_value=Decimal("10000.0"),
+            last_equity=Decimal("9500.0"),
+            daytrading_buying_power=Decimal("15000.0"),
+            regt_buying_power=Decimal("15000.0"),
             status="ACTIVE"
         )
         
         assert account.account_id == "test-123"
-        assert account.equity == 10000.0
-        assert account.cash == 5000.0
+        assert account.equity == Decimal("10000.0")
+        assert account.cash == Decimal("5000.0")
         assert account.status == "ACTIVE"
 
     @pytest.mark.unit
@@ -56,8 +58,8 @@ class TestAccountModel:
         account = AccountModel.from_dict(data)
         
         assert account.account_id == "test-456"
-        assert account.equity == 20000.0
-        assert account.portfolio_value == 20000.0
+        assert account.equity == Decimal("20000.0")
+        assert account.portfolio_value == Decimal("20000.0")
 
     @pytest.mark.unit
     def test_to_dict(self):
@@ -66,14 +68,14 @@ class TestAccountModel:
         
         account = AccountModel(
             account_id="test-789",
-            equity=15000.0,
-            cash=7500.0,
-            buying_power=22500.0,
+            equity=Decimal("15000.0"),
+            cash=Decimal("7500.0"),
+            buying_power=Decimal("22500.0"),
             day_trades_remaining=1,
-            portfolio_value=15000.0,
-            last_equity=14500.0,
-            daytrading_buying_power=22500.0,
-            regt_buying_power=22500.0,
+            portfolio_value=Decimal("15000.0"),
+            last_equity=Decimal("14500.0"),
+            daytrading_buying_power=Decimal("22500.0"),
+            regt_buying_power=Decimal("22500.0"),
             status="ACTIVE"
         )
         
@@ -110,35 +112,39 @@ class TestAccountModel:
     @pytest.mark.unit
     def test_account_model_is_frozen(self):
         """Test that AccountModel is immutable."""
+        from decimal import Decimal
+        
         account = AccountModel(
             account_id="test-111",
-            equity=10000.0,
-            cash=5000.0,
-            buying_power=15000.0,
+            equity=Decimal("10000.0"),
+            cash=Decimal("5000.0"),
+            buying_power=Decimal("15000.0"),
             day_trades_remaining=3,
-            portfolio_value=10000.0,
-            last_equity=9500.0,
-            daytrading_buying_power=15000.0,
-            regt_buying_power=15000.0,
+            portfolio_value=Decimal("10000.0"),
+            last_equity=Decimal("9500.0"),
+            daytrading_buying_power=Decimal("15000.0"),
+            regt_buying_power=Decimal("15000.0"),
             status="ACTIVE"
         )
         
         with pytest.raises(AttributeError):
-            account.equity = 20000.0
+            account.equity = Decimal("20000.0")
 
     @pytest.mark.unit
     def test_inactive_status(self):
         """Test AccountModel with INACTIVE status."""
+        from decimal import Decimal
+        
         account = AccountModel(
             account_id="test-222",
-            equity=0.0,
-            cash=0.0,
-            buying_power=0.0,
+            equity=Decimal("0.0"),
+            cash=Decimal("0.0"),
+            buying_power=Decimal("0.0"),
             day_trades_remaining=0,
-            portfolio_value=0.0,
-            last_equity=0.0,
-            daytrading_buying_power=0.0,
-            regt_buying_power=0.0,
+            portfolio_value=Decimal("0.0"),
+            last_equity=Decimal("0.0"),
+            daytrading_buying_power=Decimal("0.0"),
+            regt_buying_power=Decimal("0.0"),
             status="INACTIVE"
         )
         
@@ -151,10 +157,12 @@ class TestPortfolioHistoryModel:
     @pytest.mark.unit
     def test_create_portfolio_history(self):
         """Test creating PortfolioHistoryModel."""
+        from decimal import Decimal
+        
         history = PortfolioHistoryModel(
-            profit_loss=[100.0, 200.0, 150.0],
-            profit_loss_pct=[1.0, 2.0, 1.5],
-            equity=[10100.0, 10200.0, 10150.0],
+            profit_loss=[Decimal("100.0"), Decimal("200.0"), Decimal("150.0")],
+            profit_loss_pct=[Decimal("1.0"), Decimal("2.0"), Decimal("1.5")],
+            equity=[Decimal("10100.0"), Decimal("10200.0"), Decimal("10150.0")],
             timestamp=["2024-01-01", "2024-01-02", "2024-01-03"]
         )
         
@@ -165,41 +173,47 @@ class TestPortfolioHistoryModel:
     @pytest.mark.unit
     def test_from_dict(self):
         """Test creating PortfolioHistoryModel from dict."""
+        from decimal import Decimal
+        
         data = {
-            "profit_loss": [50.0, 75.0],
-            "profit_loss_pct": [0.5, 0.75],
-            "equity": [10050.0, 10075.0],
+            "profit_loss": [Decimal("50.0"), Decimal("75.0")],
+            "profit_loss_pct": [Decimal("0.5"), Decimal("0.75")],
+            "equity": [Decimal("10050.0"), Decimal("10075.0")],
             "timestamp": ["2024-01-01", "2024-01-02"]
         }
         
         history = PortfolioHistoryModel.from_dict(data)
         
-        assert history.profit_loss == [50.0, 75.0]
-        assert history.equity == [10050.0, 10075.0]
+        assert history.profit_loss == [Decimal("50.0"), Decimal("75.0")]
+        assert history.equity == [Decimal("10050.0"), Decimal("10075.0")]
 
     @pytest.mark.unit
     def test_to_dict(self):
         """Test converting PortfolioHistoryModel to dict."""
+        from decimal import Decimal
+        
         history = PortfolioHistoryModel(
-            profit_loss=[100.0, 200.0],
-            profit_loss_pct=[1.0, 2.0],
-            equity=[10100.0, 10200.0],
+            profit_loss=[Decimal("100.0"), Decimal("200.0")],
+            profit_loss_pct=[Decimal("1.0"), Decimal("2.0")],
+            equity=[Decimal("10100.0"), Decimal("10200.0")],
             timestamp=["2024-01-01", "2024-01-02"]
         )
         
         result = history.to_dict()
         
-        assert result["profit_loss"] == [100.0, 200.0]
-        assert result["equity"] == [10100.0, 10200.0]
+        assert result["profit_loss"] == [Decimal("100.0"), Decimal("200.0")]
+        assert result["equity"] == [Decimal("10100.0"), Decimal("10200.0")]
         assert result["timestamp"] == ["2024-01-01", "2024-01-02"]
 
     @pytest.mark.unit
     def test_is_empty_with_data(self):
         """Test is_empty property with data."""
+        from decimal import Decimal
+        
         history = PortfolioHistoryModel(
-            profit_loss=[100.0],
-            profit_loss_pct=[1.0],
-            equity=[10100.0],
+            profit_loss=[Decimal("100.0")],
+            profit_loss_pct=[Decimal("1.0")],
+            equity=[Decimal("10100.0")],
             timestamp=["2024-01-01"]
         )
         
@@ -220,14 +234,16 @@ class TestPortfolioHistoryModel:
     @pytest.mark.unit
     def test_latest_equity(self):
         """Test latest_equity property."""
+        from decimal import Decimal
+        
         history = PortfolioHistoryModel(
-            profit_loss=[100.0, 200.0, 150.0],
-            profit_loss_pct=[1.0, 2.0, 1.5],
-            equity=[10100.0, 10200.0, 10150.0],
+            profit_loss=[Decimal("100.0"), Decimal("200.0"), Decimal("150.0")],
+            profit_loss_pct=[Decimal("1.0"), Decimal("2.0"), Decimal("1.5")],
+            equity=[Decimal("10100.0"), Decimal("10200.0"), Decimal("10150.0")],
             timestamp=["2024-01-01", "2024-01-02", "2024-01-03"]
         )
         
-        assert history.latest_equity == 10150.0
+        assert history.latest_equity == Decimal("10150.0")
 
     @pytest.mark.unit
     def test_latest_equity_empty(self):
@@ -244,14 +260,16 @@ class TestPortfolioHistoryModel:
     @pytest.mark.unit
     def test_latest_pnl(self):
         """Test latest_pnl property."""
+        from decimal import Decimal
+        
         history = PortfolioHistoryModel(
-            profit_loss=[100.0, 200.0, 150.0],
-            profit_loss_pct=[1.0, 2.0, 1.5],
-            equity=[10100.0, 10200.0, 10150.0],
+            profit_loss=[Decimal("100.0"), Decimal("200.0"), Decimal("150.0")],
+            profit_loss_pct=[Decimal("1.0"), Decimal("2.0"), Decimal("1.5")],
+            equity=[Decimal("10100.0"), Decimal("10200.0"), Decimal("10150.0")],
             timestamp=["2024-01-01", "2024-01-02", "2024-01-03"]
         )
         
-        assert history.latest_pnl == 150.0
+        assert history.latest_pnl == Decimal("150.0")
 
     @pytest.mark.unit
     def test_latest_pnl_empty(self):
@@ -268,15 +286,17 @@ class TestPortfolioHistoryModel:
     @pytest.mark.unit
     def test_portfolio_history_is_frozen(self):
         """Test that PortfolioHistoryModel is immutable."""
+        from decimal import Decimal
+        
         history = PortfolioHistoryModel(
-            profit_loss=[100.0],
-            profit_loss_pct=[1.0],
-            equity=[10100.0],
+            profit_loss=[Decimal("100.0")],
+            profit_loss_pct=[Decimal("1.0")],
+            equity=[Decimal("10100.0")],
             timestamp=["2024-01-01"]
         )
         
         with pytest.raises(AttributeError):
-            history.equity = [20000.0]
+            history.equity = [Decimal("20000.0")]
 
     @pytest.mark.unit
     def test_from_dict_with_missing_keys(self):
@@ -297,21 +317,28 @@ class TestAccountModelProperties:
 
     @pytest.mark.property
     @given(
-        st.floats(min_value=0.0, max_value=1000000.0),
-        st.floats(min_value=0.0, max_value=1000000.0)
+        st.floats(min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False),
+        st.floats(min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False)
     )
     def test_portfolio_value_equals_equity(self, equity, cash):
         """Property: portfolio value should typically equal equity in simple cases."""
+        from decimal import Decimal
+        
+        equity_dec = Decimal(str(equity))
+        cash_dec = Decimal(str(cash))
+        buying_power_dec = equity_dec + cash_dec
+        last_equity_dec = equity_dec * Decimal("0.95")
+        
         account = AccountModel(
             account_id="test",
-            equity=equity,
-            cash=cash,
-            buying_power=equity + cash,
+            equity=equity_dec,
+            cash=cash_dec,
+            buying_power=buying_power_dec,
             day_trades_remaining=3,
-            portfolio_value=equity,
-            last_equity=equity * 0.95,
-            daytrading_buying_power=equity + cash,
-            regt_buying_power=equity + cash,
+            portfolio_value=equity_dec,
+            last_equity=last_equity_dec,
+            daytrading_buying_power=buying_power_dec,
+            regt_buying_power=buying_power_dec,
             status="ACTIVE"
         )
         
@@ -321,16 +348,18 @@ class TestAccountModelProperties:
     @given(st.integers(min_value=0, max_value=10))
     def test_day_trades_remaining_non_negative(self, day_trades):
         """Property: day trades remaining should be non-negative."""
+        from decimal import Decimal
+        
         account = AccountModel(
             account_id="test",
-            equity=10000.0,
-            cash=5000.0,
-            buying_power=15000.0,
+            equity=Decimal("10000.0"),
+            cash=Decimal("5000.0"),
+            buying_power=Decimal("15000.0"),
             day_trades_remaining=day_trades,
-            portfolio_value=10000.0,
-            last_equity=9500.0,
-            daytrading_buying_power=15000.0,
-            regt_buying_power=15000.0,
+            portfolio_value=Decimal("10000.0"),
+            last_equity=Decimal("9500.0"),
+            daytrading_buying_power=Decimal("15000.0"),
+            regt_buying_power=Decimal("15000.0"),
             status="ACTIVE"
         )
         
@@ -341,34 +370,42 @@ class TestPortfolioHistoryModelProperties:
     """Property-based tests for PortfolioHistoryModel."""
 
     @pytest.mark.property
-    @given(st.lists(st.floats(min_value=-1000.0, max_value=1000.0), min_size=0, max_size=100))
+    @given(st.lists(st.floats(min_value=-1000.0, max_value=1000.0, allow_nan=False, allow_infinity=False), min_size=0, max_size=100))
     def test_latest_pnl_matches_last_element(self, pnl_list):
         """Property: latest_pnl should match the last element in profit_loss list."""
+        from decimal import Decimal
+        
+        pnl_decimal_list = [Decimal(str(x)) for x in pnl_list]
+        
         history = PortfolioHistoryModel(
-            profit_loss=pnl_list,
-            profit_loss_pct=[0.0] * len(pnl_list),
-            equity=[10000.0] * len(pnl_list),
-            timestamp=[f"2024-{i:02d}-01" for i in range(1, len(pnl_list) + 1)]
+            profit_loss=pnl_decimal_list,
+            profit_loss_pct=[Decimal("0.0")] * len(pnl_decimal_list),
+            equity=[Decimal("10000.0")] * len(pnl_decimal_list),
+            timestamp=[f"2024-{i:02d}-01" for i in range(1, len(pnl_decimal_list) + 1)]
         )
         
-        if pnl_list:
-            assert history.latest_pnl == pnl_list[-1]
+        if pnl_decimal_list:
+            assert history.latest_pnl == pnl_decimal_list[-1]
         else:
             assert history.latest_pnl is None
 
     @pytest.mark.property
-    @given(st.lists(st.floats(min_value=0.0, max_value=1000000.0), min_size=0, max_size=100))
+    @given(st.lists(st.floats(min_value=0.0, max_value=1000000.0, allow_nan=False, allow_infinity=False), min_size=0, max_size=100))
     def test_latest_equity_matches_last_element(self, equity_list):
         """Property: latest_equity should match the last element in equity list."""
+        from decimal import Decimal
+        
+        equity_decimal_list = [Decimal(str(x)) for x in equity_list]
+        
         history = PortfolioHistoryModel(
-            profit_loss=[0.0] * len(equity_list),
-            profit_loss_pct=[0.0] * len(equity_list),
-            equity=equity_list,
-            timestamp=[f"2024-{i:02d}-01" for i in range(1, len(equity_list) + 1)]
+            profit_loss=[Decimal("0.0")] * len(equity_decimal_list),
+            profit_loss_pct=[Decimal("0.0")] * len(equity_decimal_list),
+            equity=equity_decimal_list,
+            timestamp=[f"2024-{i:02d}-01" for i in range(1, len(equity_decimal_list) + 1)]
         )
         
-        if equity_list:
-            assert history.latest_equity == equity_list[-1]
+        if equity_decimal_list:
+            assert history.latest_equity == equity_decimal_list[-1]
         else:
             assert history.latest_equity is None
 
@@ -376,10 +413,12 @@ class TestPortfolioHistoryModelProperties:
     @given(st.integers(min_value=0, max_value=100))
     def test_history_length_consistency(self, length):
         """Property: all lists in history should have same length."""
+        from decimal import Decimal
+        
         history = PortfolioHistoryModel(
-            profit_loss=[0.0] * length,
-            profit_loss_pct=[0.0] * length,
-            equity=[10000.0] * length,
+            profit_loss=[Decimal("0.0")] * length,
+            profit_loss_pct=[Decimal("0.0")] * length,
+            equity=[Decimal("10000.0")] * length,
             timestamp=[f"2024-{i:02d}-01" for i in range(1, length + 1)]
         )
         
