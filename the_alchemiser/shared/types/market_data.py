@@ -695,20 +695,20 @@ class SubscriptionPlan:
     successfully_added: int = 0
 
 
-@dataclass
+@dataclass(frozen=True)
 class QuoteExtractionResult:
     """Container for quote values extracted from incoming data (internal use).
 
     Used internally by quote parsing/extraction logic to temporarily hold
     parsed quote components before validation and conversion.
 
-    Note: Intentionally mutable as it's an internal parsing container.
+    All prices and sizes use Decimal for financial precision per Alchemiser guardrails.
     """
 
-    bid_price: float | None
-    ask_price: float | None
-    bid_size: float | None
-    ask_size: float | None
+    bid_price: Decimal | None
+    ask_price: Decimal | None
+    bid_size: Decimal | None
+    ask_size: Decimal | None
     timestamp_raw: datetime | None
 
 
