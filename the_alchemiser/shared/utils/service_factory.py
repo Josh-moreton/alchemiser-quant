@@ -96,9 +96,7 @@ class ServiceFactory:
                     "Failed to create ApplicationContainer",
                     extra={"error": str(e), "error_type": type(e).__name__},
                 )
-                raise ConfigurationError(
-                    f"Failed to create ApplicationContainer: {e}"
-                ) from e
+                raise ConfigurationError(f"Failed to create ApplicationContainer: {e}") from e
 
         logger.info("ServiceFactory initialized with DI container")
         cls._container = container
@@ -153,9 +151,7 @@ class ServiceFactory:
         api_key = api_key if api_key else None
         secret_key = secret_key if secret_key else None
 
-        use_di = cls._container is not None and all(
-            x is None for x in [api_key, secret_key, paper]
-        )
+        use_di = cls._container is not None and all(x is None for x in [api_key, secret_key, paper])
 
         logger.info(
             "Creating ExecutionManager",
@@ -171,13 +167,13 @@ class ServiceFactory:
             if use_di:
                 # Use DI container - get ExecutionManager from execution providers
                 logger.debug("Initializing execution providers via DI container")
-                
+
                 # Type guard: we know _container is not None here due to use_di check
                 container = cls._container
                 if container is None:
                     # Should never happen due to use_di logic, but satisfy type checker
                     raise ConfigurationError("Container is None despite use_di check")
-                
+
                 ApplicationContainer.initialize_execution_providers(container)
 
                 execution_container = getattr(container, "execution", None)
@@ -258,9 +254,7 @@ class ServiceFactory:
                 extra={"error": str(e), "error_type": type(e).__name__},
                 exc_info=True,
             )
-            raise ConfigurationError(
-                f"Unexpected error creating ExecutionManager: {e}"
-            ) from e
+            raise ConfigurationError(f"Unexpected error creating ExecutionManager: {e}") from e
 
     @classmethod
     def get_container(cls) -> ApplicationContainer | None:

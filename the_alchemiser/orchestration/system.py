@@ -21,6 +21,10 @@ if TYPE_CHECKING:
 from the_alchemiser.shared.config.config import Settings, load_settings
 from the_alchemiser.shared.config.container import ApplicationContainer
 from the_alchemiser.shared.errors.error_handler import TradingSystemErrorHandler
+from the_alchemiser.shared.errors.exceptions import (
+    StrategyExecutionError,
+    TradingClientError,
+)
 from the_alchemiser.shared.events import EventBus, StartupEvent
 from the_alchemiser.shared.logging import (
     get_logger,
@@ -30,10 +34,6 @@ from the_alchemiser.shared.schemas.trade_result_factory import (
     create_success_result,
 )
 from the_alchemiser.shared.schemas.trade_run_result import TradeRunResult
-from the_alchemiser.shared.types.exceptions import (
-    StrategyExecutionError,
-    TradingClientError,
-)
 from the_alchemiser.shared.utils.service_factory import ServiceFactory
 
 

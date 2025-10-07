@@ -65,13 +65,13 @@ class EmailConfig:
                 f"Email config loaded: SMTP={smtp_server}:{smtp_port}, from={from_email}, to={to_email}"
             )
 
-            self._config_cache = {
-                "smtp_server": smtp_server,
-                "smtp_port": smtp_port,
-                "email_address": from_email,
-                "email_password": email_password,
-                "recipient_email": to_email,
-            }
+            self._config_cache = EmailCredentials(
+                smtp_server=smtp_server,
+                smtp_port=smtp_port,
+                email_address=from_email,
+                email_password=email_password,
+                recipient_email=to_email,
+            )
             return self._config_cache
 
         except Exception as e:
@@ -101,11 +101,11 @@ def get_email_config() -> tuple[str, int, str, str, str] | None:
     config = _email_config.get_config()
     if config:
         return (
-            config["smtp_server"],
-            config["smtp_port"],
-            config["email_address"],
-            config["email_password"],
-            config["recipient_email"],
+            config.smtp_server,
+            config.smtp_port,
+            config.email_address,
+            config.email_password,
+            config.recipient_email,
         )
     return None
 

@@ -30,7 +30,7 @@ class AccountModel:
     @classmethod
     def from_dict(cls, data: AccountInfo) -> AccountModel:
         """Create from AccountInfo TypedDict.
-        
+
         Converts Decimal values from TypedDict to float for internal storage.
         """
         return cls(
@@ -48,7 +48,7 @@ class AccountModel:
 
     def to_dict(self) -> AccountInfo:
         """Convert to AccountInfo TypedDict.
-        
+
         Converts float values to Decimal for TypedDict compliance.
         """
         return {
@@ -77,7 +77,7 @@ class PortfolioHistoryModel:
     @classmethod
     def from_dict(cls, data: PortfolioHistoryData) -> PortfolioHistoryModel:
         """Create from PortfolioHistoryData TypedDict.
-        
+
         Converts Decimal values from TypedDict to float for internal storage.
         """
         return cls(
@@ -89,7 +89,7 @@ class PortfolioHistoryModel:
 
     def to_dict(self) -> PortfolioHistoryData:
         """Convert to PortfolioHistoryData TypedDict.
-        
+
         Converts float values to Decimal for TypedDict compliance.
         """
         return {

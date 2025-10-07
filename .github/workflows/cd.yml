@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout correct commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # For workflow_run, use the commit from the CI run; else default to HEAD
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
@@ -61,13 +61,13 @@ jobs:
           fi
 
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -99,6 +99,7 @@ jobs:
           ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
           ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
           ALPACA_ENDPOINT: ${{ vars.ALPACA_ENDPOINT }}
+          EMAIL__PASSWORD: ${{ secrets.EMAIL__PASSWORD }}
           LOGGING__LEVEL: ${{ vars.LOGGING__LEVEL }}
           ALCHEMISER_DSL_MAX_WORKERS: ${{ vars.ALCHEMISER_DSL_MAX_WORKERS }}
           # Strategy config now packaged with code; no JSON vars required
@@ -107,6 +108,7 @@ jobs:
           echo "ALPACA_KEY=$ALPACA_KEY" >> $GITHUB_ENV
           echo "ALPACA_SECRET=$ALPACA_SECRET" >> $GITHUB_ENV
           if [ -n "$ALPACA_ENDPOINT" ]; then echo "ALPACA_ENDPOINT=$ALPACA_ENDPOINT" >> $GITHUB_ENV; fi
+          if [ -n "$EMAIL__PASSWORD" ]; then echo "EMAIL__PASSWORD=$EMAIL__PASSWORD" >> $GITHUB_ENV; fi
           # Non-secret runtime config
           if [ -n "$LOGGING__LEVEL" ]; then echo "LOGGING__LEVEL=$LOGGING__LEVEL" >> $GITHUB_ENV; fi
           if [ -n "$ALCHEMISER_DSL_MAX_WORKERS" ]; then echo "ALCHEMISER_DSL_MAX_WORKERS=$ALCHEMISER_DSL_MAX_WORKERS" >> $GITHUB_ENV; fi

@@ -27,7 +27,7 @@ Internal:
   - the_alchemiser.shared.logging (get_logger)
   - the_alchemiser.shared.schemas.consolidated_portfolio (ConsolidatedPortfolio)
   - the_alchemiser.shared.types (StrategySignal)
-  - the_alchemiser.shared.types.exceptions (DataProviderError)
+  - the_alchemiser.shared.errors.exceptions (DataProviderError)
   - the_alchemiser.strategy_v2.engines.dsl.strategy_engine (DslStrategyEngine)
   - the_alchemiser.shared.config.container (ApplicationContainer)
 

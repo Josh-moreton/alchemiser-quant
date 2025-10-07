@@ -127,12 +127,12 @@ class TestNormalizeTimestampToUtc:
         assert result_dt.minute == 30
 
     def test_invalid_string_fallback_to_current_time(self):
-        """Test that invalid string raises EnhancedDataError."""
-        from the_alchemiser.shared.errors import EnhancedDataError
+        """Test that invalid string raises DataProviderError."""
+        from the_alchemiser.shared.errors.exceptions import DataProviderError
         
         invalid_str = "not a valid datetime"
         
-        with pytest.raises(EnhancedDataError) as exc_info:
+        with pytest.raises(DataProviderError) as exc_info:
             normalize_timestamp_to_utc(invalid_str)
         
         # Verify error details
@@ -140,13 +140,13 @@ class TestNormalizeTimestampToUtc:
         assert invalid_str in str(exc_info.value)
 
     def test_numeric_timestamp_converted_to_string(self):
-        """Test that numeric timestamps raise EnhancedDataError."""
-        from the_alchemiser.shared.errors import EnhancedDataError
+        """Test that numeric timestamps raise DataProviderError."""
+        from the_alchemiser.shared.errors.exceptions import DataProviderError
         
         # This tests that numeric conversion isn't properly implemented
         numeric_timestamp = 1673784600  # Unix timestamp
         
-        with pytest.raises(EnhancedDataError) as exc_info:
+        with pytest.raises(DataProviderError) as exc_info:
             normalize_timestamp_to_utc(numeric_timestamp)
         
         # Verify error details
@@ -221,8 +221,8 @@ class TestTimezoneUtilsEdgeCases:
         assert result.day == 29
 
     def test_normalize_with_exception_fallback(self):
-        """Test that normalize function raises EnhancedDataError on exceptions."""
-        from the_alchemiser.shared.errors import EnhancedDataError
+        """Test that normalize function raises DataProviderError on exceptions."""
+        from the_alchemiser.shared.errors.exceptions import DataProviderError
         
         # Test an object that will cause an exception when converted to string
         class BadObject:
@@ -231,7 +231,7 @@ class TestTimezoneUtilsEdgeCases:
         
         bad_obj = BadObject()
         
-        with pytest.raises(EnhancedDataError) as exc_info:
+        with pytest.raises(DataProviderError) as exc_info:
             normalize_timestamp_to_utc(bad_obj)
         
         # Verify error details

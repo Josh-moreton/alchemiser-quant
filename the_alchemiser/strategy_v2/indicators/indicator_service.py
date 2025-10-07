@@ -182,6 +182,13 @@ class IndicatorService:
 
         """
         window = int(parameters.get("window", 200))
+
+        # Validate sufficient data before computation
+        if len(prices) < window:
+            raise DslEvaluationError(
+                f"Insufficient data for {symbol}: need {window} bars, have {len(prices)} bars"
+            )
+
         ma_series = self.technical_indicators.moving_average(prices, window=window)
 
         latest_ma = float(ma_series.iloc[-1]) if len(ma_series) > 0 else None
