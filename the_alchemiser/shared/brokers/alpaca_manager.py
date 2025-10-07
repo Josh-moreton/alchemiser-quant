@@ -228,15 +228,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
     # Trading Operations
     def get_account(self) -> dict[str, Any] | None:
         """Get account information as dict (protocol compliance)."""
-        return self._account_service.get_account_info()
+        return self._account_service.get_account_dict()
 
     def get_account_object(self) -> TradeAccount | None:
         """Get account information as SDK object."""
         return self._account_service.get_account_object()
-
-    def get_account_dict(self) -> dict[str, Any] | None:
-        """Get account information as a plain dictionary for convenience."""
-        return self._account_service.get_account_dict()
 
     def get_positions(self) -> list[Any]:
         """Get all positions as list of position objects (AccountRepository interface)."""

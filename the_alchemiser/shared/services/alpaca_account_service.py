@@ -51,10 +51,6 @@ class AlpacaAccountService:
         """
         self._trading_client = trading_client
 
-    def get_account_info(self) -> dict[str, Any] | None:
-        """Get account information as dict (protocol compliance)."""
-        return self.get_account_dict()
-
     def get_account_object(self) -> TradeAccount | None:
         """Get account information as SDK object."""
         return self._get_account_object()
