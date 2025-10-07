@@ -12,21 +12,41 @@ Key Features:
 - Fractionability checks
 - Market status and calendar information
 - Cache statistics and monitoring
+- Rate limiting and timeout handling for API calls
 """
 
 from __future__ import annotations
 
+import re
 import threading
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
+from the_alchemiser.shared.errors.exceptions import (
+    DataProviderError,
+    RateLimitError,
+    TradingClientError,
+    ValidationError,
+)
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.asset_info import AssetInfo
+from the_alchemiser.shared.utils.api_helpers import with_rate_limiting, with_timeout
 
 if TYPE_CHECKING:
     from alpaca.trading.client import TradingClient
 
 logger = get_logger(__name__)
+
+
+class CacheStats(TypedDict):
+    """Type definition for cache statistics."""
+
+    total_cached: int
+    expired_entries: int
+    cache_ttl: float
+    cache_hits: int
+    cache_misses: int
+    cache_hit_ratio: float
 
 
 class AssetMetadataService:
@@ -36,47 +56,201 @@ class AssetMetadataService:
     providing a centralized interface for asset information retrieval.
     """
 
-    def __init__(self, trading_client: TradingClient, *, asset_cache_ttl: float = 300.0) -> None:
+    # Valid symbol pattern: alphanumeric, dots, hyphens
+    SYMBOL_PATTERN = re.compile(r"^[A-Z0-9.\-]+$")
+    API_TIMEOUT = 10.0  # Timeout for API calls in seconds
+
+    def __init__(
+        self,
+        trading_client: TradingClient,
+        *,
+        asset_cache_ttl: float = 300.0,
+        max_cache_size: int = 1000,
+    ) -> None:
         """Initialize the asset metadata service.
 
         Args:
             trading_client: Alpaca TradingClient instance for API access
             asset_cache_ttl: Cache TTL in seconds (default: 5 minutes)
+            max_cache_size: Maximum number of cached entries (default: 1000)
+
+        Raises:
+            ValidationError: If parameters are invalid
 
         """
+        if not trading_client:
+            raise ValidationError("trading_client cannot be None", field_name="trading_client")
+        if asset_cache_ttl <= 0:
+            raise ValidationError(
+                "asset_cache_ttl must be positive",
+                field_name="asset_cache_ttl",
+                value=asset_cache_ttl,
+            )
+        if max_cache_size <= 0:
+            raise ValidationError(
+                "max_cache_size must be positive",
+                field_name="max_cache_size",
+                value=max_cache_size,
+            )
+
         self._trading_client = trading_client
         self._asset_cache: dict[str, AssetInfo] = {}
         self._asset_cache_timestamps: dict[str, float] = {}
         self._asset_cache_ttl = asset_cache_ttl
+        self._max_cache_size = max_cache_size
         self._asset_cache_lock = threading.Lock()
+        
+        # Metrics
+        self._cache_hits = 0
+        self._cache_misses = 0
 
-    def get_asset_info(self, symbol: str) -> AssetInfo | None:
+    def _validate_symbol(self, symbol: str) -> str:
+        """Validate and normalize symbol.
+
+        Args:
+            symbol: Stock symbol to validate
+
+        Returns:
+            Normalized symbol (uppercase, stripped)
+
+        Raises:
+            ValidationError: If symbol is invalid
+
+        """
+        if not symbol or not symbol.strip():
+            raise ValidationError("Symbol cannot be empty", field_name="symbol", value=symbol)
+
+        symbol_upper = symbol.strip().upper()
+
+        if not self.SYMBOL_PATTERN.match(symbol_upper):
+            raise ValidationError(
+                f"Invalid symbol format: {symbol}",
+                field_name="symbol",
+                value=symbol,
+            )
+
+        return symbol_upper
+
+    def _evict_lru_if_needed(self) -> None:
+        """Evict least recently used cache entry if cache is full.
+        
+        Must be called within cache lock.
+        """
+        if len(self._asset_cache) >= self._max_cache_size:
+            # Find oldest entry
+            oldest_symbol = min(
+                self._asset_cache_timestamps,
+                key=self._asset_cache_timestamps.get,  # type: ignore
+            )
+            self._asset_cache.pop(oldest_symbol, None)
+            self._asset_cache_timestamps.pop(oldest_symbol, None)
+            logger.debug(
+                "Cache LRU eviction",
+                evicted_symbol=oldest_symbol,
+                cache_size=len(self._asset_cache),
+            )
+
+    @with_rate_limiting
+    @with_timeout(10.0)
+    def _fetch_asset_from_api(self, symbol: str) -> Any:
+        """Fetch asset from API with rate limiting and timeout.
+        
+        Args:
+            symbol: Symbol to fetch
+            
+        Returns:
+            Asset object from API
+            
+        Raises:
+            RateLimitError: If rate limit exceeded
+            TradingClientError: If API call fails
+        """
+        return self._trading_client.get_asset(symbol)
+
+    @with_rate_limiting
+    @with_timeout(10.0)
+    def _fetch_clock_from_api(self) -> Any:
+        """Fetch market clock from API with rate limiting and timeout.
+        
+        Returns:
+            Clock object from API
+            
+        Raises:
+            RateLimitError: If rate limit exceeded
+            TradingClientError: If API call fails
+        """
+        return self._trading_client.get_clock()
+
+    @with_rate_limiting
+    @with_timeout(15.0)
+    def _fetch_calendar_from_api(self) -> Any:
+        """Fetch market calendar from API with rate limiting and timeout.
+        
+        Returns:
+            Calendar data from API
+            
+        Raises:
+            RateLimitError: If rate limit exceeded
+            TradingClientError: If API call fails
+        """
+        return self._trading_client.get_calendar()
+
+    def get_asset_info(
+        self, symbol: str, *, correlation_id: str | None = None
+    ) -> AssetInfo | None:
         """Get asset information with caching.
 
         Args:
             symbol: Stock symbol
+            correlation_id: Optional correlation ID for tracing
 
         Returns:
             AssetInfo with asset metadata, or None if not found.
 
-        """
-        symbol_upper = symbol.upper()
-        current_time = time.time()
+        Raises:
+            ValidationError: If symbol is invalid
+            DataProviderError: If asset data is incomplete or API fails
+            TradingClientError: If API call fails
 
-        # Check cache first
+        """
+        symbol_upper = self._validate_symbol(symbol)
+        
+        log_context = {"symbol": symbol_upper}
+        if correlation_id:
+            log_context["correlation_id"] = correlation_id
+
+        # Check cache first (outside lock for read)
         with self._asset_cache_lock:
             if symbol_upper in self._asset_cache:
                 cache_time = self._asset_cache_timestamps.get(symbol_upper, 0)
+                current_time = time.time()
                 if current_time - cache_time < self._asset_cache_ttl:
-                    logger.debug("📋 Asset cache hit for", symbol_upper=symbol_upper)
+                    self._cache_hits += 1
+                    logger.debug("Asset cache hit", **log_context)
                     return self._asset_cache[symbol_upper]
                 # Cache expired, remove
                 self._asset_cache.pop(symbol_upper, None)
                 self._asset_cache_timestamps.pop(symbol_upper, None)
-                logger.debug("🗑️ Asset cache expired for", symbol_upper=symbol_upper)
+                logger.debug("Asset cache expired", **log_context)
+
+        # Cache miss - fetch from API
+        self._cache_misses += 1
+        logger.debug("Asset cache miss, fetching from API", **log_context)
 
         try:
-            asset = self._trading_client.get_asset(symbol_upper)
+            asset = self._fetch_asset_from_api(symbol_upper)
+
+            # Validate required fields exist
+            if not hasattr(asset, "fractionable"):
+                raise DataProviderError(
+                    f"Asset data missing required field: fractionable for {symbol_upper}",
+                    context={"symbol": symbol_upper, "available_fields": dir(asset)},
+                )
+            if not hasattr(asset, "tradable"):
+                raise DataProviderError(
+                    f"Asset data missing required field: tradable for {symbol_upper}",
+                    context={"symbol": symbol_upper, "available_fields": dir(asset)},
+                )
 
             # Convert SDK object to DTO at adapter boundary
             asset_info = AssetInfo(
@@ -84,77 +258,172 @@ class AssetMetadataService:
                 name=getattr(asset, "name", None),
                 exchange=getattr(asset, "exchange", None),
                 asset_class=getattr(asset, "asset_class", None),
-                tradable=getattr(asset, "tradable", True),
-                fractionable=getattr(asset, "fractionable", True),
+                tradable=asset.tradable,  # Required field, no default
+                fractionable=asset.fractionable,  # Required field, no default
                 marginable=getattr(asset, "marginable", None),
                 shortable=getattr(asset, "shortable", None),
             )
 
-            # Cache the result
+            # Cache the result with fresh timestamp
             with self._asset_cache_lock:
-                self._asset_cache[symbol_upper] = asset_info
-                self._asset_cache_timestamps[symbol_upper] = current_time
+                # Double-check: another thread might have updated cache
+                if symbol_upper not in self._asset_cache:
+                    self._evict_lru_if_needed()
+                    self._asset_cache[symbol_upper] = asset_info
+                    self._asset_cache_timestamps[symbol_upper] = time.time()
 
             logger.debug(
-                f"🏷️ Asset info retrieved for {symbol_upper}: "
-                f"fractionable={asset_info.fractionable}, "
-                f"tradable={asset_info.tradable}"
+                "Asset info retrieved",
+                symbol=symbol_upper,
+                fractionable=asset_info.fractionable,
+                tradable=asset_info.tradable,
+                exchange=asset_info.exchange,
+                **({} if not correlation_id else {"correlation_id": correlation_id}),
             )
             return asset_info
 
-        except Exception as e:
-            logger.error("Failed to get asset info for", symbol_upper=symbol_upper, error=str(e))
-            return None
+        except AttributeError as e:
+            # Likely missing required field
+            error_msg = f"Asset data structure invalid for {symbol_upper}: {e}"
+            logger.error(
+                "Asset data validation failed",
+                symbol=symbol_upper,
+                error=str(e),
+                error_type="AttributeError",
+                **log_context,
+            )
+            raise DataProviderError(error_msg, context={"symbol": symbol_upper}) from e
 
-    def is_fractionable(self, symbol: str) -> bool:
+        except RateLimitError:
+            # Re-raise rate limit errors as-is for retry logic upstream
+            logger.warning(
+                "Rate limit error fetching asset",
+                symbol=symbol_upper,
+                **log_context,
+            )
+            raise
+
+        except Exception as e:
+            # Catch API errors and re-raise as appropriate typed exception
+            error_msg = f"Failed to retrieve asset info for {symbol_upper}"
+            logger.error(
+                "Asset metadata retrieval failed",
+                symbol=symbol_upper,
+                error=str(e),
+                error_type=type(e).__name__,
+                **log_context,
+            )
+            
+            # Check if it's a not found case
+            if "not found" in str(e).lower() or "404" in str(e):
+                # Asset doesn't exist - return None
+                logger.info("Asset not found", symbol=symbol_upper, **log_context)
+                return None
+            
+            # Re-raise as TradingClientError with context
+            raise TradingClientError(error_msg) from e
+
+    def is_fractionable(self, symbol: str, *, correlation_id: str | None = None) -> bool:
         """Check if an asset supports fractional shares.
 
         Args:
             symbol: Stock symbol to check
+            correlation_id: Optional correlation ID for tracing
 
         Returns:
             True if asset supports fractional shares, False otherwise.
-            Defaults to True if asset info cannot be retrieved.
+
+        Raises:
+            ValidationError: If symbol is invalid
+            DataProviderError: If asset info cannot be retrieved
+            TradingClientError: If API call fails
 
         """
-        asset_info = self.get_asset_info(symbol)
+        log_context = {"symbol": symbol}
+        if correlation_id:
+            log_context["correlation_id"] = correlation_id
+
+        asset_info = self.get_asset_info(symbol, correlation_id=correlation_id)
+        
         if asset_info is None:
-            logger.warning(
-                "Could not determine fractionability for , defaulting to True", symbol=symbol
+            # Asset not found - this is a critical path, don't default to True
+            error_msg = f"Cannot determine fractionability for {symbol}: asset not found"
+            logger.error("Asset not found for fractionability check", **log_context)
+            raise DataProviderError(
+                error_msg,
+                context={"symbol": symbol, "operation": "fractionability_check"},
             )
-            return True
+        
         return asset_info.fractionable
 
-    def is_market_open(self) -> bool:
+    def is_market_open(self, *, correlation_id: str | None = None) -> bool:
         """Check if the market is currently open.
+
+        Args:
+            correlation_id: Optional correlation ID for tracing
 
         Returns:
             True if market is open, False otherwise.
 
-        """
-        try:
-            clock = self._trading_client.get_clock()
-            return getattr(clock, "is_open", False)
-        except Exception as e:
-            logger.error("Failed to get market status", error=str(e))
-            return False
+        Raises:
+            TradingClientError: If API call fails
 
-    def get_market_calendar(self, _start_date: str, _end_date: str) -> list[dict[str, Any]]:
+        """
+        log_context = {}
+        if correlation_id:
+            log_context["correlation_id"] = correlation_id
+
+        try:
+            clock = self._fetch_clock_from_api()
+            is_open = getattr(clock, "is_open", False)
+            
+            logger.debug(
+                "Market status checked",
+                is_open=is_open,
+                **log_context,
+            )
+            return is_open
+
+        except RateLimitError:
+            # Re-raise rate limit errors as-is
+            logger.warning("Rate limit error checking market status", **log_context)
+            raise
+
+        except Exception as e:
+            error_msg = "Failed to get market status"
+            logger.error(
+                "Market status check failed",
+                error=str(e),
+                error_type=type(e).__name__,
+                **log_context,
+            )
+            raise TradingClientError(error_msg) from e
+
+    def get_market_calendar(self, *, correlation_id: str | None = None) -> list[dict[str, Any]]:
         """Get market calendar information.
 
         Args:
-            _start_date: Start date (ISO format) - currently unused
-            _end_date: End date (ISO format) - currently unused
+            correlation_id: Optional correlation ID for tracing
 
         Returns:
             List of market calendar entries.
 
+        Raises:
+            TradingClientError: If API call fails
+
+        Note:
+            Alpaca API returns all calendar data without date filtering support.
+
         """
+        log_context = {}
+        if correlation_id:
+            log_context["correlation_id"] = correlation_id
+
         try:
-            # Some stubs may not accept start/end; fetch without filters
-            calendar = self._trading_client.get_calendar()
+            calendar = self._fetch_calendar_from_api()
+            
             # Convert to list of dictionaries
-            return [
+            result = [
                 {
                     "date": str(getattr(day, "date", "")),
                     "open": str(getattr(day, "open", "")),
@@ -162,22 +431,45 @@ class AssetMetadataService:
                 }
                 for day in calendar
             ]
+            
+            logger.debug(
+                "Market calendar retrieved",
+                entries_count=len(result),
+                **log_context,
+            )
+            return result
+
+        except RateLimitError:
+            # Re-raise rate limit errors as-is
+            logger.warning("Rate limit error fetching calendar", **log_context)
+            raise
+
         except Exception as e:
-            logger.error("Failed to get market calendar", error=str(e))
-            return []
+            error_msg = "Failed to get market calendar"
+            logger.error(
+                "Market calendar retrieval failed",
+                error=str(e),
+                error_type=type(e).__name__,
+                **log_context,
+            )
+            raise TradingClientError(error_msg) from e
 
     def clear_cache(self) -> None:
         """Clear asset metadata cache."""
         with self._asset_cache_lock:
+            cache_size_before = len(self._asset_cache)
             self._asset_cache.clear()
             self._asset_cache_timestamps.clear()
-            logger.info("🧹 Asset metadata cache cleared")
+            logger.info(
+                "Asset metadata cache cleared",
+                entries_cleared=cache_size_before,
+            )
 
-    def get_cache_stats(self) -> dict[str, Any]:
+    def get_cache_stats(self) -> CacheStats:
         """Get cache statistics for monitoring.
 
         Returns:
-            Dictionary with cache statistics.
+            Dictionary with cache statistics including hit ratio.
 
         """
         with self._asset_cache_lock:
@@ -188,9 +480,16 @@ class AssetMetadataService:
                 if current_time - cache_time >= self._asset_cache_ttl
             )
 
-            return {
-                "total_cached": len(self._asset_cache),
-                "expired_entries": expired_count,
-                "cache_ttl": self._asset_cache_ttl,
-                "cache_hit_ratio": "N/A",  # Would need hit/miss counters for full stats
-            }
+            total_requests = self._cache_hits + self._cache_misses
+            hit_ratio = (
+                self._cache_hits / total_requests if total_requests > 0 else 0.0
+            )
+
+            return CacheStats(
+                total_cached=len(self._asset_cache),
+                expired_entries=expired_count,
+                cache_ttl=self._asset_cache_ttl,
+                cache_hits=self._cache_hits,
+                cache_misses=self._cache_misses,
+                cache_hit_ratio=hit_ratio,
+            )

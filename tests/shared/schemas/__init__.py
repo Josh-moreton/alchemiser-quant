@@ -1,1 +1,1 @@
-"""Shared schemas tests."""
+"""Tests for shared schemas module."""

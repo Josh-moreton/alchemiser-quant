@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import threading
 import time
+from decimal import Decimal
 from typing import Any, ClassVar
 
 # Type checking imports to avoid circular dependencies
@@ -245,7 +246,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Alias for `get_positions()` to mirror Alpaca SDK naming."""
         return self._account_service.get_all_positions()
 
-    def get_positions_dict(self) -> dict[str, float]:
+    def get_positions_dict(self) -> dict[str, Decimal]:
         """Get all positions as dict mapping symbol to quantity."""
         return self._account_service.get_positions_dict()
 
@@ -482,11 +483,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Validate that the connection to Alpaca is working."""
         return self._account_service.validate_connection()
 
-    def get_buying_power(self) -> float | None:
+    def get_buying_power(self) -> Decimal | None:
         """Get current buying power."""
         return self._account_service.get_buying_power()
 
-    def get_portfolio_value(self) -> float | None:
+    def get_portfolio_value(self) -> Decimal | None:
         """Get current portfolio value."""
         return self._account_service.get_portfolio_value()
 
@@ -531,35 +532,59 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         return self._get_trading_service().close_all_positions(cancel_orders=cancel_orders)
 
     def get_asset_info(self, symbol: str) -> AssetInfo | None:
-        """Get asset information with caching."""
+        """Get asset information with caching.
+        
+        Args:
+            symbol: Stock symbol
+            
+        Returns:
+            AssetInfo or None if not found
+            
+        Raises:
+            ValidationError: If symbol is invalid
+            TradingClientError: If API call fails (other than not found)
+        """
         return self._asset_metadata_service.get_asset_info(symbol)
 
     def is_fractionable(self, symbol: str) -> bool:
-        """Check if an asset supports fractional shares."""
-        asset_info = self.get_asset_info(symbol)
-        return asset_info.fractionable if asset_info else True
+        """Check if an asset supports fractional shares.
+        
+        Args:
+            symbol: Stock symbol
+            
+        Returns:
+            True if fractionable, False otherwise
+            
+        Raises:
+            ValidationError: If symbol is invalid
+            DataProviderError: If asset not found
+            TradingClientError: If API call fails
+        """
+        return self._asset_metadata_service.is_fractionable(symbol)
 
     def is_market_open(self) -> bool:
         """Check if the market is currently open.
 
         Returns:
             True if market is open, False otherwise.
+            
+        Raises:
+            TradingClientError: If API call fails
 
         """
         return self._asset_metadata_service.is_market_open()
 
-    def get_market_calendar(self, _start_date: str, _end_date: str) -> list[dict[str, Any]]:
+    def get_market_calendar(self) -> list[dict[str, Any]]:
         """Get market calendar information.
-
-        Args:
-            _start_date: Start date (ISO format) - currently unused
-            _end_date: End date (ISO format) - currently unused
 
         Returns:
             List of market calendar entries.
+            
+        Raises:
+            TradingClientError: If API call fails
 
         """
-        return self._asset_metadata_service.get_market_calendar(_start_date, _end_date)
+        return self._asset_metadata_service.get_market_calendar()
 
     def get_portfolio_history(
         self,
@@ -597,13 +622,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         return self._get_trading_service().place_smart_sell_order(symbol, qty)
 
-    def get_current_positions(self) -> dict[str, float]:
+    def get_current_positions(self) -> dict[str, Decimal]:
         """Get all current positions as dict mapping symbol to quantity.
 
         This is an alias for get_positions_dict() to satisfy OrderExecutor protocol.
 
         Returns:
-            Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
+            Dictionary mapping symbol to quantity (as Decimal) owned. 
+            Only includes non-zero positions.
 
         """
         return self.get_positions_dict()
