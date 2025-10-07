@@ -29,19 +29,13 @@ Known Implementations:
     - MarketDataService: Production implementation using Alpaca API
     - HistoricalMarketDataPort: Backtesting implementation using stored data
 
-Note:
-    This port currently uses the "legacy" QuoteModel from shared.types.quote.
-    Migration to the enhanced QuoteModel in shared.types.market_data is planned
-    to support bid_size/ask_size for improved spread calculations.
-
 """
 
 from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from the_alchemiser.shared.types.market_data import BarModel
-from the_alchemiser.shared.types.quote import QuoteModel
+from the_alchemiser.shared.types.market_data import BarModel, QuoteModel
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 
@@ -120,8 +114,9 @@ class MarketDataPort(Protocol):
             symbol: Trading symbol to get quote for
 
         Returns:
-            QuoteModel with bid/ask prices, or None if unavailable.
-            QuoteModel has fields: ts (timestamp), bid (Decimal), ask (Decimal)
+            QuoteModel with bid/ask prices and sizes, or None if unavailable.
+            QuoteModel has fields: symbol (str), bid_price (Decimal), ask_price (Decimal),
+            bid_size (Decimal), ask_size (Decimal), timestamp (datetime)
 
         Raises:
             ValueError: If symbol is invalid
@@ -131,15 +126,12 @@ class MarketDataPort(Protocol):
             >>> symbol = Symbol("AAPL")
             >>> quote = port.get_latest_quote(symbol)
             >>> if quote:
-            >>>     spread = quote.ask - quote.bid
-            >>>     mid = quote.mid  # Uses @property
-            >>>     print(f"Bid: {quote.bid}, Ask: {quote.ask}, Mid: {mid}")
+            >>>     spread = quote.ask_price - quote.bid_price
+            >>>     mid = quote.mid_price  # Uses @property
+            >>>     print(f"Bid: {quote.bid_price}, Ask: {quote.ask_price}, Mid: {mid}")
+            >>>     print(f"Bid Size: {quote.bid_size}, Ask Size: {quote.ask_size}")
             >>> else:
             >>>     print("No quote available")
-
-        Note:
-            Currently uses legacy QuoteModel from shared.types.quote.
-            Migration to enhanced QuoteModel (with bid_size/ask_size) planned.
 
         """
         ...
