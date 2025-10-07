@@ -505,8 +505,8 @@ class RealTimeStreamManager:
                 )
             except asyncio.CancelledError:
                 raise
-            except Exception as e:
-                # Log but don't crash stream for user errors
+            except (OSError, RuntimeError, AttributeError, ImportError) as e:
+                # Log but don't crash stream for common user errors
                 self.logger.error(
                     "Unexpected error in quote callback",
                     error=str(e),
@@ -525,8 +525,8 @@ class RealTimeStreamManager:
                 )
             except asyncio.CancelledError:
                 raise
-            except Exception as e:
-                # Log but don't crash stream for user errors
+            except (OSError, RuntimeError, AttributeError, ImportError) as e:
+                # Log but don't crash stream for common user errors
                 self.logger.error(
                     "Unexpected error in trade callback",
                     error=str(e),
