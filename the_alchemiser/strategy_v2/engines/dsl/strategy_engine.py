@@ -39,7 +39,9 @@ class DslStrategyEngine:
     orchestration system by implementing the StrategyEngine protocol.
     """
 
-    def __init__(self, market_data_port: MarketDataPort, strategy_file: str | None = None) -> None:
+    def __init__(
+        self, market_data_port: MarketDataPort, strategy_file: str | None = None
+    ) -> None:
         """Initialize DSL strategy engine.
 
         Args:
@@ -146,7 +148,9 @@ class DslStrategyEngine:
             self.logger.error(
                 f"DSL strategy error: {e}",
                 extra={
-                    "correlation_id": correlation_id if "correlation_id" in locals() else None,
+                    "correlation_id": (
+                        correlation_id if "correlation_id" in locals() else None
+                    ),
                     "error_type": type(e).__name__,
                 },
             )
@@ -193,7 +197,9 @@ class DslStrategyEngine:
 
         """
         consolidated: dict[str, float] = {}
-        for _f, (per_file_weights, _trace_id, _, _) in zip(dsl_files, file_results, strict=True):
+        for _f, (per_file_weights, _trace_id, _, _) in zip(
+            dsl_files, file_results, strict=True
+        ):
             if per_file_weights is None:  # Evaluation failed
                 continue
             for symbol, weight in per_file_weights.items():
@@ -236,10 +242,10 @@ class DslStrategyEngine:
             if weight > 0:
                 # For multiple strategies, show which ones contributed
                 if len(strategy_names) > 1:
-                    strategy_display = f"{primary_strategy} (+{len(strategy_names) - 1} others)"
-                    reasoning = (
-                        f"Multi-strategy allocation from {', '.join(strategy_names)}: {weight:.1%}"
+                    strategy_display = (
+                        f"{primary_strategy} (+{len(strategy_names) - 1} others)"
                     )
+                    reasoning = f"Multi-strategy allocation from {', '.join(strategy_names)}: {weight:.1%}"
                 else:
                     strategy_display = primary_strategy
                     reasoning = f"{primary_strategy} allocation: {weight:.1%}"
@@ -301,7 +307,9 @@ class DslStrategyEngine:
         for f in dsl_files:
             file_path = strategies_path / f
             if not file_path.exists():
-                raise ConfigurationError(f"DSL file not found: {f}", file_path=str(file_path))
+                raise ConfigurationError(
+                    f"DSL file not found: {f}", file_path=str(file_path)
+                )
 
         # Validate and normalize weights using Decimal for precision
         for f, w in dsl_allocs.items():
@@ -310,7 +318,9 @@ class DslStrategyEngine:
                     f"Invalid weight type for {f}: {type(w).__name__} (must be numeric)"
                 )
             if w < 0:
-                raise ConfigurationError(f"Invalid weight for {f}: {w} (must be non-negative)")
+                raise ConfigurationError(
+                    f"Invalid weight for {f}: {w} (must be non-negative)"
+                )
 
         total_alloc = sum(Decimal(str(w)) for w in dsl_allocs.values())
         if total_alloc == 0:
@@ -318,7 +328,8 @@ class DslStrategyEngine:
 
         # Normalize to floats for downstream compatibility (precision maintained in calculation)
         normalized_file_weights = {
-            f: float(Decimal(str(dsl_allocs.get(f, 0.0))) / total_alloc) for f in dsl_files
+            f: float(Decimal(str(dsl_allocs.get(f, 0.0))) / total_alloc)
+            for f in dsl_files
         }
         return dsl_files, normalized_file_weights
 
@@ -351,7 +362,9 @@ class DslStrategyEngine:
             per_file_weights[symbol] = file_weight * w
 
         # Format and log DSL evaluation results
-        formatted_allocation = self._format_dsl_allocation(filename, allocation.target_weights)
+        formatted_allocation = self._format_dsl_allocation(
+            filename, allocation.target_weights
+        )
         self.logger.debug(formatted_allocation)
 
         return per_file_weights, trace.trace_id, file_weight, file_sum
@@ -412,7 +425,9 @@ class DslStrategyEngine:
         from concurrent.futures import TimeoutError as FuturesTimeoutError
 
         # Get timeout from environment or use default
-        timeout_seconds = int(os.getenv("ALCHEMISER_DSL_TIMEOUT", str(DEFAULT_DSL_TIMEOUT_SECONDS)))
+        timeout_seconds = int(
+            os.getenv("ALCHEMISER_DSL_TIMEOUT", str(DEFAULT_DSL_TIMEOUT_SECONDS))
+        )
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             try:
@@ -457,7 +472,9 @@ class DslStrategyEngine:
 
         """
         try:
-            return self._evaluate_file(filename, correlation_id, normalized_file_weights)
+            return self._evaluate_file(
+                filename, correlation_id, normalized_file_weights
+            )
         except (StrategyExecutionError, ValueError, RuntimeError) as e:
             self.logger.error(
                 f"DSL evaluation failed for {filename}: {e}",
@@ -483,9 +500,13 @@ class DslStrategyEngine:
         if total_decimal == 0:
             total_decimal = Decimal("1.0")
 
-        return {sym: float(Decimal(str(w)) / total_decimal) for sym, w in weights.items()}
+        return {
+            sym: float(Decimal(str(w)) / total_decimal) for sym, w in weights.items()
+        }
 
-    def _format_dsl_allocation(self, filename: str, target_weights: dict[str, Decimal]) -> str:
+    def _format_dsl_allocation(
+        self, filename: str, target_weights: dict[str, Decimal]
+    ) -> str:
         """Format DSL allocation results for human-readable logging.
 
         Args:

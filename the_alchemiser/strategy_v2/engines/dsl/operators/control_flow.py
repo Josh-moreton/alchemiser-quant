@@ -143,7 +143,9 @@ def if_condition(args: list[ASTNode], context: DslContext) -> DSLValue:
     else_expr = args[2] if len(args) > 2 else None
 
     # Evaluate condition
-    condition_result = context.evaluate_node(condition, context.correlation_id, context.trace)
+    condition_result = context.evaluate_node(
+        condition, context.correlation_id, context.trace
+    )
 
     logger.debug(
         "Evaluating conditional expression",
