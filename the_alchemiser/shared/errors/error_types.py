@@ -4,10 +4,10 @@
 Error types, categories, and type definitions.
 
 This module provides core type definitions for error handling including
-severity levels, categories, and Pydantic schemas.
+severity levels and categories. Schema classes are now re-exported from
+shared.schemas.errors for consistency.
 
-NOTE: The TypedDict definitions here are deprecated and will be removed in v3.0.0.
-Use the canonical Pydantic models from shared.schemas.errors instead:
+For error schemas, import from the canonical location:
     from the_alchemiser.shared.schemas.errors import (
         ErrorDetailInfo,
         ErrorSummaryData,
@@ -18,9 +18,26 @@ Use the canonical Pydantic models from shared.schemas.errors instead:
 
 from __future__ import annotations
 
-from typing import Any
+# Re-export canonical schemas from shared.schemas.errors
+from the_alchemiser.shared.schemas.errors import (
+    ErrorDetailInfo,
+    ErrorNotificationData,
+    ErrorReportSummary,
+    ErrorSummaryData,
+)
 
-from pydantic import BaseModel, ConfigDict, Field
+# Explicit re-exports for backward compatibility
+__all__ = [
+    "ContextDict",
+    "ErrorCategory",
+    "ErrorData",
+    "ErrorDetailInfo",
+    "ErrorList",
+    "ErrorNotificationData",
+    "ErrorReportSummary",
+    "ErrorSeverity",
+    "ErrorSummaryData",
+]
 
 # Type aliases for error handler data structures
 ErrorData = dict[str, str | int | float | bool | None]
@@ -49,62 +66,7 @@ class ErrorCategory:
     WARNING = "warning"  # Non-critical issues that don't stop execution
 
 
-# Minimal error schema types (prefer importing from shared.schemas.errors)
-class ErrorDetailInfo(BaseModel):
-    """Error detail information (minimal version).
+# NOTE: Schema classes (ErrorDetailInfo, ErrorSummaryData, ErrorReportSummary,
+# ErrorNotificationData) are re-exported from shared.schemas.errors above.
+# Use those imports instead of defining duplicates here.
 
-    DEPRECATED: Use the_alchemiser.shared.schemas.errors.ErrorDetailInfo instead.
-    This simplified version exists for backward compatibility.
-    """
-
-    model_config = ConfigDict(strict=True, frozen=True)
-
-    error_type: str = Field(description="Exception class name")
-    error_message: str = Field(description="Human-readable error message")
-
-
-class ErrorSummaryData(BaseModel):
-    """Error summary data (minimal version).
-
-    DEPRECATED: Use the_alchemiser.shared.schemas.errors.ErrorSummaryData instead.
-    This simplified version exists for backward compatibility.
-    """
-
-    model_config = ConfigDict(strict=True, frozen=True)
-
-    count: int = Field(description="Number of errors", ge=0)
-    errors: list[dict[str, Any]] = Field(default_factory=list, description="List of error details")
-
-
-class ErrorReportSummary(BaseModel):
-    """Error report summary (minimal version).
-
-    DEPRECATED: Use the_alchemiser.shared.schemas.errors.ErrorReportSummary instead.
-    This simplified version exists for backward compatibility.
-    """
-
-    model_config = ConfigDict(strict=True, frozen=True)
-
-    critical: dict[str, Any] | None = Field(default=None, description="Critical errors")
-    trading: dict[str, Any] | None = Field(default=None, description="Trading errors")
-
-
-class ErrorNotificationData(BaseModel):
-    """Error notification data (extended version).
-
-    NOTE: This version includes extra fields (success, email_sent, correlation_id, event_id)
-    not present in shared.schemas.errors.ErrorNotificationData.
-    Consider using the canonical version for new code.
-    """
-
-    model_config = ConfigDict(strict=True, frozen=True)
-
-    severity: str = Field(description="Error severity level")
-    priority: str = Field(description="Notification priority")
-    title: str = Field(description="Notification title")
-    error_report: str = Field(description="Plain text error report")
-    html_content: str = Field(description="HTML-formatted content")
-    success: bool = Field(description="Whether notification succeeded")
-    email_sent: bool = Field(description="Whether email was sent")
-    correlation_id: str | None = Field(default=None, description="Event correlation ID")
-    event_id: str | None = Field(default=None, description="Event identifier")

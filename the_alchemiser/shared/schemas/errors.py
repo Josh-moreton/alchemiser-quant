@@ -78,6 +78,12 @@ class ErrorNotificationData(BaseModel):
 
     Contains formatted error information for sending via
     email, Slack, or other notification channels.
+    
+    Extended with workflow tracking fields for event-driven architecture:
+    - success: Whether the notification was successfully delivered
+    - email_sent: Whether the email was actually sent
+    - correlation_id: Event correlation ID for tracing
+    - event_id: Specific event identifier
     """
 
     model_config = ConfigDict(strict=True, frozen=True)
@@ -87,6 +93,10 @@ class ErrorNotificationData(BaseModel):
     title: str = Field(description="Notification title")
     error_report: str = Field(description="Plain text error report")
     html_content: str = Field(description="HTML-formatted error content")
+    success: bool = Field(description="Whether notification succeeded")
+    email_sent: bool = Field(description="Whether email was sent")
+    correlation_id: str | None = Field(default=None, description="Event correlation ID")
+    event_id: str | None = Field(default=None, description="Event identifier")
 
 
 # NOTE: ErrorContextData now lives in shared/errors/context.py

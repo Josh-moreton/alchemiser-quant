@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.13.1] - 2025-10-07
+
+### Fixed
+- **Schema consolidation**: Removed duplicate schema definitions in `shared/errors/error_types.py`
+  - `ErrorDetailInfo`, `ErrorSummaryData`, `ErrorReportSummary`, `ErrorNotificationData` now re-exported from canonical location (`shared/schemas/errors`)
+  - Eliminated field mismatch: `ErrorNotificationData` now consistently has 9 fields (added `success`, `email_sent`, `correlation_id`, `event_id` to canonical version)
+  - Added explicit `__all__` exports for backward compatibility
+  - All 147 tests pass, no type errors
+
 ## [2.13.0] - 2025-10-07
 
 ### Changed
