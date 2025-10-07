@@ -7,6 +7,7 @@ and REST API fallback logic.
 """
 
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from unittest.mock import Mock, patch
 
 import pytest
@@ -51,10 +52,10 @@ class TestGetQuoteWithValidation:
         """Test that valid streaming quote is returned directly."""
         valid_quote = QuoteModel(
             symbol="AAPL",
-            bid_price=100.00,
-            ask_price=100.50,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.50"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
@@ -75,9 +76,14 @@ class TestGetQuoteWithValidation:
         mock_pricing_service.get_quote_data.return_value = None
         
         # REST returns valid quote
-        rest_quote = Mock()
-        rest_quote.bid = 100.00
-        rest_quote.ask = 100.50
+        rest_quote = QuoteModel(
+            symbol="AAPL",
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.50"),
+            bid_size=Decimal("100"),
+            ask_size=Decimal("100"),
+            timestamp=datetime.now(UTC),
+        )
         mock_alpaca_manager.get_latest_quote.return_value = rest_quote
         
         result = quote_provider.get_quote_with_validation("AAPL")
@@ -108,10 +114,10 @@ class TestStreamingQuoteValidation:
         """Test that fresh quote with valid prices passes validation."""
         quote = QuoteModel(
             symbol="AAPL",
-            bid_price=100.00,
-            ask_price=100.50,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.50"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
@@ -125,10 +131,10 @@ class TestStreamingQuoteValidation:
         old_timestamp = datetime.now(UTC) - timedelta(seconds=10)
         quote = QuoteModel(
             symbol="AAPL",
-            bid_price=100.00,
-            ask_price=100.50,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.50"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=old_timestamp,
         )
         
@@ -141,10 +147,10 @@ class TestStreamingQuoteValidation:
         # Both zero bid and ask prices
         quote = QuoteModel(
             symbol="AAPL",
-            bid_price=0.00,
-            ask_price=0.00,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("0.00"),
+            ask_price=Decimal("0.00"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
@@ -156,10 +162,10 @@ class TestStreamingQuoteValidation:
         """Test that both negative prices fail validation."""
         quote = QuoteModel(
             symbol="AAPL",
-            bid_price=-10.00,
-            ask_price=-5.00,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("-10.00"),
+            ask_price=Decimal("-5.00"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
@@ -175,10 +181,10 @@ class TestSuspiciousQuoteDetection:
         """Test that negative prices are flagged as suspicious."""
         quote = QuoteModel(
             symbol="AAPL",
-            bid_price=-1.00,
-            ask_price=100.00,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("-1.00"),
+            ask_price=Decimal("100.00"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
@@ -190,10 +196,10 @@ class TestSuspiciousQuoteDetection:
         """Test that inverted spread (ask < bid) is flagged."""
         quote = QuoteModel(
             symbol="AAPL",
-            bid_price=100.00,
-            ask_price=99.00,  # Ask < Bid
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("99.00"),  # Ask < Bid
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
@@ -205,10 +211,10 @@ class TestSuspiciousQuoteDetection:
         """Test that unreasonably low prices are flagged."""
         quote = QuoteModel(
             symbol="AAPL",
-            bid_price=0.005,
-            ask_price=0.008,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("0.005"),
+            ask_price=Decimal("0.008"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
@@ -220,10 +226,10 @@ class TestSuspiciousQuoteDetection:
         """Test that excessive spreads are flagged."""
         quote = QuoteModel(
             symbol="AAPL",
-            bid_price=100.00,
-            ask_price=115.00,  # 15% spread
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("115.00"),  # 15% spread
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
@@ -235,10 +241,10 @@ class TestSuspiciousQuoteDetection:
         """Test that normal quotes are not flagged."""
         quote = QuoteModel(
             symbol="AAPL",
-            bid_price=100.00,
-            ask_price=100.25,  # 0.25% spread
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.25"),  # 0.25% spread
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
@@ -252,9 +258,14 @@ class TestRestFallbackQuote:
 
     def test_rest_quote_success(self, quote_provider, mock_alpaca_manager):
         """Test successful REST quote retrieval."""
-        rest_quote = Mock()
-        rest_quote.bid = 100.00
-        rest_quote.ask = 100.50
+        rest_quote = QuoteModel(
+            symbol="AAPL",
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.50"),
+            bid_size=Decimal("100"),
+            ask_size=Decimal("100"),
+            timestamp=datetime.now(UTC),
+        )
         mock_alpaca_manager.get_latest_quote.return_value = rest_quote
         
         result = quote_provider._try_rest_fallback_quote("AAPL")
@@ -275,18 +286,24 @@ class TestRestFallbackQuote:
         assert result is None
 
     def test_rest_quote_sets_zero_sizes(self, quote_provider, mock_alpaca_manager):
-        """Test that REST quote sets bid/ask sizes to zero."""
-        rest_quote = Mock()
-        rest_quote.bid = 100.00
-        rest_quote.ask = 100.50
+        """Test that REST quote preserves bid/ask sizes from Alpaca API."""
+        rest_quote = QuoteModel(
+            symbol="AAPL",
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.50"),
+            bid_size=Decimal("100"),
+            ask_size=Decimal("100"),
+            timestamp=datetime.now(UTC),
+        )
         mock_alpaca_manager.get_latest_quote.return_value = rest_quote
         
         result = quote_provider._try_rest_fallback_quote("AAPL")
         
         assert result is not None
         quote, _ = result
-        assert quote.bid_size == 0.0
-        assert quote.ask_size == 0.0
+        # Enhanced QuoteModel now includes bid_size/ask_size from Alpaca API
+        assert quote.bid_size == Decimal("100")
+        assert quote.ask_size == Decimal("100")
 
 
 class TestValidateQuoteLiquidity:
@@ -399,10 +416,10 @@ class TestCheckQuoteSuspiciousPatterns:
         """Test that function returns correct tuple format."""
         quote = QuoteModel(
             symbol="AAPL",
-            bid_price=-1.00,
-            ask_price=100.00,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("-1.00"),
+            ask_price=Decimal("100.00"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
@@ -417,10 +434,10 @@ class TestCheckQuoteSuspiciousPatterns:
         """Test that normal quote returns no reasons."""
         quote = QuoteModel(
             symbol="AAPL",
-            bid_price=100.00,
-            ask_price=100.25,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.25"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
@@ -549,16 +566,21 @@ class TestValidateSuspiciousQuoteWithRest:
         """Test that valid REST quote is returned."""
         streaming_quote = QuoteModel(
             symbol="AAPL",
-            bid_price=-1.00,  # Suspicious
-            ask_price=100.00,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("-1.00"),  # Suspicious
+            ask_price=Decimal("100.00"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
-        rest_quote = Mock()
-        rest_quote.bid = 100.00
-        rest_quote.ask = 100.50
+        rest_quote = QuoteModel(
+            symbol="AAPL",
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.50"),
+            bid_size=Decimal("100"),
+            ask_size=Decimal("100"),
+            timestamp=datetime.now(UTC),
+        )
         mock_alpaca_manager.get_latest_quote.return_value = rest_quote
         
         result = quote_provider._validate_suspicious_quote_with_rest(
@@ -567,7 +589,7 @@ class TestValidateSuspiciousQuoteWithRest:
         
         assert result is not None
         quote, used_fallback = result
-        assert quote.bid_price == 100.00
+        assert quote.bid_price == Decimal("100.00")
         assert used_fallback is True
 
     def test_returns_none_when_rest_fails(
@@ -576,10 +598,10 @@ class TestValidateSuspiciousQuoteWithRest:
         """Test returns None when REST quote fetch fails."""
         streaming_quote = QuoteModel(
             symbol="AAPL",
-            bid_price=-1.00,  # Suspicious
-            ask_price=100.00,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("-1.00"),  # Suspicious
+            ask_price=Decimal("100.00"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
@@ -597,17 +619,17 @@ class TestValidateSuspiciousQuoteWithRest:
         """Test returns None when REST quote is also suspicious."""
         streaming_quote = QuoteModel(
             symbol="AAPL",
-            bid_price=-1.00,  # Suspicious
-            ask_price=100.00,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("-1.00"),  # Suspicious
+            ask_price=Decimal("100.00"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
         # REST quote is also suspicious
         rest_quote = Mock()
-        rest_quote.bid = -2.00  # Also suspicious
-        rest_quote.ask = 100.00
+        rest_quote.bid_price = Decimal("-2.00")  # Also suspicious
+        rest_quote.ask_price = Decimal("100.00")
         mock_alpaca_manager.get_latest_quote.return_value = rest_quote
         
         result = quote_provider._validate_suspicious_quote_with_rest(
@@ -622,17 +644,22 @@ class TestValidateSuspiciousQuoteWithRest:
         """Test that REST is preferred when mid-price differs significantly."""
         streaming_quote = QuoteModel(
             symbol="AAPL",
-            bid_price=100.00,
-            ask_price=120.00,  # Suspicious wide spread
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("120.00"),  # Suspicious wide spread
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
         # REST quote with normal spread
-        rest_quote = Mock()
-        rest_quote.bid = 100.00
-        rest_quote.ask = 100.50
+        rest_quote = QuoteModel(
+            symbol="AAPL",
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.50"),
+            bid_size=Decimal("100"),
+            ask_size=Decimal("100"),
+            timestamp=datetime.now(UTC),
+        )
         mock_alpaca_manager.get_latest_quote.return_value = rest_quote
         
         result = quote_provider._validate_suspicious_quote_with_rest(
@@ -656,19 +683,24 @@ class TestSuspiciousQuoteIntegration:
         # Suspicious streaming quote
         suspicious_quote = QuoteModel(
             symbol="AAPL",
-            bid_price=-1.00,  # Suspicious negative price
-            ask_price=100.00,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("-1.00"),  # Suspicious negative price
+            ask_price=Decimal("100.00"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
         mock_pricing_service.get_quote_data.return_value = suspicious_quote
         
         # Valid REST quote
-        rest_quote = Mock()
-        rest_quote.bid = 100.00
-        rest_quote.ask = 100.50
+        rest_quote = QuoteModel(
+            symbol="AAPL",
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.50"),
+            bid_size=Decimal("100"),
+            ask_size=Decimal("100"),
+            timestamp=datetime.now(UTC),
+        )
         mock_alpaca_manager.get_latest_quote.return_value = rest_quote
         
         result = quote_provider.get_quote_with_validation("AAPL")
@@ -687,10 +719,10 @@ class TestSuspiciousQuoteIntegration:
         # Suspicious streaming quote
         suspicious_quote = QuoteModel(
             symbol="AAPL",
-            bid_price=-1.00,  # Suspicious
-            ask_price=100.00,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("-1.00"),  # Suspicious
+            ask_price=Decimal("100.00"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
@@ -715,10 +747,10 @@ class TestInvertedSpreadValidation:
         """Test that inverted spread (bid > ask) fails validation."""
         quote = QuoteModel(
             symbol="AAPL",
-            bid_price=100.50,  # Bid > Ask
-            ask_price=100.00,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("100.50"),  # Bid > Ask
+            ask_price=Decimal("100.00"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
@@ -743,10 +775,10 @@ class TestTryStreamingQuote:
         """Test returns valid quote from pricing service."""
         valid_quote = QuoteModel(
             symbol="AAPL",
-            bid_price=100.00,
-            ask_price=100.50,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.50"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
@@ -762,10 +794,10 @@ class TestTryStreamingQuote:
         # Stale quote
         stale_quote = QuoteModel(
             symbol="AAPL",
-            bid_price=100.00,
-            ask_price=100.50,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.50"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC) - timedelta(seconds=10),
         )
         
@@ -791,10 +823,10 @@ class TestWaitForStreamingQuote:
         """Test returns quote when it becomes available."""
         valid_quote = QuoteModel(
             symbol="AAPL",
-            bid_price=100.00,
-            ask_price=100.50,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.50"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
@@ -810,9 +842,14 @@ class TestRestQuoteExtraction:
 
     def test_extracts_bid_ask_from_rest_quote(self, quote_provider, mock_alpaca_manager):
         """Test that bid/ask are correctly extracted from REST quote."""
-        rest_quote = Mock()
-        rest_quote.bid = 99.75
-        rest_quote.ask = 100.25
+        rest_quote = QuoteModel(
+            symbol="AAPL",
+            bid_price=Decimal("99.75"),
+            ask_price=Decimal("100.25"),
+            bid_size=Decimal("100"),
+            ask_size=Decimal("100"),
+            timestamp=datetime.now(UTC),
+        )
         mock_alpaca_manager.get_latest_quote.return_value = rest_quote
         
         result = quote_provider._try_rest_fallback_quote("AAPL")
@@ -823,19 +860,24 @@ class TestRestQuoteExtraction:
         assert quote.ask_price == 100.25
 
     def test_sets_timestamp_to_now(self, quote_provider, mock_alpaca_manager):
-        """Test that REST quote timestamp is set to current time."""
-        rest_quote = Mock()
-        rest_quote.bid = 100.00
-        rest_quote.ask = 100.50
+        """Test that REST quote preserves timestamp from Alpaca API."""
+        expected_timestamp = datetime.now(UTC)
+        rest_quote = QuoteModel(
+            symbol="AAPL",
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.50"),
+            bid_size=Decimal("100"),
+            ask_size=Decimal("100"),
+            timestamp=expected_timestamp,
+        )
         mock_alpaca_manager.get_latest_quote.return_value = rest_quote
         
-        before = datetime.now(UTC)
         result = quote_provider._try_rest_fallback_quote("AAPL")
-        after = datetime.now(UTC)
         
         assert result is not None
         quote, _ = result
-        assert before <= quote.timestamp <= after
+        # Enhanced QuoteModel now preserves the timestamp from Alpaca
+        assert quote.timestamp == expected_timestamp
 
 
 class TestMidPriceComparison:
@@ -847,16 +889,21 @@ class TestMidPriceComparison:
         """Test that REST is preferred when streaming mid-price is zero."""
         streaming_quote = QuoteModel(
             symbol="AAPL",
-            bid_price=0.00,
-            ask_price=0.00,
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("0.00"),
+            ask_price=Decimal("0.00"),
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
-        rest_quote = Mock()
-        rest_quote.bid = 100.00
-        rest_quote.ask = 100.50
+        rest_quote = QuoteModel(
+            symbol="AAPL",
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.50"),
+            bid_size=Decimal("100"),
+            ask_size=Decimal("100"),
+            timestamp=datetime.now(UTC),
+        )
         mock_alpaca_manager.get_latest_quote.return_value = rest_quote
         
         result = quote_provider._validate_suspicious_quote_with_rest(
@@ -871,17 +918,22 @@ class TestMidPriceComparison:
         """Test that REST is used for safety when mid-prices are similar."""
         streaming_quote = QuoteModel(
             symbol="AAPL",
-            bid_price=100.00,
-            ask_price=100.50,  # Mid = 100.25
-            bid_size=100.0,
-            ask_size=100.0,
+            bid_price=Decimal("100.00"),
+            ask_price=Decimal("100.50"),  # Mid = 100.25
+            bid_size=Decimal("100.0"),
+            ask_size=Decimal("100.0"),
             timestamp=datetime.now(UTC),
         )
         
         # REST with similar mid-price
-        rest_quote = Mock()
-        rest_quote.bid = 100.10
-        rest_quote.ask = 100.40  # Mid = 100.25 (same)
+        rest_quote = QuoteModel(
+            symbol="AAPL",
+            bid_price=Decimal("100.10"),
+            ask_price=Decimal("100.40"),
+            bid_size=Decimal("100"),
+            ask_size=Decimal("100"),
+            timestamp=datetime.now(UTC),
+        )  # Mid = 100.25 (same)
         mock_alpaca_manager.get_latest_quote.return_value = rest_quote
         
         result = quote_provider._validate_suspicious_quote_with_rest(

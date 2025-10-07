@@ -13,7 +13,10 @@ import re
 from decimal import Decimal
 from pathlib import Path
 
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
+
+logger = get_logger(__name__)
 
 
 class SexprParseError(Exception):
@@ -37,8 +40,15 @@ class SexprParser:
     Converts S-expression text into ASTNode tree structures for DSL evaluation.
     """
 
+    # Resource limits to prevent DoS attacks
+    MAX_NESTING_DEPTH = 250
+    MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+
     def __init__(self) -> None:
         """Initialize parser."""
+        # IMPORTANT: Pattern order matters!
+        # - FLOAT must come before INTEGER (else "3.14" matches as "3")
+        # - STRING pattern handles escaped quotes/backslashes
         # Token patterns
         self.token_patterns = [
             (r"\s+", "WHITESPACE"),  # Whitespace
@@ -52,7 +62,10 @@ class SexprParser:
             (r"\}", "RBRACE"),  # Right brace
             # Strings with escaped quotes/backslashes
             (r'"(?:\\.|[^"\\])*"', "STRING"),
-            (r"-?\d+\.\d+", "FLOAT"),  # Floating point numbers
+            (
+                r"-?\d+\.\d+",
+                "FLOAT",
+            ),  # Floating point numbers (MUST come before INTEGER)
             (r"-?\d+", "INTEGER"),  # Integers
             (r":[a-zA-Z_][a-zA-Z0-9_-]*", "KEYWORD"),  # Keywords
             (r"[a-zA-Z_><=!?+*/-][a-zA-Z0-9_><=!?+*/-]*", "SYMBOL"),  # Symbols
@@ -130,11 +143,12 @@ class SexprParser:
                 return value, match.end()
         return None
 
-    def parse(self, text: str) -> ASTNode:
+    def parse(self, text: str, correlation_id: str | None = None) -> ASTNode:
         """Parse S-expression text into AST.
 
         Args:
             text: S-expression text to parse
+            correlation_id: Optional correlation ID for distributed tracing
 
         Returns:
             ASTNode representing the parsed AST
@@ -143,47 +157,77 @@ class SexprParser:
             SexprParseError: If parsing fails
 
         """
-        tokens = self.tokenize(text)
-        if not tokens:
-            raise SexprParseError("Empty input")
+        logger.info(
+            "parse_started",
+            correlation_id=correlation_id,
+            text_length=len(text),
+        )
 
-        ast, remaining = self._parse_expression(tokens, 0)
+        try:
+            tokens = self.tokenize(text)
+            if not tokens:
+                raise SexprParseError("Empty input")
 
-        if remaining < len(tokens):
-            remaining_tokens = tokens[remaining:]
-            raise SexprParseError(f"Unexpected tokens after expression: {remaining_tokens}")
+            ast, remaining = self._parse_expression(tokens, 0)
 
-        return ast
+            if remaining < len(tokens):
+                remaining_tokens = tokens[remaining:]
+                raise SexprParseError(f"Unexpected tokens after expression: {remaining_tokens}")
 
-    def _parse_expression(self, tokens: list[tuple[str, str]], index: int) -> tuple[ASTNode, int]:
+            logger.info(
+                "parse_completed",
+                correlation_id=correlation_id,
+                node_type=ast.node_type,
+                children_count=len(ast.children) if ast.is_list() else 0,
+            )
+            return ast
+        except SexprParseError as e:
+            logger.error(
+                "parse_failed",
+                correlation_id=correlation_id,
+                error=str(e),
+                position=e.position,
+            )
+            raise
+
+    def _parse_expression(
+        self, tokens: list[tuple[str, str]], index: int, depth: int = 0
+    ) -> tuple[ASTNode, int]:
         """Parse a single expression.
 
         Args:
             tokens: List of tokens
             index: Current token index
+            depth: Current nesting depth (for recursion limit)
 
         Returns:
             Tuple of (ASTNode, next_index)
 
         Raises:
-            SexprParseError: If parsing fails
+            SexprParseError: If parsing fails or nesting depth exceeded
 
         """
+        # Check nesting depth to prevent stack overflow
+        if depth > self.MAX_NESTING_DEPTH:
+            raise SexprParseError(
+                f"Maximum nesting depth {self.MAX_NESTING_DEPTH} exceeded at position {index}"
+            )
+
         if index >= len(tokens):
             raise SexprParseError("Unexpected end of input")
 
         token_value, tok_type = tokens[index]
 
         if tok_type == "LPAREN":
-            return self._parse_list(tokens, index + 1, "RPAREN")
+            return self._parse_list(tokens, index + 1, "RPAREN", depth)
         if tok_type == "LBRACKET":
-            return self._parse_list(tokens, index + 1, "RBRACKET")
+            return self._parse_list(tokens, index + 1, "RBRACKET", depth)
         if tok_type == "LBRACE":
-            return self._parse_map(tokens, index + 1)
+            return self._parse_map(tokens, index + 1, depth)
         return self._parse_atom(token_value, tok_type), index + 1
 
     def _parse_list(
-        self, tokens: list[tuple[str, str]], index: int, end_token: str
+        self, tokens: list[tuple[str, str]], index: int, end_token: str, depth: int = 0
     ) -> tuple[ASTNode, int]:
         """Parse a list expression.
 
@@ -191,6 +235,7 @@ class SexprParser:
             tokens: List of tokens
             index: Current token index
             end_token: Expected end token type
+            depth: Current nesting depth
 
         Returns:
             Tuple of (ASTNode, next_index)
@@ -208,17 +253,20 @@ class SexprParser:
             if tok_type == end_token:
                 return ASTNode.list_node(children), current_index + 1
 
-            child, current_index = self._parse_expression(tokens, current_index)
+            child, current_index = self._parse_expression(tokens, current_index, depth + 1)
             children.append(child)
 
         raise SexprParseError(f"Missing closing {end_token}")
 
-    def _parse_map(self, tokens: list[tuple[str, str]], index: int) -> tuple[ASTNode, int]:
+    def _parse_map(
+        self, tokens: list[tuple[str, str]], index: int, depth: int = 0
+    ) -> tuple[ASTNode, int]:
         """Parse a map expression.
 
         Args:
             tokens: List of tokens
             index: Current token index
+            depth: Current nesting depth
 
         Returns:
             Tuple of (ASTNode, next_index)
@@ -241,13 +289,13 @@ class SexprParser:
                 )
 
             # Parse key-value pairs
-            key, current_index = self._parse_expression(tokens, current_index)
+            key, current_index = self._parse_expression(tokens, current_index, depth + 1)
             children.append(key)
 
             if current_index >= len(tokens):
                 raise SexprParseError("Missing value in map")
 
-            value, current_index = self._parse_expression(tokens, current_index)
+            value, current_index = self._parse_expression(tokens, current_index, depth + 1)
             children.append(value)
 
         raise SexprParseError("Missing closing }")
@@ -284,23 +332,72 @@ class SexprParser:
             return ASTNode.symbol(token_value)
         raise SexprParseError(f"Unknown token type: {tok_type}")
 
-    def parse_file(self, file_path: str) -> ASTNode:
+    def parse_file(self, file_path: str, correlation_id: str | None = None) -> ASTNode:
         """Parse S-expression from file.
 
         Args:
             file_path: Path to .clj file
+            correlation_id: Optional correlation ID for distributed tracing
 
         Returns:
             ASTNode representing the parsed AST
 
         Raises:
-            SexprParseError: If parsing fails
-            FileNotFoundError: If file not found
+            SexprParseError: If parsing fails or file operations fail
 
         """
+        logger.info(
+            "parse_file_started",
+            correlation_id=correlation_id,
+            file_path=file_path,
+        )
+
         try:
-            with Path(file_path).open(encoding="utf-8") as file:
+            path = Path(file_path)
+            file_size = path.stat().st_size
+
+            # Check file size limit to prevent memory exhaustion
+            if file_size > self.MAX_FILE_SIZE_BYTES:
+                raise SexprParseError(
+                    f"File size {file_size} bytes exceeds maximum "
+                    f"{self.MAX_FILE_SIZE_BYTES} bytes ({self.MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB)"
+                )
+
+            with path.open(encoding="utf-8") as file:
                 content = file.read()
-            return self.parse(content)
+
+            result = self.parse(content, correlation_id=correlation_id)
+
+            logger.info(
+                "parse_file_completed",
+                correlation_id=correlation_id,
+                file_path=file_path,
+                file_size=file_size,
+            )
+
+            return result
+
+        except FileNotFoundError as e:
+            logger.error(
+                "parse_file_failed",
+                correlation_id=correlation_id,
+                file_path=file_path,
+                error="File not found",
+            )
+            raise SexprParseError(f"File not found: {file_path}") from e
+        except PermissionError as e:
+            logger.error(
+                "parse_file_failed",
+                correlation_id=correlation_id,
+                file_path=file_path,
+                error="Permission denied",
+            )
+            raise SexprParseError(f"Permission denied: {file_path}") from e
         except OSError as e:
+            logger.error(
+                "parse_file_failed",
+                correlation_id=correlation_id,
+                file_path=file_path,
+                error=str(e),
+            )
             raise SexprParseError(f"Error reading file {file_path}: {e}") from e

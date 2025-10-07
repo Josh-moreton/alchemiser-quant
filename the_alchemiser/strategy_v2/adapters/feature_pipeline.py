@@ -230,7 +230,9 @@ class FeaturePipeline:
             # If there is a price range (max_high != min_low), calculate price_position;
             # otherwise, use the default value of 0.5 when no price range exists.
             if not self.is_close(max_high, min_low):
-                return (current_close - min_low) / (max_high - min_low)
+                # Clamp result to [0, 1] to handle cases where current_close is outside the range
+                position = (current_close - min_low) / (max_high - min_low)
+                return max(0.0, min(1.0, position))
         return 0.5
 
     def _compute_volume_ratio(self, volumes: list[float], lookback_window: int) -> float:

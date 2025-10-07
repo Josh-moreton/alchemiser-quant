@@ -5,12 +5,10 @@ Test execution tracker functionality.
 Tests logging and health check capabilities without external dependencies.
 """
 
+import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
-import uuid
-
-import pytest
+from unittest.mock import patch
 
 from the_alchemiser.execution_v2.core.execution_tracker import ExecutionTracker
 from the_alchemiser.execution_v2.models.execution_result import (
@@ -150,9 +148,13 @@ class TestExecutionTracker:
         with patch("the_alchemiser.execution_v2.core.execution_tracker.logger") as mock_logger:
             ExecutionTracker.log_plan_received(plan)
 
-            # Should log plan summary
+            # Should log plan summary with structured fields
             assert mock_logger.info.call_count >= 3  # Header + items
-            mock_logger.info.assert_any_call(f"📋 Plan received: {plan.plan_id}")
+            # Check first call has proper structured logging
+            first_call = mock_logger.info.call_args_list[0]
+            assert first_call[0][0] == "Plan received"
+            assert first_call[1]["plan_id"] == plan.plan_id
+            assert first_call[1]["correlation_id"] == plan.correlation_id
 
     def test_log_plan_received_empty_plan(self):
         """Test logging when plan has minimal items."""
@@ -161,8 +163,10 @@ class TestExecutionTracker:
         with patch("the_alchemiser.execution_v2.core.execution_tracker.logger") as mock_logger:
             ExecutionTracker.log_plan_received(plan)
 
-            # Should still log plan header
-            mock_logger.info.assert_any_call(f"📋 Plan received: {plan.plan_id}")
+            # Should still log plan header with structured fields
+            first_call = mock_logger.info.call_args_list[0]
+            assert first_call[0][0] == "Plan received"
+            assert first_call[1]["plan_id"] == plan.plan_id
 
     def test_log_execution_summary_all_success(self):
         """Test logging execution summary when all orders succeed."""
@@ -177,8 +181,10 @@ class TestExecutionTracker:
             ExecutionTracker.log_execution_summary(plan, result)
 
             # Check success rate logged (should be 100%)
-            calls = [str(call) for call in mock_logger.info.call_args_list]
-            assert any("100.0%" in str(call) for call in calls)
+            first_call = mock_logger.info.call_args_list[0]
+            assert first_call[0][0] == "Execution summary"
+            assert first_call[1]["success_rate"] == "100.0%"
+            assert first_call[1]["correlation_id"] == result.correlation_id
 
     def test_log_execution_summary_partial_success(self):
         """Test logging execution summary when some orders fail."""
@@ -197,11 +203,17 @@ class TestExecutionTracker:
         with patch("the_alchemiser.execution_v2.core.execution_tracker.logger") as mock_logger:
             ExecutionTracker.log_execution_summary(plan, result)
 
-            # Should log failure count and details
-            mock_logger.warning.assert_any_call("  Failed Orders: 1")
-            # Should log the specific failure
-            warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
-            assert any("MSFT" in str(call) for call in warning_calls)
+            # Should log failure count and details with structured fields
+            warning_calls = mock_logger.warning.call_args_list
+            assert len(warning_calls) == 2  # One for summary, one for failed order
+            
+            # Check failure summary
+            assert warning_calls[0][0][0] == "Failed orders detected"
+            assert warning_calls[0][1]["failure_count"] == 1
+            
+            # Check specific failure
+            assert warning_calls[1][0][0] == "Order failed"
+            assert warning_calls[1][1]["symbol"] == "MSFT"
 
     def test_log_execution_summary_all_failures(self):
         """Test logging execution summary when all orders fail."""
@@ -226,8 +238,9 @@ class TestExecutionTracker:
             ExecutionTracker.log_execution_summary(plan, result)
 
             # Should log 0% success rate
-            calls = [str(call) for call in mock_logger.info.call_args_list]
-            assert any("0.0%" in str(call) for call in calls)
+            first_call = mock_logger.info.call_args_list[0]
+            assert first_call[0][0] == "Execution summary"
+            assert first_call[1]["success_rate"] == "0.0%"
 
     def test_check_execution_health_all_success(self):
         """Test health check with 100% success rate."""
@@ -240,9 +253,12 @@ class TestExecutionTracker:
         with patch("the_alchemiser.execution_v2.core.execution_tracker.logger") as mock_logger:
             ExecutionTracker.check_execution_health(result)
 
-            # Should log healthy status
-            info_calls = [str(call) for call in mock_logger.info.call_args_list]
-            assert any("✅ Healthy execution" in str(call) for call in info_calls)
+            # Should log healthy status with structured fields
+            assert mock_logger.info.call_count == 1
+            call = mock_logger.info.call_args_list[0]
+            assert call[0][0] == "Healthy execution"
+            assert call[1]["correlation_id"] == result.correlation_id
+            assert call[1]["success_rate"] == "100.0%"
 
     def test_check_execution_health_elevated_failure_rate(self):
         """Test health check with elevated failure rate (>20%)."""
@@ -257,8 +273,11 @@ class TestExecutionTracker:
             ExecutionTracker.check_execution_health(result)
 
             # Should log warning for elevated failure rate (33%)
-            warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
-            assert any("⚠️ Elevated failure rate" in str(call) for call in warning_calls)
+            assert mock_logger.warning.call_count == 1
+            call = mock_logger.warning.call_args_list[0]
+            assert call[0][0] == "Elevated failure rate"
+            assert call[1]["correlation_id"] == result.correlation_id
+            assert "33" in call[1]["failure_rate"]  # Approximately 33%
 
     def test_check_execution_health_high_failure_rate(self):
         """Test health check with high failure rate (>50%)."""
@@ -273,8 +292,11 @@ class TestExecutionTracker:
             ExecutionTracker.check_execution_health(result)
 
             # Should log critical alert (67% failure)
-            critical_calls = [str(call) for call in mock_logger.critical.call_args_list]
-            assert any("🚨 HIGH FAILURE RATE" in str(call) for call in critical_calls)
+            assert mock_logger.critical.call_count == 1
+            call = mock_logger.critical.call_args_list[0]
+            assert call[0][0] == "High failure rate detected"
+            assert call[1]["correlation_id"] == result.correlation_id
+            assert "66" in call[1]["failure_rate"] or "67" in call[1]["failure_rate"]  # ~67%
 
     def test_check_execution_health_zero_orders(self):
         """Test health check with no orders."""

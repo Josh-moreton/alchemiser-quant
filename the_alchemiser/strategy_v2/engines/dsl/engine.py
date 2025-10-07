@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 
 from the_alchemiser.shared.constants import DSL_ENGINE_MODULE
@@ -27,6 +28,7 @@ from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 from the_alchemiser.shared.schemas.trace import Trace
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
+from the_alchemiser.strategy_v2.errors import StrategyV2Error
 
 from .dsl_evaluator import DslEvaluator, IndicatorService
 from .sexpr_parser import SexprParseError, SexprParser
@@ -57,6 +59,9 @@ class DslEngine(EventHandler):
         self.event_bus = event_bus
         self.strategy_config_path = strategy_config_path or "."
 
+        # Track processed events for idempotency
+        self._processed_events: set[str] = set()
+
         # Initialize components
         self.parser = SexprParser()
 
@@ -64,14 +69,17 @@ class DslEngine(EventHandler):
         if market_data_service:
             self.indicator_service = IndicatorService(market_data_service)
         else:
-            # Fallback to mock service for backward compatibility
-            self.indicator_service = IndicatorService(None)  # Will use fallback indicators
+            self.indicator_service = IndicatorService(None)
 
         self.evaluator = DslEvaluator(self.indicator_service, event_bus)
 
         # Subscribe to events if event bus provided
         if self.event_bus:
             self.event_bus.subscribe("StrategyEvaluationRequested", self)
+            self.logger.debug(
+                "DSL engine subscribed to events",
+                extra={"event_type": "StrategyEvaluationRequested", "component": "dsl_engine"},
+            )
 
     def can_handle(self, event_type: str) -> bool:
         """Check if this handler can handle the event type.
@@ -86,16 +94,39 @@ class DslEngine(EventHandler):
         return event_type == "StrategyEvaluationRequested"
 
     def handle_event(self, event: BaseEvent) -> None:
-        """Handle incoming events.
+        """Handle incoming events with idempotency check.
 
         Args:
             event: Event to handle
 
         """
+        # Check for duplicate event (idempotency)
+        if event.event_id in self._processed_events:
+            self.logger.debug(
+                "Skipping duplicate event",
+                extra={
+                    "event_id": event.event_id,
+                    "correlation_id": event.correlation_id,
+                    "event_type": type(event).__name__,
+                    "component": "dsl_engine",
+                },
+            )
+            return
+
+        # Mark event as processed
+        self._processed_events.add(event.event_id)
+
         if isinstance(event, StrategyEvaluationRequested):
             self._handle_evaluation_request(event)
         else:
-            self.logger.warning(f"Received unhandled event type: {type(event)}")
+            self.logger.warning(
+                "Received unhandled event type",
+                extra={
+                    "event_type": type(event).__name__,
+                    "event_id": event.event_id,
+                    "component": "dsl_engine",
+                },
+            )
 
     def evaluate_strategy(
         self, strategy_config_path: str, correlation_id: str | None = None
@@ -145,15 +176,20 @@ class DslEngine(EventHandler):
 
         except Exception as e:
             self.logger.error(
-                f"DSL strategy evaluation failed: {e}",
+                "DSL strategy evaluation failed",
                 extra={
                     "correlation_id": correlation_id,
                     "strategy_config_path": strategy_config_path,
                     "component": "dsl_engine",
                     "error_type": type(e).__name__,
+                    "error_message": str(e),
                 },
             )
-            raise DslEngineError(f"Strategy evaluation failed: {e}") from e
+            raise DslEngineError(
+                f"Strategy evaluation failed: {e}",
+                correlation_id=correlation_id,
+                strategy_path=strategy_config_path,
+            ) from e
 
     def _handle_evaluation_request(self, event: StrategyEvaluationRequested) -> None:
         """Handle strategy evaluation request event.
@@ -178,11 +214,13 @@ class DslEngine(EventHandler):
 
         except Exception as e:
             self.logger.error(
-                f"Failed to handle evaluation request: {e}",
+                "Failed to handle evaluation request",
                 extra={
                     "correlation_id": correlation_id,
                     "strategy_id": event.strategy_id,
                     "component": "dsl_engine",
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
                 },
             )
 
@@ -210,18 +248,31 @@ class DslEngine(EventHandler):
                 full_path = Path(strategy_config_path)
 
             if not full_path.exists():
-                raise DslEngineError(f"Strategy file not found: {strategy_config_path}")
+                raise DslEngineError(
+                    f"Strategy file not found: {strategy_config_path}",
+                    correlation_id=None,
+                    strategy_path=strategy_config_path,
+                )
 
             self.logger.debug(
-                f"Parsing strategy file: {full_path}", extra={"component": "dsl_engine"}
+                "Parsing strategy file",
+                extra={"component": "dsl_engine", "strategy_file": str(full_path)},
             )
 
             return self.parser.parse_file(str(full_path))
 
         except SexprParseError as e:
-            raise DslEngineError(f"Failed to parse strategy file: {e}") from e
+            raise DslEngineError(
+                f"Failed to parse strategy file: {e}",
+                correlation_id=None,
+                strategy_path=strategy_config_path,
+            ) from e
         except Exception as e:
-            raise DslEngineError(f"Error reading strategy file: {e}") from e
+            raise DslEngineError(
+                f"Error reading strategy file: {e}",
+                correlation_id=None,
+                strategy_path=strategy_config_path,
+            ) from e
 
     def _resolve_strategy_path(self, config_path: str, strategy_id: str) -> str:
         """Resolve strategy configuration path.
@@ -271,6 +322,8 @@ class DslEngine(EventHandler):
         if not self.event_bus:
             return
 
+        # Capture timestamp once for consistency
+        timestamp = datetime.now(UTC)
         correlation_id = request_event.correlation_id
 
         # Publish StrategyEvaluated event
@@ -278,7 +331,7 @@ class DslEngine(EventHandler):
             correlation_id=correlation_id,
             causation_id=request_event.event_id,
             event_id=str(uuid.uuid4()),
-            timestamp=datetime.now(UTC),
+            timestamp=timestamp,
             source_module=DSL_ENGINE_MODULE,
             strategy_id=request_event.strategy_id,
             allocation=allocation,
@@ -293,7 +346,7 @@ class DslEngine(EventHandler):
             correlation_id=correlation_id,
             causation_id=request_event.event_id,
             event_id=str(uuid.uuid4()),
-            timestamp=datetime.now(UTC),
+            timestamp=timestamp,
             source_module=DSL_ENGINE_MODULE,
             strategy_id=request_event.strategy_id,
             allocation=allocation,
@@ -314,6 +367,8 @@ class DslEngine(EventHandler):
         if not self.event_bus:
             return
 
+        # Capture timestamp once for consistency
+        timestamp = datetime.now(UTC)
         correlation_id = request_event.correlation_id
 
         # Create failed trace
@@ -321,12 +376,14 @@ class DslEngine(EventHandler):
             trace_id=str(uuid.uuid4()),
             correlation_id=correlation_id,
             strategy_id=request_event.strategy_id,
-            started_at=datetime.now(UTC),
+            started_at=timestamp,
         ).mark_completed(success=False, error_message=error_message)
 
-        # Create dummy allocation for failed case
+        # Create dummy allocation for failed case (with dummy symbol to satisfy validation)
         failed_allocation = StrategyAllocation(
-            target_weights={}, correlation_id=correlation_id, as_of=datetime.now(UTC)
+            target_weights={"CASH": Decimal("1.0")},
+            correlation_id=correlation_id,
+            as_of=timestamp,
         )
 
         # Publish StrategyEvaluated event with error
@@ -334,7 +391,7 @@ class DslEngine(EventHandler):
             correlation_id=correlation_id,
             causation_id=request_event.event_id,
             event_id=str(uuid.uuid4()),
-            timestamp=datetime.now(UTC),
+            timestamp=timestamp,
             source_module=DSL_ENGINE_MODULE,
             strategy_id=request_event.strategy_id,
             allocation=failed_allocation,
@@ -345,5 +402,33 @@ class DslEngine(EventHandler):
         self.event_bus.publish(strategy_evaluated)
 
 
-class DslEngineError(Exception):
-    """Error in DSL engine operation."""
+class DslEngineError(StrategyV2Error):
+    """Error in DSL engine operation.
+
+    Typed exception for DSL engine failures with correlation tracking
+    and structured context for observability.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        correlation_id: str | None = None,
+        causation_id: str | None = None,
+        **context: str | float | int | bool | None,
+    ) -> None:
+        """Initialize DSL engine error with context.
+
+        Args:
+            message: Error message describing the failure
+            correlation_id: Optional correlation ID for tracking
+            causation_id: Optional causation ID for event workflows
+            **context: Additional error context (strategy_path, etc.)
+
+        """
+        super().__init__(
+            message,
+            module="strategy_v2.engines.dsl",
+            correlation_id=correlation_id,
+            causation_id=causation_id,
+            **context,
+        )

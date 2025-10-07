@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.errors.exceptions import OrderExecutionError
 from the_alchemiser.shared.logging import get_logger, log_repeg_operation
 from the_alchemiser.shared.schemas.broker import OrderExecutionResult
 from the_alchemiser.shared.schemas.execution_report import ExecutedOrder
@@ -20,7 +21,6 @@ from the_alchemiser.shared.schemas.operations import (
     OrderCancellationResult,
     TerminalOrderError,
 )
-from the_alchemiser.shared.types.exceptions import OrderExecutionError
 from the_alchemiser.shared.types.market_data import QuoteModel
 
 from .models import (
@@ -513,11 +513,11 @@ class RepegManager:
             "original_order_id": order_id,
             "original_price": (float(original_anchor) if original_anchor else None),
             "new_price": float(new_price),
-            "bid_price": q.bid_price,
-            "ask_price": q.ask_price,
-            "spread_percent": (q.ask_price - q.bid_price) / q.bid_price * 100,
-            "bid_size": q.bid_size,
-            "ask_size": q.ask_size,
+            "bid_price": float(q.bid_price),
+            "ask_price": float(q.ask_price),
+            "spread_percent": float((q.ask_price - q.bid_price) / q.bid_price * 100),
+            "bid_size": float(q.bid_size),
+            "ask_size": float(q.ask_size),
         }
 
     def _build_repeg_success_result(

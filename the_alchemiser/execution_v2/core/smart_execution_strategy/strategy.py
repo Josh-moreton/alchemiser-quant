@@ -433,11 +433,11 @@ class SmartExecutionStrategy:
 
         metadata_dict: LiquidityMetadata = {
             **analysis_metadata,
-            "bid_price": quote.bid_price,
-            "ask_price": quote.ask_price,
-            "spread_percent": (quote.ask_price - quote.bid_price) / quote.bid_price * 100,
-            "bid_size": quote.bid_size,
-            "ask_size": quote.ask_size,
+            "bid_price": float(quote.bid_price),
+            "ask_price": float(quote.ask_price),
+            "spread_percent": float((quote.ask_price - quote.bid_price) / quote.bid_price * 100),
+            "bid_size": float(quote.bid_size),
+            "ask_size": float(quote.ask_size),
             "used_fallback": used_fallback,
         }
 

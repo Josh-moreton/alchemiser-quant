@@ -15,7 +15,7 @@ from the_alchemiser.portfolio_v2.adapters.alpaca_data_adapter import (
     AlpacaDataAdapter,
 )
 from the_alchemiser.portfolio_v2.core.state_reader import PortfolioStateReader
-from the_alchemiser.shared.types.exceptions import NegativeCashBalanceError
+from the_alchemiser.shared.errors.exceptions import NegativeCashBalanceError
 
 
 class TestNegativeCashLiquidation:

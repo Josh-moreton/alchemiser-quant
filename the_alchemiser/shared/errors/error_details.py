@@ -17,7 +17,7 @@ from .error_types import ErrorCategory
 
 # Import exceptions
 try:
-    from the_alchemiser.shared.types.exceptions import (
+    from the_alchemiser.shared.errors.exceptions import (
         AlchemiserError,
         ConfigurationError,
         DataProviderError,

@@ -127,22 +127,30 @@ class TestNormalizeTimestampToUtc:
         assert result_dt.minute == 30
 
     def test_invalid_string_fallback_to_current_time(self):
-        """Test that invalid string falls back to current time."""
-        invalid_str = "not a valid datetime"
-        result_dt = normalize_timestamp_to_utc(invalid_str)
+        """Test that invalid string raises DataProviderError."""
+        from the_alchemiser.shared.errors.exceptions import DataProviderError
         
-        # Should fallback to a UTC datetime (current time)
-        assert result_dt.tzinfo is UTC
-        # Don't test the exact time since it's current time
+        invalid_str = "not a valid datetime"
+        
+        with pytest.raises(DataProviderError) as exc_info:
+            normalize_timestamp_to_utc(invalid_str)
+        
+        # Verify error details
+        assert "Failed to parse timestamp string" in str(exc_info.value)
+        assert invalid_str in str(exc_info.value)
 
     def test_numeric_timestamp_converted_to_string(self):
-        """Test that numeric timestamps are converted via string."""
-        # This tests the fallback to string conversion
-        numeric_timestamp = 1673784600  # Unix timestamp
-        result_dt = normalize_timestamp_to_utc(numeric_timestamp)
+        """Test that numeric timestamps raise DataProviderError."""
+        from the_alchemiser.shared.errors.exceptions import DataProviderError
         
-        # Should fall back to current time since numeric conversion isn't implemented
-        assert result_dt.tzinfo is UTC
+        # This tests that numeric conversion isn't properly implemented
+        numeric_timestamp = 1673784600  # Unix timestamp
+        
+        with pytest.raises(DataProviderError) as exc_info:
+            normalize_timestamp_to_utc(numeric_timestamp)
+        
+        # Verify error details
+        assert "Failed to" in str(exc_info.value)
 
 
 class TestToIsoString:
@@ -213,14 +221,18 @@ class TestTimezoneUtilsEdgeCases:
         assert result.day == 29
 
     def test_normalize_with_exception_fallback(self):
-        """Test that normalize function handles exceptions gracefully."""
+        """Test that normalize function raises DataProviderError on exceptions."""
+        from the_alchemiser.shared.errors.exceptions import DataProviderError
+        
         # Test an object that will cause an exception when converted to string
         class BadObject:
             def __str__(self):
                 raise RuntimeError("Cannot convert to string")
         
         bad_obj = BadObject()
-        result_dt = normalize_timestamp_to_utc(bad_obj)
         
-        # Should fall back to current time
-        assert result_dt.tzinfo is UTC
+        with pytest.raises(DataProviderError) as exc_info:
+            normalize_timestamp_to_utc(bad_obj)
+        
+        # Verify error details
+        assert "Failed to convert timestamp" in str(exc_info.value)

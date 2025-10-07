@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "the-alchemiser"
-version = "2.11.0"
+version = "2.16.0"
 description = "Advanced Multi-Strategy Quantitative Trading System with Nuclear and TECL strategies"
 readme = "README.md"
 authors = ["Josh Moreton <josh@example.com>"]
@@ -59,6 +59,9 @@ pyright = "^1.1.406"  # Supplemental static type analysis (optional CI/nightly)
 import-linter = "^2.5"  # Module dependency enforcement
 pytest-asyncio = "^1.2.0"
 hypothesis = "^6.140.3"
+pytest-xdist = "^3.8.0"
+pytest-randomly = "^4.0.1"
+pytest-timeout = "^2.4.0"
 
 
 
@@ -227,4 +230,11 @@ source_modules = [
 ]
 forbidden_modules = [
     "the_alchemiser.shared.dto"
+]
+
+[tool.pytest.ini_options]
+addopts = "-n auto --dist=loadscope -q --durations=10"
+testpaths = ["tests"]
+markers = [
+  "serial: cannot be run in parallel (uses shared state, real network/broker, or depends on order)"
 ]

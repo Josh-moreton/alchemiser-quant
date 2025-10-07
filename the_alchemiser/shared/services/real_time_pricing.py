@@ -51,6 +51,7 @@ from __future__ import annotations
 import asyncio
 import time
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.logging import get_logger
@@ -349,7 +350,7 @@ class RealTimePricingService:
         """
         return self._price_store.get_price_data(symbol)
 
-    def get_real_time_price(self, symbol: str) -> float | None:
+    def get_real_time_price(self, symbol: str) -> Decimal | float | None:
         """Get the best available real-time price for a symbol.
 
         Priority: mid-price > last trade > bid > ask
@@ -358,19 +359,19 @@ class RealTimePricingService:
             symbol: Stock symbol
 
         Returns:
-            Current price or None if not available
+            Current price (Decimal from structured data or float from legacy) or None if not available
 
         """
         return self._price_store.get_real_time_price(symbol)
 
-    def get_bid_ask_spread(self, symbol: str) -> tuple[float, float] | None:
+    def get_bid_ask_spread(self, symbol: str) -> tuple[Decimal | float, Decimal | float] | None:
         """Get current bid/ask spread for a symbol.
 
         Args:
             symbol: Stock symbol
 
         Returns:
-            Tuple of (bid, ask) or None if not available
+            Tuple of (bid, ask) - Decimal from structured data or float from legacy, or None if not available
 
         """
         return self._price_store.get_bid_ask_spread(symbol)
@@ -519,14 +520,14 @@ class RealTimePricingService:
         # Could implement cleanup logic here if needed
         self.logger.debug(f"Keeping {symbol} subscription active for monitoring")
 
-    def get_optimized_price_for_order(self, symbol: str) -> float | None:
+    def get_optimized_price_for_order(self, symbol: str) -> Decimal | float | None:
         """Get the most accurate price for order placement with temporary subscription.
 
         Args:
             symbol: Stock symbol
 
         Returns:
-            Current price optimized for order accuracy
+            Current price optimized for order accuracy (Decimal from structured data or float from legacy)
 
         """
         return self._price_store.get_optimized_price_for_order(

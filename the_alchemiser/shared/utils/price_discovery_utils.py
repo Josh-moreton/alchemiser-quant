@@ -27,7 +27,7 @@ from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.types.quote import QuoteModel
+from the_alchemiser.shared.types.market_data import QuoteModel
 
 logger = get_logger(__name__)
 
@@ -109,11 +109,22 @@ def calculate_midpoint_price(bid: float, ask: float) -> float | None:
         improved market depth analysis.
 
     """
+    # Tolerance for float comparisons (financial-grade: 1 basis point = 0.0001)
+    MIN_PRICE_TOLERANCE = 1e-4
+
     try:
-        if bid > 0 and ask > 0 and ask >= bid:
-            return (bid + ask) / 2.0
-        logger.warning(f"Invalid bid-ask spread: bid={bid}, ask={ask}")
-        return None
+        # Validate bid and ask are positive (using tolerance for zero comparison)
+        if not (bid > MIN_PRICE_TOLERANCE and ask > MIN_PRICE_TOLERANCE):
+            logger.warning(f"Invalid bid-ask spread: bid={bid}, ask={ask}")
+            return None
+
+        # Validate ask >= bid (no crossed market, with tolerance for spread)
+        if ask < bid - MIN_PRICE_TOLERANCE:
+            logger.warning(f"Invalid bid-ask spread: bid={bid}, ask={ask}")
+            return None
+
+        return (bid + ask) / 2.0
+
     except (TypeError, ValueError) as e:
         logger.error(f"Error calculating midpoint: {e}")
         return None
@@ -148,12 +159,21 @@ def get_current_price_from_quote(
                 bid, ask = quote
                 return calculate_midpoint_price(bid, ask)
             # Handle QuoteModel return type (preferred)
+            if hasattr(quote, "bid_price") and hasattr(quote, "ask_price"):
+                # Enhanced QuoteModel has bid_price/ask_price as Decimal, convert to float
+                bid = float(quote.bid_price)
+                ask = float(quote.ask_price)
+                return calculate_midpoint_price(bid, ask)
+            # Handle legacy QuoteModel with bid/ask fields (for backward compatibility)
             if hasattr(quote, "bid") and hasattr(quote, "ask"):
-                # QuoteModel has bid/ask as Decimal, convert to float
+                # Legacy QuoteModel has bid/ask as Decimal, convert to float
                 bid = float(quote.bid)
                 ask = float(quote.ask)
                 return calculate_midpoint_price(bid, ask)
-            # Handle QuoteModel with mid property
+            # Handle QuoteModel with mid_price property
+            if hasattr(quote, "mid_price"):
+                return float(quote.mid_price)
+            # Handle legacy mid property
             if hasattr(quote, "mid"):
                 return float(quote.mid)
 

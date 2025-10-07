@@ -158,7 +158,7 @@ def map_exception_to_error_code(exc: Exception) -> ErrorCode | None:
 
     """
     # Import here to avoid circular imports
-    from the_alchemiser.shared.types.exceptions import (
+    from the_alchemiser.shared.errors.exceptions import (
         BuyingPowerError,
         ConfigurationError,
         DataProviderError,

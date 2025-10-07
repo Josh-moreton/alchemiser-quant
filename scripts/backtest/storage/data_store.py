@@ -194,6 +194,10 @@ class DataStore:
                         DataUnavailableError,
                     )
 
+                    from the_alchemiser.shared.errors.exceptions import (
+                        DataUnavailableError,
+                    )
+
                     error_msg = (
                         f"Symbol '{symbol}' has no data available from provider for the requested date range. "
                         f"Required: {start_date.date()} to {end_date.date()}."

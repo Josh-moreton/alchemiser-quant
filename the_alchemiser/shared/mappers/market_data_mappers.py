@@ -11,8 +11,7 @@ from decimal import Decimal
 from typing import Any
 
 from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.types.market_data import BarModel
-from the_alchemiser.shared.types.quote import QuoteModel
+from the_alchemiser.shared.types.market_data import BarModel, QuoteModel
 
 logger = get_logger(__name__)
 
@@ -72,10 +71,10 @@ def bars_to_domain(rows: Iterable[dict[str, Any]], symbol: str | None = None) ->
                 BarModel(
                     symbol=(r.get("S") or r.get("symbol") or symbol or "UNKNOWN"),
                     timestamp=ts_parsed,
-                    open=float(r.get("o") or r.get("open") or 0),
-                    high=float(r.get("h") or r.get("high") or 0),
-                    low=float(r.get("l") or r.get("low") or 0),
-                    close=float(r.get("c") or r.get("close") or 0),
+                    open=Decimal(str(r.get("o") or r.get("open") or 0)),
+                    high=Decimal(str(r.get("h") or r.get("high") or 0)),
+                    low=Decimal(str(r.get("l") or r.get("low") or 0)),
+                    close=Decimal(str(r.get("c") or r.get("close") or 0)),
                     volume=int(r.get("v") or r.get("volume") or 0),
                 )
             )
@@ -89,33 +88,53 @@ def quote_to_domain(raw: object) -> QuoteModel | None:
     """Convert raw quote data object to domain QuoteModel.
 
     Args:
-        raw: Raw quote object with attributes like timestamp, bid_price, ask_price
+        raw: Raw quote object with attributes like timestamp, bid_price, ask_price, bid_size, ask_size
 
     Returns:
-        QuoteModel with parsed data, or None if conversion fails or data is invalid
+        Enhanced QuoteModel with parsed data including market depth, or None if conversion fails or data is invalid
 
     Note:
         Uses defensive attribute access with getattr() for robust parsing
-
-        Note: This currently creates the legacy QuoteModel without market depth.
-        Migrating to the enhanced QuoteModel from shared.types.market_data would
-        surface bid_size/ask_size details for richer liquidity analysis.
 
     """
     try:
         if raw is None:
             return None
+
+        # Parse timestamp
         ts_any = getattr(raw, "timestamp", None)
-        ts: datetime | None
+        ts: datetime
         if ts_any is None:
-            ts = None
+            # Use current time if timestamp unavailable
+            ts = datetime.now(UTC)
         else:
             parsed = _parse_ts(ts_any)
-            ts = parsed if parsed is not None else None
-        bid = getattr(raw, "bid_price", None)
-        ask = getattr(raw, "ask_price", None)
-        if bid is None or ask is None:
+            ts = parsed if parsed is not None else datetime.now(UTC)
+
+        # Ensure timezone-aware
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=UTC)
+
+        # Extract prices
+        bid_price = getattr(raw, "bid_price", None)
+        ask_price = getattr(raw, "ask_price", None)
+        if bid_price is None or ask_price is None:
             return None
-        return QuoteModel(ts=ts, bid=Decimal(str(bid)), ask=Decimal(str(ask)))
+
+        # Extract sizes (default to 0 if not available)
+        bid_size = getattr(raw, "bid_size", 0)
+        ask_size = getattr(raw, "ask_size", 0)
+
+        # Extract symbol
+        symbol = getattr(raw, "symbol", "UNKNOWN")
+
+        return QuoteModel(
+            symbol=str(symbol),
+            bid_price=Decimal(str(bid_price)),
+            ask_price=Decimal(str(ask_price)),
+            bid_size=Decimal(str(bid_size)),
+            ask_size=Decimal(str(ask_size)),
+            timestamp=ts,
+        )
     except Exception:
         return None

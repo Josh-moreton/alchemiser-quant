@@ -15,12 +15,16 @@ from decimal import Decimal
 
 import pandas as pd
 
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.indicator_request import IndicatorRequest
 from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicator
 from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy_v2.engines.dsl.types import DslEvaluationError
+from the_alchemiser.strategy_v2.errors import MarketDataError
 from the_alchemiser.strategy_v2.indicators.indicators import TechnicalIndicators
+
+logger = get_logger(__name__)
 
 
 class IndicatorService:
@@ -28,21 +32,49 @@ class IndicatorService:
 
     Integrates with the existing market data infrastructure to provide
     real-time technical indicator calculations for DSL strategy evaluation.
+
+    Attributes:
+        market_data_service: Market data provider for fetching historical bars
+        technical_indicators: Technical indicator computation engine
+
     """
 
     def __init__(self, market_data_service: MarketDataPort | None) -> None:
         """Initialize indicator service with market data provider.
 
         Args:
-            market_data_service: MarketDataService instance for real market data (None for fallback)
+            market_data_service: MarketDataService instance for real market data.
+                None is allowed only for testing; production code must provide a service.
+
+        Raises:
+            None. Validation occurs at usage time via get_indicator method.
 
         """
         self.market_data_service = market_data_service
         # Always initialize indicators; data access is gated separately by market_data_service
         self.technical_indicators: TechnicalIndicators = TechnicalIndicators()
+        logger.info(
+            "IndicatorService initialized",
+            module="strategy_v2.indicators",
+            has_market_data_service=market_data_service is not None,
+        )
 
     def _latest_value(self, series: pd.Series, fallback: float) -> float:
-        """Safely get the latest value from a pandas series with fallback."""
+        """Safely get the latest value from a pandas series with fallback.
+
+        Args:
+            series: Pandas series containing computed indicator values
+            fallback: Fallback value to return if series is empty or contains NaN
+
+        Returns:
+            Latest non-NaN value from series, or fallback if unavailable
+
+        Note:
+            Uses fallback for missing data to avoid raising errors in partial data scenarios.
+            Caller is responsible for validating if fallback values are acceptable for
+            their use case.
+
+        """
         if len(series) > 0 and not pd.isna(series.iloc[-1]):
             return float(series.iloc[-1])
         return fallback
@@ -50,10 +82,31 @@ class IndicatorService:
     def _compute_rsi(
         self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
     ) -> TechnicalIndicator:
-        """Compute RSI indicator."""
+        """Compute RSI indicator.
+
+        Args:
+            symbol: Trading symbol
+            prices: Price series for RSI computation
+            parameters: Indicator parameters, including 'window' (default: 14)
+
+        Returns:
+            TechnicalIndicator with RSI value in appropriate field based on window
+
+        Raises:
+            None. Returns neutral fallback (50.0) if computation fails or insufficient data.
+
+        """
         window = int(parameters.get("window", 14))
         rsi_series = self.technical_indicators.rsi(prices, window=window)
         rsi_value = self._latest_value(rsi_series, 50.0)  # Neutral fallback
+
+        logger.debug(
+            "RSI computed",
+            module="strategy_v2.indicators",
+            symbol=symbol,
+            window=window,
+            rsi_value=rsi_value,
+        )
 
         return TechnicalIndicator(
             symbol=symbol,
@@ -62,9 +115,7 @@ class IndicatorService:
             rsi_10=rsi_value if window == 10 else None,
             rsi_20=rsi_value if window == 20 else None,
             rsi_21=rsi_value if window == 21 else None,
-            current_price=(
-                Decimal(str(prices.iloc[-1])) if len(prices) > 0 else Decimal("100.0")
-            ),
+            current_price=(Decimal(str(prices.iloc[-1])) if len(prices) > 0 else Decimal("100.0")),
             data_source="real_market_data",
             metadata={"value": rsi_value, "window": window},
         )
@@ -72,10 +123,35 @@ class IndicatorService:
     def _compute_current_price(
         self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
     ) -> TechnicalIndicator:
-        """Compute current price indicator."""
+        """Compute current price indicator.
+
+        Args:
+            symbol: Trading symbol
+            prices: Price series (must contain at least one value)
+            parameters: Indicator parameters (unused for current_price)
+
+        Returns:
+            TechnicalIndicator with current price
+
+        Raises:
+            DslEvaluationError: If prices series is empty or contains no valid data
+
+        """
         last_price = float(prices.iloc[-1]) if len(prices) > 0 else None
         if last_price is None:
+            logger.error(
+                "No last price available",
+                module="strategy_v2.indicators",
+                symbol=symbol,
+            )
             raise DslEvaluationError(f"No last price for symbol {symbol}")
+
+        logger.debug(
+            "Current price retrieved",
+            module="strategy_v2.indicators",
+            symbol=symbol,
+            price=last_price,
+        )
 
         return TechnicalIndicator(
             symbol=symbol,
@@ -91,7 +167,20 @@ class IndicatorService:
     def _compute_moving_average(
         self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
     ) -> TechnicalIndicator:
-        """Compute moving average indicator."""
+        """Compute moving average indicator.
+
+        Args:
+            symbol: Trading symbol
+            prices: Price series for moving average computation
+            parameters: Indicator parameters, including 'window' (default: 200)
+
+        Returns:
+            TechnicalIndicator with moving average value
+
+        Raises:
+            DslEvaluationError: If moving average cannot be computed or is NaN
+
+        """
         window = int(parameters.get("window", 200))
 
         # Validate sufficient data before computation
@@ -104,9 +193,22 @@ class IndicatorService:
 
         latest_ma = float(ma_series.iloc[-1]) if len(ma_series) > 0 else None
         if latest_ma is None or pd.isna(latest_ma):
-            raise DslEvaluationError(
-                f"No moving average available for {symbol} window={window} (need {window} bars, have {len(prices)})"
+            logger.error(
+                "Moving average computation failed",
+                module="strategy_v2.indicators",
+                symbol=symbol,
+                window=window,
             )
+            raise DslEvaluationError(f"No moving average available for {symbol} window={window}")
+
+        logger.debug(
+            "Moving average computed",
+            module="strategy_v2.indicators",
+            symbol=symbol,
+            window=window,
+            ma_value=latest_ma,
+        )
+
         return TechnicalIndicator(
             symbol=symbol,
             timestamp=datetime.now(UTC),
@@ -121,17 +223,41 @@ class IndicatorService:
     def _compute_moving_average_return(
         self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
     ) -> TechnicalIndicator:
-        """Compute moving average return indicator."""
+        """Compute moving average return indicator.
+
+        Args:
+            symbol: Trading symbol
+            prices: Price series for return computation
+            parameters: Indicator parameters, including 'window' (default: 21)
+
+        Returns:
+            TechnicalIndicator with moving average return value
+
+        Raises:
+            DslEvaluationError: If return cannot be computed or is NaN
+
+        """
         window = int(parameters.get("window", 21))
-        mar_series = self.technical_indicators.moving_average_return(
-            prices, window=window
-        )
+        mar_series = self.technical_indicators.moving_average_return(prices, window=window)
 
         latest = float(mar_series.iloc[-1]) if len(mar_series) > 0 else None
         if latest is None or pd.isna(latest):
-            raise DslEvaluationError(
-                f"No moving average return for {symbol} window={window}"
+            logger.error(
+                "Moving average return computation failed",
+                module="strategy_v2.indicators",
+                symbol=symbol,
+                window=window,
             )
+            raise DslEvaluationError(f"No moving average return for {symbol} window={window}")
+
+        logger.debug(
+            "Moving average return computed",
+            module="strategy_v2.indicators",
+            symbol=symbol,
+            window=window,
+            value=latest,
+        )
+
         return TechnicalIndicator(
             symbol=symbol,
             timestamp=datetime.now(UTC),
@@ -144,15 +270,41 @@ class IndicatorService:
     def _compute_cumulative_return(
         self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
     ) -> TechnicalIndicator:
-        """Compute cumulative return indicator."""
+        """Compute cumulative return indicator.
+
+        Args:
+            symbol: Trading symbol
+            prices: Price series for return computation
+            parameters: Indicator parameters, including 'window' (default: 60)
+
+        Returns:
+            TechnicalIndicator with cumulative return value
+
+        Raises:
+            DslEvaluationError: If return cannot be computed or is NaN
+
+        """
         window = int(parameters.get("window", 60))
         cum_series = self.technical_indicators.cumulative_return(prices, window=window)
 
         latest = float(cum_series.iloc[-1]) if len(cum_series) > 0 else None
         if latest is None or pd.isna(latest):
-            raise DslEvaluationError(
-                f"No cumulative return for {symbol} window={window}"
+            logger.error(
+                "Cumulative return computation failed",
+                module="strategy_v2.indicators",
+                symbol=symbol,
+                window=window,
             )
+            raise DslEvaluationError(f"No cumulative return for {symbol} window={window}")
+
+        logger.debug(
+            "Cumulative return computed",
+            module="strategy_v2.indicators",
+            symbol=symbol,
+            window=window,
+            value=latest,
+        )
+
         return TechnicalIndicator(
             symbol=symbol,
             timestamp=datetime.now(UTC),
@@ -165,15 +317,41 @@ class IndicatorService:
     def _compute_ema(
         self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
     ) -> TechnicalIndicator:
-        """Compute exponential moving average indicator."""
+        """Compute exponential moving average indicator.
+
+        Args:
+            symbol: Trading symbol
+            prices: Price series for EMA computation
+            parameters: Indicator parameters, including 'window' (default: 12)
+
+        Returns:
+            TechnicalIndicator with EMA value
+
+        Raises:
+            DslEvaluationError: If EMA cannot be computed or is NaN
+
+        """
         window = int(parameters.get("window", 12))
-        ema_series = self.technical_indicators.exponential_moving_average(
-            prices, window=window
-        )
+        ema_series = self.technical_indicators.exponential_moving_average(prices, window=window)
 
         latest = float(ema_series.iloc[-1]) if len(ema_series) > 0 else None
         if latest is None or pd.isna(latest):
+            logger.error(
+                "EMA computation failed",
+                module="strategy_v2.indicators",
+                symbol=symbol,
+                window=window,
+            )
             raise DslEvaluationError(f"No EMA available for {symbol} window={window}")
+
+        logger.debug(
+            "EMA computed",
+            module="strategy_v2.indicators",
+            symbol=symbol,
+            window=window,
+            value=latest,
+        )
+
         return TechnicalIndicator(
             symbol=symbol,
             timestamp=datetime.now(UTC),
@@ -187,13 +365,41 @@ class IndicatorService:
     def _compute_stdev_return(
         self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
     ) -> TechnicalIndicator:
-        """Compute standard deviation return indicator."""
+        """Compute standard deviation return indicator.
+
+        Args:
+            symbol: Trading symbol
+            prices: Price series for standard deviation computation
+            parameters: Indicator parameters, including 'window' (default: 6)
+
+        Returns:
+            TechnicalIndicator with standard deviation of returns
+
+        Raises:
+            DslEvaluationError: If standard deviation cannot be computed or is NaN
+
+        """
         window = int(parameters.get("window", 6))
         std_series = self.technical_indicators.stdev_return(prices, window=window)
 
         latest = float(std_series.iloc[-1]) if len(std_series) > 0 else None
         if latest is None or pd.isna(latest):
+            logger.error(
+                "Standard deviation return computation failed",
+                module="strategy_v2.indicators",
+                symbol=symbol,
+                window=window,
+            )
             raise DslEvaluationError(f"No stdev-return for {symbol} window={window}")
+
+        logger.debug(
+            "Standard deviation return computed",
+            module="strategy_v2.indicators",
+            symbol=symbol,
+            window=window,
+            value=latest,
+        )
+
         return TechnicalIndicator(
             symbol=symbol,
             timestamp=datetime.now(UTC),
@@ -203,10 +409,22 @@ class IndicatorService:
             metadata={"value": latest, "window": window},
         )
 
-    def _required_bars(
-        self, ind_type: str, params: dict[str, int | float | str]
-    ) -> int:
-        """Compute required bars based on indicator type and parameters."""
+    def _required_bars(self, ind_type: str, params: dict[str, int | float | str]) -> int:
+        """Compute required bars based on indicator type and parameters.
+
+        Args:
+            ind_type: Type of indicator (e.g., 'rsi', 'moving_average')
+            params: Indicator parameters dictionary, may contain 'window'
+
+        Returns:
+            Number of bars required for stable indicator computation
+
+        Note:
+            Returns conservative estimates to ensure sufficient data for reliable
+            indicator calculations. Different indicator types have different
+            warm-up requirements.
+
+        """
         window = int(params.get("window", 0)) if params else 0
         if ind_type in {
             "moving_average",
@@ -229,25 +447,62 @@ class IndicatorService:
         return 252  # sensible default (~1Y)
 
     def _period_for_bars(self, required_bars: int) -> str:
-        """Convert required trading bars to calendar period string."""
-        # Use years granularity to avoid weekend/holiday gaps; add 50% safety margin
-        # for backtesting to ensure we have sufficient historical data before the backtest period
-        bars_with_buffer = math.ceil(required_bars * 1.5)
-        years = max(
-            2, math.ceil(bars_with_buffer / 252)
-        )  # Minimum 2 years for reliable indicators
+        """Convert required trading bars to calendar period string.
+
+        Args:
+            required_bars: Number of trading days needed
+
+        Returns:
+            Period string in format suitable for market data API (e.g., "1Y", "2Y")
+
+        Note:
+            Assumes ~252 trading days per year. Adds 10% safety margin to account
+            for weekends, holidays, and market closures.
+
+        """
+        # Use years granularity to avoid weekend/holiday gaps; add 10% safety margin
+        bars_with_buffer = math.ceil(required_bars * 1.1)
+        years = max(1, math.ceil(bars_with_buffer / 252))
         return f"{years}Y"
 
     def _compute_max_drawdown(
         self, symbol: str, prices: pd.Series, parameters: dict[str, int | float | str]
     ) -> TechnicalIndicator:
-        """Compute maximum drawdown indicator."""
+        """Compute maximum drawdown indicator.
+
+        Args:
+            symbol: Trading symbol
+            prices: Price series for drawdown computation
+            parameters: Indicator parameters, including 'window' (default: 60)
+
+        Returns:
+            TechnicalIndicator with maximum drawdown value
+
+        Raises:
+            DslEvaluationError: If drawdown cannot be computed or is NaN
+
+        """
         window = int(parameters.get("window", 60))
         mdd_series = self.technical_indicators.max_drawdown(prices, window=window)
 
         latest = float(mdd_series.iloc[-1]) if len(mdd_series) > 0 else None
         if latest is None or pd.isna(latest):
+            logger.error(
+                "Max drawdown computation failed",
+                module="strategy_v2.indicators",
+                symbol=symbol,
+                window=window,
+            )
             raise DslEvaluationError(f"No max-drawdown for {symbol} window={window}")
+
+        logger.debug(
+            "Max drawdown computed",
+            module="strategy_v2.indicators",
+            symbol=symbol,
+            window=window,
+            value=latest,
+        )
+
         return TechnicalIndicator(
             symbol=symbol,
             timestamp=datetime.now(UTC),
@@ -260,18 +515,42 @@ class IndicatorService:
         """Get technical indicator for symbol using real market data.
 
         Args:
-            request: Indicator request
+            request: Indicator request containing symbol, type, and parameters
 
         Returns:
-            TechnicalIndicator with real indicator data
+            TechnicalIndicator with computed indicator data
+
+        Raises:
+            DslEvaluationError: If indicator computation fails or data is unavailable
+            MarketDataError: If market data retrieval fails
+
+        Note:
+            All market data operations must succeed; no fallback data is provided.
+            Correlation IDs from request are propagated to logs for traceability.
 
         """
         symbol = request.symbol
         indicator_type = request.indicator_type
         parameters = request.parameters
+        correlation_id = request.correlation_id
+
+        logger.info(
+            "Indicator request received",
+            module="strategy_v2.indicators",
+            symbol=symbol,
+            indicator_type=indicator_type,
+            correlation_id=correlation_id,
+        )
 
         # Require real market data; no mocks
         if not self.market_data_service:
+            logger.error(
+                "No market data service configured",
+                module="strategy_v2.indicators",
+                symbol=symbol,
+                indicator_type=indicator_type,
+                correlation_id=correlation_id,
+            )
             raise DslEvaluationError(
                 "IndicatorService requires a MarketDataPort; no fallback indicators allowed"
             )
@@ -280,6 +559,15 @@ class IndicatorService:
             # Compute dynamic lookback and fetch market data
             required = self._required_bars(indicator_type, parameters)
             period = self._period_for_bars(required)
+
+            logger.debug(
+                "Fetching market data",
+                module="strategy_v2.indicators",
+                symbol=symbol,
+                required_bars=required,
+                period=period,
+                correlation_id=correlation_id,
+            )
 
             # Fetch bars with computed lookback
             symbol_obj = Symbol(symbol)
@@ -290,9 +578,25 @@ class IndicatorService:
             )
 
             if not bars:
-                raise DslEvaluationError(
-                    f"No market data available for symbol {symbol}"
+                logger.error(
+                    "No market data available",
+                    module="strategy_v2.indicators",
+                    symbol=symbol,
+                    period=period,
+                    correlation_id=correlation_id,
                 )
+                raise MarketDataError(
+                    f"No market data available for symbol {symbol}",
+                    symbol=symbol,
+                )
+
+            logger.debug(
+                "Market data fetched",
+                module="strategy_v2.indicators",
+                symbol=symbol,
+                bars_count=len(bars),
+                correlation_id=correlation_id,
+            )
 
             # Convert bars to pandas Series for technical indicators
             prices = pd.Series([float(bar.close) for bar in bars])
@@ -310,12 +614,42 @@ class IndicatorService:
             }
 
             if indicator_type in indicator_dispatch:
-                return indicator_dispatch[indicator_type](symbol, prices, parameters)
+                result = indicator_dispatch[indicator_type](symbol, prices, parameters)
+                logger.info(
+                    "Indicator computed successfully",
+                    module="strategy_v2.indicators",
+                    symbol=symbol,
+                    indicator_type=indicator_type,
+                    correlation_id=correlation_id,
+                )
+                return result
 
             # Unsupported indicator types
+            logger.error(
+                "Unsupported indicator type",
+                module="strategy_v2.indicators",
+                symbol=symbol,
+                indicator_type=indicator_type,
+                correlation_id=correlation_id,
+            )
             raise DslEvaluationError(f"Unsupported indicator type: {indicator_type}")
 
+        except DslEvaluationError:
+            # Re-raise DslEvaluationError without wrapping
+            raise
+        except MarketDataError:
+            # Re-raise MarketDataError without wrapping
+            raise
         except Exception as e:
+            logger.error(
+                "Indicator computation error",
+                module="strategy_v2.indicators",
+                symbol=symbol,
+                indicator_type=indicator_type,
+                error=str(e),
+                error_type=type(e).__name__,
+                correlation_id=correlation_id,
+            )
             raise DslEvaluationError(
                 f"Error getting indicator {indicator_type} for {symbol}: {e}"
             ) from e

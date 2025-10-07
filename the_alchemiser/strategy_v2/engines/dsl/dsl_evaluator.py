@@ -126,11 +126,10 @@ class DslEvaluator:
                     as_of=datetime.now(UTC),
                 )
             else:
-                # Fallback for other types
-                allocation = StrategyAllocation(
-                    target_weights={},
-                    correlation_id=correlation_id,
-                    as_of=datetime.now(UTC),
+                # Invalid result type - must be PortfolioFragment, dict, or str
+                raise DslEvaluationError(
+                    f"Evaluation produced invalid type for allocation: {type(result).__name__}. "
+                    f"Expected PortfolioFragment, dict, or str."
                 )
 
             # Add final trace entry
@@ -233,11 +232,8 @@ class DslEvaluator:
 
         args = node.children[1:]
 
-        # Dispatch to operator function
-        try:
-            return self.dispatcher.dispatch(func_name, args, context)
-        except KeyError:
-            raise DslEvaluationError(f"Unknown function: {func_name}")
+        # Dispatch to operator function (raises DslEvaluationError if unknown)
+        return self.dispatcher.dispatch(func_name, args, context)
 
     def _evaluate_list_elements(
         self, node: ASTNode, correlation_id: str, trace: Trace

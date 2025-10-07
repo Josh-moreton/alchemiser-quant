@@ -108,7 +108,7 @@ def test_load_nonexistent_symbol(temp_data_store: DataStore) -> None:
     end_date = datetime(2024, 1, 31, tzinfo=timezone.utc)
 
     # Import here to avoid circular dependency
-    from the_alchemiser.shared.types.exceptions import DataUnavailableError
+    from the_alchemiser.shared.errors.exceptions import DataUnavailableError
 
     # Should raise DataUnavailableError since no data exists and no provider configured
     with pytest.raises(DataUnavailableError) as exc_info:

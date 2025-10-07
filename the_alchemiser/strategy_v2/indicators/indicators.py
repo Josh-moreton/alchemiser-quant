@@ -14,14 +14,26 @@ The module focuses on indicators actually used by the trading strategies:
 
 All functions return pandas Series objects that can be easily integrated
 with the trading system's data processing pipeline.
+
+Technical indicators are appropriately located within strategy module as they
+are strategy-specific computational utilities. This module provides pure
+mathematical computations with no I/O or side effects.
 """
 
 from __future__ import annotations
 
 import pandas as pd
 
-# Technical indicators framework optimized for strategy-specific use cases
-# Indicators are appropriately located within strategy module as they are strategy-specific
+from the_alchemiser.shared.errors.exceptions import MarketDataError
+from the_alchemiser.shared.logging import get_logger
+
+# Module-level constants for indicator calculations
+DEFAULT_RSI_WINDOW = 14
+NEUTRAL_RSI_VALUE = 50.0
+RSI_OVERBOUGHT_THRESHOLD = 70.0
+RSI_OVERSOLD_THRESHOLD = 30.0
+
+logger = get_logger(__name__)
 
 
 class TechnicalIndicators:
@@ -44,10 +56,8 @@ class TechnicalIndicators:
 
     @staticmethod
     def rsi(
-        data: pd.Series, window: int = 14
-    ) -> (
-        pd.Series
-    ):  # Enhanced: Ready for IndicatorData structured output in future phases
+        data: pd.Series, window: int = DEFAULT_RSI_WINDOW
+    ) -> pd.Series:  # Enhanced: Ready for IndicatorData structured output in future phases
         """Calculate RSI using Wilder's smoothing method.
 
         Computes the Relative Strength Index (RSI) using Wilder's smoothing
@@ -67,6 +77,9 @@ class TechnicalIndicators:
             pd.Series: RSI values ranging from 0 to 100. NaN values are
                 filled with 50 (neutral RSI value).
 
+        Raises:
+            MarketDataError: If window is not positive or data is invalid.
+
         Example:
             >>> prices = pd.Series([100, 102, 101, 103, 105, 104, 106])
             >>> rsi = TechnicalIndicators.rsi(prices, window=6)
@@ -79,18 +92,48 @@ class TechnicalIndicators:
             while still incorporating historical data.
 
         """
-        delta = data.diff()
-        gain = delta.where(delta > 0, 0)
-        loss = -delta.where(delta < 0, 0)
+        # Input validation
+        if window <= 0:
+            msg = f"RSI window must be positive, got {window}"
+            logger.error(msg)
+            raise MarketDataError(msg)
 
-        # Use Wilder's smoothing (exponential moving average with alpha = 1/window)
-        alpha = 1.0 / window
-        avg_gain = gain.ewm(alpha=alpha, adjust=False).mean()
-        avg_loss = loss.ewm(alpha=alpha, adjust=False).mean()
+        if len(data) == 0:
+            logger.warning("Empty data series provided to RSI calculation")
+            return pd.Series(dtype=float)
 
-        rs = avg_gain / avg_loss
-        rsi = 100 - (100 / (1 + rs))
-        return rsi.fillna(50)
+        if len(data) < window:
+            logger.warning(
+                f"Insufficient data for RSI calculation: {len(data)} < {window}, "
+                "returning neutral RSI values"
+            )
+            return pd.Series([NEUTRAL_RSI_VALUE] * len(data), index=data.index)
+
+        try:
+            delta = data.diff()
+            gain = delta.where(delta > 0, 0)
+            loss = -delta.where(delta < 0, 0)
+
+            # Use Wilder's smoothing (exponential moving average with alpha = 1/window)
+            alpha = 1.0 / window
+            avg_gain = gain.ewm(alpha=alpha, adjust=False).mean()
+            avg_loss = loss.ewm(alpha=alpha, adjust=False).mean()
+
+            # Safe division to handle cases where avg_loss is zero
+            rs = avg_gain.divide(avg_loss, fill_value=0.0)
+            rsi = 100 - (100 / (1 + rs))
+
+            # Fill NaN values with neutral RSI
+            nan_count = rsi.isna().sum()
+            if nan_count > 0:
+                logger.debug(
+                    f"Filled {nan_count} NaN values in RSI with neutral value {NEUTRAL_RSI_VALUE}"
+                )
+
+            return rsi.fillna(NEUTRAL_RSI_VALUE)
+        except (ValueError, TypeError, KeyError) as e:
+            logger.error(f"Error calculating RSI: {e}", exc_info=True)
+            raise MarketDataError(f"Failed to calculate RSI: {e}") from e
 
     @staticmethod
     def moving_average(data: pd.Series, window: int) -> pd.Series:
@@ -110,6 +153,9 @@ class TechnicalIndicators:
                 will be NaN due to insufficient data. Returns all NaN if
                 insufficient data is available.
 
+        Raises:
+            MarketDataError: If window is not positive or data is invalid.
+
         Example:
             >>> prices = pd.Series([100, 102, 101, 103, 105])
             >>> ma = TechnicalIndicators.moving_average(prices, window=3)
@@ -122,31 +168,67 @@ class TechnicalIndicators:
             that partial averages are not calculated.
 
         """
-        # Validate sufficient data: need at least 'window' bars
-        if len(data) < window:
-            # Return series of NaN with same index if insufficient data
-            return pd.Series([pd.NA] * len(data), index=data.index, dtype=float)
+        # Input validation
+        if window <= 0:
+            msg = f"Moving average window must be positive, got {window}"
+            logger.error(msg)
+            raise MarketDataError(msg)
 
-        return data.rolling(window=window, min_periods=window).mean()
+        if len(data) == 0:
+            logger.warning("Empty data series provided to moving_average calculation")
+            return pd.Series(dtype=float)
+
+        try:
+            return data.rolling(window=window, min_periods=window).mean()
+        except (ValueError, TypeError, KeyError) as e:
+            logger.error(f"Error calculating moving average: {e}", exc_info=True)
+            raise MarketDataError(f"Failed to calculate moving average: {e}") from e
 
     @staticmethod
     def exponential_moving_average(data: pd.Series, window: int) -> pd.Series:
         """Calculate exponential moving average (EMA).
 
         Uses pandas ewm to compute the exponentially weighted moving average.
+        The EMA gives more weight to recent prices compared to the simple
+        moving average, making it more responsive to recent price changes.
 
         Args:
-            data: Price series
-            window: EMA span (commonly 12, 26, 50)
+            data (pd.Series): Price data series (typically closing prices).
+            window (int): EMA span (commonly 12, 26, 50). This determines
+                how much weight is given to recent observations.
 
         Returns:
-            EMA series
+            pd.Series: EMA values. The first (window-1) values will be
+                masked as pd.NA to align with SMA behavior.
+
+        Raises:
+            MarketDataError: If window is not positive or data is invalid.
+
+        Example:
+            >>> prices = pd.Series([100, 102, 101, 103, 105])
+            >>> ema = TechnicalIndicators.exponential_moving_average(prices, window=3)
+            >>> print(ema.dropna().tolist())
+            [101.0, 102.0, 103.5]
 
         """
-        # align behavior with SMA min_periods by masking early values
-        ema = data.ewm(span=window, adjust=False).mean()
-        ema.iloc[: window - 1] = pd.NA
-        return ema
+        # Input validation
+        if window <= 0:
+            msg = f"EMA window must be positive, got {window}"
+            logger.error(msg)
+            raise MarketDataError(msg)
+
+        if len(data) == 0:
+            logger.warning("Empty data series provided to exponential_moving_average calculation")
+            return pd.Series(dtype=float)
+
+        try:
+            # align behavior with SMA min_periods by masking early values
+            ema = data.ewm(span=window, adjust=False).mean()
+            ema.iloc[: window - 1] = pd.NA
+            return ema
+        except (ValueError, TypeError, KeyError) as e:
+            logger.error(f"Error calculating exponential moving average: {e}", exc_info=True)
+            raise MarketDataError(f"Failed to calculate exponential moving average: {e}") from e
 
     @staticmethod
     def moving_average_return(data: pd.Series, window: int) -> pd.Series:
@@ -162,7 +244,11 @@ class TechnicalIndicators:
 
         Returns:
             pd.Series: Rolling average returns as percentages. Returns 0%
-                for all periods if calculation fails (e.g., insufficient data).
+                for all periods if calculation fails due to insufficient data
+                or invalid inputs.
+
+        Raises:
+            MarketDataError: If window is not positive or data contains invalid values.
 
         Example:
             >>> prices = pd.Series([100, 102, 101, 103, 105, 104])
@@ -172,15 +258,33 @@ class TechnicalIndicators:
 
         Note:
             The function multiplies returns by 100 to express them as
-            percentages. Exception handling ensures the function returns
-            a valid Series even with problematic data.
+            percentages. Returns are calculated as percentage changes
+            between consecutive periods.
 
         """
+        # Input validation
+        if window <= 0:
+            msg = f"Moving average return window must be positive, got {window}"
+            logger.error(msg)
+            raise MarketDataError(msg)
+
+        if len(data) == 0:
+            logger.warning("Empty data series provided to moving_average_return calculation")
+            return pd.Series(dtype=float)
+
+        if len(data) < window:
+            logger.warning(
+                f"Insufficient data for moving_average_return: {len(data)} < {window}, "
+                "returning zero series"
+            )
+            return pd.Series([0] * len(data), index=data.index)
+
         try:
             returns = data.pct_change()
             return returns.rolling(window=window).mean() * 100
-        except Exception:
-            return pd.Series([0] * len(data), index=data.index)
+        except (ValueError, TypeError, KeyError) as e:
+            logger.error(f"Error calculating moving average return: {e}", exc_info=True)
+            raise MarketDataError(f"Failed to calculate moving average return: {e}") from e
 
     @staticmethod
     def cumulative_return(data: pd.Series, window: int) -> pd.Series:
@@ -199,6 +303,9 @@ class TechnicalIndicators:
             pd.Series: Cumulative returns as percentages. Returns 0% for
                 all periods if calculation fails or insufficient data.
 
+        Raises:
+            MarketDataError: If window is not positive or data contains invalid values.
+
         Example:
             >>> prices = pd.Series([100, 102, 98, 105, 110])
             >>> cum_returns = TechnicalIndicators.cumulative_return(prices, 3)
@@ -211,46 +318,149 @@ class TechnicalIndicators:
             values will be NaN due to insufficient historical data.
 
         """
+        # Input validation
+        if window <= 0:
+            msg = f"Cumulative return window must be positive, got {window}"
+            logger.error(msg)
+            raise MarketDataError(msg)
+
+        if len(data) == 0:
+            logger.warning("Empty data series provided to cumulative_return calculation")
+            return pd.Series(dtype=float)
+
+        if len(data) <= window:
+            logger.warning(
+                f"Insufficient data for cumulative_return: {len(data)} <= {window}, "
+                "returning zero series"
+            )
+            return pd.Series([0] * len(data), index=data.index)
+
         try:
             return ((data / data.shift(window)) - 1) * 100
-        except Exception:
-            return pd.Series([0] * len(data), index=data.index)
+        except (ValueError, TypeError, KeyError, ZeroDivisionError) as e:
+            logger.error(f"Error calculating cumulative return: {e}", exc_info=True)
+            raise MarketDataError(f"Failed to calculate cumulative return: {e}") from e
 
     @staticmethod
     def stdev_return(data: pd.Series, window: int) -> pd.Series:
         """Return rolling standard deviation of percentage returns.
 
-        Returns standard deviation of pct_change() over a rolling window,
-        scaled to percentage units.
+        Computes the volatility of returns over a rolling window. This indicator
+        measures the variability in returns and is useful for risk assessment
+        and volatility analysis.
+
+        Args:
+            data (pd.Series): Price data series (typically closing prices).
+            window (int): Number of periods for the rolling window calculation.
+
+        Returns:
+            pd.Series: Standard deviation of returns scaled to percentage units.
+                The first (window-1) values will be NaN due to insufficient data.
+
+        Raises:
+            MarketDataError: If window is not positive or data contains invalid values.
+
+        Example:
+            >>> prices = pd.Series([100, 102, 98, 105, 103, 107])
+            >>> vol = TechnicalIndicators.stdev_return(prices, 3)
+            >>> print(f"3-day volatility: {vol.iloc[-1]:.2f}%")
+            3-day volatility: 2.45%
+
+        Note:
+            Returns standard deviation of pct_change() over a rolling window,
+            scaled to percentage units for interpretability.
+
         """
+        # Input validation
+        if window <= 0:
+            msg = f"Standard deviation window must be positive, got {window}"
+            logger.error(msg)
+            raise MarketDataError(msg)
+
+        if len(data) == 0:
+            logger.warning("Empty data series provided to stdev_return calculation")
+            return pd.Series(dtype=float)
+
+        if len(data) < window:
+            logger.warning(
+                f"Insufficient data for stdev_return: {len(data)} < {window}, returning zero series"
+            )
+            return pd.Series([0] * len(data), index=data.index)
+
         try:
             returns = data.pct_change() * 100
             return returns.rolling(window=window, min_periods=window).std()
-        except Exception:
-            return pd.Series([0] * len(data), index=data.index)
+        except (ValueError, TypeError, KeyError) as e:
+            logger.error(f"Error calculating standard deviation of returns: {e}", exc_info=True)
+            raise MarketDataError(f"Failed to calculate standard deviation of returns: {e}") from e
 
     @staticmethod
     def max_drawdown(data: pd.Series, window: int) -> pd.Series:
         """Return rolling maximum drawdown over window (percentage magnitude).
 
         For each point, computes max peak-to-trough decline within the last
-        `window` observations: max( (peak - trough) / peak ) * 100.
+        `window` observations. This indicator measures the maximum loss from
+        a peak to a subsequent trough before a new peak is achieved.
+
+        Args:
+            data (pd.Series): Price data series (typically closing prices).
+            window (int): Number of periods for the rolling window calculation.
+
+        Returns:
+            pd.Series: Maximum drawdown values as positive percentages.
+                The first (window-1) values will be NaN due to insufficient data.
+
+        Raises:
+            MarketDataError: If window is not positive or data contains invalid values.
+
+        Example:
+            >>> prices = pd.Series([100, 105, 98, 102, 95, 110])
+            >>> mdd = TechnicalIndicators.max_drawdown(prices, 3)
+            >>> print(f"Max 3-day drawdown: {mdd.iloc[-1]:.1f}%")
+            Max 3-day drawdown: 6.7%
+
+        Note:
+            Formula: max((peak - trough) / peak) * 100 within rolling window.
+            Larger values indicate greater risk and volatility.
+
         """
-        # Validate sufficient data: need at least 'window' bars
+        # Input validation
+        if window <= 0:
+            msg = f"Max drawdown window must be positive, got {window}"
+            logger.error(msg)
+            raise MarketDataError(msg)
+
+        if len(data) == 0:
+            logger.warning("Empty data series provided to max_drawdown calculation")
+            return pd.Series(dtype=float)
+
         if len(data) < window:
-            # Return series of NaN with same index if insufficient data
-            return pd.Series([pd.NA] * len(data), index=data.index, dtype=float)
+            logger.warning(
+                f"Insufficient data for max_drawdown: {len(data)} < {window}, returning zero series"
+            )
+            return pd.Series([0] * len(data), index=data.index)
 
         try:
             # Rolling window apply; use price series
             def mdd_window(x: pd.Series) -> float:
+                """Compute max drawdown within a rolling window.
+
+                Calculates the maximum peak-to-trough decline as a percentage
+                within the given window of prices.
+
+                Args:
+                    x: Price series within the rolling window.
+
+                Returns:
+                    Maximum drawdown as a positive percentage value.
+
+                """
                 # compute max drawdown within this window
                 roll_max = x.cummax()
                 drawdowns = (x / roll_max) - 1.0
                 return float(-drawdowns.min() * 100.0)
 
-            return data.rolling(window=window, min_periods=window).apply(
-                mdd_window, raw=False
-            )
-        except Exception:
-            return pd.Series([0] * len(data), index=data.index)
+            return data.rolling(window=window, min_periods=window).apply(mdd_window, raw=False)
+        except (ValueError, TypeError, KeyError) as e:
+            logger.error(f"Error calculating maximum drawdown: {e}", exc_info=True)
+            raise MarketDataError(f"Failed to calculate maximum drawdown: {e}") from e

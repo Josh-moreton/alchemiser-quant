@@ -18,12 +18,13 @@ from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.strategy_allocation import StrategyAllocation
 
 from ..adapters.market_data_adapter import StrategyMarketDataAdapter
+from ..errors import ConfigurationError, StrategyExecutionError
 from ..models.context import StrategyContext
 
 logger = get_logger(__name__)
 
 # Constants for repeated literals
-ORCHESTRATOR_COMPONENT = "strategy_v2.core.orchestrator"
+ORCHESTRATOR_COMPONENT: str = "strategy_v2.core.orchestrator"
 
 
 class SingleStrategyOrchestrator:
@@ -39,29 +40,36 @@ class SingleStrategyOrchestrator:
         Args:
             market_data_adapter: Configured market data adapter
 
+        Note:
+            Market data adapter is stored for future engine integration.
+            Currently unused as sample allocation doesn't require market data.
+
         """
         self._market_data = market_data_adapter
 
-    def run(self, strategy_id: str, context: StrategyContext) -> StrategyAllocation:
+    def run(
+        self, strategy_id: str, context: StrategyContext, correlation_id: str | None = None
+    ) -> StrategyAllocation:
         """Run strategy and return allocation schema.
 
         Args:
             strategy_id: Strategy identifier (e.g., 'nuclear', 'klm', 'tecl')
             context: Strategy execution context
+            correlation_id: Optional correlation ID for idempotent retry (generates new if not provided)
 
         Returns:
             Strategy allocation DTO with target weights
 
         Raises:
-            KeyError: If strategy not found
-            ValueError: If strategy execution fails
+            StrategyExecutionError: If strategy execution fails
+            ConfigurationError: If context validation fails
 
         """
-        correlation_id = str(uuid.uuid4())
+        correlation_id = correlation_id or str(uuid.uuid4())
 
         try:
             logger.info(
-                f"Running strategy {strategy_id} with context: {context}",
+                "Running strategy with context",
                 extra={
                     "component": ORCHESTRATOR_COMPONENT,
                     "correlation_id": correlation_id,
@@ -71,11 +79,8 @@ class SingleStrategyOrchestrator:
                 },
             )
 
-            # Get strategy engine from registry
-            # Strategy engine integration completed with dedicated adapters
-
             # Generate sample allocation for development/testing
-            # This will be replaced with actual engine execution
+            # This will be replaced with actual engine execution in future phases
             target_weights = self._generate_sample_allocation(context)
 
             # Normalize weights to sum to 1.0
@@ -94,27 +99,37 @@ class SingleStrategyOrchestrator:
             )
 
             logger.info(
-                f"Strategy {strategy_id} completed successfully",
+                "Strategy completed successfully",
                 extra={
                     "component": ORCHESTRATOR_COMPONENT,
                     "correlation_id": correlation_id,
-                    "weights_sum": sum(normalized_weights.values()),
+                    "strategy_id": strategy_id,
+                    "weights_sum": float(sum(normalized_weights.values())),
                     "symbols_count": len(normalized_weights),
                 },
             )
 
             return allocation
 
+        except ConfigurationError:
+            # Re-raise configuration errors directly with context
+            raise
         except Exception as e:
             logger.error(
-                f"Strategy {strategy_id} execution failed: {e}",
+                "Strategy execution failed",
                 extra={
                     "component": ORCHESTRATOR_COMPONENT,
                     "correlation_id": correlation_id,
+                    "strategy_id": strategy_id,
                     "error": str(e),
+                    "error_type": type(e).__name__,
                 },
             )
-            raise ValueError(f"Strategy execution failed: {e}") from e
+            raise StrategyExecutionError(
+                f"Strategy execution failed: {e}",
+                strategy_id=strategy_id,
+                correlation_id=correlation_id,
+            ) from e
 
     def _generate_sample_allocation(self, context: StrategyContext) -> dict[str, Decimal]:
         """Generate sample allocation for testing.
@@ -148,7 +163,8 @@ class SingleStrategyOrchestrator:
             Normalized weights dictionary
 
         Note:
-            Handles edge cases like zero sum or negative weights.
+            Handles edge cases like zero sum or negative weights by falling back
+            to equal weights. This ensures robustness in strategy execution.
 
         """
         if not weights:
@@ -159,8 +175,12 @@ class SingleStrategyOrchestrator:
         # Handle zero or negative total
         if total <= 0:
             logger.warning(
-                f"Invalid total weight: {total}, using equal weights",
-                extra={"component": ORCHESTRATOR_COMPONENT},
+                "Invalid total weight, using equal weights fallback",
+                extra={
+                    "component": ORCHESTRATOR_COMPONENT,
+                    "total_weight": float(total),
+                    "symbols_count": len(weights),
+                },
             )
             # Fall back to equal weights
             equal_weight = Decimal("1.0") / len(weights)
@@ -168,21 +188,3 @@ class SingleStrategyOrchestrator:
 
         # Normalize to sum to 1.0
         return {symbol: weight / total for symbol, weight in weights.items()}
-
-    def validate_context(self, context: StrategyContext) -> None:
-        """Validate strategy context.
-
-        Args:
-            context: Strategy context to validate
-
-        Raises:
-            ValueError: If context is invalid
-
-        """
-        if not context.symbols:
-            raise ValueError("Context must have at least one symbol")
-
-        if not context.timeframe:
-            raise ValueError("Context must specify timeframe")
-
-        # Additional validation can be added here

@@ -23,6 +23,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    # TYPE_CHECKING guards prevent circular imports while preserving type hints
     from the_alchemiser.shared.config.container import ApplicationContainer
 
 
@@ -36,18 +37,90 @@ def register_strategy_handlers(container: ApplicationContainer) -> None:
     Args:
         container: Application container for dependency injection
 
+    Raises:
+        ConfigurationError: If container is missing required services or attributes
+        Exception: If handler initialization or event subscription fails
+
+    Example:
+        >>> from the_alchemiser.shared.config.container import ApplicationContainer
+        >>> container = ApplicationContainer.create_for_environment("development")
+        >>> register_strategy_handlers(container)
+
     """
+    from the_alchemiser.shared.errors import ConfigurationError
+    from the_alchemiser.shared.logging import get_logger
+
     from .handlers import SignalGenerationHandler
 
-    # Get event bus from container
-    event_bus = container.services.event_bus()
+    logger = get_logger(__name__)
 
-    # Initialize and register handlers
-    signal_handler = SignalGenerationHandler(container)
+    try:
+        # Validate container has required services attribute
+        if not hasattr(container, "services"):
+            raise ConfigurationError(
+                "Container missing required 'services' attribute",
+                config_key="container.services",
+                config_value=str(type(container)),
+            )
 
-    # Register handlers for their respective events using event type strings
-    event_bus.subscribe("StartupEvent", signal_handler)
-    event_bus.subscribe("WorkflowStarted", signal_handler)
+        # Get event bus from container
+        logger.info(
+            "Registering strategy event handlers",
+            extra={"module": "strategy_v2", "component": "register_strategy_handlers"},
+        )
+        event_bus = container.services.event_bus()
+
+        # Initialize and register handlers
+        signal_handler = SignalGenerationHandler(container)
+        logger.debug(
+            "Created SignalGenerationHandler instance",
+            extra={"module": "strategy_v2", "handler_type": "SignalGenerationHandler"},
+        )
+
+        # Register handlers for their respective events using event type strings
+        event_bus.subscribe("StartupEvent", signal_handler)
+        logger.info(
+            "Subscribed handler to StartupEvent",
+            extra={
+                "module": "strategy_v2",
+                "event_type": "StartupEvent",
+                "handler_type": "SignalGenerationHandler",
+            },
+        )
+
+        event_bus.subscribe("WorkflowStarted", signal_handler)
+        logger.info(
+            "Subscribed handler to WorkflowStarted",
+            extra={
+                "module": "strategy_v2",
+                "event_type": "WorkflowStarted",
+                "handler_type": "SignalGenerationHandler",
+            },
+        )
+
+        logger.info(
+            "Strategy event handlers registered successfully",
+            extra={
+                "module": "strategy_v2",
+                "events_registered": ["StartupEvent", "WorkflowStarted"],
+            },
+        )
+
+    except ConfigurationError:
+        # Re-raise configuration errors as-is
+        raise
+    except Exception as e:
+        # Log and re-raise unexpected errors with context
+        logger.error(
+            f"Failed to register strategy handlers: {e}",
+            extra={
+                "module": "strategy_v2",
+                "error_type": type(e).__name__,
+                "component": "register_strategy_handlers",
+            },
+            exc_info=True,
+        )
+        raise
 
 
 def __getattr__(name: str) -> object:
@@ -65,7 +138,12 @@ def __getattr__(name: str) -> object:
         from .models.context import StrategyContext as _StrategyContext
 
         return _StrategyContext
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    # Provide helpful error message with available attributes
+    available = ", ".join(sorted(__all__))
+    raise AttributeError(
+        f"module {__name__!r} has no attribute {name!r}. Available attributes: {available}"
+    )
 
 
 # Public API exports (transitioning to event-driven only)

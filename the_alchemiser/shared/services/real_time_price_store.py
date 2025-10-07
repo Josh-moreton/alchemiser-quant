@@ -12,6 +12,7 @@ import threading
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.types.market_data import (
@@ -114,10 +115,10 @@ class RealTimePriceStore:
             # Create new structured QuoteModel
             self._quote_data[symbol] = QuoteModel(
                 symbol=symbol,
-                bid_price=float(bid_price),
-                ask_price=float(ask_price),
-                bid_size=float(bid_size) if bid_size is not None else 0.0,
-                ask_size=float(ask_size) if ask_size is not None else 0.0,
+                bid_price=Decimal(str(bid_price)),
+                ask_price=Decimal(str(ask_price)),
+                bid_size=(Decimal(str(bid_size)) if bid_size is not None else Decimal("0.0")),
+                ask_size=(Decimal(str(ask_size)) if ask_size is not None else Decimal("0.0")),
                 timestamp=timestamp,
             )
 
@@ -161,7 +162,7 @@ class RealTimePriceStore:
 
             self._price_data[symbol] = PriceDataModel(
                 symbol=symbol,
-                price=float(price or 0),
+                price=Decimal(str(price or 0)),
                 timestamp=timestamp,
                 bid=bid_price,
                 ask=ask_price,
@@ -219,7 +220,7 @@ class RealTimePriceStore:
         with self._quotes_lock:
             return self._price_data.get(symbol)
 
-    def get_real_time_price(self, symbol: str) -> float | None:
+    def get_real_time_price(self, symbol: str) -> Decimal | float | None:
         """Get the best available real-time price for a symbol.
 
         Priority: mid-price > last trade > bid > ask
@@ -228,7 +229,7 @@ class RealTimePriceStore:
             symbol: Stock symbol
 
         Returns:
-            Current price or None if not available
+            Current price (Decimal from structured data or float from legacy) or None if not available
 
         """
         # Try structured data first (preferred)
@@ -266,14 +267,14 @@ class RealTimePriceStore:
 
         return None
 
-    def get_bid_ask_spread(self, symbol: str) -> tuple[float, float] | None:
+    def get_bid_ask_spread(self, symbol: str) -> tuple[Decimal | float, Decimal | float] | None:
         """Get current bid/ask spread for a symbol.
 
         Args:
             symbol: Stock symbol
 
         Returns:
-            Tuple of (bid, ask) or None if not available
+            Tuple of (bid, ask) - Decimal from structured data or float from legacy, or None if not available
 
         """
         # Try structured data first (preferred)
@@ -307,7 +308,7 @@ class RealTimePriceStore:
         symbol: str,
         subscribe_callback: Callable[[str], None],
         max_wait: float = 0.5,
-    ) -> float | None:
+    ) -> Decimal | float | None:
         """Get the most accurate price for order placement.
 
         Args:
@@ -316,7 +317,7 @@ class RealTimePriceStore:
             max_wait: Maximum wait time for fresh data
 
         Returns:
-            Current price optimized for order accuracy
+            Current price optimized for order accuracy (Decimal from structured data or float from legacy)
 
         """
         # Subscribe with highest priority for order placement

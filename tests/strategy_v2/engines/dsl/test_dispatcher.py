@@ -12,6 +12,7 @@ import pytest
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.strategy_v2.engines.dsl.context import DslContext
 from the_alchemiser.strategy_v2.engines.dsl.dispatcher import DslDispatcher
+from the_alchemiser.strategy_v2.engines.dsl.types import DslEvaluationError
 
 
 @pytest.mark.unit
@@ -27,7 +28,9 @@ class TestDslDispatcher:
     @pytest.fixture
     def mock_context(self):
         """Create mock DSL context."""
-        return Mock(spec=DslContext)
+        context = Mock(spec=DslContext)
+        context.correlation_id = "test-correlation-id"
+        return context
 
     def test_init_empty(self, dispatcher):
         """Test dispatcher initializes with empty symbol table."""
@@ -85,7 +88,7 @@ class TestDslDispatcher:
 
     def test_dispatch_unknown_symbol(self, dispatcher, mock_context):
         """Test error on dispatching unknown symbol."""
-        with pytest.raises(KeyError, match="Unknown DSL function: unknown"):
+        with pytest.raises(DslEvaluationError, match="Unknown DSL function: unknown"):
             dispatcher.dispatch("unknown", [], mock_context)
 
     def test_is_registered_true(self, dispatcher):

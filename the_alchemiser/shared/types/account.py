@@ -6,6 +6,7 @@ Account domain models.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Literal
 
 from the_alchemiser.shared.value_objects.core_types import AccountInfo, PortfolioHistoryData
@@ -28,7 +29,10 @@ class AccountModel:
 
     @classmethod
     def from_dict(cls, data: AccountInfo) -> AccountModel:
-        """Create from AccountInfo TypedDict."""
+        """Create from AccountInfo TypedDict.
+
+        Converts Decimal values from TypedDict to float for internal storage.
+        """
         return cls(
             account_id=data["account_id"],
             equity=float(data["equity"]),
@@ -43,17 +47,20 @@ class AccountModel:
         )
 
     def to_dict(self) -> AccountInfo:
-        """Convert to AccountInfo TypedDict."""
+        """Convert to AccountInfo TypedDict.
+
+        Converts float values to Decimal for TypedDict compliance.
+        """
         return {
             "account_id": self.account_id,
-            "equity": self.equity,
-            "cash": self.cash,
-            "buying_power": self.buying_power,
+            "equity": Decimal(str(self.equity)),
+            "cash": Decimal(str(self.cash)),
+            "buying_power": Decimal(str(self.buying_power)),
             "day_trades_remaining": self.day_trades_remaining,
-            "portfolio_value": self.portfolio_value,
-            "last_equity": self.last_equity,
-            "daytrading_buying_power": self.daytrading_buying_power,
-            "regt_buying_power": self.regt_buying_power,
+            "portfolio_value": Decimal(str(self.portfolio_value)),
+            "last_equity": Decimal(str(self.last_equity)),
+            "daytrading_buying_power": Decimal(str(self.daytrading_buying_power)),
+            "regt_buying_power": Decimal(str(self.regt_buying_power)),
             "status": self.status,
         }
 
@@ -69,20 +76,26 @@ class PortfolioHistoryModel:
 
     @classmethod
     def from_dict(cls, data: PortfolioHistoryData) -> PortfolioHistoryModel:
-        """Create from PortfolioHistoryData TypedDict."""
+        """Create from PortfolioHistoryData TypedDict.
+
+        Converts Decimal values from TypedDict to float for internal storage.
+        """
         return cls(
-            profit_loss=data.get("profit_loss", []),
-            profit_loss_pct=data.get("profit_loss_pct", []),
-            equity=data.get("equity", []),
+            profit_loss=[float(x) for x in data.get("profit_loss", [])],
+            profit_loss_pct=[float(x) for x in data.get("profit_loss_pct", [])],
+            equity=[float(x) for x in data.get("equity", [])],
             timestamp=data.get("timestamp", []),
         )
 
     def to_dict(self) -> PortfolioHistoryData:
-        """Convert to PortfolioHistoryData TypedDict."""
+        """Convert to PortfolioHistoryData TypedDict.
+
+        Converts float values to Decimal for TypedDict compliance.
+        """
         return {
-            "profit_loss": self.profit_loss,
-            "profit_loss_pct": self.profit_loss_pct,
-            "equity": self.equity,
+            "profit_loss": [Decimal(str(x)) for x in self.profit_loss],
+            "profit_loss_pct": [Decimal(str(x)) for x in self.profit_loss_pct],
+            "equity": [Decimal(str(x)) for x in self.equity],
             "timestamp": self.timestamp,
         }
 

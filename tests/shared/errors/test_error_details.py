@@ -16,7 +16,7 @@ from the_alchemiser.shared.errors.error_details import (
     get_suggested_action,
 )
 from the_alchemiser.shared.errors.error_types import ErrorCategory
-from the_alchemiser.shared.types.exceptions import (
+from the_alchemiser.shared.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
     InsufficientFundsError,

@@ -96,8 +96,17 @@ class TestDslContext:
         result = context.as_decimal(None)
         assert result == Decimal("0")
 
-    # Skipping boolean test as as_decimal has a bug with bools
-    # (isinstance(True, int) is True but str(True) = "True" causes InvalidOperation)
+    def test_as_decimal_from_bool_true(self, context):
+        """Test as_decimal with bool True returns Decimal('1')."""
+        result = context.as_decimal(True)
+        assert result == Decimal("1")
+        assert isinstance(result, Decimal)
+
+    def test_as_decimal_from_bool_false(self, context):
+        """Test as_decimal with bool False returns Decimal('0')."""
+        result = context.as_decimal(False)
+        assert result == Decimal("0")
+        assert isinstance(result, Decimal)
 
     def test_coerce_param_value_int(self, context):
         """Test coerce_param_value with int."""

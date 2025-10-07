@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import time
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.logging import get_logger
@@ -181,7 +182,9 @@ class QuoteProvider:
             True if quote looks suspicious and should be validated with REST
 
         """
-        from the_alchemiser.shared.utils.validation_utils import detect_suspicious_quote_prices
+        from the_alchemiser.shared.utils.validation_utils import (
+            detect_suspicious_quote_prices,
+        )
 
         is_suspicious, reasons = detect_suspicious_quote_prices(
             quote.bid_price,
@@ -234,12 +237,14 @@ class QuoteProvider:
             return None
 
         # REST quote looks reasonable - compare with streaming to decide
-        streaming_mid = (streaming_quote.bid_price + streaming_quote.ask_price) / 2
-        rest_mid = (rest_quote.bid_price + rest_quote.ask_price) / 2
+        streaming_mid = (
+            Decimal(str(streaming_quote.bid_price)) + Decimal(str(streaming_quote.ask_price))
+        ) / Decimal("2")
+        rest_mid = (rest_quote.bid_price + rest_quote.ask_price) / Decimal("2")
 
         # If REST mid-price is significantly different, prefer REST
-        if (
-            streaming_mid <= 0 or abs(rest_mid - streaming_mid) / rest_mid > 0.1
+        if streaming_mid <= 0 or abs(rest_mid - streaming_mid) / rest_mid > Decimal(
+            "0.1"
         ):  # 10% difference threshold
             logger.info(
                 f"✅ Using REST quote for {symbol}: mid=${rest_mid:.2f} vs streaming=${streaming_mid:.2f} "
@@ -261,7 +266,9 @@ class QuoteProvider:
             Tuple of (is_suspicious, list_of_reasons)
 
         """
-        from the_alchemiser.shared.utils.validation_utils import detect_suspicious_quote_prices
+        from the_alchemiser.shared.utils.validation_utils import (
+            detect_suspicious_quote_prices,
+        )
 
         return detect_suspicious_quote_prices(
             quote.bid_price, quote.ask_price, min_price=0.01, max_spread_percent=10.0
@@ -284,22 +291,12 @@ class QuoteProvider:
             logger.error(f"❌ No quote data available for {symbol} (streaming and REST failed)")
             return None
 
-        # Extract bid/ask from QuoteModel
-        bid_price = float(rest_quote.bid)
-        ask_price = float(rest_quote.ask)
-
-        # Create enhanced QuoteModel from REST data for consistent processing
-        quote = QuoteModel(
-            symbol=symbol,
-            bid_price=bid_price,
-            ask_price=ask_price,
-            bid_size=0.0,  # REST API doesn't provide size data
-            ask_size=0.0,  # REST API doesn't provide size data
-            timestamp=datetime.now(UTC),
+        # Enhanced QuoteModel is already in the correct format
+        logger.info(
+            f"✅ Got REST quote for {symbol}: "
+            f"bid=${rest_quote.bid_price:.2f}, ask=${rest_quote.ask_price:.2f}"
         )
-
-        logger.info(f"✅ Got REST quote for {symbol}: bid=${bid_price:.2f}, ask=${ask_price:.2f}")
-        return quote, True  # Used REST fallback
+        return rest_quote, True  # Used REST fallback
 
     def wait_for_quote_data(
         self, symbol: str, timeout: float | None = None
@@ -435,14 +432,14 @@ class QuoteProvider:
         # Try to get structured quote data first
         quote_data = self.pricing_service.get_quote_data(symbol)
         if quote_data:
-            # Convert to dict format for compatibility
+            # Convert to dict format for compatibility (convert Decimal to float for JSON/logging)
             ts = quote_data.timestamp
             timestamp_value = ts.timestamp() if isinstance(ts, datetime) else float(ts)
             return {
-                "bid_price": quote_data.bid_price,
-                "ask_price": quote_data.ask_price,
-                "bid_size": quote_data.bid_size,
-                "ask_size": quote_data.ask_size,
+                "bid_price": float(quote_data.bid_price),
+                "ask_price": float(quote_data.ask_price),
+                "bid_size": float(quote_data.bid_size),
+                "ask_size": float(quote_data.ask_size),
                 "timestamp": timestamp_value,
             }
 
@@ -451,8 +448,8 @@ class QuoteProvider:
         if spread:
             bid, ask = spread
             return {
-                "bid_price": bid,
-                "ask_price": ask,
+                "bid_price": float(bid),
+                "ask_price": float(ask),
                 "bid_size": 0,  # Unknown
                 "ask_size": 0,  # Unknown
                 "timestamp": datetime.now(UTC).timestamp(),

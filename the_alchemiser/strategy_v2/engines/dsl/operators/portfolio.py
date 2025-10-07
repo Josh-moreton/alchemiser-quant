@@ -31,6 +31,9 @@ from .control_flow import create_indicator_with_symbol
 
 logger = get_logger(__name__)
 
+# Volatility calculation constants
+STDEV_RETURN_6_WINDOW = 6  # Standard 6-period volatility window
+
 
 # ---------- Shared helpers ----------
 
@@ -73,7 +76,8 @@ def parse_selection(sel_expr: ASTNode | None, context: DslContext) -> tuple[bool
             take_n = (
                 int(n_val) if isinstance(n_val, (int, float)) else int(context.as_decimal(n_val))
             )
-        except Exception:
+        except (ValueError, TypeError) as exc:
+            logger.warning("DSL parse_selection: Failed to parse selection limit: %s", exc)
             take_n = None
     return take_top, take_n
 
@@ -95,8 +99,12 @@ def score_candidates(
                 else float(context.as_decimal(metric_val))
             )
             scored.append((sym, metric_val))
-        except Exception:
-            logger.exception("DSL filter: condition evaluation failed for symbol %s", sym)
+        except (ValueError, TypeError, DslEvaluationError) as exc:
+            logger.warning(
+                "DSL filter: condition evaluation failed for symbol %s: %s",
+                sym,
+                exc,
+            )
     return scored
 
 
@@ -174,23 +182,11 @@ def weight_equal(args: list[ASTNode], context: DslContext) -> PortfolioFragment:
             fragment_id=str(uuid.uuid4()), source_step="weight_equal", weights={}
         )
 
-    def _collect_assets_from_value(value: DSLValue) -> list[str]:
-        """Recursively extract all asset symbols from a DSLValue."""
-        assets: list[str] = []
-        if isinstance(value, PortfolioFragment):
-            assets.extend(value.weights.keys())
-        elif isinstance(value, str):
-            assets.append(value)
-        elif isinstance(value, list):
-            for item in value:
-                assets.extend(_collect_assets_from_value(item))
-        return assets
-
     # Collect all assets from all arguments
     all_assets: list[str] = []
     for arg in args:
         result = context.evaluate_node(arg, context.correlation_id, context.trace)
-        all_assets.extend(_collect_assets_from_value(result))
+        all_assets.extend(collect_assets_from_value(result))
 
     if not all_assets:
         return PortfolioFragment(
@@ -299,7 +295,7 @@ def _get_volatility_for_asset(asset: str, window: float, context: DslContext) ->
         volatility = None
 
         # Check specific field for the window if available
-        if int(window) == 6 and indicator.stdev_return_6 is not None:
+        if int(window) == STDEV_RETURN_6_WINDOW and indicator.stdev_return_6 is not None:
             volatility = indicator.stdev_return_6
         # Fallback to metadata value
         elif indicator.metadata and "value" in indicator.metadata:
@@ -329,7 +325,7 @@ def _get_volatility_for_asset(asset: str, window: float, context: DslContext) ->
 
         return volatility
 
-    except Exception as exc:
+    except (ValueError, TypeError, AttributeError) as exc:
         logger.warning(
             "DSL weight-inverse-volatility: Failed to get volatility for %s: %s",
             asset,
@@ -364,7 +360,8 @@ def _calculate_inverse_weights(
             total_inverse += inverse_vol
 
     # Handle case where no valid volatilities were obtained
-    if not inverse_weights or total_inverse <= 0:
+    # Using explicit tolerance for float comparison
+    if not inverse_weights or total_inverse < 1e-10:
         logger.warning(
             "DSL weight-inverse-volatility: No valid volatilities obtained for any assets"
         )

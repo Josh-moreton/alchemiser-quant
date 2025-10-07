@@ -60,7 +60,8 @@ def convert_string_to_decimal(
     """
     try:
         return Decimal(decimal_str)
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError, Exception) as e:
+        # Decimal raises InvalidOperation (subclass of ArithmeticError) for syntax errors
         raise ValueError(f"Invalid {field_name} value: {decimal_str}") from e
 
 
@@ -70,13 +71,19 @@ def convert_datetime_fields_from_dict(
 ) -> None:
     """Convert string datetime fields to datetime objects in-place.
 
+    WARNING: Modifies the input dictionary in-place.
+
     Args:
         data: Dictionary to modify
         datetime_fields: List of field names that should be converted
 
     """
     for field_name in datetime_fields:
-        if field_name in data and isinstance(data[field_name], str):
+        if (
+            field_name in data
+            and data[field_name] is not None
+            and isinstance(data[field_name], str)
+        ):
             data[field_name] = convert_string_to_datetime(data[field_name], field_name)
 
 
@@ -85,6 +92,8 @@ def convert_decimal_fields_from_dict(
     decimal_fields: list[str],
 ) -> None:
     """Convert string decimal fields to Decimal objects in-place.
+
+    WARNING: Modifies the input dictionary in-place.
 
     Args:
         data: Dictionary to modify
@@ -106,13 +115,15 @@ def convert_datetime_fields_to_dict(
 ) -> None:
     """Convert datetime fields to ISO strings in-place.
 
+    WARNING: Modifies the input dictionary in-place.
+
     Args:
         data: Dictionary to modify
         datetime_fields: List of field names that should be converted
 
     """
     for field_name in datetime_fields:
-        if data.get(field_name):
+        if data.get(field_name) is not None and isinstance(data[field_name], datetime):
             data[field_name] = data[field_name].isoformat()
 
 
@@ -122,13 +133,15 @@ def convert_decimal_fields_to_dict(
 ) -> None:
     """Convert Decimal fields to strings in-place.
 
+    WARNING: Modifies the input dictionary in-place.
+
     Args:
         data: Dictionary to modify
         decimal_fields: List of field names that should be converted
 
     """
     for field_name in decimal_fields:
-        if data.get(field_name) is not None:
+        if data.get(field_name) is not None and isinstance(data[field_name], Decimal):
             data[field_name] = str(data[field_name])
 
 

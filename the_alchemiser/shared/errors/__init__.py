@@ -35,14 +35,46 @@ from .error_utils import (
     retry_with_backoff,
 )
 
+# Import common exception types from local exceptions module
+try:
+    from .exceptions import (
+        AlchemiserError,
+        ConfigurationError,
+        DataProviderError,
+        MarketDataError,
+        OrderExecutionError,
+    )
+except ImportError:
+    # Fallback if types module not available
+    class AlchemiserError(Exception):  # type: ignore[no-redef]
+        """Fallback AlchemiserError."""
+
+    class ConfigurationError(AlchemiserError):  # type: ignore[no-redef]
+        """Fallback ConfigurationError."""
+
+    class DataProviderError(AlchemiserError):  # type: ignore[no-redef]
+        """Fallback DataProviderError."""
+
+    class MarketDataError(AlchemiserError):  # type: ignore[no-redef]
+        """Fallback MarketDataError."""
+
+    class OrderExecutionError(AlchemiserError):  # type: ignore[no-redef]
+        """Fallback OrderExecutionError."""
+
+
 __all__ = [
+    "AlchemiserError",
     "CircuitBreaker",
     "CircuitBreakerOpenError",
+    "ConfigurationError",
+    "DataProviderError",
     "EnhancedErrorReporter",
     "ErrorCategory",
     "ErrorDetails",
     "ErrorNotificationData",
     "ErrorSeverity",
+    "MarketDataError",
+    "OrderExecutionError",
     "TradingSystemErrorHandler",
     "categorize_error_severity",
     "get_enhanced_error_reporter",

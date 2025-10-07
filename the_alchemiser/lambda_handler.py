@@ -23,18 +23,18 @@ from the_alchemiser.shared.errors.error_handler import (
     handle_trading_error,
     send_error_notification_if_needed,
 )
+from the_alchemiser.shared.errors.exceptions import (
+    DataProviderError,
+    NotificationError,
+    StrategyExecutionError,
+    TradingClientError,
+)
 from the_alchemiser.shared.logging import (
     generate_request_id,
     get_logger,
     set_request_id,
 )
 from the_alchemiser.shared.schemas import LambdaEvent
-from the_alchemiser.shared.types.exceptions import (
-    DataProviderError,
-    NotificationError,
-    StrategyExecutionError,
-    TradingClientError,
-)
 
 # Set up logging
 logger = get_logger(__name__)

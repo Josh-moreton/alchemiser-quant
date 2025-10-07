@@ -1,6 +1,13 @@
 """Business Unit: shared | Status: current.
 
 Service factory using dependency injection.
+
+This module provides a factory pattern for creating services with support for
+both dependency injection (DI) and direct instantiation. It serves as the
+primary entry point for service creation throughout the application.
+
+Security: No secrets in code. Fail-closed on missing credentials.
+Thread-safety: Not thread-safe. Initialize once during startup.
 """
 
 from __future__ import annotations
@@ -9,11 +16,27 @@ import importlib
 from typing import Protocol, cast
 
 from the_alchemiser.shared.config.container import ApplicationContainer
+from the_alchemiser.shared.errors import ConfigurationError
+from the_alchemiser.shared.logging import get_logger
+
+logger = get_logger(__name__)
+
+# Module path for dynamic import (to avoid circular dependencies)
+_EXECUTION_MANAGER_MODULE = "the_alchemiser.execution_v2.core.execution_manager"
 
 
 class ExecutionManagerProtocol(Protocol):
-    """Subset of ExecutionManager interface required by ServiceFactory."""
+    """Subset of ExecutionManager interface required by ServiceFactory.
 
+    Note: Protocol is intentionally minimal to avoid importing execution_v2
+    types at module level and causing circular dependencies. The full interface
+    is defined in the ExecutionManager class itself.
+
+    This protocol is only used for type hints in the factory methods.
+    """
+
+    # Minimal protocol - no methods required for factory pattern
+    # Full interface includes: execute_rebalance_plan, enable_smart_execution, etc.
     ...
 
 
@@ -21,15 +44,61 @@ ExecutionManagerType = ExecutionManagerProtocol
 
 
 class ServiceFactory:
-    """Factory for creating services using dependency injection."""
+    """Factory for creating services using dependency injection.
+
+    This factory provides a centralized way to create services with support
+    for both DI container-based instantiation and direct instantiation for
+    backward compatibility.
+
+    Thread-safety: Not thread-safe. The _container class variable should be
+    set once during application startup before any concurrent access.
+
+    Example:
+        >>> # Initialize with DI container
+        >>> container = ApplicationContainer()
+        >>> ServiceFactory.initialize(container)
+        >>> manager = ServiceFactory.create_execution_manager()
+        >>>
+        >>> # Or use direct instantiation
+        >>> manager = ServiceFactory.create_execution_manager(
+        ...     api_key="key", secret_key="secret", paper=True
+        ... )
+
+    """
 
     _container: ApplicationContainer | None = None
 
     @classmethod
     def initialize(cls, container: ApplicationContainer | None = None) -> None:
-        """Initialize factory with DI container."""
+        """Initialize factory with DI container.
+
+        This method is idempotent - calling multiple times is safe but will
+        replace any existing container reference. Should be called during
+        application startup before any concurrent access.
+
+        Args:
+            container: DI container to use. If None, creates a new
+                ApplicationContainer instance.
+
+        Thread-safety: Not thread-safe. Call once during startup.
+
+        Example:
+            >>> container = ApplicationContainer()
+            >>> ServiceFactory.initialize(container)
+
+        """
         if container is None:
-            container = ApplicationContainer()
+            logger.info("Creating new ApplicationContainer for ServiceFactory")
+            try:
+                container = ApplicationContainer()
+            except Exception as e:
+                logger.error(
+                    "Failed to create ApplicationContainer",
+                    extra={"error": str(e), "error_type": type(e).__name__},
+                )
+                raise ConfigurationError(f"Failed to create ApplicationContainer: {e}") from e
+
+        logger.info("ServiceFactory initialized with DI container")
         cls._container = container
 
     @classmethod
@@ -40,36 +109,171 @@ class ServiceFactory:
         *,
         paper: bool | None = None,
     ) -> ExecutionManagerType:
-        """Create ExecutionManager using DI or traditional method."""
-        if cls._container is not None and all(x is None for x in [api_key, secret_key, paper]):
-            # Use DI container - get ExecutionManager from execution providers
-            ApplicationContainer.initialize_execution_providers(cls._container)
-            execution_container = getattr(cls._container, "execution", None)
-            if execution_container is None:
-                raise RuntimeError("Failed to initialize execution providers")
-            # The provider returns Any due to dependency injector limitation
-            return cast(ExecutionManagerType, execution_container.execution_manager())
+        """Create ExecutionManager using DI or traditional method.
 
-        # Direct instantiation for backward compatibility
-        # Use importlib to avoid static import detection
-        execution_manager_module = importlib.import_module(
-            "the_alchemiser.execution_v2.core.execution_manager"
-        )
-        execution_manager = execution_manager_module.ExecutionManager
+        Creates an ExecutionManager instance either via the DI container
+        (if initialized and no credentials provided) or via direct instantiation
+        (if credentials are provided).
 
-        api_key = api_key or "default_key"
-        secret_key = secret_key or "default_secret"
-        paper = paper if paper is not None else True
-        return cast(
-            ExecutionManagerType,
-            execution_manager.create_with_config(
-                api_key,
-                secret_key,
-                paper=paper,
-            ),
+        Args:
+            api_key: Alpaca API key. Required if not using DI container.
+            secret_key: Alpaca secret key. Required if not using DI container.
+            paper: Whether to use paper trading mode. Defaults to True if not
+                specified. Only used for direct instantiation.
+
+        Returns:
+            ExecutionManagerType: Configured ExecutionManager instance.
+
+        Raises:
+            ConfigurationError: If credentials are missing when not using DI,
+                or if DI container initialization fails, or if module import fails.
+
+        Example:
+            >>> # Using DI container (preferred)
+            >>> ServiceFactory.initialize(container)
+            >>> manager = ServiceFactory.create_execution_manager()
+            >>>
+            >>> # Direct instantiation (backward compatibility)
+            >>> manager = ServiceFactory.create_execution_manager(
+            ...     api_key="ALPACA_KEY",
+            ...     secret_key="ALPACA_SECRET",
+            ...     paper=True
+            ... )
+
+        """
+        # Validate string parameters if provided
+        if api_key is not None and not isinstance(api_key, str):
+            raise TypeError(f"api_key must be str, got {type(api_key).__name__}")
+        if secret_key is not None and not isinstance(secret_key, str):
+            raise TypeError(f"secret_key must be str, got {type(secret_key).__name__}")
+
+        # Treat empty strings as None
+        api_key = api_key if api_key else None
+        secret_key = secret_key if secret_key else None
+
+        use_di = cls._container is not None and all(x is None for x in [api_key, secret_key, paper])
+
+        logger.info(
+            "Creating ExecutionManager",
+            extra={
+                "use_di": use_di,
+                "has_api_key": api_key is not None,
+                "has_secret_key": secret_key is not None,
+                "paper_mode": paper if paper is not None else True,
+            },
         )
+
+        try:
+            if use_di:
+                # Use DI container - get ExecutionManager from execution providers
+                logger.debug("Initializing execution providers via DI container")
+
+                # Type guard: we know _container is not None here due to use_di check
+                container = cls._container
+                if container is None:
+                    # Should never happen due to use_di logic, but satisfy type checker
+                    raise ConfigurationError("Container is None despite use_di check")
+
+                ApplicationContainer.initialize_execution_providers(container)
+
+                execution_container = getattr(container, "execution", None)
+                if execution_container is None:
+                    raise ConfigurationError(
+                        "Failed to initialize execution providers: "
+                        "execution container is None after initialization"
+                    )
+
+                logger.info("Using DI container for ExecutionManager creation")
+                # The provider returns Any due to dependency injector limitation
+                return cast(ExecutionManagerType, execution_container.execution_manager())
+
+            # Direct instantiation for backward compatibility
+            logger.debug("Using direct instantiation for ExecutionManager")
+
+            # Validate credentials are provided
+            if not api_key or not secret_key:
+                logger.error(
+                    "Missing required credentials for ExecutionManager",
+                    extra={
+                        "has_api_key": bool(api_key),
+                        "has_secret_key": bool(secret_key),
+                    },
+                )
+                raise ConfigurationError(
+                    "api_key and secret_key are required when not using DI container. "
+                    "Either initialize ServiceFactory with a DI container or provide credentials."
+                )
+
+            # Use importlib to avoid static import detection (prevents circular imports)
+            try:
+                execution_manager_module = importlib.import_module(_EXECUTION_MANAGER_MODULE)
+            except ImportError as e:
+                logger.error(
+                    "Failed to import ExecutionManager module",
+                    extra={"module": _EXECUTION_MANAGER_MODULE, "error": str(e)},
+                )
+                raise ConfigurationError(
+                    f"Failed to import ExecutionManager module '{_EXECUTION_MANAGER_MODULE}': {e}"
+                ) from e
+
+            try:
+                execution_manager = execution_manager_module.ExecutionManager
+            except AttributeError as e:
+                logger.error(
+                    "ExecutionManager class not found in module",
+                    extra={"module": _EXECUTION_MANAGER_MODULE, "error": str(e)},
+                )
+                raise ConfigurationError(
+                    f"ExecutionManager class not found in module '{_EXECUTION_MANAGER_MODULE}': {e}"
+                ) from e
+
+            # Default to paper trading for safety
+            paper = paper if paper is not None else True
+
+            logger.info(
+                "Creating ExecutionManager via direct instantiation",
+                extra={"paper_mode": paper},
+            )
+
+            return cast(
+                ExecutionManagerType,
+                execution_manager.create_with_config(
+                    api_key,
+                    secret_key,
+                    paper=paper,
+                ),
+            )
+
+        except ConfigurationError:
+            # Re-raise ConfigurationError as-is
+            raise
+        except Exception as e:
+            # Wrap unexpected errors with context
+            logger.error(
+                "Unexpected error creating ExecutionManager",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
+            raise ConfigurationError(f"Unexpected error creating ExecutionManager: {e}") from e
 
     @classmethod
     def get_container(cls) -> ApplicationContainer | None:
-        """Get the current DI container."""
+        """Get the current DI container.
+
+        Returns the ApplicationContainer instance currently in use by the factory,
+        or None if the factory has not been initialized.
+
+        Returns:
+            ApplicationContainer | None: The active container, or None if not initialized.
+
+        Thread-safety: Not thread-safe. The container reference could change
+        if initialize() is called concurrently.
+
+        Example:
+            >>> container = ServiceFactory.get_container()
+            >>> if container is not None:
+            ...     # Use container
+            ...     pass
+
+        """
         return cls._container

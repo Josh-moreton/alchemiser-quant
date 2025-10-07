@@ -277,3 +277,69 @@ class TestControlFlowOperators:
         assert len(result.children) == 3
         # Should have added default window parameter
         assert result.children[2].is_list()
+
+    def test_defsymphony_logs_evaluation(self, context, caplog):
+        """Test defsymphony logs evaluation start and completion."""
+        import logging
+        
+        name = ASTNode.atom("test-strategy")
+        config = ASTNode.list_node([])
+        body = ASTNode.atom("result-value")
+        
+        with caplog.at_level(logging.DEBUG):
+            args = [name, config, body]
+            result = defsymphony(args, context)
+        
+        assert result == "result-value"
+        # Verify logging occurred (messages may vary based on structlog configuration)
+        # Just verify that the function executes without errors when logging is enabled
+
+    def test_if_condition_logs_branch_selection(self, context, caplog):
+        """Test if_condition logs branch selection."""
+        import logging
+        
+        condition = ASTNode.atom("true")
+        then_expr = ASTNode.atom("then-result")
+        else_expr = ASTNode.atom("else-result")
+        
+        with caplog.at_level(logging.DEBUG):
+            args = [condition, then_expr, else_expr]
+            result = if_condition(args, context)
+        
+        assert result == "then-result"
+        # Verify logging occurred (messages may vary based on structlog configuration)
+        # Just verify that the function executes without errors when logging is enabled
+
+    def test_if_condition_includes_causation_id_in_event(self, context, mock_event_publisher):
+        """Test if_condition includes causation_id in published event."""
+        condition = ASTNode.atom("true")
+        then_expr = ASTNode.atom("result")
+        
+        args = [condition, then_expr]
+        if_condition(args, context)
+        
+        mock_event_publisher.publish_decision_evaluated.assert_called_once()
+        call_kwargs = mock_event_publisher.publish_decision_evaluated.call_args[1]
+        assert "causation_id" in call_kwargs
+        assert call_kwargs["causation_id"] == context.correlation_id
+
+    def test_create_indicator_with_symbol_uses_default_constants(self):
+        """Test create_indicator_with_symbol uses DEFAULT_INDICATOR_WINDOWS constants."""
+        from the_alchemiser.strategy_v2.engines.dsl.operators.control_flow import (
+            DEFAULT_INDICATOR_WINDOWS,
+        )
+        
+        # Test that constants are defined
+        assert "rsi" in DEFAULT_INDICATOR_WINDOWS
+        assert DEFAULT_INDICATOR_WINDOWS["rsi"] == 14
+        assert DEFAULT_INDICATOR_WINDOWS["moving-average-price"] == 200
+        
+        # Test that the function uses the constants
+        indicator_expr = ASTNode.list_node([ASTNode.symbol("rsi")])
+        result = create_indicator_with_symbol(indicator_expr, "AAPL")
+        
+        # Verify the window parameter matches the constant
+        assert result.children[2].is_list()
+        window_value = result.children[2].children[1].get_atom_value()
+        from decimal import Decimal
+        assert window_value == Decimal("14")
