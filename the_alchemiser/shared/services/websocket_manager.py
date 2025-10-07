@@ -89,7 +89,9 @@ class WebSocketConnectionManager:
             polling for better performance and responsiveness.
 
         """
-        credentials_key = cls._hash_credentials(api_key, secret_key, paper_trading=paper_trading)
+        credentials_key = cls._hash_credentials(
+            api_key, secret_key, paper_trading=paper_trading
+        )
 
         with cls._lock:
             # Wait for cleanup to complete using Event (non-busy wait)
@@ -108,7 +110,9 @@ class WebSocketConnectionManager:
                 instance._credentials_hash = credentials_key
             return cls._instances[credentials_key]
 
-    def __init__(self, api_key: str, secret_key: str, *, paper_trading: bool = True) -> None:
+    def __init__(
+        self, api_key: str, secret_key: str, *, paper_trading: bool = True
+    ) -> None:
         """Initialize the connection manager (only once per credentials).
 
         Args:
@@ -128,6 +132,7 @@ class WebSocketConnectionManager:
         self._api_key = api_key
         self._secret_key = secret_key
         self._paper_trading = paper_trading
+        self._credentials_hash: str  # Set in __new__, type annotation for mypy
 
         # Pricing service (StockDataStream)
         self._pricing_service: RealTimePricingService | None = None
@@ -148,12 +153,16 @@ class WebSocketConnectionManager:
         logger.debug(
             "WebSocket connection manager initialized",
             mode="paper" if paper_trading else "live",
-            credentials_hash=self._credentials_hash[:8]
-            if hasattr(self, "_credentials_hash")
-            else "unknown",
+            credentials_hash=(
+                self._credentials_hash[:8]
+                if hasattr(self, "_credentials_hash")
+                else "unknown"
+            ),
         )
 
-    def get_pricing_service(self, correlation_id: str | None = None) -> RealTimePricingService:
+    def get_pricing_service(
+        self, correlation_id: str | None = None
+    ) -> RealTimePricingService:
         """Get or create the shared pricing service.
 
         Args:
@@ -246,7 +255,9 @@ class WebSocketConnectionManager:
                 self._pricing_service = None
 
     def get_trading_service(
-        self, callback: Callable[[Any], Awaitable[None]], correlation_id: str | None = None
+        self,
+        callback: Callable[[Any], Awaitable[None]],
+        correlation_id: str | None = None,
     ) -> bool:
         """Get or create the shared trading service for order updates.
 
@@ -370,14 +381,17 @@ class WebSocketConnectionManager:
                         stop_complete = threading.Event()
 
                         def _stop_with_timeout(
-                            s: TradingStream = stream, evt: threading.Event = stop_complete
+                            s: TradingStream = stream,
+                            evt: threading.Event = stop_complete,
                         ) -> None:
                             try:
                                 s.stop()
                             finally:
                                 evt.set()
 
-                        stop_thread = threading.Thread(target=_stop_with_timeout, daemon=True)
+                        stop_thread = threading.Thread(
+                            target=_stop_with_timeout, daemon=True
+                        )
                         stop_thread.start()
 
                         # Wait with timeout
@@ -400,7 +414,10 @@ class WebSocketConnectionManager:
     def is_service_available(self) -> bool:
         """Check if the pricing service is available and connected."""
         with self._service_lock:
-            return self._pricing_service is not None and self._pricing_service.is_connected()
+            return (
+                self._pricing_service is not None
+                and self._pricing_service.is_connected()
+            )
 
     def is_trading_service_available(self) -> bool:
         """Check if the trading service is available and connected."""
@@ -457,11 +474,19 @@ class WebSocketConnectionManager:
                     # Use hash prefix instead of full key for security
                     safe_key = key[:8] + "..." if len(key) > 8 else key
                     health_info["instances"][safe_key] = {
-                        "pricing_status": stats.get("pricing", {}).get("status", "unknown"),
-                        "pricing_ref_count": stats.get("pricing", {}).get("ref_count", 0),
+                        "pricing_status": stats.get("pricing", {}).get(
+                            "status", "unknown"
+                        ),
+                        "pricing_ref_count": stats.get("pricing", {}).get(
+                            "ref_count", 0
+                        ),
                         "pricing_connected": instance.is_service_available(),
-                        "trading_status": stats.get("trading", {}).get("status", "unknown"),
-                        "trading_ref_count": stats.get("trading", {}).get("ref_count", 0),
+                        "trading_status": stats.get("trading", {}).get(
+                            "status", "unknown"
+                        ),
+                        "trading_ref_count": stats.get("trading", {}).get(
+                            "ref_count", 0
+                        ),
                         "trading_connected": instance.is_trading_service_available(),
                     }
                 except Exception as e:
@@ -495,11 +520,17 @@ class WebSocketConnectionManager:
                 for instance in instances_to_cleanup:
                     try:
                         # Clean up pricing service
-                        if hasattr(instance, "_pricing_service") and instance._pricing_service:
+                        if (
+                            hasattr(instance, "_pricing_service")
+                            and instance._pricing_service
+                        ):
                             instance._pricing_service.stop()
 
                         # Clean up trading service with timeout
-                        if hasattr(instance, "_trading_stream") and instance._trading_stream:
+                        if (
+                            hasattr(instance, "_trading_stream")
+                            and instance._trading_stream
+                        ):
                             logger.info(
                                 "Stopping TradingStream for cleanup",
                                 correlation_id=correlation_id,
@@ -514,14 +545,17 @@ class WebSocketConnectionManager:
                             stop_complete = threading.Event()
 
                             def _stop_with_timeout(
-                                s: TradingStream = stream, evt: threading.Event = stop_complete
+                                s: TradingStream = stream,
+                                evt: threading.Event = stop_complete,
                             ) -> None:
                                 try:
                                     s.stop()
                                 finally:
                                     evt.set()
 
-                            stop_thread = threading.Thread(target=_stop_with_timeout, daemon=True)
+                            stop_thread = threading.Thread(
+                                target=_stop_with_timeout, daemon=True
+                            )
                             stop_thread.start()
 
                             if not stop_complete.wait(timeout=5.0):

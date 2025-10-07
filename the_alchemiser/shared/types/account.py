@@ -15,7 +15,7 @@ from the_alchemiser.shared.value_objects.core_types import AccountInfo, Portfoli
 @dataclass(frozen=True)
 class AccountModel:
     """Immutable account information model.
-    
+
     All monetary values use Decimal for precision per guardrails.
     """
 
@@ -71,7 +71,7 @@ class AccountModel:
 @dataclass(frozen=True)
 class PortfolioHistoryModel:
     """Immutable portfolio history model.
-    
+
     All monetary values use Decimal for precision per guardrails.
     """
 
