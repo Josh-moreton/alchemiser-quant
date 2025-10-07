@@ -309,7 +309,7 @@ class LiquidityAnalyzer:
             )
 
         # Check volume ratio
-        volume_ratio = order_size / available_volume
+        volume_ratio = float(order_size) / float(available_volume)
         if volume_ratio > 2.0:  # Order more than 2x available volume
             return (
                 False,
