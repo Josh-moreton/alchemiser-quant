@@ -16,9 +16,12 @@ from typing import Any
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.protocols.orchestrator import TradingModeProvider
 from the_alchemiser.shared.schemas.trade_run_result import (
+    ExecutionStatus,
     ExecutionSummary,
+    OrderAction,
     OrderResultSummary,
     TradeRunResult,
+    TradingMode,
 )
 
 # Module-level constants for order status validation
@@ -279,10 +282,14 @@ def _create_single_order_result(
         raise ValueError(f"Invalid filled_avg_price type: {type(filled_price).__name__}")
 
     trade_amount = _calculate_trade_amount(order, qty, filled_price)
+    
+    # Map action to OrderAction Literal type
+    side = order.get("side", "").upper()
+    action: OrderAction = "BUY" if side == "BUY" else "SELL"
 
     return OrderResultSummary(
         symbol=order.get("symbol", ""),
-        action=order.get("side", "").upper(),
+        action=action,
         trade_amount=trade_amount,
         shares=qty,
         price=(Decimal(str(filled_price)) if filled_price else None),
@@ -348,7 +355,7 @@ def _calculate_execution_summary(
     )
 
 
-def _determine_execution_status(*, success: bool, execution_summary: ExecutionSummary) -> str:
+def _determine_execution_status(*, success: bool, execution_summary: ExecutionSummary) -> ExecutionStatus:
     """Determine execution status based on success flag and summary.
 
     Args:
@@ -366,7 +373,7 @@ def _determine_execution_status(*, success: bool, execution_summary: ExecutionSu
     return "FAILURE"
 
 
-def _determine_trading_mode(orchestrator: TradingModeProvider) -> str:
+def _determine_trading_mode(orchestrator: TradingModeProvider) -> TradingMode:
     """Determine trading mode from orchestrator.
 
     Args:

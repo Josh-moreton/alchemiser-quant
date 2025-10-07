@@ -72,9 +72,12 @@ from .trace import Trace, TraceEntry
 from .trade_ledger import TradeLedger, TradeLedgerEntry
 from .trade_result_factory import create_failure_result, create_success_result
 from .trade_run_result import (
+    ExecutionStatus,
     ExecutionSummary,
+    OrderAction,
     OrderResultSummary,
     TradeRunResult,
+    TradingMode,
 )
 
 __all__ = [
@@ -96,6 +99,7 @@ __all__ = [
     "ExecutedOrder",
     "ExecutionReport",
     "ExecutionResult",
+    "ExecutionStatus",
     "ExecutionSummary",
     "IndicatorRequest",
     "LambdaEvent",
@@ -105,6 +109,7 @@ __all__ = [
     "MultiStrategyExecutionResult",
     "MultiStrategySummary",
     "MultiSymbolQuotesResult",
+    "OrderAction",
     "OrderExecutionResult",
     "OrderRequest",
     "OrderResultSummary",
@@ -129,6 +134,7 @@ __all__ = [
     "TradeLedger",
     "TradeLedgerEntry",
     "TradeRunResult",
+    "TradingMode",
     "WebSocketResult",
     "WebSocketStatus",
     "create_failure_result",
