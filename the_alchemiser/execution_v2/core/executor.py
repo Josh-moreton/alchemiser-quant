@@ -36,7 +36,7 @@ from the_alchemiser.shared.schemas.rebalance_plan import (
 from the_alchemiser.shared.services.buying_power_service import BuyingPowerService
 from the_alchemiser.shared.services.real_time_pricing import RealTimePricingService
 from the_alchemiser.shared.services.websocket_manager import WebSocketConnectionManager
-from the_alchemiser.shared.types.quote import QuoteModel
+from the_alchemiser.shared.types.market_data import QuoteModel
 
 if TYPE_CHECKING:
     from the_alchemiser.execution_v2.core.smart_execution_strategy import (
@@ -597,12 +597,8 @@ class Executor:
                     try:
                         market_quote = self.pricing_service.get_quote_data(order.symbol)
                         if market_quote:
-                            # Convert market_data.QuoteModel to quote.QuoteModel for ledger
-                            quote_at_fill = QuoteModel(
-                                ts=market_quote.timestamp,
-                                bid=Decimal(str(market_quote.bid_price)),
-                                ask=Decimal(str(market_quote.ask_price)),
-                            )
+                            # Enhanced QuoteModel is already in the correct format
+                            quote_at_fill = market_quote
                     except Exception as e:
                         logger.debug(f"Could not fetch quote for {order.symbol}: {e}")
 

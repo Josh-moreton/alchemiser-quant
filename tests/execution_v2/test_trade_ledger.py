@@ -15,7 +15,7 @@ from the_alchemiser.shared.schemas.rebalance_plan import (
     RebalancePlan,
     RebalancePlanItem,
 )
-from the_alchemiser.shared.types.quote import QuoteModel
+from the_alchemiser.shared.types.market_data import QuoteModel
 
 
 class TestTradeLedgerService:
@@ -74,9 +74,12 @@ class TestTradeLedgerService:
         )
 
         quote = QuoteModel(
-            ts=datetime.now(UTC),
-            bid=Decimal("249.50"),
-            ask=Decimal("250.50"),
+            symbol="TSLA",
+            bid_price=Decimal("249.50"),
+            ask_price=Decimal("250.50"),
+            bid_size=Decimal("100"),
+            ask_size=Decimal("100"),
+            timestamp=datetime.now(UTC),
         )
 
         entry = service.record_filled_order(
@@ -538,9 +541,12 @@ class TestTradeLedgerService:
 
         # Create quote with bid/ask spread
         quote = QuoteModel(
-            ts=datetime.now(UTC),
-            bid=Decimal("99.50"),
-            ask=Decimal("100.50"),
+            symbol="QUOTE",
+            bid_price=Decimal("99.50"),
+            ask_price=Decimal("100.50"),
+            bid_size=Decimal("100"),
+            ask_size=Decimal("100"),
+            timestamp=datetime.now(UTC),
         )
 
         order_result = OrderResult(

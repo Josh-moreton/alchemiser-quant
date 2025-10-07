@@ -45,7 +45,7 @@ from the_alchemiser.shared.schemas.operations import OrderCancellationResult
 from the_alchemiser.shared.services.alpaca_account_service import AlpacaAccountService
 from the_alchemiser.shared.services.alpaca_trading_service import AlpacaTradingService
 from the_alchemiser.shared.services.asset_metadata_service import AssetMetadataService
-from the_alchemiser.shared.types.quote import QuoteModel
+from the_alchemiser.shared.types.market_data import QuoteModel
 from the_alchemiser.shared.utils.alpaca_error_handler import AlpacaErrorHandler
 
 # Import Alpaca exceptions for proper error handling with type safety
@@ -438,7 +438,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
             symbol: Stock symbol
 
         Returns:
-            QuoteModel with bid/ask prices, or None if not available.
+            Enhanced QuoteModel with bid/ask prices and sizes, or None if not available.
 
         """
         from the_alchemiser.shared.value_objects.symbol import Symbol
