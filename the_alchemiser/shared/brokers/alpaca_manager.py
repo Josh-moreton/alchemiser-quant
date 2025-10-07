@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import threading
 import time
+from decimal import Decimal
 from typing import Any, ClassVar
 
 # Type checking imports to avoid circular dependencies
@@ -245,7 +246,7 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Alias for `get_positions()` to mirror Alpaca SDK naming."""
         return self._account_service.get_all_positions()
 
-    def get_positions_dict(self) -> dict[str, float]:
+    def get_positions_dict(self) -> dict[str, Decimal]:
         """Get all positions as dict mapping symbol to quantity."""
         return self._account_service.get_positions_dict()
 
@@ -482,11 +483,11 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """Validate that the connection to Alpaca is working."""
         return self._account_service.validate_connection()
 
-    def get_buying_power(self) -> float | None:
+    def get_buying_power(self) -> Decimal | None:
         """Get current buying power."""
         return self._account_service.get_buying_power()
 
-    def get_portfolio_value(self) -> float | None:
+    def get_portfolio_value(self) -> Decimal | None:
         """Get current portfolio value."""
         return self._account_service.get_portfolio_value()
 
@@ -621,13 +622,14 @@ class AlpacaManager(TradingRepository, MarketDataRepository, AccountRepository):
         """
         return self._get_trading_service().place_smart_sell_order(symbol, qty)
 
-    def get_current_positions(self) -> dict[str, float]:
+    def get_current_positions(self) -> dict[str, Decimal]:
         """Get all current positions as dict mapping symbol to quantity.
 
         This is an alias for get_positions_dict() to satisfy OrderExecutor protocol.
 
         Returns:
-            Dictionary mapping symbol to quantity owned. Only includes non-zero positions.
+            Dictionary mapping symbol to quantity (as Decimal) owned. 
+            Only includes non-zero positions.
 
         """
         return self.get_positions_dict()
