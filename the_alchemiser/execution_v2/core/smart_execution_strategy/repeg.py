@@ -154,9 +154,7 @@ class RepegManager:
             # Therefore, when the NEXT re-peg would meet or exceed the configured max, escalate now.
             # Example: max=2 -> allow at most 1 re-peg; on the second consideration, escalate to market.
             try:
-                max_repegs_allowed = int(
-                    getattr(self.config, "max_repegs_per_order", 0)
-                )
+                max_repegs_allowed = int(getattr(self.config, "max_repegs_per_order", 0))
             except Exception:
                 max_repegs_allowed = 0
 
@@ -218,9 +216,7 @@ class RepegManager:
         if not placement_time:
             return False
 
-        if should_consider_repeg(
-            placement_time, current_time, self.config.fill_wait_seconds
-        ):
+        if should_consider_repeg(placement_time, current_time, self.config.fill_wait_seconds):
             return True
 
         # Log debug info for orders still waiting
@@ -244,9 +240,7 @@ class RepegManager:
         """
         from .utils import should_escalate_order
 
-        return should_escalate_order(
-            current_repeg_count, self.config.max_repegs_per_order
-        )
+        return should_escalate_order(current_repeg_count, self.config.max_repegs_per_order)
 
     def _handle_terminal_state_order(
         self, order_id: str, terminal_error: TerminalOrderError
@@ -293,9 +287,7 @@ class RepegManager:
 
         """
         if not cancel_result.success:
-            logger.warning(
-                f"⚠️ Failed to cancel order {order_id}; attempting market order anyway"
-            )
+            logger.warning(f"⚠️ Failed to cancel order {order_id}; attempting market order anyway")
             return
 
         logger.debug(
@@ -325,8 +317,7 @@ class RepegManager:
 
         """
         return bool(
-            executed_order.order_id
-            and executed_order.status not in ["REJECTED", "CANCELED"]
+            executed_order.order_id and executed_order.status not in ["REJECTED", "CANCELED"]
         )
 
     def _create_market_escalation_metadata(
@@ -348,12 +339,8 @@ class RepegManager:
         """
         return {
             "original_order_id": order_id,
-            "original_price": (
-                float(original_anchor) if original_anchor is not None else None
-            ),
-            "new_price": (
-                float(executed_order.price) if executed_order.price is not None else 0.0
-            ),
+            "original_price": (float(original_anchor) if original_anchor is not None else None),
+            "new_price": (float(executed_order.price) if executed_order.price is not None else 0.0),
         }
 
     def _build_successful_market_escalation_result(
@@ -383,9 +370,7 @@ class RepegManager:
         return SmartOrderResult(
             success=True,
             order_id=executed_order.order_id,
-            final_price=(
-                executed_order.price if executed_order.price is not None else None
-            ),
+            final_price=(executed_order.price if executed_order.price is not None else None),
             anchor_price=original_anchor,
             repegs_used=self.config.max_repegs_per_order,
             execution_strategy="market_escalation",
@@ -465,14 +450,10 @@ class RepegManager:
                 f"(after {self.order_tracker.get_repeg_count(order_id)} re-pegs)"
             )
             # Use asyncio.to_thread to make blocking I/O async
-            cancel_result = await asyncio.to_thread(
-                self.alpaca_manager.cancel_order, order_id
-            )
+            cancel_result = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
 
             # Check if order was already in a terminal state (e.g., filled, cancelled)
-            is_terminal, terminal_error = self._is_order_in_terminal_state(
-                cancel_result
-            )
+            is_terminal, terminal_error = self._is_order_in_terminal_state(cancel_result)
             if is_terminal and terminal_error:
                 return self._handle_terminal_state_order(order_id, terminal_error)
 
@@ -585,9 +566,7 @@ class RepegManager:
             max_repegs=self.config.max_repegs_per_order,
         )
 
-        metadata_dict = self._create_repeg_metadata(
-            order_id, original_anchor, new_price, quote
-        )
+        metadata_dict = self._create_repeg_metadata(order_id, original_anchor, new_price, quote)
 
         return SmartOrderResult(
             success=True,
@@ -629,12 +608,9 @@ class RepegManager:
         """
         # Check if placement succeeded and order_id looks valid (UUID)
         if not (
-            getattr(executed_order, "success", False)
-            and getattr(executed_order, "order_id", None)
+            getattr(executed_order, "success", False) and getattr(executed_order, "order_id", None)
         ):
-            logger.error(
-                f"❌ Re-peg failed for {request.symbol}: no valid order ID returned"
-            )
+            logger.error(f"❌ Re-peg failed for {request.symbol}: no valid order ID returned")
             return SmartOrderResult(
                 success=False,
                 error_message="Re-peg order placement failed",
@@ -680,9 +656,7 @@ class RepegManager:
 
         """
         try:
-            remaining_qty = await self._get_remaining_after_status_update(
-                order_id, request
-            )
+            remaining_qty = await self._get_remaining_after_status_update(order_id, request)
 
             if remaining_qty is None:
                 return None
@@ -693,9 +667,7 @@ class RepegManager:
 
             # Determine valid re-peg price and required context
             try:
-                new_price, original_anchor, quote = self._calculate_repeg_price(
-                    order_id, request
-                )
+                new_price, original_anchor, quote = self._calculate_repeg_price(order_id, request)
             except _RemoveFromTracking:
                 return None
 
@@ -763,9 +735,7 @@ class RepegManager:
         )
 
         filled_qty = (
-            order_result.filled_qty
-            if hasattr(order_result, "filled_qty")
-            else Decimal("0")
+            order_result.filled_qty if hasattr(order_result, "filled_qty") else Decimal("0")
         )
         self.order_tracker.update_filled_quantity(order_id, filled_qty)
 
@@ -801,21 +771,15 @@ class RepegManager:
             price = fetch_price_for_notional_check(
                 request.symbol, request.side, self.quote_provider, self.alpaca_manager
             )
-            min_notional = getattr(
-                self.config, "min_fractional_notional_usd", Decimal("1.00")
-            )
+            min_notional = getattr(self.config, "min_fractional_notional_usd", Decimal("1.00"))
 
-            if is_remaining_quantity_too_small(
-                remaining_qty, asset_info, price, min_notional
-            ):
+            if is_remaining_quantity_too_small(remaining_qty, asset_info, price, min_notional):
                 self._log_small_remaining_removal(
                     order_id, request, remaining_qty, asset_info, price, min_notional
                 )
                 return True
         except Exception as _small_e:
-            logger.debug(
-                f"Minimal-remaining evaluation fallback due to error: {_small_e}"
-            )
+            logger.debug(f"Minimal-remaining evaluation fallback due to error: {_small_e}")
 
         return False
 
@@ -861,9 +825,7 @@ class RepegManager:
         Returns True only when cancellation completes; otherwise False.
         """
         logger.info(f"❌ Canceling order {order_id} for re-pegging")
-        cancel_result = await asyncio.to_thread(
-            self.alpaca_manager.cancel_order, order_id
-        )
+        cancel_result = await asyncio.to_thread(self.alpaca_manager.cancel_order, order_id)
 
         # Check if order was already in a terminal state (e.g., filled, cancelled)
         is_terminal, terminal_error = self._is_order_in_terminal_state(cancel_result)
@@ -891,9 +853,7 @@ class RepegManager:
             )
             return False
 
-        logger.debug(
-            f"✅ Order {order_id} cancellation confirmed, buying power released"
-        )
+        logger.debug(f"✅ Order {order_id} cancellation confirmed, buying power released")
         return True
 
     def _calculate_repeg_price(
@@ -1041,9 +1001,7 @@ class RepegManager:
         except Exception:
             return False
 
-    def _wait_for_order_cancellation(
-        self, order_id: str, timeout_seconds: float = 10.0
-    ) -> bool:
+    def _wait_for_order_cancellation(self, order_id: str, timeout_seconds: float = 10.0) -> bool:
         """Wait for an order to be actually cancelled and buying power released.
 
         This prevents the race condition where we try to place a replacement order
@@ -1064,9 +1022,7 @@ class RepegManager:
 
         while time.time() - start_time < timeout_seconds:
             try:
-                order_status = self.alpaca_manager._check_order_completion_status(
-                    order_id
-                )
+                order_status = self.alpaca_manager._check_order_completion_status(order_id)
 
                 if order_status and order_status.upper() in [
                     "CANCELED",
@@ -1083,9 +1039,7 @@ class RepegManager:
                 time.sleep(check_interval)
 
             except Exception as e:
-                logger.warning(
-                    f"Error checking cancellation status for {order_id}: {e}"
-                )
+                logger.warning(f"Error checking cancellation status for {order_id}: {e}")
                 # Continue trying until timeout
                 time.sleep(check_interval)
 

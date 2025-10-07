@@ -415,7 +415,8 @@ class TestStrategySignalPropertyBased:
         assert signal.symbol.value == symbol.upper()
         assert signal.action == action
         assert signal.target_allocation == allocation
-        assert signal.reasoning == reasoning
+        # StrategySignal has str_strip_whitespace=True, so compare against stripped version
+        assert signal.reasoning == reasoning.strip()
         assert signal.timestamp == ts
 
     @given(

@@ -7,6 +7,7 @@ and falls back to REST NBBO for validation before placing orders.
 """
 
 from datetime import UTC, datetime
+from decimal import Decimal
 from unittest.mock import Mock
 
 import pytest
@@ -106,10 +107,10 @@ class TestQuoteProviderSuspiciousValidation:
         # Create suspicious streaming quote (negative prices like COST issue)
         suspicious_quote = QuoteModel(
             symbol="COST",
-            bid_price=-0.01,  # Negative bid price
-            ask_price=-0.02,  # Negative ask price  
-            bid_size=1000,
-            ask_size=1000,
+            bid_price=Decimal("-0.01"),  # Negative bid price
+            ask_price=Decimal("-0.02"),  # Negative ask price  
+            bid_size=Decimal("1000"),
+            ask_size=Decimal("1000"),
             timestamp=datetime.now(UTC)
         )
 
@@ -125,18 +126,18 @@ class TestQuoteProviderSuspiciousValidation:
         # Should use REST fallback due to suspicious streaming data
         assert used_fallback is True
         # Should have reasonable prices from REST
-        assert quote.bid_price == 923.50
-        assert quote.ask_price == 923.77
+        assert quote.bid_price == Decimal("923.50")
+        assert quote.ask_price == Decimal("923.77")
 
     def test_normal_streaming_quote_no_rest_validation(self, quote_provider):
         """Test that normal streaming quote doesn't trigger REST validation."""
         # Create normal streaming quote
         normal_quote = QuoteModel(
             symbol="COST",
-            bid_price=923.50,
-            ask_price=923.77,
-            bid_size=1000,
-            ask_size=1000,
+            bid_price=Decimal("923.50"),
+            ask_price=Decimal("923.77"),
+            bid_size=Decimal("1000"),
+            ask_size=Decimal("1000"),
             timestamp=datetime.now(UTC)
         )
 
@@ -150,8 +151,8 @@ class TestQuoteProviderSuspiciousValidation:
         
         # Should use streaming quote without REST validation
         assert used_fallback is False
-        assert quote.bid_price == 923.50
-        assert quote.ask_price == 923.77
+        assert quote.bid_price == Decimal("923.50")
+        assert quote.ask_price == Decimal("923.77")
 
     def test_suspicious_detection_method(self, quote_provider):
         """Test the _is_streaming_quote_suspicious method directly."""

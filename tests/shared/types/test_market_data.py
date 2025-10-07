@@ -81,10 +81,10 @@ class TestBarModel:
         bar = BarModel(
             symbol="AAPL",
             timestamp=datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC),
-            open=150.0,
-            high=155.0,
-            low=149.0,
-            close=154.0,
+            open=Decimal("150.0"),
+            high=Decimal("155.0"),
+            low=Decimal("149.0"),
+            close=Decimal("154.0"),
             volume=1000000,
         )
         result = bar.to_dict()

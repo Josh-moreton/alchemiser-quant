@@ -64,6 +64,7 @@ class BacktestRunner:
         data_store: DataStore | None = None,
         fill_simulator: FillSimulator | None = None,
         strategy_files: list[str] | None = None,
+        auto_download_missing: bool = True,
     ) -> None:
         """Initialize backtest runner.
 
@@ -71,6 +72,7 @@ class BacktestRunner:
             data_store: Optional DataStore instance
             fill_simulator: Optional FillSimulator instance
             strategy_files: Optional list of strategy files to use
+            auto_download_missing: Whether to auto-download missing market data (default: True)
 
         """
         # Initialize data manager first (it will create data_store with provider if needed)
@@ -78,6 +80,7 @@ class BacktestRunner:
         self.data_store = self.data_manager.data_store
         self.fill_simulator = fill_simulator or FillSimulator()
         self.strategy_files = strategy_files or ["KLM.clj"]
+        self.auto_download_missing = auto_download_missing
         self._missing_symbols_cache: set[str] = set()
         logger.info(
             f"BacktestRunner initialized with strategies: {self.strategy_files}"
@@ -306,6 +309,14 @@ class BacktestRunner:
 
                     if match:
                         missing_symbol = match.group(1)
+
+                        # Skip auto-download if disabled (e.g., in tests)
+                        if not self.auto_download_missing:
+                            logger.warning(
+                                f"Missing data for {missing_symbol}, auto-download disabled",
+                                symbol=missing_symbol,
+                            )
+                            return {}
 
                         # Avoid infinite loops - only try to download each symbol once
                         if missing_symbol in self._missing_symbols_cache:
