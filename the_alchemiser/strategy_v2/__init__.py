@@ -59,8 +59,8 @@ def register_strategy_handlers(container: ApplicationContainer) -> None:
         if not hasattr(container, "services"):
             raise ConfigurationError(
                 "Container missing required 'services' attribute",
-                field="container.services",
-                value=str(type(container)),
+                config_key="container.services",
+                config_value=str(type(container)),
             )
 
         # Get event bus from container
@@ -142,8 +142,7 @@ def __getattr__(name: str) -> object:
     # Provide helpful error message with available attributes
     available = ", ".join(sorted(__all__))
     raise AttributeError(
-        f"module {__name__!r} has no attribute {name!r}. "
-        f"Available attributes: {available}"
+        f"module {__name__!r} has no attribute {name!r}. Available attributes: {available}"
     )
 
 

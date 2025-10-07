@@ -17,13 +17,13 @@ from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
-from the_alchemiser.shared.logging import get_logger
-from the_alchemiser.shared.types.exceptions import (
+from the_alchemiser.shared.errors.exceptions import (
     InsufficientFundsError,
     MarketClosedError,
     OrderExecutionError,
     SecurityError,
 )
+from the_alchemiser.shared.logging import get_logger
 
 
 class NotificationManager(Protocol):  # pragma: no cover - structural typing helper
@@ -251,7 +251,9 @@ class ErrorReporter:
 
         # Reset alerted errors if count drops below threshold
         errors_to_reset = {
-            key for key in self._alerted_errors if self.error_counts.get(key, 0) < self.error_rate_threshold
+            key
+            for key in self._alerted_errors
+            if self.error_counts.get(key, 0) < self.error_rate_threshold
         }
         self._alerted_errors -= errors_to_reset
 

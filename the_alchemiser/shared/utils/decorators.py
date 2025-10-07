@@ -12,7 +12,7 @@ from __future__ import annotations
 import functools
 from collections.abc import Callable
 
-from the_alchemiser.shared.types.exceptions import (
+from the_alchemiser.shared.errors.exceptions import (
     ConfigurationError,
     DataProviderError,
     MarketDataError,

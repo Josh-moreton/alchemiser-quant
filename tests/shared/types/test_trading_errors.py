@@ -8,12 +8,12 @@ classify_exception utility function.
 
 import pytest
 
-from the_alchemiser.shared.types.exceptions import (
+from the_alchemiser.shared.errors.exceptions import (
     AlchemiserError,
     ConfigurationError,
     OrderExecutionError,
 )
-from the_alchemiser.shared.types.trading_errors import OrderError, classify_exception
+from the_alchemiser.shared.errors.trading_errors import OrderError, classify_exception
 
 
 class TestOrderError:

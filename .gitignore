@@ -68,6 +68,9 @@ dist/
 
 # Data outputs
 data/*
+# Exclude all historical backtest data
+data/historical/**/*.parquet
+data/historical/**/metadata.json
 
 # Test snapshots (can be regenerated)
 tests/snapshots/*

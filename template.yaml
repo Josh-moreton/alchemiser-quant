@@ -31,6 +31,12 @@ Parameters:
     Default: https://paper-api.alpaca.markets/v2
     Description: Alpaca API endpoint; defaults to paper for dev, live is used for prod
 
+  EmailPassword:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Email SMTP password for dev notifications (optional)
+
   # Runtime configuration parameters (override via CD for each environment)
   LoggingLevel:
     Type: String
@@ -92,7 +98,7 @@ Globals:
         EMAIL__FROM_EMAIL: josh@rwxt.org
         EMAIL__TO_EMAIL: josh@rwxt.org
         EMAIL__NEUTRAL_MODE: true
-        EMAIL__PASSWORD: !If [ IsDev, "", !Ref ProdEmailPassword ]
+        EMAIL__PASSWORD: !If [ IsDev, !Ref EmailPassword, !Ref ProdEmailPassword ]
         # Strategy DSL configuration now comes from code defaults; override via env only if necessary
         # STRATEGY__DSL_FILES: '["1-KMLM.clj","2-Nuclear.clj","5-Coin.clj","6-TQQQ-FLT.clj"]'
         # STRATEGY__DSL_ALLOCATIONS: '{"1-KMLM.clj":0.4,"2-Nuclear.clj":0.25,"5-Coin.clj":0.1,"6-TQQQ-FLT.clj":0.25}'
@@ -298,7 +304,7 @@ Resources:
                   - logs:DescribeLogStreams
                   - logs:DescribeLogGroups
                 Resource: "*"
-              
+
               # S3 access for trade ledger
               - Effect: Allow
                 Action:

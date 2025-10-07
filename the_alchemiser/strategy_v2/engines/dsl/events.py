@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from the_alchemiser.shared.constants import DSL_ENGINE_MODULE
+from the_alchemiser.shared.errors.exceptions import AlchemiserError
 from the_alchemiser.shared.events.bus import EventBus
 from the_alchemiser.shared.events.dsl_events import (
     DecisionEvaluated,
@@ -23,7 +24,6 @@ from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.ast_node import ASTNode
 from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
 from the_alchemiser.shared.schemas.technical_indicator import TechnicalIndicator
-from the_alchemiser.shared.types.exceptions import AlchemiserError
 
 logger = get_logger(__name__)
 

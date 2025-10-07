@@ -47,32 +47,33 @@ from typing import Literal
 @dataclass(frozen=True)
 class TimeInForce:
     """Time-in-force specification with validation.
-    
+
     .. deprecated:: 2.10.7
        TimeInForce is deprecated. Use BrokerTimeInForce from broker_enums.py instead.
        This class will be removed in version 3.0.0.
-    
+
     **DEPRECATED**: This class is deprecated as of version 2.10.7 and will be removed
     in version 3.0.0. Use BrokerTimeInForce from broker_enums.py instead, which provides
     from_string() and to_alpaca() conversion methods.
-    
+
     **WARNING**: This class has validation redundancy. The Literal type constraint
     at the type-checking level makes the __post_init__ runtime validation unreachable
     in normal use.
-    
+
     Attributes:
         value: One of "day", "gtc", "ioc", or "fok"
-    
+
     Raises:
         ValueError: If value is not one of the valid options (unreachable in practice
                     due to Literal type constraint)
         DeprecationWarning: On instantiation (always)
-    
+
     Example:
         >>> # DEPRECATED: Use BrokerTimeInForce instead
         >>> tif = TimeInForce(value="gtc")  # Raises DeprecationWarning
         >>> tif.value
         'gtc'
+
     """
 
     value: Literal["day", "gtc", "ioc", "fok"]
@@ -80,15 +81,16 @@ class TimeInForce:
 
     def __post_init__(self) -> None:
         """Validate the time-in-force value after initialization.
-        
+
         NOTE: This validation is technically unreachable in normal use because
         the Literal type constraint prevents invalid values at type-check time.
         This method exists only for runtime safety in case the type system is
         bypassed (e.g., via type: ignore or dynamic construction).
-        
+
         Raises:
             ValueError: If value is not in the valid set
             DeprecationWarning: Always raised to warn about deprecation
+
         """
         # Emit deprecation warning
         warnings.warn(
@@ -97,7 +99,7 @@ class TimeInForce:
             DeprecationWarning,
             stacklevel=2,
         )
-        
+
         # Validate (unreachable in normal use due to Literal constraint)
         valid_values = {"day", "gtc", "ioc", "fok"}
         if self.value not in valid_values:

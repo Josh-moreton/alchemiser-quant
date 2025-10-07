@@ -62,11 +62,11 @@ class EmailClient:
             logger.warning("Email configuration not available - skipping email notification")
             return False
 
-        smtp_server = email_config["smtp_server"]
-        smtp_port = email_config["smtp_port"]
-        from_email = email_config["email_address"]
-        email_password = email_config["email_password"]
-        default_recipient = email_config["recipient_email"]
+        smtp_server = email_config.smtp_server
+        smtp_port = email_config.smtp_port
+        from_email = email_config.email_address
+        email_password = email_config.email_password
+        default_recipient = email_config.recipient_email
 
         recipient = recipient_email or default_recipient
         if not recipient:

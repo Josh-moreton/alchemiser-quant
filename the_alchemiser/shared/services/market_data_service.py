@@ -91,7 +91,7 @@ class MarketDataService(MarketDataPort):
                 f"Failed to get bars for {symbol} ({period}, {timeframe}): {e}"
             )
             # Re-raise with domain-appropriate error type
-            from the_alchemiser.shared.types.exceptions import DataProviderError
+            from the_alchemiser.shared.errors.exceptions import DataProviderError
 
             raise DataProviderError(
                 f"Market data fetch failed for {symbol}: {e}"

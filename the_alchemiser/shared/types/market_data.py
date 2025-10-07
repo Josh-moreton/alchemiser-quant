@@ -76,6 +76,7 @@ class BarModel:
     def from_dict(cls, data: MarketDataPoint) -> BarModel:
         """Create from MarketDataPoint TypedDict.
 
+
         Converts Decimal values from TypedDict to float for internal storage.
         Validates input data and ensures timezone-aware timestamps.
 
@@ -258,6 +259,7 @@ class QuoteModel:
     def from_dict(cls, data: QuoteData, symbol: str) -> QuoteModel:
         """Create from QuoteData TypedDict (domain-pure).
 
+
         Converts Decimal values from TypedDict to float for internal storage.
         Validates input data and ensures timezone-aware timestamps.
 
@@ -411,6 +413,7 @@ class PriceDataModel:
     @classmethod
     def from_dict(cls, data: PriceData) -> PriceDataModel:
         """Create from PriceData TypedDict.
+
 
         Converts Decimal values from TypedDict to float for internal storage.
         Validates input data and ensures timezone-aware timestamps.

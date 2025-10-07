@@ -4,14 +4,14 @@ Trading error classification for error handling.
 
 This module provides OrderError for order-specific exceptions and classify_exception
 for runtime exception categorization. For order execution errors with richer context
-(symbol, quantity, price), consider using OrderExecutionError from shared.types.exceptions.
+(symbol, quantity, price), consider using OrderExecutionError from shared.errors.exceptions.
 """
 
 from __future__ import annotations
 
 from typing import Any, Literal
 
-from the_alchemiser.shared.types.exceptions import AlchemiserError
+from .exceptions import AlchemiserError
 
 
 class OrderError(AlchemiserError):
@@ -19,7 +19,7 @@ class OrderError(AlchemiserError):
 
     Use this exception for general order-related failures when you need to track
     an order_id. For more detailed order execution failures with symbol, quantity,
-    and price information, use OrderExecutionError from shared.types.exceptions.
+    and price information, use OrderExecutionError from shared.errors.exceptions.
 
     Pre-conditions:
         - message must be a non-empty string describing the error
@@ -42,10 +42,14 @@ class OrderError(AlchemiserError):
         >>> error = OrderError("Order rejected", order_id="xyz-789", context=context)
         >>> error.context["symbol"]
         'AAPL'
+
     """
 
     def __init__(
-        self, message: str, order_id: str | None = None, context: dict[str, Any] | None = None
+        self,
+        message: str,
+        order_id: str | None = None,
+        context: dict[str, Any] | None = None,
     ) -> None:
         """Initialize order error with optional order identifier and context.
 
@@ -62,6 +66,7 @@ class OrderError(AlchemiserError):
         Note:
             If order_id is provided, it will be added to the context dict with
             key "order_id", potentially overwriting any existing value.
+
         """
         context = context or {}
         if order_id:
@@ -70,7 +75,9 @@ class OrderError(AlchemiserError):
         self.order_id = order_id
 
 
-def classify_exception(exception: Exception) -> Literal["order_error", "alchemiser_error", "general_error"]:
+def classify_exception(
+    exception: Exception,
+) -> Literal["order_error", "alchemiser_error", "general_error"]:
     """Classify an exception into error categories for error handling.
 
     This function provides runtime exception classification for use in error
@@ -97,6 +104,7 @@ def classify_exception(exception: Exception) -> Literal["order_error", "alchemis
     Note:
         Classification checks are ordered by specificity. OrderError is checked
         before AlchemiserError since OrderError extends AlchemiserError.
+
     """
     if isinstance(exception, OrderError):
         return "order_error"

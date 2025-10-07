@@ -22,6 +22,7 @@ from the_alchemiser.shared.types.market_data_port import MarketDataPort
 from the_alchemiser.shared.types.strategy_value_objects import (
     StrategySignal,
 )
+from the_alchemiser.shared.value_objects.symbol import Symbol
 from the_alchemiser.strategy_v2.engines.dsl.engine import DslEngine
 from the_alchemiser.strategy_v2.errors import ConfigurationError, StrategyExecutionError
 
@@ -145,7 +146,7 @@ class DslStrategyEngine:
             self.logger.error(
                 f"DSL strategy error: {e}",
                 extra={
-                    "correlation_id": correlation_id if "correlation_id" in locals() else None,
+                    "correlation_id": (correlation_id if "correlation_id" in locals() else None),
                     "error_type": type(e).__name__,
                 },
             )
@@ -245,9 +246,9 @@ class DslStrategyEngine:
 
                 signals.append(
                     StrategySignal(
-                        symbol=symbol,
+                        symbol=Symbol(symbol),
                         action="BUY",
-                        target_allocation=weight,
+                        target_allocation=Decimal(str(weight)),
                         reasoning=reasoning,
                         timestamp=timestamp,
                         strategy=strategy_display,
@@ -271,7 +272,7 @@ class DslStrategyEngine:
         strategy_name = Path(self.strategy_file).stem
 
         fallback_signal = StrategySignal(
-            symbol="CASH",
+            symbol=Symbol("CASH"),
             action="BUY",
             reasoning=f"{strategy_name} evaluation failed, fallback to cash position",
             timestamp=timestamp,

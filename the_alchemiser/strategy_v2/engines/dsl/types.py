@@ -12,8 +12,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
+from the_alchemiser.shared.errors.exceptions import StrategyExecutionError
 from the_alchemiser.shared.schemas.indicator_request import PortfolioFragment
-from the_alchemiser.shared.types.exceptions import StrategyExecutionError
 
 # Values that may result from evaluating a DSL node
 # Note: float is included for intermediate calculations but should be converted
