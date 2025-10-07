@@ -36,6 +36,7 @@ class SubscriptionManager:
 
     Raises:
         ConfigurationError: If initialization parameters are invalid
+
     """
 
     def __init__(self, max_symbols: int = 30) -> None:
@@ -47,6 +48,7 @@ class SubscriptionManager:
 
         Raises:
             ConfigurationError: If max_symbols is less than or equal to zero.
+
         """
         if max_symbols <= 0:
             msg = f"max_symbols must be greater than zero, got {max_symbols}"
@@ -77,6 +79,7 @@ class SubscriptionManager:
 
         Note:
             This method is stateless and does not require locking.
+
         """
         return [symbol.upper().strip() for symbol in symbols if symbol.strip()]
 
@@ -97,6 +100,7 @@ class SubscriptionManager:
 
         Note:
             Thread-safe: Acquires internal lock for the duration of planning.
+
         """
         with self._subscription_lock:
             results: dict[str, bool] = {}
@@ -149,6 +153,7 @@ class SubscriptionManager:
 
         Note:
             Assumes caller holds _subscription_lock. Not thread-safe on its own.
+
         """
         if len(symbols_to_add) <= available_slots:
             return []
@@ -184,6 +189,7 @@ class SubscriptionManager:
         Note:
             Thread-safe: Acquires internal lock for the duration of execution.
             Mutates the plan's results dict and successfully_added counter.
+
         """
         with self._subscription_lock:
             # Remove symbols to be replaced
@@ -227,6 +233,7 @@ class SubscriptionManager:
 
         Note:
             Thread-safe: Uses internal locking for all state access.
+
         """
         if priority is None:
             priority = time.time()
@@ -289,6 +296,7 @@ class SubscriptionManager:
 
         Note:
             Thread-safe: Uses internal locking for all state access.
+
         """
         with self._subscription_lock:
             if symbol in self._subscribed_symbols:
@@ -307,6 +315,7 @@ class SubscriptionManager:
 
         Note:
             Thread-safe: Returns a copy under lock protection.
+
         """
         with self._subscription_lock:
             return self._subscribed_symbols.copy()
@@ -321,6 +330,7 @@ class SubscriptionManager:
 
         Note:
             Thread-safe: Returns a copy under lock protection.
+
         """
         with self._subscription_lock:
             return self._stats.copy()
@@ -341,6 +351,7 @@ class SubscriptionManager:
 
         Note:
             Thread-safe: Uses internal locking for all state access.
+
         """
         with self._subscription_lock:
             if symbol in self._subscribed_symbols:

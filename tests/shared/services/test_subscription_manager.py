@@ -21,6 +21,7 @@ from unittest.mock import patch
 
 import pytest
 
+from the_alchemiser.shared.errors import ConfigurationError
 from the_alchemiser.shared.services.subscription_manager import SubscriptionManager
 from the_alchemiser.shared.types.market_data import SubscriptionPlan
 
@@ -44,17 +45,13 @@ class TestSubscriptionManagerInitialization:
 
     def test_invalid_max_symbols_zero(self):
         """Test initialization fails with max_symbols=0."""
-        # Currently no validation - this test documents expected future behavior
-        manager = SubscriptionManager(max_symbols=0)
-        # BUG: Should raise ValueError but currently allows zero
-        assert manager._max_symbols == 0
+        with pytest.raises(ConfigurationError, match="max_symbols must be greater than zero"):
+            SubscriptionManager(max_symbols=0)
 
     def test_invalid_max_symbols_negative(self):
         """Test initialization fails with negative max_symbols."""
-        # Currently no validation - this test documents expected future behavior
-        manager = SubscriptionManager(max_symbols=-5)
-        # BUG: Should raise ValueError but currently allows negative
-        assert manager._max_symbols == -5
+        with pytest.raises(ConfigurationError, match="max_symbols must be greater than zero"):
+            SubscriptionManager(max_symbols=-5)
 
 
 class TestSymbolNormalization:
@@ -137,7 +134,7 @@ class TestSingleSymbolSubscription:
 
         # Subscribe with higher priority than AAPL (5.0)
         needs_restart, was_added = manager.subscribe_symbol("MSFT", priority=20.0)
-        assert needs_restart is False  # Still returns False despite replacement
+        assert needs_restart is True  # Symbol was added (replacement occurred)
         assert was_added is True
         assert "MSFT" in manager.get_subscribed_symbols()
         assert "AAPL" not in manager.get_subscribed_symbols()
