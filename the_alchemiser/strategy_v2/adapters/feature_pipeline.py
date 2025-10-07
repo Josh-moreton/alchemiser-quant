@@ -60,9 +60,7 @@ class FeaturePipeline:
 
                 # Use direct comparison with a small epsilon for financial price data
                 if prev_close < 1e-6:
-                    logger.warning(
-                        "Zero or near-zero price encountered in returns calculation"
-                    )
+                    logger.warning("Zero or near-zero price encountered in returns calculation")
                     returns.append(0.0)
                 else:
                     ret = (curr_close - prev_close) / prev_close
@@ -237,9 +235,7 @@ class FeaturePipeline:
                 return max(0.0, min(1.0, position))
         return 0.5
 
-    def _compute_volume_ratio(
-        self, volumes: list[float], lookback_window: int
-    ) -> float:
+    def _compute_volume_ratio(self, volumes: list[float], lookback_window: int) -> float:
         """Compute volume ratio feature.
 
         Args:
@@ -252,9 +248,7 @@ class FeaturePipeline:
         """
         if len(volumes) >= lookback_window:
             avg_volume = sum(volumes[-lookback_window:]) / lookback_window
-            return (
-                volumes[-1] / avg_volume if not self.is_close(avg_volume, 0.0) else 1.0
-            )
+            return volumes[-1] / avg_volume if not self.is_close(avg_volume, 0.0) else 1.0
         return 1.0
 
     def extract_price_features(
@@ -288,9 +282,7 @@ class FeaturePipeline:
 
             # Returns and volatility
             returns = self.compute_returns(bars)
-            features["volatility"] = self.compute_volatility(
-                returns, window=lookback_window
-            )
+            features["volatility"] = self.compute_volatility(returns, window=lookback_window)
 
             # Moving averages
             features["ma_ratio"] = self._compute_ma_ratio(closes, lookback_window)

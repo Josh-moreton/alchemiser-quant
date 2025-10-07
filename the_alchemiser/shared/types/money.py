@@ -147,9 +147,7 @@ class Money:
 
         """
         if self.amount < 0:
-            raise NegativeMoneyError(
-                f"Money amount cannot be negative, got: {self.amount}"
-            )
+            raise NegativeMoneyError(f"Money amount cannot be negative, got: {self.amount}")
 
         # Validate currency against ISO 4217 codes
         if self.currency not in _CURRENCY_PRECISION:
