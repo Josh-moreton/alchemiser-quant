@@ -125,7 +125,7 @@ class Trace(BaseModel):
             metadata=metadata or {},
         )
 
-        new_entries = [*list(self.entries), entry]
+        new_entries = [*self.entries, entry]
         return self.model_copy(update={"entries": new_entries})
 
     def mark_completed(self, *, success: bool = True, error_message: str | None = None) -> Trace:
