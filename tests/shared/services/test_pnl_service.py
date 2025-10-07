@@ -10,7 +10,8 @@ import pytest
 from decimal import Decimal
 from unittest.mock import Mock, patch
 
-from the_alchemiser.shared.schemas.pnl import PnLData
+from the_alchemiser.shared.errors.exceptions import ConfigurationError, DataProviderError
+from the_alchemiser.shared.schemas.pnl import DailyPnLEntry, PnLData
 from the_alchemiser.shared.services.pnl_service import PnLService
 
 
@@ -146,18 +147,18 @@ class TestPnLService:
             total_pnl=Decimal("500.00"),
             total_pnl_pct=Decimal("5.00"),
             daily_data=[
-                {
-                    "date": "2025-01-01",
-                    "equity": Decimal("10000.00"),
-                    "profit_loss": Decimal("0.00"),
-                    "profit_loss_pct": Decimal("0.00"),
-                },
-                {
-                    "date": "2025-01-02",
-                    "equity": Decimal("10500.00"),
-                    "profit_loss": Decimal("500.00"),
-                    "profit_loss_pct": Decimal("5.00"),
-                },
+                DailyPnLEntry(
+                    date="2025-01-01",
+                    equity=Decimal("10000.00"),
+                    profit_loss=Decimal("0.00"),
+                    profit_loss_pct=Decimal("0.00"),
+                ),
+                DailyPnLEntry(
+                    date="2025-01-02",
+                    equity=Decimal("10500.00"),
+                    profit_loss=Decimal("500.00"),
+                    profit_loss_pct=Decimal("5.00"),
+                ),
             ],
         )
 
@@ -192,8 +193,18 @@ class TestPnLService:
         mock_manager.get_portfolio_history.return_value = None
 
         service = PnLService(alpaca_manager=mock_manager)
-        result = service.get_period_pnl("1W")
+        
+        with pytest.raises(DataProviderError) as exc_info:
+            service.get_period_pnl("1W")
+        
+        assert "empty history" in str(exc_info.value).lower()
 
-        assert result.period == "1W"
-        assert result.start_value is None
-        assert result.end_value is None
+    def test_configuration_error_on_missing_keys(self) -> None:
+        """Test that ConfigurationError is raised when API keys are missing."""
+        with patch("the_alchemiser.shared.services.pnl_service.get_alpaca_keys") as mock_keys:
+            mock_keys.return_value = (None, None, None)
+            
+            with pytest.raises(ConfigurationError) as exc_info:
+                PnLService(alpaca_manager=None)
+            
+            assert "API keys not found" in str(exc_info.value)
