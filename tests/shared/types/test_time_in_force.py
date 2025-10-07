@@ -87,7 +87,7 @@ class TestTimeInForceConstruction:
             message = str(w[0].message)
             assert "2.10.7" in message
             assert "3.0.0" in message
-            assert "BrokerTimeInForce" in message
+            assert "Alpaca SDK" in message
 
     @pytest.mark.unit
     def test_frozen_immutable(self):
@@ -179,75 +179,6 @@ class TestTimeInForceRepresentation:
             # Dataclass default str includes all fields
             str_repr = str(tif)
             assert "gtc" in str_repr
-
-
-class TestTimeInForceComparisonWithBrokerEnum:
-    """Test relationship between TimeInForce and BrokerTimeInForce.
-    
-    These tests document the architectural duplication issue where
-    BrokerTimeInForce provides superior functionality.
-    """
-
-    @pytest.mark.unit
-    def test_values_match_broker_enum(self):
-        """Test that valid values match BrokerTimeInForce enum values."""
-        # Load broker_enums module directly too
-        broker_path = Path(__file__).parent.parent.parent.parent / "the_alchemiser" / "shared" / "types" / "broker_enums.py"
-        spec = importlib.util.spec_from_file_location(
-            "the_alchemiser.shared.types.broker_enums",
-            str(broker_path)
-        )
-        broker_module = importlib.util.module_from_spec(spec)
-        sys.modules["the_alchemiser.shared.types.broker_enums"] = broker_module
-        spec.loader.exec_module(broker_module)
-        
-        BrokerTimeInForce = broker_module.BrokerTimeInForce
-        
-        # TimeInForce valid values
-        tif_values = {"day", "gtc", "ioc", "fok"}
-        
-        # BrokerTimeInForce enum values
-        broker_values = {member.value for member in BrokerTimeInForce}
-        
-        assert tif_values == broker_values
-
-    @pytest.mark.unit
-    def test_broker_enum_has_more_features(self):
-        """Document that BrokerTimeInForce has superior functionality.
-        
-        This test documents the architectural issue: BrokerTimeInForce
-        provides from_string() and to_alpaca() methods that TimeInForce lacks.
-        """
-        # Load broker_enums module
-        broker_path = Path(__file__).parent.parent.parent.parent / "the_alchemiser" / "shared" / "types" / "broker_enums.py"
-        spec = importlib.util.spec_from_file_location(
-            "the_alchemiser.shared.types.broker_enums",
-            str(broker_path)
-        )
-        broker_module = importlib.util.module_from_spec(spec)
-        sys.modules["the_alchemiser.shared.types.broker_enums"] = broker_module
-        spec.loader.exec_module(broker_module)
-        
-        BrokerTimeInForce = broker_module.BrokerTimeInForce
-        
-        # BrokerTimeInForce can convert from string
-        broker_tif = BrokerTimeInForce.from_string("day")
-        assert broker_tif == BrokerTimeInForce.DAY
-        
-        # BrokerTimeInForce can convert to Alpaca format
-        # Note: This requires alpaca-py, may fail if not installed
-        try:
-            alpaca_value = broker_tif.to_alpaca()
-            assert isinstance(alpaca_value, str)
-        except (ImportError, ModuleNotFoundError):
-            pytest.skip("alpaca-py not installed")
-        
-        # TimeInForce lacks these methods
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")  # Suppress deprecation warning
-            tif = TimeInForce(value="day")
-            assert not hasattr(tif, "from_string")
-            assert not hasattr(tif, "to_alpaca")
 
 
 class TestTimeInForceUsage:

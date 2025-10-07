@@ -4,20 +4,20 @@
 
 **Effective Date**: 2025-01-06  
 **Removal Target**: v3.0.0  
-**Replacement**: `BrokerTimeInForce` from `broker_enums.py`
+**Replacement**: Use Alpaca SDK enums directly (`TimeInForce` from `alpaca.trading.enums`)
 
 ---
 
 ## Summary
 
-The `TimeInForce` class in `the_alchemiser/shared/types/time_in_force.py` has been officially deprecated following the financial-grade audit that identified it as dead code with architectural duplication.
+The `TimeInForce` class in `the_alchemiser/shared/types/time_in_force.py` has been officially deprecated following the financial-grade audit that identified it as dead code with no production usage.
 
 ## Reason for Deprecation
 
 1. **Dead Code**: Zero production usage detected across the entire codebase
-2. **Architectural Duplication**: `BrokerTimeInForce` enum in `broker_enums.py` provides identical functionality with additional features
-3. **Missing Features**: Lacks `from_string()` and `to_alpaca()` conversion methods
-4. **Validation Redundancy**: `__post_init__` validation is unreachable due to `Literal` type constraint
+2. **Unnecessary Abstraction**: Alpaca SDK provides native enum support
+3. **Validation Redundancy**: `__post_init__` validation is unreachable due to `Literal` type constraint
+4. **YAGNI Violation**: Built for multi-broker future that never materialized
 
 ## What Changed in v2.10.7
 
@@ -30,7 +30,7 @@ Every instantiation of `TimeInForce` now raises a `DeprecationWarning`:
 ```python
 warnings.warn(
     "TimeInForce is deprecated as of version 2.10.7 and will be removed in "
-    "version 3.0.0. Use BrokerTimeInForce from broker_enums.py instead.",
+    "version 3.0.0. Use Alpaca SDK enums (TimeInForce from alpaca.trading.enums) directly.",
     DeprecationWarning,
     stacklevel=2,
 )
@@ -59,16 +59,11 @@ tif = TimeInForce(value="day")  # Raises DeprecationWarning
 
 ### After (Recommended)
 ```python
-from the_alchemiser.shared.types.broker_enums import BrokerTimeInForce
+from alpaca.trading.enums import TimeInForce, OrderSide
 
-# Option 1: Use enum directly
-tif = BrokerTimeInForce.DAY
-
-# Option 2: Convert from string
-tif = BrokerTimeInForce.from_string("day")
-
-# Option 3: Convert to Alpaca format
-alpaca_tif = tif.to_alpaca()
+# Use Alpaca SDK enums directly
+tif = TimeInForce.DAY
+order_side = OrderSide.BUY
 ```
 
 ## Deprecation Timeline
@@ -101,23 +96,23 @@ alpaca_tif = tif.to_alpaca()
 
 ### External Consumers
 **Impact**: Minimal - Only affects code that directly imports `TimeInForce`
-- Most code uses `BrokerTimeInForce` already
+- Production code uses Alpaca SDK enums directly
 - Deprecation period provides time to migrate
 
 ## Benefits of Migration
 
-### Using BrokerTimeInForce Provides:
-1. **String Conversion**: `from_string()` method for parsing user input
-2. **Broker Integration**: `to_alpaca()` method for Alpaca API calls
-3. **Active Maintenance**: Used in production, actively maintained
-4. **No Duplication**: Single source of truth for time-in-force values
-5. **Better Typing**: Full enum support with IDE autocomplete
+### Using Alpaca SDK Enums Directly Provides:
+1. **Native Support**: Built-in enum support from broker SDK
+2. **No Abstraction Layer**: Direct access without wrapper overhead
+3. **Active Maintenance**: Maintained by Alpaca team
+4. **Standard API**: Follows Alpaca's official patterns
+5. **Better IDE Support**: Full enum support with autocomplete
 
 ## Related Documentation
 
 - **Audit Report**: `FILE_REVIEW_time_in_force.md`
 - **Audit Summary**: `AUDIT_COMPLETION_time_in_force.md`
-- **BrokerTimeInForce**: `the_alchemiser/shared/types/broker_enums.py`
+- **Alpaca SDK**: https://alpaca.markets/docs/python-sdk/
 
 ## Contact
 
@@ -128,5 +123,5 @@ For questions or concerns about this deprecation:
 
 ---
 
-**Last Updated**: 2025-01-06  
-**Version**: 2.10.7
+**Last Updated**: 2025-10-07  
+**Version**: 2.16.2
