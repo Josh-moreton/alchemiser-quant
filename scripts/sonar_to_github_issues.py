@@ -111,14 +111,14 @@ def parse_args() -> argparse.Namespace:
 
 def sonar_paginated(
     url: str, params: dict[str, str], limit: int, token: str | None = None
-) -> Iterable[dict]:
+) -> Iterable[dict[str, object]]:
     """Yield SonarQube issues via paginated API until limit is reached."""
     page = 1
     page_size = 500
     fetched = 0
     while fetched < limit:
         p = dict(params)
-        p.update({"p": page, "ps": page_size})
+        p.update({"p": str(page), "ps": str(page_size)})
         resp = (
             SESSION.get(url, params=p, auth=(token, ""))
             if token
@@ -137,7 +137,7 @@ def sonar_paginated(
         page += 1
 
 
-def map_issue(it: dict, host: str) -> SonarIssue:
+def map_issue(it: dict[str, object], host: str) -> SonarIssue:
     """Map raw SonarQube issue JSON to a SonarIssue dataclass."""
     component = it.get("component", "")
     project = it.get("project", "")
@@ -241,11 +241,13 @@ def file_issue_body(
 def github_request(method: str, url: str, **kwargs: object) -> requests.Response:
     """Wrap requests with auth, version headers, and rate-limit backoff."""
     token = get_github_token()
-    headers = kwargs.pop("headers", {})
+    headers_obj = kwargs.pop("headers", {})
+    # Type assertion: we know this should be a mutable dict
+    headers: dict[str, str] = dict(headers_obj) if isinstance(headers_obj, dict) else {}
     headers["Authorization"] = f"Bearer {token}"
     headers["Accept"] = "application/vnd.github+json"
     headers["X-GitHub-Api-Version"] = "2022-11-28"
-    resp = SESSION.request(method, url, headers=headers, **kwargs)
+    resp = SESSION.request(method, url, headers=headers, **kwargs)  # type: ignore[arg-type]
     if resp.status_code == 403:
         remaining = resp.headers.get(GITHUB_REMAINING_HEADER)
         reset = resp.headers.get(GITHUB_RESET_HEADER)
@@ -257,7 +259,7 @@ def github_request(method: str, url: str, **kwargs: object) -> requests.Response
                 if sleep_for > 0:
                     logging.info("Rate limited, sleeping for %d seconds", sleep_for)
                     time.sleep(sleep_for)
-                    resp = SESSION.request(method, url, headers=headers, **kwargs)
+                    resp = SESSION.request(method, url, headers=headers, **kwargs)  # type: ignore[arg-type]
             except Exception as exc:
                 logging.exception("GitHub rate limit backoff failed: %s", exc)
     resp.raise_for_status()
@@ -386,25 +388,31 @@ def ensure_label(
 
 def find_existing_issue(owner: str, repo: str, sonar_key: str) -> int | None:
     """Return an existing open GitHub issue number matching the Sonar key, if any."""
+    from urllib.parse import quote
     # Search issues by exact Sonar key in body using GitHub search API
     q = f'repo:{owner}/{repo} in:body "SonarQube Key: {sonar_key}" state:open'
-    url = f"https://api.github.com/search/issues?q={requests.utils.quote(q)}"
+    url = f"https://api.github.com/search/issues?q={quote(q)}"
     r = github_request("GET", url)
     items = r.json().get("items", [])
     if items:
-        return items[0].get("number")
+        # Type assertion for return value
+        issue_num = items[0].get("number")
+        return int(issue_num) if isinstance(issue_num, (int, str)) else None
     return None
 
 
 def find_existing_file_issue(owner: str, repo: str, component: str) -> int | None:
     """Return an existing open GitHub issue number for the given component (file)."""
+    from urllib.parse import quote
     marker = f"SonarQube Component: {component}"
     q = f'repo:{owner}/{repo} in:body "{marker}" state:open'
-    url = f"https://api.github.com/search/issues?q={requests.utils.quote(q)}"
+    url = f"https://api.github.com/search/issues?q={quote(q)}"
     r = github_request("GET", url)
     items = r.json().get("items", [])
     if items:
-        return items[0].get("number")
+        # Type assertion for return value
+        issue_num = items[0].get("number")
+        return int(issue_num) if isinstance(issue_num, (int, str)) else None
     return None
 
 
@@ -472,7 +480,7 @@ def create_or_update_file_issue(
         return
 
     url = f"https://api.github.com/repos/{owner}/{repo}/issues"
-    data = {"title": title, "body": body}
+    data: dict[str, object] = {"title": title, "body": body}
     if labels:
         data["labels"] = labels
     if assignee:

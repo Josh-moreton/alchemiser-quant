@@ -39,14 +39,17 @@ class DataManager:
 
         """
         # Try to initialize provider, but don't fail if credentials are missing (e.g., in tests)
+        provider: AlpacaHistoricalProvider | None
         try:
-            self.provider = AlpacaHistoricalProvider()
+            provider = AlpacaHistoricalProvider()
         except (ValueError, Exception) as e:
             logger.warning(
                 f"Failed to initialize AlpacaHistoricalProvider: {e}. "
                 "Auto-download will not be available."
             )
-            self.provider = None
+            provider = None
+        
+        self.provider = provider
         
         # Create or use provided data store
         if data_store:

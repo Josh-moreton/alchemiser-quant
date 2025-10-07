@@ -11,8 +11,12 @@ import sys
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
+
+if TYPE_CHECKING:
+    from scripts.backtest.storage.providers.alpaca_historical import AlpacaHistoricalProvider
 
 # Add project root to path for imports
 _project_root = Path(__file__).resolve().parents[3]
@@ -22,8 +26,8 @@ if str(_project_root) not in sys.path:
 from scripts.backtest.models.market_data import (
     DailyBar,
     MarketDataMetadata,
-)  # noqa: E402
-from the_alchemiser.shared.logging import get_logger  # noqa: E402
+)
+from the_alchemiser.shared.logging import get_logger
 
 # Constants
 # Heuristic: In most markets, about 70% of calendar days are trading days.
@@ -42,7 +46,9 @@ class DataStore:
     """
 
     def __init__(
-        self, base_path: str = "data/historical", data_provider=None
+        self, 
+        base_path: str = "data/historical", 
+        data_provider: AlpacaHistoricalProvider | None = None
     ) -> None:
         """Initialize data store.
 
