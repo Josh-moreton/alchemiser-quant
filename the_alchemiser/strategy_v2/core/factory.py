@@ -71,7 +71,9 @@ def create_orchestrator(
         )
 
         # Create Alpaca manager
-        alpaca_manager = AlpacaManager(api_key=api_key, secret_key=secret_key, paper=paper)
+        alpaca_manager = AlpacaManager(
+            api_key=api_key, secret_key=secret_key, paper=paper
+        )
 
         # Create market data adapter
         market_data_adapter = StrategyMarketDataAdapter(alpaca_manager)

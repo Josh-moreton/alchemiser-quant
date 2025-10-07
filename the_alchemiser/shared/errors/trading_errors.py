@@ -46,7 +46,10 @@ class OrderError(AlchemiserError):
     """
 
     def __init__(
-        self, message: str, order_id: str | None = None, context: dict[str, Any] | None = None
+        self,
+        message: str,
+        order_id: str | None = None,
+        context: dict[str, Any] | None = None,
     ) -> None:
         """Initialize order error with optional order identifier and context.
 

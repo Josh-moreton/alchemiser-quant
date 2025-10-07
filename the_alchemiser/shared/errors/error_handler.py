@@ -164,7 +164,8 @@ class TradingSystemErrorHandler:
             )
         else:
             self.logger.warning(
-                f"{category.upper()} in {component}: {error}", extra={"extra_fields": log_extra}
+                f"{category.upper()} in {component}: {error}",
+                extra={"extra_fields": log_extra},
             )
 
         return error_details
@@ -295,8 +296,12 @@ class TradingSystemErrorHandler:
             "These errors affected trade execution:",
         )
         report = self._add_error_section(report, summary["data"], "📊 DATA ERRORS")
-        report = self._add_error_section(report, summary["strategy"], "🧠 STRATEGY ERRORS")
-        return self._add_error_section(report, summary["configuration"], "⚙️ CONFIGURATION ERRORS")
+        report = self._add_error_section(
+            report, summary["strategy"], "🧠 STRATEGY ERRORS"
+        )
+        return self._add_error_section(
+            report, summary["configuration"], "⚙️ CONFIGURATION ERRORS"
+        )
 
     def classify_order_error(
         self,
@@ -371,7 +376,9 @@ def handle_trading_error(
     return _error_handler.handle_error(error, context, component, additional_data)
 
 
-def send_error_notification_if_needed(event_bus: EventBus) -> ErrorNotificationData | None:
+def send_error_notification_if_needed(
+    event_bus: EventBus,
+) -> ErrorNotificationData | None:
     """Send error notification via event bus if there are errors that warrant it.
 
     Args:
@@ -384,7 +391,9 @@ def send_error_notification_if_needed(event_bus: EventBus) -> ErrorNotificationD
     return _send_error_notification_via_events(event_bus)
 
 
-def _send_error_notification_via_events(event_bus: EventBus) -> ErrorNotificationData | None:
+def _send_error_notification_via_events(
+    event_bus: EventBus,
+) -> ErrorNotificationData | None:
     """Send error notification via event bus (preferred method).
 
     Args:
