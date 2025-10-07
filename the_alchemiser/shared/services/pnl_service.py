@@ -312,9 +312,7 @@ class PnLService:
                 )
                 return PnLData(period=period, start_date=start_date, end_date=end_date)
 
-            start_value, end_value, total_pnl, total_pnl_pct = self._calculate_totals(
-                equity_values
-            )
+            start_value, end_value, total_pnl, total_pnl_pct = self._calculate_totals(equity_values)
             daily_data = self._build_daily_data(
                 timestamps, equity_values, profit_loss, profit_loss_pct
             )
@@ -510,7 +508,5 @@ class PnLService:
         for day_data in daily_data:
             pnl_str = f"${day_data.profit_loss:+.2f}"
             pnl_pct_str = f"({day_data.profit_loss_pct:+.2f}%)"
-            lines.append(
-                f"{day_data.date}: ${day_data.equity:,.2f} | P&L: {pnl_str} {pnl_pct_str}"
-            )
+            lines.append(f"{day_data.date}: ${day_data.equity:,.2f} | P&L: {pnl_str} {pnl_pct_str}")
         return lines
