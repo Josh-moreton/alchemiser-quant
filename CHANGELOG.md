@@ -16,6 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.10.1] - 2025-01-XX
+
+### Added
+- Exception system documentation
+  - Added `docs/EXCEPTIONS_ANALYSIS.md` with comprehensive documentation
+  - Added `docs/EXCEPTIONS_QUICK_REFERENCE.md` for quick developer reference
+  - Documents `shared/types/exceptions.py` as the single active exception system
+  - Provides usage guidelines, best practices, and complete exception reference
+
+### Removed
+- Removed unused enhanced exception system
+  - Removed `shared/errors/enhanced_exceptions.py` (never used in production)
+  - Removed `tests/shared/errors/test_enhanced_exceptions.py`
+  - Removed `create_enhanced_error()` helper function from error_handler.py
+  - Cleaned up exports from `shared/errors/__init__.py`
+  - This simplifies the codebase by removing unused experimental code
+
 ### Removed
 - **BREAKING**: Removed deprecated `the_alchemiser.shared.dto` shim module; use `the_alchemiser.shared.schemas` instead
   - The compatibility layer that provided backward compatibility has been removed

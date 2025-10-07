@@ -17,9 +17,6 @@ from typing import TYPE_CHECKING, Any
 from the_alchemiser.shared.logging import get_logger
 
 # Import from decomposed modules
-from .enhanced_exceptions import (
-    EnhancedAlchemiserError,
-)
 from .error_details import (
     ErrorDetails,
     categorize_error,
@@ -456,27 +453,6 @@ def _send_error_notification_via_events(event_bus: EventBus) -> ErrorNotificatio
 
     logger.info("Error notification event published successfully")
     return notification_data
-
-
-def create_enhanced_error(
-    error_type: type[EnhancedAlchemiserError],
-    message: str,
-    context: ErrorContextData | None = None,
-    severity: str | None = None,
-    **kwargs: Any,  # noqa: ANN401
-) -> EnhancedAlchemiserError:
-    """Create enhanced errors with proper context."""
-    if severity is None:
-        # Auto-determine severity based on error type
-        temp_error = error_type(message)
-        severity = categorize_error_severity(temp_error)
-
-    return error_type(
-        message=message,
-        context=context,
-        severity=severity,
-        **kwargs,
-    )
 
 
 def handle_errors_with_retry(

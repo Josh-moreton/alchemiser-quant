@@ -10,15 +10,9 @@ error handler facade, error categorization, and detailed error reporting.
 from __future__ import annotations
 
 # Re-export public API from decomposed modules for backward compatibility
-from .enhanced_exceptions import (
-    EnhancedAlchemiserError,
-    EnhancedDataError,
-    EnhancedTradingError,
-)
 from .error_details import ErrorDetails
 from .error_handler import (
     TradingSystemErrorHandler,
-    create_enhanced_error,
     get_error_handler,
     handle_errors_with_retry,
     handle_trading_error,
@@ -77,7 +71,6 @@ __all__ = [
     "EnhancedAlchemiserError",
     "EnhancedDataError",
     "EnhancedErrorReporter",
-    "EnhancedTradingError",
     "ErrorCategory",
     "ErrorDetails",
     "ErrorNotificationData",
@@ -86,7 +79,6 @@ __all__ = [
     "OrderExecutionError",
     "TradingSystemErrorHandler",
     "categorize_error_severity",
-    "create_enhanced_error",
     "get_enhanced_error_reporter",
     "get_error_handler",
     "get_global_error_reporter",

@@ -150,7 +150,8 @@ class TechnicalIndicators:
 
         Returns:
             pd.Series: Moving average values. The first (window-1) values
-                will be NaN due to insufficient data.
+                will be NaN due to insufficient data. Returns all NaN if
+                insufficient data is available.
 
         Raises:
             EnhancedDataError: If window is not positive or data is invalid.
