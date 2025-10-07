@@ -4,24 +4,22 @@ Time-in-force value object with validation.
 
 .. deprecated:: 2.10.7
    TimeInForce is deprecated and will be removed in version 3.0.0.
-   Use :class:`BrokerTimeInForce` from broker_enums.py instead, which provides
-   superior functionality including from_string() and to_alpaca() conversion methods.
+   Use Alpaca SDK enums directly (OrderSide, TimeInForce from alpaca.trading.enums).
 
 **DEPRECATION NOTICE:**
 This module is DEPRECATED as of version 2.10.7 and will be removed in version 3.0.0.
 
 **Reason for Deprecation:**
 This module is currently UNUSED in production code. All production usage goes
-through BrokerTimeInForce enum in broker_enums.py or Alpaca SDK directly.
+through Alpaca SDK enums directly (alpaca.trading.enums).
 
 **Issues Identified:**
 1. DEAD CODE: No production code instantiates this class
 2. VALIDATION REDUNDANCY: __post_init__ validation is unreachable due to Literal type
-3. MISSING FEATURES: Lacks from_string() and to_alpaca() methods that BrokerTimeInForce has
-4. ARCHITECTURAL DUPLICATION: BrokerTimeInForce provides superior functionality
+3. ARCHITECTURAL DUPLICATION: Alpaca SDK provides native enum support
 
 **Migration Path:**
-Use BrokerTimeInForce from broker_enums.py instead.
+Use Alpaca SDK enums directly from alpaca.trading.enums.
 See FILE_REVIEW_time_in_force.md for full audit report.
 
 **Usage (if not deprecated):**
@@ -49,12 +47,11 @@ class TimeInForce:
     """Time-in-force specification with validation.
 
     .. deprecated:: 2.10.7
-       TimeInForce is deprecated. Use BrokerTimeInForce from broker_enums.py instead.
+       TimeInForce is deprecated. Use Alpaca SDK enums directly.
        This class will be removed in version 3.0.0.
 
     **DEPRECATED**: This class is deprecated as of version 2.10.7 and will be removed
-    in version 3.0.0. Use BrokerTimeInForce from broker_enums.py instead, which provides
-    from_string() and to_alpaca() conversion methods.
+    in version 3.0.0. Use Alpaca SDK enums (TimeInForce from alpaca.trading.enums) directly.
 
     **WARNING**: This class has validation redundancy. The Literal type constraint
     at the type-checking level makes the __post_init__ runtime validation unreachable
@@ -95,7 +92,7 @@ class TimeInForce:
         # Emit deprecation warning
         warnings.warn(
             "TimeInForce is deprecated as of version 2.10.7 and will be removed in "
-            "version 3.0.0. Use BrokerTimeInForce from broker_enums.py instead.",
+            "version 3.0.0. Use Alpaca SDK enums (TimeInForce from alpaca.trading.enums) directly.",
             DeprecationWarning,
             stacklevel=2,
         )
