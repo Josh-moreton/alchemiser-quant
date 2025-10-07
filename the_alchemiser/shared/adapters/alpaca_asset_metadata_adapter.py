@@ -4,13 +4,20 @@ Alpaca Asset Metadata Adapter.
 
 Provides AssetMetadataProvider implementation using AlpacaManager,
 bridging the domain protocol with the Alpaca broker infrastructure.
+
+This adapter handles exceptions from AlpacaManager and provides
+appropriate fallback behavior for the domain layer.
 """
 
 from __future__ import annotations
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
+from the_alchemiser.shared.errors.exceptions import DataProviderError, RateLimitError
+from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.protocols.asset_metadata import AssetMetadataProvider
 from the_alchemiser.shared.value_objects.symbol import Symbol
+
+logger = get_logger(__name__)
 
 
 class AlpacaAssetMetadataAdapter(AssetMetadataProvider):
@@ -34,8 +41,21 @@ class AlpacaAssetMetadataAdapter(AssetMetadataProvider):
         Returns:
             True if the asset supports fractional shares
 
+        Raises:
+            RateLimitError: If rate limit exceeded (should be retried)
+            DataProviderError: If asset not found or data invalid
+
         """
-        return self._alpaca_manager.is_fractionable(str(symbol))
+        try:
+            return self._alpaca_manager.is_fractionable(str(symbol))
+        except RateLimitError:
+            # Re-raise rate limit errors for upstream retry logic
+            logger.warning("Rate limit checking fractionability", symbol=str(symbol))
+            raise
+        except DataProviderError:
+            # Re-raise data provider errors (asset not found, etc.)
+            logger.error("Asset not found for fractionability check", symbol=str(symbol))
+            raise
 
     def get_asset_class(self, symbol: Symbol) -> str:
         """Get the asset class for a symbol.
@@ -63,8 +83,17 @@ class AlpacaAssetMetadataAdapter(AssetMetadataProvider):
             True if notional orders should be used
 
         """
-        # Use notional orders for non-fractionable assets
-        if not self.is_fractionable(symbol):
+        try:
+            # Use notional orders for non-fractionable assets
+            if not self.is_fractionable(symbol):
+                return True
+        except (DataProviderError, RateLimitError) as e:
+            # If we can't determine fractionability, use notional as safer fallback
+            logger.warning(
+                "Could not determine fractionability, using notional order",
+                symbol=str(symbol),
+                error=str(e),
+            )
             return True
 
         # Use notional for very small fractional amounts (< 1 share)
