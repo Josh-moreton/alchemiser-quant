@@ -74,15 +74,25 @@ class TestMoneyConstruction:
 
     @pytest.mark.unit
     def test_invalid_currency_code_too_short(self):
-        """Test that currency codes must be 3 characters."""
-        with pytest.raises(InvalidCurrencyError, match="Currency must be ISO 4217"):
+        """Test that currency codes must be valid ISO 4217 codes."""
+        with pytest.raises(InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"):
             Money(Decimal("100.00"), "US")
 
     @pytest.mark.unit
     def test_invalid_currency_code_too_long(self):
-        """Test that currency codes must be 3 characters."""
-        with pytest.raises(InvalidCurrencyError, match="Currency must be ISO 4217"):
+        """Test that currency codes must be valid ISO 4217 codes."""
+        with pytest.raises(InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"):
             Money(Decimal("100.00"), "USDD")
+    
+    @pytest.mark.unit
+    def test_invalid_currency_code_not_in_iso_4217(self):
+        """Test that only valid ISO 4217 codes are accepted."""
+        # 3-letter code but not valid ISO 4217
+        with pytest.raises(InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"):
+            Money(Decimal("100.00"), "XXX")
+        
+        with pytest.raises(InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"):
+            Money(Decimal("100.00"), "ABC")
 
     @pytest.mark.unit
     def test_valid_three_letter_currency(self):
@@ -150,6 +160,78 @@ class TestMoneyConstruction:
         """Test is_zero() returns False for small non-zero amount."""
         m = Money(Decimal("0.01"), "USD")
         assert m.is_zero() is False
+
+
+class TestMultiCurrencyPrecision:
+    """Test multi-currency precision support."""
+
+    @pytest.mark.unit
+    def test_usd_two_decimal_precision(self):
+        """Test USD uses 2 decimal precision."""
+        m = Money(Decimal("100.123"), "USD")
+        assert m.amount == Decimal("100.12")
+
+    @pytest.mark.unit
+    def test_jpy_zero_decimal_precision(self):
+        """Test JPY uses 0 decimal precision."""
+        m = Money(Decimal("1000.99"), "JPY")
+        assert m.amount == Decimal("1001")  # Rounds to nearest whole number
+
+    @pytest.mark.unit
+    def test_bhd_three_decimal_precision(self):
+        """Test BHD uses 3 decimal precision."""
+        m = Money(Decimal("100.1234"), "BHD")
+        assert m.amount == Decimal("100.123")
+
+    @pytest.mark.unit
+    def test_btc_eight_decimal_precision(self):
+        """Test BTC uses 8 decimal precision."""
+        m = Money(Decimal("1.123456789"), "BTC")
+        assert m.amount == Decimal("1.12345679")  # Rounds to 8 decimals
+
+    @pytest.mark.unit
+    def test_is_zero_currency_aware(self):
+        """Test is_zero() is currency-aware."""
+        usd_zero = Money.zero("USD")
+        jpy_zero = Money.zero("JPY")
+        bhd_zero = Money.zero("BHD")
+        
+        assert usd_zero.is_zero() is True
+        assert jpy_zero.is_zero() is True
+        assert bhd_zero.is_zero() is True
+
+    @pytest.mark.unit
+    def test_get_supported_currencies(self):
+        """Test get_supported_currencies() returns valid list."""
+        from the_alchemiser.shared.types.money import get_supported_currencies
+        
+        currencies = get_supported_currencies()
+        assert isinstance(currencies, list)
+        assert len(currencies) > 0
+        assert "USD" in currencies
+        assert "JPY" in currencies
+        assert "BHD" in currencies
+        assert "EUR" in currencies
+        # Should be sorted
+        assert currencies == sorted(currencies)
+
+    @pytest.mark.unit
+    def test_get_currency_precision(self):
+        """Test get_currency_precision() returns correct values."""
+        from the_alchemiser.shared.types.money import get_currency_precision
+        
+        assert get_currency_precision("USD") == 2
+        assert get_currency_precision("JPY") == 0
+        assert get_currency_precision("BHD") == 3
+        assert get_currency_precision("BTC") == 8
+
+    @pytest.mark.unit
+    def test_get_currency_precision_invalid(self):
+        """Test get_currency_precision() raises for invalid currency."""
+        from the_alchemiser.shared.types.money import get_currency_precision
+        
+        with pytest.raises(InvalidCurrencyError, match="not supported"):
+            get_currency_precision("XXX")
 
 
 class TestMoneyAddition:

@@ -5,6 +5,42 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 
+# ISO 4217 currency codes with their decimal precision
+# Source: https://www.iso.org/iso-4217-currency-codes.html
+_CURRENCY_PRECISION: dict[str, int] = {
+    # Major currencies (2 decimals)
+    "USD": 2, "EUR": 2, "GBP": 2, "AUD": 2, "CAD": 2, "CHF": 2, "CNY": 2,
+    "SEK": 2, "NZD": 2, "MXN": 2, "SGD": 2, "HKD": 2, "NOK": 2,
+    "TRY": 2, "INR": 2, "RUB": 2, "BRL": 2, "ZAR": 2, "DKK": 2, "PLN": 2,
+    "TWD": 2, "THB": 2, "MYR": 2, "IDR": 2, "HUF": 2, "CZK": 2, "ILS": 2,
+    "PHP": 2, "AED": 2, "COP": 2, "SAR": 2, "RON": 2,
+    "ARS": 2, "UAH": 2, "NGN": 2, "EGP": 2, "PKR": 2, "QAR": 2, "KES": 2,
+    
+    # Zero decimal currencies (no minor units)
+    "JPY": 0,  # Japanese Yen
+    "KRW": 0,  # South Korean Won
+    "VND": 0,  # Vietnamese Dong
+    "CLP": 0,  # Chilean Peso
+    "ISK": 0,  # Icelandic Króna
+    "PYG": 0,  # Paraguayan Guaraní
+    "UGX": 0,  # Ugandan Shilling
+    "VUV": 0,  # Vanuatu Vatu
+    "XAF": 0,  # Central African CFA Franc
+    "XOF": 0,  # West African CFA Franc
+    "XPF": 0,  # CFP Franc
+    
+    # Three decimal currencies (1/1000 unit)
+    "BHD": 3,  # Bahraini Dinar
+    "JOD": 3,  # Jordanian Dinar
+    "KWD": 3,  # Kuwaiti Dinar
+    "OMR": 3,  # Omani Rial
+    "TND": 3,  # Tunisian Dinar
+    
+    # Cryptocurrencies (8 decimals for satoshi-level precision)
+    "BTC": 8,  # Bitcoin
+    "ETH": 8,  # Ethereum
+}
+
 
 class MoneyError(ValueError):
     """Base exception for Money-related errors."""
@@ -34,8 +70,8 @@ class Money:
     All arithmetic operations use Decimal to avoid floating-point precision errors.
 
     Attributes:
-        amount: The monetary amount as a Decimal, normalized to 2 decimal places.
-        currency: The ISO 4217 3-letter currency code (e.g., "USD", "EUR").
+        amount: The monetary amount as a Decimal, normalized to currency precision.
+        currency: The ISO 4217 3-letter currency code (e.g., "USD", "EUR", "JPY").
 
     Examples:
         >>> m1 = Money(Decimal("100.50"), "USD")
@@ -45,17 +81,23 @@ class Money:
 
         >>> m1.multiply(Decimal("2"))
         Money(amount=Decimal('201.00'), currency='USD')
+        
+        >>> # Japanese Yen (0 decimals)
+        >>> yen = Money(Decimal("1000"), "JPY")
+        >>> str(yen)
+        '1000 JPY'
 
     Notes:
         - Use Decimal for all arithmetic to avoid float precision errors.
-        - Amount is normalized to 2 decimal places (USD-style) by default.
+        - Amount is normalized to currency-specific precision (USD=2, JPY=0, BHD=3).
         - Money objects are immutable and hashable (can be used in sets/dicts).
         - Money objects are comparable (supports ==, !=, <, >, <=, >=).
         - Amounts must be non-negative (use negate() for representation purposes).
+        - Supports 50+ ISO 4217 currencies with correct decimal precision.
 
     Raises:
         NegativeMoneyError: If amount is negative.
-        InvalidCurrencyError: If currency code is not 3 characters.
+        InvalidCurrencyError: If currency code is not a valid ISO 4217 code.
         CurrencyMismatchError: If operations are attempted on different currencies.
 
     """
@@ -66,21 +108,28 @@ class Money:
     def __post_init__(self) -> None:
         """Normalize the amount to standard precision after initialization.
 
-        Validates amount and currency, then normalizes amount to 2 decimal places
-        using ROUND_HALF_UP rounding mode.
+        Validates amount and currency, then normalizes amount to the appropriate
+        decimal places for the currency using ROUND_HALF_UP rounding mode.
 
         Raises:
             NegativeMoneyError: If amount is negative.
-            InvalidCurrencyError: If currency is not a 3-character string.
+            InvalidCurrencyError: If currency is not a valid ISO 4217 code.
 
         """
         if self.amount < 0:
             raise NegativeMoneyError(f"Money amount cannot be negative, got: {self.amount}")
-        if len(self.currency) != 3:
+        
+        # Validate currency against ISO 4217 codes
+        if self.currency not in _CURRENCY_PRECISION:
             raise InvalidCurrencyError(
-                f"Currency must be ISO 4217 3-letter code, got: {self.currency!r}"
+                f"Currency must be a valid ISO 4217 code, got: {self.currency!r}. "
+                f"Supported currencies: {', '.join(sorted(_CURRENCY_PRECISION.keys()))}"
             )
-        normalized = self.amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        
+        # Get precision for this currency
+        precision = _CURRENCY_PRECISION[self.currency]
+        quantizer = Decimal(10) ** -precision
+        normalized = self.amount.quantize(quantizer, rounding=ROUND_HALF_UP)
         object.__setattr__(self, "amount", normalized)
 
     def __str__(self) -> str:
@@ -266,7 +315,54 @@ class Money:
             False
 
         """
-        return self.amount == Decimal("0.00")
+        precision = _CURRENCY_PRECISION[self.currency]
+        quantizer = Decimal(10) ** -precision
+        return self.amount == Decimal("0").quantize(quantizer)
+
+
+def get_supported_currencies() -> list[str]:
+    """Get list of supported ISO 4217 currency codes.
+    
+    Returns:
+        Sorted list of supported currency codes.
+    
+    Examples:
+        >>> "USD" in get_supported_currencies()
+        True
+        >>> "JPY" in get_supported_currencies()
+        True
+    
+    """
+    return sorted(_CURRENCY_PRECISION.keys())
+
+
+def get_currency_precision(currency: str) -> int:
+    """Get decimal precision for a currency.
+    
+    Args:
+        currency: ISO 4217 currency code.
+    
+    Returns:
+        Number of decimal places for the currency.
+    
+    Raises:
+        InvalidCurrencyError: If currency is not supported.
+    
+    Examples:
+        >>> get_currency_precision("USD")
+        2
+        >>> get_currency_precision("JPY")
+        0
+        >>> get_currency_precision("BHD")
+        3
+    
+    """
+    if currency not in _CURRENCY_PRECISION:
+        raise InvalidCurrencyError(
+            f"Currency {currency!r} is not supported. "
+            f"Use get_supported_currencies() for a list of supported currencies."
+        )
+    return _CURRENCY_PRECISION[currency]
 
 
 __all__ = [
@@ -276,4 +372,6 @@ __all__ = [
     "Money",
     "MoneyError",
     "NegativeMoneyError",
+    "get_currency_precision",
+    "get_supported_currencies",
 ]
