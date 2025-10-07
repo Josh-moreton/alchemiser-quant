@@ -1,3 +1,18 @@
+## 2.16.1 - 2025-10-07
+
+### Fixed
+- **AWS Lambda deployment**: Fixed layer size exceeding 250MB unzipped limit and build failures
+  - **Moved `pyarrow` from main to dev dependencies** - only needed for local backtest scripts, saves ~100MB
+  - **Added `--use-container` flag to SAM build** - ensures Lambda-compatible wheel resolution for pandas/numpy
+  - Enhanced `template.yaml` exclusions to prevent dev-only files from being packaged:
+    - Excluded `scripts/` directory (backtest, stress_test - dev only)
+    - Excluded data files (*.csv, *.parquet, data/ directory)
+    - Excluded all Python cache artifacts (*.pyc, *.pyo, __pycache__)
+    - Excluded documentation and configuration files not needed at runtime
+  - Added Docker availability check in deployment script (required for container builds)
+  - **Layer size reduced from ~287MB to ~149MB unzipped** (well under 250MB limit)
+  - Changed pandas version constraint from `2.3.3` to `^2.2.0` for better wheel compatibility
+
 ## 2.5.16 - 2025-10-03
 
 ### Changed
