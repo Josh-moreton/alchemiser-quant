@@ -75,23 +75,31 @@ class TestMoneyConstruction:
     @pytest.mark.unit
     def test_invalid_currency_code_too_short(self):
         """Test that currency codes must be valid ISO 4217 codes."""
-        with pytest.raises(InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"):
+        with pytest.raises(
+            InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"
+        ):
             Money(Decimal("100.00"), "US")
 
     @pytest.mark.unit
     def test_invalid_currency_code_too_long(self):
         """Test that currency codes must be valid ISO 4217 codes."""
-        with pytest.raises(InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"):
+        with pytest.raises(
+            InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"
+        ):
             Money(Decimal("100.00"), "USDD")
-    
+
     @pytest.mark.unit
     def test_invalid_currency_code_not_in_iso_4217(self):
         """Test that only valid ISO 4217 codes are accepted."""
         # 3-letter code but not valid ISO 4217
-        with pytest.raises(InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"):
+        with pytest.raises(
+            InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"
+        ):
             Money(Decimal("100.00"), "XXX")
-        
-        with pytest.raises(InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"):
+
+        with pytest.raises(
+            InvalidCurrencyError, match="Currency must be a valid ISO 4217 code"
+        ):
             Money(Decimal("100.00"), "ABC")
 
     @pytest.mark.unit
@@ -195,7 +203,7 @@ class TestMultiCurrencyPrecision:
         usd_zero = Money.zero("USD")
         jpy_zero = Money.zero("JPY")
         bhd_zero = Money.zero("BHD")
-        
+
         assert usd_zero.is_zero() is True
         assert jpy_zero.is_zero() is True
         assert bhd_zero.is_zero() is True
@@ -204,7 +212,7 @@ class TestMultiCurrencyPrecision:
     def test_get_supported_currencies(self):
         """Test get_supported_currencies() returns valid list."""
         from the_alchemiser.shared.types.money import get_supported_currencies
-        
+
         currencies = get_supported_currencies()
         assert isinstance(currencies, list)
         assert len(currencies) > 0
@@ -219,7 +227,7 @@ class TestMultiCurrencyPrecision:
     def test_get_currency_precision(self):
         """Test get_currency_precision() returns correct values."""
         from the_alchemiser.shared.types.money import get_currency_precision
-        
+
         assert get_currency_precision("USD") == 2
         assert get_currency_precision("JPY") == 0
         assert get_currency_precision("BHD") == 3
@@ -229,7 +237,7 @@ class TestMultiCurrencyPrecision:
     def test_get_currency_precision_invalid(self):
         """Test get_currency_precision() raises for invalid currency."""
         from the_alchemiser.shared.types.money import get_currency_precision
-        
+
         with pytest.raises(InvalidCurrencyError, match="not supported"):
             get_currency_precision("XXX")
 
@@ -272,7 +280,9 @@ class TestMoneyAddition:
         m1 = Money(Decimal("100.00"), "USD")
         m2 = Money(Decimal("50.00"), "EUR")
 
-        with pytest.raises(CurrencyMismatchError, match="Cannot add different currencies"):
+        with pytest.raises(
+            CurrencyMismatchError, match="Cannot add different currencies"
+        ):
             m1.add(m2)
 
     @pytest.mark.unit
@@ -328,7 +338,9 @@ class TestMoneySubtraction:
         m1 = Money(Decimal("100.00"), "USD")
         m2 = Money(Decimal("50.00"), "EUR")
 
-        with pytest.raises(CurrencyMismatchError, match="Cannot subtract different currencies"):
+        with pytest.raises(
+            CurrencyMismatchError, match="Cannot subtract different currencies"
+        ):
             m1.subtract(m2)
 
     @pytest.mark.unit
@@ -337,7 +349,9 @@ class TestMoneySubtraction:
         m1 = Money(Decimal("50.00"), "USD")
         m2 = Money(Decimal("100.00"), "USD")
 
-        with pytest.raises(NegativeMoneyError, match="Subtraction would result in negative amount"):
+        with pytest.raises(
+            NegativeMoneyError, match="Subtraction would result in negative amount"
+        ):
             m1.subtract(m2)
 
     @pytest.mark.unit
@@ -639,7 +653,11 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="0", max_value="1000000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0",
+            max_value="1000000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         )
     )
     def test_construction_preserves_non_negative(self, amount):
@@ -650,7 +668,11 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="0", max_value="1000000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0",
+            max_value="1000000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         )
     )
     def test_amount_precision_is_two_decimals(self, amount):
@@ -663,10 +685,18 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="0.01", max_value="100000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="100000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
         st.decimals(
-            min_value="0.01", max_value="100000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="100000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
     )
     def test_addition_commutative(self, amount1, amount2):
@@ -682,13 +712,25 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="0.01", max_value="10000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="10000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
         st.decimals(
-            min_value="0.01", max_value="10000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="10000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
         st.decimals(
-            min_value="0.01", max_value="10000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="10000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
     )
     def test_addition_associative(self, amount1, amount2, amount3):
@@ -705,7 +747,11 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="0.01", max_value="100000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="100000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         )
     )
     def test_addition_identity(self, amount):
@@ -720,7 +766,11 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="0.01", max_value="100000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="100000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         )
     )
     def test_multiplication_identity(self, amount):
@@ -733,7 +783,11 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="0.01", max_value="100000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="100000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         )
     )
     def test_multiplication_zero(self, amount):
@@ -746,13 +800,25 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="1.00", max_value="10000", allow_nan=False, allow_infinity=False, places=2
+            min_value="1.00",
+            max_value="10000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
         st.decimals(
-            min_value="0.01", max_value="10", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="10",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
         st.decimals(
-            min_value="0.01", max_value="10", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="10",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
     )
     def test_multiplication_associative(self, amount, factor1, factor2):
@@ -769,10 +835,18 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="0.01", max_value="10000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="10000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
         st.decimals(
-            min_value="0.01", max_value="100", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="100",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
     )
     def test_multiply_result_non_negative(self, amount, factor):
@@ -786,10 +860,18 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="0.10", max_value="10000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.10",
+            max_value="10000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
         st.decimals(
-            min_value="1.10", max_value="100", allow_nan=False, allow_infinity=False, places=2
+            min_value="1.10",
+            max_value="100",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
     )
     def test_multiply_increases_with_factor_greater_than_one(self, amount, factor):
@@ -804,10 +886,18 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="1.00", max_value="10000", allow_nan=False, allow_infinity=False, places=2
+            min_value="1.00",
+            max_value="10000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
         st.decimals(
-            min_value="0.01", max_value="0.99", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="0.99",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
     )
     def test_multiply_decreases_with_factor_less_than_one(self, amount, factor):
@@ -820,10 +910,18 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="1.00", max_value="10000", allow_nan=False, allow_infinity=False, places=2
+            min_value="1.00",
+            max_value="10000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
         st.decimals(
-            min_value="0.01", max_value="1000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="1000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
     )
     def test_subtraction_then_addition_restores_original(self, amount1, amount2):
@@ -840,10 +938,18 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="1.00", max_value="10000", allow_nan=False, allow_infinity=False, places=2
+            min_value="1.00",
+            max_value="10000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
         st.decimals(
-            min_value="1.01", max_value="10", allow_nan=False, allow_infinity=False, places=2
+            min_value="1.01",
+            max_value="10",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
     )
     def test_divide_then_multiply_restores_original(self, amount, divisor):
@@ -866,7 +972,11 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="0.01", max_value="10000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="10000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         )
     )
     def test_subtract_zero_is_identity(self, amount):
@@ -881,10 +991,18 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="1.00", max_value="10000", allow_nan=False, allow_infinity=False, places=2
+            min_value="1.00",
+            max_value="10000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
         st.decimals(
-            min_value="1.01", max_value="100", allow_nan=False, allow_infinity=False, places=2
+            min_value="1.01",
+            max_value="100",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
     )
     def test_division_decreases_with_divisor_greater_than_one(self, amount, divisor):
@@ -899,10 +1017,18 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="0.01", max_value="1000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="1000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
         st.decimals(
-            min_value="0.01", max_value="0.99", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="0.99",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
     )
     def test_division_increases_with_divisor_less_than_one(self, amount, divisor):
@@ -917,10 +1043,18 @@ class TestMoneyProperties:
     @pytest.mark.property
     @given(
         st.decimals(
-            min_value="0.01", max_value="10000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="10000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
         st.decimals(
-            min_value="0.01", max_value="10000", allow_nan=False, allow_infinity=False, places=2
+            min_value="0.01",
+            max_value="10000",
+            allow_nan=False,
+            allow_infinity=False,
+            places=2,
         ),
     )
     def test_comparison_is_transitive(self, amount1, amount2):
