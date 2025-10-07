@@ -47,7 +47,9 @@ class LiquidityAnalysis:
 class LiquidityAnalyzer:
     """Advanced liquidity analysis for smart execution."""
 
-    def __init__(self, min_volume_threshold: float = 100.0, tick_size: float = 0.01) -> None:
+    def __init__(
+        self, min_volume_threshold: float = 100.0, tick_size: float = 0.01
+    ) -> None:
         """Initialize liquidity analyzer.
 
         Args:
@@ -59,7 +61,9 @@ class LiquidityAnalyzer:
         # Convert tick_size to Decimal to avoid floating point precision issues
         self.tick_size = Decimal(str(tick_size))
 
-    def analyze_liquidity(self, quote: QuoteModel, order_size: float) -> LiquidityAnalysis:
+    def analyze_liquidity(
+        self, quote: QuoteModel, order_size: float
+    ) -> LiquidityAnalysis:
         """Perform comprehensive liquidity analysis.
 
         Args:
@@ -89,27 +93,30 @@ class LiquidityAnalyzer:
         total_volume = total_bid_volume + total_ask_volume
         volume_imbalance = 0.0
         if total_volume > 0:
-            volume_imbalance = (total_ask_volume - total_bid_volume) / total_volume
+            # Convert Decimal to float for imbalance calculation
+            volume_imbalance = float(
+                (total_ask_volume - total_bid_volume) / total_volume
+            )
 
         # Calculate liquidity score (0-100)
-        liquidity_score = self._calculate_liquidity_score(quote, total_volume)
+        liquidity_score = self._calculate_liquidity_score(quote, float(total_volume))
 
         # Determine optimal pricing based on volume analysis
         recommended_prices = self._calculate_volume_aware_prices(quote, order_size)
 
         # Calculate confidence based on data quality and volume
-        confidence = self._calculate_confidence(quote, order_size, total_volume)
+        confidence = self._calculate_confidence(quote, order_size, float(total_volume))
 
         analysis = LiquidityAnalysis(
             symbol=quote.symbol,
-            total_bid_volume=total_bid_volume,
-            total_ask_volume=total_ask_volume,
+            total_bid_volume=float(total_bid_volume),
+            total_ask_volume=float(total_ask_volume),
             volume_imbalance=volume_imbalance,
             liquidity_score=liquidity_score,
             recommended_bid_price=recommended_prices["bid"],
             recommended_ask_price=recommended_prices["ask"],
-            volume_at_recommended_bid=total_bid_volume,
-            volume_at_recommended_ask=total_ask_volume,
+            volume_at_recommended_bid=float(total_bid_volume),
+            volume_at_recommended_ask=float(total_ask_volume),
             confidence=confidence,
         )
 
@@ -121,7 +128,9 @@ class LiquidityAnalyzer:
 
         return analysis
 
-    def _calculate_liquidity_score(self, quote: QuoteModel, total_volume: float) -> float:
+    def _calculate_liquidity_score(
+        self, quote: QuoteModel, total_volume: float
+    ) -> float:
         """Calculate overall liquidity score (0-100).
 
         Args:
@@ -137,14 +146,16 @@ class LiquidityAnalyzer:
 
         # Spread score (tighter spreads = higher score)
         spread_pct = (quote.spread / quote.mid_price) * 100
-        spread_score = max(0, 30 - spread_pct * 10)  # Up to 30 points for spread
+        spread_score = max(0, 30 - float(spread_pct) * 10)  # Up to 30 points for spread
 
         # Balance score (balanced book = higher score)
         if total_volume > 0:
-            volume_ratio = min(quote.bid_size, quote.ask_size) / max(quote.bid_size, quote.ask_size)
-            balance_score = volume_ratio * 20  # Up to 20 points for balance
+            volume_ratio = min(quote.bid_size, quote.ask_size) / max(
+                quote.bid_size, quote.ask_size
+            )
+            balance_score = float(volume_ratio) * 20  # Up to 20 points for balance
         else:
-            balance_score = 0
+            balance_score = 0.0
 
         return min(volume_score + spread_score + balance_score, 100.0)
 
@@ -162,8 +173,8 @@ class LiquidityAnalyzer:
 
         """
         # Analyze volume sufficiency at current levels
-        bid_volume_ratio = order_size / max(quote.bid_size, 1.0)
-        ask_volume_ratio = order_size / max(quote.ask_size, 1.0)
+        bid_volume_ratio = order_size / max(float(quote.bid_size), 1.0)
+        ask_volume_ratio = order_size / max(float(quote.ask_size), 1.0)
 
         # Convert prices to Decimal for precise arithmetic
         bid_price = Decimal(str(quote.bid_price))
@@ -199,17 +210,25 @@ class LiquidityAnalyzer:
         # Additional adjustments based on volume imbalance
         total_volume = quote.bid_size + quote.ask_size
         if total_volume > 0:
-            imbalance = (quote.ask_size - quote.bid_size) / total_volume
+            imbalance = float((quote.ask_size - quote.bid_size) / total_volume)
 
             # If heavy bid side (imbalance < -0.2), be more aggressive on buys
             if imbalance < -0.2:
-                recommended_bid = min(recommended_bid + self.tick_size, ask_price - self.tick_size)
-                logger.debug(f"Heavy bid side detected, adjusting buy price to {recommended_bid}")
+                recommended_bid = min(
+                    recommended_bid + self.tick_size, ask_price - self.tick_size
+                )
+                logger.debug(
+                    f"Heavy bid side detected, adjusting buy price to {recommended_bid}"
+                )
 
             # If heavy ask side (imbalance > 0.2), be more aggressive on sells
             elif imbalance > 0.2:
-                recommended_ask = max(recommended_ask - self.tick_size, bid_price + self.tick_size)
-                logger.debug(f"Heavy ask side detected, adjusting sell price to {recommended_ask}")
+                recommended_ask = max(
+                    recommended_ask - self.tick_size, bid_price + self.tick_size
+                )
+                logger.debug(
+                    f"Heavy ask side detected, adjusting sell price to {recommended_ask}"
+                )
 
         # Quantize prices to tick_size precision to avoid floating point errors
         recommended_bid = recommended_bid.quantize(self.tick_size)
@@ -265,15 +284,18 @@ class LiquidityAnalyzer:
             confidence *= 1.0 - volume_penalty * 0.5  # Up to 50% penalty
 
         # Reduce confidence if spread is very wide
-        spread_pct = (quote.spread / quote.mid_price) * 100
+        spread_pct = float((quote.spread / quote.mid_price) * 100)
         if spread_pct > 1.0:  # > 1% spread
             spread_penalty = min(spread_pct / 5.0, 0.4)  # Up to 40% penalty
             confidence *= 1.0 - spread_penalty
 
         # Reduce confidence if order is very large relative to liquidity
-        order_volume_ratio = order_size / max(total_volume, 1.0)
+        available_volume = float(max(total_volume, 1.0))
+        order_volume_ratio = order_size / available_volume
         if order_volume_ratio > 1.0:  # Order larger than available liquidity
-            size_penalty = min((order_volume_ratio - 1.0) * 0.5, 0.6)  # Up to 60% penalty
+            size_penalty = min(
+                (order_volume_ratio - 1.0) * 0.5, 0.6
+            )  # Up to 60% penalty
             confidence *= 1.0 - size_penalty
 
         return max(confidence, 0.1)  # Minimum 10% confidence

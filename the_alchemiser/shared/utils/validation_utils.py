@@ -239,12 +239,14 @@ def validate_quote_freshness(quote_timestamp: datetime, max_age_seconds: float) 
     return quote_age <= max_age_seconds
 
 
-def validate_quote_prices(bid_price: float, ask_price: float) -> bool:
+def validate_quote_prices(
+    bid_price: float | Decimal, ask_price: float | Decimal
+) -> bool:
     """Validate basic quote price constraints.
 
     Args:
-        bid_price: Bid price to validate
-        ask_price: Ask price to validate
+        bid_price: Bid price to validate (float or Decimal)
+        ask_price: Ask price to validate (float or Decimal)
 
     Returns:
         True if prices are valid
@@ -289,13 +291,16 @@ def validate_spread_reasonable(
 
 
 def detect_suspicious_quote_prices(
-    bid_price: float, ask_price: float, min_price: float = 0.01, max_spread_percent: float = 10.0
+    bid_price: float | Decimal,
+    ask_price: float | Decimal,
+    min_price: float = 0.01,
+    max_spread_percent: float = 10.0,
 ) -> tuple[bool, list[str]]:
     """Detect if quote prices look suspicious and should trigger REST validation.
 
     Args:
-        bid_price: Bid price to check
-        ask_price: Ask price to check
+        bid_price: Bid price to check (float or Decimal)
+        ask_price: Ask price to check (float or Decimal)
         min_price: Minimum reasonable price (default $0.01)
         max_spread_percent: Maximum reasonable spread percentage (default 10%)
 
@@ -323,7 +328,8 @@ def detect_suspicious_quote_prices(
 
     # Check for excessive spread (may indicate stale/bad data)
     if bid_price > 0 and ask_price > 0:
-        spread_ratio = (ask_price - bid_price) / ask_price
+        # Convert to float for percentage calculation if needed
+        spread_ratio = (float(ask_price) - float(bid_price)) / float(ask_price)
         spread_percent = spread_ratio * 100
         max_percent = max_spread_percent
 
@@ -331,6 +337,8 @@ def detect_suspicious_quote_prices(
         if spread_percent > max_percent and not math.isclose(
             spread_percent, max_percent, rel_tol=1e-9, abs_tol=1e-9
         ):
-            reasons.append(f"excessive spread: {spread_percent:.2f}% > {max_spread_percent}%")
+            reasons.append(
+                f"excessive spread: {spread_percent:.2f}% > {max_spread_percent}%"
+            )
 
     return len(reasons) > 0, reasons

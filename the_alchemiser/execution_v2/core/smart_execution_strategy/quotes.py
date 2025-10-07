@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import time
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from the_alchemiser.shared.brokers.alpaca_manager import AlpacaManager
 from the_alchemiser.shared.logging import get_logger
@@ -65,7 +66,9 @@ class QuoteProvider:
                 logger.warning(
                     f"🚨 Suspicious streaming prices for {symbol}, validating with REST NBBO"
                 )
-                rest_result = self._validate_suspicious_quote_with_rest(streaming_quote, symbol)
+                rest_result = self._validate_suspicious_quote_with_rest(
+                    streaming_quote, symbol
+                )
                 if rest_result:
                     return rest_result
                 # If REST validation fails, continue with streaming quote as fallback
@@ -123,7 +126,9 @@ class QuoteProvider:
         while elapsed < max_wait_time:
             quote = self.pricing_service.get_quote_data(symbol)
             if quote:
-                logger.info(f"✅ Received streaming quote for {symbol} after {elapsed:.1f}s")
+                logger.info(
+                    f"✅ Received streaming quote for {symbol} after {elapsed:.1f}s"
+                )
                 return quote
 
             time.sleep(check_interval)
@@ -148,7 +153,9 @@ class QuoteProvider:
         )
 
         # Check quote freshness
-        if not validate_quote_freshness(quote.timestamp, self.config.quote_freshness_seconds):
+        if not validate_quote_freshness(
+            quote.timestamp, self.config.quote_freshness_seconds
+        ):
             quote_age = (datetime.now(UTC) - quote.timestamp).total_seconds()
             logger.debug(
                 f"Streaming quote stale for {symbol} ({quote_age:.1f}s > {self.config.quote_freshness_seconds}s)"
@@ -181,7 +188,9 @@ class QuoteProvider:
             True if quote looks suspicious and should be validated with REST
 
         """
-        from the_alchemiser.shared.utils.validation_utils import detect_suspicious_quote_prices
+        from the_alchemiser.shared.utils.validation_utils import (
+            detect_suspicious_quote_prices,
+        )
 
         is_suspicious, reasons = detect_suspicious_quote_prices(
             quote.bid_price,
@@ -212,7 +221,9 @@ class QuoteProvider:
             (corrected_quote, True) if REST validation provides better data, None if REST fails
 
         """
-        logger.info(f"📊 Fetching REST NBBO to validate suspicious streaming prices for {symbol}")
+        logger.info(
+            f"📊 Fetching REST NBBO to validate suspicious streaming prices for {symbol}"
+        )
 
         rest_result = self._try_rest_fallback_quote(symbol)
         if not rest_result:
@@ -224,7 +235,9 @@ class QuoteProvider:
         rest_quote, _ = rest_result
 
         # Check if REST quote is reasonable compared to streaming
-        rest_suspicious, rest_reasons = self._check_quote_suspicious_patterns(rest_quote)
+        rest_suspicious, rest_reasons = self._check_quote_suspicious_patterns(
+            rest_quote
+        )
 
         if rest_suspicious:
             logger.warning(
@@ -248,10 +261,14 @@ class QuoteProvider:
             return rest_quote, True
 
         # If both are similar and REST isn't suspicious, prefer REST for safety
-        logger.info(f"✅ Using REST quote for {symbol} as validation passed (mid=${rest_mid:.2f})")
+        logger.info(
+            f"✅ Using REST quote for {symbol} as validation passed (mid=${rest_mid:.2f})"
+        )
         return rest_quote, True
 
-    def _check_quote_suspicious_patterns(self, quote: QuoteModel) -> tuple[bool, list[str]]:
+    def _check_quote_suspicious_patterns(
+        self, quote: QuoteModel
+    ) -> tuple[bool, list[str]]:
         """Check quote for suspicious patterns without logging.
 
         Args:
@@ -261,7 +278,9 @@ class QuoteProvider:
             Tuple of (is_suspicious, list_of_reasons)
 
         """
-        from the_alchemiser.shared.utils.validation_utils import detect_suspicious_quote_prices
+        from the_alchemiser.shared.utils.validation_utils import (
+            detect_suspicious_quote_prices,
+        )
 
         return detect_suspicious_quote_prices(
             quote.bid_price, quote.ask_price, min_price=0.01, max_spread_percent=10.0
@@ -281,24 +300,28 @@ class QuoteProvider:
         rest_quote = self.alpaca_manager.get_latest_quote(symbol)
 
         if not rest_quote:
-            logger.error(f"❌ No quote data available for {symbol} (streaming and REST failed)")
+            logger.error(
+                f"❌ No quote data available for {symbol} (streaming and REST failed)"
+            )
             return None
 
         # Extract bid/ask from QuoteModel
-        bid_price = float(rest_quote.bid)
-        ask_price = float(rest_quote.ask)
+        bid_price = Decimal(str(rest_quote.bid))
+        ask_price = Decimal(str(rest_quote.ask))
 
         # Create enhanced QuoteModel from REST data for consistent processing
         quote = QuoteModel(
             symbol=symbol,
             bid_price=bid_price,
             ask_price=ask_price,
-            bid_size=0.0,  # REST API doesn't provide size data
-            ask_size=0.0,  # REST API doesn't provide size data
+            bid_size=Decimal("0.0"),  # REST API doesn't provide size data
+            ask_size=Decimal("0.0"),  # REST API doesn't provide size data
             timestamp=datetime.now(UTC),
         )
 
-        logger.info(f"✅ Got REST quote for {symbol}: bid=${bid_price:.2f}, ask=${ask_price:.2f}")
+        logger.info(
+            f"✅ Got REST quote for {symbol}: bid=${bid_price:.2f}, ask=${ask_price:.2f}"
+        )
         return quote, True  # Used REST fallback
 
     def wait_for_quote_data(
@@ -357,17 +380,23 @@ class QuoteProvider:
                     "ask_size": 0,  # Not available in RealTimeQuote
                     "timestamp": real_time_quote.timestamp.timestamp(),
                 }
-                logger.info(f"✅ Got quote for {symbol} after {time.time() - start_time:.1f}s")
+                logger.info(
+                    f"✅ Got quote for {symbol} after {time.time() - start_time:.1f}s"
+                )
                 return quote
 
             time.sleep(check_interval)
             # Exponential backoff to reduce CPU usage
             check_interval = min(check_interval * 1.5, max_interval)
 
-        logger.warning(f"⏱️ Timeout waiting for quote data for {symbol} after {timeout}s")
+        logger.warning(
+            f"⏱️ Timeout waiting for quote data for {symbol} after {timeout}s"
+        )
         return None
 
-    def validate_quote_liquidity(self, symbol: str, quote: dict[str, float | int]) -> bool:
+    def validate_quote_liquidity(
+        self, symbol: str, quote: dict[str, float | int]
+    ) -> bool:
         """Validate that the quote has sufficient liquidity.
 
         Args:
@@ -393,14 +422,18 @@ class QuoteProvider:
 
             # Basic price validation
             if bid_price <= 0 or ask_price <= 0:
-                logger.warning(f"Invalid prices for {symbol}: bid={bid_price}, ask={ask_price}")
+                logger.warning(
+                    f"Invalid prices for {symbol}: bid={bid_price}, ask={ask_price}"
+                )
                 return False
 
             # Spread validation (max 0.5% spread for liquidity)
             spread = (ask_price - bid_price) / ask_price
             max_spread = 0.005  # 0.5%
             if spread > max_spread:
-                logger.warning(f"Spread too wide for {symbol}: {spread:.2%} > {max_spread:.2%}")
+                logger.warning(
+                    f"Spread too wide for {symbol}: {spread:.2%} > {max_spread:.2%}"
+                )
                 return False
 
             # Size validation (ensure minimum liquidity)
@@ -435,14 +468,14 @@ class QuoteProvider:
         # Try to get structured quote data first
         quote_data = self.pricing_service.get_quote_data(symbol)
         if quote_data:
-            # Convert to dict format for compatibility
+            # Convert to dict format for compatibility (convert Decimal to float for JSON/logging)
             ts = quote_data.timestamp
             timestamp_value = ts.timestamp() if isinstance(ts, datetime) else float(ts)
             return {
-                "bid_price": quote_data.bid_price,
-                "ask_price": quote_data.ask_price,
-                "bid_size": quote_data.bid_size,
-                "ask_size": quote_data.ask_size,
+                "bid_price": float(quote_data.bid_price),
+                "ask_price": float(quote_data.ask_price),
+                "bid_size": float(quote_data.bid_size),
+                "ask_size": float(quote_data.ask_size),
                 "timestamp": timestamp_value,
             }
 
@@ -451,8 +484,8 @@ class QuoteProvider:
         if spread:
             bid, ask = spread
             return {
-                "bid_price": bid,
-                "ask_price": ask,
+                "bid_price": float(bid),
+                "ask_price": float(ask),
                 "bid_size": 0,  # Unknown
                 "ask_size": 0,  # Unknown
                 "timestamp": datetime.now(UTC).timestamp(),
