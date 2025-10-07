@@ -20,7 +20,7 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
-from the_alchemiser.shared.errors import EnhancedDataError
+from the_alchemiser.shared.types.exceptions import MarketDataError
 from the_alchemiser.strategy_v2.indicators.indicator_utils import (
     FALLBACK_INDICATOR_VALUE,
     _extract_series,
@@ -193,14 +193,14 @@ class TestSafeGetIndicator:
         assert result == FALLBACK_INDICATOR_VALUE
 
     def test_reraises_enhanced_data_error(self):
-        """Test that EnhancedDataError is re-raised with warning."""
+        """Test that MarketDataError is re-raised with warning."""
         data = pd.Series([100.0, 102.0, 101.0])
         
         def indicator_with_validation_error(series: pd.Series) -> pd.Series:
-            raise EnhancedDataError("Validation failed")
+            raise MarketDataError("Validation failed")
         
         # Should re-raise the exception
-        with pytest.raises(EnhancedDataError, match="Validation failed"):
+        with pytest.raises(MarketDataError, match="Validation failed"):
             safe_get_indicator(data, indicator_with_validation_error)
 
 

@@ -13,13 +13,13 @@ import time
 from decimal import Decimal
 from typing import TypedDict
 
-from the_alchemiser.shared.errors import EnhancedAlchemiserError
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.types.exceptions import AlchemiserError
 
 logger = get_logger(__name__)
 
 
-class OrderTrackerError(EnhancedAlchemiserError):
+class OrderTrackerError(AlchemiserError):
     """Error raised by OrderTracker operations."""
 
 
@@ -71,7 +71,9 @@ class OrderTracker:
         """
         if not order_id or not isinstance(order_id, str):
             msg = f"order_id must be non-empty string, got: {type(order_id).__name__}"
-            logger.error(msg, order_id=order_id if isinstance(order_id, str) else "invalid")
+            logger.error(
+                msg, order_id=order_id if isinstance(order_id, str) else "invalid"
+            )
             raise OrderTrackerError(msg)
 
         with self._lock:
@@ -96,16 +98,24 @@ class OrderTracker:
         """
         if not order_id or not isinstance(order_id, str):
             msg = f"order_id must be non-empty string, got: {type(order_id).__name__}"
-            logger.error(msg, order_id=order_id if isinstance(order_id, str) else "invalid")
+            logger.error(
+                msg, order_id=order_id if isinstance(order_id, str) else "invalid"
+            )
             raise OrderTrackerError(msg)
 
         with self._lock:
             if status is not None:
                 self._order_status[order_id] = str(status).lower()
-                logger.debug("Updated order status", order_id=order_id, status=str(status).lower())
+                logger.debug(
+                    "Updated order status",
+                    order_id=order_id,
+                    status=str(status).lower(),
+                )
             if avg_price is not None:
                 self._order_avg_price[order_id] = avg_price
-                logger.debug("Updated order price", order_id=order_id, avg_price=str(avg_price))
+                logger.debug(
+                    "Updated order price", order_id=order_id, avg_price=str(avg_price)
+                )
 
     def signal_completion(self, order_id: str) -> None:
         """Signal that an order has completed.
@@ -119,7 +129,9 @@ class OrderTracker:
         """
         if not order_id or not isinstance(order_id, str):
             msg = f"order_id must be non-empty string, got: {type(order_id).__name__}"
-            logger.error(msg, order_id=order_id if isinstance(order_id, str) else "invalid")
+            logger.error(
+                msg, order_id=order_id if isinstance(order_id, str) else "invalid"
+            )
             raise OrderTrackerError(msg)
 
         with self._lock:
@@ -145,7 +157,9 @@ class OrderTracker:
         """
         if not order_id or not isinstance(order_id, str):
             msg = f"order_id must be non-empty string, got: {type(order_id).__name__}"
-            logger.error(msg, order_id=order_id if isinstance(order_id, str) else "invalid")
+            logger.error(
+                msg, order_id=order_id if isinstance(order_id, str) else "invalid"
+            )
             raise OrderTrackerError(msg)
 
         if timeout <= 0:
@@ -163,7 +177,9 @@ class OrderTracker:
         )
         return completed
 
-    def wait_for_multiple_orders(self, order_ids: list[str], timeout: float = 30.0) -> list[str]:
+    def wait_for_multiple_orders(
+        self, order_ids: list[str], timeout: float = 30.0
+    ) -> list[str]:
         """Wait for multiple orders to complete within timeout.
 
         Args:
@@ -190,7 +206,9 @@ class OrderTracker:
         completed: list[str] = []
         start_time = time.time()
 
-        logger.debug("Waiting for multiple orders", order_count=len(order_ids), timeout=timeout)
+        logger.debug(
+            "Waiting for multiple orders", order_count=len(order_ids), timeout=timeout
+        )
 
         for order_id in order_ids:
             remaining_time = timeout - (time.time() - start_time)
@@ -227,7 +245,9 @@ class OrderTracker:
         """
         if not order_id or not isinstance(order_id, str):
             msg = f"order_id must be non-empty string, got: {type(order_id).__name__}"
-            logger.error(msg, order_id=order_id if isinstance(order_id, str) else "invalid")
+            logger.error(
+                msg, order_id=order_id if isinstance(order_id, str) else "invalid"
+            )
             raise OrderTrackerError(msg)
 
         with self._lock:
@@ -248,7 +268,9 @@ class OrderTracker:
         """
         if not order_id or not isinstance(order_id, str):
             msg = f"order_id must be non-empty string, got: {type(order_id).__name__}"
-            logger.error(msg, order_id=order_id if isinstance(order_id, str) else "invalid")
+            logger.error(
+                msg, order_id=order_id if isinstance(order_id, str) else "invalid"
+            )
             raise OrderTrackerError(msg)
 
         with self._lock:
@@ -318,7 +340,9 @@ class OrderTracker:
         """
         if not order_id or not isinstance(order_id, str):
             msg = f"order_id must be non-empty string, got: {type(order_id).__name__}"
-            logger.error(msg, order_id=order_id if isinstance(order_id, str) else "invalid")
+            logger.error(
+                msg, order_id=order_id if isinstance(order_id, str) else "invalid"
+            )
             raise OrderTrackerError(msg)
 
         with self._lock:
@@ -364,7 +388,11 @@ class OrderTracker:
                     [p for p in self._order_avg_price.values() if p is not None]
                 ),
                 "completed_orders": len(
-                    [s for s in self._order_status.values() if self.is_terminal_status(s)]
+                    [
+                        s
+                        for s in self._order_status.values()
+                        if self.is_terminal_status(s)
+                    ]
                 ),
             }
             logger.debug("Retrieved tracking stats", **stats)

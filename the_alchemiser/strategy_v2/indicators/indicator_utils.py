@@ -11,7 +11,7 @@ from collections.abc import Callable
 
 import pandas as pd
 
-from the_alchemiser.shared.errors import EnhancedDataError
+from the_alchemiser.shared.types.exceptions import MarketDataError
 from the_alchemiser.shared.logging import get_logger
 
 logger = get_logger(__name__)
@@ -166,7 +166,7 @@ def safe_get_indicator(
         )
         return FALLBACK_INDICATOR_VALUE
 
-    except EnhancedDataError as e:
+    except MarketDataError as e:
         # Re-raise enhanced errors (these are domain-specific validation errors)
         logger.warning(f"Validation error in indicator {indicator_func.__name__}: {e}")
         raise

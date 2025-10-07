@@ -68,8 +68,6 @@ __all__ = [
     "CircuitBreakerOpenError",
     "ConfigurationError",
     "DataProviderError",
-    "EnhancedAlchemiserError",
-    "EnhancedDataError",
     "EnhancedErrorReporter",
     "ErrorCategory",
     "ErrorDetails",

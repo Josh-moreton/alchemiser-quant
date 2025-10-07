@@ -30,7 +30,6 @@ from .error_types import (
     ErrorNotificationData,
 )
 from .error_utils import (
-    categorize_error_severity,
     retry_with_backoff,
 )
 

@@ -24,8 +24,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from the_alchemiser.shared.errors import EnhancedDataError
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.types.exceptions import MarketDataError
 
 # Module-level constants for indicator calculations
 DEFAULT_RSI_WINDOW = 14
@@ -57,7 +57,9 @@ class TechnicalIndicators:
     @staticmethod
     def rsi(
         data: pd.Series, window: int = DEFAULT_RSI_WINDOW
-    ) -> pd.Series:  # Enhanced: Ready for IndicatorData structured output in future phases
+    ) -> (
+        pd.Series
+    ):  # Enhanced: Ready for IndicatorData structured output in future phases
         """Calculate RSI using Wilder's smoothing method.
 
         Computes the Relative Strength Index (RSI) using Wilder's smoothing
@@ -78,7 +80,7 @@ class TechnicalIndicators:
                 filled with 50 (neutral RSI value).
 
         Raises:
-            EnhancedDataError: If window is not positive or data is invalid.
+            MarketDataError: If window is not positive or data is invalid.
 
         Example:
             >>> prices = pd.Series([100, 102, 101, 103, 105, 104, 106])
@@ -96,7 +98,7 @@ class TechnicalIndicators:
         if window <= 0:
             msg = f"RSI window must be positive, got {window}"
             logger.error(msg)
-            raise EnhancedDataError(msg)
+            raise MarketDataError(msg)
 
         if len(data) == 0:
             logger.warning("Empty data series provided to RSI calculation")
@@ -133,7 +135,7 @@ class TechnicalIndicators:
             return rsi.fillna(NEUTRAL_RSI_VALUE)
         except (ValueError, TypeError, KeyError) as e:
             logger.error(f"Error calculating RSI: {e}", exc_info=True)
-            raise EnhancedDataError(f"Failed to calculate RSI: {e}") from e
+            raise MarketDataError(f"Failed to calculate RSI: {e}") from e
 
     @staticmethod
     def moving_average(data: pd.Series, window: int) -> pd.Series:
@@ -154,7 +156,7 @@ class TechnicalIndicators:
                 insufficient data is available.
 
         Raises:
-            EnhancedDataError: If window is not positive or data is invalid.
+            MarketDataError: If window is not positive or data is invalid.
 
         Example:
             >>> prices = pd.Series([100, 102, 101, 103, 105])
@@ -172,7 +174,7 @@ class TechnicalIndicators:
         if window <= 0:
             msg = f"Moving average window must be positive, got {window}"
             logger.error(msg)
-            raise EnhancedDataError(msg)
+            raise MarketDataError(msg)
 
         if len(data) == 0:
             logger.warning("Empty data series provided to moving_average calculation")
@@ -182,7 +184,7 @@ class TechnicalIndicators:
             return data.rolling(window=window, min_periods=window).mean()
         except (ValueError, TypeError, KeyError) as e:
             logger.error(f"Error calculating moving average: {e}", exc_info=True)
-            raise EnhancedDataError(f"Failed to calculate moving average: {e}") from e
+            raise MarketDataError(f"Failed to calculate moving average: {e}") from e
 
     @staticmethod
     def exponential_moving_average(data: pd.Series, window: int) -> pd.Series:
@@ -202,7 +204,7 @@ class TechnicalIndicators:
                 masked as pd.NA to align with SMA behavior.
 
         Raises:
-            EnhancedDataError: If window is not positive or data is invalid.
+            MarketDataError: If window is not positive or data is invalid.
 
         Example:
             >>> prices = pd.Series([100, 102, 101, 103, 105])
@@ -215,10 +217,12 @@ class TechnicalIndicators:
         if window <= 0:
             msg = f"EMA window must be positive, got {window}"
             logger.error(msg)
-            raise EnhancedDataError(msg)
+            raise MarketDataError(msg)
 
         if len(data) == 0:
-            logger.warning("Empty data series provided to exponential_moving_average calculation")
+            logger.warning(
+                "Empty data series provided to exponential_moving_average calculation"
+            )
             return pd.Series(dtype=float)
 
         try:
@@ -227,8 +231,12 @@ class TechnicalIndicators:
             ema.iloc[: window - 1] = pd.NA
             return ema
         except (ValueError, TypeError, KeyError) as e:
-            logger.error(f"Error calculating exponential moving average: {e}", exc_info=True)
-            raise EnhancedDataError(f"Failed to calculate exponential moving average: {e}") from e
+            logger.error(
+                f"Error calculating exponential moving average: {e}", exc_info=True
+            )
+            raise MarketDataError(
+                f"Failed to calculate exponential moving average: {e}"
+            ) from e
 
     @staticmethod
     def moving_average_return(data: pd.Series, window: int) -> pd.Series:
@@ -248,7 +256,7 @@ class TechnicalIndicators:
                 or invalid inputs.
 
         Raises:
-            EnhancedDataError: If window is not positive or data contains invalid values.
+            MarketDataError: If window is not positive or data contains invalid values.
 
         Example:
             >>> prices = pd.Series([100, 102, 101, 103, 105, 104])
@@ -266,10 +274,12 @@ class TechnicalIndicators:
         if window <= 0:
             msg = f"Moving average return window must be positive, got {window}"
             logger.error(msg)
-            raise EnhancedDataError(msg)
+            raise MarketDataError(msg)
 
         if len(data) == 0:
-            logger.warning("Empty data series provided to moving_average_return calculation")
+            logger.warning(
+                "Empty data series provided to moving_average_return calculation"
+            )
             return pd.Series(dtype=float)
 
         if len(data) < window:
@@ -284,7 +294,9 @@ class TechnicalIndicators:
             return returns.rolling(window=window).mean() * 100
         except (ValueError, TypeError, KeyError) as e:
             logger.error(f"Error calculating moving average return: {e}", exc_info=True)
-            raise EnhancedDataError(f"Failed to calculate moving average return: {e}") from e
+            raise MarketDataError(
+                f"Failed to calculate moving average return: {e}"
+            ) from e
 
     @staticmethod
     def cumulative_return(data: pd.Series, window: int) -> pd.Series:
@@ -304,7 +316,7 @@ class TechnicalIndicators:
                 all periods if calculation fails or insufficient data.
 
         Raises:
-            EnhancedDataError: If window is not positive or data contains invalid values.
+            MarketDataError: If window is not positive or data contains invalid values.
 
         Example:
             >>> prices = pd.Series([100, 102, 98, 105, 110])
@@ -322,10 +334,12 @@ class TechnicalIndicators:
         if window <= 0:
             msg = f"Cumulative return window must be positive, got {window}"
             logger.error(msg)
-            raise EnhancedDataError(msg)
+            raise MarketDataError(msg)
 
         if len(data) == 0:
-            logger.warning("Empty data series provided to cumulative_return calculation")
+            logger.warning(
+                "Empty data series provided to cumulative_return calculation"
+            )
             return pd.Series(dtype=float)
 
         if len(data) <= window:
@@ -339,7 +353,7 @@ class TechnicalIndicators:
             return ((data / data.shift(window)) - 1) * 100
         except (ValueError, TypeError, KeyError, ZeroDivisionError) as e:
             logger.error(f"Error calculating cumulative return: {e}", exc_info=True)
-            raise EnhancedDataError(f"Failed to calculate cumulative return: {e}") from e
+            raise MarketDataError(f"Failed to calculate cumulative return: {e}") from e
 
     @staticmethod
     def stdev_return(data: pd.Series, window: int) -> pd.Series:
@@ -358,7 +372,7 @@ class TechnicalIndicators:
                 The first (window-1) values will be NaN due to insufficient data.
 
         Raises:
-            EnhancedDataError: If window is not positive or data contains invalid values.
+            MarketDataError: If window is not positive or data contains invalid values.
 
         Example:
             >>> prices = pd.Series([100, 102, 98, 105, 103, 107])
@@ -375,7 +389,7 @@ class TechnicalIndicators:
         if window <= 0:
             msg = f"Standard deviation window must be positive, got {window}"
             logger.error(msg)
-            raise EnhancedDataError(msg)
+            raise MarketDataError(msg)
 
         if len(data) == 0:
             logger.warning("Empty data series provided to stdev_return calculation")
@@ -391,8 +405,10 @@ class TechnicalIndicators:
             returns = data.pct_change() * 100
             return returns.rolling(window=window, min_periods=window).std()
         except (ValueError, TypeError, KeyError) as e:
-            logger.error(f"Error calculating standard deviation of returns: {e}", exc_info=True)
-            raise EnhancedDataError(
+            logger.error(
+                f"Error calculating standard deviation of returns: {e}", exc_info=True
+            )
+            raise MarketDataError(
                 f"Failed to calculate standard deviation of returns: {e}"
             ) from e
 
@@ -413,7 +429,7 @@ class TechnicalIndicators:
                 The first (window-1) values will be NaN due to insufficient data.
 
         Raises:
-            EnhancedDataError: If window is not positive or data contains invalid values.
+            MarketDataError: If window is not positive or data contains invalid values.
 
         Example:
             >>> prices = pd.Series([100, 105, 98, 102, 95, 110])
@@ -430,7 +446,7 @@ class TechnicalIndicators:
         if window <= 0:
             msg = f"Max drawdown window must be positive, got {window}"
             logger.error(msg)
-            raise EnhancedDataError(msg)
+            raise MarketDataError(msg)
 
         if len(data) == 0:
             logger.warning("Empty data series provided to max_drawdown calculation")
@@ -462,7 +478,9 @@ class TechnicalIndicators:
                 drawdowns = (x / roll_max) - 1.0
                 return float(-drawdowns.min() * 100.0)
 
-            return data.rolling(window=window, min_periods=window).apply(mdd_window, raw=False)
+            return data.rolling(window=window, min_periods=window).apply(
+                mdd_window, raw=False
+            )
         except (ValueError, TypeError, KeyError) as e:
             logger.error(f"Error calculating maximum drawdown: {e}", exc_info=True)
-            raise EnhancedDataError(f"Failed to calculate maximum drawdown: {e}") from e
+            raise MarketDataError(f"Failed to calculate maximum drawdown: {e}") from e
