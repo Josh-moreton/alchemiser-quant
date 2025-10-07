@@ -68,9 +68,13 @@ class ErrorContextData(BaseModel):
         default=None, description="Links to the event that triggered this operation"
     )
 
-    # Error location (required fields)
-    operation: str = Field(description="Operation being performed when error occurred")
-    component: str = Field(description="Component/module where error originated")
+    # Error location (optional for backward compatibility)
+    operation: str | None = Field(
+        default=None, description="Operation being performed when error occurred"
+    )
+    component: str | None = Field(
+        default=None, description="Component/module where error originated"
+    )
     function_name: str | None = Field(
         default=None, description="Specific function that raised the error"
     )
