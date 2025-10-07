@@ -18,27 +18,27 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ErrorContextData(BaseModel):
     """Unified error context for event-driven architecture.
-    
+
     Consolidates three previous implementations into one canonical version
     with full support for event tracing and error tracking.
-    
+
     Event Tracing (Required):
         - correlation_id: Traces request/workflow across services
         - causation_id: Links to triggering event in event chains
-    
+
     Error Location:
         - operation: What operation was being performed
         - component: Which component/module encountered the error
         - function_name: Specific function that raised the error
-    
+
     Request Context (Optional):
         - request_id: External request identifier
         - session_id: User session identifier
-    
+
     Metadata:
         - additional_data: Flexible dict for extra context
         - timestamp: When the error occurred (ISO 8601)
-    
+
     Examples:
         >>> context = ErrorContextData(
         ...     operation="execute_order",
@@ -50,75 +50,61 @@ class ErrorContextData(BaseModel):
         'execute_order'
         >>> context.timestamp  # Auto-generated
         '2025-10-07T12:34:56.789012+00:00'
-    
+
     """
-    
+
     model_config = ConfigDict(
         strict=True,
         frozen=True,
         extra="forbid",
     )
-    
+
     # Event tracing (REQUIRED for event-driven architecture)
     correlation_id: str | None = Field(
         default=None,
-        description="Traces request/workflow across services and event handlers"
+        description="Traces request/workflow across services and event handlers",
     )
     causation_id: str | None = Field(
-        default=None,
-        description="Links to the event that triggered this operation"
+        default=None, description="Links to the event that triggered this operation"
     )
-    
+
     # Error location (required fields)
-    operation: str = Field(
-        description="Operation being performed when error occurred"
-    )
-    component: str = Field(
-        description="Component/module where error originated"
-    )
+    operation: str = Field(description="Operation being performed when error occurred")
+    component: str = Field(description="Component/module where error originated")
     function_name: str | None = Field(
-        default=None,
-        description="Specific function that raised the error"
+        default=None, description="Specific function that raised the error"
     )
-    
+
     # Legacy compatibility (from v2 implementation)
     module: str | None = Field(
-        default=None,
-        description="Module name (legacy, use component instead)"
+        default=None, description="Module name (legacy, use component instead)"
     )
     function: str | None = Field(
-        default=None,
-        description="Function name (legacy, use function_name instead)"
+        default=None, description="Function name (legacy, use function_name instead)"
     )
-    
+
     # Request context (optional)
     request_id: str | None = Field(
-        default=None,
-        description="External request identifier"
+        default=None, description="External request identifier"
     )
-    session_id: str | None = Field(
-        default=None,
-        description="User session identifier"
-    )
-    
+    session_id: str | None = Field(default=None, description="User session identifier")
+
     # Flexible additional data
     additional_data: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional context-specific data"
+        default_factory=dict, description="Additional context-specific data"
     )
-    
+
     # Timestamp (auto-generated)
     timestamp: str = Field(
         default_factory=lambda: datetime.now(UTC).isoformat(),
-        description="ISO 8601 timestamp when error context was created"
+        description="ISO 8601 timestamp when error context was created",
     )
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization.
-        
+
         Returns:
             Dictionary with all non-None fields
-            
+
         """
         return self.model_dump(exclude_none=True, mode="python")
-

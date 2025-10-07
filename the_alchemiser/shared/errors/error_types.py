@@ -52,62 +52,55 @@ class ErrorCategory:
 # Minimal error schema types (prefer importing from shared.schemas.errors)
 class ErrorDetailInfo(BaseModel):
     """Error detail information (minimal version).
-    
+
     DEPRECATED: Use the_alchemiser.shared.schemas.errors.ErrorDetailInfo instead.
     This simplified version exists for backward compatibility.
     """
-    
+
     model_config = ConfigDict(strict=True, frozen=True)
-    
+
     error_type: str = Field(description="Exception class name")
     error_message: str = Field(description="Human-readable error message")
 
 
 class ErrorSummaryData(BaseModel):
     """Error summary data (minimal version).
-    
+
     DEPRECATED: Use the_alchemiser.shared.schemas.errors.ErrorSummaryData instead.
     This simplified version exists for backward compatibility.
     """
-    
+
     model_config = ConfigDict(strict=True, frozen=True)
-    
+
     count: int = Field(description="Number of errors", ge=0)
     errors: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="List of error details"
+        default_factory=list, description="List of error details"
     )
 
 
 class ErrorReportSummary(BaseModel):
     """Error report summary (minimal version).
-    
+
     DEPRECATED: Use the_alchemiser.shared.schemas.errors.ErrorReportSummary instead.
     This simplified version exists for backward compatibility.
     """
-    
+
     model_config = ConfigDict(strict=True, frozen=True)
-    
-    critical: dict[str, Any] | None = Field(
-        default=None,
-        description="Critical errors"
-    )
-    trading: dict[str, Any] | None = Field(
-        default=None,
-        description="Trading errors"
-    )
+
+    critical: dict[str, Any] | None = Field(default=None, description="Critical errors")
+    trading: dict[str, Any] | None = Field(default=None, description="Trading errors")
 
 
 class ErrorNotificationData(BaseModel):
     """Error notification data (extended version).
-    
+
     NOTE: This version includes extra fields (success, email_sent, correlation_id, event_id)
     not present in shared.schemas.errors.ErrorNotificationData.
     Consider using the canonical version for new code.
     """
-    
+
     model_config = ConfigDict(strict=True, frozen=True)
-    
+
     severity: str = Field(description="Error severity level")
     priority: str = Field(description="Notification priority")
     title: str = Field(description="Notification title")
@@ -115,11 +108,5 @@ class ErrorNotificationData(BaseModel):
     html_content: str = Field(description="HTML-formatted content")
     success: bool = Field(description="Whether notification succeeded")
     email_sent: bool = Field(description="Whether email was sent")
-    correlation_id: str | None = Field(
-        default=None,
-        description="Event correlation ID"
-    )
-    event_id: str | None = Field(
-        default=None,
-        description="Event identifier"
-    )
+    correlation_id: str | None = Field(default=None, description="Event correlation ID")
+    event_id: str | None = Field(default=None, description="Event identifier")

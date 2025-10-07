@@ -18,13 +18,13 @@ from pydantic import BaseModel, ConfigDict, Field
 # Error Detail Types
 class ErrorDetailInfo(BaseModel):
     """Detailed error information for reporting.
-    
+
     Contains comprehensive information about a single error for
     detailed reporting and debugging.
     """
-    
+
     model_config = ConfigDict(strict=True, frozen=True)
-    
+
     error_type: str = Field(description="Exception class name")
     error_message: str = Field(description="Human-readable error message")
     category: str = Field(description="Error category (CRITICAL, TRADING, DATA, etc.)")
@@ -33,79 +33,69 @@ class ErrorDetailInfo(BaseModel):
     timestamp: str = Field(description="ISO 8601 timestamp")
     traceback: str = Field(description="Full Python traceback")
     additional_data: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional error metadata"
+        default_factory=dict, description="Additional error metadata"
     )
     suggested_action: str | None = Field(
-        default=None,
-        description="Recommended remediation action"
+        default=None, description="Recommended remediation action"
     )
 
 
 class ErrorSummaryData(BaseModel):
     """Summary of errors by category.
-    
+
     Aggregates multiple errors of the same category for reporting.
     """
-    
+
     model_config = ConfigDict(strict=True, frozen=True)
-    
+
     count: int = Field(description="Number of errors in this category", ge=0)
     errors: list[ErrorDetailInfo] = Field(
-        default_factory=list,
-        description="List of error details"
+        default_factory=list, description="List of error details"
     )
 
 
 class ErrorReportSummary(BaseModel):
     """Comprehensive error report summary.
-    
+
     Top-level aggregation of all error categories for system-wide
     error reporting.
     """
-    
+
     model_config = ConfigDict(strict=True, frozen=True)
-    
+
     critical: ErrorSummaryData | None = Field(
-        default=None,
-        description="Critical system errors"
+        default=None, description="Critical system errors"
     )
     trading: ErrorSummaryData | None = Field(
-        default=None,
-        description="Trading execution errors"
+        default=None, description="Trading execution errors"
     )
     data: ErrorSummaryData | None = Field(
-        default=None,
-        description="Data provider/market data errors"
+        default=None, description="Data provider/market data errors"
     )
     strategy: ErrorSummaryData | None = Field(
-        default=None,
-        description="Strategy execution errors"
+        default=None, description="Strategy execution errors"
     )
     configuration: ErrorSummaryData | None = Field(
-        default=None,
-        description="Configuration errors"
+        default=None, description="Configuration errors"
     )
     notification: ErrorSummaryData | None = Field(
-        default=None,
-        description="Notification system errors"
+        default=None, description="Notification system errors"
     )
     warning: ErrorSummaryData | None = Field(
-        default=None,
-        description="Warning-level issues"
+        default=None, description="Warning-level issues"
     )
 
 
 # Error Notification Types
 class ErrorNotificationData(BaseModel):
     """Data for error notifications.
-    
+
     Contains formatted error information for sending via
     email, Slack, or other notification channels.
     """
-    
+
     model_config = ConfigDict(strict=True, frozen=True)
-    
+
     severity: str = Field(description="Error severity level")
     priority: str = Field(description="Notification priority")
     title: str = Field(description="Notification title")
@@ -117,4 +107,3 @@ class ErrorNotificationData(BaseModel):
 # The TypedDict version here is deprecated and will be removed in v3.0.0
 # Import from shared.errors.context instead:
 #   from the_alchemiser.shared.errors.context import ErrorContextData
-
