@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **BREAKING**: Completed TypedDict → Pydantic migration for runtime validation
   - Migrated `shared/schemas/errors.py`: ErrorDetailInfo, ErrorSummaryData, ErrorReportSummary, ErrorNotificationData, ErrorContextData
-  - Migrated `shared/schemas/reporting.py`: DashboardMetrics, ReportingData, EmailReportData, EmailCredentials, EmailSummary, BacktestResult, PerformanceMetrics  
+  - Migrated `shared/schemas/reporting.py`: DashboardMetrics, ReportingData, EmailReportData, EmailCredentials, EmailSummary, BacktestResult, PerformanceMetrics
   - Migrated `shared/schemas/cli.py`: CLIOptions, CLICommandResult, CLISignalData, CLIAccountDisplay, CLIPortfolioData, CLIOrderDisplay
   - **All schemas now use Pydantic BaseModel with `ConfigDict(strict=True, frozen=True)` for immutability and runtime validation**
   - **Breaking changes**:
@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - ErrorContextData construction now requires Pydantic kwargs (e.g., `ErrorNotificationData(error_type=..., message=...)`)
     - Empty dicts are now returned instead of None for optional dict fields (Pydantic default_factory behavior)
     - `.to_dict()` methods use `model_dump(exclude_none=True)` (None values omitted from dict)
-  
+
 ### Added
 - Unified `shared/errors/context.py` with canonical ErrorContextData implementation
   - Full event-driven architecture support: `correlation_id`, `causation_id` fields
@@ -58,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Rationale**: Exceptions are error-handling constructs, not type definitions; semantically belong in errors/ module
   - **Migration**: Replace `from the_alchemiser.shared.types.exceptions import ...` with `from the_alchemiser.shared.errors.exceptions import ...`
 
-### Fixed  
+### Fixed
 - Resolved 5 mypy errors from missing EnhancedDataError/EnhancedAlchemiserError (deleted in PR #1976)
 - Updated all internal module imports in errors/ directory for consistency
 
