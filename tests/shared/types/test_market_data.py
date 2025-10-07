@@ -81,10 +81,10 @@ class TestBarModel:
         bar = BarModel(
             symbol="AAPL",
             timestamp=datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC),
-            open=150.0,
-            high=155.0,
-            low=149.0,
-            close=154.0,
+            open=Decimal("150.0"),
+            high=Decimal("155.0"),
+            low=Decimal("149.0"),
+            close=Decimal("154.0"),
             volume=1000000,
         )
         result = bar.to_dict()
@@ -353,7 +353,7 @@ class TestDataFrameConversions:
         ]
         df = bars_to_dataframe(original_bars)
         converted_bars = dataframe_to_bars(df, "AAPL")
-        
+
         assert len(converted_bars) == len(original_bars)
         assert converted_bars[0].open == original_bars[0].open
         assert converted_bars[0].close == original_bars[0].close
@@ -362,7 +362,7 @@ class TestDataFrameConversions:
 
 class TestPrecisionCorrectness:
     """Tests demonstrating precision correctness with Decimal usage.
-    
+
     These tests verify that Decimal types maintain precision in financial
     calculations, as required by Alchemiser guardrails.
     """
@@ -380,7 +380,7 @@ class TestPrecisionCorrectness:
         }
         bar = BarModel.from_dict(data)
         result = bar.to_dict()
-        
+
         # Precision is preserved with Decimal
         assert result["open"] == Decimal("150.123456789")
         assert result["high"] == Decimal("155.987654321")

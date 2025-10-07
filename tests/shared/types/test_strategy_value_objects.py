@@ -21,7 +21,10 @@ from hypothesis import strategies as st
 from pydantic import ValidationError
 
 from the_alchemiser.shared.types.percentage import Percentage
-from the_alchemiser.shared.types.strategy_value_objects import ActionLiteral, StrategySignal
+from the_alchemiser.shared.types.strategy_value_objects import (
+    ActionLiteral,
+    StrategySignal,
+)
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 
@@ -415,7 +418,8 @@ class TestStrategySignalPropertyBased:
         assert signal.symbol.value == symbol.upper()
         assert signal.action == action
         assert signal.target_allocation == allocation
-        assert signal.reasoning == reasoning
+        # StrategySignal has str_strip_whitespace=True, so compare against stripped version
+        assert signal.reasoning == reasoning.strip()
         assert signal.timestamp == ts
 
     @given(

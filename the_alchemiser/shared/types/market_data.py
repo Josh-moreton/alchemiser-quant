@@ -62,6 +62,7 @@ class BarModel:
         - Timestamps must be timezone-aware UTC
         - Prices should be non-negative
         - Volume should be non-negative
+
     """
 
     symbol: str
@@ -75,7 +76,6 @@ class BarModel:
     @classmethod
     def from_dict(cls, data: MarketDataPoint) -> BarModel:
         """Create from MarketDataPoint TypedDict.
-
 
         Converts Decimal values from TypedDict to float for internal storage.
         Validates input data and ensures timezone-aware timestamps.
@@ -103,6 +103,7 @@ class BarModel:
             ...     "volume": 1000000,
             ... }
             >>> bar = BarModel.from_dict(data)
+
         """
         # Validate symbol
         symbol = data["symbol"]
@@ -192,6 +193,7 @@ class BarModel:
 
         Returns:
             MarketDataPoint TypedDict suitable for adapter layer
+
         """
         return {
             "symbol": self.symbol,
@@ -217,6 +219,7 @@ class BarModel:
 
         Note:
             Uses Decimal comparison which is exact and suitable for financial data.
+
         """
         return (
             self.high >= max(self.open, self.close)
@@ -246,6 +249,7 @@ class QuoteModel:
     Properties:
         spread: Bid-ask spread (ask_price - bid_price)
         mid_price: Mid-point price ((bid_price + ask_price) / 2)
+
     """
 
     symbol: str
@@ -258,7 +262,6 @@ class QuoteModel:
     @classmethod
     def from_dict(cls, data: QuoteData, symbol: str) -> QuoteModel:
         """Create from QuoteData TypedDict (domain-pure).
-
 
         Converts Decimal values from TypedDict to float for internal storage.
         Validates input data and ensures timezone-aware timestamps.
@@ -275,6 +278,7 @@ class QuoteModel:
             ValueError: If symbol is empty
             ValueError: If prices or sizes are negative
             ValueError: If bid_price > ask_price (inverted quote)
+
         """
         # Validate symbol
         if not symbol or not symbol.strip():
@@ -353,6 +357,7 @@ class QuoteModel:
 
         Returns:
             QuoteData TypedDict suitable for adapter layer
+
         """
         return {
             "bid_price": self.bid_price,
@@ -368,6 +373,7 @@ class QuoteModel:
 
         Returns:
             Spread as (ask_price - bid_price) in Decimal
+
         """
         return self.ask_price - self.bid_price
 
@@ -377,6 +383,7 @@ class QuoteModel:
 
         Returns:
             Mid-price as (bid_price + ask_price) / 2 in Decimal
+
         """
         return (self.bid_price + self.ask_price) / Decimal("2")
 
@@ -401,6 +408,7 @@ class PriceDataModel:
 
     Properties:
         has_quote_data: True if both bid and ask are present
+
     """
 
     symbol: str
@@ -413,7 +421,6 @@ class PriceDataModel:
     @classmethod
     def from_dict(cls, data: PriceData) -> PriceDataModel:
         """Create from PriceData TypedDict.
-
 
         Converts Decimal values from TypedDict to float for internal storage.
         Validates input data and ensures timezone-aware timestamps.
@@ -429,6 +436,7 @@ class PriceDataModel:
             ValueError: If symbol is empty
             ValueError: If price is negative
             ValueError: If bid or ask are negative (when present)
+
         """
         # Validate symbol
         symbol = data["symbol"]
@@ -533,6 +541,7 @@ class PriceDataModel:
 
         Returns:
             PriceData TypedDict suitable for adapter layer
+
         """
         return {
             "symbol": self.symbol,
@@ -549,6 +558,7 @@ class PriceDataModel:
 
         Returns:
             True if both bid and ask are present, False otherwise
+
         """
         return self.bid is not None and self.ask is not None
 
@@ -570,6 +580,7 @@ def bars_to_dataframe(bars: list[BarModel]) -> pd.DataFrame:
         >>> bars = [BarModel(...), BarModel(...)]
         >>> df = bars_to_dataframe(bars)
         >>> df['Close'].mean()  # Calculate average close price
+
     """
     if not bars:
         return pd.DataFrame()
@@ -608,6 +619,7 @@ def dataframe_to_bars(df: pd.DataFrame, symbol: str) -> list[BarModel]:
     Example:
         >>> df = pd.DataFrame(...)  # OHLCV data
         >>> bars = dataframe_to_bars(df, "AAPL")
+
     """
     bars = []
     for timestamp, row in df.iterrows():
@@ -643,6 +655,7 @@ class RealTimeQuote:
         ask: Ask price
         last_price: Last trade price
         timestamp: Quote timestamp
+
     """
 
     bid: float
@@ -662,6 +675,7 @@ class RealTimeQuote:
             Bid price if only bid > 0
             Ask price if only ask > 0
             Last price otherwise
+
         """
         if self.bid > 0 and self.ask > 0:
             return (self.bid + self.ask) / 2
@@ -709,12 +723,11 @@ class QuoteExtractionResult:
 # Public API
 __all__ = [
     "BarModel",
-    "QuoteModel",
     "PriceDataModel",
-    "bars_to_dataframe",
-    "dataframe_to_bars",
-    # Legacy (deprecated but still exported for backward compatibility)
+    "QuoteExtractionResult",
+    "QuoteModel",
     "RealTimeQuote",
     "SubscriptionPlan",
-    "QuoteExtractionResult",
+    "bars_to_dataframe",
+    "dataframe_to_bars",
 ]

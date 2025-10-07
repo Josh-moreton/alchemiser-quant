@@ -18,6 +18,7 @@ Module boundaries:
 
 from __future__ import annotations
 
+from . import feature_pipeline, market_data_adapter
 from .feature_pipeline import FeaturePipeline
 from .market_data_adapter import MarketDataProvider, StrategyMarketDataAdapter
 
@@ -29,3 +30,6 @@ __all__ = [
 
 # Version for compatibility tracking
 __version__ = "2.0.0"
+
+# Clean up namespace to prevent module leakage
+del feature_pipeline, market_data_adapter

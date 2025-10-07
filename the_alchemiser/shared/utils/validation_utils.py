@@ -239,9 +239,7 @@ def validate_quote_freshness(quote_timestamp: datetime, max_age_seconds: float) 
     return quote_age <= max_age_seconds
 
 
-def validate_quote_prices(
-    bid_price: float | Decimal, ask_price: float | Decimal
-) -> bool:
+def validate_quote_prices(bid_price: float | Decimal, ask_price: float | Decimal) -> bool:
     """Validate basic quote price constraints.
 
     Args:
@@ -337,8 +335,6 @@ def detect_suspicious_quote_prices(
         if spread_percent > max_percent and not math.isclose(
             spread_percent, max_percent, rel_tol=1e-9, abs_tol=1e-9
         ):
-            reasons.append(
-                f"excessive spread: {spread_percent:.2f}% > {max_spread_percent}%"
-            )
+            reasons.append(f"excessive spread: {spread_percent:.2f}% > {max_spread_percent}%")
 
     return len(reasons) > 0, reasons
