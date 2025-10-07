@@ -57,9 +57,7 @@ class TechnicalIndicators:
     @staticmethod
     def rsi(
         data: pd.Series, window: int = DEFAULT_RSI_WINDOW
-    ) -> (
-        pd.Series
-    ):  # Enhanced: Ready for IndicatorData structured output in future phases
+    ) -> pd.Series:  # Enhanced: Ready for IndicatorData structured output in future phases
         """Calculate RSI using Wilder's smoothing method.
 
         Computes the Relative Strength Index (RSI) using Wilder's smoothing
@@ -220,9 +218,7 @@ class TechnicalIndicators:
             raise MarketDataError(msg)
 
         if len(data) == 0:
-            logger.warning(
-                "Empty data series provided to exponential_moving_average calculation"
-            )
+            logger.warning("Empty data series provided to exponential_moving_average calculation")
             return pd.Series(dtype=float)
 
         try:
@@ -231,12 +227,8 @@ class TechnicalIndicators:
             ema.iloc[: window - 1] = pd.NA
             return ema
         except (ValueError, TypeError, KeyError) as e:
-            logger.error(
-                f"Error calculating exponential moving average: {e}", exc_info=True
-            )
-            raise MarketDataError(
-                f"Failed to calculate exponential moving average: {e}"
-            ) from e
+            logger.error(f"Error calculating exponential moving average: {e}", exc_info=True)
+            raise MarketDataError(f"Failed to calculate exponential moving average: {e}") from e
 
     @staticmethod
     def moving_average_return(data: pd.Series, window: int) -> pd.Series:
@@ -277,9 +269,7 @@ class TechnicalIndicators:
             raise MarketDataError(msg)
 
         if len(data) == 0:
-            logger.warning(
-                "Empty data series provided to moving_average_return calculation"
-            )
+            logger.warning("Empty data series provided to moving_average_return calculation")
             return pd.Series(dtype=float)
 
         if len(data) < window:
@@ -294,9 +284,7 @@ class TechnicalIndicators:
             return returns.rolling(window=window).mean() * 100
         except (ValueError, TypeError, KeyError) as e:
             logger.error(f"Error calculating moving average return: {e}", exc_info=True)
-            raise MarketDataError(
-                f"Failed to calculate moving average return: {e}"
-            ) from e
+            raise MarketDataError(f"Failed to calculate moving average return: {e}") from e
 
     @staticmethod
     def cumulative_return(data: pd.Series, window: int) -> pd.Series:
@@ -337,9 +325,7 @@ class TechnicalIndicators:
             raise MarketDataError(msg)
 
         if len(data) == 0:
-            logger.warning(
-                "Empty data series provided to cumulative_return calculation"
-            )
+            logger.warning("Empty data series provided to cumulative_return calculation")
             return pd.Series(dtype=float)
 
         if len(data) <= window:
@@ -405,12 +391,8 @@ class TechnicalIndicators:
             returns = data.pct_change() * 100
             return returns.rolling(window=window, min_periods=window).std()
         except (ValueError, TypeError, KeyError) as e:
-            logger.error(
-                f"Error calculating standard deviation of returns: {e}", exc_info=True
-            )
-            raise MarketDataError(
-                f"Failed to calculate standard deviation of returns: {e}"
-            ) from e
+            logger.error(f"Error calculating standard deviation of returns: {e}", exc_info=True)
+            raise MarketDataError(f"Failed to calculate standard deviation of returns: {e}") from e
 
     @staticmethod
     def max_drawdown(data: pd.Series, window: int) -> pd.Series:
@@ -478,9 +460,7 @@ class TechnicalIndicators:
                 drawdowns = (x / roll_max) - 1.0
                 return float(-drawdowns.min() * 100.0)
 
-            return data.rolling(window=window, min_periods=window).apply(
-                mdd_window, raw=False
-            )
+            return data.rolling(window=window, min_periods=window).apply(mdd_window, raw=False)
         except (ValueError, TypeError, KeyError) as e:
             logger.error(f"Error calculating maximum drawdown: {e}", exc_info=True)
             raise MarketDataError(f"Failed to calculate maximum drawdown: {e}") from e

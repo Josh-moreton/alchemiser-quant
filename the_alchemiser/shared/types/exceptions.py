@@ -276,7 +276,7 @@ class DataUnavailableError(MarketDataError):
         available_end_date: str | None = None,
     ) -> None:
         """Initialize data unavailable error with date range context.
-        
+
         Args:
             message: Error message
             symbol: Stock symbol
@@ -284,6 +284,7 @@ class DataUnavailableError(MarketDataError):
             required_end_date: Required end date (ISO format)
             available_start_date: Available start date from provider (ISO format)
             available_end_date: Available end date from provider (ISO format)
+
         """
         super().__init__(message, symbol=symbol, data_type="historical")
         self.required_start_date = required_start_date

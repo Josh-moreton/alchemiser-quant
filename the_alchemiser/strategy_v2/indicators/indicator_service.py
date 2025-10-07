@@ -115,9 +115,7 @@ class IndicatorService:
             rsi_10=rsi_value if window == 10 else None,
             rsi_20=rsi_value if window == 20 else None,
             rsi_21=rsi_value if window == 21 else None,
-            current_price=(
-                Decimal(str(prices.iloc[-1])) if len(prices) > 0 else Decimal("100.0")
-            ),
+            current_price=(Decimal(str(prices.iloc[-1])) if len(prices) > 0 else Decimal("100.0")),
             data_source="real_market_data",
             metadata={"value": rsi_value, "window": window},
         )
@@ -240,9 +238,7 @@ class IndicatorService:
 
         """
         window = int(parameters.get("window", 21))
-        mar_series = self.technical_indicators.moving_average_return(
-            prices, window=window
-        )
+        mar_series = self.technical_indicators.moving_average_return(prices, window=window)
 
         latest = float(mar_series.iloc[-1]) if len(mar_series) > 0 else None
         if latest is None or pd.isna(latest):
@@ -336,9 +332,7 @@ class IndicatorService:
 
         """
         window = int(parameters.get("window", 12))
-        ema_series = self.technical_indicators.exponential_moving_average(
-            prices, window=window
-        )
+        ema_series = self.technical_indicators.exponential_moving_average(prices, window=window)
 
         latest = float(ema_series.iloc[-1]) if len(ema_series) > 0 else None
         if latest is None or pd.isna(latest):

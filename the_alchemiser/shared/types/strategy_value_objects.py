@@ -108,9 +108,7 @@ class StrategySignal(BaseModel):
 
     @field_validator("target_allocation", mode="before")
     @classmethod
-    def normalize_allocation(
-        cls, v: Decimal | float | Percentage | None
-    ) -> Decimal | None:
+    def normalize_allocation(cls, v: Decimal | float | Percentage | None) -> Decimal | None:
         """Convert allocation to Decimal and validate range.
 
         Accepts Decimal, float, int, or Percentage. Converts to Decimal with
