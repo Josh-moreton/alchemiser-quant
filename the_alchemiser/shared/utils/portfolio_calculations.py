@@ -15,6 +15,7 @@ from decimal import Decimal
 from the_alchemiser.shared.config.config import load_settings
 from the_alchemiser.shared.errors.exceptions import ConfigurationError
 from the_alchemiser.shared.logging import get_logger
+from the_alchemiser.shared.types.money import Money
 
 logger = get_logger(__name__)
 
@@ -70,13 +71,13 @@ def build_allocation_comparison(
             "Cannot calculate target allocation values without portfolio value."
         )
 
-    # Convert portfolio_value to Decimal for precise calculations
-    portfolio_value_decimal = Decimal(str(portfolio_value))
+    # Convert portfolio_value to Money for precise calculations
+    portfolio_value_money = Money.from_decimal(Decimal(str(portfolio_value)), "USD")
     logger.debug(
         "Portfolio value determined",
         extra={
             "correlation_id": correlation_id,
-            "portfolio_value": str(portfolio_value_decimal),
+            "portfolio_value": str(portfolio_value_money.to_decimal()),
         },
     )
 
@@ -85,26 +86,39 @@ def build_allocation_comparison(
     # exceed available buying power
     settings = load_settings()
     usage_multiplier = Decimal(str(1.0 - settings.alpaca.cash_reserve_pct))
-    effective_portfolio_value = portfolio_value_decimal * usage_multiplier
+    effective_portfolio_value = portfolio_value_money.multiply(usage_multiplier)
 
     # Calculate target values in dollars using effective portfolio value
     target_values = {}
     for symbol, weight in consolidated_portfolio.items():
-        target_value = effective_portfolio_value * Decimal(str(weight))
-        target_values[symbol] = target_value
+        target_money = effective_portfolio_value.multiply(Decimal(str(weight)))
+        target_values[symbol] = target_money.to_decimal()
 
-    # Convert current position values to Decimal
+    # Convert current position values to Money then extract Decimal
     current_values = {}
     for symbol, market_value in positions_dict.items():
-        current_values[symbol] = Decimal(str(market_value))
+        current_money = Money.from_decimal(Decimal(str(market_value)), "USD")
+        current_values[symbol] = current_money.to_decimal()
 
-    # Calculate deltas (target - current)
+    # Calculate deltas (target - current) using Money for precision
     all_symbols = set(target_values.keys()) | set(current_values.keys())
     deltas: dict[str, Decimal] = {}
     for symbol in all_symbols:
-        target_val = target_values.get(symbol, Decimal("0"))
-        current_val = current_values.get(symbol, Decimal("0"))
-        deltas[symbol] = target_val - current_val
+        target_val_decimal = target_values.get(symbol, Decimal("0"))
+        current_val_decimal = current_values.get(symbol, Decimal("0"))
+
+        target_money = Money.from_decimal(target_val_decimal, "USD")
+        current_money = Money.from_decimal(current_val_decimal, "USD")
+
+        # Perform subtraction with Money to ensure precision
+        if target_money >= current_money:
+            delta_money = target_money.subtract(current_money)
+            deltas[symbol] = delta_money.to_decimal()
+        else:
+            # When current > target, we need a negative delta
+            # Since Money doesn't support negative amounts, compute as -(current - target)
+            delta_money = current_money.subtract(target_money)
+            deltas[symbol] = -delta_money.to_decimal()
 
     logger.info(
         "Allocation comparison completed",

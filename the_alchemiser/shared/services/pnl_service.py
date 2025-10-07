@@ -20,6 +20,7 @@ from the_alchemiser.shared.brokers.alpaca_manager import (
 from the_alchemiser.shared.config.secrets_adapter import get_alpaca_keys
 from the_alchemiser.shared.logging import get_logger
 from the_alchemiser.shared.schemas.pnl import PnLData
+from the_alchemiser.shared.types.money import Money
 
 logger = get_logger(__name__)
 
@@ -238,17 +239,27 @@ class PnLService:
         if not equity_values:
             return None, None, None, None
 
-        start_value = Decimal(str(equity_values[0]))
-        end_value = Decimal(str(equity_values[-1]))
+        # Use Money for precise P&L calculations
+        start_money = Money.from_decimal(Decimal(str(equity_values[0])), "USD")
+        end_money = Money.from_decimal(Decimal(str(equity_values[-1])), "USD")
 
         total_pnl: Decimal | None = None
         total_pnl_pct: Decimal | None = None
-        # equity_values is non-empty here, so start/end are always defined
-        total_pnl = end_value - start_value
-        if start_value > 0:
-            total_pnl_pct = (total_pnl / start_value) * PERCENTAGE_MULTIPLIER
 
-        return start_value, end_value, total_pnl, total_pnl_pct
+        # Calculate total P&L using Money for currency-aware arithmetic
+        if end_money >= start_money:
+            total_pnl_money = end_money.subtract(start_money)
+            total_pnl = total_pnl_money.to_decimal()
+        else:
+            # When end < start (loss), compute as -(start - end)
+            total_pnl_money = start_money.subtract(end_money)
+            total_pnl = -total_pnl_money.to_decimal()
+
+        # Calculate percentage with Money precision
+        if not start_money.is_zero():
+            total_pnl_pct = (total_pnl / start_money.to_decimal()) * PERCENTAGE_MULTIPLIER
+
+        return start_money.to_decimal(), end_money.to_decimal(), total_pnl, total_pnl_pct
 
     def _build_daily_data(
         self,
@@ -265,6 +276,7 @@ class PnLService:
         - Daily P&L = equity[i] - equity[i-1] (0 for first day)
         - Daily %   = (Daily P&L / equity[i-1]) * 100 (0 for first day or if prior is 0)
         - Keep keys as 'profit_loss' and 'profit_loss_pct' for backward-compatible formatting.
+        - Uses Money for precise daily P&L calculations.
 
         """
         daily: list[dict[str, Any]] = []
@@ -274,30 +286,38 @@ class PnLService:
         if n == 0:
             return daily
 
-        prev_equity: Decimal | None = None
+        prev_money: Money | None = None
         for i in range(n):
             ts = timestamps[i]
-            curr_equity = Decimal(str(equity_values[i]))
+            curr_money = Money.from_decimal(Decimal(str(equity_values[i])), "USD")
             date_str = datetime.fromtimestamp(ts, tz=UTC).date().isoformat()
 
-            if prev_equity is None:
+            if prev_money is None:
                 daily_pnl = Decimal("0")
                 daily_pct = Decimal("0")
             else:
-                daily_pnl = curr_equity - prev_equity
-                if prev_equity != 0:
-                    daily_pct = (daily_pnl / prev_equity) * PERCENTAGE_MULTIPLIER
+                # Use Money for precise daily P&L calculation
+                if curr_money >= prev_money:
+                    daily_pnl_money = curr_money.subtract(prev_money)
+                    daily_pnl = daily_pnl_money.to_decimal()
+                else:
+                    # Loss: compute as -(prev - curr)
+                    daily_pnl_money = prev_money.subtract(curr_money)
+                    daily_pnl = -daily_pnl_money.to_decimal()
+
+                if not prev_money.is_zero():
+                    daily_pct = (daily_pnl / prev_money.to_decimal()) * PERCENTAGE_MULTIPLIER
                 else:
                     daily_pct = Decimal("0")
 
             entry: dict[str, Any] = {
                 "date": date_str,
-                "equity": curr_equity,
+                "equity": curr_money.to_decimal(),
                 "profit_loss": daily_pnl,
                 "profit_loss_pct": daily_pct,
             }
             daily.append(entry)
-            prev_equity = curr_equity
+            prev_money = curr_money
 
         return daily
 

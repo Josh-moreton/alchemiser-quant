@@ -266,10 +266,10 @@ def create_issue_via_gh_cli(
         print(f"✅ Created issue #{issue_number}: {file_path}")
 
         return {
-            "number": issue_number,
-            "html_url": issue_url,
+            "number": str(issue_number) if issue_number else "",
+            "html_url": issue_url if issue_url else "",
             "title": title,
-            "labels": labels,
+            "labels": ",".join(labels),
         }
 
     except subprocess.CalledProcessError as e:
@@ -279,7 +279,7 @@ def create_issue_via_gh_cli(
 
 
 def create_master_issue(
-    issues: list[dict],
+    issues: list[dict[str, str | int]],
     commit_sha: str,
     reviewer: str,
     review_date: str,
@@ -288,7 +288,7 @@ def create_master_issue(
 ) -> dict[str, str | int] | None:
     """Create master tracking issue."""
     # Group issues by module
-    by_module = {}
+    by_module: dict[str, list[dict[str, str | int]]] = {}
     for issue in issues:
         if issue:
             # Extract module from labels
@@ -437,7 +437,7 @@ Alerting and notification delivery.
         return None
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     import argparse
 
