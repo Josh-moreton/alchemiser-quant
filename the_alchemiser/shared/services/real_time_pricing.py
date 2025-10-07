@@ -51,6 +51,7 @@ from __future__ import annotations
 import asyncio
 import time
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from the_alchemiser.shared.logging import get_logger
@@ -203,7 +204,9 @@ class RealTimePricingService:
                 # Start cleanup thread
                 self._price_store.start_cleanup(
                     is_connected_callback=lambda: (
-                        self._stream_manager.is_connected() if self._stream_manager else False
+                        self._stream_manager.is_connected()
+                        if self._stream_manager
+                        else False
                     )
                 )
                 self.logger.info("✅ Real-time pricing service started successfully")
@@ -249,13 +252,18 @@ class RealTimePricingService:
                 return
 
             quote_values = self._data_processor.extract_quote_values(data)
-            timestamp = self._data_processor.get_quote_timestamp(quote_values.timestamp_raw)
+            timestamp = self._data_processor.get_quote_timestamp(
+                quote_values.timestamp_raw
+            )
 
             await self._data_processor.log_quote_debug(
                 symbol, quote_values.bid_price, quote_values.ask_price
             )
 
-            if quote_values.bid_price is not None and quote_values.ask_price is not None:
+            if (
+                quote_values.bid_price is not None
+                and quote_values.ask_price is not None
+            ):
                 # Use asyncio.to_thread for potentially blocking lock operations
                 await asyncio.to_thread(
                     self._price_store.update_quote_data,
@@ -302,7 +310,9 @@ class RealTimePricingService:
 
         except Exception as e:
             error_task = asyncio.create_task(
-                asyncio.to_thread(self.logger.error, f"Error processing trade: {e}", exc_info=True)
+                asyncio.to_thread(
+                    self.logger.error, f"Error processing trade: {e}", exc_info=True
+                )
             )
             self._background_tasks.add(error_task)
             error_task.add_done_callback(self._background_tasks.discard)
@@ -349,7 +359,7 @@ class RealTimePricingService:
         """
         return self._price_store.get_price_data(symbol)
 
-    def get_real_time_price(self, symbol: str) -> float | None:
+    def get_real_time_price(self, symbol: str) -> Decimal | float | None:
         """Get the best available real-time price for a symbol.
 
         Priority: mid-price > last trade > bid > ask
@@ -358,19 +368,21 @@ class RealTimePricingService:
             symbol: Stock symbol
 
         Returns:
-            Current price or None if not available
+            Current price (Decimal from structured data or float from legacy) or None if not available
 
         """
         return self._price_store.get_real_time_price(symbol)
 
-    def get_bid_ask_spread(self, symbol: str) -> tuple[float, float] | None:
+    def get_bid_ask_spread(
+        self, symbol: str
+    ) -> tuple[Decimal | float, Decimal | float] | None:
         """Get current bid/ask spread for a symbol.
 
         Args:
             symbol: Stock symbol
 
         Returns:
-            Tuple of (bid, ask) or None if not available
+            Tuple of (bid, ask) - Decimal from structured data or float from legacy, or None if not available
 
         """
         return self._price_store.get_bid_ask_spread(symbol)
@@ -383,7 +395,9 @@ class RealTimePricingService:
         """Get service statistics."""
         last_hb = self._datetime_stats.get("last_heartbeat")
         uptime = (
-            (datetime.now(UTC) - last_hb).total_seconds() if isinstance(last_hb, datetime) else 0
+            (datetime.now(UTC) - last_hb).total_seconds()
+            if isinstance(last_hb, datetime)
+            else 0
         )
 
         # Combine stats from all components
@@ -407,7 +421,9 @@ class RealTimePricingService:
         """
         import os
 
-        feed = (os.getenv("ALPACA_FEED") or os.getenv("ALPACA_DATA_FEED") or "iex").lower()
+        feed = (
+            os.getenv("ALPACA_FEED") or os.getenv("ALPACA_DATA_FEED") or "iex"
+        ).lower()
         if feed not in {"iex", "sip"}:
             self.logger.warning(f"Unknown ALPACA_FEED '{feed}', defaulting to 'iex'")
             return "iex"
@@ -442,7 +458,9 @@ class RealTimePricingService:
         subscription_plan = self._subscription_manager.plan_bulk_subscription(
             normalized_symbols, priority
         )
-        self._subscription_manager.execute_subscription_plan(subscription_plan, priority)
+        self._subscription_manager.execute_subscription_plan(
+            subscription_plan, priority
+        )
 
         if subscription_plan.successfully_added > 0 and self.is_connected():
             self.logger.info(
@@ -519,14 +537,14 @@ class RealTimePricingService:
         # Could implement cleanup logic here if needed
         self.logger.debug(f"Keeping {symbol} subscription active for monitoring")
 
-    def get_optimized_price_for_order(self, symbol: str) -> float | None:
+    def get_optimized_price_for_order(self, symbol: str) -> Decimal | float | None:
         """Get the most accurate price for order placement with temporary subscription.
 
         Args:
             symbol: Stock symbol
 
         Returns:
-            Current price optimized for order accuracy
+            Current price optimized for order accuracy (Decimal from structured data or float from legacy)
 
         """
         return self._price_store.get_optimized_price_for_order(
