@@ -715,12 +715,11 @@ class QuoteExtractionResult:
 # Public API
 __all__ = [
     "BarModel",
-    "QuoteModel",
     "PriceDataModel",
-    "bars_to_dataframe",
-    "dataframe_to_bars",
-    # Legacy (deprecated but still exported for backward compatibility)
+    "QuoteExtractionResult",
+    "QuoteModel",
     "RealTimeQuote",
     "SubscriptionPlan",
-    "QuoteExtractionResult",
+    "bars_to_dataframe",
+    "dataframe_to_bars",
 ]

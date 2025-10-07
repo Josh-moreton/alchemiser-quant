@@ -21,7 +21,10 @@ from hypothesis import strategies as st
 from pydantic import ValidationError
 
 from the_alchemiser.shared.types.percentage import Percentage
-from the_alchemiser.shared.types.strategy_value_objects import ActionLiteral, StrategySignal
+from the_alchemiser.shared.types.strategy_value_objects import (
+    ActionLiteral,
+    StrategySignal,
+)
 from the_alchemiser.shared.value_objects.symbol import Symbol
 
 
