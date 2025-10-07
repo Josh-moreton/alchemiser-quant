@@ -128,6 +128,7 @@ class WebSocketConnectionManager:
         self._api_key = api_key
         self._secret_key = secret_key
         self._paper_trading = paper_trading
+        self._credentials_hash: str  # Set in __new__, type annotation for mypy
 
         # Pricing service (StockDataStream)
         self._pricing_service: RealTimePricingService | None = None

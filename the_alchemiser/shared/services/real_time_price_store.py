@@ -434,7 +434,7 @@ class RealTimePriceStore:
             try:
                 time.sleep(self._cleanup_interval)
 
-                if not self._is_connected():
+                if self._is_connected is None or not self._is_connected():
                     continue
 
                 cutoff_time = datetime.now(UTC) - timedelta(seconds=self._max_quote_age)
